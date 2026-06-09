@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: bin_al_ajouz_db
+    environment:
+      POSTGRES_USER: erp_user
+      POSTGRES_PASSWORD: erp_secret_2024
+      POSTGRES_DB: bin_al_ajouz
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./backend/migrations/001_schema.sql:/docker-entrypoint-initdb.d/01_schema.sql
+      - ./backend/migrations/002_seed.sql:/docker-entrypoint-initdb.d/02_seed.sql
+
+volumes:
+  pgdata:

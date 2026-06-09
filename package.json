@@ -1,0 +1,13 @@
+{
+  "name": "bin-al-ajouz-erp",
+  "version": "1.0.0",
+  "private": true,
+  "description": "بن العجوز ERP",
+  "scripts": {
+    "start": "powershell -ExecutionPolicy Bypass -File ./scripts/start-erp.ps1",
+    "stop": "powershell -ExecutionPolicy Bypass -File ./scripts/stop-erp.ps1",
+    "pm2:start": "pm2 start ecosystem.config.cjs",
+    "pm2:stop": "pm2 stop bin-al-ajouz-api bin-al-ajouz-web",
+    "pm2:logs": "pm2 logs"
+  }
+}

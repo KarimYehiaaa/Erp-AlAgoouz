@@ -1,0 +1,30 @@
+{
+  "name": "bin-al-ajouz-erp-backend",
+  "version": "1.0.0",
+  "description": "بن العجوز ERP - Backend API",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "test": "node --test",
+    "setup-db": "node src/database/setup.js",
+    "reset-admin": "node src/database/reset-admin.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.0",
+    "express-rate-limit": "^7.4.0",
+    "helmet": "^7.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "morgan": "^1.10.0",
+    "multer": "^1.4.5-lts.1",
+    "pdfkit": "^0.15.0",
+    "pg": "^8.12.0",
+    "uuid": "^11.1.1",
+    "xlsx": "^0.18.5",
+    "zod": "^3.23.8"
+  }
+}

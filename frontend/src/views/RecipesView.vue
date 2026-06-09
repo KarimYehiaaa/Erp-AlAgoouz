@@ -850,9 +850,21 @@ const load = async () => {
       warehousesApi(),
     ]);
     const rawRecipes = recRes.data || [];
-    const branchProds = prodRes.data || [];
+    let branchProds = prodRes.data || [];
     allProducts.value = allProdRes.data || [];
     warehouses.value = whRes.data || [];
+
+    // Ensure branchProducts reflects the selected/default warehouse.
+    if (warehouses.value.length) {
+      if (!produceForm.value.warehouse_id) produceForm.value.warehouse_id = warehouses.value[0].id;
+      try {
+        const bpRes = await productsApi.branchProducts({ warehouse_id: produceForm.value.warehouse_id });
+        branchProds = bpRes.data || [];
+      } catch (e) {
+        // fallback to initial result if re-fetch fails
+        console.warn('Failed to re-fetch branchProducts with warehouse_id:', e.message || e);
+      }
+    }
 
     recipes.value = rawRecipes.map((r) => {
       const branchProd = branchProds.find((bp) => bp.id === r.product_id);
@@ -860,11 +872,13 @@ const load = async () => {
         const bpItem = branchProd?.recipe_items?.find?.(
           (ri) => ri.ingredient_product_id === item.ingredient_product_id
         );
-        // Look up the ingredient in allProducts to get the total stock across all warehouses
+        // Prefer branch-specific stock (bpItem) for the selected warehouse, fall back to global total_stock
         const p = allProducts.value.find((prod) => prod.id === item.ingredient_product_id);
+        const branchStock = bpItem?.stock_available ?? item.stock_available ?? null;
+        const globalStock = p ? Number(p.total_stock || 0) : null;
         return {
           ...item,
-          stock_available: p ? Number(p.total_stock || 0) : (bpItem?.stock_available ?? item.stock_available ?? 0),
+          stock_available: branchStock != null ? Number(branchStock) : (globalStock != null ? Number(globalStock) : 0),
         };
       });
 
@@ -1019,6 +1033,17 @@ const saveProduce = async () => {
     });
     closeProduce();
     await load();
+    // Notify other views (inventory) that production occurred
+    try {
+      window.dispatchEvent(new CustomEvent('inventory-updated', {
+        detail: {
+          product_id: produceForm.value.product_id || produceForm.value.recipe_id,
+          warehouse_id: produceForm.value.warehouse_id,
+        }
+      }));
+    } catch (e) {
+      console.warn('Failed to dispatch inventory-updated event', e);
+    }
   } catch (e) {
     produceError.value = e.message || 'فشل الإنتاج';
   } finally {

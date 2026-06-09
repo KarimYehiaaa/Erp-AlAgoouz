@@ -102,15 +102,15 @@ export const restoreRecipeForSale = async (
 ) => {
   const consumedRows = referenceId
     ? (await client.query(
-        `SELECT product_id AS ingredient_product_id,
+      `SELECT product_id AS ingredient_product_id,
                 SUM(quantity) AS quantity
          FROM stock_movements
          WHERE reference_type = $1
            AND reference_id = $2
            AND movement_type = 'consumption'
          GROUP BY product_id`,
-        [referenceType, referenceId]
-      )).rows
+      [referenceType, referenceId]
+    )).rows
     : [];
 
   if (consumedRows.length) {
@@ -408,9 +408,13 @@ export const produceRecipeBatch = async ({ recipeId, quantity, warehouseId, note
     const recipe = recipeRes.rows[0];
     if (!recipe) throw new AppError('Recipe not found or inactive', 404);
 
-    const storeWarehouseId = await getWarehouseIdByCode('STORE', (sql, params) => client.query(sql, params))
-      || await getDefaultWarehouseId((sql, params) => client.query(sql, params));
-    let targetWarehouseId = storeWarehouseId || await resolveWarehouseId(client, warehouseId || recipe.primary_warehouse_id);
+    const storeWarehouseId = await getWarehouseIdByCode('STORE', (sql, params) => client.query(sql, params));
+    let targetWarehouseId;
+    if (warehouseId) {
+      targetWarehouseId = await resolveWarehouseId(client, warehouseId);
+    } else {
+      targetWarehouseId = storeWarehouseId || await resolveWarehouseId(client, recipe.primary_warehouse_id);
+    }
     if (!targetWarehouseId) throw new AppError('Warehouse is required', 400);
 
     const warehouseRes = await client.query(
@@ -462,10 +466,12 @@ export const produceRecipeBatch = async ({ recipeId, quantity, warehouseId, note
         });
       }
 
-      const warehouseCandidates = [
-        targetWarehouseId,
-        ...warehousesRes.rows.map((w) => Number(w.id)).filter((id) => id && id !== targetWarehouseId),
-      ];
+      const warehouseCandidates = warehouseId
+        ? [targetWarehouseId]
+        : [
+          targetWarehouseId,
+          ...warehousesRes.rows.map((w) => Number(w.id)).filter((id) => id && id !== targetWarehouseId),
+        ];
 
       // إصلاح race condition: نعمل FOR UPDATE lock على كل المكونات في نفس الـ transaction
       // بعد pre-check سريع، بدلاً من فحص بدون lock ثم lock منفصل
@@ -514,6 +520,9 @@ export const produceRecipeBatch = async ({ recipeId, quantity, warehouseId, note
       }
 
       if (!warehouseFound) {
+        if (warehouseId) {
+          throw new AppError(`المخزن المحدد لا يحتوي على كميات كافية من المكونات. الرجاء التحقق من المخزن وإعادة المحاولة.`, 400);
+        }
         throw new AppError(`مخزون المكونات غير كافٍ في أي مخزن. تحقق من الكميات المطلوبة.`, 400);
       }
 
@@ -709,14 +718,14 @@ export const reverseProductionBatch = async (movementId, userId, { reverseQty: r
       throw new AppError('هذه العملية تم عكسها مسبقاً', 400);
     }
 
-    const originalQty  = Number(mv.quantity);
-    const reverseQty   = rawReverseQty ? Math.min(Number(rawReverseQty), originalQty) : originalQty;
+    const originalQty = Number(mv.quantity);
+    const reverseQty = rawReverseQty ? Math.min(Number(rawReverseQty), originalQty) : originalQty;
     if (reverseQty <= 0) throw new AppError('الكمية يجب أن تكون أكبر من صفر', 400);
 
-    const productId   = mv.product_id;
+    const productId = mv.product_id;
     const warehouseId = mv.to_warehouse_id;
-    const refType     = mv.movement_type;   // 'production' | 'opening_production'
-    const recipeId    = mv.reference_id;
+    const refType = mv.movement_type;   // 'production' | 'opening_production'
+    const recipeId = mv.reference_id;
 
     // 3) تحقق من توفر المنتج النهائي في المخزن
     const invRow = await inventoryService.lockInventoryRow(client, productId, warehouseId);
@@ -732,9 +741,9 @@ export const reverseProductionBatch = async (movementId, userId, { reverseQty: r
 
     // 4) جلب حركات الـ consumption المرتبطة بهذه الدفعة (±2 دقيقة)
     const window = 2 * 60 * 1000;
-    const dupTime   = new Date(mv.created_at).getTime();
+    const dupTime = new Date(mv.created_at).getTime();
     const startTime = new Date(dupTime - window).toISOString();
-    const endTime   = new Date(dupTime + window).toISOString();
+    const endTime = new Date(dupTime + window).toISOString();
 
     const consRes = await client.query(
       `SELECT * FROM stock_movements
@@ -810,8 +819,8 @@ export const reverseProductionBatch = async (movementId, userId, { reverseQty: r
         `عكس عملية إنتاج — المنتج ${productId} — كمية ${reverseQty}`,
         JSON.stringify({
           movement_id: mv.id,
-          product_id:  productId,
-          recipe_id:   recipeId,
+          product_id: productId,
+          recipe_id: recipeId,
           warehouse_id: warehouseId,
           reversed_qty: reverseQty,
           restored_ingredients: restoredIngredients,
@@ -828,12 +837,12 @@ export const reverseProductionBatch = async (movementId, userId, { reverseQty: r
     );
 
     return {
-      movement_id:           mv.id,
-      product_id:            productId,
-      warehouse_id:          warehouseId,
-      reversed_qty:          reverseQty,
-      new_stock:             Number(newStock.rows[0]?.quantity || 0),
-      restored_ingredients:  restoredIngredients,
+      movement_id: mv.id,
+      product_id: productId,
+      warehouse_id: warehouseId,
+      reversed_qty: reverseQty,
+      new_stock: Number(newStock.rows[0]?.quantity || 0),
+      restored_ingredients: restoredIngredients,
       consumption_movements_found: consRes.rowCount,
     };
   } catch (err) {

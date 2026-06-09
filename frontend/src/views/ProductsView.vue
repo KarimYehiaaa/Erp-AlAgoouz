@@ -223,7 +223,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, onBeforeUnmount, computed } from 'vue';
 import { products as api, warehouses as warehousesApi } from '@/api';
 import { formatMoney } from '@/utils/currency';
 import { useProductMeta } from '@/composables/useProductMeta';
@@ -517,7 +517,23 @@ const deleteOneProduct = async (product) => {
   }
 };
 
-onMounted(load);
+const onInventoryUpdated = (e) => {
+  try {
+    // If detail provided, we could optimize to only refresh affected product
+    load();
+  } catch (err) {
+    console.warn('inventory-updated handler error', err);
+  }
+};
+
+onMounted(() => {
+  load();
+  window.addEventListener('inventory-updated', onInventoryUpdated);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener('inventory-updated', onInventoryUpdated);
+});
 </script>
 
 <style lang="scss" scoped>

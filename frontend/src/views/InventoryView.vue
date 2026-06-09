@@ -30,7 +30,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="i in items" :key="`${i.product_id}-${i.warehouse_id}`" :class="{ 'row-low': i.is_low }">
+            <tr v-for="i in items" :key="`${i.product_id}-${i.warehouse_id}`" :class="[ { 'row-low': i.is_low }, { 'row-highlight': isHighlighted(i) } ]">
               <td class="product-name">
                 {{ i.name_ar }}
                 <span v-if="i.has_active_recipe" class="recipe-chip">وصفة</span>
@@ -288,6 +288,7 @@
 
 <script setup>
 import { onMounted, ref } from 'vue';
+import { onBeforeUnmount } from 'vue';
 import { inventory as inventoryApi } from '@/api';
 
 const tab = ref('stock');
@@ -303,6 +304,7 @@ const downloadingTemplate = ref(false);
 const msg = ref('');
 const err = ref(false);
 const excelResult = ref(null);
+const highlighted = ref({});
 
 const editForm = ref({ id: null, product_id: null, warehouse_id: null, name_ar: '', warehouse_name: '', quantity: 0, min_stock: 0 });
 const transfer = ref({ product_id: null, from_warehouse_id: null, to_warehouse_id: null, quantity: 1 });
@@ -345,9 +347,38 @@ const load = async () => {
   }
 };
 
+// Listen for cross-view inventory updates (e.g., after producing a recipe)
+const onInventoryUpdated = (ev) => {
+  try {
+    const wid = ev?.detail?.warehouse_id;
+    const pid = ev?.detail?.product_id;
+    // if user has filtered to a specific warehouse, only reload when it matches
+    if (!warehouseId.value || !wid || Number(warehouseId.value) === Number(wid)) {
+      load();
+    }
+    // highlight the produced product row for visibility
+    if (pid && wid) {
+      const key = `${pid}-${wid}`;
+      highlighted.value[key] = Date.now();
+      // remove highlight after 5s
+      setTimeout(() => { delete highlighted.value[key]; highlighted.value = { ...highlighted.value }; }, 5000);
+    }
+  } catch (e) {
+    console.warn('inventory-updated handler error', e);
+  }
+};
+
+onMounted(() => window.addEventListener('inventory-updated', onInventoryUpdated));
+onBeforeUnmount(() => window.removeEventListener('inventory-updated', onInventoryUpdated));
+
 const openEdit = (row) => {
   editForm.value = { id: row.id, product_id: row.product_id, warehouse_id: row.warehouse_id, name_ar: row.name_ar, warehouse_name: row.warehouse_name, quantity: Number(row.quantity || 0), min_stock: Number(row.min_stock || 0) };
   showEdit.value = true;
+};
+
+const isHighlighted = (row) => {
+  const key = `${row.product_id}-${row.warehouse_id}`;
+  return Boolean(highlighted.value[key]);
 };
 
 const saveEdit = async () => {
@@ -590,5 +621,12 @@ onMounted(load);
 @media (max-width: 768px) {
   .steps-row { flex-direction: column; .step-arrow { transform: rotate(90deg); } }
   .action-group { flex-direction: column; align-items: flex-start; }
+}
+
+/* Highlight produced row briefly */
+.row-highlight td { animation: inv-highlight 1s ease-in-out 0s 3; }
+@keyframes inv-highlight {
+  0% { background: color-mix(in srgb, var(--success) 35%, transparent); }
+  100% { background: transparent; }
 }
 </style>

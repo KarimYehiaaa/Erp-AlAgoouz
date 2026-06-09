@@ -654,10 +654,27 @@ const onImportExcel = async (e) => {
   e.target.value = '';
 };
 
+onMounted(() => {
 // ─── lifecycle ──────────────────────────────────────────────────────────────
+import { onBeforeUnmount } from 'vue';
+
+const onInventoryUpdated = (e) => {
+  try {
+    loadProducts();
+    // history doesn't need full reload for stock changes
+  } catch (err) {
+    console.warn('inventory-updated handler error', err);
+  }
+};
+
 onMounted(() => {
   loadProducts();
   loadHistory();
+  window.addEventListener('inventory-updated', onInventoryUpdated);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener('inventory-updated', onInventoryUpdated);
 });
 
 const openCountsModal = () => {

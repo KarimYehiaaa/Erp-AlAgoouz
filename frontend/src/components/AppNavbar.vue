@@ -28,41 +28,75 @@
         />
       </div>
 
-      <div class="theme-switcher" ref="themeMenuRoot">
+      <button 
+        class="icon-btn mobile-actions-toggle" 
+        type="button" 
+        @click.stop="mobileActionsOpen = !mobileActionsOpen"
+        :class="{ active: mobileActionsOpen }"
+        title="أدوات إضافية"
+      >
+        <AppIcon name="settings" />
+      </button>
+
+      <div class="navbar-actions-group" :class="{ 'mobile-open': mobileActionsOpen }">
+        <div class="theme-switcher" ref="themeMenuRoot">
+          <button
+            class="icon-btn"
+            type="button"
+            @click.stop="themeMenuOpen = !themeMenuOpen"
+            :title="`نمط الواجهة: ${currentPreset?.name || appStore.stylePreset}`"
+          >
+            <AppIcon :name="currentPreset?.icon || 'theme'" />
+          </button>
+          <transition name="fade">
+            <div v-if="themeMenuOpen" class="theme-menu">
+              <div class="theme-menu-head">
+                <strong>نمط الواجهة</strong>
+                <button type="button" class="theme-mode-toggle" @click="appStore.toggleColorMode($event)">
+                  <AppIcon :name="appStore.colorMode === 'light' ? 'moon' : 'sun'" />
+                  <span>{{ appStore.colorMode === 'light' ? 'داكن' : 'فاتح' }}</span>
+                </button>
+              </div>
+              <button
+                v-for="item in STYLE_PRESETS"
+                :key="item.id"
+                type="button"
+                class="theme-option"
+                :class="{ active: appStore.stylePreset === item.id }"
+                @click="selectPreset(item.id)"
+              >
+                <span class="theme-swatch" :style="{ background: presetSwatch(item.id) }"></span>
+                <span class="theme-meta">
+                  <strong>{{ item.name }}</strong>
+                  <small>{{ item.desc }}</small>
+                </span>
+                <AppIcon v-if="appStore.stylePreset === item.id" name="check" class="theme-check" />
+              </button>
+            </div>
+          </transition>
+        </div>
+
+        <!-- Privacy Toggle (Eye icon) -->
         <button
           class="icon-btn"
           type="button"
-          @click.stop="themeMenuOpen = !themeMenuOpen"
-          :title="`نمط الواجهة: ${currentPreset?.name || appStore.stylePreset}`"
+          @click="appStore.togglePrivacyMode"
+          :title="appStore.privacyMode ? 'إظهار المبالغ (وضع الخصوصية مفعل)' : 'طمس المبالغ (تفعيل وضع الخصوصية)'"
+          :class="{ active: appStore.privacyMode }"
         >
-          <AppIcon :name="currentPreset?.icon || 'theme'" />
+          <AppIcon :name="appStore.privacyMode ? 'eyeOff' : 'eye'" />
         </button>
-        <transition name="fade">
-          <div v-if="themeMenuOpen" class="theme-menu">
-            <div class="theme-menu-head">
-              <strong>نمط الواجهة</strong>
-              <button type="button" class="theme-mode-toggle" @click="appStore.toggleColorMode($event)">
-                <AppIcon :name="appStore.colorMode === 'light' ? 'moon' : 'sun'" />
-                <span>{{ appStore.colorMode === 'light' ? 'داكن' : 'فاتح' }}</span>
-              </button>
-            </div>
-            <button
-              v-for="item in STYLE_PRESETS"
-              :key="item.id"
-              type="button"
-              class="theme-option"
-              :class="{ active: appStore.stylePreset === item.id }"
-              @click="selectPreset(item.id)"
-            >
-              <span class="theme-swatch" :style="{ background: presetSwatch(item.id) }"></span>
-              <span class="theme-meta">
-                <strong>{{ item.name }}</strong>
-                <small>{{ item.desc }}</small>
-              </span>
-              <AppIcon v-if="appStore.stylePreset === item.id" name="check" class="theme-check" />
-            </button>
-          </div>
-        </transition>
+
+        <!-- Data Density Toggle -->
+        <button
+          class="icon-btn"
+          type="button"
+          @click="appStore.toggleDataDensity"
+          :title="appStore.dataDensity === 'compact' ? 'كثافة البيانات: كثيفة (تبديل للمريح)' : 'كثافة البيانات: مريحة (تبديل للمكثف)'"
+          :class="{ active: appStore.dataDensity === 'compact' }"
+        >
+          <AppIcon :name="appStore.dataDensity === 'compact' ? 'maximize' : 'minimize'" />
+        </button>
       </div>
 
       <!-- مؤشر حالة الاتصال بالإنترنت والمزامنة الخلفية -->
@@ -77,29 +111,6 @@
           {{ appStore.pendingSyncCount }} معلقة
         </span>
       </div>
-
-      <!-- Privacy Toggle (Eye icon) -->
-      <button
-        class="icon-btn"
-        type="button"
-        @click="appStore.togglePrivacyMode"
-        :title="appStore.privacyMode ? 'إظهار المبالغ (وضع الخصوصية مفعل)' : 'طمس المبالغ (تفعيل وضع الخصوصية)'"
-        :class="{ active: appStore.privacyMode }"
-      >
-        <AppIcon :name="appStore.privacyMode ? 'eyeOff' : 'eye'" />
-      </button>
-
-      <!-- Data Density Toggle -->
-      <button
-        class="icon-btn"
-        type="button"
-        @click="appStore.toggleDataDensity"
-        :title="appStore.dataDensity === 'compact' ? 'كثافة البيانات: كثيفة (تبديل للمريح)' : 'كثافة البيانات: مريحة (تبديل للمكثف)'"
-        :class="{ active: appStore.dataDensity === 'compact' }"
-      >
-        <AppIcon :name="appStore.dataDensity === 'compact' ? 'maximize' : 'minimize'" />
-      </button>
-
 
       <button
         class="icon-btn notification-btn"
@@ -145,6 +156,7 @@ const searchLoading = ref(false);
 const remoteResults = ref([]);
 const themeMenuOpen = ref(false);
 const themeMenuRoot = ref(null);
+const mobileActionsOpen = ref(false);
 let searchTimer = null;
 const triggerCommandPalette = () => {
   window.dispatchEvent(new CustomEvent('open-command-palette'));
@@ -276,6 +288,11 @@ watch(search, (value) => {
 const handleDocumentClick = (event) => {
   if (themeMenuRoot.value && !themeMenuRoot.value.contains(event.target)) {
     themeMenuOpen.value = false;
+  }
+  const actionsToggle = document.querySelector('.mobile-actions-toggle');
+  const actionsGroup = document.querySelector('.navbar-actions-group');
+  if (actionsToggle && !actionsToggle.contains(event.target) && actionsGroup && !actionsGroup.contains(event.target)) {
+    mobileActionsOpen.value = false;
   }
 };
 
@@ -674,8 +691,30 @@ onBeforeUnmount(() => {
 @media (max-width: 760px) {
   .page-sub,
   .user-meta { display: none; }
-  .search-input { width: min(190px, 42vw); }
   .network-status .status-text { display: none; }
+  .search-wrap {
+    width: 34px;
+    height: 34px;
+    border: 1px solid var(--border-strong);
+    background: var(--bg-elevated);
+    border-radius: var(--radius-sm);
+    justify-content: center;
+    box-shadow: var(--shadow-xs);
+    cursor: pointer;
+    
+    &:hover {
+      background: color-mix(in srgb, var(--primary) 8%, var(--bg-elevated));
+      border-color: var(--primary-soft);
+      color: var(--primary);
+    }
+  }
+  .search-input {
+    display: none;
+  }
+  .search-icon {
+    position: static;
+    pointer-events: none;
+  }
 }
 
 .network-status {
@@ -747,5 +786,39 @@ onBeforeUnmount(() => {
 @keyframes sync-badge-pulse {
   0% { transform: scale(1); }
   100% { transform: scale(1.05); }
+}
+.mobile-actions-toggle {
+  display: none;
+}
+
+.navbar-actions-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+@media (max-width: 760px) {
+  .mobile-actions-toggle {
+    display: inline-flex;
+  }
+  
+  .navbar-actions-group {
+    display: none;
+    position: absolute;
+    top: calc(var(--navbar-height) - 5px);
+    left: 80px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 8px;
+    box-shadow: var(--shadow-lg);
+    z-index: 150;
+    flex-direction: column;
+    gap: 8px;
+    
+    &.mobile-open {
+      display: flex;
+    }
+  }
 }
 </style>

@@ -1,6 +1,7 @@
 <template>
   <div class="layout" :class="{ 'sidebar-collapsed': !appStore.sidebarOpen }" :data-route="route.name">
     <AppSidebar />
+    <div v-if="appStore.sidebarOpen" class="sidebar-overlay" @click="appStore.toggleSidebar"></div>
     <div class="layout-main">
       <AppNavbar />
       <main class="layout-content">
@@ -78,7 +79,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount } from 'vue';
+import { ref, onMounted, onBeforeUnmount, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import AppSidebar from '@/components/AppSidebar.vue';
 import AppNavbar from '@/components/AppNavbar.vue';
@@ -129,6 +130,12 @@ const handleGlobalShortcuts = (e) => {
     }
   }
 };
+
+watch(() => route.path, () => {
+  if (window.innerWidth <= 992 && appStore.sidebarOpen) {
+    appStore.toggleSidebar();
+  }
+});
 
 onMounted(() => {
   window.addEventListener('keydown', handleGlobalShortcuts);
@@ -259,5 +266,25 @@ onBeforeUnmount(() => {
 .toast-slide-leave-to {
   opacity: 0;
   transform: translateX(-40px) scale(0.9);
+}
+.sidebar-overlay {
+  display: none;
+}
+
+@media (max-width: 992px) {
+  .sidebar-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.45);
+    backdrop-filter: blur(4px);
+    z-index: 99;
+    animation: fadeIn 0.2s ease-out;
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 </style>

@@ -845,4 +845,69 @@ table {
   }
 }
 
+/* ── Responsive Mobile Utilities ── */
+@media (max-width: 768px) {
+  .grid-2, .grid-3, .grid-4 {
+    grid-template-columns: 1fr !important;
+    gap: var(--space-4) !important;
+  }
+
+  .table-to-card {
+    display: block !important;
+    width: 100% !important;
+
+    thead {
+      display: none !important;
+    }
+
+    tbody {
+      display: block !important;
+      width: 100% !important;
+    }
+
+    tr {
+      display: block !important;
+      width: 100% !important;
+      background: var(--card-bg) !important;
+      border: 1px solid var(--border) !important;
+      border-radius: var(--radius-md) !important;
+      margin-bottom: var(--space-3) !important;
+      padding: var(--space-3) !important;
+      box-shadow: var(--shadow-xs) !important;
+    }
+
+    td {
+      display: flex !important;
+      justify-content: space-between !important;
+      align-items: center !important;
+      padding: var(--space-2) 0 !important;
+      border-bottom: 1px dashed var(--border) !important;
+      white-space: normal !important;
+      text-align: left !important;
+
+      &:last-child {
+        border-bottom: none !important;
+      }
+
+      &::before {
+        content: attr(data-label) !important;
+        font-weight: 800 !important;
+        color: var(--text-muted) !important;
+        font-size: 0.76rem !important;
+        margin-left: var(--space-3) !important;
+        text-align: right !important;
+      }
+    }
+  }
+
+  /* Optimize modal popup padding and sizing for mobile */
+  .modal {
+    padding: var(--space-3) !important;
+  }
+  .modal-content {
+    max-height: 94vh !important;
+    border-radius: var(--radius-lg) !important;
+  }
+}
+
 

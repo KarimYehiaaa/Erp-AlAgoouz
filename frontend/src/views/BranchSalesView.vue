@@ -32,10 +32,32 @@
 
     <!-- Manual Entry Mode -->
     <div v-if="showMode === 'manual'" class="manual-mode">
+      <!-- Mobile Tabs Switcher -->
+      <div class="mobile-tabs-bar">
+        <button 
+          class="tab-btn" 
+          :class="{ active: activeTab === 'products' }" 
+          @click="activeTab = 'products'"
+          type="button"
+        >
+          🛍️ قائمة المنتجات
+        </button>
+        <button 
+          class="tab-btn" 
+          :class="{ active: activeTab === 'cart' }" 
+          @click="activeTab = 'cart'"
+          type="button"
+          style="position: relative;"
+        >
+          🛒 سلة المبيعات
+          <span v-if="cart.length" class="cart-badge">{{ cart.length }}</span>
+        </button>
+      </div>
+
       <div class="grid grid-2 main-grid">
 
         <!-- Products Panel -->
-        <div class="card products-panel">
+        <div class="card products-panel" :class="{ 'mobile-hidden': activeTab !== 'products' }">
           <div class="panel-header">
             <h3>🛍️ منتجات الفرع</h3>
             <div class="panel-filters">
@@ -95,7 +117,7 @@
         </div>
 
         <!-- Cart & Form Panel -->
-        <div class="card cart-panel">
+        <div class="card cart-panel" :class="{ 'mobile-hidden': activeTab !== 'cart' }">
           <h3>🛒 سلة المبيعات</h3>
 
           <!-- Cart Items -->
@@ -449,6 +471,7 @@ const { categories, loadMeta } = useProductMeta();
 
 // ─── state ─────────────────────────────────────────────────────────────────
 const showMode = ref('manual');
+const activeTab = ref('products'); // 'products' or 'cart'
 const loadingProducts = ref(false);
 const loadingHistory = ref(false);
 const saving = ref(false);
@@ -1558,6 +1581,68 @@ const submitCounts = async () => {
         color: var(--primary);
       }
     }
+  }
+}
+
+.mobile-tabs-bar {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .mobile-tabs-bar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: var(--space-4);
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    padding: 6px;
+    border-radius: var(--radius-lg);
+    
+    .tab-btn {
+      flex: 1;
+      min-height: 40px;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-weight: 800;
+      font-size: 0.86rem;
+      border-radius: var(--radius-md);
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      
+      &.active {
+        background: var(--primary);
+        color: #ffffff;
+        box-shadow: var(--shadow-sm);
+      }
+    }
+  }
+
+  .products-panel,
+  .cart-panel {
+    &.mobile-hidden {
+      display: none !important;
+    }
+  }
+
+  .cart-badge {
+    position: absolute;
+    top: -4px;
+    left: 8px;
+    background: var(--accent);
+    color: #ffffff;
+    font-size: 0.68rem;
+    font-weight: 900;
+    min-width: 18px;
+    height: 18px;
+    border-radius: 9px;
+    display: grid;
+    place-items: center;
+    padding: 0 4px;
   }
 }
 </style>

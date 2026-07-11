@@ -11,4 +11,7 @@ export const users = {
   settings: async (req, res, next) => { try { ok(res, await userService.getSettings()); } catch (e) { next(e); } },
   updateSetting: async (req, res, next) => { try { await userService.upsertSetting(req.params.key, req.body.value, req.user.id); ok(res, null); } catch (e) { next(e); } },
   reports: async (req, res, next) => { try { ok(res, await userService.getReports(req.params.type, req.query)); } catch (e) { next(e); } },
+  listPermissions: async (req, res, next) => { try { ok(res, await userService.getPermissions()); } catch (e) { next(e); } },
+  getRolePermissions: async (req, res, next) => { try { ok(res, await userService.getRolePermissions(req.params.id)); } catch (e) { next(e); } },
+  updateRolePermissions: async (req, res, next) => { try { ok(res, await userService.updateRolePermissions(req.params.id, req.body.permissionIds), 'تم تحديث صلاحيات الدور بنجاح'); } catch (e) { next(e); } },
 };

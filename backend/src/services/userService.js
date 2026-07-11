@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs';
-import { query } from '../database/pool.js';
+import { query, getClient } from '../database/pool.js';
 import { AppError } from '../middleware/errorHandler.js';
 import { getOpeningBalance } from './openingBalanceService.js';
 
@@ -496,3 +496,35 @@ export const deleteUser = async (id, currentUserId) => {
   if (!result.rows[0]) throw new AppError('المستخدم غير موجود', 404);
   return result.rows[0];
 };
+
+export const getPermissions = async () =>
+  (await query(`SELECT * FROM permissions ORDER BY module, name_ar`)).rows;
+
+export const getRolePermissions = async (roleId) =>
+  (await query(`SELECT permission_id FROM role_permissions WHERE role_id = $1`, [roleId])).rows.map(r => r.permission_id);
+
+export const updateRolePermissions = async (roleId, permissionIds) => {
+  const client = await getClient();
+  try {
+    await client.query('BEGIN');
+    await client.query(`DELETE FROM role_permissions WHERE role_id = $1`, [roleId]);
+    if (permissionIds && permissionIds.length > 0) {
+      const values = [];
+      const placeholders = [];
+      permissionIds.forEach((permId, idx) => {
+        values.push(roleId, permId);
+        placeholders.push(`($${idx * 2 + 1}, $${idx * 2 + 2})`);
+      });
+      const sql = `INSERT INTO role_permissions (role_id, permission_id) VALUES ${placeholders.join(', ')}`;
+      await client.query(sql, values);
+    }
+    await client.query('COMMIT');
+    return { success: true };
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+};
+

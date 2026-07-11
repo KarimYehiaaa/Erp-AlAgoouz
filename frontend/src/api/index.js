@@ -251,6 +251,9 @@ export const users = {
   delete: (id) => api.delete(`/users/${id}`),
   settings: () => api.get('/settings'),
   updateSetting: (key, value) => api.put(`/settings/${key}`, { value }),
+  permissions: () => api.get('/permissions'),
+  rolePermissions: (roleId) => api.get(`/roles/${roleId}/permissions`),
+  updateRolePermissions: (roleId, permissionIds) => api.post(`/roles/${roleId}/permissions`, { permissionIds }),
 };
 export const reports = (type, params) => api.get(`/reports/${type}`, { params });
 

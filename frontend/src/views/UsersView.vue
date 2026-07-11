@@ -230,6 +230,72 @@
         </form>
       </article>
     </section>
+
+    <!-- Roles & Permissions Matrix Section -->
+    <section class="permissions-section card" style="margin-top: 24px;">
+      <div class="card-head" style="border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 18px;">
+        <div class="title-info">
+          <h3 style="margin: 0; font-size: 1.15rem; font-weight: 850; color: var(--text-strong);">🔑 إدارة صلاحيات المناصب والأدوار</h3>
+          <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: var(--text-muted);">حدد الصلاحيات والصفحات المتاحة لكل منصب في النظام</p>
+        </div>
+      </div>
+      <div class="permissions-settings-wrap" style="display: grid; gap: 20px;">
+        <div class="role-selector-wrap" style="display: flex; align-items: center; gap: 12px; max-width: 400px;">
+          <label style="font-weight: 800; min-width: 100px; font-size: 0.88rem; color: var(--text-strong);">اختر المنصب:</label>
+          <select v-model="selectedPermissionRole" @change="handleRolePermissionChange" class="form-select" style="flex: 1; min-height: 38px; padding: 6px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--bg-elevated); color: var(--text); font-weight: 700;">
+            <option v-for="role in roles" :key="role.id" :value="role.id">
+              {{ role.name_ar }} {{ role.name === 'admin' ? '(كامل الصلاحيات)' : '' }}
+            </option>
+          </select>
+        </div>
+
+        <div v-if="selectedPermissionRole" class="permissions-grid-container" style="display: grid; gap: 24px;">
+          <div v-if="selectedPermissionRoleName === 'admin'" class="alert alert-info" style="background: var(--primary-soft); border: 1px solid var(--primary-strong); color: var(--primary-dark); padding: 12px; border-radius: var(--radius-md); font-weight: 800; font-size: 0.88rem;">
+            ℹ️ منصب "مدير النظام" يملك كافة صلاحيات النظام بشكل افتراضي وكامل ولا يمكن تعديل صلاحياته برمجياً لضمان عدم إغلاق النظام.
+          </div>
+          <div v-else style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px;">
+            <div 
+              v-for="(perms, moduleName) in groupedPermissions" 
+              :key="moduleName" 
+              class="module-group" 
+              style="border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 16px; background: var(--bg-elevated);"
+            >
+              <h4 style="margin-top: 0; color: var(--primary-dark); font-weight: 855; font-size: 0.9rem; border-bottom: 2px solid var(--border); padding-bottom: 8px; margin-bottom: 12px; text-transform: uppercase;">
+                📂 قسم: {{ getModuleLabel(moduleName) }}
+              </h4>
+              <div style="display: grid; gap: 10px;">
+                <label 
+                  v-for="p in perms" 
+                  :key="p.id" 
+                  style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 0.84rem; color: var(--text-strong); font-weight: 750;"
+                >
+                  <input 
+                    type="checkbox" 
+                    :value="p.id" 
+                    v-model="selectedPermissionIds" 
+                    style="width: 16px; height: 16px; accent-color: var(--primary);"
+                  />
+                  <span>{{ p.name_ar }}</span>
+                </label>
+              </div>
+            </div>
+          </div>
+          
+          <div v-if="selectedPermissionRoleName !== 'admin'" class="form-actions" style="margin-top: 12px; display: flex; justify-content: flex-end; border-top: 1px solid var(--border); padding-top: 14px;">
+            <button 
+              type="button" 
+              class="btn btn-save" 
+              :disabled="savingPermissions" 
+              @click="saveRolePermissions"
+              style="min-width: 160px; display: inline-flex; align-items: center; justify-content: center; gap: 8px;"
+            >
+              <AppIcon v-if="!savingPermissions" name="save" :size="16" />
+              {{ savingPermissions ? 'جاري الحفظ...' : 'حفظ صلاحيات المنصب' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
   </div>
 </template>
 
@@ -252,6 +318,12 @@ const showAdvancedOptions = ref(false);
 const strengthPercent = ref(0);
 const strengthText = ref('ضعيفة جداً ⚠️');
 const strengthColor = ref('#dc2626');
+
+// permissions matrix state
+const permissions = ref([]);
+const selectedPermissionRole = ref(null);
+const selectedPermissionIds = ref([]);
+const savingPermissions = ref(false);
 
 const validations = ref({
   username: { valid: null, msg: '' },
@@ -360,12 +432,85 @@ const getAvatarColor = (name) => {
   return `hsl(${h}, 60%, 42%)`;
 };
 
+const selectedPermissionRoleName = computed(() => roles.value.find(r => r.id === selectedPermissionRole.value)?.name);
+
+const groupedPermissions = computed(() => {
+  const groups = {};
+  permissions.value.forEach((p) => {
+    const mod = p.module || 'general';
+    if (!groups[mod]) groups[mod] = [];
+    groups[mod].push(p);
+  });
+  return groups;
+});
+
+const getModuleLabel = (mod) => {
+  const labels = {
+    dashboard: 'لوحة التحكم',
+    sales: 'المبيعات والكاشير',
+    products: 'المنتجات والوصفات',
+    inventory: 'المخزون والجرد',
+    customers: 'العملاء والمدفوعات',
+    suppliers: 'الموردين والمشتريات',
+    invoices: 'الفواتير والتحصيل',
+    expenses: 'المصروفات والتكاليف',
+    reports: 'التقارير والإحصائيات',
+    users: 'المستخدمين والصلاحيات',
+    settings: 'إعدادات النظام',
+  };
+  return labels[mod] || mod;
+};
+
+const handleRolePermissionChange = async () => {
+  if (!selectedPermissionRole.value) return;
+  const role = roles.value.find(r => r.id === selectedPermissionRole.value);
+  if (role?.name === 'admin') {
+    selectedPermissionIds.value = permissions.value.map(p => p.id);
+    return;
+  }
+  try {
+    const res = await api.rolePermissions(selectedPermissionRole.value);
+    selectedPermissionIds.value = res.data || [];
+  } catch (e) {
+    console.error('Failed to load role permissions:', e);
+    appStore.addToast('فشل تحميل صلاحيات هذا الدور', 'error');
+  }
+};
+
+const saveRolePermissions = async () => {
+  if (!selectedPermissionRole.value || selectedPermissionRoleName.value === 'admin') return;
+  savingPermissions.value = true;
+  try {
+    await api.updateRolePermissions(selectedPermissionRole.value, selectedPermissionIds.value);
+    appStore.addToast('تم حفظ صلاحيات الدور بنجاح', 'success');
+    if (authStore.user?.role_id === selectedPermissionRole.value) {
+      appStore.addToast('تم تحديث صلاحيات دورك الحالي، يرجى تحديث الصفحة لتفعيل التغييرات.', 'warning');
+    }
+  } catch (e) {
+    console.error('Failed to save permissions:', e);
+    appStore.addToast('فشل حفظ الصلاحيات', 'error');
+  } finally {
+    savingPermissions.value = false;
+  }
+};
+
 const refreshUsers = async () => {
   loading.value = true;
   try {
-    const [usersRes, rolesRes] = await Promise.all([api.list(), api.roles()]);
+    const [usersRes, rolesRes, permsRes] = await Promise.all([
+      api.list(), 
+      api.roles(),
+      api.permissions()
+    ]);
     users.value = usersRes.data || [];
     roles.value = rolesRes.data || [];
+    permissions.value = permsRes.data || [];
+    
+    if (!selectedPermissionRole.value && roles.value.length) {
+      const firstNonAdmin = roles.value.find(r => r.name !== 'admin') || roles.value[0];
+      selectedPermissionRole.value = firstNonAdmin.id;
+      handleRolePermissionChange();
+    }
   } catch (e) {
     console.error('Failed to load users:', e);
   } finally {

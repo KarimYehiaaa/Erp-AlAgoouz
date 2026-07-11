@@ -238,6 +238,10 @@ const settingUpdateSchema = z.object({
   value: z.unknown(),
 }).passthrough();
 
+const updateRolePermissionsSchema = z.object({
+  permissionIds: z.array(z.number().int().positive()).default([]),
+}).passthrough();
+
 const shiftSchema = z.object({
   name_ar: shortText(255),
   start_time: shortText(20).optional(),
@@ -581,6 +585,9 @@ router.post('/users', authenticate, authorize('users.manage'), validateBody(user
 router.put('/users/:id', authenticate, authorize('users.manage'), validateBody(userUpdateSchema), auditLog('user_update', 'users'), api.users.update);
 router.delete('/users/:id', authenticate, authorize('users.manage'), auditLog('user_delete', 'users'), api.users.delete);
 router.get('/roles', authenticate, authorize('users.manage'), api.users.roles);
+router.get('/permissions', authenticate, authorize('users.manage'), api.users.listPermissions);
+router.get('/roles/:id/permissions', authenticate, authorize('users.manage'), api.users.getRolePermissions);
+router.post('/roles/:id/permissions', authenticate, authorize('users.manage'), validateBody(updateRolePermissionsSchema), auditLog('role_permissions_update', 'users'), api.users.updateRolePermissions);
 router.get('/notifications', authenticate, api.users.notifications);
 router.get('/settings', authenticate, authorize('settings.manage'), api.users.settings);
 router.put('/settings/:key', authenticate, authorize('settings.manage'), validateBody(settingUpdateSchema), api.users.updateSetting);

@@ -20,6 +20,7 @@ export default {
       : (process.env.DB_NAME || 'bin_al_ajouz'),
     user: process.env.DB_USER || 'erp_user',
     password: requireEnv('DB_PASSWORD'),
+    ssl: process.env.DB_SSL === 'true',
   },
   jwt: {
     secret: requireEnv('JWT_SECRET'),

@@ -9,7 +9,8 @@
     "dev": "node --watch-path=src src/index.js",
     "test": "node scripts/run-tests.js",
     "setup-db": "node src/database/setup.js",
-    "reset-admin": "node src/database/reset-admin.js"
+    "reset-admin": "node src/database/reset-admin.js",
+    "migrate-supabase": "node scripts/migrate-supabase.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

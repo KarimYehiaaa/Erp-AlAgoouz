@@ -13,6 +13,7 @@ const pool = new Pool({
   database: config.db.database,
   user: config.db.user,
   password: config.db.password,
+  ...(config.db.ssl && { ssl: { rejectUnauthorized: false } }),
   // إصلاح pool exhaustion: الـ dashboard وحده كان يطلب 33 connection متوازية
   // رفعنا الحد من 40 إلى 60 لاستيعاب أكثر من مستخدم في نفس الوقت
   max: 60,

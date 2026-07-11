@@ -88,4 +88,63 @@ export const deleteSupplier = async (id, userId) => {
 };
 
 export const getSupplierInvoices = async (supplierId) =>
-  (await query(`SELECT * FROM supplier_invoices WHERE supplier_id = $1 AND deleted_at IS NULL ORDER BY created_at DESC`, [supplierId])).rows;
+  (await query(
+    `SELECT id, invoice_number, invoice_date AS created_at, total_amount, notes,
+       COALESCE((SELECT SUM(amount) FROM payments WHERE reference_type = 'supplier' AND reference_id = $1), 0) AS paid_amount,
+       CASE
+         WHEN (SELECT s.balance FROM suppliers s WHERE s.id = $1) <= 0 THEN 'paid'
+         WHEN (SELECT SUM(amount) FROM payments WHERE reference_type = 'supplier' AND reference_id = $1) > 0 THEN 'partial'
+         ELSE 'pending'
+       END AS status
+     FROM purchase_invoices
+     WHERE supplier_id = $1 AND deleted_at IS NULL
+     ORDER BY invoice_date DESC, id DESC`,
+    [supplierId]
+  )).rows;
+
+export const getSupplierPayments = async (supplierId) =>
+  (await query(
+    `SELECT * FROM payments
+     WHERE reference_type = 'supplier' AND reference_id = $1
+     ORDER BY created_at DESC`,
+    [supplierId]
+  )).rows;
+
+export const recalculateSupplierBalance = async (db = query, supplierId) => {
+  await db(
+    `UPDATE suppliers s
+     SET balance = COALESCE((
+       SELECT COALESCE(SUM(total_amount), 0)
+       FROM purchase_invoices
+       WHERE supplier_id = $1 AND deleted_at IS NULL
+     ), 0) - COALESCE((
+       SELECT COALESCE(SUM(amount), 0)
+       FROM payments
+       WHERE reference_type = 'supplier' AND reference_id = $1
+     ), 0)
+     WHERE s.id = $1`,
+    [supplierId]
+  );
+};
+
+export const recordSupplierPayment = async (supplierId, data, userId) => {
+  const amount = Number(data.amount);
+  if (isNaN(amount) || amount <= 0) {
+    throw new AppError('المبلغ المدفوع يجب أن يكون أكبر من الصفر', 400);
+  }
+
+  // Verify supplier exists
+  await getSupplierById(supplierId);
+
+  const resSeq = await query(`SELECT nextval('seq_payments_number') AS next_val`);
+  const paymentNumber = `SUP-PAY-${resSeq.rows[0].next_val}`;
+  const res = await query(
+    `INSERT INTO payments (payment_number, reference_type, reference_id, amount, payment_method, notes, user_id)
+     VALUES ($1, 'supplier', $2, $3, $4, $5, $6)
+     RETURNING *`,
+    [paymentNumber, supplierId, amount, data.payment_method || 'cash', data.notes || null, userId]
+  );
+
+  await recalculateSupplierBalance(query, supplierId);
+  return res.rows[0];
+};

@@ -1,5 +1,6 @@
 import { getClient, query } from '../database/pool.js';
 import { AppError } from '../middleware/errorHandler.js';
+import { parseLocalizedNumber } from '../utils/numberParsing.js';
 
 const generateInvoiceNumber = async (client) => {
   const settings = await client.query(`SELECT value FROM settings WHERE key = 'invoice' FOR UPDATE`);
@@ -20,19 +21,19 @@ const sanitizeLimit = (value, fallback = 100, max = 500) => {
   if (!Number.isFinite(n) || n <= 0) return fallback;
   return Math.min(n, max);
 };
-const parseInvoiceData = (data = {}) => {
+export const parseInvoiceData = (data = {}) => {
   const items = Array.isArray(data.items) ? data.items : [];
   if (!items.length) throw new AppError('لا توجد بنود في الفاتورة');
 
   let subtotal = 0;
   const parsedItems = items.map((item, idx) => {
-    const qty = parseFloat(item.quantity) || 1;
-    const price = parseFloat(item.unit_price) || 0;
-    const disc = parseFloat(item.discount_amount) || 0;
-    if (qty <= 0) throw new AppError(`Item ${idx + 1}: quantity must be greater than zero`);
-    if (price < 0) throw new AppError(`Item ${idx + 1}: unit price cannot be negative`);
-    if (disc < 0) throw new AppError(`Item ${idx + 1}: discount cannot be negative`);
-    if (disc > qty * price) throw new AppError(`Item ${idx + 1}: discount cannot exceed line total`);
+    const qty = parseLocalizedNumber(item.quantity);
+    const price = parseLocalizedNumber(item.unit_price);
+    const disc = parseLocalizedNumber(item.discount_amount ?? 0, 0);
+    if (!Number.isFinite(qty) || qty <= 0) throw new AppError(`Item ${idx + 1}: quantity must be greater than zero`);
+    if (!Number.isFinite(price) || price < 0) throw new AppError(`Item ${idx + 1}: unit price cannot be negative`);
+    if (!Number.isFinite(disc) || disc < 0) throw new AppError(`Item ${idx + 1}: discount cannot be negative`);
+    if (disc > roundMoney(qty * price)) throw new AppError(`Item ${idx + 1}: discount cannot exceed line total`);
     const lineTotal = qty * price - disc;
     subtotal += lineTotal;
     return {
@@ -46,14 +47,15 @@ const parseInvoiceData = (data = {}) => {
     };
   });
 
-  const percentDiscount = (subtotal * (parseFloat(data.discount_percent) || 0)) / 100;
-  const fixedDiscount = parseFloat(data.discount_amount) || 0;
+  const discountPercent = parseLocalizedNumber(data.discount_percent ?? 0, 0);
+  const percentDiscount = (subtotal * discountPercent) / 100;
+  const fixedDiscount = parseLocalizedNumber(data.discount_amount ?? 0, 0);
   const discountAmount = roundMoney(percentDiscount + fixedDiscount);
   if (discountAmount < 0) throw new AppError('الخصم لا يمكن أن يكون أقل من صفر');
   if (discountAmount > subtotal) throw new AppError('الخصم لا يمكن أن يتجاوز إجمالي البنود');
 
   const afterDiscount = Math.max(0, subtotal - discountAmount);
-  const taxPercent = parseFloat(data.tax_percent) || 0;
+  const taxPercent = parseLocalizedNumber(data.tax_percent ?? 0, 0);
   const taxAmount = data.tax_enabled ? roundMoney((afterDiscount * taxPercent) / 100) : 0;
   const totalAmount = roundMoney(afterDiscount + taxAmount);
 

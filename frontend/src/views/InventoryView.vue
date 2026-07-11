@@ -13,7 +13,7 @@
           <option value="">كل المخازن</option>
           <option v-for="w in warehouses" :key="w.id" :value="w.id">{{ w.name_ar }}</option>
         </select>
-        <button v-if="tab === 'stock'" class="btn btn-outline" @click="showTransfer = true">🔄 تحويل مخزون</button>
+        <button v-if="tab === 'stock'" class="btn btn-outline" @click="openTransferModal">🔄 تحويل مخزون</button>
       </div>
     </div>
 
@@ -30,7 +30,16 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="i in items" :key="`${i.product_id}-${i.warehouse_id}`" :class="[ { 'row-low': i.is_low }, { 'row-highlight': isHighlighted(i) } ]">
+            <tr v-if="loading" v-for="i in 3" :key="'inv-sk-' + i">
+              <td><div class="skeleton-shimmer" style="height: 18px; width: 140px;"></div></td>
+              <td><div class="skeleton-shimmer" style="height: 18px; width: 80px;"></div></td>
+              <td><div class="skeleton-shimmer" style="height: 18px; width: 100px;"></div></td>
+              <td><div class="skeleton-shimmer" style="height: 18px; width: 60px;"></div></td>
+              <td><div class="skeleton-shimmer" style="height: 18px; width: 60px;"></div></td>
+              <td><div class="skeleton-shimmer" style="height: 18px; width: 85px;"></div></td>
+              <td><div class="skeleton-shimmer" style="height: 18px; width: 80px;"></div></td>
+            </tr>
+            <tr v-else v-for="i in items" :key="`${i.product_id}-${i.warehouse_id}`" :class="[ { 'row-low': i.is_low }, { 'row-highlight': isHighlighted(i) } ]">
               <td class="product-name">
                 {{ i.name_ar }}
                 <span v-if="i.has_active_recipe" class="recipe-chip">وصفة</span>
@@ -52,9 +61,14 @@
                   :title="i.has_active_recipe ? 'منتج وصفة نشطة: يتم تحديثه من مكونات الوصفة فقط' : 'تعديل'"
                   @click="openEdit(i)"
                 >✎</button>
+                <button
+                  class="icon-btn btn-danger"
+                  title="تسجيل هالك"
+                  @click="openWastage(i)"
+                >🗑️</button>
               </td>
             </tr>
-            <tr v-if="!items.length"><td colspan="7" class="empty">لا توجد بيانات مخزون</td></tr>
+            <tr v-if="!loading && !items.length"><td colspan="7" class="empty">لا توجد بيانات مخزون</td></tr>
           </tbody>
         </table>
       </div>
@@ -256,28 +270,75 @@
         <h3>🔄 تحويل بين المخازن</h3>
         <form @submit.prevent="doTransfer">
           <div class="form-group">
-            <label>المنتج</label>
-            <select v-model.number="transfer.product_id" required>
-              <option :value="null" disabled>اختر المنتج</option>
-              <option v-for="i in items" :key="i.product_id" :value="i.product_id">{{ i.name_ar }} ({{ fmtQty(i.quantity) }})</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label>من مخزن</label>
-            <select v-model.number="transfer.from_warehouse_id">
+            <label>من مخزن (المصدر)</label>
+            <select v-model.number="transfer.from_warehouse_id" required>
               <option v-for="w in warehouses" :key="w.id" :value="w.id">{{ w.name_ar }}</option>
             </select>
           </div>
+
           <div class="form-group">
-            <label>إلى مخزن</label>
-            <select v-model.number="transfer.to_warehouse_id">
-              <option v-for="w in warehouses" :key="w.id" :value="w.id">{{ w.name_ar }}</option>
+            <label>إلى مخزن (الوجهة)</label>
+            <select v-model.number="transfer.to_warehouse_id" required>
+              <option v-for="w in warehouses" :key="w.id" :value="w.id" :disabled="w.id === transfer.from_warehouse_id">
+                {{ w.name_ar }}
+              </option>
             </select>
           </div>
-          <div class="form-group"><label>الكمية</label><input v-model.number="transfer.quantity" type="number" min="0.001" step="0.001" required /></div>
+
+          <div class="form-group">
+            <label>المنتج (المصدر)</label>
+            <select v-model.number="transfer.product_id" required :disabled="loadingTransferProducts">
+              <option :value="null" disabled>{{ loadingTransferProducts ? 'جاري تحميل المنتجات المتاحة...' : 'اختر منتج المصدر' }}</option>
+              <option v-for="p in transferProducts" :key="p.product_id" :value="p.product_id">
+                {{ p.name_ar }} (المتاح: {{ fmtQty(p.quantity) }})
+              </option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>المنتج (الوجهة)</label>
+            <select v-model.number="transfer.to_product_id" required>
+              <option :value="null" disabled>اختر منتج الوجهة</option>
+              <option v-for="p in allProducts" :key="p.id" :value="p.id">
+                {{ p.name_ar }}
+              </option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>الكمية المراد تحويلها</label>
+            <input v-model.number="transfer.quantity" type="number" min="0.001" step="0.001" required />
+            <div v-if="selectedTransferProduct" style="margin-top: 8px; display: flex; flex-direction: column; gap: 6px; font-size: 0.82rem; font-weight: 700;">
+              <small style="color: #2e7d4f; display: block;">
+                ℹ️ الكمية المتوفرة حالياً في مخزن المصدر: {{ fmtQty(selectedTransferProduct.quantity) }}
+              </small>
+              <small style="color: #64748b; display: block;">
+                ℹ️ الكمية المتوفرة حالياً في مخزن الوجهة: {{ fmtQty(selectedTransferDestProduct ? selectedTransferDestProduct.quantity : 0) }}
+              </small>
+            </div>
+          </div>
+
           <div class="modal-actions">
             <button type="button" class="btn btn-outline" @click="showTransfer = false">إلغاء</button>
-            <button type="submit" class="btn btn-primary">تحويل</button>
+            <button type="submit" class="btn btn-primary" :disabled="loadingTransferProducts">تحويل</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Wastage Modal -->
+    <div v-if="showWastage" class="modal" @click.self="showWastage = false">
+      <div class="card modal-content border-danger">
+        <h3 class="text-danger">🗑️ تسجيل إعدام / هالك</h3>
+        <p style="margin-bottom: 15px; font-size: 0.9em; color: #666;">سيتم إنقاص هذه الكمية من المخزون وتحميل تكلفتها على المصروفات (قسم الهالك).</p>
+        <form @submit.prevent="saveWastage">
+          <div class="form-group"><label>المنتج</label><input :value="wastageForm.name_ar" disabled /></div>
+          <div class="form-group"><label>الكمية المتاحة</label><input :value="fmtQty(wastageForm.current_qty)" disabled /></div>
+          <div class="form-group"><label>كمية الهالك</label><input v-model.number="wastageForm.quantity" type="number" min="0.001" :max="wastageForm.current_qty" step="0.001" required /></div>
+          <div class="form-group"><label>السبب / ملاحظات</label><input v-model="wastageForm.notes" required placeholder="مثال: انتهاء صلاحية، انسكاب..." /></div>
+          <div class="modal-actions">
+            <button type="button" class="btn btn-outline" @click="showWastage = false">إلغاء</button>
+            <button type="submit" class="btn btn-danger" :disabled="savingWastage">{{ savingWastage ? 'جاري التسجيل...' : 'تسجيل هالك' }}</button>
           </div>
         </form>
       </div>
@@ -287,19 +348,22 @@
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue';
+import { onMounted, ref, watch, computed } from 'vue';
 import { onBeforeUnmount } from 'vue';
-import { inventory as inventoryApi } from '@/api';
+import { inventory as inventoryApi, products as productsApi } from '@/api';
 
 const tab = ref('stock');
 const items = ref([]);
+const loading = ref(false);
 const movements = ref([]);
 const warehouses = ref([]);
 const warehouseId = ref('');
 const returnWarehouseId = ref('');
 const showTransfer = ref(false);
 const showEdit = ref(false);
+const showWastage = ref(false);
 const savingEdit = ref(false);
+const savingWastage = ref(false);
 const downloadingTemplate = ref(false);
 const msg = ref('');
 const err = ref(false);
@@ -307,7 +371,97 @@ const excelResult = ref(null);
 const highlighted = ref({});
 
 const editForm = ref({ id: null, product_id: null, warehouse_id: null, name_ar: '', warehouse_name: '', quantity: 0, min_stock: 0 });
-const transfer = ref({ product_id: null, from_warehouse_id: null, to_warehouse_id: null, quantity: 1 });
+const wastageForm = ref({ product_id: null, warehouse_id: null, name_ar: '', current_qty: 0, quantity: 0, notes: '' });
+const transfer = ref({ product_id: null, to_product_id: null, from_warehouse_id: null, to_warehouse_id: null, quantity: 1 });
+
+const transferProducts = ref([]);
+const transferDestProducts = ref([]);
+const allProducts = ref([]);
+const loadingTransferProducts = ref(false);
+
+const selectedTransferProduct = computed(() => {
+  return transferProducts.value.find(p => p.product_id === transfer.value.product_id);
+});
+
+const selectedTransferDestProduct = computed(() => {
+  if (!transfer.value.to_product_id) return null;
+  return transferDestProducts.value.find(p => p.product_id === transfer.value.to_product_id) || { quantity: 0 };
+});
+
+const loadTransferProducts = async () => {
+  const fromWhId = transfer.value.from_warehouse_id;
+  if (!fromWhId) {
+    transferProducts.value = [];
+    return;
+  }
+  loadingTransferProducts.value = true;
+  try {
+    const res = await inventoryApi.list({ warehouse_id: fromWhId });
+    transferProducts.value = (res.data || []).filter(item => Number(item.quantity) > 0);
+  } catch (e) {
+    console.error('Error loading transfer products:', e);
+  } finally {
+    loadingTransferProducts.value = false;
+  }
+};
+
+const loadTransferDestProducts = async () => {
+  const toWhId = transfer.value.to_warehouse_id;
+  if (!toWhId) {
+    transferDestProducts.value = [];
+    return;
+  }
+  try {
+    const res = await inventoryApi.list({ warehouse_id: toWhId });
+    transferDestProducts.value = res.data || [];
+  } catch (e) {
+    console.error('Error loading destination products:', e);
+  }
+};
+
+watch(() => transfer.value.from_warehouse_id, (newVal) => {
+  if (newVal && warehouses.value.length === 2) {
+    const otherWh = warehouses.value.find(w => w.id !== newVal);
+    if (otherWh) {
+      transfer.value.to_warehouse_id = otherWh.id;
+    }
+  }
+  loadTransferProducts();
+  loadTransferDestProducts();
+  transfer.value.product_id = null;
+  transfer.value.to_product_id = null;
+});
+
+watch(() => transfer.value.to_warehouse_id, () => {
+  loadTransferDestProducts();
+});
+
+watch(() => transfer.value.product_id, (newVal) => {
+  transfer.value.to_product_id = newVal;
+});
+
+const loadAllProducts = async () => {
+  try {
+    const res = await productsApi.list({ limit: 1000 });
+    allProducts.value = (res.data || []).filter(p => p.is_active && !p.has_active_recipe);
+  } catch (e) {
+    console.error('Error loading products list:', e);
+  }
+};
+
+const openTransferModal = () => {
+  if (warehouses.value.length) {
+    transfer.value.from_warehouse_id = warehouses.value[0].id;
+    transfer.value.to_warehouse_id = warehouses.value[1]?.id || warehouses.value[0].id;
+    transfer.value.product_id = null;
+    transfer.value.to_product_id = null;
+    transfer.value.quantity = 1;
+    loadTransferProducts();
+    loadTransferDestProducts();
+    loadAllProducts();
+  }
+  showTransfer.value = true;
+};
 
 const fmtQty = (v) => { const n = Number(v || 0); return n % 1 === 0 ? n.toLocaleString('en-GB') : n.toFixed(3); };
 const movementLabel = (t) => ({
@@ -316,6 +470,7 @@ const movementLabel = (t) => ({
   purchase_reversal: 'عكس شراء',
   transfer: 'تحويل',
   adjustment: 'تعديل',
+  wastage: 'هالك',
   return: 'استرداد',
   consumption: 'استهلاك',
   production: 'إنتاج',
@@ -325,12 +480,14 @@ const movementLabel = (t) => ({
 const setMsg = (text, isErr = false) => { msg.value = text; err.value = isErr; };
 
 const load = async () => {
+  loading.value = true;
   const params = warehouseId.value ? { warehouse_id: warehouseId.value } : {};
   try {
     const [inv, mov, wh] = await Promise.all([
       inventoryApi.list(params),
       inventoryApi.movements({ limit: 50 }),
       inventoryApi.warehouses(),
+      loadAllProducts(),
     ]);
     items.value = inv.data || [];
     movements.value = mov.data || [];
@@ -344,6 +501,8 @@ const load = async () => {
     items.value = [];
     movements.value = [];
     setMsg(e.message || 'فشل تحميل بيانات المخزون.', true);
+  } finally {
+    loading.value = false;
   }
 };
 
@@ -401,7 +560,61 @@ const saveEdit = async () => {
   finally { savingEdit.value = false; }
 };
 
+const openWastage = (row) => {
+  wastageForm.value = {
+    product_id: row.product_id,
+    warehouse_id: row.warehouse_id,
+    name_ar: row.name_ar,
+    current_qty: Number(row.quantity || 0),
+    quantity: 0,
+    notes: ''
+  };
+  showWastage.value = true;
+};
+
+const saveWastage = async () => {
+  const qty = Number(wastageForm.value.quantity);
+  if (isNaN(qty) || qty <= 0 || qty > wastageForm.value.current_qty) {
+    setMsg('الكمية غير صحيحة أو أكبر من المتاح.', true);
+    return;
+  }
+  savingWastage.value = true;
+  try {
+    const targetQty = wastageForm.value.current_qty - qty;
+    await inventoryApi.adjust({
+      product_id: wastageForm.value.product_id,
+      warehouse_id: wastageForm.value.warehouse_id,
+      quantity: targetQty,
+      movement_type: 'wastage',
+      notes: wastageForm.value.notes
+    });
+    showWastage.value = false;
+    setMsg(`تم تسجيل هالك لـ ${wastageForm.value.name_ar} بنجاح.`);
+    await load();
+  } catch (e) {
+    setMsg(e.message || 'فشل تسجيل الهالك.', true);
+  } finally {
+    savingWastage.value = false;
+  }
+};
+
 const doTransfer = async () => {
+  const selectedProd = selectedTransferProduct.value;
+  if (!selectedProd) {
+    setMsg('يرجى اختيار منتج المصدر أولاً.', true);
+    return;
+  }
+  
+  if (!transfer.value.to_product_id) {
+    setMsg('يرجى اختيار منتج الوجهة.', true);
+    return;
+  }
+  
+  if (transfer.value.quantity > Number(selectedProd.quantity)) {
+    setMsg('الكمية المراد تحويلها أكبر من الكمية المتوفرة في المخزن المحدد.', true);
+    return;
+  }
+  
   try {
     await inventoryApi.transfer(transfer.value);
     showTransfer.value = false;

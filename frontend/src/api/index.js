@@ -1,8 +1,12 @@
-﻿import axios from 'axios';
+import axios from 'axios';
 
 const api = axios.create({
   baseURL: '/api/v1',
-  headers: { 'Content-Type': 'application/json' },
+  headers: {
+    'Content-Type': 'application/json',
+    'Cache-Control': 'no-cache',
+    Pragma: 'no-cache',
+  },
 });
 
 api.interceptors.request.use((config) => {
@@ -53,6 +57,28 @@ export const auth = {
 };
 
 export const dashboard = (params) => api.get('/dashboard', { params });
+export const operations = {
+  alerts: () => api.get('/operations/alerts'),
+  auditLogs: (params) => api.get('/operations/audit-logs', { params }),
+};
+export const hr = {
+  summary: (params) => api.get('/hr/summary', { params }),
+  shifts: () => api.get('/hr/shifts'),
+  createShift: (data) => api.post('/hr/shifts', data),
+  employees: (params) => api.get('/hr/employees', { params }),
+  createEmployee: (data) => api.post('/hr/employees', data),
+  updateEmployee: (id, data) => api.put(`/hr/employees/${id}`, data),
+  deleteEmployee: (id) => api.delete(`/hr/employees/${id}`),
+  attendance: (params) => api.get('/hr/attendance', { params }),
+  saveAttendance: (data) => api.post('/hr/attendance', data),
+  advances: (params) => api.get('/hr/advances', { params }),
+  createAdvance: (data) => api.post('/hr/advances', data),
+  payrollRuns: () => api.get('/hr/payroll'),
+  previewPayroll: (params) => api.get('/hr/payroll/preview', { params }),
+  createPayroll: (data) => api.post('/hr/payroll', data),
+  getPayroll: (id) => api.get(`/hr/payroll/${id}`),
+  payPayroll: (id, data) => api.post(`/hr/payroll/${id}/pay`, data),
+};
 export const sales = {
   list: (params) => api.get('/sales', { params }),
   summary: (params) => api.get('/sales/summary', { params }),
@@ -102,9 +128,9 @@ export const products = {
   get: (id) => api.get(`/products/${id}`),
   nextSku: () => api.get('/products/next-sku'),
   create: (data) => api.post('/products', data),
-  deleteAll: () => api.delete('/products'),
-  deleteAllSafe: () => api.post('/products/delete-all', { confirm: 'CONFIRM_DELETE_ALL_PRODUCTS' }),
+  deleteAll: () => api.post('/products/delete-all', { confirm: 'CONFIRM_DELETE_ALL_PRODUCTS' }),
   update: (id, data) => api.put(`/products/${id}`, data),
+  bulkAdjustPrices: (data) => api.put('/products/bulk-price', data),
   setWarehouse: (id, warehouse_id) => api.put(`/products/${id}/warehouse`, { warehouse_id }),
   delete: (id) => api.delete(`/products/${id}`),
   categories: () => api.get('/products/categories'),
@@ -182,9 +208,13 @@ export const expenses = {
   delete: (id) => api.delete(`/expenses/${id}`),
   categories: () => api.get('/expenses/categories'),
   report: (params) => api.get('/expenses/report', { params }),
+  suggestCategory: (title) => api.get('/expenses/suggest-category', { params: { title } }),
 };
 export const suppliers = {
   list: () => api.get('/suppliers'),
+  invoices: (id) => api.get(`/suppliers/${id}/invoices`),
+  payments: (id) => api.get(`/suppliers/${id}/payments`),
+  recordPayment: (id, data) => api.post(`/suppliers/${id}/payments`, data),
   create: (data) => api.post('/suppliers', data),
   update: (id, data) => api.put(`/suppliers/${id}`, data),
   delete: (id) => api.delete(`/suppliers/${id}`),
@@ -193,7 +223,8 @@ export const invoices = {
   list: (params) => api.get('/invoices', { params }),
   get: (id) => api.get(`/invoices/${id}`),
   create: (data) => api.post('/invoices', data),
-  updatePayment: (id, status) => api.patch(`/invoices/${id}/payment`, { status }),
+  update: (id, data) => api.put(`/invoices/${id}`, data),
+
   delete: (id) => api.delete(`/invoices/${id}`),
   downloadPdf: async (id) => {
     const token = localStorage.getItem('token');
@@ -215,7 +246,9 @@ export const quotes = {
 export const users = {
   list: () => api.get('/users'),
   roles: () => api.get('/roles'),
+  create: (data) => api.post('/users', data),
   update: (id, data) => api.put(`/users/${id}`, data),
+  delete: (id) => api.delete(`/users/${id}`),
   settings: () => api.get('/settings'),
   updateSetting: (key, value) => api.put(`/settings/${key}`, { value }),
 };
@@ -236,6 +269,25 @@ export const backup = {
     return api.post('/backup/restore-file', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
   },
   clear: (body) => api.post('/backup/clear', body),
+  cloudTest: (config) => api.post('/backup/cloud-test', config),
+};
+
+export const stocktakes = {
+  list: () => api.get('/stocktakes'),
+  get: (id) => api.get(`/stocktakes/${id}`),
+  create: (data) => api.post('/stocktakes', data),
+  updateItems: (id, data) => api.put(`/stocktakes/${id}/items`, data),
+  complete: (id) => api.post(`/stocktakes/${id}/complete`),
+  delete: (id) => api.delete(`/stocktakes/${id}`),
+};
+
+export const forecasting = {
+  get: (params) => api.get('/forecasting', { params }),
+  getBasketAssociations: (params) => api.get('/forecasting/basket-associations', { params }),
+  askCopilot: (data) => api.post('/forecasting/copilot', data),
+  getStaffingForecast: (params) => api.get('/forecasting/staffing', { params }),
+  getSmartPricingAlerts: () => api.get('/forecasting/pricing-alerts'),
+  getCashFlowProjection: (params) => api.get('/forecasting/cashflow-projection', { params }),
 };
 
 

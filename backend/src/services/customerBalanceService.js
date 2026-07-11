@@ -30,6 +30,7 @@ export const recalculateCustomerBalance = async (db = query, customerId) => {
         FROM sales s
         WHERE s.customer_id = $1
           AND s.deleted_at IS NULL
+          AND s.sale_type = 'wholesale'
           AND s.status IN ('completed', 'returned')
       ) source
     ), 0)

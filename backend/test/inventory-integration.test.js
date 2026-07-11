@@ -76,8 +76,8 @@ test('restoreRecipeConsumptionForReference restores recorded ingredient consumpt
             if (s.includes('from stock_movements') && s.includes("movement_type = 'consumption'")) {
                 return {
                     rows: [
-                        { ingredient_product_id: 10, quantity: '3.500' },
-                        { ingredient_product_id: 11, quantity: '1.000' },
+                        { ingredient_product_id: 10, from_warehouse_id: 2, quantity: '3.500' },
+                        { ingredient_product_id: 11, from_warehouse_id: 3, quantity: '1.000' },
                     ],
                 };
             }
@@ -93,7 +93,7 @@ test('restoreRecipeConsumptionForReference restores recorded ingredient consumpt
                 return { rowCount: 1 };
             }
             if (s.startsWith('insert into stock_movements')) {
-                returns.push({ product_id: params[0], quantity: Number(params[2]) });
+                returns.push({ product_id: params[0], warehouse_id: params[1], quantity: Number(params[2]) });
                 return { rowCount: 1 };
             }
             return { rows: [] };
@@ -109,9 +109,9 @@ test('restoreRecipeConsumptionForReference restores recorded ingredient consumpt
 
     assert.equal(restored, true);
     assert.equal(inventory.get('10:2'), 3.5);
-    assert.equal(inventory.get('11:2'), 1);
+    assert.equal(inventory.get('11:3'), 1);
     assert.deepEqual(returns, [
-        { product_id: 10, quantity: 3.5 },
-        { product_id: 11, quantity: 1 },
+        { product_id: 10, warehouse_id: 2, quantity: 3.5 },
+        { product_id: 11, warehouse_id: 3, quantity: 1 },
     ]);
 });

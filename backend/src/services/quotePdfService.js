@@ -1,4 +1,4 @@
-﻿import fs from 'fs/promises';
+import fs from 'fs/promises';
 import fsSync from 'fs';
 import os from 'os';
 import path from 'path';
@@ -39,7 +39,7 @@ const formatMoney = (value) =>
   `${new Intl.NumberFormat('en-US', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  }).format(toNumber(value, 0))} EGP`;
+  }).format(toNumber(value, 0))} ج.م`;
 
 const escapeHtml = (value) =>
   String(value ?? '')
@@ -98,11 +98,12 @@ const normalizeItems = (items = []) =>
     }))
     .filter((item) => item.product_name);
 
-const buildQuoteHtml = ({ company, quoteNumber, issuedAt, validUntil, notes, items, logoDataUri, overflowCount }) => {
+const buildQuoteHtml = ({ company, quoteNumber, customerName, issuedAt, validUntil, notes, items, logoDataUri, overflowCount }) => {
   const rows = items
     .map(
-      (item) => `
+      (item, idx) => `
         <tr>
+          <td class="no">${idx + 1}</td>
           <td class="item">${escapeHtml(item.product_name)}</td>
           <td class="unit">${escapeHtml(item.unit || 'وحدة')}</td>
           <td class="price">${escapeHtml(formatMoney(item.unit_price))}</td>
@@ -127,7 +128,7 @@ const buildQuoteHtml = ({ company, quoteNumber, issuedAt, validUntil, notes, ite
     body {
       direction: rtl;
       font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
-      color: #24170f;
+      color: #1a1510;
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
       background: #fff;
@@ -136,48 +137,103 @@ const buildQuoteHtml = ({ company, quoteNumber, issuedAt, validUntil, notes, ite
     .page {
       width: 210mm;
       height: 297mm;
-      padding: 10mm 12mm 9mm;
+      padding: 15mm 15mm 12mm;
       display: flex;
       flex-direction: column;
       overflow: hidden;
+      position: relative;
     }
-    .topbar {
-      height: 6px;
-      background: #5c3d2e;
-      border-radius: 999px;
-      flex: 0 0 auto;
+    .watermark {
+      position: absolute;
+      top: 55%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 90mm;
+      height: 90mm;
+      opacity: 0.04;
+      pointer-events: none;
+      z-index: 0;
+      object-fit: contain;
     }
     .header {
       display: flex;
-      align-items: center;
-      justify-content: flex-start;
-      gap: 14px;
-      padding: 8mm 0 5mm;
+      justify-content: space-between;
+      align-items: flex-start;
+      padding-bottom: 6mm;
+      border-bottom: 3px solid #5c3d2e;
+      margin-bottom: 6mm;
       flex: 0 0 auto;
+      gap: 16px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
     }
     .logo {
-      width: 54mm;
-      height: 28mm;
+      width: 20mm;
+      height: 20mm;
       object-fit: contain;
-      object-position: center right;
-      flex: 0 0 auto;
+      border-radius: 8px;
     }
-    .store-name {
-      font-size: 22pt;
-      font-weight: 800;
-      line-height: 1.1;
-      color: #2a1b12;
-      text-align: right;
-      flex: 1;
-    }
-    .title {
-      text-align: center;
+    .company-details h1 {
       font-size: 18pt;
-      font-weight: 800;
       color: #5c3d2e;
-      margin: 0 0 5mm;
-      letter-spacing: 0;
+      margin: 0 0 4px;
+      font-weight: 800;
+    }
+    .company-details .tagline {
+      color: #8b5e3c;
+      font-size: 9pt;
+      margin: 0 0 6px;
+      font-weight: 700;
+    }
+    .company-details p {
+      margin: 2px 0;
+      font-size: 8.5pt;
+      color: #555;
+    }
+    .title-box {
+      text-align: left;
+      background: linear-gradient(135deg, #5c3d2e, #8b5e3c);
+      color: #fff;
+      padding: 12px 20px;
+      border-radius: 10px;
+      min-width: 150px;
+    }
+    .title-box .doc-type {
+      display: block;
+      font-size: 8.5pt;
+      opacity: 0.9;
+    }
+    .title-box .doc-number {
+      display: block;
+      font-size: 12pt;
+      font-weight: 800;
+      margin-top: 4px;
+    }
+    .parties {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 6mm;
       flex: 0 0 auto;
+    }
+    .party-box {
+      background: #f8f6f3;
+      padding: 12px 16px;
+      border-radius: 8px;
+      border: 1px solid #e8e0d5;
+    }
+    .party-box h4 {
+      margin: 0 0 8px;
+      color: #5c3d2e;
+      font-size: 9.5pt;
+      font-weight: 800;
+    }
+    .party-box p {
+      margin: 4px 0;
+      font-size: 9pt;
     }
     .table-wrap {
       flex: 1 1 auto;
@@ -185,6 +241,7 @@ const buildQuoteHtml = ({ company, quoteNumber, issuedAt, validUntil, notes, ite
       display: flex;
       flex-direction: column;
       min-height: 0;
+      margin-bottom: 4mm;
     }
     table {
       width: 100%;
@@ -195,120 +252,95 @@ const buildQuoteHtml = ({ company, quoteNumber, issuedAt, validUntil, notes, ite
     thead th {
       background: #5c3d2e;
       color: #fff;
-      font-size: 11pt;
+      font-size: 10pt;
       font-weight: 800;
-      padding: 9px 12px;
-      line-height: 1.1;
+      padding: 10px 12px;
+      text-align: right;
     }
     tbody td {
-      font-size: 10.3pt;
-      padding: 7px 12px;
-      border-bottom: 1px solid #e7d9c7;
+      font-size: 9.5pt;
+      padding: 8px 12px;
+      border-bottom: 1px solid #e8e0d5;
       vertical-align: middle;
-      line-height: 1.25;
     }
-    tbody tr:nth-child(even) { background: #faf6f1; }
-    tbody tr:nth-child(odd) { background: #fff; }
-    .item { width: 58%; text-align: right; }
-    .unit { width: 17%; text-align: center; }
-    .price { width: 25%; text-align: left; white-space: nowrap; }
-    .note {
-      margin-top: 3mm;
-      text-align: center;
-      font-size: 8.8pt;
-      color: #7a5f4a;
+    tbody tr:nth-child(even) { background: #fbf9f6; }
+    .no { width: 8%; text-align: right; }
+    .item { width: 50%; text-align: right; }
+    .unit { width: 17%; text-align: right; }
+    .price { width: 25%; text-align: left; }
+    .notes-box {
+      background: #fff9e6;
+      padding: 10px 14px;
+      border-radius: 6px;
+      border-right: 4px solid #c9a227;
+      font-size: 9pt;
+      margin-bottom: 4mm;
       flex: 0 0 auto;
+      color: #7c5f00;
     }
     .footer {
-      margin-top: 5mm;
-      background: #fbf7f0;
-      border: 1px solid #e6d8c8;
-      border-radius: 14px;
-      padding: 10px 14px 11px;
+      text-align: center;
+      padding-top: 4mm;
+      border-top: 1px solid #e8e0d5;
+      color: #666;
+      font-size: 8.5pt;
       flex: 0 0 auto;
     }
-    .footer-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px 18px;
-      align-items: start;
-    }
-    .footer-item {
-      display: flex;
-      gap: 10px;
-      align-items: baseline;
-      justify-content: flex-start;
-    }
-    .footer-label {
-      color: #7c6654;
-      font-size: 9.4pt;
-      font-weight: 800;
-      white-space: nowrap;
-      flex: 0 0 auto;
-      min-width: 62px;
-      text-align: right;
-    }
-    .footer-value {
-      flex: 1 1 auto;
-      font-size: 10pt;
-      color: #24170f;
-      text-align: right;
-      line-height: 1.35;
-      word-break: break-word;
-    }
-    .footer-span-2 { grid-column: 1 / -1; }
-    .muted { color: #7a5f4a; }
+    .footer p { margin: 2px 0; }
   </style>
 </head>
 <body>
   <div class="page">
-    <div class="topbar"></div>
+    ${logoDataUri ? `<img class="watermark" src="${logoDataUri}" alt="" />` : ''}
     <header class="header">
-      ${logoDataUri ? `<img class="logo" src="${logoDataUri}" alt="${escapeHtml(company.name_ar || 'بن العجوز')}" />` : ''}
-      <div class="store-name">${escapeHtml(company.name_ar || 'بن العجوز')}</div>
+      <div class="brand">
+        ${logoDataUri ? `<img class="logo" src="${logoDataUri}" alt="${escapeHtml(company.name_ar || 'بن العجوز')}" />` : ''}
+        <div class="company-details">
+          <h1>${escapeHtml(company.name_ar || 'بن العجوز')}</h1>
+          <p class="tagline">${escapeHtml(company.tagline || 'للحب التركي')}</p>
+          <p><strong>العنوان:</strong> ${escapeHtml(company.address || 'جمهورية مصر العربية')}</p>
+          <p><strong>الهاتف:</strong> ${escapeHtml(company.phone || '01000000000')}</p>
+        </div>
+      </div>
+      <div class="title-box">
+        <span class="doc-type">عرض سعر</span>
+        <span class="doc-number">${escapeHtml(quoteNumber)}</span>
+      </div>
     </header>
 
-    <h1 class="title">عرض أسعار</h1>
+    <div class="parties">
+      <div class="party-box">
+        <h4>بيانات العميل</h4>
+        <p><strong>الاسم:</strong> ${escapeHtml(customerName)}</p>
+      </div>
+      <div class="party-box">
+        <h4>تفاصيل العرض</h4>
+        <p><strong>تاريخ العرض:</strong> ${escapeHtml(formatDate(issuedAt))}</p>
+        <p><strong>صلاحية العرض:</strong> ساري حتى ${escapeHtml(formatDate(validUntil))}</p>
+      </div>
+    </div>
 
     <section class="table-wrap">
       <table>
         <thead>
           <tr>
-            <th class="item">الصنف</th>
+            <th class="no">#</th>
+            <th class="item">البيان</th>
             <th class="unit">الوحدة</th>
             <th class="price">السعر</th>
           </tr>
         </thead>
         <tbody>
-          ${rows || `<tr><td class="item muted" colspan="3">لا توجد بنود مضافة.</td></tr>`}
+          ${rows || `<tr><td class="item muted" colspan="4">لا توجد بنود مضافة.</td></tr>`}
         </tbody>
       </table>
       ${overflowNote}
     </section>
 
+    ${notes ? `<div class="notes-box"><strong>ملاحظات:</strong> ${escapeHtml(notes)}</div>` : ''}
+
     <footer class="footer">
-      <div class="footer-grid">
-        <div class="footer-item footer-span-2">
-          <div class="footer-label">العنوان</div>
-          <div class="footer-value">${escapeHtml(company.address || 'العنوان غير متاح')}</div>
-        </div>
-        <div class="footer-item">
-          <div class="footer-label">التليفون</div>
-          <div class="footer-value">${escapeHtml(company.phone || '01000000000')}</div>
-        </div>
-        <div class="footer-item">
-          <div class="footer-label">تاريخ العرض</div>
-          <div class="footer-value">${escapeHtml(formatDate(issuedAt))}</div>
-        </div>
-        <div class="footer-item footer-span-2">
-          <div class="footer-label">الصلاحية</div>
-          <div class="footer-value">ساري لمدة 15 يوم حتى ${escapeHtml(formatDate(validUntil))}</div>
-        </div>
-        <div class="footer-item footer-span-2">
-          <div class="footer-label">ملاحظات</div>
-          <div class="footer-value">${escapeHtml(notes || 'لا توجد ملاحظات إضافية')}</div>
-        </div>
-      </div>
+      <p>نتشرف بخدمتكم دائمًا، ونشكركم على ثقتكم في ${escapeHtml(company.name_ar || 'بن العجوز')}.</p>
     </footer>
   </div>
 </body>
@@ -365,6 +397,7 @@ export const generateQuotePdf = async (payload = {}) => {
   const html = buildQuoteHtml({
     company,
     quoteNumber,
+    customerName: String(payload.customer_name || 'عميل نقدي').trim(),
     issuedAt,
     validUntil,
     notes,

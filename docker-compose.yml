@@ -5,15 +5,51 @@ services:
     image: postgres:16-alpine
     container_name: bin_al_ajouz_db
     environment:
-      POSTGRES_USER: erp_user
-      POSTGRES_PASSWORD: erp_secret_2024
-      POSTGRES_DB: bin_al_ajouz
+      POSTGRES_USER: ${DB_USER:-erp_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env before starting Docker}
+      POSTGRES_DB: ${DB_NAME:-bin_al_ajouz}
     ports:
       - '5432:5432'
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./backend/migrations/001_schema.sql:/docker-entrypoint-initdb.d/01_schema.sql
       - ./backend/migrations/002_seed.sql:/docker-entrypoint-initdb.d/02_seed.sql
+    restart: always
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: bin_al_ajouz_api
+    environment:
+      - PORT=3000
+      - NODE_ENV=production
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=${DB_NAME:-bin_al_ajouz}
+      - DB_USER=${DB_USER:-erp_user}
+      - DB_PASSWORD=${DB_PASSWORD:?Set DB_PASSWORD in .env before starting Docker}
+      - JWT_SECRET=${JWT_SECRET:?Set JWT_SECRET in .env before starting Docker}
+      - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost}
+      - RATE_LIMIT_WINDOW_MS=900000
+      - RATE_LIMIT_MAX=1000
+      - COMPANY_NAME=${COMPANY_NAME:-Bin Al-Ajouz}
+    ports:
+      - '3000:3000'
+    depends_on:
+      - postgres
+    restart: always
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: bin_al_ajouz_web
+    ports:
+      - '80:80'
+    depends_on:
+      - backend
+    restart: always
 
 volumes:
   pgdata:

@@ -1,2 +1,30 @@
-# Auto detect text files and perform LF normalization
+# Auto detect text files and normalize line endings in the repository.
 * text=auto
+
+# Source files: keep LF to avoid noisy Windows/Unix diffs.
+*.js text eol=lf
+*.mjs text eol=lf
+*.cjs text eol=lf
+*.vue text eol=lf
+*.scss text eol=lf
+*.css text eol=lf
+*.json text eol=lf
+*.sql text eol=lf
+*.md text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+
+# Windows launchers/scripts: keep CRLF for native tooling.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Binary assets.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.zip binary
+*.xlsx binary

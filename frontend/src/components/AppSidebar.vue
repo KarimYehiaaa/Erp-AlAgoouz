@@ -42,54 +42,76 @@
 </template>
 
 <script setup>
+import { computed } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
 import AppIcon from '@/components/AppIcon.vue';
 import { useAppStore } from '@/stores/app';
+import { useAuthStore } from '@/stores/auth';
 
 const appStore = useAppStore();
+const authStore = useAuthStore();
 
-const menuGroups = [
+const rawMenuGroups = [
   {
     label: 'المركز',
     items: [
-      { to: '/', label: 'لوحة التحكم', icon: 'dashboard' },
-      { to: '/reports', label: 'التقارير', icon: 'reports' },
+      { to: '/', label: 'لوحة التحكم', icon: 'dashboard', perm: null },
+      { to: '/copilot', label: 'المساعد الذكي', icon: 'copilot', perm: 'dashboard.view' },
+      { to: '/reports', label: 'التقارير', icon: 'reports', perm: 'reports.view' },
+      { to: '/operations', label: 'مركز التشغيل', icon: 'operations', perm: 'reports.view' },
+      { to: '/forecasting', label: 'التنبؤ بالطلب', icon: 'trendingUp', perm: 'reports.view' },
     ],
   },
   {
     label: 'التشغيل',
     items: [
-      { to: '/branch-sales', label: 'شاشة المبيعات', icon: 'shop' },
-      { to: '/sales', label: 'المبيعات', icon: 'sales' },
-      { to: '/customers', label: 'العملاء', icon: 'customers' },
-      { to: '/invoices', label: 'الفواتير', icon: 'invoices' },
+      { to: '/branch-sales', label: 'شاشة الكاشير (POS)', icon: 'shop', perm: null },
+      { to: '/sales', label: 'سجل المبيعات والتسويات', icon: 'sales', perm: null },
+      { to: '/customers', label: 'العملاء', icon: 'customers', perm: 'customers.manage' },
+      { to: '/invoices', label: 'الفواتير', icon: 'invoices', perm: 'invoices.manage' },
     ],
   },
   {
     label: 'المخزون والإنتاج',
     items: [
-      { to: '/products', label: 'المنتجات', icon: 'products' },
-      { to: '/inventory', label: 'المخزون', icon: 'inventory' },
-      { to: '/recipes', label: 'الوصفات', icon: 'recipes' },
-      { to: '/costs', label: 'التكاليف', icon: 'costs' },
+      { to: '/products', label: 'المنتجات', icon: 'products', perm: 'products.manage' },
+      { to: '/inventory', label: 'المخزون', icon: 'inventory', perm: 'inventory.manage' },
+      { to: '/stocktakes', label: 'جرد المخازن والتسويات', icon: 'stocktake', perm: 'inventory.manage' },
+      { to: '/recipes', label: 'الوصفات', icon: 'recipes', perm: 'products.manage' },
+      { to: '/costs', label: 'التكاليف', icon: 'costs', perm: 'products.manage' },
     ],
   },
   {
     label: 'المالية والموردين',
     items: [
-      { to: '/purchases', label: 'المشتريات', icon: 'purchases' },
-      { to: '/expenses', label: 'المصروفات', icon: 'expenses' },
-      { to: '/suppliers', label: 'الموردين', icon: 'suppliers' },
+      { to: '/purchases', label: 'المشتريات والمصروفات', icon: 'purchases', perm: ['inventory.manage', 'expenses.manage'] },
+      { to: '/suppliers', label: 'الموردين', icon: 'suppliers', perm: 'suppliers.manage' },
     ],
   },
   {
     label: 'الإدارة',
     items: [
-      { to: '/users', label: 'المستخدمين', icon: 'users' },
-      { to: '/settings', label: 'الإعدادات', icon: 'settings' },
+      { to: '/hr', label: 'الموظفين والرواتب', icon: 'hr', perm: 'hr.manage' },
+      { to: '/users', label: 'المستخدمين', icon: 'users', perm: 'users.manage' },
+      { to: '/settings', label: 'الإعدادات', icon: 'settings', perm: 'settings.manage' },
     ],
   },
 ];
+
+const menuGroups = computed(() => {
+  return rawMenuGroups
+    .map((group) => {
+      const filteredItems = group.items.filter((item) => {
+        if (!item.perm) return true;
+        if (Array.isArray(item.perm)) {
+          return item.perm.some((p) => authStore.hasPermission(p));
+        }
+        return authStore.hasPermission(item.perm);
+      });
+      return { ...group, items: filteredItems };
+    })
+    .filter((group) => group.items.length > 0);
+});
 </script>
 
 <style lang="scss" scoped>
@@ -129,7 +151,11 @@ const menuGroups = [
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.brand-logo { flex-shrink: 0; background: #fff; }
+.brand-logo {
+  flex-shrink: 0;
+  position: relative;
+  animation: logoBreath 5.5s ease-in-out infinite;
+}
 
 .brand-text {
   min-width: 0;
@@ -179,17 +205,43 @@ const menuGroups = [
   color: var(--sidebar-text);
   overflow: hidden;
   white-space: nowrap;
-  transition: background var(--transition), color var(--transition), transform var(--transition);
+  isolation: isolate;
+  transition: background var(--transition), color var(--transition), transform var(--transition), box-shadow var(--transition);
+
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    z-index: -1;
+    background: radial-gradient(circle at center, color-mix(in srgb, var(--accent) 30%, transparent), transparent 75%);
+    transform: scale(0.6);
+    transition: opacity 280ms cubic-bezier(0.4, 0, 0.2, 1), transform 280ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
 
   &:hover {
-    background: rgba(255, 255, 255, 0.07);
+    background: rgba(255, 255, 255, 0.08);
     color: #fff;
+    transform: translateX(-3px);
+
+    &::after {
+      opacity: 1;
+      transform: scale(1.2);
+    }
   }
 
   &.active {
     background: var(--sidebar-surface);
     color: #fff;
-    box-shadow: inset -3px 0 0 var(--accent);
+    box-shadow:
+      inset -3px 0 0 var(--accent),
+      0 10px 22px rgba(0, 0, 0, .14);
+
+    .nav-icon {
+      color: #fff;
+      background: linear-gradient(145deg, color-mix(in srgb, var(--accent) 52%, transparent), rgba(255,255,255,.12));
+      box-shadow: 0 0 18px color-mix(in srgb, var(--accent) 28%, transparent);
+    }
   }
 }
 
@@ -245,6 +297,18 @@ const menuGroups = [
 .label-fade-leave-to {
   opacity: 0;
   transform: translateX(8px);
+}
+
+@keyframes logoBreath {
+  0%, 100% { transform: translateY(0) rotateZ(0deg); }
+  50% { transform: translateY(-2px) rotateZ(-1deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brand-logo { animation: none; }
+  .nav-item,
+  .nav-item::after { transition: none; }
+  .nav-item:hover { transform: none; }
 }
 
 @media (max-width: 992px) {

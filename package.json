@@ -4,6 +4,9 @@
   "private": true,
   "description": "بن العجوز ERP",
   "scripts": {
+    "setup": "node scripts/setup-project.js",
+    "backup": "node scripts/backup-system.js",
+    "update": "node scripts/update-project.js",
     "start": "powershell -ExecutionPolicy Bypass -File ./scripts/start-erp.ps1",
     "stop": "powershell -ExecutionPolicy Bypass -File ./scripts/stop-erp.ps1",
     "pm2:start": "pm2 start ecosystem.config.cjs",

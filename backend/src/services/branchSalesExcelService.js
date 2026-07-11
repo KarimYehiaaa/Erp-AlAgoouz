@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Branch sales Excel service.
  * Cleaned version with explicit headers and strict parsing.
  */
@@ -114,8 +114,16 @@ const resolveHeaderRow = (rows) => {
 
 const findIndex = (headers, aliases) => headers.findIndex((header) => aliases.some((alias) => header === normalizeText(alias) || header.includes(normalizeText(alias))));
 
+const getStoreWarehouseId = async () => {
+  const res = await query(
+    `SELECT id FROM warehouses WHERE (type = 'store' OR code = 'STORE') AND deleted_at IS NULL AND is_active = TRUE ORDER BY id ASC LIMIT 1`
+  );
+  if (res.rows[0]) return Number(res.rows[0].id);
+  return await getDefaultWarehouseId();
+};
+
 const fetchBranchProducts = async (warehouseId) => {
-  const resolvedWarehouseId = Number(warehouseId) || await getDefaultWarehouseId();
+  const resolvedWarehouseId = Number(warehouseId) || await getStoreWarehouseId();
   const res = await query(
     `SELECT p.id, p.sku, p.name_ar, p.sale_price, p.unit,
             pc.name_ar AS category_name,
@@ -129,7 +137,15 @@ const fetchBranchProducts = async (warehouseId) => {
      LEFT JOIN product_categories pc ON pc.id = p.category_id
      LEFT JOIN inventory inv ON inv.product_id = p.id AND inv.warehouse_id = $1
      WHERE p.deleted_at IS NULL
-       AND EXISTS (SELECT 1 FROM inventory i2 WHERE i2.product_id = p.id AND i2.warehouse_id = $1)
+       AND (
+         EXISTS (SELECT 1 FROM inventory i2 WHERE i2.product_id = p.id AND i2.warehouse_id = $1)
+         OR
+         EXISTS (
+           SELECT 1
+           FROM product_recipes r
+           WHERE r.product_id = p.id AND r.deleted_at IS NULL AND r.is_active = TRUE
+         )
+       )
      ORDER BY pc.sort_order NULLS LAST, p.name_ar`,
     [resolvedWarehouseId]
   );
@@ -270,7 +286,8 @@ export const parseBranchSalesExcel = async (buffer, warehouseId) => {
 };
 
 export const validateBranchExcel = async (buffer) => {
-  const { groups, errors } = await parseBranchSalesExcel(buffer);
+  const resolvedWarehouseId = await getStoreWarehouseId();
+  const { groups, errors } = await parseBranchSalesExcel(buffer, resolvedWarehouseId);
   const totalItems = groups.reduce((sum, group) => sum + group.items.length, 0);
   return {
     ok: totalItems > 0,
@@ -287,8 +304,9 @@ export const validateBranchExcel = async (buffer) => {
 };
 
 export const importBranchExcel = async (buffer, userId, warehouseId) => {
-  const { groups, errors } = await parseBranchSalesExcel(buffer, warehouseId);
-  const targetWarehouseId = Number(warehouseId) || await getDefaultWarehouseId();
+  const resolvedWarehouseId = Number(warehouseId) || await getStoreWarehouseId();
+  const { groups, errors } = await parseBranchSalesExcel(buffer, resolvedWarehouseId);
+  const targetWarehouseId = resolvedWarehouseId;
   let success = 0;
   const failed = [];
 

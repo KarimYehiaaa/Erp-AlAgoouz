@@ -152,23 +152,19 @@ export const getRecipeById = async (id) => {
 };
 
 const updateProductPriceFromLatestPurchaseInvoice = async (client, productId) => {
-  const latestPurchase = await client.query(
-    `SELECT pii.unit_price
-     FROM purchase_invoice_items pii
-     JOIN purchase_invoices pi ON pi.id = pii.purchase_invoice_id
-     WHERE pii.product_id = $1
-       AND pi.deleted_at IS NULL
-     ORDER BY pi.invoice_date DESC, pi.id DESC, pii.id DESC
-     LIMIT 1`,
+  await client.query(
+    `UPDATE products
+     SET purchase_price = COALESCE((
+       SELECT ROUND((SUM(pii.total_amount) / NULLIF(SUM(pii.quantity), 0))::numeric, 2)
+       FROM purchase_invoice_items pii
+       JOIN purchase_invoices pi ON pi.id = pii.purchase_invoice_id
+       WHERE pii.product_id = $1
+         AND pi.deleted_at IS NULL
+     ), purchase_price),
+     updated_at = NOW()
+     WHERE id = $1`,
     [productId]
   );
-  const latestPrice = Number(latestPurchase.rows[0]?.unit_price || 0);
-  if (latestPrice > 0) {
-    await client.query(
-      `UPDATE products SET purchase_price = $1, updated_at = NOW() WHERE id = $2`,
-      [latestPrice, productId]
-    );
-  }
 };
 
 export const createRecipe = async (data, userId) => {

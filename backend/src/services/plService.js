@@ -186,7 +186,8 @@ export const getProfitAndLoss = async (fromDate, toDate) => {
     cogsBasis = 'purchases';
   }
 
-  const netRevenue        = roundMoney(revenue - returns);
+  const netRevenue        = revenue; // المبيعات المكتملة هي بالفعل صافي الإيرادات بعد استبعاد المرتجعات
+  const grossRevenue      = roundMoney(revenue + returns); // المبيعات الإجمالية قبل المرتجعات
   const grossProfit       = roundMoney(netRevenue - cogsUsed);
   const grossProfitMargin = netRevenue > 0 ? roundMoney((grossProfit / netRevenue) * 100) : 0;
   const netProfit         = roundMoney(grossProfit - expensesTotal);
@@ -219,10 +220,10 @@ export const getProfitAndLoss = async (fromDate, toDate) => {
 
     // ── قسم الإيرادات ──
     revenue: {
-      gross:    revenue,
+      gross:    grossRevenue,
       returns:  returns,
       net:      netRevenue,
-      count:    toNum(salesData.rows[0]?.sales_count),
+      count:    toNum(salesData.rows[0]?.sales_count) + toNum(returnsData.rows[0]?.returns_count),
       discounts: roundMoney(toNum(salesData.rows[0]?.discounts)),
       by_type:  byType,
     },

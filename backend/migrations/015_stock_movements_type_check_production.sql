@@ -18,6 +18,7 @@ BEGIN
       'sale',
       'consumption',
       'production',
+      'opening_production',
       'return',
       'transfer',
       'adjustment'

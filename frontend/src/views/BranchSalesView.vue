@@ -25,9 +25,9 @@
 
     <!-- Stats Row -->
     <div class="grid grid-3 stats-row">
-      <StatCard label="مبيعات اليوم" :value="todayTotal" icon="💰" />
-      <StatCard label="عدد الفواتير اليوم" :value="todayCount" icon="🧾" format="number" />
-      <StatCard label="آخر عملية بيع" :value="lastSaleTime" icon="🕐" format="text" />
+      <StatCard label="مبيعات اليوم" :value="todayTotal" icon="coins" />
+      <StatCard label="عدد الفواتير اليوم" :value="todayCount" icon="receipt" format="number" />
+      <StatCard label="آخر عملية بيع" :value="lastSaleTime" icon="clock" format="text" />
     </div>
 
     <!-- Manual Entry Mode -->
@@ -39,7 +39,7 @@
           <div class="panel-header">
             <h3>🛍️ منتجات الفرع</h3>
             <div class="panel-filters">
-              <input v-model="productSearch" type="text" placeholder="بحث عن منتج..." class="search-input" @input="filterProducts" />
+              <input ref="searchInputRef" v-model="productSearch" type="text" placeholder="بحث عن منتج... (F7)" class="search-input" @input="filterProducts" />
               <select v-model="selectedCategory" @change="filterProducts" class="category-select">
                 <option value="">كل التصنيفات</option>
                 <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.name_ar }}</option>
@@ -47,7 +47,13 @@
             </div>
           </div>
 
-          <div v-if="loadingProducts" class="loading-state">⏳ جاري تحميل المنتجات...</div>
+          <!-- Premium Skeletons for Product Grid Loading -->
+          <div v-if="loadingProducts" class="products-grid">
+            <div v-for="i in 8" :key="'sk-prod-' + i" class="product-card skeleton">
+              <div class="skeleton-line name shimmer"></div>
+              <div class="skeleton-line price shimmer" style="margin-top: 6px;"></div>
+            </div>
+          </div>
           <div v-else-if="!filteredProducts.length" class="empty-state">
             <span>🔍</span>
             <p>لا توجد منتجات مطابقة</p>
@@ -59,11 +65,18 @@
               class="product-card"
               :class="{
                 'no-recipe': !product.has_recipe,
-                'low-stock': hasLowIngredients(product),
+                'low-stock': hasLowIngredients(product) || getProductStockClass(product) === 'low',
+                'is-out-of-stock': getProductStockClass(product) === 'out',
                 'selected': isInCart(product.id)
               }"
               @click="addToCart(product)"
             >
+              <!-- 🟢 مؤشر المخزون المضيء -->
+              <span 
+                class="stock-indicator-dot" 
+                :class="getProductStockClass(product)"
+                :title="getProductStockTitle(product)"
+              ></span>
               <div class="product-name">{{ product.name_ar }}</div>
               <div class="product-meta">
                 <span class="product-price">{{ formatMoney(product.sale_price) }}</span>
@@ -113,6 +126,29 @@
             </div>
           </div>
 
+          <!-- Suggested Complementary Items (Market Basket Analysis) -->
+          <div v-if="cart.length && recommendedItems.length" class="cart-recommendations">
+            <div class="rec-title">✨ مقترحات ذكية ترافق السلة:</div>
+            <div class="rec-list">
+              <div 
+                v-for="rec in recommendedItems" 
+                :key="rec.product_id" 
+                class="rec-item"
+                @click="addRecommendedToCart(rec)"
+                title="اضغط لإضافة هذا الصنف المقترح"
+              >
+                <div class="rec-name">
+                  <span class="rec-name-text">{{ rec.name_ar }}</span>
+                  <span class="rec-category">{{ rec.category_name }}</span>
+                </div>
+                <div class="rec-action">
+                  <span class="rec-price">{{ formatMoney(rec.sale_price) }}</span>
+                  <span class="rec-add-icon">➕</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- Cart Summary -->
           <div v-if="cart.length" class="cart-summary">
             <div class="summary-row">
@@ -147,8 +183,37 @@
               </div>
             </div>
             <div class="form-group">
-              <label>ملاحظات</label>
-              <textarea v-model="saleForm.notes" rows="2" placeholder="ملاحظات اختيارية..."></textarea>
+            </div>
+
+            <!-- إعدادات الطباعة الحرارية المباشرة -->
+            <div class="printer-settings-box">
+              <div class="printer-header">
+                <span>🖨️ الطباعة الحرارية المباشرة</span>
+              </div>
+              <div class="printer-controls">
+                <div class="printer-info">
+                  <span class="printer-status" :class="{ configured: printerName }">
+                    {{ printerName ? `طابعة نشطة: ${printerName}` : 'لم يتم تحديد طابعة USB' }}
+                  </span>
+                  <button type="button" class="btn-sm btn-outline" @click="selectPrinter">
+                    {{ printerName ? 'تغيير' : 'تحديد طابعة' }}
+                  </button>
+                </div>
+                <div class="printer-options">
+                  <label class="checkbox-label">
+                    <input type="checkbox" v-model="autoPrint" />
+                    <span>طباعة تلقائية عند البيع</span>
+                  </label>
+                  <button 
+                    v-if="lastSavedSale" 
+                    type="button" 
+                    class="btn-sm btn-outline print-last-btn"
+                    @click="printReceipt(lastSavedSale)"
+                  >
+                    🖨️ طباعة الفاتورة الأخيرة
+                  </button>
+                </div>
+              </div>
             </div>
 
             <div v-if="saleError" class="alert alert-danger">{{ saleError }}</div>
@@ -156,6 +221,7 @@
             <button
               type="submit"
               class="btn btn-primary btn-submit"
+              :class="{ 'btn-loading': saving }"
               :disabled="saving || !cart.length"
             >
               {{ saving ? '⏳ جاري الحفظ...' : `💾 تسجيل البيع (${formatMoney(cartTotal)})` }}
@@ -295,6 +361,10 @@
           <input v-model="historyFilters.from_date" type="date" @change="loadHistory" />
           <span>إلى</span>
           <input v-model="historyFilters.to_date" type="date" @change="loadHistory" />
+          <div class="month-filter-btn" title="اختر الشهر بالكامل">
+            <AppIcon name="calendar" :size="16" />
+            <input type="month" class="month-picker-overlay" @change="selectMonth" />
+          </div>
         </div>
       </div>
 
@@ -328,11 +398,12 @@
               </td>
               <td>
                 <button
-                  v-if="sale.status === 'completed'"
+                  v-if="sale.status === 'completed' && !sale.offline_id"
                   class="btn-sm btn-danger"
                   @click="returnSale(sale)"
                   title="استرداد"
                 >↩️</button>
+                <span v-else-if="sale.offline_id" class="badge badge-warning">بانتظار المزامنة</span>
               </td>
             </tr>
             <tr v-if="!salesHistory.length">
@@ -347,11 +418,15 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue';
 import StatCard from '@/components/StatCard.vue';
-import { sales as salesApi, products as productsApi } from '@/api';
+import AppIcon from '@/components/AppIcon.vue';
+import { sales as salesApi, products as productsApi, forecasting as forecastingApi, users as userApi } from '@/api';
 import { formatMoney } from '@/utils/currency';
 import { useProductMeta } from '@/composables/useProductMeta';
+import { useAppStore } from '@/stores/app';
+import { localDb } from '@/services/localDb';
+import { directPrinter } from '@/services/directPrinter';
 
 // ─── helpers ───────────────────────────────────────────────────────────────
 const localTodayYmd = () => {
@@ -381,6 +456,104 @@ const saleError = ref('');
 const downloadingTemplate = ref(false);
 const todayStr = today;
 
+// ─── PWA & Printing State ───
+const appStore = useAppStore();
+const autoPrint = ref(localStorage.getItem('auto_print_receipt') !== 'false');
+const printerName = ref(directPrinter.getSelectedPrinterName() || '');
+const lastSavedSale = ref(null);
+
+const searchInputRef = ref(null);
+const companySettings = ref({ name_ar: 'بن العجوز', phone: '', address: '', tagline: 'للبن التركي' });
+
+const playBeep = (type = 'success') => {
+  const soundEnabled = localStorage.getItem('sound_enabled') !== 'false';
+  if (!soundEnabled) return;
+  const soundVolume = parseFloat(localStorage.getItem('sound_volume') || '0.08');
+
+  try {
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (type === 'success') {
+      const osc1 = audioCtx.createOscillator();
+      const osc2 = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc1.connect(gain);
+      osc2.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc1.frequency.setValueAtTime(523.25, audioCtx.currentTime);
+      osc2.frequency.setValueAtTime(659.25, audioCtx.currentTime);
+      gain.gain.setValueAtTime(soundVolume, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.25);
+      osc1.start();
+      osc2.start();
+      osc1.stop(audioCtx.currentTime + 0.25);
+      osc2.stop(audioCtx.currentTime + 0.25);
+    } else if (type === 'warning') {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(220, audioCtx.currentTime);
+      gain.gain.setValueAtTime(soundVolume * 1.5, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.2);
+    } else if (type === 'error') {
+      const gain = audioCtx.createGain();
+      gain.connect(audioCtx.destination);
+      gain.gain.setValueAtTime(soundVolume * 2, audioCtx.currentTime);
+      const playTone = (freq, duration, delay) => {
+        const osc = audioCtx.createOscillator();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime + delay);
+        osc.connect(gain);
+        osc.start(audioCtx.currentTime + delay);
+        osc.stop(audioCtx.currentTime + delay + duration);
+      };
+      playTone(130, 0.1, 0);
+      playTone(130, 0.1, 0.12);
+      playTone(130, 0.15, 0.24);
+    } else if (type === 'click') {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+      gain.gain.setValueAtTime(soundVolume * 0.5, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.08);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.08);
+    }
+  } catch (err) {
+    console.error('Audio play failed:', err);
+  }
+};
+
+const handleGlobalKeyDown = (e) => {
+  const shortcutsEnabled = localStorage.getItem('shortcuts_enabled') !== 'false';
+  if (!shortcutsEnabled) return;
+
+  if (e.key === 'F2') {
+    e.preventDefault();
+    submitManualSale();
+  } else if (e.key === 'F4') {
+    e.preventDefault();
+    clearCart();
+    playBeep('warning');
+  } else if (e.key === 'F7') {
+    e.preventDefault();
+    if (searchInputRef.value) {
+      searchInputRef.value.focus();
+      searchInputRef.value.select();
+    }
+  }
+};
+
+watch(autoPrint, (val) => {
+  localStorage.setItem('auto_print_receipt', String(val));
+});
+
 const allProducts = ref([]);
 const filteredProducts = ref([]);
 const productSearch = ref('');
@@ -394,6 +567,48 @@ const saleForm = ref({
   warehouse_id: null,
   notes: '',
 });
+
+// AI complementary items states & actions
+const recommendedItems = ref([]);
+const loadingRecommendations = ref(false);
+
+const loadRecommendations = async () => {
+  if (!cart.value.length) {
+    recommendedItems.value = [];
+    return;
+  }
+  loadingRecommendations.value = true;
+  try {
+    const productIds = cart.value.map(i => i.product_id);
+    const res = await forecastingApi.getBasketAssociations({
+      cart: productIds.join(','),
+      warehouse_id: saleForm.value.warehouse_id || 1
+    });
+    // Filter out recommendations that are already in the cart
+    recommendedItems.value = (res.data || []).filter(
+      r => !productIds.includes(r.product_id)
+    );
+  } catch (err) {
+    console.error('Failed to load basket recommendations:', err);
+    recommendedItems.value = [];
+  } finally {
+    loadingRecommendations.value = false;
+  }
+};
+
+watch(cart, () => {
+  loadRecommendations();
+}, { deep: true });
+
+const addRecommendedToCart = (rec) => {
+  const product = allProducts.value.find(p => p.id === rec.product_id) || {
+    id: rec.product_id,
+    name_ar: rec.name_ar,
+    sale_price: rec.sale_price,
+    has_recipe: true
+  };
+  addToCart(product);
+};
 
 const salesHistory = ref([]);
 const historyFilters = ref({ from_date: today.slice(0, 8) + '01', to_date: today });
@@ -439,6 +654,34 @@ const hasLowIngredients = (product) => {
   });
 };
 
+const getProductStockClass = (product) => {
+  if (!product.has_recipe) {
+    const qty = Number(product.stock_quantity || 0);
+    if (qty <= 0) return 'out';
+    if (qty <= 10) return 'low';
+    return 'good';
+  } else {
+    const isMissing = hasLowIngredients(product);
+    if (isMissing) return 'out';
+    
+    // Check if any ingredient has less than 5 servings left
+    const isClose = product.recipe_items?.some(ri => {
+      const needed = Number(ri.quantity);
+      const available = Number(ri.stock_available || 0);
+      return available < needed * 5;
+    });
+    if (isClose) return 'low';
+    return 'good';
+  }
+};
+
+const getProductStockTitle = (product) => {
+  const status = getProductStockClass(product);
+  if (status === 'out') return 'المخزون غير كافٍ لعمل المشروب ⚠️';
+  if (status === 'low') return 'المخزون منخفض (أقل من 5 أكواب متبقية) ⚡';
+  return 'متوفر بكثرة في المخزن ✓';
+};
+
 const isInCart = (productId) => cart.value.some((i) => i.product_id === productId);
 const getCartQty = (productId) => {
   const item = cart.value.find((i) => i.product_id === productId);
@@ -463,12 +706,32 @@ const loadProducts = async () => {
   try {
     const params = {};
     if (saleForm.value.warehouse_id) params.warehouse_id = saleForm.value.warehouse_id;
-    const prodRes = await productsApi.branchProducts(params);
-    allProducts.value = prodRes.data;
+    
+    if (navigator.onLine) {
+      const prodRes = await productsApi.branchProducts(params);
+      allProducts.value = prodRes.data || [];
+      try {
+        await localDb.saveProducts(allProducts.value);
+      } catch (dbErr) {
+        console.warn('Failed to cache products to IndexedDB:', dbErr);
+      }
+    } else {
+      const cached = await localDb.getProducts();
+      allProducts.value = cached || [];
+    }
     await loadMeta();
     filterProducts();
   } catch (e) {
     console.error('فشل تحميل المنتجات:', e.message);
+    try {
+      const cached = await localDb.getProducts();
+      if (cached && cached.length) {
+        allProducts.value = cached;
+        filterProducts();
+      }
+    } catch (dbErr) {
+      console.error('Failed to load products from IndexedDB fallback:', dbErr);
+    }
   } finally {
     loadingProducts.value = false;
   }
@@ -481,6 +744,7 @@ watch(() => saleForm.value.warehouse_id, (v, o) => {
 
 // ─── cart actions ───────────────────────────────────────────────────────────
 const addToCart = (product) => {
+  playBeep('success');
   const existing = cart.value.find((i) => i.product_id === product.id);
   if (existing) {
     existing.quantity = parseFloat((existing.quantity + 1).toFixed(3));
@@ -500,9 +764,11 @@ const addToCart = (product) => {
 };
 
 const increaseQty = (idx) => {
+  playBeep('click');
   cart.value[idx].quantity = parseFloat((cart.value[idx].quantity + 1).toFixed(3));
 };
 const decreaseQty = (idx) => {
+  playBeep('click');
   if (cart.value[idx].quantity > 0.1) {
     cart.value[idx].quantity = parseFloat((cart.value[idx].quantity - 1).toFixed(3));
   } else {
@@ -513,8 +779,12 @@ const validateQty = (idx) => {
   const qty = parseFloat(cart.value[idx].quantity);
   if (!qty || qty <= 0) cart.value.splice(idx, 1);
 };
-const removeFromCart = (idx) => cart.value.splice(idx, 1);
+const removeFromCart = (idx) => {
+  playBeep('click');
+  cart.value.splice(idx, 1);
+};
 const clearCart = () => {
+  playBeep('click');
   cart.value = [];
   saleForm.value.discount_amount = 0;
   saleForm.value.notes = '';
@@ -523,50 +793,154 @@ const clearCart = () => {
 };
 
 // ─── submit sale ────────────────────────────────────────────────────────────
+const selectPrinter = async () => {
+  try {
+    await directPrinter.selectPrinter();
+    printerName.value = directPrinter.getSelectedPrinterName() || 'USB Printer';
+    alert('تم تحديد الطابعة بنجاح: ' + printerName.value);
+  } catch (err) {
+    alert('فشل تحديد الطابعة: ' + err.message);
+  }
+};
+
+const printReceipt = async (saleRecord) => {
+  if (!saleRecord) return;
+  try {
+    const invoiceData = {
+      ...saleRecord,
+      invoice_number: saleRecord.sale_number,
+      created_at: saleRecord.created_at || saleRecord.sale_date,
+      subtotal: (saleRecord.items || []).reduce((sum, item) => sum + (item.quantity * item.unit_price), 0),
+      total_amount: saleRecord.total_amount,
+      discount_amount: saleRecord.discount_amount,
+      user_name: 'كاشير الفرع',
+      company: companySettings.value,
+      items: saleRecord.items.map(item => ({
+        product_name: item.product_name || item.name_ar || allProducts.value.find(p => p.id === item.product_id)?.name_ar || 'منتج',
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        total_amount: item.quantity * item.unit_price
+      }))
+    };
+    await directPrinter.print(invoiceData);
+  } catch (err) {
+    console.error('Print failed:', err);
+    alert('فشل الطباعة: ' + err.message);
+  }
+};
+
 const submitManualSale = async () => {
   if (!cart.value.length) return;
   saleError.value = '';
-
   saving.value = true;
+
+  const payload = {
+    sale_type: 'branch',
+    sale_date: saleForm.value.sale_date,
+    warehouse_id: saleForm.value.warehouse_id || null,
+    payment_method: saleForm.value.payment_method,
+    payment_status: 'paid',
+    discount_amount: Number(saleForm.value.discount_amount || 0),
+    notes: saleForm.value.notes || null,
+    total_amount: Number(cartTotal.value),
+    items: cart.value.map((i) => ({
+      product_id: i.product_id,
+      product_name: i.name_ar,
+      quantity: i.quantity,
+      unit_price: i.unit_price,
+      discount_amount: 0,
+    })),
+  };
+
   try {
-    await salesApi.create({
-      sale_type: 'branch',
-      sale_date: saleForm.value.sale_date,
-      warehouse_id: saleForm.value.warehouse_id || null,
-      payment_method: saleForm.value.payment_method,
-      payment_status: 'paid',
-      discount_amount: saleForm.value.discount_amount || 0,
-      notes: saleForm.value.notes || null,
-      items: cart.value.map((i) => ({
-        product_id: i.product_id,
-        quantity: i.quantity,
-        unit_price: i.unit_price,
-        discount_amount: 0,
-      })),
-    });
-    clearCart();
-    await Promise.all([loadHistory(), loadProducts()]);
+    let saleRecord = null;
+    if (navigator.onLine) {
+      const res = await salesApi.create(payload);
+      saleRecord = res.data;
+      lastSavedSale.value = saleRecord;
+      playBeep('success');
+      clearCart();
+      await Promise.all([loadHistory(), loadProducts()]);
+    } else {
+      saleRecord = await localDb.saveOfflineSale(payload);
+      lastSavedSale.value = saleRecord;
+      
+      const offlineSales = await localDb.getOfflineSales();
+      appStore.pendingSyncCount = offlineSales.length;
+      
+      playBeep('success');
+      clearCart();
+      salesHistory.value.unshift(saleRecord);
+      alert('⚠️ تم حفظ الفاتورة محلياً بسبب انقطاع الاتصال. سيتم مزامنتها تلقائياً عند عودة الشبكة.');
+    }
+
+    if (autoPrint.value && saleRecord) {
+      await printReceipt(saleRecord);
+    }
   } catch (e) {
-    saleError.value = e.message || 'فشل تسجيل البيع';
+    console.warn('Online submit failed, saving offline fallback...', e);
+    try {
+      const saleRecord = await localDb.saveOfflineSale(payload);
+      lastSavedSale.value = saleRecord;
+      
+      const offlineSales = await localDb.getOfflineSales();
+      appStore.pendingSyncCount = offlineSales.length;
+      
+      playBeep('success');
+      clearCart();
+      salesHistory.value.unshift(saleRecord);
+      alert('⚠️ تم حفظ الفاتورة محلياً (فشل الاتصال بالخادم). سيتم مزامنتها تلقائياً.');
+      
+      if (autoPrint.value) {
+        await printReceipt(saleRecord);
+      }
+    } catch (err) {
+      playBeep('error');
+      saleError.value = 'فشل تسجيل البيع: ' + (e.message || err.message);
+    }
   } finally {
     saving.value = false;
   }
 };
 
 // ─── history ────────────────────────────────────────────────────────────────
+const selectMonth = (event) => {
+  const value = event.target.value;
+  if (!value) return;
+  const [year, month] = value.split('-').map(Number);
+  const fromDate = `${year}-${String(month).padStart(2, '0')}-01`;
+  const lastDay = new Date(year, month, 0).getDate();
+  const toDate = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+  
+  historyFilters.value.from_date = fromDate;
+  historyFilters.value.to_date = toDate;
+  loadHistory();
+};
+
 const loadHistory = async () => {
   loadingHistory.value = true;
   try {
-    const res = await salesApi.list({
-      sale_type: 'branch',
-      entry_mode: 'pos',
-      from_date: historyFilters.value.from_date,
-      to_date: historyFilters.value.to_date,
-      limit: 100,
-    });
-    salesHistory.value = res.data;
+    let historyData = [];
+    if (navigator.onLine) {
+      const res = await salesApi.list({
+        sale_type: 'branch',
+        entry_mode: 'pos',
+        from_date: historyFilters.value.from_date,
+        to_date: historyFilters.value.to_date,
+        limit: 100,
+      });
+      historyData = res.data || [];
+    }
+    const offlineSales = await localDb.getOfflineSales();
+    salesHistory.value = [...offlineSales, ...historyData];
   } catch (e) {
     console.error('فشل تحميل السجل:', e.message);
+    try {
+      const offlineSales = await localDb.getOfflineSales();
+      salesHistory.value = offlineSales;
+    } catch (dbErr) {
+      console.error('Failed to load offline sales for history:', dbErr);
+    }
   } finally {
     loadingHistory.value = false;
   }
@@ -654,31 +1028,46 @@ const onImportExcel = async (e) => {
   e.target.value = '';
 };
 
-onMounted(() => {
-// ─── lifecycle ──────────────────────────────────────────────────────────────
-import { onBeforeUnmount } from 'vue';
-
+// ─── lifecycle & events ───
 const onInventoryUpdated = (e) => {
   try {
     loadProducts();
-    // history doesn't need full reload for stock changes
   } catch (err) {
     console.warn('inventory-updated handler error', err);
   }
 };
 
-onMounted(() => {
+onMounted(async () => {
   loadProducts();
   loadHistory();
   window.addEventListener('inventory-updated', onInventoryUpdated);
+  window.addEventListener('keydown', handleGlobalKeyDown);
+  
+  // Load company settings
+  try {
+    const res = await userApi.settings();
+    if (res.data?.company) {
+      companySettings.value = res.data.company;
+      localStorage.setItem('company_settings', JSON.stringify(res.data.company));
+    }
+  } catch (e) {
+    const cached = localStorage.getItem('company_settings');
+    if (cached) companySettings.value = JSON.parse(cached);
+  }
+  
+  // Watch for global WebSocket/sync data refreshes
+  watch(() => appStore.dataRefreshTrigger, () => {
+    loadProducts();
+    loadHistory();
+  });
 });
 
 onBeforeUnmount(() => {
   window.removeEventListener('inventory-updated', onInventoryUpdated);
+  window.removeEventListener('keydown', handleGlobalKeyDown);
 });
 
 const openCountsModal = () => {
-  // initialize counts map with zeroes
   counts.value = {};
   for (const p of allProducts.value) counts.value[p.id] = 0;
   countsModal.value = true;
@@ -767,20 +1156,98 @@ const submitCounts = async () => {
 }
 
 .product-card {
-  position: relative; padding: 12px; border: 2px solid var(--border); border-radius: var(--radius);
-  cursor: pointer; transition: var(--transition); background: var(--bg-card); text-align: center;
-  &:hover { border-color: var(--primary); transform: translateY(-2px); box-shadow: var(--shadow-sm); }
-  &.selected { border-color: var(--primary); background: rgba(var(--primary-rgb, 100,60,20), 0.06); }
+  position: relative; 
+  padding: 12px; 
+  border: 1px solid var(--border); 
+  border-radius: var(--radius-md);
+  cursor: pointer; 
+  transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.25s ease, border-color 0.25s ease, background 0.25s ease; 
+  background: var(--bg-card); 
+  text-align: center;
+  animation: card-fade-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+
+  @for $i from 1 through 24 {
+    &:nth-child(#{$i}) {
+      animation-delay: #{$i * 15}ms;
+    }
+  }
+
+  &:hover { 
+    border-color: var(--accent); 
+    transform: translateY(-4px); 
+    box-shadow: 0 8px 20px rgba(161, 98, 7, 0.1); 
+  }
+
+  &:active {
+    transform: translateY(-1px) scale(0.96);
+  }
+
+  &.selected { 
+    border-color: var(--accent); 
+    background: var(--accent-soft); 
+  }
+  
   &.no-recipe { border-style: dashed; }
   &.low-stock { border-color: #f59e0b; }
+  
   .product-name { font-weight: 700; font-size: 0.88rem; margin-bottom: 6px; line-height: 1.3; }
   .product-meta { display: flex; justify-content: space-between; font-size: 0.78rem; color: var(--text-muted); margin-bottom: 6px; }
   .product-price { font-weight: 700; color: var(--primary-dark); }
   .product-status { margin-top: 4px; }
+  
   .cart-qty-badge {
-    position: absolute; top: -8px; left: -8px; background: var(--primary); color: #fff;
+    position: absolute; top: -8px; left: -8px; background: var(--accent); color: #fff;
     border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center;
     justify-content: center; font-size: 0.75rem; font-weight: 800;
+    box-shadow: var(--shadow-xs);
+  }
+
+  /* 🟢 مؤشر المخزون المضيء */
+  .stock-indicator-dot {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    box-shadow: 0 0 6px currentColor;
+    
+    &.good {
+      color: #10b981;
+      background-color: #10b981;
+    }
+    &.low {
+      color: #f97316;
+      background-color: #f97316;
+    }
+    &.out {
+      color: #ef4444;
+      background-color: #ef4444;
+    }
+  }
+
+  &.is-out-of-stock {
+    opacity: 0.58;
+    cursor: not-allowed;
+    pointer-events: none;
+    border-color: rgba(239, 68, 68, 0.22) !important;
+    background: color-mix(in srgb, var(--danger) 2%, var(--bg-card)) !important;
+    
+    &:hover {
+      transform: none !important;
+      box-shadow: none !important;
+    }
+  }
+}
+
+@keyframes card-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
@@ -788,8 +1255,13 @@ const submitCounts = async () => {
 .cart-panel {
   h3 { margin-bottom: 16px; color: var(--primary-dark); }
   .empty-cart { text-align: center; padding: 40px 20px; color: var(--text-muted);
-    span { font-size: 2.5rem; display: block; margin-bottom: 8px; }
+    span { font-size: 3rem; display: inline-block; margin-bottom: 8px; animation: cart-bounce 2s ease-in-out infinite; }
   }
+}
+
+@keyframes cart-bounce {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-8px) rotate(4deg); }
 }
 
 .cart-items { max-height: 280px; overflow-y: auto; margin-bottom: 12px; }
@@ -883,6 +1355,32 @@ const submitCounts = async () => {
     h3 { margin: 0; color: var(--primary-dark); }
     .history-filters { display: flex; align-items: center; gap: 8px; font-size: 0.9rem;
       input { padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius); }
+      .month-filter-btn {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: var(--bg-card);
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .month-filter-btn:hover {
+        background: var(--bg-hover);
+        border-color: var(--primary);
+        color: var(--primary);
+      }
+      .month-picker-overlay {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+        width: 100%;
+        height: 100%;
+        cursor: pointer;
+      }
     }
   }
   .history-table-wrap { overflow-x: auto; }
@@ -904,11 +1402,162 @@ const submitCounts = async () => {
 
 .loading-state { text-align: center; padding: 32px; color: var(--text-muted); font-size: 1rem; }
 .empty-state { text-align: center; padding: 32px; color: var(--text-muted);
-  span { font-size: 2rem; display: block; margin-bottom: 8px; }
+  span { font-size: 2.5rem; display: inline-block; margin-bottom: 8px; animation: search-sway 2.2s ease-in-out infinite; }
+}
+
+@keyframes search-sway {
+  0%, 100% { transform: rotate(-6deg) scale(1); }
+  50% { transform: rotate(12deg) scale(1.08); }
 }
 
 @media (max-width: 900px) {
   .main-grid { grid-template-columns: 1fr; }
   .products-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+}
+
+/* Printer Settings Styling */
+.printer-settings-box {
+  margin: 16px 0;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  box-shadow: var(--shadow-sm);
+  
+  .printer-header {
+    font-weight: 700;
+    font-size: 0.88rem;
+    color: var(--primary-dark);
+    margin-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 6px;
+  }
+  
+  .printer-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .printer-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    
+    .printer-status {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      
+      &.configured {
+        color: var(--success);
+        font-weight: 700;
+      }
+    }
+  }
+  
+  .printer-options {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 4px;
+  }
+  
+  .checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    color: var(--text);
+    
+    input {
+      width: 16px;
+      height: 16px;
+      cursor: pointer;
+      accent-color: var(--primary);
+    }
+  }
+
+  .print-last-btn {
+    font-size: 0.78rem;
+    padding: 6px 12px;
+  }
+}
+
+/* AI Recommendations styling */
+.cart-recommendations {
+  margin: 12px 14px;
+  padding: 10px 12px;
+  background: var(--surface-2);
+  border: 1px dashed var(--primary-soft);
+  border-radius: var(--radius-md);
+
+  .rec-title {
+    font-size: 0.8rem;
+    font-weight: 800;
+    color: var(--primary-dark);
+    margin-bottom: 8px;
+  }
+
+  .rec-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .rec-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 10px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all var(--transition);
+
+    &:hover {
+      background: var(--primary-soft);
+      border-color: var(--primary-strong);
+      transform: translateX(-2px);
+    }
+
+    .rec-name {
+      display: flex;
+      flex-direction: column;
+      text-align: right;
+      
+      .rec-name-text {
+        font-size: 0.82rem;
+        font-weight: 700;
+        color: var(--text-strong);
+      }
+
+      .rec-category {
+        font-size: 0.7rem;
+        color: var(--text-muted);
+      }
+    }
+
+    .rec-action {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+
+      .rec-price {
+        font-size: 0.8rem;
+        font-weight: 700;
+        color: var(--accent);
+      }
+
+      .rec-add-icon {
+        font-size: 0.72rem;
+        color: var(--primary);
+      }
+    }
+  }
 }
 </style>

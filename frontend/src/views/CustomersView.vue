@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="customers-page">
 
     <!-- Header -->
@@ -13,7 +13,9 @@
           <option value="wholesale">جملة فقط</option>
           <option value="retail">تجزئة فقط</option>
         </select>
-        <button class="btn btn-primary" @click="openForm()">+ عميل جديد</button>
+        <button class="btn btn-add" @click="openForm()">
+          <AppIcon name="add" :size="16" /> عميل جديد
+        </button>
       </div>
     </div>
 
@@ -58,7 +60,17 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="c in customers" :key="c.id" :class="{ 'has-balance': Number((c.total_balance ?? c.balance) || 0) > 0 }">
+          <tr v-if="loading" v-for="i in 3" :key="'c-sk-' + i">
+            <td><div class="skeleton-shimmer" style="height: 18px; width: 60px;"></div></td>
+            <td><div class="skeleton-shimmer" style="height: 18px; width: 140px;"></div></td>
+            <td><div class="skeleton-shimmer" style="height: 18px; width: 100px;"></div></td>
+            <td><div class="skeleton-shimmer" style="height: 18px; width: 80px;"></div></td>
+            <td><div class="skeleton-shimmer" style="height: 18px; width: 90px;"></div></td>
+            <td><div class="skeleton-shimmer" style="height: 18px; width: 90px;"></div></td>
+            <td><div class="skeleton-shimmer" style="height: 18px; width: 80px;"></div></td>
+            <td><div class="skeleton-shimmer" style="height: 18px; width: 110px;"></div></td>
+          </tr>
+          <tr v-else v-for="c in customers" :key="c.id" :class="{ 'has-balance': Number((c.total_balance ?? c.balance) || 0) > 0 }">
             <td><code class="code-badge">{{ c.code }}</code></td>
             <td class="name-cell">
               <span class="customer-name">{{ c.name_ar }}</span>
@@ -75,12 +87,18 @@
             </td>
             <td class="amount-cell muted">{{ formatMoney(c.credit_limit) }}</td>
             <td class="actions">
-              <button class="icon-btn" @click="openStatement(c)" title="الحساب الجاري">📊</button>
-              <button class="icon-btn" @click="openForm(c)" title="تعديل">✏️</button>
-              <button class="icon-btn danger" @click="removeCustomer(c)" title="حذف">🗑️</button>
+              <button class="icon-btn" @click="openStatement(c)" title="الحساب الجاري">
+                <AppIcon name="reports" :size="16" />
+              </button>
+              <button class="icon-btn edit" @click="openForm(c)" title="تعديل">
+                <AppIcon name="edit" :size="16" />
+              </button>
+              <button class="icon-btn danger" @click="removeCustomer(c)" title="حذف">
+                <AppIcon name="delete" :size="16" />
+              </button>
             </td>
           </tr>
-          <tr v-if="!customers.length">
+          <tr v-if="!loading && !customers.length">
             <td colspan="8" class="empty">لا يوجد عملاء مطابقون</td>
           </tr>
         </tbody>
@@ -148,8 +166,9 @@
               <button class="btn btn-outline" type="button" @click="payForm.amount = statement.summary.total_balance">
                 سداد كامل الرصيد
               </button>
-              <button class="btn btn-primary" :disabled="savingPayment || !payForm.amount" @click="submitPayment">
-                {{ savingPayment ? '⏳ جاري الحفظ...' : '💾 تسجيل الدفعة' }}
+              <button class="btn btn-save" :disabled="savingPayment || !payForm.amount" @click="submitPayment">
+                <AppIcon name="save" :size="16" />
+                {{ savingPayment ? 'جاري الحفظ...' : 'تسجيل الدفعة' }}
               </button>
               <p v-if="payMsg" class="pay-msg" :class="payErr ? 'err' : 'ok'">{{ payMsg }}</p>
             </div>
@@ -255,8 +274,9 @@
               </div>
               <p v-if="salePayMsg" class="pay-msg" :class="salePayErr ? 'err' : 'ok'">{{ salePayMsg }}</p>
               <div class="sale-pay-actions">
-                <button class="btn btn-primary" :disabled="savingSalePay || !salePayForm.amount" @click="submitSalePayment">
-                  {{ savingSalePay ? '⏳...' : '💾 تسجيل الدفعة' }}
+                <button class="btn btn-save" :disabled="savingSalePay || !salePayForm.amount" @click="submitSalePayment">
+                  <AppIcon name="save" :size="16" />
+                  {{ savingSalePay ? 'جاري التسجيل...' : 'تسجيل الدفعة' }}
                 </button>
                 <button class="btn btn-outline" @click="activeSalePayment = null">إلغاء</button>
               </div>
@@ -270,7 +290,10 @@
     <!-- ═══ FORM MODAL ═══ -->
     <div v-if="showForm" class="modal-overlay" @click.self="showForm = false">
       <div class="card modal-content">
-        <h3>{{ form.id ? '✏️ تعديل عميل' : '➕ عميل جديد' }}</h3>
+        <h3>
+          <AppIcon :name="form.id ? 'edit' : 'add'" :size="20" />
+          {{ form.id ? 'تعديل عميل' : 'عميل جديد' }}
+        </h3>
         <form @submit.prevent="save">
           <div class="form-group">
             <label>كود العميل</label>
@@ -287,8 +310,10 @@
           </div>
           <div class="form-group"><label>حد ائتماني (ج.م)</label><input v-model.number="form.credit_limit" type="number" min="0" /></div>
           <div class="modal-actions">
-            <button type="submit" class="btn btn-primary">حفظ</button>
             <button type="button" class="btn btn-outline" @click="showForm = false">إلغاء</button>
+            <button type="submit" class="btn btn-save">
+              <AppIcon name="save" :size="16" /> حفظ
+            </button>
           </div>
         </form>
       </div>
@@ -309,6 +334,7 @@ const typeFilter = ref('');
 const showForm = ref(false);
 const showStatement = ref(false);
 const loadingStatement = ref(false);
+const loading = ref(false);
 const statement = ref(null);
 const savingPayment = ref(false);
 const payMsg = ref('');
@@ -350,20 +376,27 @@ const statusLabel = (s) => ({
 
 // ─── data loading ─────────────────────────────────────────────────────────────
 const load = async () => {
-  const params = { search: search.value };
-  if (typeFilter.value) params.customer_type = typeFilter.value;
-  const res = await api.list(params);
-  customers.value = (res.data || []).map((c) => {
-    const totalBalance = getCustomerDue(c);
-    const totalPaid = Number(c.total_paid || 0);
-    const totalPurchased = Number(c.total_purchased || 0) || totalPaid + totalBalance;
-    return {
-      ...c,
-      total_balance: totalBalance,
-      total_purchased: totalPurchased,
-      total_paid: totalPaid,
-    };
-  });
+  loading.value = true;
+  try {
+    const params = { search: search.value };
+    if (typeFilter.value) params.customer_type = typeFilter.value;
+    const res = await api.list(params);
+    customers.value = (res.data || []).map((c) => {
+      const totalBalance = getCustomerDue(c);
+      const totalPaid = Number(c.total_paid || 0);
+      const totalPurchased = Number(c.total_purchased || 0) || totalPaid + totalBalance;
+      return {
+        ...c,
+        total_balance: totalBalance,
+        total_purchased: totalPurchased,
+        total_paid: totalPaid,
+      };
+    });
+  } catch (err) {
+    console.error('Failed to load customers:', err);
+  } finally {
+    loading.value = false;
+  }
 };
 
 // ─── statement ────────────────────────────────────────────────────────────────
@@ -503,15 +536,7 @@ onMounted(load);
 .empty { text-align: center; padding: 32px; color: var(--text-muted); }
 
 .actions { display: flex; gap: 6px; }
-.icon-btn {
-  width: 32px; height: 32px; border: 1px solid var(--border); border-radius: var(--radius-xs);
-  background: var(--bg-elevated); cursor: pointer; display: flex; align-items: center; justify-content: center;
-  font-size: 0.85rem; transition: var(--transition);
-  &:hover { background: var(--bg); border-color: var(--primary-soft); }
-  &.danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 25%, transparent);
-    &:hover { background: color-mix(in srgb, var(--danger) 8%, transparent); }
-  }
-}
+
 
 /* Modal overlay */
 .modal-overlay {

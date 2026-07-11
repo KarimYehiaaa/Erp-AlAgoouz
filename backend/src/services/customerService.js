@@ -45,6 +45,7 @@ export const getCustomers = async (filters = {}) => {
           GROUP BY reference_id
         ) p ON p.reference_id = s.id
         WHERE s.deleted_at IS NULL
+          AND s.sale_type = 'wholesale'
           AND s.status = 'completed'
       ) source
       GROUP BY customer_id
@@ -68,37 +69,20 @@ export const getCustomerById = async (id) => {
   const customer = (await query(`SELECT * FROM customers WHERE id = $1 AND deleted_at IS NULL`, [id])).rows[0];
   if (!customer) throw new AppError('العميل غير موجود', 404);
   const transactions = await query(
-    `SELECT *
-     FROM (
-       SELECT
-         'sale' AS entry_type,
-         s.id,
-         s.sale_number,
-         NULL::text AS invoice_number,
-         s.total_amount,
-         s.payment_status,
-         s.created_at
-       FROM sales s
-       WHERE s.customer_id = $1
-         AND s.deleted_at IS NULL
-         AND s.status = 'completed'
-
-       UNION ALL
-
-       SELECT
-         'invoice' AS entry_type,
-         i.id,
-         NULL::text AS sale_number,
-         i.invoice_number,
-         i.total_amount,
-         i.payment_status,
-         i.created_at
-       FROM invoices i
-       WHERE i.customer_id = $1
-         AND i.deleted_at IS NULL
-         AND i.sale_id IS NULL
-     ) t
-     ORDER BY created_at DESC
+    `SELECT
+       'sale' AS entry_type,
+       s.id,
+       s.sale_number,
+       NULL::text AS invoice_number,
+       s.total_amount,
+       s.payment_status,
+       s.created_at
+     FROM sales s
+     WHERE s.customer_id = $1
+       AND s.deleted_at IS NULL
+       AND s.sale_type = 'wholesale'
+       AND s.status = 'completed'
+     ORDER BY s.created_at DESC
      LIMIT 20`,
     [id]
   );
@@ -294,36 +278,12 @@ export const getCustomerStatement = async (id) => {
       FROM sales s
       WHERE s.customer_id = $1
         AND s.deleted_at IS NULL
+        AND s.sale_type = 'wholesale'
         AND s.status = 'completed'`,
     [id]
   );
 
-  const invoices = await query(
-    `SELECT
-       'invoice' AS entry_type,
-       i.id,
-       NULL::text AS sale_number,
-       i.invoice_number,
-       i.invoice_number AS entry_number,
-       i.issued_at AS entry_date,
-       i.total_amount,
-       i.payment_status,
-       CASE WHEN i.payment_status = 'paid' THEN 'completed' ELSE 'pending' END AS status,
-       i.notes,
-       i.created_at,
-       COALESCE(
-         (SELECT SUM(amount) FROM payments
-          WHERE reference_type = 'invoice' AND reference_id = i.id), 0
-       ) AS paid_amount,
-       (SELECT payment_method FROM payments
-        WHERE reference_type = 'invoice' AND reference_id = i.id
-        ORDER BY created_at DESC LIMIT 1) AS payment_method
-      FROM invoices i
-      WHERE i.customer_id = $1
-        AND i.deleted_at IS NULL
-        AND i.sale_id IS NULL`,
-    [id]
-  );
+  const invoices = { rows: [] };
 
   const rows = [...sales.rows, ...invoices.rows].sort((a, b) => {
     const dateA = new Date(a.entry_date || a.created_at || 0).getTime();

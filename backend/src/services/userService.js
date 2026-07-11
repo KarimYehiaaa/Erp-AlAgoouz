@@ -164,7 +164,7 @@ const getProfitReport = async (filters = {}) => {
 const getExpensesReport = async (filters = {}) => {
   const [byCategory, monthly, recent] = await Promise.all([
     query(
-      `SELECT COALESCE(ec.name_ar, '(/HF *5FJA') as category,
+      `SELECT COALESCE(ec.name_ar, 'غير مصنف') as category,
               COUNT(*) as count,
               SUM(e.amount) as total
        FROM expenses e
@@ -191,7 +191,7 @@ const getExpensesReport = async (filters = {}) => {
     ),
     query(
       `SELECT e.title, e.amount, e.expense_date,
-              COALESCE(ec.name_ar, '(/HF *5FJA') as category
+              COALESCE(ec.name_ar, 'غير مصنف') as category
        FROM expenses e
        LEFT JOIN expense_categories ec ON e.category_id = ec.id
        WHERE e.deleted_at IS NULL
@@ -208,25 +208,24 @@ const getExpensesReport = async (filters = {}) => {
 const getPurchasesReport = async (filters = {}) => {
   const [summary, bySupplier, recent] = await Promise.all([
     query(
-      `SELECT COUNT(*) as invoices_count,
+      `SELECT COUNT(*)::int as invoices_count,
               COALESCE(SUM(total_amount), 0) as total_amount,
-              COALESCE(SUM(paid_amount), 0) as paid_amount,
-              COALESCE(SUM(total_amount - paid_amount), 0) as unpaid_amount
-       FROM supplier_invoices
+              COALESCE((SELECT SUM(amount) FROM payments WHERE reference_type = 'supplier' AND ($1::date IS NULL OR created_at::date >= $1) AND ($2::date IS NULL OR created_at::date <= $2)), 0) as paid_amount
+       FROM purchase_invoices
        WHERE deleted_at IS NULL
-         AND ($1::date IS NULL OR created_at::date >= $1)
-         AND ($2::date IS NULL OR created_at::date <= $2)`,
+         AND ($1::date IS NULL OR invoice_date >= $1)
+         AND ($2::date IS NULL OR invoice_date <= $2)`,
       [filters.from_date || null, filters.to_date || null]
     ),
     query(
       `SELECT s.name_ar as supplier_name,
-              COUNT(si.id) as invoices_count,
-              COALESCE(SUM(si.total_amount), 0) as total_amount,
-              COALESCE(SUM(si.paid_amount), 0) as paid_amount
+              COUNT(pi.id)::int as invoices_count,
+              COALESCE(SUM(pi.total_amount), 0) as total_amount,
+              COALESCE((SELECT SUM(amount) FROM payments WHERE reference_type = 'supplier' AND reference_id = s.id AND ($1::date IS NULL OR created_at::date >= $1) AND ($2::date IS NULL OR created_at::date <= $2)), 0) as paid_amount
        FROM suppliers s
-       LEFT JOIN supplier_invoices si ON si.supplier_id = s.id AND si.deleted_at IS NULL
-         AND ($1::date IS NULL OR si.created_at::date >= $1)
-         AND ($2::date IS NULL OR si.created_at::date <= $2)
+       LEFT JOIN purchase_invoices pi ON pi.supplier_id = s.id AND pi.deleted_at IS NULL
+         AND ($1::date IS NULL OR pi.invoice_date >= $1)
+         AND ($2::date IS NULL OR pi.invoice_date <= $2)
        WHERE s.deleted_at IS NULL
        GROUP BY s.id, s.name_ar
        ORDER BY total_amount DESC
@@ -234,19 +233,74 @@ const getPurchasesReport = async (filters = {}) => {
       [filters.from_date || null, filters.to_date || null]
     ),
     query(
-      `SELECT si.invoice_number, si.total_amount, si.paid_amount,
-              si.status, si.created_at, s.name_ar as supplier_name
-       FROM supplier_invoices si
-       JOIN suppliers s ON s.id = si.supplier_id
-       WHERE si.deleted_at IS NULL
-         AND ($1::date IS NULL OR si.created_at::date >= $1)
-         AND ($2::date IS NULL OR si.created_at::date <= $2)
-       ORDER BY si.created_at DESC
+      `SELECT pi.invoice_number, pi.total_amount,
+              CASE
+                WHEN s.balance <= 0 THEN 'paid'
+                WHEN (SELECT COALESCE(SUM(amount), 0) FROM payments WHERE reference_type = 'supplier' AND reference_id = pi.supplier_id) > 0 THEN 'partial'
+                ELSE 'pending'
+              END as status,
+              pi.invoice_date as created_at, s.name_ar as supplier_name
+       FROM purchase_invoices pi
+       JOIN suppliers s ON s.id = pi.supplier_id
+       WHERE pi.deleted_at IS NULL
+         AND ($1::date IS NULL OR pi.invoice_date >= $1)
+         AND ($2::date IS NULL OR pi.invoice_date <= $2)
+       ORDER BY pi.invoice_date DESC, pi.id DESC
        LIMIT 20`,
       [filters.from_date || null, filters.to_date || null]
     ),
   ]);
-  return { summary: summary.rows[0], bySupplier: bySupplier.rows, recent: recent.rows };
+
+  const total_amount = Number(summary.rows[0]?.total_amount || 0);
+  const paid_amount = Number(summary.rows[0]?.paid_amount || 0);
+  const unpaid_amount = Math.max(0, total_amount - paid_amount);
+
+  return {
+    summary: {
+      invoices_count: summary.rows[0]?.invoices_count || 0,
+      total_amount,
+      paid_amount,
+      unpaid_amount,
+    },
+    bySupplier: bySupplier.rows.map(r => ({
+      ...r,
+      total_amount: Number(r.total_amount),
+      paid_amount: Number(r.paid_amount),
+    })),
+    recent: recent.rows.map(r => ({
+      ...r,
+      total_amount: Number(r.total_amount),
+    })),
+  };
+};
+
+const getWastageReport = async (filters = {}) => {
+  const result = await query(
+    `SELECT 
+       p.id,
+       p.name_ar as name,
+       p.unit,
+       pc.name_ar as category,
+       COALESCE(SUM(CASE WHEN sm.movement_type = 'consumption' THEN sm.quantity ELSE 0 END), 0)::numeric as theoretical_consumption,
+       COALESCE(SUM(CASE WHEN sm.movement_type = 'adjustment' AND sm.from_warehouse_id IS NOT NULL AND sm.to_warehouse_id IS NULL THEN sm.quantity ELSE 0 END), 0)::numeric as actual_waste
+     FROM products p
+     LEFT JOIN product_categories pc ON p.category_id = pc.id
+     LEFT JOIN stock_movements sm ON p.id = sm.product_id 
+       AND ($1::date IS NULL OR sm.created_at::date >= $1)
+       AND ($2::date IS NULL OR sm.created_at::date <= $2)
+     WHERE p.deleted_at IS NULL
+     GROUP BY p.id, p.name_ar, p.unit, pc.name_ar
+     HAVING 
+       SUM(CASE WHEN sm.movement_type = 'consumption' THEN sm.quantity ELSE 0 END) > 0 
+       OR SUM(CASE WHEN sm.movement_type = 'adjustment' AND sm.from_warehouse_id IS NOT NULL AND sm.to_warehouse_id IS NULL THEN sm.quantity ELSE 0 END) > 0
+     ORDER BY actual_waste DESC`,
+    [filters.from_date || null, filters.to_date || null]
+  );
+  return result.rows.map(row => ({
+    ...row,
+    theoretical_consumption: Number(row.theoretical_consumption),
+    actual_waste: Number(row.actual_waste),
+  }));
 };
 
 const getCustomersReport = async (filters = {}) => {
@@ -270,8 +324,12 @@ const getCustomersReport = async (filters = {}) => {
       `SELECT i.invoice_number, i.total_amount, i.payment_status,
               i.issued_at, c.name_ar as customer_name
        FROM invoices i
+       JOIN sales s ON s.id = i.sale_id
        LEFT JOIN customers c ON c.id = i.customer_id
-       WHERE i.deleted_at IS NULL AND i.payment_status IN ('unpaid','partial')
+       WHERE i.deleted_at IS NULL
+         AND i.payment_status IN ('unpaid','partial')
+         AND s.sale_type = 'wholesale'
+         AND s.deleted_at IS NULL
        ORDER BY i.issued_at DESC
        LIMIT 15`
     ),
@@ -341,7 +399,7 @@ const getSystemSummary = async (filters = {}) => {
        LIMIT 5`
     ),
     query(`SELECT * FROM v_product_stock WHERE is_low_stock = TRUE ORDER BY total_quantity ASC LIMIT 10`),
-    query(`SELECT COUNT(*) as count FROM invoices WHERE payment_status IN ('unpaid','partial') AND deleted_at IS NULL`),
+    query(`SELECT COUNT(*)::int as count FROM invoices i JOIN sales s ON s.id = i.sale_id WHERE i.payment_status IN ('unpaid','partial') AND s.sale_type = 'wholesale' AND i.deleted_at IS NULL AND s.deleted_at IS NULL`),
     query(`SELECT COUNT(*) as count FROM customers WHERE deleted_at IS NULL AND is_active = TRUE`),
   ]);
   const openingBalance = filters.from_date && filters.to_date
@@ -384,6 +442,8 @@ const normalizeReportType = (type) => {
       return 'purchases';
     case 'customers': case 'customer': case 'customers-report':
       return 'customers';
+    case 'wastage': case 'waste': case 'wastage-report': case 'wastage_report':
+      return 'wastage';
     case 'all':
       return 'all';
     default:
@@ -405,6 +465,8 @@ export const getReports = async (type, filters = {}) => {
       return getPurchasesReport(filters);
     case 'customers':
       return getCustomersReport(filters);
+    case 'wastage':
+      return getWastageReport(filters);
     case 'summary':
       return getSystemSummary(filters);
     case 'all':
@@ -415,9 +477,22 @@ export const getReports = async (type, filters = {}) => {
         expenses: await getExpensesReport(filters),
         purchases: await getPurchasesReport(filters),
         customers: await getCustomersReport(filters),
+        wastage: await getWastageReport(filters),
         summary: await getSystemSummary(filters),
       };
     default:
       throw new AppError('نوع التقرير غير صالح', 400);
   }
+};
+
+export const deleteUser = async (id, currentUserId) => {
+  if (Number(id) === Number(currentUserId)) {
+    throw new AppError('لا يمكن حذف حسابك الحالي الذي تستخدمه لتسجيل الدخول', 400);
+  }
+  const result = await query(
+    `UPDATE users SET deleted_at = NOW(), is_active = FALSE WHERE id = $1 AND deleted_at IS NULL RETURNING id, username`,
+    [id]
+  );
+  if (!result.rows[0]) throw new AppError('المستخدم غير موجود', 404);
+  return result.rows[0];
 };

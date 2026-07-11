@@ -127,7 +127,7 @@ async function main() {
 
   console.log('\n🎉 تم الإعداد بنجاح!');
   console.log('   شغّل Backend: npm run dev');
-  console.log('   الدخول: admin / Admin@123\n');
+  console.log('   غيّر كلمة مرور المدير قبل أي استخدام حقيقي.\n');
 }
 
 main().catch((err) => {

@@ -1,7 +1,7 @@
 <template>
   <div class="sales-page">
     <div class="page-toolbar card">
-      <div class="toolbar-actions">
+      <div v-if="activeTab !== 'monthly'" class="toolbar-actions">
         <button type="button" class="icon-btn" title="تحميل قالب الاستيراد" @click="downloadTemplate">📥</button>
         <label class="icon-btn import-btn" title="فحص ملف Excel">
           🔍
@@ -21,66 +21,152 @@
           <label>إلى تاريخ</label>
           <input v-model="filters.to_date" type="date" @change="load" />
         </div>
+        <div class="form-group month-picker-group">
+          <label>&nbsp;</label>
+          <div class="month-filter-btn" title="اختر الشهر بالكامل">
+            <AppIcon name="calendar" :size="18" />
+            <input type="month" class="month-picker-overlay" @change="selectMonth" />
+          </div>
+        </div>
       </div>
     </div>
 
-    <div class="opening-balance card">
+    <section class="opening-balance opening-ledger" :class="{ editing: openingBalanceEditing, saving: openingBalanceSaving }">
+      <div class="ledger-glow" aria-hidden="true"></div>
       <div class="opening-balance-head">
-        <div>
-          <h3>بداية المدة</h3>
-          <p>المبلغ المرحل من الشهر السابق ويُضاف إلى صافي التدفق.</p>
+        <div class="ledger-title">
+          <span class="ledger-mark" aria-hidden="true">رصيد</span>
+          <div>
+            <h3>بداية المدة</h3>
+            <p>الرصيد المرحل قبل مبيعات الفترة، يدخل في صافي التدفق فقط.</p>
+          </div>
+        </div>
+        <div class="ledger-amount">
+          <span>الرصيد المسجل</span>
+          <strong>{{ formatMoney(openingBalanceForm.amount || 0) }}</strong>
         </div>
         <div class="opening-balance-actions">
-          <button type="button" class="btn btn-outline btn-sm" :disabled="openingBalanceLoading || openingBalanceSaving" @click="startOpeningBalanceEdit">
+          <button type="button" class="ledger-action secondary" :disabled="openingBalanceLoading || openingBalanceSaving" @click="startOpeningBalanceEdit">
             تعديل
           </button>
-          <button type="button" class="btn btn-primary btn-sm" :disabled="openingBalanceSaving || !openingBalanceEditing" @click="saveOpeningBalance">
+          <button type="button" class="ledger-action primary" :disabled="openingBalanceSaving || !openingBalanceEditing" @click="saveOpeningBalance">
             {{ openingBalanceSaving ? 'جارٍ الحفظ...' : 'حفظ' }}
           </button>
         </div>
       </div>
-      <div class="grid grid-3 opening-balance-grid">
-        <div class="form-group">
-          <label>من تاريخ</label>
+      <div class="opening-balance-grid">
+        <div class="ledger-field">
+          <span>من تاريخ</span>
           <input v-model="openingBalanceForm.from_date" type="date" :disabled="!openingBalanceEditing" />
         </div>
-        <div class="form-group">
-          <label>إلى تاريخ</label>
+        <div class="ledger-field">
+          <span>إلى تاريخ</span>
           <input v-model="openingBalanceForm.to_date" type="date" :disabled="!openingBalanceEditing" />
         </div>
-        <div class="form-group">
-          <label>المبلغ</label>
+        <div class="ledger-field amount-field">
+          <span>المبلغ المرحل</span>
           <input v-model.number="openingBalanceForm.amount" type="number" min="0" step="0.01" :disabled="!openingBalanceEditing" placeholder="0.00" />
         </div>
       </div>
       <div v-if="openingBalanceMsg" class="opening-balance-msg" :class="{ err: openingBalanceErr }">
         {{ openingBalanceMsg }}
       </div>
-    </div>
+    </section>
 
-    <div class="tabs">
+    <div class="tabs" style="position: relative;">
+      <div 
+        class="tab-slider" 
+        :style="{
+          transform: activeTab === 'branch' ? 'translateX(0)' : (activeTab === 'wholesale' ? 'translateX(calc(-100% - 7px))' : 'translateX(calc(-200% - 14px))')
+        }"
+      ></div>
       <button
         type="button"
         :class="{ active: activeTab === 'branch' }"
         @click="switchTab('branch')"
-      >🏪 مبيعات الفرع</button>
+      >🏪 مبيعات المحل</button>
       <button
         type="button"
         :class="{ active: activeTab === 'wholesale' }"
         @click="switchTab('wholesale')"
       >📦 مبيعات الجملة</button>
+      <button
+        type="button"
+        :class="{ active: activeTab === 'monthly' }"
+        @click="switchTab('monthly')"
+      >📊 مبيعات شهرية</button>
     </div>
+
+    <section class="sales-insight card" :class="salesHealth.tone">
+      <div class="insight-copy">
+        <span class="eyebrow">ملخص الفترة</span>
+        <h3>{{ salesHealth.title }}</h3>
+        <p>{{ salesHealth.message }}</p>
+      </div>
+      <div class="insight-metrics">
+        <div class="insight-tile">
+          <span>بداية المدة</span>
+          <strong>{{ formatMoney(openingBalanceForm.amount || 0) }}</strong>
+        </div>
+        <div class="insight-tile success">
+          <span>مبيعات محصلة</span>
+          <strong>{{ formatMoney(collectedTotal) }}</strong>
+        </div>
+        <div class="insight-tile warning">
+          <span>آجل/جزئي للمتابعة</span>
+          <strong>{{ formatMoney(openCreditTotal) }}</strong>
+        </div>
+        <div class="insight-tile primary">
+          <span>رصيد متوقع</span>
+          <strong>{{ formatMoney(periodCashTotal) }}</strong>
+        </div>
+      </div>
+    </section>
 
     <div class="grid grid-3 stats-row">
-      <StatCard label="إجمالي الفترة" :value="periodTotal" icon="💰" />
-      <StatCard label="عدد الايام" :value="sales.length" icon="📋" format="number" />
-      <StatCard label="متوسط اليوم" :value="dailyAverage" icon="📆" />
+      <StatCard label="إجمالي الفترة" :value="periodTotal" icon="coins" />
+      <StatCard label="المحصل" :value="collectedTotal" icon="check" />
+      <StatCard label="آجل/جزئي" :value="openCreditTotal" icon="warning" />
     </div>
 
-    <div class="grid grid-2 main-row">
-      <div class="card form-card">
-        <h3>{{ editingSaleId ? 'تعديل فاتورة بيع' : (activeTab === 'branch' ? 'تسجيل مبيعات فرع' : 'تسجيل مبيعات جملة') }}</h3>
-        <form @submit.prevent="submitSale">
+    <div class="grid main-row" :class="{ 'grid-2': !editingSaleId }">
+      <div v-if="activeTab === 'monthly'" class="card form-card monthly-sales-card">
+        <span class="monthly-kicker">Excel فقط</span>
+        <h3>استيراد المبيعات الشهرية للمحل</h3>
+        <p class="monthly-copy">
+          ارفع ملف المبيعات الشهرية هنا، وسيتم تسجيلها كمبيعات محل مرتبطة بمخزون المحل مباشرة. المنتج العادي يخصم من رصيده، والمنتج صاحب الوصفة يخصم بمكونات الوصفة حسب إعداد المنتج الحالي.
+        </p>
+        <div class="monthly-actions">
+          <button type="button" class="btn btn-primary" :disabled="monthlyImporting" @click="downloadMonthlyTemplate">
+            تحميل قالب مبيعات شهرية
+          </button>
+          <label class="btn btn-outline import-btn" :class="{ disabled: monthlyValidating }">
+            {{ monthlyValidating ? 'جاري الفحص...' : 'فحص ملف Excel' }}
+            <input type="file" accept=".xlsx,.xls" hidden :disabled="monthlyValidating" @change="onValidateMonthly" />
+          </label>
+          <label class="btn btn-success monthly-import-btn import-btn" :class="{ disabled: monthlyImporting }" role="button">
+            {{ monthlyImporting ? 'جاري الاستيراد...' : 'استيراد ذكي وخصم المخزون' }}
+            <input type="file" accept=".xlsx,.xls" hidden :disabled="monthlyImporting" @change="onImportMonthly" />
+          </label>
+        </div>
+        <div class="monthly-rules">
+          <span>المخزن المستهدف: مخزون المحل</span>
+          <span>نوع البيع: مبيعات محل</span>
+          <span>الدفع الافتراضي: مدفوع</span>
+        </div>
+        <div v-if="monthlyImportMsg || monthlyImportDetails.length" class="import-result inline" :class="{ err: monthlyImportErr }">
+          <p class="import-msg" :class="{ err: monthlyImportErr }">{{ monthlyImportMsg }}</p>
+          <ul v-if="monthlyImportDetails.length" class="import-details">
+            <li v-for="(d, i) in monthlyImportDetails" :key="i">{{ d }}</li>
+          </ul>
+        </div>
+      </div>
+
+      <Teleport v-else to="body" :disabled="!editingSaleId">
+        <div :class="{ 'modal-overlay': editingSaleId }" @click.self="editingSaleId ? cancelEdit() : null">
+          <div class="card form-card" :class="{ 'modal-card': editingSaleId }">
+            <h3>{{ editingSaleId ? 'تعديل فاتورة بيع' : (activeTab === 'branch' ? 'تسجيل مبيعات فرع' : 'تسجيل مبيعات جملة') }}</h3>
+            <form @submit.prevent="submitSale">
           <div v-if="editingSaleId" class="edit-banner">
             <span>وضع التعديل مفعل للفاتورة {{ editingSaleNumber }}</span>
             <button type="button" class="btn btn-outline btn-sm" @click="cancelEdit">إلغاء التعديل</button>
@@ -151,10 +237,6 @@
             </div>
           </div>
           <div class="form-group">
-            <label>ربح تقريبي (اختياري)</label>
-            <input v-model.number="form.profit_amount" type="number" min="0" step="0.01" />
-          </div>
-          <div class="form-group">
             <label>ملاحظات</label>
             <textarea v-model="form.notes" rows="2"></textarea>
           </div>
@@ -162,36 +244,48 @@
             {{ saving ? 'جاري الحفظ...' : (editingSaleId ? 'حفظ تعديل الفاتورة' : 'حفظ المبيعات') }}
           </button>
         </form>
-      </div>
+          </div>
+        </div>
+      </Teleport>
 
-      <div class="card table-wrap list-card">
-        <h3>سجل المبيعات</h3>
+      <div class="card table-wrap list-card sales-history-card">
+        <div class="history-head">
+          <div>
+            <h3>سجل المبيعات</h3>
+            <p>{{ sales.length }} عملية في الفترة المحددة</p>
+          </div>
+          <span class="history-total">{{ formatMoney(periodTotal) }}</span>
+        </div>
         <table>
           <thead>
             <tr>
               <th>التاريخ</th>
               <th>المبلغ</th>
-              <th>الربح</th>
-              <th>الحالة</th>
+              <th>الدفع</th>
               <th>إجراء</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="s in sales" :key="s.id">
-              <td>{{ formatDate(s.sale_date || s.created_at) }}</td>
-              <td>{{ formatMoney(s.total_amount) }}</td>
-              <td>{{ formatMoney(s.profit_amount) }}</td>
-              <td>
-                <span :class="statusBadge(s.status)">{{ statusLabel(s.status) }}</span>
+            <tr v-if="loadingSales" v-for="i in 3" :key="'s-sk-' + i">
+              <td><div class="skeleton-shimmer" style="height: 18px; width: 100px;"></div></td>
+              <td><div class="skeleton-shimmer" style="height: 18px; width: 80px;"></div></td>
+              <td><div class="skeleton-shimmer" style="height: 18px; width: 60px;"></div></td>
+              <td><div class="skeleton-shimmer" style="height: 18px; width: 50px;"></div></td>
+            </tr>
+            <tr v-else v-for="s in sales" :key="s.id" :class="{ 'payment-open': isOpenPayment(s) }">
+              <td class="history-date">{{ formatDate(s.sale_date || s.created_at) }}</td>
+              <td class="history-amount">{{ formatMoney(s.total_amount) }}</td>
+              <td class="history-payment">
+                <span :class="paymentBadge(s.payment_status)">{{ paymentStatusLabel(s.payment_status) }}</span>
               </td>
-              <td>
-                <button type="button" class="btn btn-sm btn-outline" :disabled="saving || s.status !== 'completed'" @click="startEdit(s)">
+              <td class="history-action">
+                <button type="button" class="history-edit-btn" :disabled="activeTab === 'monthly' || saving || s.status !== 'completed'" @click="startEdit(s)">
                   تعديل
                 </button>
               </td>
             </tr>
-            <tr v-if="!sales.length">
-              <td colspan="5" class="empty">لا توجد مبيعات في هذه الفترة</td>
+            <tr v-if="!loadingSales && !sales.length">
+              <td colspan="4" class="empty">لا توجد مبيعات في هذه الفترة</td>
             </tr>
           </tbody>
         </table>
@@ -211,7 +305,6 @@
               <th>كود_العميل</th>
               <th>حالة_الدفع</th>
               <th>طريقة_الدفع</th>
-              <th>ربح_اختياري</th>
               <th>ملاحظات</th>
               <th>الإجراء</th>
             </tr>
@@ -224,7 +317,6 @@
               <td></td>
               <td>paid</td>
               <td>cash</td>
-              <td>200</td>
               <td>مبيعات فرع</td>
               <td></td>
             </tr>
@@ -235,7 +327,6 @@
               <td>C-002</td>
               <td>paid</td>
               <td>transfer</td>
-              <td>0</td>
               <td>جملة</td>
               <td></td>
             </tr>
@@ -246,12 +337,11 @@
               <td></td>
               <td></td>
               <td></td>
-              <td></td>
               <td>حذف كل المبيعات الحالية</td>
               <td>delete_all</td>
             </tr>
             <tr class="bad-row">
-              <td colspan="9">❌ خطأ شائع: كتابة «مبيعات فرع» في نوع_البيع — الصحيح: branch أو wholesale فقط</td>
+              <td colspan="8">❌ خطأ شائع: كتابة «مبيعات فرع» في نوع_البيع — الصحيح: branch أو wholesale فقط</td>
             </tr>
           </tbody>
         </table>
@@ -339,9 +429,13 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
+import { useRoute } from 'vue-router';
 import StatCard from '@/components/StatCard.vue';
+import AppIcon from '@/components/AppIcon.vue';
 import { sales as salesApi, customers as customersApi } from '@/api';
 import { formatMoney } from '@/utils/currency';
+
+const route = useRoute();
 
 const localTodayYmd = () => {
   const now = new Date();
@@ -351,8 +445,9 @@ const localTodayYmd = () => {
   return `${y}-${m}-${d}`;
 };
 const today = localTodayYmd();
-const activeTab = ref('branch');
+const activeTab = ref(route.query.tab || 'branch');
 const sales = ref([]);
+const loadingSales = ref(false);
 const wholesaleCustomers = ref([]);
 const saving = ref(false);
 const openingBalanceLoading = ref(false);
@@ -368,6 +463,11 @@ const openingBalanceForm = ref({
 const importMsg = ref('');
 const importErr = ref(false);
 const importDetails = ref([]);
+const monthlyImportMsg = ref('');
+const monthlyImportErr = ref(false);
+const monthlyImportDetails = ref([]);
+const monthlyValidating = ref(false);
+const monthlyImporting = ref(false);
 const customerCodesHint = ref('C-001, C-002, C-003, C-004 (أو اترك فارغاً)');
 const deleteDate = ref(today);
 const editingSaleId = ref(null);
@@ -385,7 +485,6 @@ const form = ref({
   payment_method: 'cash',
   payment_status: 'paid',
   paid_amount: null,
-  profit_amount: 0,
   notes: '',
 });
 
@@ -406,16 +505,46 @@ const calcRemaining = () => {
 const periodTotal = computed(() =>
   sales.value.filter((s) => s.status === 'completed').reduce((sum, s) => sum + parseFloat(s.total_amount || 0), 0)
 );
-const enteredDaysCount = computed(() => {
-  const set = new Set(
-    sales.value
-      .map((s) => (s.sale_date || '').split?.('T')?.[0] || '')
-      .filter(Boolean)
-  );
-  return set.size;
+const completedSales = computed(() => sales.value.filter((s) => s.status === 'completed'));
+const isOpenPayment = (sale) => ['partial', 'unpaid'].includes(sale?.payment_status);
+const collectedTotal = computed(() => completedSales.value.reduce((sum, sale) => {
+  if (sale.payment_status === 'paid') return sum + Number(sale.total_amount || 0);
+  return sum;
+}, 0));
+const openCreditTotal = computed(() => completedSales.value.reduce((sum, sale) => {
+  if (isOpenPayment(sale)) return sum + Number(sale.total_amount || 0);
+  return sum;
+}, 0));
+const openPaymentCount = computed(() => completedSales.value.filter((sale) => isOpenPayment(sale)).length);
+const periodCashTotal = computed(() => Number(openingBalanceForm.value.amount || 0) + collectedTotal.value);
+const salesListQuery = computed(() => ({
+  sale_type: activeTab.value === 'monthly' ? 'branch' : activeTab.value,
+  entry_mode: activeTab.value === 'monthly' ? 'pos' : undefined,
+  from_date: filters.value.from_date,
+  to_date: filters.value.to_date,
+  limit: 200,
+}));
+const salesHealth = computed(() => {
+  if (openPaymentCount.value > 0) {
+    return {
+      tone: 'warning',
+      title: 'في مبيعات محتاجة متابعة تحصيل',
+      message: `${openPaymentCount.value} عملية دفعها جزئي أو آجل. الرقم المعروض كآجل/جزئي هو قيمة العمليات المفتوحة للمتابعة.`,
+    };
+  }
+  if (periodTotal.value <= 0) {
+    return {
+      tone: 'muted',
+      title: 'لا توجد مبيعات مكتملة في الفترة',
+      message: 'اختار فترة مختلفة أو ابدأ تسجيل المبيعات عشان تظهر مؤشرات التحصيل.',
+    };
+  }
+  return {
+    tone: 'success',
+    title: 'مبيعات الفترة محصلة بالكامل',
+    message: 'كل المبيعات المكتملة في الفترة مدفوعة بالكامل حسب حالة الدفع المسجلة.',
+  };
 });
-const dailyAverage = computed(() => (enteredDaysCount.value ? periodTotal.value / enteredDaysCount.value : 0));
-
 const formatDate = (d) => {
   const val = d?.split?.('T')?.[0] || d;
   if (!val) return '—';
@@ -427,8 +556,8 @@ const formatDate = (d) => {
   return new Date(val).toLocaleDateString('en-GB');
 };
 
-const statusLabel = (s) => ({ completed: 'مكتمل', returned: 'مسترد', cancelled: 'ملغي' }[s] || s);
-const statusBadge = (s) => ['badge', s === 'completed' ? 'badge-success' : s === 'returned' ? 'badge-danger' : 'badge-warning'];
+const paymentStatusLabel = (s) => ({ paid: 'مدفوع', partial: 'جزئي', unpaid: 'آجل', refunded: 'مسترد' }[s] || s || '—');
+const paymentBadge = (s) => ['badge', s === 'paid' ? 'badge-success' : s === 'unpaid' ? 'badge-danger' : s === 'partial' ? 'badge-warning' : 'badge-danger'];
 
 const switchTab = (tab) => {
   activeTab.value = tab;
@@ -444,7 +573,6 @@ const resetForm = () => {
     payment_method: 'cash',
     payment_status: 'paid',
     paid_amount: null,
-    profit_amount: 0,
     notes: '',
   };
 };
@@ -519,7 +647,6 @@ const startEdit = async (sale) => {
       payment_method: detail.payments?.[0]?.method || 'cash',
       payment_status: detail.payment_status || 'paid',
       paid_amount: detail.payment_status === 'partial' ? paidAmount : null,
-      profit_amount: Number(detail.profit_amount || 0),
       notes: detail.notes || '',
     };
   } catch (e) {
@@ -529,26 +656,41 @@ const startEdit = async (sale) => {
   }
 };
 
+const selectMonth = (event) => {
+  const value = event.target.value;
+  if (!value) return;
+  const [year, month] = value.split('-').map(Number);
+  const fromDate = `${year}-${String(month).padStart(2, '0')}-01`;
+  const lastDay = new Date(year, month, 0).getDate();
+  const toDate = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+  
+  filters.value.from_date = fromDate;
+  filters.value.to_date = toDate;
+  load();
+};
+
 const load = async () => {
-  const [salesRes, openingRes] = await Promise.all([
-    salesApi.list({
-      sale_type: activeTab.value,
-      from_date: filters.value.from_date,
-      to_date: filters.value.to_date,
-      limit: 200,
-    }),
-    salesApi.openingBalance({
-      from_date: filters.value.from_date,
-      to_date: filters.value.to_date,
-    }).catch(() => null),
-  ]);
-  sales.value = salesRes.data;
-  if (openingRes?.data) {
-    openingBalanceForm.value = {
-      from_date: openingRes.data.from_date || filters.value.from_date,
-      to_date: openingRes.data.to_date || filters.value.to_date,
-      amount: Number(openingRes.data.amount || 0),
-    };
+  loadingSales.value = true;
+  try {
+    const [salesRes, openingRes] = await Promise.all([
+      salesApi.list(salesListQuery.value),
+      salesApi.openingBalance({
+        from_date: filters.value.from_date,
+        to_date: filters.value.to_date,
+      }).catch(() => null),
+    ]);
+    sales.value = salesRes.data;
+    if (openingRes?.data) {
+      openingBalanceForm.value = {
+        from_date: openingRes.data.from_date || filters.value.from_date,
+        to_date: openingRes.data.to_date || filters.value.to_date,
+        amount: Number(openingRes.data.amount || 0),
+      };
+    }
+  } catch (err) {
+    console.error('Failed to load sales:', err);
+  } finally {
+    loadingSales.value = false;
   }
 };
 
@@ -575,7 +717,6 @@ const submitSale = async () => {
       await salesApi.create(payload);
       form.value.total_amount = null;
       form.value.notes = '';
-      form.value.profit_amount = 0;
       form.value.paid_amount = null;
     }
     await load();
@@ -683,6 +824,89 @@ const showImportResult = (d, isValidate = false) => {
   importErr.value = d.success === 0 && importDetails.value.length > 0;
 };
 
+const showMonthlyImportResult = (d, isValidate = false) => {
+  if (isValidate) {
+    monthlyImportMsg.value = d.ok
+      ? `الملف جاهز: ${d.groupCount || 0} يوم/دفعة و ${d.itemCount || 0} صنف سيتم خصمهم من مخزون المحل`
+      : 'الملف يحتاج مراجعة قبل الاستيراد';
+    monthlyImportErr.value = !d.ok;
+    monthlyImportDetails.value = (d.parseErrors || []).map((e) => `سطر ${e.row}: ${e.message}`);
+    if (d.ok && d.preview?.length) {
+      monthlyImportDetails.value.unshift(
+        ...d.preview.map((r) => `✓ ${r.sale_date} | ${r.payment_method} | ${r.items_count} صنف | ${r.sample}`)
+      );
+    }
+    return;
+  }
+
+  monthlyImportMsg.value = `تم استيراد ${d.success || 0} من ${d.total || 0} عملية شهرية وخصم ${d.itemsImported || 0} صنف من مخزون المحل`;
+  monthlyImportErr.value = Boolean((d.failed || []).length) || ((d.success || 0) === 0 && Boolean((d.parseErrors || []).length));
+  monthlyImportDetails.value = [
+    ...(d.parseErrors || []).map((e) => `تحذير سطر ${e.row}: ${e.message}`),
+    ...(d.failed || []).map((e) => `فشل ${e.sale_date || ''}: ${e.message}`),
+  ];
+};
+
+const downloadMonthlyTemplate = async () => {
+  try {
+    const blob = await salesApi.downloadBranchTemplate();
+    const url = URL.createObjectURL(new Blob([blob]));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'monthly-store-sales-template.xlsx';
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch (e) {
+    monthlyImportErr.value = true;
+    monthlyImportMsg.value = e.message || 'فشل تحميل قالب المبيعات الشهرية';
+  }
+};
+
+const onValidateMonthly = async (e) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  monthlyValidating.value = true;
+  monthlyImportMsg.value = 'جاري فحص ملف المبيعات الشهرية...';
+  monthlyImportErr.value = false;
+  monthlyImportDetails.value = [];
+  try {
+    const res = await salesApi.branchValidateExcel(file);
+    showMonthlyImportResult(res.data, true);
+  } catch (err) {
+    monthlyImportErr.value = true;
+    monthlyImportMsg.value = err.message || 'فشل فحص ملف المبيعات الشهرية';
+    monthlyImportDetails.value = String(err.message || '').split('|').map((s) => s.trim()).filter(Boolean);
+  } finally {
+    monthlyValidating.value = false;
+    e.target.value = '';
+  }
+};
+
+const onImportMonthly = async (e) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  monthlyImporting.value = true;
+  monthlyImportMsg.value = 'جاري استيراد المبيعات الشهرية وخصم مخزون المحل...';
+  monthlyImportErr.value = false;
+  monthlyImportDetails.value = [];
+  try {
+    const validation = await salesApi.branchValidateExcel(file);
+    if (!validation?.data?.ok) {
+      showMonthlyImportResult(validation.data, true);
+      return;
+    }
+    const res = await salesApi.branchImportExcel(file);
+    showMonthlyImportResult(res.data, false);
+    await load();
+  } catch (err) {
+    monthlyImportErr.value = true;
+    monthlyImportMsg.value = err.message || 'فشل استيراد المبيعات الشهرية';
+  } finally {
+    monthlyImporting.value = false;
+    e.target.value = '';
+  }
+};
+
 const onValidate = async (e) => {
   const file = e.target.files?.[0];
   if (!file) return;
@@ -735,9 +959,28 @@ onMounted(async () => {
 </script>
 
 <style lang="scss" scoped>
-.sales-page { display: flex; flex-direction: column; gap: 20px; }
+.sales-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  --sales-panel-bg: color-mix(in srgb, var(--card-bg) 88%, var(--primary) 4%);
+  --sales-panel-border: color-mix(in srgb, var(--primary) 15%, var(--card-border));
+  --sales-soft: color-mix(in srgb, var(--primary) 8%, transparent);
+  --sales-grid-line: color-mix(in srgb, var(--primary) 5%, transparent);
+}
 .page-toolbar {
-  display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px;
+  padding: 16px;
+  border-radius: calc(var(--radius-lg) + 2px);
+  border-color: var(--sales-panel-border);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--primary) 6%, transparent), transparent 38%),
+    color-mix(in srgb, var(--card-bg) 92%, var(--bg-elevated));
+  box-shadow: var(--shadow-xs);
 }
 .opening-balance {
   display: flex;
@@ -747,32 +990,204 @@ onMounted(async () => {
   border: 1px solid color-mix(in srgb, var(--warning) 22%, var(--border));
   background: linear-gradient(135deg, color-mix(in srgb, var(--warning) 9%, var(--bg-elevated)), var(--bg-elevated));
 }
+.opening-ledger {
+  position: relative;
+  overflow: hidden;
+  padding: 20px;
+  border: 1px solid color-mix(in srgb, var(--primary) 18%, var(--card-border));
+  border-radius: calc(var(--radius-lg) + 4px);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--primary) 12%, transparent), transparent 42%),
+    radial-gradient(circle at 10% 20%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 28%),
+    linear-gradient(145deg, color-mix(in srgb, var(--card-bg) 92%, var(--primary) 8%), var(--bg-elevated));
+  box-shadow: 0 22px 55px color-mix(in srgb, var(--primary) 14%, transparent), var(--shadow-sm);
+}
+.opening-ledger::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(90deg, color-mix(in srgb, var(--primary) 7%, transparent) 1px, transparent 1px),
+    linear-gradient(0deg, color-mix(in srgb, var(--primary) 5%, transparent) 1px, transparent 1px);
+  background-size: 46px 46px;
+  mask-image: linear-gradient(90deg, transparent, #000 18%, #000 74%, transparent);
+  opacity: 0.45;
+  pointer-events: none;
+}
+.ledger-glow {
+  position: absolute;
+  inset-inline-end: -90px;
+  top: -110px;
+  width: 270px;
+  height: 270px;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle, color-mix(in srgb, var(--accent) 30%, transparent), transparent 62%);
+  filter: blur(2px);
+  pointer-events: none;
+}
 .opening-balance-head {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) minmax(190px, auto) auto;
+  gap: 16px;
+  align-items: center;
+}
+.ledger-title {
   display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  align-items: flex-start;
+  align-items: center;
+  gap: 14px;
+}
+.ledger-mark {
+  width: 58px;
+  height: 58px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 20px;
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 950;
+  letter-spacing: -0.01em;
+  background:
+    linear-gradient(145deg, var(--primary), var(--primary-strong)),
+    var(--primary);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.28),
+    0 14px 32px color-mix(in srgb, var(--primary) 32%, transparent);
+  transform: rotate(-2deg);
 }
 .opening-balance-head h3 {
-  margin: 0 0 4px;
+  margin: 0 0 5px;
   color: var(--text-strong);
-  font-size: 1rem;
-  font-weight: 900;
+  font-size: clamp(1.05rem, 1.9vw, 1.35rem);
+  font-weight: 950;
+  letter-spacing: -0.03em;
 }
 .opening-balance-head p {
   margin: 0;
+  max-width: 430px;
   color: var(--text-muted);
-  font-size: 0.86rem;
+  font-size: 0.9rem;
+  line-height: 1.7;
+}
+.ledger-amount {
+  min-width: 190px;
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid color-mix(in srgb, var(--primary) 18%, var(--border));
+  background: color-mix(in srgb, var(--bg-elevated) 78%, transparent);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.28), var(--shadow-xs);
+}
+.ledger-amount span {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--text-muted);
+  font-size: 0.74rem;
+  font-weight: 900;
+}
+.ledger-amount strong {
+  display: block;
+  color: var(--primary-strong);
+  font-size: clamp(1.25rem, 2vw, 1.75rem);
+  line-height: 1.15;
+  font-weight: 950;
+  letter-spacing: -0.03em;
 }
 .opening-balance-actions {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.ledger-action {
+  min-width: 74px;
+  min-height: 40px;
+  padding: 9px 17px;
+  border: 0;
+  border-radius: 999px;
+  font-size: 0.84rem;
+  font-weight: 900;
+  cursor: pointer;
+  transition: transform var(--transition), box-shadow var(--transition), opacity var(--transition);
+}
+.ledger-action:hover:not(:disabled) {
+  transform: translateY(-2px);
+}
+.ledger-action:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+.ledger-action.primary {
+  color: #fff;
+  background: linear-gradient(135deg, var(--primary), var(--primary-strong));
+  box-shadow: 0 12px 26px color-mix(in srgb, var(--primary) 30%, transparent);
+}
+.ledger-action.primary:disabled {
+  color: var(--text-muted);
+  background: color-mix(in srgb, var(--bg-elevated) 78%, transparent);
+  box-shadow: none;
+  border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+}
+.ledger-action.secondary {
+  color: var(--text-strong);
+  background: color-mix(in srgb, var(--bg-elevated) 84%, transparent);
+  border: 1px solid color-mix(in srgb, var(--primary) 18%, var(--border));
 }
 .opening-balance-grid {
-  align-items: end;
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+}
+.ledger-field {
+  padding: 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid color-mix(in srgb, var(--border) 74%, transparent);
+  background: color-mix(in srgb, var(--bg-elevated) 78%, transparent);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.24);
+}
+.ledger-field span {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--text-muted);
+  font-size: 0.74rem;
+  font-weight: 950;
+}
+.ledger-field input {
+  width: 100%;
+  min-height: 42px;
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--card-bg) 86%, transparent);
+  color: var(--text-strong);
+  font-weight: 850;
+  transition: border-color var(--transition), box-shadow var(--transition), background var(--transition);
+}
+.ledger-field input:disabled {
+  opacity: 1;
+  color: var(--text);
+  background: transparent;
+  border-color: transparent;
+  padding-inline: 0;
+}
+.opening-ledger.editing .ledger-field input {
+  border-color: color-mix(in srgb, var(--primary) 26%, var(--border));
+  background: var(--bg-elevated);
+}
+.opening-ledger.editing .ledger-field input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 14%, transparent);
 }
 .opening-balance-msg {
+  position: relative;
+  z-index: 1;
+  margin-top: 12px;
   font-size: 0.88rem;
   color: var(--success);
   font-weight: 700;
@@ -786,36 +1201,569 @@ onMounted(async () => {
   background: color-mix(in srgb, var(--danger) 6%, transparent);
   border-color: color-mix(in srgb, var(--danger) 20%, transparent);
 }
-.toolbar-actions { display: flex; gap: 8px; }
+.toolbar-actions {
+  display: flex;
+  gap: 9px;
+  padding: 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bg-elevated) 72%, transparent);
+  border: 1px solid color-mix(in srgb, var(--primary) 10%, var(--border));
+}
 .import-btn { cursor: pointer; margin: 0; }
 .icon-btn {
-  width: 34px; height: 34px;
+  width: 38px; height: 38px;
   display: inline-flex; align-items: center; justify-content: center;
-  border: 1px solid var(--border); border-radius: var(--radius-xs);
+  border: 1px solid color-mix(in srgb, var(--primary) 14%, var(--border)); border-radius: 999px;
   background: var(--bg-elevated); color: var(--text);
-  cursor: pointer; transition: var(--transition);
-  &:hover { background: var(--bg); border-color: var(--primary-soft); }
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.22);
+  cursor: pointer; transition: transform var(--transition), box-shadow var(--transition), border-color var(--transition);
+  &:hover {
+    transform: translateY(-2px);
+    background: var(--bg);
+    border-color: color-mix(in srgb, var(--primary) 34%, var(--border));
+    box-shadow: var(--shadow-xs);
+  }
   &.warning { color: var(--warning); border-color: color-mix(in srgb, var(--warning) 30%, transparent); }
   &.danger  { color: var(--danger);  border-color: color-mix(in srgb, var(--danger)  30%, transparent); }
 }
 .filter-row { display: flex; gap: 12px; flex-wrap: wrap; }
-.filter-row .form-group { margin: 0; min-width: 140px; }
+.filter-row .form-group {
+  min-width: 160px;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid color-mix(in srgb, var(--primary) 12%, var(--border));
+  background: color-mix(in srgb, var(--bg-elevated) 82%, transparent);
+}
+.filter-row .form-group label {
+  margin-bottom: 7px;
+  font-size: 0.76rem;
+  font-weight: 950;
+}
+.filter-row .form-group input {
+  min-height: 38px;
+  padding: 8px 10px;
+  border-color: transparent;
+  background: transparent;
+  font-weight: 850;
+}
+.month-picker-group {
+  border: none !important;
+  background: transparent !important;
+  padding: 0 !important;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  min-width: 48px !important;
+}
+.month-filter-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-card);
+  cursor: pointer;
+  transition: all 0.2s;
+  align-self: flex-end;
+  margin-bottom: 8px;
+}
+.month-filter-btn:hover {
+  background: var(--bg-hover);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+.month-picker-overlay {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+}
 .tabs {
-  display: flex; gap: 6px;
+  position: relative;
+  display: flex;
+  width: fit-content;
+  max-width: 100%;
+  gap: 7px;
+  padding: 7px;
+  border-radius: 999px;
+  border: 1px solid var(--sales-panel-border);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--bg-elevated) 86%, transparent), color-mix(in srgb, var(--primary) 5%, transparent));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.26), var(--shadow-xs);
+  
+  .tab-slider {
+    position: absolute;
+    top: 7px;
+    bottom: 7px;
+    right: 7px;
+    width: calc(33.333% - 9px);
+    border-radius: 999px;
+    background: linear-gradient(135deg, var(--primary), var(--primary-strong));
+    box-shadow: 0 10px 24px color-mix(in srgb, var(--primary) 30%, transparent);
+    transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 1;
+  }
+  
   button {
-    padding: 10px 22px; border: 2px solid var(--border); border-radius: var(--radius-sm);
-    background: var(--bg-elevated); cursor: pointer; font-weight: 700; transition: var(--transition);
-    &:hover { border-color: var(--primary-soft); }
+    position: relative;
+    z-index: 2;
+    padding: 11px 24px;
+    border: none !important;
+    border-radius: 999px;
+    background: transparent !important;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-weight: 900;
+    transition: color 0.28s ease;
+    box-shadow: none !important;
+    transform: none !important;
+    
+    &:hover {
+      color: var(--text-strong);
+    }
     &.active {
-      background: linear-gradient(135deg, var(--primary), var(--primary-strong));
-      color: #fff; border-color: transparent;
-      box-shadow: 0 4px 12px color-mix(in srgb, var(--primary) 35%, transparent);
+      color: #fff !important;
     }
   }
 }
-.main-row { align-items: start; }
-.form-card h3, .list-card h3 { margin-bottom: 16px; color: var(--text-strong); font-size: 1rem; font-weight: 800; }
-.list-card { max-height: 640px; overflow: auto; }
+.sales-insight {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.9fr) minmax(520px, 1.35fr);
+  gap: 18px;
+  align-items: stretch;
+  overflow: hidden;
+  position: relative;
+  padding: 20px;
+  border-color: var(--sales-panel-border);
+  border-radius: calc(var(--radius-lg) + 2px);
+  background:
+    linear-gradient(90deg, var(--sales-grid-line) 1px, transparent 1px),
+    linear-gradient(0deg, var(--sales-grid-line) 1px, transparent 1px),
+    radial-gradient(circle at top right, color-mix(in srgb, var(--primary) 14%, transparent), transparent 34%),
+    linear-gradient(135deg, color-mix(in srgb, var(--surface-1) 94%, var(--primary) 6%), var(--surface-2));
+  background-size: 42px 42px, 42px 42px, auto, auto;
+}
+.sales-insight::before {
+  content: '';
+  position: absolute;
+  inset-inline-start: -70px;
+  bottom: -90px;
+  width: 190px;
+  height: 190px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  pointer-events: none;
+}
+.sales-insight::after {
+  content: '';
+  position: absolute;
+  inset: auto 20px 0 20px;
+  height: 3px;
+  border-radius: 999px 999px 0 0;
+  background: linear-gradient(90deg, var(--primary), color-mix(in srgb, var(--accent) 70%, var(--primary)), transparent);
+  opacity: 0.72;
+}
+.sales-insight.warning { border-color: color-mix(in srgb, var(--warning) 30%, var(--border)); }
+.sales-insight.success { border-color: color-mix(in srgb, var(--success) 26%, var(--border)); }
+.sales-insight.muted { border-color: color-mix(in srgb, var(--text-muted) 18%, var(--border)); }
+.insight-copy,
+.insight-metrics {
+  position: relative;
+  z-index: 1;
+}
+.eyebrow {
+  display: inline-flex;
+  margin-bottom: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  color: var(--primary-strong);
+  background: color-mix(in srgb, var(--primary) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--primary) 15%, transparent);
+  font-size: 0.76rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+}
+.insight-copy h3 {
+  margin: 0 0 6px;
+  color: var(--text-strong);
+  font-size: clamp(1.05rem, 1.7vw, 1.35rem);
+  font-weight: 950;
+  letter-spacing: -0.03em;
+}
+.insight-copy p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  line-height: 1.75;
+}
+.insight-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+.insight-tile {
+  position: relative;
+  overflow: hidden;
+  min-height: 92px;
+  padding: 15px 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid color-mix(in srgb, var(--primary) 12%, var(--border));
+  background:
+    linear-gradient(145deg, color-mix(in srgb, var(--bg-elevated) 88%, transparent), color-mix(in srgb, var(--card-bg) 72%, transparent));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.24), var(--shadow-xs);
+}
+.insight-tile::before {
+  content: '';
+  position: absolute;
+  inset-inline-end: 0;
+  top: 13px;
+  bottom: 13px;
+  width: 4px;
+  border-radius: 999px 0 0 999px;
+  background: color-mix(in srgb, var(--primary) 55%, transparent);
+}
+.insight-tile span {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 950;
+}
+.insight-tile strong {
+  display: block;
+  color: var(--text-strong);
+  font-size: clamp(1rem, 1.35vw, 1.25rem);
+  line-height: 1.35;
+  font-weight: 950;
+  letter-spacing: -0.03em;
+}
+.insight-tile.success::before { background: color-mix(in srgb, var(--success) 58%, transparent); }
+.insight-tile.warning::before { background: color-mix(in srgb, var(--warning) 65%, transparent); }
+.insight-tile.primary::before { background: color-mix(in srgb, var(--primary) 70%, transparent); }
+.insight-tile.success strong { color: var(--success); }
+.insight-tile.warning strong { color: var(--warning); }
+.insight-tile.primary strong { color: var(--primary-strong); }
+.stats-row {
+  gap: 14px;
+}
+.stats-row :deep(.stat-card) {
+  position: relative;
+  overflow: hidden;
+  min-height: 106px;
+  align-items: flex-start;
+  padding: 18px;
+  border-color: var(--sales-panel-border);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--primary) 6%, transparent), transparent 44%),
+    color-mix(in srgb, var(--card-bg) 92%, var(--bg-elevated));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.22), var(--shadow-xs);
+}
+.stats-row :deep(.stat-card::after) {
+  content: '';
+  position: absolute;
+  inset-inline-start: -44px;
+  bottom: -54px;
+  width: 130px;
+  height: 130px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+.stats-row :deep(.stat-icon-wrap) {
+  order: 2;
+  margin-inline-start: auto;
+  width: 46px;
+  height: 46px;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--primary) 11%, var(--bg-elevated));
+  color: var(--primary-strong);
+}
+.stats-row :deep(.stat-info) {
+  position: relative;
+  z-index: 1;
+}
+.stats-row :deep(.stat-label) {
+  font-size: 0.78rem;
+  font-weight: 950;
+}
+.stats-row :deep(.stat-value) {
+  font-size: clamp(1.25rem, 2vw, 1.6rem);
+  font-weight: 950;
+  letter-spacing: -0.04em;
+}
+.main-row { align-items: start; gap: 18px; }
+.form-card,
+.list-card {
+  position: relative;
+  overflow: hidden;
+  border-color: var(--sales-panel-border);
+  border-radius: calc(var(--radius-lg) + 2px);
+  background:
+    radial-gradient(circle at top left, color-mix(in srgb, var(--primary) 8%, transparent), transparent 32%),
+    linear-gradient(145deg, color-mix(in srgb, var(--card-bg) 94%, var(--primary) 4%), var(--bg-elevated));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.2), var(--shadow-xs);
+}
+.form-card::before,
+.list-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--primary), color-mix(in srgb, var(--accent) 70%, var(--primary)), transparent);
+  opacity: 0.74;
+}
+.form-card h3,
+.list-card h3 {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 18px;
+  color: var(--text-strong);
+  font-size: 1.05rem;
+  font-weight: 950;
+  letter-spacing: -0.02em;
+}
+.form-card h3::before,
+.list-card h3::before {
+  content: '';
+  width: 12px;
+  height: 28px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, var(--primary), var(--primary-strong));
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--primary) 25%, transparent);
+}
+.form-card form {
+  position: relative;
+  z-index: 1;
+}
+.form-card .form-group {
+  margin-bottom: 14px;
+}
+.form-card .form-group label {
+  color: var(--text-muted);
+  font-weight: 950;
+}
+.form-card input,
+.form-card select,
+.form-card textarea {
+  min-height: 46px;
+  border-radius: var(--radius-md);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--bg-elevated) 92%, transparent), color-mix(in srgb, var(--card-bg) 86%, transparent));
+}
+.form-card .btn-primary[type='submit'] {
+  width: 100%;
+  min-height: 48px;
+  margin-top: 4px;
+  border-radius: 999px;
+  font-weight: 950;
+  box-shadow: 0 14px 28px color-mix(in srgb, var(--primary) 26%, transparent);
+}
+.monthly-sales-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 22px;
+  background:
+    radial-gradient(circle at 15% 10%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 28%),
+    linear-gradient(145deg, color-mix(in srgb, var(--card-bg) 92%, var(--primary) 7%), var(--bg-elevated));
+}
+.monthly-sales-card h3 {
+  margin-bottom: 0;
+}
+.monthly-kicker {
+  width: fit-content;
+  padding: 5px 11px;
+  border-radius: 999px;
+  color: var(--primary-strong);
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--primary) 20%, transparent);
+  font-size: 0.76rem;
+  font-weight: 950;
+}
+.monthly-copy {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  color: var(--text-muted);
+  line-height: 1.8;
+  font-size: 0.92rem;
+  font-weight: 750;
+}
+.monthly-actions {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.monthly-actions .btn {
+  min-height: 42px;
+  border-radius: 999px;
+  font-weight: 900;
+  cursor: pointer;
+}
+.monthly-actions .monthly-import-btn {
+  color: #fff;
+  border-color: transparent;
+  background: linear-gradient(135deg, var(--success), color-mix(in srgb, var(--success) 72%, #052e16));
+  box-shadow: 0 12px 24px color-mix(in srgb, var(--success) 24%, transparent);
+}
+.monthly-actions .monthly-import-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 16px 30px color-mix(in srgb, var(--success) 30%, transparent);
+}
+.monthly-actions .btn.disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+.monthly-rules {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px;
+}
+.monthly-rules span {
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  background: color-mix(in srgb, var(--bg-elevated) 78%, transparent);
+  border: 1px solid color-mix(in srgb, var(--primary) 12%, var(--border));
+  font-size: 0.8rem;
+  font-weight: 850;
+}
+.import-result.inline {
+  position: relative;
+  z-index: 1;
+  margin-top: 0;
+}
+.list-card {
+  max-height: 640px;
+  overflow: auto;
+}
+.sales-history-card {
+  padding: 0;
+}
+.history-head {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 20px 20px 14px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--card-bg) 96%, var(--primary) 4%), var(--bg-elevated));
+  border-bottom: 1px solid color-mix(in srgb, var(--primary) 10%, var(--border));
+}
+.history-head h3 {
+  margin: 0 0 5px;
+}
+.history-head p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+.history-total {
+  display: inline-flex;
+  align-items: center;
+  min-height: 42px;
+  padding: 8px 13px;
+  border-radius: 999px;
+  color: var(--primary-strong);
+  background: color-mix(in srgb, var(--primary) 9%, var(--bg-elevated));
+  border: 1px solid color-mix(in srgb, var(--primary) 20%, var(--border));
+  font-weight: 950;
+  white-space: nowrap;
+}
+.list-card table {
+  border-collapse: separate;
+  border-spacing: 0 9px;
+  padding: 0 14px 14px;
+}
+.list-card thead th {
+  position: sticky;
+  top: 77px;
+  z-index: 2;
+  border: 0;
+  background: color-mix(in srgb, var(--bg-elevated) 96%, var(--primary) 3%);
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 950;
+  padding-block: 10px;
+}
+.list-card tbody td {
+  border-top: 1px solid color-mix(in srgb, var(--primary) 9%, var(--border));
+  border-bottom: 1px solid color-mix(in srgb, var(--primary) 9%, var(--border));
+  background: color-mix(in srgb, var(--bg-elevated) 84%, transparent);
+  font-weight: 800;
+  padding-block: 13px;
+}
+.list-card tbody td:first-child {
+  border-inline-start: 1px solid color-mix(in srgb, var(--primary) 8%, var(--border));
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+.list-card tbody td:last-child {
+  border-inline-end: 1px solid color-mix(in srgb, var(--primary) 8%, var(--border));
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+}
+.list-card tbody tr:hover td {
+  background: color-mix(in srgb, var(--primary) 6%, var(--bg-elevated));
+}
+.payment-open td {
+  background: color-mix(in srgb, var(--warning) 7%, var(--bg-elevated));
+}
+.payment-open:hover td {
+  background: color-mix(in srgb, var(--warning) 11%, var(--bg-elevated));
+}
+.history-date {
+  color: var(--text-muted);
+  font-weight: 900;
+  white-space: nowrap;
+}
+.history-amount {
+  color: var(--text-strong);
+  font-size: 0.98rem;
+  font-weight: 950;
+  white-space: nowrap;
+}
+.history-payment .badge {
+  min-width: 74px;
+  justify-content: center;
+}
+.history-action {
+  text-align: left;
+}
+.history-edit-btn {
+  min-width: 72px;
+  min-height: 34px;
+  padding: 7px 12px;
+  border: 1px solid color-mix(in srgb, var(--primary) 18%, var(--border));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--primary) 7%, var(--bg-elevated));
+  color: var(--primary-strong);
+  font-weight: 900;
+  cursor: pointer;
+  transition: transform var(--transition), box-shadow var(--transition), background var(--transition);
+}
+.history-edit-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  background: color-mix(in srgb, var(--primary) 13%, var(--bg-elevated));
+  box-shadow: var(--shadow-xs);
+}
+.history-edit-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
 .empty { text-align: center; color: var(--text-muted); padding: 24px; }
 .excel-guide {
   summary { cursor: pointer; font-weight: 700; color: var(--text-strong); }
@@ -912,7 +1860,98 @@ onMounted(async () => {
     }
   }
 }
+@media (max-width: 1100px) {
+  .opening-balance-head { grid-template-columns: 1fr; align-items: stretch; }
+  .ledger-amount { max-width: 320px; }
+  .opening-balance-actions { justify-content: flex-start; }
+  .sales-insight { grid-template-columns: 1fr; }
+  .insight-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 @media (max-width: 900px) { .main-row { grid-template-columns: 1fr; } }
+@media (max-width: 640px) {
+  .opening-ledger { padding: 16px; border-radius: var(--radius-lg); }
+  .ledger-title { align-items: flex-start; }
+  .ledger-mark { width: 58px; height: 48px; border-radius: 16px; font-size: 0.72rem; }
+  .opening-balance-grid { grid-template-columns: 1fr; }
+  .ledger-amount { max-width: none; }
+  .ledger-action { flex: 1; }
+  .insight-metrics { grid-template-columns: 1fr; }
+  .monthly-rules { grid-template-columns: 1fr; }
+  .list-card {
+    max-height: none;
+    overflow: hidden;
+  }
+  .list-card table,
+  .list-card thead,
+  .list-card tbody,
+  .list-card tr,
+  .list-card th,
+  .list-card td {
+    display: block;
+  }
+  .list-card table {
+    border-spacing: 0;
+    padding: 0 12px 12px;
+  }
+  .list-card thead {
+    display: none;
+  }
+  .list-card tbody {
+    display: grid;
+    gap: 10px;
+  }
+  .list-card tbody tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px 12px;
+    padding: 13px;
+    border: 1px solid color-mix(in srgb, var(--primary) 12%, var(--border));
+    border-radius: var(--radius-md);
+    background:
+      radial-gradient(circle at 0 100%, color-mix(in srgb, var(--accent) 10%, transparent), transparent 38%),
+      color-mix(in srgb, var(--bg-elevated) 82%, transparent);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.22);
+  }
+  .list-card tbody td,
+  .list-card tbody td:first-child,
+  .list-card tbody td:last-child {
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    padding: 0;
+  }
+  .list-card tbody tr:hover td,
+  .payment-open td,
+  .payment-open:hover td {
+    background: transparent;
+  }
+  .list-card tbody td:nth-child(1) {
+    grid-column: 1;
+    color: var(--text-strong);
+    font-size: 0.95rem;
+    font-weight: 950;
+  }
+  .list-card tbody td:nth-child(2) {
+    grid-column: 2;
+    color: var(--text-strong);
+    font-size: 0.98rem;
+    font-weight: 950;
+    white-space: nowrap;
+  }
+  .list-card tbody td:nth-child(3) {
+    align-self: center;
+  }
+  .list-card tbody td:nth-child(4) {
+    grid-column: 1 / -1;
+    display: flex;
+    justify-content: flex-end;
+    padding-top: 2px;
+  }
+  .list-card tbody td.empty {
+    grid-column: 1 / -1;
+    padding: 18px;
+  }
+}
 /* Partial payment */
 .partial-payment-box {
   background: color-mix(in srgb, var(--warning) 6%, transparent);
@@ -948,5 +1987,24 @@ onMounted(async () => {
   color: var(--warning);
   background: color-mix(in srgb, var(--warning) 8%, transparent);
   padding: 8px 12px; border-radius: var(--radius-xs);
+}
+
+/* Modal styles for editing */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(4px);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.modal-card {
+  width: min(540px, 95vw);
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow-xl);
 }
 </style>

@@ -39,9 +39,9 @@ SELECT 3, id FROM permissions WHERE code IN ('dashboard.view', 'sales.branch', '
 INSERT INTO role_permissions (role_id, permission_id)
 SELECT 4, id FROM permissions WHERE module IN ('inventory', 'products') OR code = 'dashboard.view';
 
--- Default admin user (password: Admin@123) — bcrypt hash for Node.js auth
+-- Default admin user (KarimYehia) — bcrypt hash for original password
 INSERT INTO users (username, email, password_hash, full_name, phone, role_id) VALUES
-('admin', 'admin@bin-alajouz.com', '$2a$10$xBWmhv/HFxVIgOVM3fPPpuzxYLK3psPfWPbGGePeCMnhKwOKUyIDG', 'مدير النظام', '0500000000', 1);
+('KarimYehia', 'capo.unlimited@gmail.com', '$2a$10$TD5OatzzB43t5DNHSAu0g.lldONWx21D58yiG3pwK5lsRZv1L6Kk6', 'بن العجوز', '01142819808', 1);
 
 -- Warehouses
 INSERT INTO warehouses (code, name_ar, type, address) VALUES

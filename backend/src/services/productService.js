@@ -10,26 +10,33 @@ const sanitizeLimit = (value, fallback = 100, max = 500) => {
 
 export const getProducts = async (filters = {}) => {
   let sql = `SELECT p.*, pc.name_ar as category_name,
-    EXISTS (
-      SELECT 1
+    COALESCE(ar.has_active_recipe, FALSE) as has_active_recipe,
+    COALESCE(inv.total_stock, 0) as total_stock,
+    COALESCE(pw.name_ar, fallback_w.name_ar) as primary_warehouse_name
+    FROM products p
+    LEFT JOIN product_categories pc ON p.category_id = pc.id
+    LEFT JOIN warehouses pw ON pw.id = p.primary_warehouse_id
+    LEFT JOIN LATERAL (
+      SELECT TRUE as has_active_recipe
       FROM product_recipes r
       WHERE r.product_id = p.id
         AND r.deleted_at IS NULL
         AND r.is_active = TRUE
-    ) AS has_active_recipe,
-    COALESCE((SELECT SUM(quantity) FROM inventory WHERE product_id = p.id), 0) as total_stock,
-    COALESCE(
-      (SELECT name_ar FROM warehouses w WHERE w.id = p.primary_warehouse_id),
-      (
-        SELECT w2.name_ar
-        FROM inventory i
-        JOIN warehouses w2 ON w2.id = i.warehouse_id
-        WHERE i.product_id = p.id
-        ORDER BY i.quantity DESC, i.id ASC
-        LIMIT 1
-      )
-    ) as primary_warehouse_name
-    FROM products p LEFT JOIN product_categories pc ON p.category_id = pc.id
+      LIMIT 1
+    ) ar ON TRUE
+    LEFT JOIN LATERAL (
+      SELECT COALESCE(SUM(i.quantity), 0) as total_stock
+      FROM inventory i
+      WHERE i.product_id = p.id
+    ) inv ON TRUE
+    LEFT JOIN LATERAL (
+      SELECT w2.name_ar
+      FROM inventory i
+      JOIN warehouses w2 ON w2.id = i.warehouse_id
+      WHERE i.product_id = p.id
+      ORDER BY i.quantity DESC, i.id ASC
+      LIMIT 1
+    ) fallback_w ON p.primary_warehouse_id IS NULL
     WHERE p.deleted_at IS NULL`;
   const params = [];
   let i = 1;
@@ -48,8 +55,21 @@ export const getProducts = async (filters = {}) => {
     i++;
   }
   if (filters.is_active !== undefined) { sql += ` AND p.is_active = $${i++}`; params.push(filters.is_active); }
-  sql += ` ORDER BY p.name_ar LIMIT ${sanitizeLimit(filters.limit)}`;
-  return (await query(sql, params)).rows;
+  sql += ` ORDER BY p.name_ar LIMIT $${i++}`;
+  params.push(sanitizeLimit(filters.limit));
+  const rows = (await query(sql, params)).rows;
+
+  const costs = await getProductsEffectiveCosts({ query }, rows.map((r) => r.id));
+  for (const r of rows) {
+    if (r.has_active_recipe) {
+      const effective = costs.get(Number(r.id));
+      if (effective && effective.cost > 0) {
+        r.purchase_price = effective.cost;
+      }
+    }
+  }
+
+  return rows;
 };
 
 export const getProductById = async (id) => {
@@ -71,7 +91,17 @@ export const getProductById = async (id) => {
     [id]
   );
   if (!result.rows[0]) throw new AppError('المنتج غير موجود', 404);
-  return result.rows[0];
+  const product = result.rows[0];
+
+  if (product.has_active_recipe) {
+    const costs = await getProductsEffectiveCosts({ query }, [product.id]);
+    const effective = costs.get(Number(product.id));
+    if (effective && effective.cost > 0) {
+      product.purchase_price = effective.cost;
+    }
+  }
+
+  return product;
 };
 
 const PRODUCT_SKU_PREFIX = 'AGoouz-';
@@ -518,5 +548,41 @@ export const deleteUnit = async (id) => {
   if (!unit.rows[0]) throw new AppError('الوحدة غير موجودة', 404);
   await query(`UPDATE product_units SET deleted_at = NOW() WHERE id = $1`, [id]);
   return { id };
+};
+
+export const bulkAdjustPrices = async (data, userId) => {
+  const { category_id, type, value, adjust_type } = data; // type: 'sale' | 'purchase', adjust_type: 'percent' | 'fixed'
+  const val = Number(value);
+  if (isNaN(val)) throw new AppError('القيمة غير صالحة', 400);
+
+  let sql = `UPDATE products SET `;
+  const params = [];
+  
+  if (type === 'sale') {
+    if (adjust_type === 'percent') {
+      sql += `sale_price = ROUND(sale_price * (1 + $1::numeric / 100), 2)`;
+    } else {
+      sql += `sale_price = ROUND(sale_price + $1::numeric, 2)`;
+    }
+  } else if (type === 'purchase') {
+    if (adjust_type === 'percent') {
+      sql += `purchase_price = ROUND(purchase_price * (1 + $1::numeric / 100), 2)`;
+    } else {
+      sql += `purchase_price = ROUND(purchase_price + $1::numeric, 2)`;
+    }
+  } else {
+    throw new AppError('نوع السعر المراد تعديله غير صالح', 400);
+  }
+  
+  params.push(val);
+  sql += `, updated_at = NOW() WHERE deleted_at IS NULL`;
+  
+  if (category_id) {
+    sql += ` AND category_id = $2`;
+    params.push(category_id);
+  }
+  
+  const result = await query(sql, params);
+  return { updatedCount: result.rowCount };
 };
 

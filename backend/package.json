@@ -6,8 +6,8 @@
   "type": "module",
   "scripts": {
     "start": "node src/index.js",
-    "dev": "node --watch src/index.js",
-    "test": "node --test",
+    "dev": "node --watch-path=src src/index.js",
+    "test": "node scripts/run-tests.js",
     "setup-db": "node src/database/setup.js",
     "reset-admin": "node src/database/reset-admin.js"
   },
@@ -23,7 +23,11 @@
     "multer": "^1.4.5-lts.1",
     "pdfkit": "^0.15.0",
     "pg": "^8.12.0",
+    "selfsigned": "^5.5.0",
     "uuid": "^11.1.1",
+    "winston": "^3.19.0",
+    "winston-daily-rotate-file": "^5.0.0",
+    "ws": "^8.21.0",
     "xlsx": "^0.18.5",
     "zod": "^3.23.8"
   }

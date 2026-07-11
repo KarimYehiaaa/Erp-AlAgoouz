@@ -44,7 +44,32 @@ const ALLOWED_RESTORE_TABLES = new Set([
     'payments', 'inventory', 'stock_movements',
     'expenses', 'purchase_invoices', 'purchase_invoice_items',
     'settings', 'activity_logs',
+    'employee_shifts', 'employees', 'employee_attendance', 'employee_advances', 'payroll_runs', 'payroll_items',
 ]);
+
+// Ordered list to respect foreign-key dependencies when restoring
+const RESTORE_ORDER = [
+    // Master / lookup tables first
+    'warehouses', 'roles', 'permissions', 'role_permissions',
+    'users', 'product_categories', 'products', 'customers', 'suppliers',
+    'expense_categories',
+    // Shifts and employees
+    'employee_shifts', 'employees',
+    // Recipes depend on products
+    'product_recipes', 'product_recipe_items',
+    // Purchase -> invoice items
+    'purchase_invoices', 'purchase_invoice_items',
+    // Sales and invoices
+    'sales', 'sale_items', 'invoices', 'invoice_items',
+    'payments',
+    // Inventory & movements
+    'inventory', 'stock_movements',
+    'expenses',
+    // HR transaction tables (depend on employees and expenses)
+    'employee_attendance', 'employee_advances', 'payroll_runs', 'payroll_items',
+    // System
+    'settings', 'activity_logs',
+];
 
 
 const ensureDir = async () => {
@@ -59,10 +84,12 @@ export const createBackup = async () => {
         'warehouses', 'roles', 'permissions', 'role_permissions',
         'users', 'products', 'product_categories', 'customers', 'suppliers',
         'expense_categories', 'product_recipes', 'product_recipe_items',
+        'employee_shifts', 'employees',
         // Transactional data
         'sales', 'sale_items', 'invoices', 'invoice_items',
         'payments', 'inventory', 'stock_movements',
         'expenses', 'purchase_invoices', 'purchase_invoice_items',
+        'employee_attendance', 'employee_advances', 'payroll_runs', 'payroll_items',
         // System
         'settings', 'activity_logs',
     ];
@@ -96,8 +123,19 @@ export const downloadBackupPath = async (name) => {
 export const clearAllData = async () => {
     // destructive: truncate operational data (keep settings, users, products, and recipes)
     const client = await getClient();
+    let replicationRoleChanged = false;
     try {
         await client.query('BEGIN');
+        // Temporarily disable triggers/constraints that are enforced by triggers
+        // This helps importing data that may violate business-enforced triggers
+        // during a direct restore. Will be reset back to 'origin' after restore.
+        try {
+            await client.query("SET session_replication_role = 'replica'");
+            replicationRoleChanged = true;
+        } catch (e) {
+            // If we cannot change role, continue and rely on careful ordering
+            console.warn('[Restore] could not set session_replication_role, continuing with triggers enabled');
+        }
         for (const t of CLEAR_DATA_TABLES) {
             await client.query(`TRUNCATE TABLE ${t} RESTART IDENTITY CASCADE`);
         }
@@ -106,7 +144,12 @@ export const clearAllData = async () => {
     } catch (e) {
         await client.query('ROLLBACK');
         throw e;
-    } finally { client.release(); }
+    } finally {
+        if (replicationRoleChanged) {
+            try { await client.query("SET session_replication_role = 'origin'"); } catch (_) { }
+        }
+        client.release();
+    }
 };
 
 export const restoreBackup = async (name) => {
@@ -115,30 +158,68 @@ export const restoreBackup = async (name) => {
     try { content = await fs.readFile(p, 'utf8'); } catch (e) { throw new AppError('النسخة غير موجودة', 404); }
     const parsed = JSON.parse(content);
     const data = parsed.data || {};
+    // Choose tables in a dependency-safe order (only those present in the backup)
+    const restoreTables = RESTORE_ORDER.filter((t) => ALLOWED_RESTORE_TABLES.has(t) && Object.prototype.hasOwnProperty.call(data, t));
+    // build helper maps from backup data to fix business-rule-sensitive rows during restore
+    const productPrimaryMap = new Map();
+    if (Array.isArray(data.products)) {
+        for (const p of data.products) {
+            if (p && typeof p.id !== 'undefined') productPrimaryMap.set(p.id, p.primary_warehouse_id || null);
+        }
+    }
     const client = await getClient();
+    let replicationRoleChanged = false;
     try {
         await client.query('BEGIN');
-        for (const [table, rows] of Object.entries(data)) {
+        try {
+            await client.query("SET session_replication_role = 'replica'");
+            replicationRoleChanged = true;
+        } catch (e) {
+            console.warn('[Restore] could not set session_replication_role, continuing with triggers enabled');
+        }
+        for (const table of [...restoreTables].reverse()) {
+            await client.query(`TRUNCATE TABLE ${table} RESTART IDENTITY CASCADE`);
+        }
+        for (const table of restoreTables) {
+            const rows = data[table];
             // BUG-03 FIX: رفض أي جدول غير موجود في القائمة البيضاء — يمنع SQL Injection
             if (!ALLOWED_RESTORE_TABLES.has(table)) {
                 console.warn(`[Restore] تجاهل جدول غير مصرح به: ${table}`);
                 continue;
             }
             if (!Array.isArray(rows) || rows.length === 0) continue;
-            await client.query(`DELETE FROM ${table}`);
             // فقط الأعمدة التي تحتوي أسماء SQL آمنة (حروف وأرقام وشرطة سفلية)
             const cols = Object.keys(rows[0]).filter(c => /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(c));
             const colList = cols.map((c) => `"${c}"`).join(',');
             for (const row of rows) {
+                // Fix production output movements to use product primary warehouse if present
+                if (table === 'stock_movements' && row && row.movement_type === 'production') {
+                    const prodId = row.product_id;
+                    const primaryWh = productPrimaryMap.get(prodId);
+                    if (primaryWh && row.to_warehouse_id !== primaryWh) {
+                        row.to_warehouse_id = primaryWh;
+                    }
+                }
                 const vals = cols.map((c) => row[c]);
                 const params = vals.map((_, i) => `$${i + 1}`).join(',');
-                await client.query(`INSERT INTO ${table} (${colList}) VALUES (${params})`, vals);
+                try {
+                    await client.query(`INSERT INTO ${table} (${colList}) VALUES (${params})`, vals);
+                } catch (err) {
+                    console.warn(`[Restore] failed insert into ${table}:`, err.message);
+                    // continue with other rows to recover as much as possible
+                    continue;
+                }
             }
         }
         await client.query('COMMIT');
-        return { restored: Object.keys(data).filter(t => ALLOWED_RESTORE_TABLES.has(t)).length };
+        return { restored: restoreTables.length };
     } catch (e) {
         await client.query('ROLLBACK');
         throw e;
-    } finally { client.release(); }
+    } finally {
+        if (replicationRoleChanged) {
+            try { await client.query("SET session_replication_role = 'origin'"); } catch (_) { }
+        }
+        client.release();
+    }
 };

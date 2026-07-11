@@ -1,10 +1,13 @@
 import { getClient, query } from '../database/pool.js';
 import { AppError } from '../middleware/errorHandler.js';
 import * as recipesService from './recipesService.js';
-import { getProductEffectiveCost } from './productCostService.js';
+import { getProductEffectiveCost, getProductsEffectiveCosts } from './productCostService.js';
 import * as inventoryService from './inventoryService.js';
 import { getDefaultWarehouseId } from './warehouseService.js';
 import { recalculateCustomerBalance } from './customerBalanceService.js';
+import { invalidateDashboardCache } from './dashboardService.js';
+import { broadcast } from './websocketService.js';
+import { getPaginationParams, buildPaginationMeta } from '../utils/pagination.js';
 
 const roundMoney = (value) => Math.round((Number(value) || 0) * 100) / 100;
 
@@ -29,7 +32,7 @@ export const calculateSaleTotals = (items = [], data = {}) => {
     const quantity = parseAmount(item.quantity);
     const unitPrice = parseAmount(item.unit_price);
     const discountAmount = parseAmount(item.discount_amount);
-    const taxAmount = 0; // Forced to 0 because tax is disabled (user not registered for taxes yet)
+    const taxAmount = 0; // دائماً صفر لعدم وجود ضريبة
 
     if (!productId) throw new AppError(`Item ${idx + 1}: product is required`);
     if (quantity <= 0) throw new AppError(`Item ${idx + 1}: quantity must be greater than zero`);
@@ -57,8 +60,14 @@ export const calculateSaleTotals = (items = [], data = {}) => {
   }
 
   const discountAmount = roundMoney(parseAmount(data.discount_amount));
-  const taxAmount = 0; // Forced to 0 because tax is disabled
-  const taxPercent = 0; // Forced to 0 because tax is disabled
+  if (discountAmount < 0) throw new AppError('Invoice discount cannot be negative');
+  if (items.length && discountAmount > itemsTotal) {
+    throw new AppError('Invoice discount cannot exceed invoice total');
+  }
+
+  const taxPercent = 0;
+  const taxAmount = 0;
+
   const dailyTotal = roundMoney(parseAmount(data.total_amount));
   const totalAmount = items.length
     ? roundMoney(Math.max(0, itemsTotal - discountAmount + taxAmount))
@@ -95,12 +104,14 @@ export const calculateOutstandingAmount = (totalAmount, paidAmount = 0) =>
 const SALE_TYPES = { branch: 'فرع', wholesale: 'جملة', pos: 'POS' };
 
 const generateNumber = async (client, prefix, settingKey) => {
-  const settings = await client.query(`SELECT value FROM settings WHERE key = $1 FOR UPDATE`, [settingKey]);
-  const config = settings.rows[0]?.value || { prefix, next_number: 1001 };
-  const number = `${config.prefix || prefix}-${config.next_number}`;
-  config.next_number = (config.next_number || 1001) + 1;
-  await client.query(`UPDATE settings SET value = $1::jsonb WHERE key = $2`, [JSON.stringify(config), settingKey]);
-  return number;
+  const sequenceMap = {
+    'sale': 'seq_sales_number',
+    'invoice': 'seq_invoices_number'
+  };
+  const seqName = sequenceMap[settingKey] || 'seq_sales_number';
+  // Note: pg doesn't support parameterized identifiers easily, so we interpolate safely since seqName is hardcoded
+  const res = await client.query(`SELECT nextval('${seqName}') AS next_val`);
+  return `${prefix}-${res.rows[0].next_val}`;
 };
 
 // BUG-08 FIX: جلب معلومات المخازن دفعة واحدة بدل N queries داخل حلقة
@@ -154,12 +165,47 @@ const resolveSaleWarehouseId = async (items = [], requestedWarehouseId = null) =
 const applySaleItems = async (client, { saleId, items, warehouseId, userId }) => {
   let costAmount = 0;
 
+  const productIds = items.map((it) => Number(it.product_id));
+  const costsMap = await getProductsEffectiveCosts(client, productIds);
+
+  const recipeCheck = await client.query(
+    `SELECT product_id FROM product_recipes
+     WHERE product_id = ANY($1::int[]) AND deleted_at IS NULL AND is_active = TRUE`,
+    [productIds]
+  );
+  const recipeSet = new Set(recipeCheck.rows.map((row) => Number(row.product_id)));
+
+  const productNamesRes = await client.query(
+    `SELECT id, name_ar FROM products WHERE id = ANY($1::int[])`,
+    [productIds]
+  );
+  const productNamesMap = new Map(productNamesRes.rows.map((row) => [Number(row.id), row.name_ar]));
+
+  const nonRecipeProductIds = productIds.filter((id) => !recipeSet.has(id));
+  const lockMap = new Map();
+
+  if (nonRecipeProductIds.length > 0) {
+    for (const pid of nonRecipeProductIds) {
+      await inventoryService.ensureInventoryRow(client, pid, warehouseId);
+    }
+    const sortedIds = [...new Set(nonRecipeProductIds)].sort((a, b) => a - b);
+    const lockRes = await client.query(
+      `SELECT product_id, quantity FROM inventory
+       WHERE warehouse_id = $1 AND product_id = ANY($2::int[])
+       FOR UPDATE`,
+      [warehouseId, sortedIds]
+    );
+    for (const row of lockRes.rows) {
+      lockMap.set(Number(row.product_id), Number(row.quantity));
+    }
+  }
+
   for (const it of items) {
     const qty = Number(it.quantity || 0);
     const unitPrice = Number(it.unit_price || 0);
     const lineTotal = it.total_amount;
 
-    const effectiveCost = await getProductEffectiveCost(client, it.product_id);
+    const effectiveCost = costsMap.get(Number(it.product_id)) || { cost: 0 };
     const costPrice = roundMoney(Number(effectiveCost.cost || 0) * qty);
     costAmount += costPrice;
 
@@ -169,15 +215,7 @@ const applySaleItems = async (client, { saleId, items, warehouseId, userId }) =>
       [saleId, it.product_id, qty, unitPrice, costPrice, it.discount_amount || 0, it.tax_amount || 0, lineTotal]
     );
 
-    const recipeCheck = await client.query(
-      `SELECT 1
-       FROM product_recipes
-       WHERE product_id = $1 AND deleted_at IS NULL AND is_active = TRUE
-       LIMIT 1`,
-      [it.product_id]
-    );
-
-    if (recipeCheck.rows[0]) {
+    if (recipeSet.has(Number(it.product_id))) {
       await recipesService.consumeRecipeForSale(client, {
         productId: it.product_id,
         soldQty: qty,
@@ -187,29 +225,81 @@ const applySaleItems = async (client, { saleId, items, warehouseId, userId }) =>
         userId,
       });
     } else {
-      const invRow = await inventoryService.lockInventoryRow(client, it.product_id, warehouseId);
-      const currentQty = Number(invRow?.quantity || 0);
-      if (currentQty < qty) {
-        const nameRes = await client.query(`SELECT name_ar FROM products WHERE id = $1`, [it.product_id]);
-        const pName = nameRes.rows[0]?.name_ar || 'المنتج';
+      const globalStockRes = await client.query(
+         `SELECT COALESCE(SUM(quantity), 0) AS total FROM inventory WHERE product_id = $1`,
+         [it.product_id]
+      );
+      const globalTotal = Number(globalStockRes.rows[0].total || 0);
+      if (globalTotal < qty) {
+        const pName = productNamesMap.get(Number(it.product_id)) || 'المنتج';
         throw new AppError(
-          `لا يوجد مخزون كافٍ للمنتج ${pName}. الكمية المطلوبة ${qty} والمتاحة ${currentQty}`
+          `لا يوجد مخزون كافٍ كلي للمنتج ${pName} عبر جميع المخازن. المطلوب ${qty} والمتاح كلياً ${globalTotal}`
         );
       }
 
-      await client.query(
-        `UPDATE inventory SET quantity = quantity - $1, updated_at = NOW()
-         WHERE product_id = $2 AND warehouse_id = $3`,
-        [qty, it.product_id, warehouseId]
+      // 1. سحب المتاح من المخزن الرئيسي أولاً
+      let remainingNeeded = qty;
+      const primaryLock = await client.query(
+        `SELECT quantity FROM inventory WHERE product_id = $1 AND warehouse_id = $2 FOR UPDATE`,
+        [it.product_id, warehouseId]
       );
+      const primaryQty = Number(primaryLock.rows[0]?.quantity || 0);
+      
+      if (primaryQty > 0) {
+        const deductQty = Math.min(primaryQty, remainingNeeded);
+        await client.query(
+          `UPDATE inventory SET quantity = quantity - $1, updated_at = NOW()
+           WHERE product_id = $2 AND warehouse_id = $3`,
+          [deductQty, it.product_id, warehouseId]
+        );
+        await client.query(
+          `INSERT INTO stock_movements (
+             product_id, from_warehouse_id, movement_type, quantity,
+             reference_type, reference_id, user_id, notes
+           ) VALUES ($1,$2,'sale',$3,'sale',$4,$5,'صرف مبيعات مباشر - مخزن رئيسي')`,
+          [it.product_id, warehouseId, deductQty, saleId, userId]
+        );
+        remainingNeeded -= deductQty;
+      }
 
-      await client.query(
-        `INSERT INTO stock_movements (
-           product_id, from_warehouse_id, movement_type, quantity,
-           reference_type, reference_id, user_id, notes
-         ) VALUES ($1,$2,'sale',$3,'sale',$4,$5,'صرف مبيعات مباشر')`,
-        [it.product_id, warehouseId, qty, saleId, userId]
-      );
+      // 2. سحب الباقي من المخازن الأخرى بالترتيب
+      if (remainingNeeded > 0.0001) {
+        const warehousesRes = await client.query(
+          `SELECT id FROM warehouses WHERE id <> $1 AND deleted_at IS NULL AND is_active = TRUE ORDER BY id`,
+          [warehouseId]
+        );
+        for (const w of warehousesRes.rows) {
+          if (remainingNeeded <= 0) break;
+          const candidateWarehouseId = Number(w.id);
+          await inventoryService.ensureInventoryRow(client, it.product_id, candidateWarehouseId);
+          const otherLock = await client.query(
+            `SELECT quantity FROM inventory WHERE product_id = $1 AND warehouse_id = $2 FOR UPDATE`,
+            [it.product_id, candidateWarehouseId]
+          );
+          const otherQty = Number(otherLock.rows[0]?.quantity || 0);
+          if (otherQty > 0) {
+            const deductQty = Math.min(otherQty, remainingNeeded);
+            await client.query(
+              `UPDATE inventory SET quantity = quantity - $1, updated_at = NOW()
+               WHERE product_id = $2 AND warehouse_id = $3`,
+              [deductQty, it.product_id, candidateWarehouseId]
+            );
+            await client.query(
+              `INSERT INTO stock_movements (
+                 product_id, from_warehouse_id, movement_type, quantity,
+                 reference_type, reference_id, user_id, notes
+               ) VALUES ($1,$2,'sale',$3,'sale',$4,$5,'صرف مبيعات مباشر - مخزن مساعد')`,
+              [it.product_id, candidateWarehouseId, deductQty, saleId, userId]
+            );
+            remainingNeeded -= deductQty;
+          }
+        }
+      }
+
+      if (remainingNeeded > 0.0001) {
+        const pName = productNamesMap.get(Number(it.product_id)) || 'المنتج';
+        throw new AppError(`تعذر سحب الكمية بالكامل للمنتج ${pName} بسبب تغير المخزون في هذه اللحظة`);
+      }
     }
   }
 
@@ -316,6 +406,8 @@ export const createDailySale = async (data, userId) => {
     );
 
     await client.query('COMMIT');
+    invalidateDashboardCache();
+    broadcast('sales_changed', { action: 'create', sale_id: sale.id });
     return getSaleById(sale.id);
   } catch (err) {
     await client.query('ROLLBACK');
@@ -460,6 +552,8 @@ export const updateSale = async (saleId, data, userId) => {
     );
 
     await client.query('COMMIT');
+    invalidateDashboardCache();
+    broadcast('sales_changed', { action: 'update', sale_id: saleId });
     return getSaleById(saleId);
   } catch (err) {
     await client.query('ROLLBACK');
@@ -470,9 +564,11 @@ export const updateSale = async (saleId, data, userId) => {
 };
 
 export const getSales = async (filters = {}) => {
+  const { page, limit, offset } = getPaginationParams(filters);
   let sql = `SELECT s.*, c.name_ar as customer_name, c.code as customer_code, u.full_name as user_name,
     w.name_ar as warehouse_name,
-    (SELECT COUNT(*) FROM sale_items si WHERE si.sale_id = s.id) as items_count
+    (SELECT COUNT(*) FROM sale_items si WHERE si.sale_id = s.id) as items_count,
+    COUNT(*) OVER() as full_count
     FROM sales s
     LEFT JOIN customers c ON s.customer_id = c.id
     LEFT JOIN users u ON s.user_id = u.id
@@ -487,8 +583,18 @@ export const getSales = async (filters = {}) => {
   if (filters.to_date) { sql += ` AND s.sale_date <= $${idx++}`; params.push(filters.to_date); }
   if (filters.status) { sql += ` AND s.status = $${idx++}`; params.push(filters.status); }
 
-  sql += ` ORDER BY s.sale_date DESC, s.created_at DESC LIMIT ${sanitizeLimit(filters.limit)}`;
-  return (await query(sql, params)).rows;
+  sql += ` ORDER BY s.sale_date DESC, s.created_at DESC LIMIT $${idx++} OFFSET $${idx++}`;
+  params.push(limit, offset);
+
+  const rows = (await query(sql, params)).rows;
+  const total = rows.length > 0 ? rows[0].full_count : 0;
+  
+  const cleanRows = rows.map(r => {
+    const { full_count, ...rest } = r;
+    return rest;
+  });
+
+  return { data: cleanRows, meta: buildPaginationMeta(total, page, limit) };
 };
 
 export const getSalesSummary = async (filters = {}) => {
@@ -592,6 +698,8 @@ export const returnSale = async (saleId, userId, notes) => {
     );
 
     await client.query('COMMIT');
+    invalidateDashboardCache();
+    broadcast('sales_changed', { action: 'return', sale_id: saleId });
     return getSaleById(saleId);
   } catch (err) {
     await client.query('ROLLBACK');
@@ -688,6 +796,8 @@ export const deleteAllSales = async (userId) => {
     );
 
     await client.query('COMMIT');
+    invalidateDashboardCache();
+    broadcast('sales_changed', { action: 'delete_all' });
     return { deletedCount };
   } catch (err) {
     await client.query('ROLLBACK');
@@ -762,6 +872,8 @@ export const deleteSalesByDate = async (saleDate, userId) => {
     );
 
     await client.query('COMMIT');
+    invalidateDashboardCache();
+    broadcast('sales_changed', { action: 'delete_date', date: saleDate });
     return { deletedCount, saleDate };
   } catch (err) {
     await client.query('ROLLBACK');
@@ -823,6 +935,8 @@ export const deleteSalesByType = async (saleType, userId) => {
       [userId, `حذف كل مبيعات ${typeLabel}`, JSON.stringify({ sale_type: saleType, deleted_count: deletedCount })]
     );
     await client.query('COMMIT');
+    invalidateDashboardCache();
+    broadcast('sales_changed', { action: 'delete_type', type: saleType });
     return { deletedCount, saleType };
   } catch (err) {
     await client.query('ROLLBACK');

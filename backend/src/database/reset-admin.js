@@ -16,14 +16,27 @@ if (!process.env.DB_PASSWORD) {
   throw new Error('Missing DB_PASSWORD in backend/.env');
 }
 
-const password = process.argv[2] || 'Admin@123';
+// Usage: node src/database/reset-admin.js [username] [new_password]
+const username = process.argv[2] || 'admin';
+const password = process.argv[3] || process.env.ADMIN_RESET_PASSWORD;
+
+if (!password) {
+  throw new Error('Missing new admin password. Pass it as an argument or set ADMIN_RESET_PASSWORD.');
+}
+
 const hash = await bcrypt.hash(password, 10);
 
-await pool.query(
-  `UPDATE users SET password_hash = $1, is_active = TRUE WHERE username = 'admin'`,
-  [hash]
+const res = await pool.query(
+  `UPDATE users SET password_hash = $1, is_active = TRUE WHERE username = $2`,
+  [hash, username]
 );
 
-console.log('✅ تم تحديث كلمة مرور admin');
-console.log('   المستخدم: admin');
+if (res.rowCount === 0) {
+  console.log(`⚠️ لم يتم العثور على مستخدم بالاسم: ${username}`);
+  console.log(`   يمكنك تشغيل السكربت وتمرير اسم مستخدم صحيح: node src/database/reset-admin.js [username] [password]`);
+} else {
+  console.log(`✅ تم تحديث كلمة مرور الحساب بنجاح!`);
+  console.log(`   المستخدم: ${username}`);
+}
+
 await pool.end();

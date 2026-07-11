@@ -1,6 +1,7 @@
 ﻿import XLSX from 'xlsx';
 import { deleteAllSales, importDailySales } from './salesService.js';
 import { readSafeWorkbook } from './excelSecurity.js';
+import { parseLocalizedNumber } from '../utils/numberParsing.js';
 
 const TEMPLATE_HEADERS = [
   'sale_date',
@@ -37,11 +38,7 @@ const normalizeDigits = (value) => String(value ?? '')
   .trim();
 
 const toNumber = (value, fallback = 0) => {
-  if (typeof value === 'number') return Number.isFinite(value) ? value : fallback;
-  const text = normalizeDigits(value).replace(/,/g, '').trim();
-  if (!text) return fallback;
-  const parsed = Number(text);
-  return Number.isFinite(parsed) ? parsed : fallback;
+  return parseLocalizedNumber(value, fallback);
 };
 
 const formatYmd = (year, month, day) =>

@@ -1,5 +1,6 @@
 import { getClient, query } from '../database/pool.js';
 import { AppError } from '../middleware/errorHandler.js';
+import { invalidateDashboardCache } from './dashboardService.js';
 
 /**
  * Helpers to ensure / lock inventory rows inside a transaction.
@@ -156,18 +157,23 @@ export const transferStock = async (data, userId) => {
   try {
     await client.query('BEGIN');
     const { product_id, from_warehouse_id, to_warehouse_id, notes } = data;
+    const to_product_id = data.to_product_id ? Number(data.to_product_id) : Number(product_id);
     const quantity = toNumber(data.quantity);
+    
     if (!product_id || !from_warehouse_id || !to_warehouse_id) {
       throw new AppError('جميع الحقول مطلوبة');
     }
     if (quantity <= 0) {
       throw new AppError('الكمية يجب أن تكون أكبر من صفر');
     }
-    if (Number(from_warehouse_id) === Number(to_warehouse_id)) {
-      throw new AppError('لا يمكن التحويل إلى نفس المخزن');
+    if (Number(from_warehouse_id) === Number(to_warehouse_id) && to_product_id === Number(product_id)) {
+      throw new AppError('لا يمكن التحويل إلى نفس المنتج والمخزن');
     }
 
     await assertNotRecipeProduct(client, product_id);
+    if (to_product_id !== Number(product_id)) {
+      await assertNotRecipeProduct(client, to_product_id);
+    }
 
     const fromRow = await lockInventoryRow(client, product_id, from_warehouse_id);
     if (parseFloat(fromRow.quantity || 0) < quantity) {
@@ -183,16 +189,42 @@ export const transferStock = async (data, userId) => {
       `INSERT INTO inventory (product_id, warehouse_id, quantity) VALUES ($1,$2,$3)
        ON CONFLICT (product_id, warehouse_id, COALESCE(batch_number, ''))
        DO UPDATE SET quantity = inventory.quantity + $3, updated_at = NOW()`,
-      [product_id, to_warehouse_id, quantity]
+      [to_product_id, to_warehouse_id, quantity]
     );
 
-    await client.query(
-      `INSERT INTO stock_movements (product_id, from_warehouse_id, to_warehouse_id, movement_type, quantity, user_id, notes)
-       VALUES ($1,$2,$3,'transfer',$4,$5,$6)`,
-      [product_id, from_warehouse_id, to_warehouse_id, quantity, userId, notes]
-    );
+    if (to_product_id !== Number(product_id)) {
+      let sourceName = 'منتج المصدر';
+      let destName = 'منتج الوجهة';
+      const pNames = await client.query(
+        `SELECT id, name_ar FROM products WHERE id IN ($1, $2)`,
+        [product_id, to_product_id]
+      );
+      pNames.rows.forEach(row => {
+        if (row.id === Number(product_id)) sourceName = row.name_ar;
+        if (row.id === to_product_id) destName = row.name_ar;
+      });
+
+      await client.query(
+        `INSERT INTO stock_movements (product_id, from_warehouse_id, to_warehouse_id, movement_type, quantity, user_id, notes)
+         VALUES ($1,$2,$3,'transfer',$4,$5,$6)`,
+        [product_id, from_warehouse_id, to_warehouse_id, quantity, userId, `تحويل إلى منتج آخر: ${destName}. ${notes || ''}`.trim()]
+      );
+
+      await client.query(
+        `INSERT INTO stock_movements (product_id, from_warehouse_id, to_warehouse_id, movement_type, quantity, user_id, notes)
+         VALUES ($1,$2,$3,'transfer',$4,$5,$6)`,
+        [to_product_id, from_warehouse_id, to_warehouse_id, quantity, userId, `تحويل من منتج آخر: ${sourceName}. ${notes || ''}`.trim()]
+      );
+    } else {
+      await client.query(
+        `INSERT INTO stock_movements (product_id, from_warehouse_id, to_warehouse_id, movement_type, quantity, user_id, notes)
+         VALUES ($1,$2,$3,'transfer',$4,$5,$6)`,
+        [product_id, from_warehouse_id, to_warehouse_id, quantity, userId, notes]
+      );
+    }
 
     await client.query('COMMIT');
+    invalidateDashboardCache();
     return { success: true };
   } catch (err) {
     await client.query('ROLLBACK');

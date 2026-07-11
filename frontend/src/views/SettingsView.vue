@@ -25,43 +25,77 @@
           <p>هذه البيانات تظهر على الفواتير وعروض الأسعار</p>
         </div>
 
-        <div class="settings-card">
-          <div class="card-header">
-            <AppLogo size="lg" />
-            <div>
-              <strong>{{ settings.company?.name_ar || 'بن العجوز' }}</strong>
-              <span>{{ CURRENCY.country }}</span>
+        <div class="grid grid-2" style="gap: 24px; align-items: start;">
+          <div class="settings-card" style="margin-bottom: 0;">
+            <div class="card-header">
+              <AppLogo size="lg" />
+              <div>
+                <strong>{{ settings.company?.name_ar || 'بن العجوز' }}</strong>
+                <span>{{ CURRENCY.country }}</span>
+              </div>
             </div>
+
+            <div class="fields-grid">
+              <div class="form-group">
+                <label>اسم المحل</label>
+                <input v-model="settings.company.name_ar" placeholder="بن العجوز" />
+              </div>
+              <div class="form-group">
+                <label>رقم الهاتف</label>
+                <input v-model="settings.company.phone" placeholder="01xxxxxxxxx" dir="ltr" />
+              </div>
+              <div class="form-group full-width">
+                <label>العنوان (يظهر على الفاتورة)</label>
+                <input v-model="settings.company.address" placeholder="مثال: شارع التحرير — القاهرة" />
+              </div>
+              <div class="form-group full-width">
+                <label>الشعار التجاري</label>
+                <input v-model="settings.company.tagline" placeholder="للبن التركي الأصيل" />
+              </div>
+            </div>
+
+            <div class="card-footer">
+              <div class="info-value">
+                📎 الشعار: استبدل الملف <code>public/logo.png</code>
+              </div>
+              <button class="btn btn-save" :disabled="saving" @click="saveCompany">
+                <AppIcon name="save" :size="16" />
+                {{ saving ? 'جاري الحفظ...' : 'حفظ البيانات' }}
+              </button>
+            </div>
+            <p v-if="saveMsg" class="save-msg">✓ {{ saveMsg }}</p>
           </div>
 
-          <div class="fields-grid">
-            <div class="form-group">
-              <label>اسم المحل</label>
-              <input v-model="settings.company.name_ar" placeholder="بن العجوز" />
-            </div>
-            <div class="form-group">
-              <label>رقم الهاتف</label>
-              <input v-model="settings.company.phone" placeholder="01xxxxxxxxx" dir="ltr" />
-            </div>
-            <div class="form-group full-width">
-              <label>العنوان (يظهر على الفاتورة)</label>
-              <input v-model="settings.company.address" placeholder="مثال: شارع التحرير — القاهرة" />
-            </div>
-            <div class="form-group full-width">
-              <label>الشعار التجاري</label>
-              <input v-model="settings.company.tagline" placeholder="للبن التركي الأصيل" />
+          <!-- Live Thermal Receipt Mockup -->
+          <div class="receipt-preview-card card">
+            <h4 style="margin-bottom: 12px; font-weight: 700; color: var(--text-muted);">📋 معاينة الفاتورة الحرارية المطبوعة</h4>
+            <div class="thermal-receipt">
+              <div class="receipt-header">
+                <h3>{{ settings.company.name_ar || 'اسم المحل' }}</h3>
+                <p class="tagline">{{ settings.company.tagline || 'شعار المحل يظهر هنا' }}</p>
+                <p v-if="settings.company.address" class="meta-line">📍 {{ settings.company.address }}</p>
+                <p v-if="settings.company.phone" class="meta-line">📞 {{ settings.company.phone }}</p>
+              </div>
+              <div class="divider-dotted"></div>
+              <div class="receipt-body">
+                <div class="meta-row"><span>رقم الفاتورة:</span> <span>#1024</span></div>
+                <div class="meta-row"><span>التاريخ:</span> <span>{{ new Date().toLocaleDateString('ar-EG') }}</span></div>
+                <div class="meta-row"><span>الكاشير:</span> <span>كاشير الفرع</span></div>
+                <div class="divider-dotted"></div>
+                <div class="items-list">
+                  <div class="item-row header"><span>الصنف</span> <span>الكمية</span> <span>الإجمالي</span></div>
+                  <div class="item-row"><span>بن محوج فاتح</span> <span>1.0</span> <span>220.00 ج.م</span></div>
+                  <div class="item-row"><span>قهوة تركي سادة</span> <span>2.0</span> <span>160.00 ج.م</span></div>
+                </div>
+                <div class="divider-dotted"></div>
+                <div class="total-row"><span>الإجمالي:</span> <span>380.00 ج.م</span></div>
+              </div>
+              <div class="divider-dotted"></div>
+              <div class="receipt-footer">
+                <p>شكراً لزيارتكم! نرجو رؤيتكم قريباً</p>
+              </div>
             </div>
           </div>
-
-          <div class="card-footer">
-            <p class="hint">
-              📎 الشعار: <code>assets/logo.png</code> — استبدل الملف مباشرةً لتغيير الشعار
-            </p>
-            <button class="btn btn-primary" :disabled="saving" @click="saveCompany">
-              {{ saving ? 'جاري الحفظ...' : 'حفظ البيانات' }}
-            </button>
-          </div>
-          <p v-if="saveMsg" class="save-msg">✓ {{ saveMsg }}</p>
         </div>
       </section>
 
@@ -100,57 +134,17 @@
               :key="s.id"
               class="style-card"
               :class="{ active: appStore.stylePreset === s.id }"
-              :data-preview="s.id"
+              :title="s.desc"
               @click="appStore.setStylePreset(s.id)"
             >
-              <span class="style-icon">{{ s.icon }}</span>
-              <strong>{{ s.name }}</strong>
-              <small>{{ s.desc }}</small>
+              <span class="theme-swatch" :style="{ background: STYLE_SWATCHES[s.id] }"></span>
+              <span class="theme-name">{{ s.name }}</span>
             </button>
           </div>
         </div>
       </section>
 
-      <!-- ── تاب: العملة والضريبة ── -->
-      <section v-if="activeTab === 'finance'" class="settings-section">
-        <div class="section-title">
-          <h2>💰 العملة والضريبة</h2>
-          <p>إعدادات مالية تؤثر على حسابات الفواتير والتقارير</p>
-        </div>
 
-        <div class="settings-card">
-          <div class="info-row">
-            <span class="info-label">العملة</span>
-            <span class="info-value">{{ CURRENCY.symbol }} — {{ CURRENCY.code }} (جنيه مصري)</span>
-          </div>
-          <div class="info-row">
-            <span class="info-label">الدولة</span>
-            <span class="info-value">{{ CURRENCY.country }}</span>
-          </div>
-
-          <hr class="divider" />
-
-          <div v-if="settings.tax" class="fields-grid">
-            <div class="form-group full-width">
-              <label class="checkbox-label">
-                <input type="checkbox" v-model="settings.tax.enabled" />
-                <span>تفعيل ضريبة القيمة المضافة (VAT)</span>
-              </label>
-            </div>
-            <div class="form-group" :class="{ disabled: !settings.tax.enabled }">
-              <label>نسبة الضريبة %</label>
-              <input
-                v-model.number="settings.tax.rate"
-                type="number"
-                min="0" max="100"
-                :disabled="!settings.tax.enabled"
-                placeholder="14"
-              />
-              <span class="field-hint">الافتراضي في مصر: 14%</span>
-            </div>
-          </div>
-        </div>
-      </section>
 
       <!-- ── تاب: التصنيفات ── -->
       <section v-if="activeTab === 'categories'" class="settings-section">
@@ -167,8 +161,8 @@
               class="add-input"
               @keyup.enter="addCategory"
             />
-            <button class="btn btn-primary" :disabled="categorySaving || !newCategoryName.trim()" @click="addCategory">
-              {{ categorySaving ? '...' : '+ إضافة' }}
+            <button class="btn btn-add" :disabled="categorySaving || !newCategoryName.trim()" @click="addCategory">
+              <AppIcon name="add" :size="16" /> إضافة
             </button>
           </div>
 
@@ -198,8 +192,12 @@
                   <button class="action-btn" @click="cancelEditCategory">إلغاء</button>
                 </template>
                 <template v-else>
-                  <button class="action-btn" @click="startEditCategory(cat)">✏️</button>
-                  <button class="action-btn danger" :disabled="categorySaving" @click="deleteCategory(cat.id)">🗑️</button>
+                  <button class="icon-btn edit" @click="startEditCategory(cat)">
+                    <AppIcon name="edit" :size="14" />
+                  </button>
+                  <button class="icon-btn danger" :disabled="categorySaving" @click="deleteCategory(cat.id)">
+                    <AppIcon name="delete" :size="14" />
+                  </button>
                 </template>
               </div>
             </div>
@@ -222,8 +220,8 @@
               class="add-input"
               @keyup.enter="addUnit"
             />
-            <button class="btn btn-primary" :disabled="unitSaving || !newUnit.trim()" @click="addUnit">
-              {{ unitSaving ? '...' : '+ إضافة' }}
+            <button class="btn btn-add" :disabled="unitSaving || !newUnit.trim()" @click="addUnit">
+                <AppIcon name="add" :size="16" /> إضافة
             </button>
           </div>
 
@@ -253,13 +251,134 @@
                   <button class="action-btn" @click="cancelEditUnit">إلغاء</button>
                 </template>
                 <template v-else>
-                  <button class="action-btn" @click="startEditUnit(unit)">✏️</button>
-                  <button class="action-btn danger" :disabled="unitSaving" @click="removeUnit(unit)">🗑️</button>
+                  <button class="icon-btn edit" @click="startEditUnit(unit)">
+                    <AppIcon name="edit" :size="14" />
+                  </button>
+                  <button class="icon-btn danger" :disabled="unitSaving" @click="removeUnit(unit)">
+                    <AppIcon name="delete" :size="14" />
+                  </button>
                 </template>
               </div>
             </div>
           </div>
           <p class="hint mt-12">💡 حذف وحدة لن يؤثر على المنتجات المرتبطة بها — فقط يزيلها من قائمة الاختيار.</p>
+        </div>
+      </section>
+
+      <!-- ── تاب: الصوتيات والمنبهات ── -->
+      <section v-if="activeTab === 'sound'" class="settings-section">
+        <div class="section-title">
+          <h2>🔊 الصوتيات والمنبهات</h2>
+          <p>إدارة المؤثرات الصوتية والمنبهات التفاعلية بنظام الكاشير (POS)</p>
+        </div>
+
+        <div class="settings-card">
+          <div class="form-group full-width">
+            <label class="checkbox-label" style="display: flex; align-items: center; gap: 8px;">
+              <input type="checkbox" v-model="soundEnabled" />
+              <span>تفعيل الأصوات التفاعلية في الكاشير</span>
+            </label>
+          </div>
+
+          <div class="form-group" :class="{ disabled: !soundEnabled }" style="margin-top: 20px;">
+            <label style="display: flex; justify-content: space-between;">
+              <span>مستوى صوت التنبيهات</span>
+              <strong>{{ Math.round(soundVolume * 100) }}%</strong>
+            </label>
+            <input 
+              v-model.number="soundVolume" 
+              type="range" 
+              min="0.01" 
+              max="0.30" 
+              step="0.01" 
+              :disabled="!soundEnabled" 
+              style="width: 100%; cursor: pointer;"
+            />
+            <span class="field-hint">مستوى الصوت الموصى به: 0.08 (80%)</span>
+          </div>
+
+          <hr class="divider" style="margin: 20px 0;" />
+
+          <h4 style="margin-bottom: 12px; font-weight: 800;">🔔 تجربة واختبار نغمات الصوت:</h4>
+          <div style="display: flex; gap: 12px;">
+            <button type="button" class="btn btn-outline" :disabled="!soundEnabled" @click="playTestBeep('success')">
+              🔊 نغمة نجاح العملية
+            </button>
+            <button type="button" class="btn btn-outline" :disabled="!soundEnabled" @click="playTestBeep('warning')">
+              ⚠️ نغمة التحذير
+            </button>
+            <button type="button" class="btn btn-outline" :disabled="!soundEnabled" @click="playTestBeep('error')">
+              🚨 نغمة خطأ
+            </button>
+          </div>
+
+          <div class="card-footer" style="margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border);">
+            <button class="btn btn-save" @click="saveSettingsLocally">
+              حفظ إعدادات الصوت
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── تاب: الاختصارات السريعة ── -->
+      <section v-if="activeTab === 'shortcuts'" class="settings-section">
+        <div class="section-title">
+          <h2>⌨️ لوحة الاختصارات السريعة</h2>
+          <p>استخدم الاختصارات للتنقل الفوري وإنجاز المهام في ثوانٍ</p>
+        </div>
+
+        <div class="settings-card">
+          <div class="form-group full-width">
+            <label class="checkbox-label" style="display: flex; align-items: center; gap: 8px;">
+              <input type="checkbox" v-model="shortcutsEnabled" />
+              <span>تفعيل اختصارات لوحة المفاتيح العامة (Alt + key)</span>
+            </label>
+          </div>
+
+          <hr class="divider" style="margin: 20px 0;" />
+
+          <h4 style="margin-bottom: 16px; font-weight: 800; color: var(--text-strong);">📋 دليل الاختصارات المفعلة بالنظام:</h4>
+          
+          <div style="display: grid; gap: 12px;">
+            <div style="display: flex; justify-content: space-between; padding: 10px; background: var(--bg-soft); border-radius: 8px; border: 1px solid var(--border);">
+              <span>الكاشير والمبيعات السريعة (POS)</span>
+              <kbd style="background: var(--border-strong); padding: 2px 8px; border-radius: 4px; font-family: monospace; font-weight: bold;">Alt + P</kbd>
+            </div>
+            <div style="display: flex; justify-content: space-between; padding: 10px; background: var(--bg-soft); border-radius: 8px; border: 1px solid var(--border);">
+              <span>الرجوع للشاشة الرئيسية (Dashboard)</span>
+              <kbd style="background: var(--border-strong); padding: 2px 8px; border-radius: 4px; font-family: monospace; font-weight: bold;">Alt + D</kbd>
+            </div>
+            <div style="display: flex; justify-content: space-between; padding: 10px; background: var(--bg-soft); border-radius: 8px; border: 1px solid var(--border);">
+              <span>فتح الفواتير والمدفوعات (Invoices)</span>
+              <kbd style="background: var(--border-strong); padding: 2px 8px; border-radius: 4px; font-family: monospace; font-weight: bold;">Alt + I</kbd>
+            </div>
+            <div style="display: flex; justify-content: space-between; padding: 10px; background: var(--bg-soft); border-radius: 8px; border: 1px solid var(--border);">
+              <span>فتح الإعدادات العامة للسيستم (Settings)</span>
+              <kbd style="background: var(--border-strong); padding: 2px 8px; border-radius: 4px; font-family: monospace; font-weight: bold;">Alt + S</kbd>
+            </div>
+            <div style="display: flex; justify-content: space-between; padding: 10px; background: var(--bg-soft); border-radius: 8px; border: 1px solid var(--border);">
+              <span>فتح المخازن وحركة المخزون (Inventory)</span>
+              <kbd style="background: var(--border-strong); padding: 2px 8px; border-radius: 4px; font-family: monospace; font-weight: bold;">Alt + M</kbd>
+            </div>
+            <div style="display: flex; justify-content: space-between; padding: 10px; background: var(--bg-soft); border-radius: 8px; border: 1px solid var(--border);">
+              <span>التركيز الفوري على حقل البحث بالكاشير</span>
+              <kbd style="background: var(--border-strong); padding: 2px 8px; border-radius: 4px; font-family: monospace; font-weight: bold;">F7</kbd>
+            </div>
+            <div style="display: flex; justify-content: space-between; padding: 10px; background: var(--bg-soft); border-radius: 8px; border: 1px solid var(--border);">
+              <span>حفظ الفاتورة الحالية بالكاشير مباشرة</span>
+              <kbd style="background: var(--border-strong); padding: 2px 8px; border-radius: 4px; font-family: monospace; font-weight: bold;">F2</kbd>
+            </div>
+            <div style="display: flex; justify-content: space-between; padding: 10px; background: var(--bg-soft); border-radius: 8px; border: 1px solid var(--border);">
+              <span>إلغاء وإفراغ سلة الكاشير بالكامل</span>
+              <kbd style="background: var(--border-strong); padding: 2px 8px; border-radius: 4px; font-family: monospace; font-weight: bold;">F4</kbd>
+            </div>
+          </div>
+
+          <div class="card-footer" style="margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border);">
+            <button class="btn btn-save" @click="saveSettingsLocally">
+              حفظ إعدادات الاختصارات
+            </button>
+          </div>
         </div>
       </section>
 
@@ -290,10 +409,12 @@
         <div class="settings-card">
           <div class="backup-toolbar">
             <div class="toolbar-group">
-              <button class="btn btn-primary" @click="createBackup" :disabled="backuping">
-                {{ backuping ? 'جاري الإنشاء...' : '+ إنشاء نسخة' }}
+              <button class="btn btn-add" @click="createBackup" :disabled="backuping">
+                <AppIcon name="add" :size="16" /> إنشاء نسخة
               </button>
-              <button class="btn btn-outline" @click="refreshBackups">🔄 تحديث</button>
+              <button class="btn btn-outline" @click="refreshBackups">
+                <AppIcon name="theme" :size="16" /> تحديث
+              </button>
             </div>
             <div class="view-switcher">
               <button :class="{ active: backupView === 'cards' }" @click="backupView = 'cards'">بطاقات</button>
@@ -311,14 +432,153 @@
                 <small>{{ formatBackupSize(b.size) }} · {{ formatBackupDate(b.name) }}</small>
               </div>
               <div class="backup-item-actions">
-                <button class="action-btn" @click="download(b.name)">⬇️ تحميل</button>
-                <button class="action-btn save" @click="restore(b.name)">↩️ استرداد</button>
+                <button class="btn btn-sm btn-outline" @click="download(b.name)">
+                  <AppIcon name="download" :size="14" /> تحميل
+                </button>
+                <button class="btn btn-sm btn-edit" @click="restore(b.name)">
+                  <AppIcon name="arrowLeft" :size="14" /> استرداد
+                </button>
               </div>
             </div>
           </div>
           <div v-else class="backup-empty">
             <strong>لا توجد نسخ احتياطية بعد</strong>
             <p>أنشئ نسخة قبل أي تعديل كبير على البيانات</p>
+          </div>
+        </div>
+
+        <!-- إعدادات النسخ الاحتياطي السحابي التلقائي -->
+        <div class="settings-card cloud-backup-card">
+          <h4 class="group-label">🔒 النسخ الاحتياطي السحابي التلقائي</h4>
+          <p class="section-desc">قم بربط النظام بخدمة سحابية لرفع النسخة الاحتياطية تلقائياً عند إنشائها أو جدولتها دورياً.</p>
+          
+          <div class="fields-grid">
+            <div class="form-group full-width">
+              <label>المزود السحابي</label>
+              <select v-model="cloudBackupSettings.provider">
+                <option value="none">تعطيل النسخ السحابي</option>
+                <option value="gdrive">Google Drive (جوجل درايف)</option>
+                <option value="dropbox">Dropbox (دروب بوكس)</option>
+                <option value="webhook">Webhook مخصص / Discord Webhook</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- إعدادات Google Drive -->
+          <div v-if="cloudBackupSettings.provider === 'gdrive'" class="provider-fields fade-in">
+            <div class="fields-grid">
+              <div class="form-group full-width">
+                <label>نوع الاتصال بـ Google Drive</label>
+                <select v-model="cloudBackupSettings.gdrive_auth_type">
+                  <option value="service_account">حساب خدمة (Service Account) — مناسب للمؤسسات والمساحات المشتركة</option>
+                  <option value="oauth">حساب Google شخصي (OAuth2 / Refresh Token) — مناسب للحسابات الشخصية</option>
+                </select>
+              </div>
+
+              <!-- خيار 1: Service Account -->
+              <div v-if="cloudBackupSettings.gdrive_auth_type === 'service_account'" class="form-group full-width fade-in">
+                <label>ملف مفتاح حساب الخدمة (Google Service Account JSON Key)</label>
+                <textarea 
+                  v-model="cloudBackupSettings.gdrive_key" 
+                  placeholder='{"type": "service_account", "project_id": ...}'
+                  rows="5"
+                  style="font-family: monospace; font-size: 0.82rem;"
+                ></textarea>
+                <p class="hint mt-12">💡 أدخل محتوى ملف المفتاح JSON الخاص بـ Service Account من Google Cloud Console، وتأكد من مشاركة مجلد الـ Google Drive مع بريد حساب الخدمة.</p>
+              </div>
+
+              <!-- خيار 2: OAuth2 -->
+              <div v-if="cloudBackupSettings.gdrive_auth_type === 'oauth'" class="form-group full-width fade-in">
+                <div class="fields-grid">
+                  <div class="form-group">
+                    <label>معرف العميل (Client ID)</label>
+                    <input 
+                      type="text" 
+                      v-model="cloudBackupSettings.gdrive_client_id" 
+                      placeholder="أدخل Google Client ID"
+                    />
+                  </div>
+                  <div class="form-group">
+                    <label>مفتاح العميل السري (Client Secret)</label>
+                    <input 
+                      type="password" 
+                      v-model="cloudBackupSettings.gdrive_client_secret" 
+                      placeholder="أدخل Google Client Secret"
+                    />
+                  </div>
+                  <div class="form-group full-width">
+                    <label>رمز التجديد (Refresh Token)</label>
+                    <input 
+                      type="password" 
+                      v-model="cloudBackupSettings.gdrive_refresh_token" 
+                      placeholder="أدخل Google OAuth2 Refresh Token"
+                    />
+                    <p class="hint mt-12">💡 يمكنك استخراج رمز التجديد (Refresh Token) بسهولة باستخدام أداة Google OAuth Playground.</p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-group full-width">
+                <label>معرف مجلد جوجل درايف (Google Drive Folder ID)</label>
+                <input 
+                  type="text" 
+                  v-model="cloudBackupSettings.gdrive_folder_id" 
+                  placeholder="أدخل Folder ID (اختياري)"
+                />
+                <p class="hint">💡 إذا تركته فارغاً سيتم رفع الملف في المجلد الرئيسي لحساب جوجل درايف الخاص بك.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- إعدادات Dropbox -->
+          <div v-if="cloudBackupSettings.provider === 'dropbox'" class="provider-fields fade-in">
+            <div class="fields-grid">
+              <div class="form-group full-width">
+                <label>رمز الوصول (Access Token)</label>
+                <input 
+                  type="password" 
+                  v-model="cloudBackupSettings.dropbox_token" 
+                  placeholder="أدخل Dropbox Access Token"
+                />
+              </div>
+              <div class="form-group full-width">
+                <label>مسار المجلد السحابي</label>
+                <input 
+                  type="text" 
+                  v-model="cloudBackupSettings.dropbox_path" 
+                  placeholder="/AlAgoouz-ERP-Backups"
+                />
+              </div>
+            </div>
+          </div>
+
+          <!-- إعدادات Webhook -->
+          <div v-if="cloudBackupSettings.provider === 'webhook'" class="provider-fields fade-in">
+            <div class="fields-grid">
+              <div class="form-group full-width">
+                <label>رابط الـ Webhook</label>
+                <input 
+                  type="text" 
+                  v-model="cloudBackupSettings.webhook_url" 
+                  placeholder="https://discord.com/api/webhooks/..."
+                />
+                <p class="hint mt-12">💡 يدعم روابط Webhooks الخاصة بـ Discord بشكل مباشر مع تفاصيل محسنة.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="cloud-actions">
+            <button class="btn btn-save" @click="saveCloudBackupSettings" :disabled="cloudSaving">
+              <AppIcon name="save" :size="16" /> {{ cloudSaving ? 'جاري الحفظ...' : 'حفظ الإعدادات السحابية' }}
+            </button>
+            <button 
+              v-if="cloudBackupSettings.provider !== 'none'" 
+              class="btn btn-outline" 
+              @click="testCloudBackup" 
+              :disabled="cloudTesting"
+            >
+              <AppIcon name="theme" :size="16" /> {{ cloudTesting ? 'جاري الفحص...' : 'فحص الرفع التجريبي' }}
+            </button>
           </div>
         </div>
 
@@ -332,6 +592,7 @@
               📂 {{ restoreFile ? restoreFile.name : 'اختر ملف JSON' }}
             </label>
             <button class="btn btn-outline" @click="uploadRestore" :disabled="uploading || !restoreFile">
+              <AppIcon name="download" :size="16" style="transform: rotate(180deg);" />
               {{ uploading ? 'جاري الاسترداد...' : 'رفع واسترداد' }}
             </button>
           </div>
@@ -341,8 +602,9 @@
         <div class="settings-card danger-zone">
           <h4 class="group-label danger">⚠️ منطقة الخطر</h4>
           <p class="section-desc">هذه الإجراءات لا يمكن التراجع عنها. تأكد من وجود نسخة احتياطية أولاً.</p>
-          <button class="btn btn-danger" @click="clearSystem" :disabled="clearing">
-            {{ clearing ? 'جاري التصفير...' : '🗑️ تصفير بيانات النظام' }}
+          <button class="btn btn-delete" @click="clearSystem" :disabled="clearing">
+            <AppIcon name="delete" :size="16" />
+            {{ clearing ? 'جاري التصفير...' : 'تصفير بيانات النظام' }}
           </button>
         </div>
       </section>
@@ -355,7 +617,7 @@
 import { computed, ref, onMounted } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
 import { users as userApi, products as productApi, backup as backupApi } from '@/api';
-import { useAppStore, STYLE_PRESETS } from '@/stores/app';
+import { useAppStore, STYLE_PRESETS, STYLE_SWATCHES } from '@/stores/app';
 import { CURRENCY } from '@/utils/currency';
 import { useProductMeta } from '@/composables/useProductMeta';
 
@@ -366,12 +628,75 @@ const appStore = useAppStore();
 const tabs = [
   { id: 'company',    icon: '🏪', label: 'بيانات المحل' },
   { id: 'appearance', icon: '🎨', label: 'المظهر' },
-  { id: 'finance',    icon: '💰', label: 'العملة والضريبة' },
   { id: 'categories', icon: '🗂️', label: 'التصنيفات' },
   { id: 'units',      icon: '📏', label: 'وحدات القياس' },
+  { id: 'sound',      icon: '🔊', label: 'الصوتيات والمنبهات' },
+  { id: 'shortcuts',  icon: '⌨️', label: 'الاختصارات السريعة' },
   { id: 'backup',     icon: '💾', label: 'النسخ الاحتياطي' },
 ];
 const activeTab = ref('company');
+
+// ───── Audio & Shortcuts settings ─────
+const soundEnabled = ref(localStorage.getItem('sound_enabled') !== 'false');
+const soundVolume = ref(parseFloat(localStorage.getItem('sound_volume') || '0.08'));
+const shortcutsEnabled = ref(localStorage.getItem('shortcuts_enabled') !== 'false');
+
+const saveSettingsLocally = () => {
+  localStorage.setItem('sound_enabled', String(soundEnabled.value));
+  localStorage.setItem('sound_volume', String(soundVolume.value));
+  localStorage.setItem('shortcuts_enabled', String(shortcutsEnabled.value));
+  alert('✓ تم حفظ إعدادات النظام بنجاح!');
+};
+
+const playTestBeep = (type) => {
+  try {
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (type === 'success') {
+      const osc1 = audioCtx.createOscillator();
+      const osc2 = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc1.connect(gain);
+      osc2.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc1.frequency.setValueAtTime(523.25, audioCtx.currentTime);
+      osc2.frequency.setValueAtTime(659.25, audioCtx.currentTime);
+      gain.gain.setValueAtTime(soundVolume.value, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.25);
+      osc1.start();
+      osc2.start();
+      osc1.stop(audioCtx.currentTime + 0.25);
+      osc2.stop(audioCtx.currentTime + 0.25);
+    } else if (type === 'warning') {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(220, audioCtx.currentTime);
+      gain.gain.setValueAtTime(soundVolume.value * 1.5, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.2);
+    } else if (type === 'error') {
+      const gain = audioCtx.createGain();
+      gain.connect(audioCtx.destination);
+      gain.gain.setValueAtTime(soundVolume.value * 2, audioCtx.currentTime);
+      const playTone = (freq, duration, delay) => {
+        const osc = audioCtx.createOscillator();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime + delay);
+        osc.connect(gain);
+        osc.start(audioCtx.currentTime + delay);
+        osc.stop(audioCtx.currentTime + delay + duration);
+      };
+      playTone(130, 0.1, 0);
+      playTone(130, 0.1, 0.12);
+      playTone(130, 0.15, 0.24);
+    }
+  } catch (err) {
+    console.error('Audio play failed:', err);
+  }
+};
 
 // ───── Company ─────
 const settings = ref({ company: { name_ar: '', phone: '', address: '', tagline: '' }, tax: { enabled: false, rate: 14 } });
@@ -389,6 +714,8 @@ const saveCompany = async () => {
   } catch (e) { saveMsg.value = e.message || 'فشل الحفظ'; }
   finally { saving.value = false; }
 };
+
+
 
 // ───── Categories ─────
 const categories = ref([]);
@@ -470,6 +797,50 @@ const clearing = ref(false);
 const uploading = ref(false);
 const restoreFile = ref(null);
 
+// ───── Cloud Backup ─────
+const cloudBackupSettings = ref({
+  provider: 'none',
+  gdrive_auth_type: 'service_account',
+  gdrive_key: '',
+  gdrive_folder_id: '',
+  gdrive_client_id: '',
+  gdrive_client_secret: '',
+  gdrive_refresh_token: '',
+  dropbox_token: '',
+  dropbox_path: '/AlAgoouz-ERP-Backups',
+  webhook_url: ''
+});
+const cloudSaving = ref(false);
+const cloudTesting = ref(false);
+
+const saveCloudBackupSettings = async () => {
+  cloudSaving.value = true;
+  try {
+    await userApi.updateSetting('cloud_backup', cloudBackupSettings.value);
+    alert('تم حفظ إعدادات النسخ السحابي بنجاح');
+  } catch (e) {
+    alert(e.message || 'فشل حفظ إعدادات النسخ السحابي');
+  } finally {
+    cloudSaving.value = false;
+  }
+};
+
+const testCloudBackup = async () => {
+  cloudTesting.value = true;
+  try {
+    const res = await backupApi.cloudTest(cloudBackupSettings.value);
+    if (res?.data?.success || res?.success) {
+      alert('✅ نجح الاتصال والرفع السحابي التجريبي!');
+    } else {
+      alert(`❌ فشل الرفع التجريبي: ${res?.message || 'خطأ غير معروف'}`);
+    }
+  } catch (e) {
+    alert(`❌ فشل الفحص: ${e.response?.data?.message || e.message}`);
+  } finally {
+    cloudTesting.value = false;
+  }
+};
+
 const sortedBackups = computed(() => [...backups.value].sort((a, b) => String(b.name).localeCompare(String(a.name))));
 const latestBackup = computed(() => sortedBackups.value[0] || null);
 const totalBackupSize = computed(() => backups.value.reduce((s, b) => s + Number(b.size || 0), 0));
@@ -531,6 +902,18 @@ onMounted(async () => {
     const data = res?.data || {};
     settings.value.company = data.company || { name_ar: 'بن العجوز', phone: '', address: '', tagline: 'للبن التركي' };
     settings.value.tax = data.tax || { enabled: false, rate: 14 };
+    cloudBackupSettings.value = data.cloud_backup || {
+      provider: 'none',
+      gdrive_auth_type: 'service_account',
+      gdrive_key: '',
+      gdrive_folder_id: '',
+      gdrive_client_id: '',
+      gdrive_client_secret: '',
+      gdrive_refresh_token: '',
+      dropbox_token: '',
+      dropbox_path: '/AlAgoouz-ERP-Backups',
+      webhook_url: ''
+    };
   } catch (_) { /* offline */ }
   await Promise.all([refreshCategories(), refreshProductUnits(), refreshBackups()]);
 });
@@ -701,60 +1084,111 @@ onMounted(async () => {
 
 /* ── Appearance ── */
 .mode-row {
-  display: flex;
-  gap: 10px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 24px;
 }
 
 .mode-btn {
-  flex: 1;
+  position: relative;
+  overflow: hidden;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 14px;
-  border: 2px solid var(--border);
-  border-radius: var(--radius-md, 10px);
-  background: var(--bg-elevated);
+  gap: 12px;
+  padding: 24px 16px;
+  border: none;
+  border-radius: 20px;
+  background: var(--bg-card);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05), inset 0 0 0 1px var(--border);
   cursor: pointer;
-  font-weight: 700;
-  font-size: 0.95rem;
+  font-weight: 800;
+  font-size: 1.1rem;
   color: var(--text-muted);
-  transition: var(--transition);
+  transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+  z-index: 1;
 
-  &:hover { border-color: var(--primary); color: var(--text-strong); }
+  span { font-size: 2.2rem; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1)); transition: transform 0.3s ease; }
+
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08), inset 0 0 0 1px color-mix(in srgb, var(--primary) 40%, var(--border));
+    color: var(--text-strong);
+    span { transform: scale(1.1); }
+  }
+
   &.active {
-    border-color: var(--primary);
-    background: color-mix(in srgb, var(--primary) 8%, var(--bg-elevated));
-    color: var(--primary-dark);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 15%, transparent);
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+    color: #fff;
+    box-shadow: 0 8px 25px color-mix(in srgb, var(--primary) 40%, transparent);
+    span { transform: scale(1.15); filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3)); }
   }
 }
 
 .style-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
-  gap: 10px;
-  margin-top: 4px;
+  grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+  gap: 12px;
+  margin-top: 12px;
 }
 
 .style-card {
-  padding: 16px 10px;
-  border: 2px solid var(--border);
-  border-radius: var(--radius-md, 10px);
-  background: var(--bg-elevated);
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 14px;
+  min-height: 48px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--bg-card);
   cursor: pointer;
-  text-align: center;
-  transition: var(--transition);
+  text-align: right;
+  transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+  overflow: hidden;
 
-  &:hover { transform: translateY(-2px); box-shadow: var(--shadow-sm); }
-  .style-icon { font-size: 1.8rem; display: block; margin-bottom: 6px; }
-  strong { display: block; font-size: 0.88rem; color: var(--text-strong); }
-  small  { color: var(--text-muted); font-size: 0.72rem; }
+  &:hover {
+    transform: translateY(-2px);
+    border-color: var(--primary);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  }
+
+  .theme-swatch {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.15);
+    transition: transform 0.25s ease;
+  }
+
+  .theme-name {
+    font-size: 0.88rem;
+    font-weight: 750;
+    color: var(--text-strong);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 
   &.active {
+    background: var(--bg-elevated);
     border-color: var(--primary);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 20%, transparent);
-    background: color-mix(in srgb, var(--primary) 6%, var(--bg-elevated));
+    box-shadow: 0 4px 16px color-mix(in srgb, var(--primary) 22%, transparent);
+    outline: 2.5px solid var(--primary);
+    outline-offset: -2.5px;
+
+    .theme-swatch {
+      transform: scale(1.1);
+      box-shadow: 0 0 0 2px var(--bg-card), inset 0 0 0 1px rgba(0, 0, 0, 0.25);
+    }
+
+    .theme-name {
+      color: var(--primary);
+      font-weight: 850;
+    }
   }
 }
 
@@ -993,6 +1427,138 @@ onMounted(async () => {
 .section-desc { color: var(--text-muted); font-size: 0.88rem; margin-bottom: 14px; }
 .save-msg { color: var(--success, #22c55e); font-size: 0.88rem; margin-top: 8px; }
 .mt-12 { margin-top: 12px; }
+
+/* ── Cloud Backup ── */
+.cloud-backup-card {
+  margin-top: 16px;
+  
+  select {
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md, 10px);
+    background: var(--bg-elevated);
+    color: var(--text-strong);
+    font-size: 0.9rem;
+    transition: var(--transition);
+    cursor: pointer;
+    width: 100%;
+    
+    &:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 15%, transparent);
+    }
+  }
+
+  textarea {
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md, 10px);
+    background: var(--bg-elevated);
+    color: var(--text-strong);
+    font-size: 0.9rem;
+    transition: var(--transition);
+    width: 100%;
+    resize: vertical;
+    
+    &:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 15%, transparent);
+    }
+  }
+
+  .cloud-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 20px;
+  }
+  
+  .provider-fields {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+}
+
+.receipt-preview-card {
+  background: var(--bg-soft);
+  padding: 16px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+}
+.thermal-receipt {
+  background: #fff;
+  color: #000;
+  padding: 20px;
+  box-shadow: var(--shadow-sm);
+  border-radius: var(--radius-md);
+  font-family: 'Cairo', sans-serif;
+  max-width: 320px;
+  margin: 0 auto;
+  box-sizing: border-box;
+  text-align: right;
+  
+  .receipt-header {
+    text-align: center;
+    margin-bottom: 12px;
+    h3 { font-size: 1.15rem; font-weight: 800; margin: 0 0 4px 0; color: #000; }
+    .tagline { font-size: 0.8rem; font-style: italic; color: #555; margin: 0 0 6px 0; }
+    .meta-line { font-size: 0.72rem; color: #666; margin: 2px 0; }
+  }
+  
+  .divider-dotted {
+    border-top: 1.5px dotted #333;
+    margin: 8px 0;
+  }
+  
+  .meta-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.75rem;
+    color: #444;
+    margin: 3px 0;
+    direction: rtl;
+  }
+  
+  .items-list {
+    margin: 8px 0;
+    direction: rtl;
+    .item-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.75rem;
+      color: #333;
+      margin: 4px 0;
+      &.header {
+        font-weight: 800;
+        color: #000;
+        margin-bottom: 6px;
+      }
+    }
+  }
+  
+  .total-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.9rem;
+    font-weight: 900;
+    color: #000;
+    margin-top: 6px;
+    direction: rtl;
+  }
+  
+  .receipt-footer {
+    text-align: center;
+    font-size: 0.72rem;
+    color: #555;
+    margin-top: 8px;
+    p { margin: 0; }
+  }
+}
 
 /* ── Responsive ── */
 @media (max-width: 768px) {

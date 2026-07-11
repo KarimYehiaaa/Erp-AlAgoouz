@@ -1,23 +1,15 @@
 import { getClient, query } from '../database/pool.js';
 import { AppError } from '../middleware/errorHandler.js';
 import { getDefaultWarehouseId } from './warehouseService.js';
+import { parseLocalizedNumber } from '../utils/numberParsing.js';
+
+export const parsePurchaseAmount = parseLocalizedNumber;
 
 // BUG-10 FIX: استخدام settings table مع FOR UPDATE lock بدل LIKE — يمنع race condition
 const generateNumber = async (client) => {
   const yy = new Date().getFullYear();
-  const key = `purchase_invoice_seq:${yy}`;
-  const row = await client.query(
-    `SELECT value FROM settings WHERE key = $1 FOR UPDATE`,
-    [key]
-  );
-  const current = row.rows[0]?.value ?? { next_number: 1 };
-  const n = current.next_number || 1;
-  const nextVal = { next_number: n + 1 };
-  await client.query(
-    `INSERT INTO settings (key, value) VALUES ($1, $2::jsonb)
-     ON CONFLICT (key) DO UPDATE SET value = $2::jsonb, updated_at = NOW()`,
-    [key, JSON.stringify(nextVal)]
-  );
+  const res = await client.query(`SELECT nextval('seq_purchase_invoices_number') AS next_val`);
+  const n = res.rows[0].next_val;
   return `PUR-${yy}-${String(n).padStart(4, '0')}`;
 };
 
@@ -28,16 +20,10 @@ const normalizePurchasePayload = async (client, payload) => {
   let subtotal = 0;
   const normalized = [];
 
-  for (const item of items) {
-    const productId = Number(item.product_id);
-    const quantity = parseFloat(item.quantity);
-    const unitPrice = parseFloat(item.unit_price);
-
-    if (!productId) throw new AppError('المنتج مطلوب', 400);
-    if (!isFinite(quantity) || quantity <= 0) throw new AppError('الكمية يجب أن تكون أكبر من صفر', 400);
-    if (!isFinite(unitPrice) || unitPrice < 0) throw new AppError('سعر الوحدة غير صحيح', 400);
-
-    const pRes = await client.query(
+  const productIds = [...new Set(items.map((item) => Number(item.product_id)).filter(Boolean))];
+  const productMap = new Map();
+  if (productIds.length > 0) {
+    const productsRes = await client.query(
       `SELECT p.id, p.name_ar, p.unit, p.primary_warehouse_id,
               EXISTS (
                 SELECT 1
@@ -47,12 +33,26 @@ const normalizePurchasePayload = async (client, payload) => {
                   AND r.is_active = TRUE
               ) AS has_active_recipe
        FROM products p
-       WHERE p.id = $1 AND p.deleted_at IS NULL`,
-      [productId]
+       WHERE p.id = ANY($1::int[]) AND p.deleted_at IS NULL`,
+      [productIds]
     );
-    if (!pRes.rows[0]) throw new AppError('المنتج غير موجود', 404);
+    for (const p of productsRes.rows) {
+      productMap.set(Number(p.id), p);
+    }
+  }
 
-    const product = pRes.rows[0];
+  for (const item of items) {
+    const productId = Number(item.product_id);
+    const quantity = parseFloat(item.quantity);
+    const unitPrice = parseFloat(item.unit_price);
+
+    if (!productId) throw new AppError('المنتج مطلوب', 400);
+    if (!isFinite(quantity) || quantity <= 0) throw new AppError('الكمية يجب أن تكون أكبر من صفر', 400);
+    if (!isFinite(unitPrice) || unitPrice < 0) throw new AppError('سعر الوحدة غير صحيح', 400);
+
+    const product = productMap.get(productId);
+    if (!product) throw new AppError('المنتج غير موجود', 404);
+
     if (product.has_active_recipe) {
       throw new AppError(`لا يمكن شراء المنتج "${product.name_ar}" لأنه مرتبط بوصفة نشطة. عدّل الوصفة أولًا.`, 400);
     }
@@ -110,14 +110,9 @@ const applyPurchaseItems = async (client, invoice, items, userId, notePrefix = '
       ) VALUES ($1,$2,'purchase',$3,'purchase_invoice',$4,$5,$6)`,
       [item.product_id, item.warehouse_id, item.quantity, invoice.id, userId, `${notePrefix} - ${invoice.invoice_number}`]
     );
-
-    await client.query(
-      `UPDATE products
-       SET purchase_price = $1, updated_at = NOW()
-       WHERE id = $2 AND ($1 > 0)`,
-      [item.unit_price, item.product_id]
-    );
   }
+
+  await refreshPurchasePrices(client, items.map((item) => item.product_id));
 };
 
 const reversePurchaseItems = async (client, invoice, items, userId, notePrefix = 'إلغاء شراء') => {
@@ -172,13 +167,11 @@ const refreshPurchasePrices = async (client, productIds) => {
     await client.query(`
       UPDATE products
       SET purchase_price = COALESCE((
-        SELECT pii.unit_price
+        SELECT ROUND((SUM(pii.total_amount) / NULLIF(SUM(pii.quantity), 0))::numeric, 2)
         FROM purchase_invoice_items pii
         JOIN purchase_invoices pi ON pi.id = pii.purchase_invoice_id
         WHERE pii.product_id = $1
           AND pi.deleted_at IS NULL
-        ORDER BY pi.invoice_date DESC, pi.id DESC, pii.id DESC
-        LIMIT 1
       ), purchase_price),
       updated_at = NOW()
       WHERE id = $1
@@ -186,9 +179,14 @@ const refreshPurchasePrices = async (client, productIds) => {
   }
 };
 
-export const listPurchaseInvoices = async (limit = 100) => {
-  const rows = await query(
-    `SELECT pi.*,
+export const listPurchaseInvoices = async (filters = {}) => {
+  let finalFilters = filters;
+  if (typeof filters === 'number' || typeof filters === 'string') {
+    finalFilters = { limit: filters };
+  }
+  const limit = Number(finalFilters.limit) || 100;
+  const params = [];
+  let sql = `SELECT pi.*,
       s.name_ar as supplier_name,
       COALESCE(item_wh.warehouse_name, w.name_ar) as warehouse_name,
       u.full_name as created_by_name,
@@ -222,11 +220,22 @@ export const listPurchaseInvoices = async (limit = 100) => {
        WHERE it.purchase_invoice_id = pi.id
      ) item_wh ON TRUE
      LEFT JOIN users u ON u.id = pi.created_by
-     WHERE pi.deleted_at IS NULL
-     ORDER BY pi.id DESC
-     LIMIT $1`,
-    [Number(limit) || 100]
-  );
+     WHERE pi.deleted_at IS NULL`;
+
+  let idx = 1;
+  if (finalFilters.from_date) {
+    sql += ` AND pi.invoice_date >= $${idx++}`;
+    params.push(finalFilters.from_date);
+  }
+  if (finalFilters.to_date) {
+    sql += ` AND pi.invoice_date <= $${idx++}`;
+    params.push(finalFilters.to_date);
+  }
+
+  sql += ` ORDER BY pi.id DESC LIMIT $${idx++}`;
+  params.push(limit);
+
+  const rows = await query(sql, params);
   return rows.rows;
 };
 
@@ -241,6 +250,27 @@ export const createPurchaseInvoice = async (payload, userId) => {
     const invoiceNumber = await generateNumber(client);
     let subtotal = 0;
 
+    const productIds = [...new Set(items.map((item) => Number(item.product_id)).filter(Boolean))];
+    const productMap = new Map();
+    if (productIds.length > 0) {
+      const productsRes = await client.query(
+        `SELECT p.id, p.name_ar, p.unit, p.primary_warehouse_id,
+                EXISTS (
+                  SELECT 1
+                  FROM product_recipes r
+                  WHERE r.product_id = p.id
+                    AND r.deleted_at IS NULL
+                    AND r.is_active = TRUE
+                ) AS has_active_recipe
+         FROM products p
+         WHERE p.id = ANY($1::int[]) AND p.deleted_at IS NULL`,
+        [productIds]
+      );
+      for (const p of productsRes.rows) {
+        productMap.set(Number(p.id), p);
+      }
+    }
+
     const normalized = [];
     for (const item of items) {
       const productId  = Number(item.product_id);
@@ -254,21 +284,8 @@ export const createPurchaseInvoice = async (payload, userId) => {
       if (!isFinite(unitPrice) || unitPrice < 0)
                                              throw new AppError('سعر الوحدة غير صحيح', 400);
 
-      const pRes = await client.query(
-        `SELECT p.id, p.name_ar, p.unit, p.primary_warehouse_id,
-                EXISTS (
-                  SELECT 1
-                  FROM product_recipes r
-                  WHERE r.product_id = p.id
-                    AND r.deleted_at IS NULL
-                    AND r.is_active = TRUE
-                ) AS has_active_recipe
-         FROM products p
-         WHERE p.id = $1 AND p.deleted_at IS NULL`,
-        [productId]
-      );
-      if (!pRes.rows[0]) throw new AppError('المنتج غير موجود', 404);
-      const product = pRes.rows[0];
+      const product = productMap.get(productId);
+      if (!product) throw new AppError('المنتج غير موجود', 404);
       if (product.has_active_recipe) {
         throw new AppError(`لا يمكن شراء المنتج "${product.name_ar}" لأنه مرتبط بوصفة نشطة. عدّل الوصفة أولًا.`, 400);
       }
@@ -333,14 +350,9 @@ export const createPurchaseInvoice = async (payload, userId) => {
         ) VALUES ($1,$2,'purchase',$3,'purchase_invoice',$4,$5,$6)`,
         [item.product_id, item.warehouse_id, item.quantity, invoice.id, userId, `شراء - ${invoice.invoice_number}`]
       );
-
-      await client.query(
-        `UPDATE products
-         SET purchase_price = $1, updated_at = NOW()
-         WHERE id = $2 AND ($1 > 0)`,
-        [item.unit_price, item.product_id]
-      );
     }
+
+    await refreshPurchasePrices(client, normalized.map((item) => item.product_id));
 
     await client.query('COMMIT');
     return invoice;
@@ -482,25 +494,10 @@ export const deletePurchaseInvoice = async (invoiceId, userId) => {
       [id]
     );
 
-    // BUG-06 FIX: إعادة سعر الشراء لكل منتج من آخر فاتورة شراء متبقية
+    // BUG-06 FIX: إعادة سعر الشراء لكل منتج بالمتوسط المرجح من الفواتير المتبقية
     // حتى تظل حسابات التكلفة (COGS) صحيحة بعد الحذف
     const affectedProductIds = [...new Set(items.map(it => Number(it.product_id)).filter(Boolean))];
-    for (const productId of affectedProductIds) {
-      await client.query(`
-        UPDATE products
-        SET purchase_price = COALESCE((
-          SELECT pii.unit_price
-          FROM purchase_invoice_items pii
-          JOIN purchase_invoices pi ON pi.id = pii.purchase_invoice_id
-          WHERE pii.product_id = $1
-            AND pi.deleted_at IS NULL
-          ORDER BY pi.invoice_date DESC, pi.id DESC, pii.id DESC
-          LIMIT 1
-        ), purchase_price),
-        updated_at = NOW()
-        WHERE id = $1
-      `, [productId]);
-    }
+    await refreshPurchasePrices(client, affectedProductIds);
 
     await client.query('COMMIT');
     return { success: true, deletedId: id, invoice_number: inv.invoice_number, shortages };

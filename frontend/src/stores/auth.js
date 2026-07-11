@@ -6,12 +6,40 @@ export const useAuthStore = defineStore('auth', () => {
   const user = ref(null);
   const token = ref(localStorage.getItem('token'));
   const permissions = ref([]);
+  const profileLoaded = ref(false);
 
-  // إصلاح: تحميل المستخدم من localStorage مرة واحدة عند إنشاء الـ store
-  // بدلاً من تكراره في كل route navigation
+  let activeProfilePromise = null;
+
+  const fetchProfile = async () => {
+    if (!token.value) return;
+    if (activeProfilePromise) return activeProfilePromise;
+
+    activeProfilePromise = (async () => {
+      try {
+        const res = await authApi.profile();
+        if (res.data) {
+          user.value = res.data.user;
+          permissions.value = res.data.permissions || [];
+          localStorage.setItem('user', JSON.stringify(res.data.user));
+          profileLoaded.value = true;
+        }
+      } catch (e) {
+        if (e.response?.status === 401) logout();
+      } finally {
+        activeProfilePromise = null;
+      }
+    })();
+
+    return activeProfilePromise;
+  };
+
   const _stored = localStorage.getItem('user');
   if (_stored && token.value) {
-    try { user.value = JSON.parse(_stored); } catch (_) { /* ignore corrupt data */ }
+    try { 
+      user.value = JSON.parse(_stored); 
+      // Fetch fresh permissions asynchronously
+      setTimeout(fetchProfile, 0);
+    } catch (_) { /* ignore corrupt data */ }
   }
 
   const isAuthenticated = computed(() => !!token.value);
@@ -23,6 +51,7 @@ export const useAuthStore = defineStore('auth', () => {
     token.value = res.data.token;
     user.value = res.data.user;
     permissions.value = res.data.permissions || [];
+    profileLoaded.value = true;
     localStorage.setItem('token', res.data.token);
     localStorage.setItem('user', JSON.stringify(res.data.user));
     return res;
@@ -32,18 +61,18 @@ export const useAuthStore = defineStore('auth', () => {
     token.value = null;
     user.value = null;
     permissions.value = [];
+    profileLoaded.value = false;
     localStorage.removeItem('token');
     localStorage.removeItem('user');
   };
 
-  // loadFromStorage يفضل موجود للتوافق مع الكود القديم لكن بيتحقق أولاً
   const loadFromStorage = () => {
-    if (user.value) return; // مش محتاج نحمل تاني لو موجود
-    const stored = localStorage.getItem('user');
-    if (stored && token.value) {
-      try { user.value = JSON.parse(stored); } catch (_) { /* ignore */ }
+    // Already handled at store initialization, but keeping for compatibility.
+    // fetchProfile will ensure we get permissions if they were empty.
+    if (token.value && permissions.value.length === 0) {
+      fetchProfile();
     }
   };
 
-  return { user, token, permissions, isAuthenticated, hasPermission, login, logout, loadFromStorage };
+  return { user, token, permissions, profileLoaded, isAuthenticated, hasPermission, login, logout, loadFromStorage, fetchProfile };
 });

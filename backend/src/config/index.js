@@ -1,4 +1,4 @@
-﻿import dotenv from 'dotenv';
+import dotenv from 'dotenv';
 dotenv.config();
 
 const requireEnv = (name) => {
@@ -15,7 +15,9 @@ export default {
   db: {
     host: process.env.DB_HOST || 'localhost',
     port: parseInt(process.env.DB_PORT || '5432', 10),
-    database: process.env.DB_NAME || 'bin_al_ajouz',
+    database: process.env.NODE_ENV === 'test' 
+      ? (process.env.DB_NAME_TEST || 'bin_al_ajouz_test') 
+      : (process.env.DB_NAME || 'bin_al_ajouz'),
     user: process.env.DB_USER || 'erp_user',
     password: requireEnv('DB_PASSWORD'),
   },

@@ -1,12 +1,15 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { query } from '../database/pool.js';
+import { getCloudConfig, uploadBackupToCloud } from './cloudBackupService.js';
+import { sendAlert } from './notificationService.js';
 
-const AUTO_BACKUP_DIR = path.join(process.cwd(), 'backups', 'auto-backups');
+const getAutoBackupDir = () =>
+    process.env.AUTO_BACKUP_DIR || path.join(process.cwd(), 'backups', 'auto-backups');
 
 const ensureDir = async () => {
     try {
-        await fs.mkdir(AUTO_BACKUP_DIR, { recursive: true });
+        await fs.mkdir(getAutoBackupDir(), { recursive: true });
     } catch (_) { }
 };
 
@@ -15,7 +18,8 @@ const ensureDir = async () => {
  */
 const cleanupOldBackups = async () => {
     try {
-        const files = await fs.readdir(AUTO_BACKUP_DIR);
+        const autoBackupDir = getAutoBackupDir();
+        const files = await fs.readdir(autoBackupDir);
         const backupFiles = files.filter(f => f.startsWith('auto-backup-') && f.endsWith('.json'));
 
         if (backupFiles.length <= 30) return;
@@ -23,7 +27,7 @@ const cleanupOldBackups = async () => {
         // جلب تفاصيل التواريخ لكل ملف
         const fileStats = await Promise.all(
             backupFiles.map(async (f) => {
-                const filePath = path.join(AUTO_BACKUP_DIR, f);
+                const filePath = path.join(autoBackupDir, f);
                 const st = await fs.stat(filePath);
                 return { name: f, path: filePath, mtime: st.mtime };
             })
@@ -50,8 +54,18 @@ export const runAutoBackup = async () => {
     try {
         await ensureDir();
         const tables = [
-            'products', 'customers', 'suppliers', 'sales', 'sale_items', 'invoices', 'invoice_items',
-            'expenses', 'expense_categories', 'inventory', 'settings', 'product_recipes', 'product_recipe_items', 'users'
+            // Master data
+            'warehouses', 'roles', 'permissions', 'role_permissions',
+            'users', 'products', 'product_categories', 'customers', 'suppliers',
+            'expense_categories', 'product_recipes', 'product_recipe_items',
+            'employee_shifts', 'employees',
+            // Transactional data
+            'sales', 'sale_items', 'invoices', 'invoice_items',
+            'payments', 'inventory', 'stock_movements',
+            'expenses', 'purchase_invoices', 'purchase_invoice_items',
+            'employee_attendance', 'employee_advances', 'payroll_runs', 'payroll_items',
+            // System
+            'settings', 'activity_logs',
         ];
         const out = {};
         for (const t of tables) {
@@ -67,20 +81,71 @@ export const runAutoBackup = async () => {
             .split('.')[0];
         
         const fileName = `auto-backup-${timestamp}.json`;
-        const filePath = path.join(AUTO_BACKUP_DIR, fileName);
+        const filePath = path.join(getAutoBackupDir(), fileName);
+        const backupData = { meta: { created_at: now.toISOString(), is_auto: true }, data: out };
 
         await fs.writeFile(
             filePath, 
-            JSON.stringify({ meta: { created_at: now.toISOString(), is_auto: true }, data: out }, null, 2), 
+            JSON.stringify(backupData, null, 2), 
             'utf8'
         );
 
         console.log(`💾 [بن العجوز ERP] تم أخذ نسخة احتياطية تلقائية بنجاح: ${fileName}`);
+
+        // Copy to external local path if configured in .env
+        const skipExternal = process.env.AUTO_BACKUP_SKIP_EXTERNAL === '1';
+        const externalPath = skipExternal ? null : process.env.LOCAL_EXTERNAL_BACKUP_PATH;
+        let externalCopied = false;
+        if (externalPath) {
+            try {
+                await fs.mkdir(externalPath, { recursive: true });
+                const externalFilePath = path.join(externalPath, fileName);
+                await fs.copyFile(filePath, externalFilePath);
+                console.log(`💾 [بن العجوز ERP] تم نسخ نسخة احتياطية إضافية إلى المسار الخارجي: ${externalFilePath}`);
+                externalCopied = true;
+            } catch (extErr) {
+                console.error(`⚠️ [بن العجوز ERP] فشل نسخ الملف للمسار الخارجي المساعد:`, extErr.message);
+            }
+        }
         
         // تنظيف الفولدر من النسخ الأقدم من 30
-        await cleanupOldBackups();
+        if (process.env.AUTO_BACKUP_SKIP_CLEANUP !== '1') {
+            await cleanupOldBackups();
+        }
+
+        // 🔒 الرفع السحابي التلقائي
+        let cloudUploaded = false;
+        let cloudProvider = 'none';
+        try {
+            const cloudConfig = skipExternal ? null : await getCloudConfig();
+            if (cloudConfig && cloudConfig.provider !== 'none') {
+                cloudProvider = cloudConfig.provider;
+                console.log(`☁️ [بن العجوز ERP] جاري رفع النسخة الاحتياطية سحابياً إلى (${cloudConfig.provider})...`);
+                const uploadRes = await uploadBackupToCloud(backupData, fileName, cloudConfig);
+                if (uploadRes.success) {
+                    console.log(`✅ [بن العجوز ERP] تم رفع النسخة الاحتياطية بنجاح إلى السحابة: ${uploadRes.path || cloudConfig.provider}`);
+                    cloudUploaded = true;
+                } else {
+                    console.warn(`⚠️ [بن العجوز ERP] تنبيه الرفع السحابي: ${uploadRes.message}`);
+                }
+            }
+        } catch (cloudErr) {
+            console.error('⚠️ [بن العجوز ERP] فشل الرفع السحابي للنسخة الاحتياطية التلقائية:', cloudErr.message);
+        }
+
+        // Send Discord notification
+        let backupMsg = `💾 تم أخذ نسخة احتياطية تلقائية بنجاح:\n\`${fileName}\``;
+        if (externalCopied) backupMsg += `\n📂 تم النسخ للمسار الخارجي المساعد: \`${externalPath}\``;
+        if (cloudUploaded) backupMsg += `\n☁️ تم الرفع بنجاح للسحابة: \`${cloudProvider}\``;
+        if (!skipExternal) {
+            await sendAlert('💾 النسخ الاحتياطي التلقائي', backupMsg, 'success');
+        }
+
     } catch (err) {
         console.error('❌ [بن العجوز ERP] فشل النسخ الاحتياطي التلقائي الصامت:', err.message);
+        if (process.env.AUTO_BACKUP_SKIP_EXTERNAL !== '1') {
+            await sendAlert('❌ فشل النسخ الاحتياطي التلقائي', `فشل النسخ الاحتياطي الصامت:\n\`${err.message}\``, 'error');
+        }
     }
 };
 

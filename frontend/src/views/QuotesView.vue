@@ -82,22 +82,59 @@
           <span class="badge soft">بدون إجماليات</span>
         </div>
 
-        <div class="preview-doc">
-          <div class="preview-top">
-            <div>
-              <p class="preview-kicker">عرض سعر</p>
-              <h4>{{ form.customer_name || 'اسم العميل' }}</h4>
+        <div class="preview-doc invoice-doc">
+          <img src="/logo.png?v=3" class="inv-watermark" alt="" />
+          <header class="inv-header">
+            <div class="inv-brand">
+              <AppLogo size="lg" :rounded="true" />
+              <div>
+                <h1>بن العجوز</h1>
+                <p class="tagline">للحب التركي</p>
+                <p><strong>العنوان:</strong> جمهورية مصر العربية</p>
+                <p><strong>الهاتف:</strong> 01000000000</p>
+              </div>
+            </div>
+            <div class="inv-title-box">
+              <span class="inv-type">عرض سعر</span>
+              <span class="inv-number">QUO-TEMP</span>
+            </div>
+          </header>
+
+          <div class="inv-parties">
+            <div class="party-box">
+              <h4>بيانات العميل</h4>
+              <p><strong>الاسم:</strong> {{ form.customer_name || 'عميل نقدي' }}</p>
+            </div>
+            <div class="party-box meta">
+              <p><strong>تاريخ الإصدار:</strong> {{ new Date().toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric' }) }}</p>
+              <p><strong>الصلاحية:</strong> ساري لمدة 15 يوم</p>
             </div>
           </div>
 
-          <div class="preview-terms">
-            <span>البنود</span>
-            <ul>
-              <li v-for="item in form.items" :key="item.key">
-                {{ item.name || 'بند بدون اسم' }} - {{ item.unit || 'وحدة' }} - {{ formatMoney(item.price) }}
-              </li>
-            </ul>
-          </div>
+          <table class="inv-table">
+            <thead>
+              <tr>
+                <th style="width: 8%">#</th>
+                <th style="width: 50%">البيان</th>
+                <th style="width: 17%">الوحدة</th>
+                <th style="width: 25%">السعر</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(item, i) in form.items" :key="item.key">
+                <td>{{ i + 1 }}</td>
+                <td>{{ item.name || 'بند بدون اسم' }}</td>
+                <td>{{ item.unit || 'وحدة' }}</td>
+                <td>{{ formatMoney(item.price) }}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <p v-if="form.notes" class="inv-notes"><strong>ملاحظات:</strong> {{ form.notes }}</p>
+
+          <footer class="inv-footer">
+            <p>نتشرف بخدمتكم دائمًا، ونشكركم على ثقتكم في بن العجوز.</p>
+          </footer>
         </div>
       </aside>
     </div>
@@ -108,6 +145,7 @@
 import { onMounted, reactive, ref } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
 import { quotes as quotesApi } from '@/api';
+import { formatMoney } from '@/utils/currency';
 
 const templateStorageKey = 'quote_template';
 const makeKey = () => (globalThis.crypto?.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()));
@@ -131,8 +169,7 @@ const success = ref('');
 const templateMessage = ref('');
 const savedTemplate = ref({ items: [makeItem()] });
 
-const formatMoney = (value) =>
-  `${Number(value || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} EGP`;
+// formatMoney is imported from @/utils/currency
 
 const normalizeTemplate = (source) => ({
   items: (Array.isArray(source?.items) ? source.items : [])
@@ -483,54 +520,105 @@ onMounted(loadTemplate);
   top: 18px;
 }
 
-.preview-doc {
-  display: grid;
-  gap: 16px;
-  padding: 18px;
-  border-radius: 22px;
-  border: 1px solid color-mix(in srgb, var(--primary) 12%, var(--line));
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(250, 247, 243, 0.98));
-  box-shadow: 0 22px 60px rgba(47, 30, 18, 0.08);
+.invoice-doc {
+  background: #fff;
+  color: #1a1510;
+  padding: 30px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-md);
+  font-family: 'Cairo', sans-serif;
+  position: relative;
+  overflow: hidden;
 }
-
-.preview-top {
+.inv-watermark {
+  position: absolute;
+  top: 55%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 250px;
+  height: 250px;
+  opacity: 0.04;
+  pointer-events: none;
+  z-index: 0;
+  object-fit: contain;
+}
+.inv-header {
   display: flex;
-  align-items: start;
   justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  padding-bottom: 14px;
+  border-bottom: 3px solid #5c3d2e;
+  margin-bottom: 18px;
+}
+.inv-brand {
+  display: flex;
   gap: 12px;
+  align-items: center;
+  h1 { font-size: 1.35rem; color: #5c3d2e; margin: 0 0 2px; font-weight: 800; }
+  .tagline { color: #8b5e3c; font-size: 0.8rem; margin: 0 0 4px; font-weight: 700; }
+  p { margin: 2px 0; font-size: 0.8rem; color: var(--text-muted); }
 }
-
-.preview-kicker {
-  margin: 0 0 6px;
-  color: var(--primary-strong);
-  font-size: 0.78rem;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+.inv-title-box {
+  text-align: left;
+  background: linear-gradient(135deg, #5c3d2e, #8b5e3c);
+  color: #fff;
+  padding: 10px 16px;
+  border-radius: 8px;
+  .inv-type { display: block; font-size: 0.8rem; opacity: 0.9; }
+  .inv-number { display: block; font-size: 1.1rem; font-weight: 800; margin-top: 2px; }
 }
-
-.preview-top h4 {
-  margin: 0;
-  font-size: 1.08rem;
-}
-
-.preview-terms {
+.inv-parties {
   display: grid;
-  gap: 10px;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 18px;
 }
-
-.preview-terms > span {
-  font-size: 0.84rem;
-  font-weight: 800;
-  color: var(--text-strong);
+.party-box {
+  background: var(--bg);
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  h4 { margin: 0 0 6px; color: #5c3d2e; font-size: 0.88rem; font-weight: 800; }
+  p { margin: 4px 0; font-size: 0.82rem; color: var(--text-strong); }
 }
-
-.preview-terms ul {
-  margin: 0;
-  padding-inline-start: 18px;
-  display: grid;
-  gap: 8px;
+.inv-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 18px;
+  th {
+    background: #5c3d2e;
+    color: #fff;
+    padding: 10px;
+    text-align: right;
+    font-size: 0.85rem;
+    font-weight: 800;
+  }
+  td {
+    padding: 10px;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.82rem;
+    color: var(--text-strong);
+  }
+  tbody tr:nth-child(even) { background: var(--bg); }
+}
+.inv-notes {
+  background: #fff9e6;
+  padding: 10px;
+  border-radius: 6px;
+  border-right: 4px solid #c9a227;
+  font-size: 0.82rem;
+  color: #7c5f00;
+  margin-bottom: 12px;
+}
+.inv-footer {
+  text-align: center;
+  margin-top: 20px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
   color: var(--text-muted);
+  p { font-size: 0.78rem; margin: 0; }
 }
 
 @media (max-width: 980px) {

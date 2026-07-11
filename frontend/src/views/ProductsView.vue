@@ -6,14 +6,19 @@
         <button type="button" :class="{ active: tab === 'return' }" @click="tab = 'return'; loadReturns()">↩️ استرداد منتجات</button>
       </div>
       <div v-if="tab === 'list'" class="header-actions">
-        <button type="button" class="btn btn-outline" @click="downloadTemplate">📥 قالب Excel</button>
-        <button type="button" class="btn btn-outline" @click="exportProducts">📤 تصدير المنتجات (Excel)</button>
+        <button type="button" class="btn btn-outline" @click="downloadTemplate">
+          <AppIcon name="download" :size="16" /> قالب Excel
+        </button>
+        <button type="button" class="btn btn-outline" @click="exportProducts">
+          <AppIcon name="download" :size="16" /> تصدير المنتجات (Excel)
+        </button>
         <label class="btn btn-outline import-btn">
-          📥 استيراد وتعديل (Excel)
+          <AppIcon name="download" :size="16" style="transform: rotate(180deg);" /> استيراد وتعديل (Excel)
           <input type="file" accept=".xlsx,.xls" hidden @change="onImport" />
         </label>
-        <button type="button" class="btn btn-primary" :disabled="loading" @click="openForm()">
-          {{ loading ? 'جاري التحميل...' : '+ إضافة منتج' }}
+        <button type="button" class="btn btn-add" :disabled="loading" @click="openForm()">
+          <AppIcon name="add" :size="16" />
+          {{ loading ? 'جاري التحميل...' : 'إضافة منتج' }}
         </button>
       </div>
     </div>
@@ -50,7 +55,19 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="p in products" :key="p.id">
+            <tr v-if="loading" v-for="i in 3" :key="'p-sk-' + i">
+              <td>
+                <div class="skeleton-shimmer" style="height: 18px; width: 140px;"></div>
+                <div class="skeleton-shimmer" style="height: 12px; width: 80px; margin-top: 4px;"></div>
+              </td>
+              <td><div class="skeleton-shimmer" style="height: 18px; width: 90px;"></div></td>
+              <td><div class="skeleton-shimmer" style="height: 18px; width: 60px;"></div></td>
+              <td><div class="skeleton-shimmer" style="height: 18px; width: 60px;"></div></td>
+              <td><div class="skeleton-shimmer" style="height: 18px; width: 110px;"></div></td>
+              <td><div class="skeleton-shimmer" style="height: 18px; width: 50px;"></div></td>
+              <td><div class="skeleton-shimmer" style="height: 18px; width: 120px;"></div></td>
+            </tr>
+            <tr v-else v-for="p in products" :key="p.id">
               <td class="product-name-cell">
                 <div class="product-title">
                   <span class="product-name">{{ p.name_ar }}</span>
@@ -64,7 +81,9 @@
               <td class="warehouse-cell">{{ p.primary_warehouse_name || '—' }}</td>
               <td>{{ p.is_active ? 'نشط' : 'معطل' }}</td>
               <td class="actions-cell">
-                <button type="button" class="icon-btn" title="تعديل" @click="editProduct(p)">✏️</button>
+                <button type="button" class="icon-btn edit" title="تعديل" @click="editProduct(p)">
+                  <AppIcon name="edit" :size="16" />
+                </button>
                 <button
                   type="button"
                   class="icon-btn"
@@ -72,9 +91,16 @@
                   :disabled="p.has_active_recipe"
                   :title="p.has_active_recipe ? 'منتج وصفة نشطة: لا يتم استرداد مخزونه مباشرة' : 'استرداد'"
                   @click="openReturn(p)"
-                >↩</button>
-                <button type="button" class="icon-btn danger" title="حذف المنتج" @click="deleteOneProduct(p)">🗑️</button>
+                >
+                  <AppIcon name="arrowLeft" :size="16" />
+                </button>
+                <button type="button" class="icon-btn danger" title="حذف المنتج" @click="deleteOneProduct(p)">
+                  <AppIcon name="delete" :size="16" />
+                </button>
               </td>
+            </tr>
+            <tr v-if="!loading && !products.length">
+              <td colspan="7" class="empty">لا توجد منتجات مسجلة</td>
             </tr>
           </tbody>
         </table>
@@ -82,7 +108,9 @@
 
       <div class="danger-mini card">
         <span>حذف كل المنتجات</span>
-        <button type="button" class="btn btn-sm btn-danger" @click="deleteAllProducts">حذف الكل</button>
+        <button type="button" class="btn btn-sm btn-delete" @click="deleteAllProducts">
+          <AppIcon name="delete" :size="14" /> حذف الكل
+        </button>
       </div>
     </template>
 
@@ -124,6 +152,7 @@
               <textarea v-model="returnForm.notes" rows="2" placeholder="تفاصيل إضافية..." />
             </div>
             <button type="submit" class="btn btn-primary" :disabled="returning">
+              <AppIcon name="arrowLeft" :size="16" />
               {{ returning ? 'جاري الحفظ...' : 'تأكيد الاسترداد' }}
             </button>
           </form>
@@ -186,7 +215,8 @@
           <p v-if="formMsg" class="form-msg" :class="{ err: formErr }">{{ formMsg }}</p>
           <div class="modal-actions">
             <button type="button" class="btn btn-outline" :disabled="savingProduct" @click="showForm = false">إلغاء</button>
-            <button type="submit" class="btn btn-primary" :disabled="savingProduct">
+            <button type="submit" class="btn btn-save" :disabled="savingProduct">
+              <AppIcon name="save" :size="16" />
               {{ savingProduct ? 'جاري الحفظ...' : 'حفظ' }}
             </button>
           </div>
@@ -214,7 +244,9 @@
           </div>
           <div class="modal-actions">
             <button type="button" class="btn btn-outline" @click="showReturnModal = false">إلغاء</button>
-            <button type="submit" class="btn btn-primary">استرداد</button>
+            <button type="submit" class="btn btn-primary">
+              <AppIcon name="arrowLeft" :size="16" /> استرداد
+            </button>
           </div>
         </form>
       </div>
@@ -491,7 +523,7 @@ const deleteAllProducts = async () => {
   if (!confirmed) return;
 
   try {
-    const res = await api.deleteAllSafe();
+    const res = await api.deleteAll();
     const count = res?.data?.deletedCount ?? products.value.length;
     importErr.value = false;
     importMsg.value = `تم حذف كل المنتجات بنجاح (${count} منتج)`;
@@ -614,28 +646,7 @@ onBeforeUnmount(() => {
   font-size: 0.78rem;
 }
 
-.icon-btn {
-  width: 32px; height: 32px;
-  display: inline-flex; align-items: center; justify-content: center;
-  border: 1px solid var(--border); border-radius: var(--radius-xs);
-  background: var(--bg-elevated); cursor: pointer;
-  font-size: 0.85rem; transition: var(--transition);
-  &:hover { background: var(--bg); border-color: var(--primary-soft); }
-  &.disabled,
-  &:disabled {
-    opacity: 0.45;
-    cursor: not-allowed;
-    filter: grayscale(1);
-  }
-  &.disabled:hover,
-  &:disabled:hover {
-    background: var(--bg-elevated);
-    border-color: var(--border);
-  }
-  &.danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 30%, transparent);
-    &:hover { background: color-mix(in srgb, var(--danger) 10%, transparent); }
-  }
-}
+
 
 .danger-mini {
   display: flex; align-items: center; justify-content: space-between; gap: 10px;

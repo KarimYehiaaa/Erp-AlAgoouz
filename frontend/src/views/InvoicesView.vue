@@ -48,9 +48,15 @@
             <td><span :class="statusClass(inv.payment_status)">{{ statusLabel(inv.payment_status) }}</span></td>
             <td>{{ formatDate(inv.issued_at || inv.created_at) }}</td>
             <td class="actions">
-              <router-link :to="`/invoices/${inv.id}`" class="icon-btn" title="عرض">🔍</router-link>
-              <router-link :to="`/invoices/${inv.id}`" class="icon-btn" title="تعديل">✏️</router-link>
-              <button type="button" class="icon-btn danger" @click="deleteInvoice(inv.id)" title="حذف">🗑️</button>
+              <router-link :to="`/invoices/${inv.id}`" class="icon-btn" title="عرض">
+                <AppIcon name="search" :size="16" />
+              </router-link>
+              <router-link :to="`/invoices/${inv.id}/edit`" class="icon-btn" title="تعديل">
+                <AppIcon name="edit" :size="16" />
+              </router-link>
+              <button type="button" class="icon-btn danger" @click="deleteInvoice(inv.id)" title="حذف">
+                <AppIcon name="delete" :size="16" />
+              </button>
             </td>
           </tr>
         </tbody>

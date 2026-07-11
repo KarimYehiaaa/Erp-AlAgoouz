@@ -6,8 +6,9 @@ const fmt = (n) => `${Number(n || 0).toLocaleString('en-US', { minimumFractionDi
 export const generateInvoicePdf = async (invoiceId) => {
   const invoice = await getInvoiceById(invoiceId);
   const company = invoice.company || {};
+  const invoiceNumber = invoice.invoice_number;
 
-  return new Promise((resolve, reject) => {
+  const buffer = await new Promise((resolve, reject) => {
     const doc = new PDFDocument({ size: 'A4', margin: 50 });
     const chunks = [];
     doc.on('data', (c) => chunks.push(c));
@@ -70,4 +71,6 @@ export const generateInvoicePdf = async (invoiceId) => {
 
     doc.end();
   });
+
+  return { buffer, invoiceNumber };
 };

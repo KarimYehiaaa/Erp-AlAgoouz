@@ -11,8 +11,12 @@
         </div>
       </div>
       <div class="header-actions" style="display: flex; gap: 10px;">
-        <button class="btn btn-outline" @click="openCalculator">🧮 حاسبة التوليفات</button>
-        <button class="btn btn-primary" @click="openNewRecipe">+ وصفة جديدة</button>
+        <button class="btn btn-outline" @click="openCalculator">
+          <AppIcon name="costs" :size="16" /> حاسبة التوليفات
+        </button>
+        <button class="btn btn-add" @click="openNewRecipe">
+          <AppIcon name="add" :size="16" /> وصفة جديدة
+        </button>
       </div>
     </div>
 
@@ -46,7 +50,9 @@
     <div v-else-if="!recipes.length" class="empty-state card">
       <span>🥣</span>
       <p>لا توجد وصفات بعد. أضف وصفة لكل منتج في المحل.</p>
-      <button class="btn btn-primary" @click="openNewRecipe">+ إضافة أول وصفة</button>
+      <button class="btn btn-add" @click="openNewRecipe">
+        <AppIcon name="add" :size="16" /> إضافة أول وصفة
+      </button>
     </div>
     <div v-else class="recipes-grid">
       <div v-for="recipe in recipes" :key="recipe.id" class="recipe-card card">
@@ -61,9 +67,15 @@
             </div>
           </div>
           <div class="recipe-actions">
-            <button class="btn-icon" title="تعديل" @click="openEdit(recipe)">✏️</button>
-            <button class="btn-icon" title="إنتاج دفعة" @click="openProduce(recipe)">🏭</button>
-            <button class="btn-icon danger" title="حذف" @click="deleteRecipe(recipe.id)">🗑️</button>
+            <button class="icon-btn edit" title="تعديل" @click="openEdit(recipe)">
+              <AppIcon name="edit" :size="16" />
+            </button>
+            <button class="icon-btn" title="إنتاج دفعة" @click="openProduce(recipe)">
+              <AppIcon name="coffee" :size="16" />
+            </button>
+            <button class="icon-btn danger" title="حذف" @click="deleteRecipe(recipe.id)">
+              <AppIcon name="delete" :size="16" />
+            </button>
           </div>
         </div>
 
@@ -216,12 +228,11 @@
 
         <p v-if="formError" class="form-error">{{ formError }}</p>
 
-        <div class="modal-actions">
-          <button class="btn btn-primary" :disabled="saving" @click="saveRecipe">
+          <button class="btn btn-outline" @click="closeForm">إلغاء</button>
+          <button class="btn btn-save" :disabled="saving" @click="saveRecipe">
+            <AppIcon name="save" :size="16" />
             {{ saving ? '⏳ جاري الحفظ...' : (form.id ? 'حفظ التعديلات' : 'إضافة الوصفة') }}
           </button>
-          <button class="btn btn-outline" @click="closeForm">إلغاء</button>
-        </div>
       </div>
     </div>
 
@@ -269,12 +280,11 @@
           <div v-if="produceError" class="form-error">{{ produceError }}</div>
         </div>
 
-        <div class="modal-actions">
-          <button class="btn btn-primary" :disabled="producing" @click="saveProduce">
+          <button class="btn btn-outline" @click="closeProduce">إلغاء</button>
+          <button class="btn btn-save" :disabled="producing" @click="saveProduce">
+            <AppIcon name="check" :size="16" />
             {{ producing ? '⏳ جاري الحفظ...' : produceActionLabel }}
           </button>
-          <button class="btn btn-outline" @click="closeProduce">إلغاء</button>
-        </div>
       </div>
     </div>
 
@@ -366,6 +376,22 @@
             </div>
           </div>
 
+          <div class="form-group" style="margin-top: 14px;">
+            <label style="display: flex; justify-content: space-between; font-size: 0.82rem; font-weight: 600; color: var(--text-muted); margin-bottom: 6px;">
+              <span>تحريك الهامش المستهدف تفاعلياً:</span>
+              <span style="font-weight: 700; color: var(--primary-dark);">{{ calcForm.target_margin || 0 }}%</span>
+            </label>
+            <input 
+              v-model.number="calcForm.target_margin" 
+              type="range" 
+              min="-20" 
+              max="95" 
+              step="1" 
+              class="range-slider" 
+              @input="onTargetMarginInput" 
+            />
+          </div>
+
           <div style="margin-top: 12px; display: flex; justify-content: space-between; font-size: 0.9rem;">
             <span>الحالة الربحية:</span>
             <strong :class="calcMarginClass" style="font-size: 1rem;">
@@ -374,12 +400,10 @@
           </div>
         </div>
 
-        <div class="modal-actions">
-          <button class="btn btn-primary" :disabled="!isCalcValid" @click="convertToRecipe">
-            ✨ تحويل لوصفة حقيقية
-          </button>
           <button class="btn btn-outline" @click="closeCalculator">إلغاء</button>
-        </div>
+          <button class="btn btn-save" :disabled="!isCalcValid" @click="convertToRecipe">
+            <AppIcon name="check" :size="16" /> تحويل لوصفة حقيقية
+          </button>
       </div>
     </div>
 
@@ -495,12 +519,11 @@
           </div>
           <p v-if="reverseError" class="form-error">{{ reverseError }}</p>
         </div>
-        <div class="modal-actions">
-          <button class="btn btn-danger" :disabled="reversing" @click="doReverse">
+          <button class="btn btn-outline" @click="showReverseModal = false">إلغاء</button>
+          <button class="btn btn-delete" :disabled="reversing" @click="doReverse">
+            <AppIcon name="delete" :size="16" />
             {{ reversing ? '⏳ جاري العكس...' : 'تأكيد العكس' }}
           </button>
-          <button class="btn btn-outline" @click="showReverseModal = false">إلغاء</button>
-        </div>
       </div>
     </div>
 
@@ -869,16 +892,13 @@ const load = async () => {
     recipes.value = rawRecipes.map((r) => {
       const branchProd = branchProds.find((bp) => bp.id === r.product_id);
       const enrichedItems = (r.items || []).map((item) => {
-        const bpItem = branchProd?.recipe_items?.find?.(
-          (ri) => ri.ingredient_product_id === item.ingredient_product_id
-        );
-        // Prefer branch-specific stock (bpItem) for the selected warehouse, fall back to global total_stock
         const p = allProducts.value.find((prod) => prod.id === item.ingredient_product_id);
-        const branchStock = bpItem?.stock_available ?? item.stock_available ?? null;
         const globalStock = p ? Number(p.total_stock || 0) : null;
+        
+        // Use global stock across all warehouses to prevent false "insufficient stock" warnings
         return {
           ...item,
-          stock_available: branchStock != null ? Number(branchStock) : (globalStock != null ? Number(globalStock) : 0),
+          stock_available: globalStock != null ? Number(globalStock) : (item.stock_available || 0),
         };
       });
 
@@ -1121,6 +1141,32 @@ onMounted(async () => {
 
 <style lang="scss" scoped>
 .recipes-page { display: flex; flex-direction: column; gap: 20px; }
+
+/* Range Slider */
+.range-slider {
+  -webkit-appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--border);
+  outline: none;
+  margin: 6px 0;
+  
+  &::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #2e7d4f;
+    cursor: pointer;
+    transition: transform 0.1s;
+    
+    &:hover {
+      transform: scale(1.2);
+    }
+  }
+}
 
 .page-header {
   display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;

@@ -2,9 +2,11 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
+import './services/loggerService.js';
 import rateLimit from 'express-rate-limit';
 import path from 'path';
 import fs from 'fs';
+import https from 'https';
 import { fileURLToPath } from 'url';
 import config from './config/index.js';
 import routes from './routes/index.js';
@@ -12,6 +14,7 @@ import { authenticate, authorize } from './middleware/auth.js';
 import { errorHandler, notFound } from './middleware/errorHandler.js';
 import pool from './database/pool.js';
 import { initAutoBackupScheduler } from './services/autoBackupService.js';
+import { initWebSocket } from './services/websocketService.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -57,9 +60,50 @@ if (fs.existsSync(frontendDist)) {
 app.use(notFound);
 app.use(errorHandler);
 
-app.listen(config.port, () => {
+
+
+const server = app.listen(config.port, async () => {
   console.log(`بن العجوز ERP API → http://localhost:${config.port}`);
   console.log(`= Dashboard API  http://localhost:${config.port}/api/v1/dashboard`);
 
+  initWebSocket(server);
   initAutoBackupScheduler();
+
+  // Start Database Maintenance Scheduler
+  try {
+    const { initDatabaseMaintenanceScheduler } = await import('./services/maintenanceService.js');
+    initDatabaseMaintenanceScheduler();
+  } catch (e) {
+    console.error('Failed to start maintenance scheduler:', e.message);
+  }
+
+  // Start Database Migrations Sync (Self-Healing)
+  try {
+    const { runMigrations } = await import('../scripts/migrate.js');
+    await runMigrations();
+  } catch (e) {
+    console.error('Failed to run database migrations:', e.message);
+    process.exit(1);
+  }
 });
+
+// Start HTTPS Server if certificates exist
+const keyPath = path.join(__dirname, '../certs/key.pem');
+const certPath = path.join(__dirname, '../certs/cert.pem');
+
+if (fs.existsSync(keyPath) && fs.existsSync(certPath)) {
+  try {
+    const sslOptions = {
+      key: fs.readFileSync(keyPath),
+      cert: fs.readFileSync(certPath),
+    };
+    const httpsServer = https.createServer(sslOptions, app);
+    const httpsPort = process.env.HTTPS_PORT || 3443;
+    httpsServer.listen(httpsPort, () => {
+      console.log(`🔒 Secure HTTPS Server → https://localhost:${httpsPort}`);
+      initWebSocket(httpsServer);
+    });
+  } catch (sslErr) {
+    console.error('⚠️ Failed to start HTTPS Server:', sslErr.message);
+  }
+}

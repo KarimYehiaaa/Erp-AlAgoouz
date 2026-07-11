@@ -1,3 +1,5 @@
+import { logger } from '../services/loggerService.js';
+
 export class AppError extends Error {
   constructor(message, statusCode = 400, code = 'APP_ERROR') {
     super(message);
@@ -15,8 +17,11 @@ export const errorHandler = (err, req, res, _next) => {
   const statusCode = err.statusCode || 500;
   const message = err.message || 'حدث خطأ غير متوقع';
 
-  if (process.env.NODE_ENV !== 'production') {
-    console.error(err);
+  // Log error using Winston
+  if (statusCode >= 500) {
+    logger.error('Internal Server Error: %s', err.stack || err);
+  } else {
+    logger.warn('Client Error (%d): %s', statusCode, message);
   }
 
   res.status(statusCode).json({

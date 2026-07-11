@@ -19,6 +19,13 @@
           <label>إلى</label>
           <input v-model="filters.to_date" type="date" />
         </div>
+        <div class="form-group month-picker-group">
+          <label>&nbsp;</label>
+          <div class="month-filter-btn" title="اختر الشهر بالكامل">
+            <AppIcon name="calendar" :size="18" />
+            <input type="month" class="month-picker-overlay" @change="selectMonth" />
+          </div>
+        </div>
         <div class="quick-dates">
           <button @click="setQuick('today')">اليوم</button>
           <button @click="setQuick('week')">أسبوع</button>
@@ -743,6 +750,7 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue';
+import AppIcon from '@/components/AppIcon.vue';
 import { reports as reportsApi, pl as plApi } from '@/api';
 import { formatMoney } from '@/utils/currency';
 
@@ -778,6 +786,19 @@ const firstOfMonth = `${today.getFullYear()}-${String(today.getMonth()+1).padSta
 const filters = reactive({ from_date: firstOfMonth, to_date: todayStr });
 
 // ── quick date helpers ──
+const selectMonth = (event) => {
+  const value = event.target.value;
+  if (!value) return;
+  const [year, month] = value.split('-').map(Number);
+  const fromDate = `${year}-${String(month).padStart(2, '0')}-01`;
+  const lastDay = new Date(year, month, 0).getDate();
+  const toDate = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+  
+  filters.from_date = fromDate;
+  filters.to_date = toDate;
+  loadActiveTab();
+};
+
 const setQuick = (range) => {
   const now = new Date();
   const fmt = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -1026,6 +1047,40 @@ onMounted(() => loadTab('summary'));
     .form-group { display: flex; flex-direction: column; gap: 4px;
       label { font-size: 0.75rem; color: var(--text-muted); font-weight: 700; }
       input { padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg); font-size: 0.88rem; }
+    }
+    .month-picker-group {
+      border: none !important;
+      background: transparent !important;
+      padding: 0 !important;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+    }
+    .month-filter-btn {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--bg-elevated);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .month-filter-btn:hover {
+      background: var(--bg-hover);
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+    .month-picker-overlay {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      width: 100%;
+      height: 100%;
+      cursor: pointer;
     }
   }
   .quick-dates {

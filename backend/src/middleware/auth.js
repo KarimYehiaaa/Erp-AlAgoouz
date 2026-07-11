@@ -77,7 +77,9 @@ export const auditLog = (action, entityType) => async (req, res, next) => {
          VALUES ($1, $2, $3, $4, $5, $6)`,
         [req.user.id, action, entityType, entityId, JSON.stringify(data ?? {}), req.ip]
       );
-    } catch (_) { /* silent */ }
+    } catch (auditErr) {
+      console.error('[AuditLog] فشل حفظ سجل التدقيق:', auditErr.message);
+    }
   };
 
   res.json = async (body) => {

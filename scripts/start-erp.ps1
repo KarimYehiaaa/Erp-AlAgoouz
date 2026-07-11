@@ -10,22 +10,8 @@ if (-not $pg) {
     Write-Host "Warning: PostgreSQL service may not be running." -ForegroundColor Yellow
 }
 
-$pm2 = Get-Command pm2 -ErrorAction SilentlyContinue
-if ($pm2) {
-    Write-Host "Starting with PM2..." -ForegroundColor Green
-    pm2 delete bin-al-ajouz-api 2>$null
-    pm2 delete bin-al-ajouz-web 2>$null
-    pm2 start ecosystem.config.cjs
-    pm2 save 2>$null
-    Write-Host ""
-    Write-Host "OK - running in background:" -ForegroundColor Green
-    Write-Host "  API: http://localhost:3000"
-    Write-Host "  Web: http://localhost:5173"
-    Write-Host ""
-    Write-Host "Commands: pm2 status | pm2 logs | pm2 stop all"
-    Write-Host "Auto on Windows boot (once, as Admin): pm2 startup"
-    exit 0
-}
+# Bypass PM2 to launch directly in separate windows for maximum local reliability
+# (PM2 has session/permissions conflicts on this system)
 
 Write-Host "Starting in separate windows (no PM2)..." -ForegroundColor Yellow
 

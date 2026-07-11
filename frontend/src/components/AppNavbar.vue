@@ -17,32 +17,15 @@
     </div>
 
     <div class="navbar-end">
-      <div class="search-wrap">
+      <div class="search-wrap" @click.prevent="triggerCommandPalette" style="cursor: pointer;">
         <AppIcon class="search-icon" name="search" />
         <input
-          v-model="search"
-          type="search"
-          placeholder="بحث سريع..."
+          type="text"
+          placeholder="بحث سريع أو تنقل... (Ctrl+K)"
           class="search-input"
-          @focus="searchFocused = true"
-          @keydown.enter.prevent="openFirstResult"
-          @keydown.esc.prevent="clearSearch"
+          readonly
+          style="cursor: pointer;"
         />
-        <div v-if="showSearchResults" class="search-results">
-          <button
-            v-for="item in searchResults"
-            :key="`${item.type}-${item.id || item.to}`"
-            type="button"
-            class="search-result"
-            @mousedown.prevent="openSearchResult(item)"
-          >
-            <span class="result-type">{{ item.badge }}</span>
-            <span class="result-main">{{ item.title }}</span>
-            <small>{{ item.subtitle }}</small>
-          </button>
-          <div v-if="searchLoading" class="search-empty">جاري البحث...</div>
-          <div v-else-if="!searchResults.length" class="search-empty">لا توجد نتائج مطابقة</div>
-        </div>
       </div>
 
       <div class="theme-switcher" ref="themeMenuRoot">
@@ -58,7 +41,7 @@
           <div v-if="themeMenuOpen" class="theme-menu">
             <div class="theme-menu-head">
               <strong>نمط الواجهة</strong>
-              <button type="button" class="theme-mode-toggle" @click="appStore.toggleColorMode">
+              <button type="button" class="theme-mode-toggle" @click="appStore.toggleColorMode($event)">
                 <AppIcon :name="appStore.colorMode === 'light' ? 'moon' : 'sun'" />
                 <span>{{ appStore.colorMode === 'light' ? 'داكن' : 'فاتح' }}</span>
               </button>
@@ -82,6 +65,53 @@
         </transition>
       </div>
 
+      <!-- مؤشر حالة الاتصال بالإنترنت والمزامنة الخلفية -->
+      <div 
+        class="network-status" 
+        :class="{ online: appStore.isOnline, offline: !appStore.isOnline }"
+        :title="appStore.isOnline ? 'النظام متصل بالإنترنت' : 'النظام يعمل دون اتصال (أوفلاين)'"
+      >
+        <span class="pulse-indicator"></span>
+        <span class="status-text">{{ appStore.isOnline ? 'متصل' : 'أوفلاين' }}</span>
+        <span v-if="appStore.pendingSyncCount > 0" class="sync-badge" title="مبيعات معلقة بانتظار المزامنة">
+          {{ appStore.pendingSyncCount }} معلقة
+        </span>
+      </div>
+
+      <!-- Privacy Toggle (Eye icon) -->
+      <button
+        class="icon-btn"
+        type="button"
+        @click="appStore.togglePrivacyMode"
+        :title="appStore.privacyMode ? 'إظهار المبالغ (وضع الخصوصية مفعل)' : 'طمس المبالغ (تفعيل وضع الخصوصية)'"
+        :class="{ active: appStore.privacyMode }"
+      >
+        <AppIcon :name="appStore.privacyMode ? 'eyeOff' : 'eye'" />
+      </button>
+
+      <!-- Data Density Toggle -->
+      <button
+        class="icon-btn"
+        type="button"
+        @click="appStore.toggleDataDensity"
+        :title="appStore.dataDensity === 'compact' ? 'كثافة البيانات: كثيفة (تبديل للمريح)' : 'كثافة البيانات: مريحة (تبديل للمكثف)'"
+        :class="{ active: appStore.dataDensity === 'compact' }"
+      >
+        <AppIcon :name="appStore.dataDensity === 'compact' ? 'maximize' : 'minimize'" />
+      </button>
+
+
+      <button
+        class="icon-btn notification-btn"
+        type="button"
+        @click="appStore.toggleNotificationDrawer"
+        title="تنبيهات التشغيل"
+        style="position: relative;"
+      >
+        <AppIcon name="warning" />
+        <span v-if="appStore.notifications.length" class="notification-badge">{{ appStore.notifications.length }}</span>
+      </button>
+
       <div class="user-chip">
         <div class="user-avatar">{{ userInitial }}</div>
         <div class="user-meta">
@@ -100,9 +130,10 @@
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import AppIcon from '@/components/AppIcon.vue';
-import { useAppStore, STYLE_PRESETS } from '@/stores/app';
+import { useAppStore, STYLE_PRESETS, STYLE_SWATCHES } from '@/stores/app';
 import { useAuthStore } from '@/stores/auth';
-import { products as productsApi, customers as customersApi } from '@/api';
+import { products as productsApi, customers as customersApi, sales as salesApi, operations as operationsApi } from '@/api';
+import { localDb } from '@/services/localDb';
 
 const route = useRoute();
 const router = useRouter();
@@ -115,12 +146,11 @@ const remoteResults = ref([]);
 const themeMenuOpen = ref(false);
 const themeMenuRoot = ref(null);
 let searchTimer = null;
-
-const presetSwatches = {
-  modern: 'linear-gradient(135deg, #2563eb, #0f766e)',
-  graphite: 'linear-gradient(135deg, #475467, #98a2b3)',
-  contrast: 'linear-gradient(135deg, #0f766e, #f59e0b)',
+const triggerCommandPalette = () => {
+  window.dispatchEvent(new CustomEvent('open-command-palette'));
 };
+
+const presetSwatches = STYLE_SWATCHES;
 
 const titles = {
   Dashboard: ['لوحة التحكم', 'مؤشرات التشغيل والتحصيل والمخزون'],
@@ -249,8 +279,94 @@ const handleDocumentClick = (event) => {
   }
 };
 
-onMounted(() => document.addEventListener('click', handleDocumentClick));
-onBeforeUnmount(() => document.removeEventListener('click', handleDocumentClick));
+// ─── Network & Sync Logic ───
+const syncOfflineSales = async () => {
+  if (!navigator.onLine) return;
+  try {
+    const offlineSales = await localDb.getOfflineSales();
+    appStore.pendingSyncCount = offlineSales.length;
+    if (!offlineSales.length) return;
+
+    console.log(`Starting sync of ${offlineSales.length} offline sales...`);
+    for (const sale of offlineSales) {
+      const { offline_id, sale_number, created_at, ...cleanSale } = sale;
+      try {
+        await salesApi.create(cleanSale);
+        await localDb.deleteOfflineSale(offline_id);
+      } catch (err) {
+        console.error(`Failed to sync offline sale ${offline_id}:`, err);
+        break; // Stop syncing to maintain correct chronological order
+      }
+    }
+
+    const remaining = await localDb.getOfflineSales();
+    appStore.pendingSyncCount = remaining.length;
+    
+    appStore.triggerDataRefresh();
+  } catch (err) {
+    console.error('Error during background sync:', err);
+  }
+};
+
+const updateOnlineStatus = () => {
+  appStore.isOnline = navigator.onLine;
+  if (navigator.onLine) {
+    syncOfflineSales();
+  }
+};
+
+let alertsInterval = null;
+const loadAlertsBackground = async () => {
+  if (!navigator.onLine) return;
+  try {
+    const res = await operationsApi.alerts();
+    appStore.notifications = res.data?.alerts || res.alerts || [];
+  } catch (e) {
+    console.warn('Failed to load background alerts:', e);
+  }
+};
+
+let syncInterval = null;
+
+onMounted(() => {
+  document.addEventListener('click', handleDocumentClick);
+  
+  // Listen to network changes
+  window.addEventListener('online', updateOnlineStatus);
+  window.addEventListener('offline', updateOnlineStatus);
+  
+  // Initial check and sync
+  updateOnlineStatus();
+  localDb.getOfflineSales().then((sales) => {
+    appStore.pendingSyncCount = sales.length;
+    if (navigator.onLine && sales.length > 0) {
+      syncOfflineSales();
+    }
+  });
+
+  // Set up periodic sync
+  syncInterval = setInterval(() => {
+    if (navigator.onLine) {
+      syncOfflineSales();
+    }
+  }, 30000);
+
+  // Background alerts fetch
+  loadAlertsBackground();
+  alertsInterval = setInterval(loadAlertsBackground, 60000);
+});
+
+onBeforeUnmount(() => {
+  document.removeEventListener('click', handleDocumentClick);
+  window.removeEventListener('online', updateOnlineStatus);
+  window.removeEventListener('offline', updateOnlineStatus);
+  if (syncInterval) {
+    clearInterval(syncInterval);
+  }
+  if (alertsInterval) {
+    clearInterval(alertsInterval);
+  }
+});
 </script>
 
 <style lang="scss" scoped>
@@ -318,6 +434,30 @@ onBeforeUnmount(() => document.removeEventListener('click', handleDocumentClick)
     color: var(--primary-dark);
   }
 }
+
+.notification-btn {
+  position: relative;
+  
+  .notification-badge {
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    background: var(--danger);
+    color: #fff;
+    font-size: 0.65rem;
+    font-weight: 900;
+    border-radius: 999px;
+    border: 1.5px solid var(--bg-elevated);
+    box-shadow: 0 0 6px var(--danger);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
 
 .search-wrap {
   position: relative;
@@ -535,5 +675,77 @@ onBeforeUnmount(() => document.removeEventListener('click', handleDocumentClick)
   .page-sub,
   .user-meta { display: none; }
   .search-input { width: min(190px, 42vw); }
+  .network-status .status-text { display: none; }
+}
+
+.network-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  font-size: 0.78rem;
+  font-weight: 700;
+  transition: all 0.3s ease;
+
+  &.online {
+    color: var(--success);
+    border-color: color-mix(in srgb, var(--success) 30%, var(--border));
+    background: color-mix(in srgb, var(--success) 6%, var(--bg-elevated));
+    .pulse-indicator {
+      background: var(--success);
+      box-shadow: 0 0 8px var(--success);
+    }
+  }
+
+  &.offline {
+    color: var(--danger);
+    border-color: color-mix(in srgb, var(--danger) 30%, var(--border));
+    background: color-mix(in srgb, var(--danger) 6%, var(--bg-elevated));
+    .pulse-indicator {
+      background: var(--danger);
+      box-shadow: 0 0 8px var(--danger);
+    }
+  }
+}
+
+.pulse-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  position: relative;
+  display: inline-block;
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    border-radius: 50%;
+    background: inherit;
+    animation: status-pulse 1.8s infinite ease-in-out;
+  }
+}
+
+@keyframes status-pulse {
+  0% { transform: scale(1); opacity: 0.8; }
+  100% { transform: scale(2.5); opacity: 0; }
+}
+
+.sync-badge {
+  background: var(--warning);
+  color: #000;
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-size: 0.7rem;
+  font-weight: 900;
+  box-shadow: 0 0 6px var(--warning);
+  animation: sync-badge-pulse 1.5s infinite alternate;
+}
+
+@keyframes sync-badge-pulse {
+  0% { transform: scale(1); }
+  100% { transform: scale(1.05); }
 }
 </style>

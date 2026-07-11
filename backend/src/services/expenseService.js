@@ -1,5 +1,7 @@
 import { query } from '../database/pool.js';
 import { AppError } from '../middleware/errorHandler.js';
+import { invalidateDashboardCache } from './dashboardService.js';
+import { broadcast } from './websocketService.js';
 const sanitizeLimit = (value, fallback = 100, max = 500) => {
   const n = Math.floor(Number(value));
   if (!Number.isFinite(n) || n <= 0) return fallback;
@@ -20,12 +22,15 @@ export const getExpenses = async (filters = {}) => {
 };
 
 export const createExpense = async (data, userId) => {
-  const num = `EXP-${Date.now()}`;
+  const resSeq = await query(`SELECT nextval('seq_expenses_number') AS next_val`);
+  const num = `EXP-${resSeq.rows[0].next_val}`;
   const result = await query(
     `INSERT INTO expenses (expense_number, category_id, title, amount, expense_date, payment_method, recurring, notes, user_id)
      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
     [num, data.category_id, data.title, data.amount, data.expense_date || new Date(), data.payment_method || 'cash', data.recurring || false, data.notes, userId]
   );
+  invalidateDashboardCache();
+  broadcast('expenses_changed', result.rows[0]);
   return result.rows[0];
 };
 
@@ -44,6 +49,8 @@ export const updateExpense = async (id, data) => {
     [data.category_id, data.title, data.amount, data.expense_date, data.payment_method, data.recurring, data.notes, id]
   );
   if (!result.rows[0]) throw new AppError('المصروف غير موجود', 404);
+  invalidateDashboardCache();
+  broadcast('expenses_changed', result.rows[0]);
   return result.rows[0];
 };
 
@@ -71,5 +78,61 @@ export const getExpenseReport = async (year, month) => {
 
 export const deleteExpense = async (id) => {
   await query(`UPDATE expenses SET deleted_at = NOW() WHERE id = $1`, [id]);
+  invalidateDashboardCache();
+  broadcast('expenses_changed', { id });
 };
+
+export const suggestCategory = async (title = '') => {
+  const cleanTitle = String(title || '').trim();
+  if (!cleanTitle) return null;
+
+  // 1. محاولة مطابقة العنوان مع فواتير سابقة لمعرفة الفئة الأكثر تكراراً
+  const dbMatch = await query(
+    `SELECT category_id, COUNT(*) as cnt
+     FROM expenses
+     WHERE deleted_at IS NULL AND title ILIKE $1
+     GROUP BY category_id
+     ORDER BY cnt DESC
+     LIMIT 1`,
+    [`%${cleanTitle}%`]
+  );
+
+  if (dbMatch.rows.length > 0) {
+    return { category_id: dbMatch.rows[0].category_id };
+  }
+
+  // 2. استخدام معجم الكلمات المفتاحية في حال عدم وجود سجلات سابقة
+  const KEYWORD_MAP = [
+    { keywords: ['كهرباء', 'نور', 'إنارة'], slug: 'electricity' },
+    { keywords: ['إيجار', 'ايجار', 'محل', 'إيجار السكن'], slug: 'rent' },
+    { keywords: ['مرتب', 'راتب', 'رواتب', 'سلفة', 'مرتبات'], slug: 'salaries' },
+    { keywords: ['صيانة', 'تصليح', 'ترميم', 'سباكة', 'أعطال'], slug: 'maintenance' },
+    { keywords: ['بن', 'حبوب', 'كوب', 'أكواب', 'حليب', 'سكر', 'خامات'], slug: 'raw-materials' },
+    { keywords: ['مياه', 'ماء', 'انترنت', 'نت', 'فاتورة', 'فواتير', 'غاز', 'هاتف'], slug: 'bills' },
+    { keywords: ['يومية', 'شاي', 'ضيافة', 'مناديل', 'صابون', 'نظافة', 'غداء'], slug: 'daily' }
+  ];
+
+  const words = cleanTitle.split(/\s+/);
+  let matchedSlug = null;
+  
+  for (const word of words) {
+    const match = KEYWORD_MAP.find(k => k.keywords.some(kw => word.includes(kw) || kw.includes(word)));
+    if (match) {
+      matchedSlug = match.slug;
+      break;
+    }
+  }
+
+  if (matchedSlug) {
+    const catRes = await query("SELECT id FROM expense_categories WHERE slug = $1 AND is_active = TRUE", [matchedSlug]);
+    if (catRes.rows.length > 0) {
+      return { category_id: catRes.rows[0].id };
+    }
+  }
+
+  // 3. السقوط الافتراضي على فئة "أخرى"
+  const otherRes = await query("SELECT id FROM expense_categories WHERE slug = 'other'");
+  return otherRes.rows.length > 0 ? { category_id: otherRes.rows[0].id } : null;
+};
+
 

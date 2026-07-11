@@ -16,7 +16,8 @@ defineProps({
   rounded: { type: Boolean, default: true },
 });
 
-const logoSrc = ref('/logo.png');
+// Use the transparent logo with cache buster
+const logoSrc = ref('/logo.png?v=3');
 const onError = () => {
   if (logoSrc.value !== '/logo.svg') logoSrc.value = '/logo.svg';
 };
@@ -26,7 +27,7 @@ const onError = () => {
 .app-logo {
   object-fit: contain;
   display: block;
-  background: #fff;
+  transition: all 0.3s ease;
 
   &.rounded { border-radius: var(--radius-sm); }
   &.size-sm { width: 36px; height: 36px; }
@@ -34,5 +35,10 @@ const onError = () => {
   &.size-lg { width: 88px; height: 88px; }
   &.size-xl { width: 120px; height: 120px; }
   &.size-xxl { width: 168px; height: 168px; }
+}
+
+/* Subtle glow for dark mode to ensure it's visible if it has dark text */
+:global([data-theme='dark']) .app-logo {
+  filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.15));
 }
 </style>

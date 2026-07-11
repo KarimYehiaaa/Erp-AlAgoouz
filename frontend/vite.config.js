@@ -7,12 +7,24 @@ export default defineConfig({
   resolve: {
     alias: { '@': path.resolve(__dirname, 'src') },
   },
+  css: {
+    preprocessorOptions: {
+      scss: {
+        api: 'modern-compiler',
+      },
+    },
+  },
   build: {
+    // pdf-export is a lazy fallback chunk for client-side PDF generation.
+    chunkSizeWarningLimit: 800,
     rollupOptions: {
       output: {
-        manualChunks: {
-          chartjs: ['chart.js'],
-          html2pdf: ['html2pdf.js'],
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return undefined;
+          if (id.includes('chart.js')) return 'chartjs';
+          if (id.includes('html2pdf.js')) return 'pdf-export';
+          if (id.includes('jspdf') || id.includes('html2canvas')) return 'pdf-vendor';
+          return undefined;
         },
       },
     },

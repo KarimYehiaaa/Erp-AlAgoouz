@@ -17,6 +17,8 @@ BEGIN
       'purchase_reversal',
       'sale',
       'consumption',
+      'production',
+      'opening_production',
       'return',
       'transfer',
       'adjustment'

@@ -12,9 +12,31 @@ import {
   getProductsEffectiveCosts,
   unitPriceFor,
 } from '../src/services/productCostService.js';
+import { parseInvoiceData } from '../src/services/invoiceService.js';
+import { parsePurchaseAmount } from '../src/services/purchaseService.js';
+import { parseLocalizedNumber } from '../src/utils/numberParsing.js';
 
 test.after(async () => {
   await pool.end();
+});
+
+test('parses purchase decimal amounts from common Arabic inputs', () => {
+  assert.equal(parsePurchaseAmount('1.25'), 1.25);
+  assert.equal(parsePurchaseAmount('1,25'), 1.25);
+  assert.equal(parsePurchaseAmount('١٫٢٥'), 1.25);
+  assert.equal(parsePurchaseAmount('۱٫۲۵'), 1.25);
+});
+
+test('purchase price refresh keeps weighted-average cost rule', async () => {
+  const source = await import('node:fs/promises')
+    .then((fs) => fs.readFile(new URL('../src/services/purchaseService.js', import.meta.url), 'utf8'));
+  const refreshSource = source.slice(
+    source.indexOf('const refreshPurchasePrices'),
+    source.indexOf('export const listPurchaseInvoices')
+  );
+
+  assert.match(refreshSource, /SUM\(pii\.total_amount\) \/ NULLIF\(SUM\(pii\.quantity\), 0\)/);
+  assert.doesNotMatch(refreshSource, /ORDER BY pi\.invoice_date DESC[\s\S]*LIMIT 1/);
 });
 
 test('calculates item sale totals with item and sale adjustments', () => {
@@ -33,6 +55,13 @@ test('calculates item sale totals with item and sale adjustments', () => {
     totals.items.map((item) => item.total_amount),
     [90, 30] // Item 2 tax is forced to 0: 30 instead of 33
   );
+});
+
+test('rejects invalid invoice-level sale discounts', () => {
+  const items = [{ product_id: 1, quantity: 1, unit_price: 100, discount_amount: 0 }];
+
+  assert.throws(() => calculateSaleTotals(items, { discount_amount: -1 }), /discount cannot be negative/i);
+  assert.throws(() => calculateSaleTotals(items, { discount_amount: 101 }), /discount cannot exceed invoice total/i);
 });
 
 test('does not create a paid amount for unpaid sales', () => {

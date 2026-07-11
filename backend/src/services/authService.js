@@ -23,11 +23,13 @@ export const login = async (username, password) => {
     // bcrypt — الطريقة الآمنة والمعتمدة
     valid = await bcrypt.compare(password, hash);
   } else {
-    // كلمة مرور قديمة (غير bcrypt) — يُطلب من المستخدم التواصل مع الأدمن
-    throw new AppError(
-      'كلمة مرورك قديمة وغير مدعومة. تواصل مع مسؤول النظام لإعادة تعيينها.',
-      401
-    );
+    // كلمة مرور قديمة (غير bcrypt) — نقارنها مباشرة لترقيتها تلقائياً إلى bcrypt
+    if (password === hash) {
+      valid = true;
+      const newHash = await bcrypt.hash(password, 10);
+      await query('UPDATE users SET password_hash = $1 WHERE id = $2', [newHash, user.id]);
+      console.log(`🔒 [بن العجوز ERP] تم ترقية كلمة المرور تلقائياً لـ ${user.username} إلى bcrypt.`);
+    }
   }
   if (!valid) {
     throw new AppError('اسم المستخدم أو كلمة المرور غير صحيحة', 401);
@@ -60,5 +62,14 @@ export const getProfile = async (userId) => {
      FROM users u JOIN roles r ON u.role_id = r.id WHERE u.id = $1`,
     [userId]
   );
-  return result.rows[0];
+  const user = result.rows[0];
+  if (!user) throw new AppError('المستخدم غير موجود', 404);
+
+  const perms = await query(
+    `SELECT p.code, p.name_ar, p.module FROM permissions p
+     JOIN role_permissions rp ON p.id = rp.permission_id WHERE rp.role_id = $1`,
+    [user.role_id]
+  );
+
+  return { user, permissions: perms.rows };
 };

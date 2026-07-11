@@ -7,7 +7,27 @@ export const validate = (schema) => (req, res, next) => {
     req.validated = parsed;
     next();
   } catch (err) {
-    const message = err.errors?.map((e) => `${e.path.join('.')}: ${e.message}`).join(' ') || '(J'F'* :J1 5'D-)';
+    const message = err.errors?.map((e) => `${e.path.join('.')}: ${e.message}`).join(' | ') || 'بيانات غير صالحة';
+    next(new AppError(message, 400, 'VALIDATION_ERROR'));
+  }
+};
+
+export const validateBody = (schema) => (req, res, next) => {
+  try {
+    req.body = schema.parse(req.body);
+    next();
+  } catch (err) {
+    const message = err.errors?.map((e) => `${e.path.join('.')}: ${e.message}`).join(' | ') || 'بيانات غير صالحة';
+    next(new AppError(message, 400, 'VALIDATION_ERROR'));
+  }
+};
+
+export const validateQuery = (schema) => (req, res, next) => {
+  try {
+    req.query = schema.parse(req.query);
+    next();
+  } catch (err) {
+    const message = err.errors?.map((e) => `${e.path.join('.')}: ${e.message}`).join(' | ') || 'بيانات غير صالحة';
     next(new AppError(message, 400, 'VALIDATION_ERROR'));
   }
 };

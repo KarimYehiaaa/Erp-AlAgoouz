@@ -9,6 +9,8 @@
       <router-link to="/invoices/create" class="btn btn-outline">فاتورة جديدة</router-link>
     </div>
 
+    <div v-if="pdfError" class="pdf-error no-print">{{ pdfError }}</div>
+
     <div id="invoice-pdf-root" class="invoice-print-wrap">
       <InvoiceDocument :invoice="invoice" />
     </div>
@@ -27,6 +29,7 @@ const route = useRoute();
 const invoice = ref(null);
 const loading = ref(true);
 const pdfLoading = ref(false);
+const pdfError = ref('');
 
 onMounted(async () => {
   try {
@@ -43,23 +46,33 @@ const downloadPdf = async () => {
   const el = document.getElementById('invoice-pdf-root');
   if (!el || !invoice.value) return;
   pdfLoading.value = true;
+  pdfError.value = '';
   try {
-    const { default: html2pdf } = await import('html2pdf.js');
-    await html2pdf()
-      .set({
-        margin: [8, 8, 8, 8],
-        filename: `invoice-${invoice.value.invoice_number}.pdf`,
-        image: { type: 'jpeg', quality: 0.95 },
-        html2canvas: { scale: 2, useCORS: true, logging: false },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-      })
-      .from(el)
-      .save();
-  } catch {
     await downloadServerPdf();
+  } catch {
+    try {
+      await downloadClientPdf(el);
+    } catch (error) {
+      console.error(error);
+      pdfError.value = 'تعذر تحميل ملف PDF. يرجى المحاولة مرة أخرى أو استخدام أمر الطباعة.';
+    }
   } finally {
     pdfLoading.value = false;
   }
+};
+
+const downloadClientPdf = async (el) => {
+  const { default: html2pdf } = await import('html2pdf.js');
+  await html2pdf()
+    .set({
+      margin: [8, 8, 8, 8],
+      filename: `invoice-${invoice.value.invoice_number}.pdf`,
+      image: { type: 'jpeg', quality: 0.95 },
+      html2canvas: { scale: 2, useCORS: true, logging: false },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+    })
+    .from(el)
+    .save();
 };
 
 const downloadServerPdf = async () => {
@@ -80,6 +93,15 @@ const downloadServerPdf = async () => {
   flex-wrap: wrap;
   gap: 10px;
   margin-bottom: 20px;
+}
+.pdf-error {
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--danger) 28%, transparent);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--danger) 8%, transparent);
+  color: var(--danger);
+  font-weight: 700;
 }
 .invoice-print-wrap {
   box-shadow: var(--shadow);

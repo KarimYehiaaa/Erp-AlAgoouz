@@ -8,7 +8,7 @@ export const login = async (username, password) => {
   const result = await query(
     `SELECT u.*, r.name as role_name, r.name_ar as role_name_ar
      FROM users u JOIN roles r ON u.role_id = r.id
-     WHERE (u.username = $1 OR u.email = $1) AND u.deleted_at IS NULL`,
+     WHERE (LOWER(u.username) = LOWER($1) OR LOWER(u.email) = LOWER($1)) AND u.deleted_at IS NULL`,
     [username]
   );
 

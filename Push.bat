@@ -9,6 +9,6 @@ git commit -m "Auto backup: %date% %time%"
 git push
 
 echo =======================================
-echo     🎉 تم رفع التعديلات بنجاح! 🎉
+echo     Fol El Fol Ya Kemo
 echo =======================================
 pause

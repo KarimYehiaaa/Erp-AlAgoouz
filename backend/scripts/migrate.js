@@ -22,6 +22,7 @@ export async function runMigrations() {
     user: process.env.DB_USER || 'erp_user',
     password: process.env.DB_PASSWORD,
     database: process.env.DB_NAME || 'bin_al_ajouz',
+    ...(process.env.DB_SSL === 'true' && { ssl: { rejectUnauthorized: false } }),
   });
 
   try {

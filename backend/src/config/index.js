@@ -26,7 +26,9 @@ export default {
     secret: requireEnv('JWT_SECRET'),
     expiresIn: process.env.JWT_EXPIRES_IN || '8h',
   },
-  corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+  corsOrigin: process.env.CORS_ORIGIN 
+    ? process.env.CORS_ORIGIN.split(',').map((o) => o.trim()) 
+    : 'http://localhost:5173',
   rateLimit: {
     windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000', 10),
     max: parseInt(process.env.RATE_LIMIT_MAX || '200', 10),

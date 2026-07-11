@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: '/api/v1',
+  baseURL: `${import.meta.env.VITE_API_URL || ''}/api/v1`,
   headers: {
     'Content-Type': 'application/json',
     'Cache-Control': 'no-cache',
@@ -228,7 +228,7 @@ export const invoices = {
   delete: (id) => api.delete(`/invoices/${id}`),
   downloadPdf: async (id) => {
     const token = localStorage.getItem('token');
-    const res = await fetch(`/api/v1/invoices/${id}/pdf`, {
+    const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/v1/invoices/${id}/pdf`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
     if (!res.ok) {

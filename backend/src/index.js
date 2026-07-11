@@ -82,7 +82,7 @@ const server = app.listen(config.port, async () => {
     const { runMigrations } = await import('../scripts/migrate.js');
     await runMigrations();
   } catch (e) {
-    console.error('Failed to run database migrations:', e.message);
+    console.error('Failed to run database migrations:', e);
     process.exit(1);
   }
 });

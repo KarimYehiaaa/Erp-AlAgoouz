@@ -14,9 +14,8 @@ const pool = new Pool({
   user: config.db.user,
   password: config.db.password,
   ...(config.db.ssl && { ssl: { rejectUnauthorized: false } }),
-  // إصلاح pool exhaustion: الـ dashboard وحده كان يطلب 33 connection متوازية
-  // رفعنا الحد من 40 إلى 60 لاستيعاب أكثر من مستخدم في نفس الوقت
-  max: 60,
+  // إذا كنا نتصل بـ Supabase (أو أي قاعدة سحابية عبر SSL)، نحد عدد الاتصالات بـ 10 لتفادي حد الـ Pooler البالغ 15
+  max: config.db.ssl ? 10 : 60,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 15000,
 });

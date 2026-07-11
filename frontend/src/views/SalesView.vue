@@ -1993,18 +1993,45 @@ onMounted(async () => {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.45);
-  backdrop-filter: blur(4px);
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
   z-index: 2000;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 16px;
+  animation: overlayFadeIn 0.2s ease;
 }
+
+@keyframes overlayFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes modalSlideIn {
+  from { opacity: 0; transform: translateY(24px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
 .modal-card {
-  width: min(540px, 95vw);
+  width: min(560px, 95vw);
   max-height: 90vh;
   overflow-y: auto;
-  box-shadow: var(--shadow-xl);
+  /* خلفية الكارت من المتغيرات العامة للثيم */
+  background: var(--card-bg, #fff);
+  border: 1px solid var(--card-border, #e2e8f0);
+  border-radius: var(--radius-lg, 16px);
+  box-shadow: 0 24px 60px -12px rgba(0,0,0,0.35), 0 8px 24px -4px rgba(0,0,0,0.2);
+  /* إيقاف تأثير الـ hover على الكارد داخل الموديل */
+  transform: none !important;
+  animation: modalSlideIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
+
+.modal-card:hover {
+  transform: none !important;
+  box-shadow: 0 24px 60px -12px rgba(0,0,0,0.35), 0 8px 24px -4px rgba(0,0,0,0.2) !important;
+  border-color: var(--card-border, #e2e8f0) !important;
+}
+
 </style>

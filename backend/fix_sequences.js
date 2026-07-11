@@ -9,6 +9,7 @@ const pool = new pg.Pool({
   database: process.env.DB_NAME || 'bin_al_ajouz',
   user: process.env.DB_USER || 'erp_user',
   password: process.env.DB_PASSWORD,
+  ...(process.env.DB_SSL === 'true' && { ssl: { rejectUnauthorized: false } }),
 });
 
 const sql = `

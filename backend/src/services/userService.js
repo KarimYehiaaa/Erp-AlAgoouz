@@ -39,7 +39,40 @@ export const updateUser = async (id, data) => {
   return result.rows[0];
 };
 
-export const getRoles = async () => (await query(`SELECT * FROM roles WHERE deleted_at IS NULL`)).rows;
+export const getRoles = async () => (await query(`SELECT * FROM roles WHERE deleted_at IS NULL ORDER BY id ASC`)).rows;
+
+export const createRole = async (data) => {
+  // منع تكرار الاسم الإنجليزي
+  const existing = await query(`SELECT id FROM roles WHERE name = $1 AND deleted_at IS NULL`, [data.name]);
+  if (existing.rows.length) throw new AppError('يوجد منصب بهذا الاسم بالفعل', 400);
+  const result = await query(
+    `INSERT INTO roles (name, name_ar, description) VALUES ($1, $2, $3) RETURNING *`,
+    [data.name.toLowerCase().replace(/\s+/g, '_'), data.name_ar, data.description || null]
+  );
+  return result.rows[0];
+};
+
+export const updateRole = async (id, data) => {
+  const existing = await query(`SELECT name FROM roles WHERE id = $1 AND deleted_at IS NULL`, [id]);
+  if (!existing.rows[0]) throw new AppError('المنصب غير موجود', 404);
+  if (existing.rows[0].name === 'admin') throw new AppError('لا يمكن تعديل منصب مدير النظام', 400);
+  const result = await query(
+    `UPDATE roles SET name_ar = COALESCE($1, name_ar), description = COALESCE($2, description), updated_at = NOW() WHERE id = $3 AND deleted_at IS NULL RETURNING *`,
+    [data.name_ar, data.description, id]
+  );
+  return result.rows[0];
+};
+
+export const deleteRole = async (id) => {
+  const existing = await query(`SELECT name FROM roles WHERE id = $1 AND deleted_at IS NULL`, [id]);
+  if (!existing.rows[0]) throw new AppError('المنصب غير موجود', 404);
+  if (existing.rows[0].name === 'admin') throw new AppError('لا يمكن حذف منصب مدير النظام', 400);
+  // تحقق من وجود مستخدمين بهذا المنصب
+  const users = await query(`SELECT COUNT(*) FROM users WHERE role_id = $1 AND deleted_at IS NULL`, [id]);
+  if (parseInt(users.rows[0].count) > 0) throw new AppError('لا يمكن حذف منصب مرتبط بمستخدمين. يرجى تغيير منصب المستخدمين أولاً', 400);
+  await query(`UPDATE roles SET deleted_at = NOW() WHERE id = $1`, [id]);
+  return { success: true };
+};
 
 export const getNotifications = async (userId) =>
   (await query(`SELECT * FROM notifications WHERE user_id = $1 OR user_id IS NULL ORDER BY created_at DESC LIMIT 50`, [userId])).rows;

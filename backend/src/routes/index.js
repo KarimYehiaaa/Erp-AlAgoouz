@@ -242,6 +242,17 @@ const updateRolePermissionsSchema = z.object({
   permissionIds: z.array(z.number().int().positive()).default([]),
 }).passthrough();
 
+const createRoleSchema = z.object({
+  name: z.string().trim().min(2).max(50).regex(/^[a-zA-Z0-9_]+$/, 'الاسم الإنجليزي يجب أن يحتوي على حروف وأرقام وشرطة سفلية فقط'),
+  name_ar: z.string().trim().min(2).max(100),
+  description: z.string().trim().max(500).optional(),
+}).passthrough();
+
+const updateRoleSchema = z.object({
+  name_ar: z.string().trim().min(2).max(100).optional(),
+  description: z.string().trim().max(500).optional(),
+}).passthrough();
+
 const shiftSchema = z.object({
   name_ar: shortText(255),
   start_time: shortText(20).optional(),
@@ -585,6 +596,9 @@ router.post('/users', authenticate, authorize('users.manage'), validateBody(user
 router.put('/users/:id', authenticate, authorize('users.manage'), validateBody(userUpdateSchema), auditLog('user_update', 'users'), api.users.update);
 router.delete('/users/:id', authenticate, authorize('users.manage'), auditLog('user_delete', 'users'), api.users.delete);
 router.get('/roles', authenticate, authorize('users.manage'), api.users.roles);
+router.post('/roles', authenticate, authorize('users.manage'), validateBody(createRoleSchema), auditLog('role_create', 'users'), api.users.createRole);
+router.put('/roles/:id', authenticate, authorize('users.manage'), validateBody(updateRoleSchema), auditLog('role_update', 'users'), api.users.updateRole);
+router.delete('/roles/:id', authenticate, authorize('users.manage'), auditLog('role_delete', 'users'), api.users.deleteRole);
 router.get('/permissions', authenticate, authorize('users.manage'), api.users.listPermissions);
 router.get('/roles/:id/permissions', authenticate, authorize('users.manage'), api.users.getRolePermissions);
 router.post('/roles/:id/permissions', authenticate, authorize('users.manage'), validateBody(updateRolePermissionsSchema), auditLog('role_permissions_update', 'users'), api.users.updateRolePermissions);

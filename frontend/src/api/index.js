@@ -254,6 +254,9 @@ export const users = {
   permissions: () => api.get('/permissions'),
   rolePermissions: (roleId) => api.get(`/roles/${roleId}/permissions`),
   updateRolePermissions: (roleId, permissionIds) => api.post(`/roles/${roleId}/permissions`, { permissionIds }),
+  createRole: (data) => api.post('/roles', data),
+  updateRole: (id, data) => api.put(`/roles/${id}`, data),
+  deleteRole: (id) => api.delete(`/roles/${id}`),
 };
 export const reports = (type, params) => api.get(`/reports/${type}`, { params });
 

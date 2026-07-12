@@ -13,7 +13,7 @@ export default {
   port: parseInt(process.env.PORT || '3000', 10),
   nodeEnv: process.env.NODE_ENV || 'development',
   db: {
-    connectionString: process.env.DATABASE_URL || `postgres://${process.env.DB_USER || 'erp_user'}:${encodeURIComponent(requireEnv('DB_PASSWORD'))}@${process.env.DB_HOST || 'localhost'}:${process.env.DB_PORT || '5432'}/${process.env.NODE_ENV === 'test' ? (process.env.DB_NAME_TEST || 'bin_al_ajouz_test') : (process.env.DB_NAME || 'bin_al_ajouz')}?sslmode=require`,
+    connectionString: (process.env.DATABASE_URL || `postgres://${process.env.DB_USER || 'erp_user'}:${encodeURIComponent(requireEnv('DB_PASSWORD'))}@${process.env.DB_HOST || 'localhost'}:${process.env.DB_PORT || '5432'}/${process.env.NODE_ENV === 'test' ? (process.env.DB_NAME_TEST || 'bin_al_ajouz_test') : (process.env.DB_NAME || 'bin_al_ajouz')}`).replace(/\?sslmode=[a-zA-Z-]+/, ''),
     ssl: process.env.DB_SSL === 'true' ? {
       rejectUnauthorized: false
     } : false,

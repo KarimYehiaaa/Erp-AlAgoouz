@@ -3,7 +3,14 @@ import pg from 'pg';
 
 export default async function handler(req, res) {
   let dbError = null;
-  const client = new pg.Client({ connectionString: config.db.connectionString, ssl: { rejectUnauthorized: false } });
+  const client = new pg.Client({
+    host: config.db.host,
+    port: config.db.port,
+    database: config.db.database,
+    user: config.db.user,
+    password: config.db.password,
+    ssl: config.db.ssl
+  });
   try {
     await client.connect();
     await client.end();
@@ -13,12 +20,12 @@ export default async function handler(req, res) {
   }
 
   res.status(200).json({
-    DB_HOST: process.env.DB_HOST,
-    PGHOST: process.env.PGHOST,
-    PGUSER: process.env.PGUSER,
-    PGPASSWORD: process.env.PGPASSWORD ? 'SET' : 'NOT_SET',
-    PGDATABASE: process.env.PGDATABASE,
-    configConnectionString: config.db.connectionString ? config.db.connectionString.replace(/:[^:]+@/, ':***@') : 'UNDEFINED',
+    DATABASE_URL_SET: !!process.env.DATABASE_URL,
+    parsedHost: config.db.host,
+    parsedPort: config.db.port,
+    parsedUser: config.db.user,
+    parsedDatabase: config.db.database,
+    parsedSSL: config.db.ssl ? 'ENABLED' : 'DISABLED',
     dbError
   });
 }

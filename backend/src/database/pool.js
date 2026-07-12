@@ -8,8 +8,12 @@ const { Pool, types } = pg;
 types.setTypeParser(1082, (value) => value);
 
 const pool = new Pool({
-  connectionString: config.db.connectionString,
-  ...(config.db.ssl && { ssl: { rejectUnauthorized: false } }),
+  host: config.db.host,
+  port: config.db.port,
+  database: config.db.database,
+  user: config.db.user,
+  password: config.db.password,
+  ssl: config.db.ssl,
   // إذا كنا نتصل بـ Supabase (أو أي قاعدة سحابية عبر SSL)، نحد عدد الاتصالات بـ 10 لتفادي حد الـ Pooler البالغ 15
   max: config.db.ssl ? 10 : 60,
   idleTimeoutMillis: 30000,

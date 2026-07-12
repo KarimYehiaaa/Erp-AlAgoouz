@@ -116,3 +116,6 @@ if (fs.existsSync(keyPath) && fs.existsSync(certPath)) {
     console.error('⚠️ Failed to start HTTPS Server:', sslErr.message);
   }
 }
+
+export default app;
+

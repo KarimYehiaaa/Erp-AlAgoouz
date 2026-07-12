@@ -34,8 +34,24 @@ app.use(rateLimit({
 app.use('/assets', express.static(path.join(__dirname, '../../assets')));
 app.use('/logo.png', express.static(path.join(__dirname, '../../assets/logo.png')));
 app.use('/api/v1', routes);
+app.use('/v1', routes); // دعم Vercel (حيث يتم حذف /api)
 
 app.get('/api/debug', (req, res) => {
+  res.json({
+    success: true,
+    url: req.url,
+    originalUrl: req.originalUrl,
+    path: req.path,
+    method: req.method,
+    headers: req.headers,
+    env: {
+      NODE_ENV: process.env.NODE_ENV,
+      VERCEL: process.env.VERCEL
+    }
+  });
+});
+
+app.get('/debug', (req, res) => {
   res.json({
     success: true,
     url: req.url,
@@ -58,6 +74,16 @@ app.get('/api/health', async (_req, res) => {
     res.status(503).json({ success: false, message: 'قاعدة البيانات غير متصلة' });
   }
 });
+
+app.get('/health', async (_req, res) => {
+  try {
+    await pool.query('SELECT 1');
+    res.json({ success: true, message: 'API يعمل بشكل طبيعي', company: config.company.name });
+  } catch {
+    res.status(503).json({ success: false, message: 'قاعدة البيانات غير متصلة' });
+  }
+});
+
 
 // ── Serve Frontend (Production Build) ──
 // يدعم كل من الـ local والـ Render deployment

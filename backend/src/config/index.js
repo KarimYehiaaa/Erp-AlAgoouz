@@ -20,7 +20,13 @@ export default {
       : (process.env.DB_NAME || 'bin_al_ajouz'),
     user: process.env.DB_USER || 'erp_user',
     password: requireEnv('DB_PASSWORD'),
-    ssl: process.env.DB_SSL === 'true',
+    ssl: process.env.DB_SSL === 'true' ? {
+      rejectUnauthorized: false,
+      servername: process.env.DB_HOST
+    } : false,
+    options: process.env.DB_HOST && process.env.DB_HOST.includes('neon.tech') 
+      ? `project=${process.env.DB_HOST.split('.')[0]}`
+      : undefined,
   },
   jwt: {
     secret: requireEnv('JWT_SECRET'),

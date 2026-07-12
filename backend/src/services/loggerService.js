@@ -5,8 +5,10 @@ import fs from 'fs';
 
 const LOG_DIR = path.join(process.cwd(), 'logs');
 
-// Ensure log directory exists
-if (!fs.existsSync(LOG_DIR)) {
+const isVercel = process.env.VERCEL === 'true' || !!process.env.VERCEL;
+
+// Ensure log directory exists (Only if not running on Vercel)
+if (!isVercel && !fs.existsSync(LOG_DIR)) {
   fs.mkdirSync(LOG_DIR, { recursive: true });
 }
 
@@ -28,31 +30,37 @@ const consoleFormat = winston.format.combine(
   })
 );
 
-// Daily Rotate File Transports
-const errorFileTransport = new DailyRotateFile({
-  filename: path.join(LOG_DIR, 'error-%DATE%.log'),
-  datePattern: 'YYYY-MM-DD',
-  level: 'error',
-  zippedArchive: true,
-  maxSize: '20m',
-  maxFiles: '14d',
-});
+// Daily Rotate File Transports (Only if not running on Vercel)
+const transports = [
+  new winston.transports.Console({
+    format: consoleFormat,
+  })
+];
 
-const combinedFileTransport = new DailyRotateFile({
-  filename: path.join(LOG_DIR, 'combined-%DATE%.log'),
-  datePattern: 'YYYY-MM-DD',
-  zippedArchive: true,
-  maxSize: '20m',
-  maxFiles: '14d',
-});
+if (!isVercel) {
+  transports.push(
+    new DailyRotateFile({
+      filename: path.join(LOG_DIR, 'error-%DATE%.log'),
+      datePattern: 'YYYY-MM-DD',
+      level: 'error',
+      zippedArchive: true,
+      maxSize: '20m',
+      maxFiles: '14d',
+    }),
+    new DailyRotateFile({
+      filename: path.join(LOG_DIR, 'combined-%DATE%.log'),
+      datePattern: 'YYYY-MM-DD',
+      zippedArchive: true,
+      maxSize: '20m',
+      maxFiles: '14d',
+    })
+  );
+}
 
 export const logger = winston.createLogger({
   level: process.env.NODE_ENV === 'development' ? 'debug' : 'info',
   format: customFormat,
-  transports: [
-    errorFileTransport,
-    combinedFileTransport,
-  ],
+  transports: transports,
 });
 
 // If in development, also log to the console

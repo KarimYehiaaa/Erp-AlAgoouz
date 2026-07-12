@@ -47,13 +47,22 @@ app.get('/api/health', async (_req, res) => {
 });
 
 // ── Serve Frontend (Production Build) ──
-const frontendDist = path.join(__dirname, '../../frontend/dist');
-if (fs.existsSync(frontendDist)) {
+// يدعم كل من الـ local والـ Render deployment
+const possibleDistPaths = [
+  path.join(__dirname, '../../frontend/dist'),          // local: backend/src → frontend/dist
+  path.join(process.cwd(), 'frontend/dist'),            // Render: root → frontend/dist
+  path.join(__dirname, '../../../frontend/dist'),       // fallback
+];
+const frontendDist = possibleDistPaths.find(p => fs.existsSync(p));
+
+if (frontendDist) {
+  console.log(`📦 Serving frontend from: ${frontendDist}`);
   app.use(express.static(frontendDist));
   app.get(/^(?!\/api).*/, (_req, res) => {
     res.sendFile(path.join(frontendDist, 'index.html'));
   });
 } else {
+  console.log('⚠️ Frontend dist not found - API only mode');
   app.get('/', (_req, res) => res.redirect('/api/health'));
 }
 

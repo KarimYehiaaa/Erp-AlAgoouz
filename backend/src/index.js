@@ -35,7 +35,20 @@ app.use('/assets', express.static(path.join(__dirname, '../../assets')));
 app.use('/logo.png', express.static(path.join(__dirname, '../../assets/logo.png')));
 app.use('/api/v1', routes);
 
-// BUG-15 FIX: حذف debug backup route المكرر — يكفي GET /api/v1/backup/create المحمي بـ requireAdmin
+app.get('/api/debug', (req, res) => {
+  res.json({
+    success: true,
+    url: req.url,
+    originalUrl: req.originalUrl,
+    path: req.path,
+    method: req.method,
+    headers: req.headers,
+    env: {
+      NODE_ENV: process.env.NODE_ENV,
+      VERCEL: process.env.VERCEL
+    }
+  });
+});
 
 app.get('/api/health', async (_req, res) => {
   try {

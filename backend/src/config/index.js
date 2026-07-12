@@ -13,20 +13,10 @@ export default {
   port: parseInt(process.env.PORT || '3000', 10),
   nodeEnv: process.env.NODE_ENV || 'development',
   db: {
-    host: process.env.DB_HOST || 'localhost',
-    port: parseInt(process.env.DB_PORT || '5432', 10),
-    database: process.env.NODE_ENV === 'test' 
-      ? (process.env.DB_NAME_TEST || 'bin_al_ajouz_test') 
-      : (process.env.DB_NAME || 'bin_al_ajouz'),
-    user: process.env.DB_USER || 'erp_user',
-    password: requireEnv('DB_PASSWORD'),
+    connectionString: process.env.DATABASE_URL || `postgres://${process.env.DB_USER || 'erp_user'}:${encodeURIComponent(requireEnv('DB_PASSWORD'))}@${process.env.DB_HOST || 'localhost'}:${process.env.DB_PORT || '5432'}/${process.env.NODE_ENV === 'test' ? (process.env.DB_NAME_TEST || 'bin_al_ajouz_test') : (process.env.DB_NAME || 'bin_al_ajouz')}?sslmode=require`,
     ssl: process.env.DB_SSL === 'true' ? {
-      rejectUnauthorized: false,
-      servername: process.env.DB_HOST
+      rejectUnauthorized: false
     } : false,
-    options: process.env.DB_HOST && process.env.DB_HOST.includes('neon.tech') 
-      ? `project=${process.env.DB_HOST.split('.')[0]}`
-      : undefined,
   },
   jwt: {
     secret: requireEnv('JWT_SECRET'),

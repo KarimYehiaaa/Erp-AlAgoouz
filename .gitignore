@@ -1,6 +1,6 @@
 node_modules/
 dist/
-frontend/dist/
+# frontend/dist/ -- مش محتاج نحذفه عشان Glitch يشغل الـ frontend
 
 .env
 backend/.env

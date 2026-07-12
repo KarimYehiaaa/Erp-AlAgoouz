@@ -14,10 +14,9 @@ const pool = new Pool({
   user: config.db.user,
   password: config.db.password,
   ssl: config.db.ssl,
-  // إذا كنا نتصل بـ Supabase (أو أي قاعدة سحابية عبر SSL)، نحد عدد الاتصالات بـ 10 لتفادي حد الـ Pooler البالغ 15
-  max: config.db.ssl ? 10 : 60,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 15000,
+  max: process.env.VERCEL ? 1 : (config.db.ssl ? 10 : 60),
+  idleTimeoutMillis: process.env.VERCEL ? 1000 : 30000,
+  connectionTimeoutMillis: 5000,
 });
 
 pool.on('error', (err) => {

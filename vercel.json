@@ -6,30 +6,30 @@
       "use": "@vercel/node"
     }
   ],
-  "routes": [
+  "rewrites": [
     {
-      "src": "/api/(.*)",
-      "dest": "backend/src/index.js"
+      "source": "/api/:path*",
+      "destination": "/backend/src/index.js"
     },
     {
-      "src": "/assets/(.*)",
-      "dest": "frontend/dist/assets/\"
+      "source": "/assets/:path*",
+      "destination": "/frontend/dist/assets/:path*"
     },
     {
-      "src": "/logo.png",
-      "dest": "frontend/dist/logo.png"
+      "source": "/logo.png",
+      "destination": "/frontend/dist/logo.png"
     },
     {
-      "src": "/manifest.json",
-      "dest": "frontend/dist/manifest.json"
+      "source": "/manifest.json",
+      "destination": "/frontend/dist/manifest.json"
     },
     {
-      "src": "/sw.js",
-      "dest": "frontend/dist/sw.js"
+      "source": "/sw.js",
+      "destination": "/frontend/dist/sw.js"
     },
     {
-      "src": "/(.*)",
-      "dest": "frontend/dist/index.html"
+      "source": "/(.*)",
+      "destination": "/frontend/dist/index.html"
     }
   ]
 }

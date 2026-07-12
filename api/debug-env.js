@@ -14,6 +14,10 @@ export default async function handler(req, res) {
 
   res.status(200).json({
     DB_HOST: process.env.DB_HOST,
+    PGHOST: process.env.PGHOST,
+    PGUSER: process.env.PGUSER,
+    PGPASSWORD: process.env.PGPASSWORD ? 'SET' : 'NOT_SET',
+    PGDATABASE: process.env.PGDATABASE,
     configConnectionString: config.db.connectionString ? config.db.connectionString.replace(/:[^:]+@/, ':***@') : 'UNDEFINED',
     dbError
   });

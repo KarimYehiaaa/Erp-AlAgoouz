@@ -445,6 +445,7 @@ import StatCard from '@/components/StatCard.vue';
 import AppIcon from '@/components/AppIcon.vue';
 import { sales as salesApi, products as productsApi, forecasting as forecastingApi, users as userApi } from '@/api';
 import { formatMoney } from '@/utils/currency';
+import { parseLocalizedNumber } from '@/utils/numberParsing';
 import { useProductMeta } from '@/composables/useProductMeta';
 import { useAppStore } from '@/stores/app';
 import { localDb } from '@/services/localDb';
@@ -866,13 +867,15 @@ const submitManualSale = async () => {
     discount_amount: Number(saleForm.value.discount_amount || 0),
     notes: saleForm.value.notes || null,
     total_amount: Number(cartTotal.value),
-    items: cart.value.map((i) => ({
-      product_id: i.product_id,
-      product_name: i.name_ar,
-      quantity: i.quantity,
-      unit_price: i.unit_price,
-      discount_amount: 0,
-    })),
+    items: cart.value
+      .filter((i) => i.product_id && parseLocalizedNumber(i.quantity) > 0)
+      .map((i) => ({
+        product_id: i.product_id,
+        product_name: i.name_ar,
+        quantity: parseLocalizedNumber(i.quantity),
+        unit_price: parseLocalizedNumber(i.unit_price),
+        discount_amount: 0,
+      })),
   };
 
   try {

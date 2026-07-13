@@ -329,9 +329,9 @@ const submit = async () => {
       items: validItems.map((l) => ({
         product_id: l.product_id || null,
         description: l.description.trim(),
-        quantity: l.quantity,
-        unit_price: l.unit_price,
-        discount_amount: l.discount_amount || 0,
+        quantity: parseLocalizedNumber(l.quantity),
+        unit_price: parseLocalizedNumber(l.unit_price),
+        discount_amount: parseLocalizedNumber(l.discount_amount || 0),
       })),
     };
     if (isEdit.value) {

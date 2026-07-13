@@ -9,6 +9,8 @@ import * as authCtrl from '../controllers/authController.js';
 import * as api from '../controllers/apiController.js';
 import * as backupService from '../services/backupService.js';
 
+import { parseLocalizedNumber } from '../utils/numberParsing.js';
+
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
@@ -29,8 +31,14 @@ const copilotSchema = z.object({
 });
 
 const positiveId = z.coerce.number().int().positive();
-const nonNegativeNumber = z.coerce.number().min(0);
-const positiveNumber = z.coerce.number().positive();
+const nonNegativeNumber = z.preprocess(
+  (val) => parseLocalizedNumber(val),
+  z.number().min(0)
+);
+const positiveNumber = z.preprocess(
+  (val) => parseLocalizedNumber(val),
+  z.number().positive()
+);
 const optionalPositiveId = z.preprocess(
   (value) => (value === '' || value === null ? undefined : value),
   positiveId.optional()

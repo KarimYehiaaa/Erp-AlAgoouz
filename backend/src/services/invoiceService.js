@@ -3,12 +3,10 @@ import { AppError } from '../middleware/errorHandler.js';
 import { parseLocalizedNumber } from '../utils/numberParsing.js';
 
 const generateInvoiceNumber = async (client) => {
-  const settings = await client.query(`SELECT value FROM settings WHERE key = 'invoice' FOR UPDATE`);
-  const config = settings.rows[0]?.value || { prefix: 'INV', next_number: 1001 };
-  const number = `${config.prefix || 'INV'}-${String(config.next_number).padStart(5, '0')}`;
-  config.next_number = (config.next_number || 1001) + 1;
-  await client.query(`UPDATE settings SET value = $1::jsonb WHERE key = 'invoice'`, [JSON.stringify(config)]);
-  return number;
+  const settings = await client.query(`SELECT value FROM settings WHERE key = 'invoice'`);
+  const config = settings.rows[0]?.value || { prefix: 'INV' };
+  const res = await client.query(`SELECT nextval('seq_invoices_number') AS next_val`);
+  return `${config.prefix || 'INV'}-${String(res.rows[0].next_val).padStart(5, '0')}`;
 };
 
 const roundMoney = (value) => Math.round((Number(value) || 0) * 100) / 100;

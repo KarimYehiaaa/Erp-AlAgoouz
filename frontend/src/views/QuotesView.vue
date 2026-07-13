@@ -307,7 +307,8 @@ const downloadPdf = async () => {
   saving.value = true;
   try {
     const el = document.querySelector('.preview-doc');
-    const { default: html2pdf } = await import('html2pdf.js');
+    const module = await import('html2pdf.js');
+    const html2pdf = module.default || module;
     await html2pdf()
       .set({
         margin: [8, 8, 8, 8],

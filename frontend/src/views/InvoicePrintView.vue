@@ -62,7 +62,8 @@ const downloadPdf = async () => {
 };
 
 const downloadClientPdf = async (el) => {
-  const { default: html2pdf } = await import('html2pdf.js');
+  const module = await import('html2pdf.js');
+  const html2pdf = module.default || module;
   await html2pdf()
     .set({
       margin: [8, 8, 8, 8],

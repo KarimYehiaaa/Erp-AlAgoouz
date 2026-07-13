@@ -48,10 +48,10 @@ const downloadPdf = async () => {
   pdfLoading.value = true;
   pdfError.value = '';
   try {
-    await downloadServerPdf();
+    await downloadClientPdf(el);
   } catch {
     try {
-      await downloadClientPdf(el);
+      await downloadServerPdf();
     } catch (error) {
       console.error(error);
       pdfError.value = 'تعذر تحميل ملف PDF. يرجى المحاولة مرة أخرى أو استخدام أمر الطباعة.';

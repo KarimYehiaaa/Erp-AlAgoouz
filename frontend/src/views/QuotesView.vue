@@ -306,14 +306,18 @@ const downloadPdf = async () => {
 
   saving.value = true;
   try {
-    const response = await quotesApi.downloadPdf(payload);
-    const blob = response instanceof Blob ? response : response?.data instanceof Blob ? response.data : response;
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `quote-${new Date().toISOString().slice(0, 10)}.pdf`;
-    link.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    const el = document.querySelector('.preview-doc');
+    const { default: html2pdf } = await import('html2pdf.js');
+    await html2pdf()
+      .set({
+        margin: [8, 8, 8, 8],
+        filename: `quote-${new Date().toISOString().slice(0, 10)}.pdf`,
+        image: { type: 'jpeg', quality: 0.95 },
+        html2canvas: { scale: 2, useCORS: true, logging: false },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      })
+      .from(el)
+      .save();
     success.value = 'تم تنزيل عرض السعر بنجاح.';
   } catch (e) {
     error.value = e?.message || 'فشل إنشاء ملف PDF';

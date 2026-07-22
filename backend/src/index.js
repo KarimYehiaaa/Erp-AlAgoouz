@@ -12,13 +12,15 @@ import config from './config/index.js';
 import routes from './routes/index.js';
 import { authenticate, authorize } from './middleware/auth.js';
 import { errorHandler, notFound } from './middleware/errorHandler.js';
-import pool from './database/pool.js';
+import { requestId } from './middleware/requestId.js';
+import pool, { checkHealth, closePool } from './database/pool.js';
 import { initAutoBackupScheduler } from './services/autoBackupService.js';
 import { initWebSocket } from './services/websocketService.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 
+app.use(requestId);  // ← يجب أن يكون أول middleware
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 app.use(cors({ origin: config.corsOrigin, credentials: true }));
 app.use(morgan(config.nodeEnv === 'development' ? 'dev' : 'combined'));
@@ -36,7 +38,10 @@ app.use('/logo.png', express.static(path.join(__dirname, '../../assets/logo.png'
 app.use('/api/v1', routes);
 app.use('/v1', routes); // دعم Vercel (حيث يتم حذف /api)
 
-app.get('/api/debug', (req, res) => {
+app.get('/api/debug', authenticate, (req, res) => {
+  if (config.nodeEnv === 'production' || req.user?.role_name !== 'admin') {
+    return res.status(404).json({ success: false, message: 'الصفحة غير موجودة' });
+  }
   res.json({
     success: true,
     url: req.url,
@@ -51,7 +56,10 @@ app.get('/api/debug', (req, res) => {
   });
 });
 
-app.get('/debug', (req, res) => {
+app.get('/debug', authenticate, (req, res) => {
+  if (config.nodeEnv === 'production' || req.user?.role_name !== 'admin') {
+    return res.status(404).json({ success: false, message: 'الصفحة غير موجودة' });
+  }
   res.json({
     success: true,
     url: req.url,
@@ -66,22 +74,37 @@ app.get('/debug', (req, res) => {
   });
 });
 
-app.get('/api/health', async (_req, res) => {
-  try {
-    await pool.query('SELECT 1');
-    res.json({ success: true, message: 'API يعمل بشكل طبيعي', company: config.company.name });
-  } catch {
-    res.status(503).json({ success: false, message: 'قاعدة البيانات غير متصلة' });
-  }
+app.get('/api/health', async (req, res) => {
+  const health = await checkHealth();
+  const statusCode = health.ok ? 200 : 503;
+  res.status(statusCode).json({
+    success: health.ok,
+    message: health.ok ? 'API يعمل بشكل طبيعي' : 'قاعدة البيانات غير متصلة',
+    company: config.company.name,
+    requestId: req.requestId,
+    db: {
+      connected: health.ok,
+      latencyMs: health.latencyMs,
+      ...(health.error ? { error: health.error } : {}),
+      pool: health.poolStats,
+    },
+  });
 });
 
-app.get('/health', async (_req, res) => {
-  try {
-    await pool.query('SELECT 1');
-    res.json({ success: true, message: 'API يعمل بشكل طبيعي', company: config.company.name });
-  } catch {
-    res.status(503).json({ success: false, message: 'قاعدة البيانات غير متصلة' });
-  }
+app.get('/health', async (req, res) => {
+  const health = await checkHealth();
+  const statusCode = health.ok ? 200 : 503;
+  res.status(statusCode).json({
+    success: health.ok,
+    message: health.ok ? 'API يعمل بشكل طبيعي' : 'قاعدة البيانات غير متصلة',
+    company: config.company.name,
+    requestId: req.requestId,
+    db: {
+      connected: health.ok,
+      latencyMs: health.latencyMs,
+      pool: health.poolStats,
+    },
+  });
 });
 
 
@@ -159,6 +182,30 @@ if (!process.env.VERCEL) {
   }
 }
 
+// ─── Graceful Shutdown ─────────────────────────────────────────────────────────
+// إغلاق آمن للـ Pool عند إيقاف الخادم (CTRL+C أو إشارة النظام)
+const gracefulShutdown = async (signal) => {
+  console.log(`\n[Server] استُقبلت إشارة ${signal} — إغلاق الخادم بشكل آمن...`);
+  try {
+    await closePool();
+    console.log('[Server] تم الإغلاق بنجاح ✅');
+    process.exit(0);
+  } catch (err) {
+    console.error('[Server] خطأ أثناء الإغلاق:', err.message);
+    process.exit(1);
+  }
+};
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT',  () => gracefulShutdown('SIGINT'));
+process.on('uncaughtException', (err) => {
+  console.error('[Server] استثناء غير معالج:', err);
+  gracefulShutdown('uncaughtException');
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('[Server] Promise مرفوض غير معالج:', reason);
+  // لا نُغلق هنا — نسجّل فقط
+});
 
 export default app;
 

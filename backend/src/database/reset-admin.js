@@ -1,21 +1,5 @@
 import bcrypt from 'bcryptjs';
-import pg from 'pg';
-import dotenv from 'dotenv';
-
-dotenv.config();
-
-const pool = new pg.Pool({
-  host: process.env.DB_HOST || 'localhost',
-  port: parseInt(process.env.DB_PORT || '5432', 10),
-  database: process.env.DB_NAME || 'bin_al_ajouz',
-  user: process.env.DB_USER || 'erp_user',
-  password: process.env.DB_PASSWORD,
-  ...(process.env.DB_SSL === 'true' && { ssl: { rejectUnauthorized: false } }),
-});
-
-if (!process.env.DB_PASSWORD) {
-  throw new Error('Missing DB_PASSWORD in backend/.env');
-}
+import pool from './pool.js';
 
 // Usage: node src/database/reset-admin.js [username] [new_password]
 const username = process.argv[2] || 'admin';

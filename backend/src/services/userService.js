@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs';
 import { query, getClient } from '../database/pool.js';
 import { AppError } from '../middleware/errorHandler.js';
 import { getOpeningBalance } from './openingBalanceService.js';
+import { encrypt, decrypt } from '../utils/crypto.js';
 
 export const getUsers = async () =>
   (await query(
@@ -81,16 +82,50 @@ export const markNotificationRead = async (id) => {
   await query(`UPDATE notifications SET is_read = TRUE WHERE id = $1`, [id]);
 };
 
+const SENSITIVE_KEYS = ['gdrive_key', 'dropbox_token', 'gdrive_client_secret', 'gdrive_refresh_token'];
+
 export const getSettings = async () => {
   const result = await query(`SELECT key, value FROM settings`);
-  return result.rows.reduce((acc, row) => { acc[row.key] = row.value; return acc; }, {});
+  return result.rows.reduce((acc, row) => {
+    let val = row.value;
+    if (row.key === 'cloud_backup' && val) {
+      // Redact sensitive secrets in API output
+      SENSITIVE_KEYS.forEach((k) => {
+        if (val[k]) val[k] = '*REDACTED*';
+      });
+    }
+    acc[row.key] = val;
+    return acc;
+  }, {});
 };
 
 export const updateSetting = async (key, value, userId) => {
-  await query(`UPDATE settings SET value = $1::jsonb, updated_by = $2, updated_at = NOW() WHERE key = $3`, [JSON.stringify(value), userId, key]);
+  let finalValue = { ...value };
+  if (key === 'cloud_backup') {
+    const current = await getSetting('cloud_backup') || {};
+    SENSITIVE_KEYS.forEach((k) => {
+      if (finalValue[k] === '*REDACTED*') {
+        finalValue[k] = current[k] || '';
+      } else if (finalValue[k]) {
+        finalValue[k] = encrypt(finalValue[k]);
+      }
+    });
+  }
+  await query(`UPDATE settings SET value = $1::jsonb, updated_by = $2, updated_at = NOW() WHERE key = $3`, [JSON.stringify(finalValue), userId, key]);
 };
 
 export const upsertSetting = async (key, value, userId, description = null) => {
+  let finalValue = { ...value };
+  if (key === 'cloud_backup') {
+    const current = await getSetting('cloud_backup') || {};
+    SENSITIVE_KEYS.forEach((k) => {
+      if (finalValue[k] === '*REDACTED*') {
+        finalValue[k] = current[k] || '';
+      } else if (finalValue[k]) {
+        finalValue[k] = encrypt(finalValue[k]);
+      }
+    });
+  }
   await query(
     `INSERT INTO settings (key, value, description, updated_by, updated_at)
      VALUES ($1, $2::jsonb, $3, $4, NOW())
@@ -100,7 +135,7 @@ export const upsertSetting = async (key, value, userId, description = null) => {
        description = COALESCE(EXCLUDED.description, settings.description),
        updated_by = EXCLUDED.updated_by,
        updated_at = NOW()`,
-    [key, JSON.stringify(value), description, userId]
+    [key, JSON.stringify(finalValue), description, userId]
   );
 };
 

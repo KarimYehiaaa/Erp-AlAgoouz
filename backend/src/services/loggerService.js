@@ -20,6 +20,10 @@ const customFormat = winston.format.combine(
 );
 
 const consoleFormat = winston.format.combine(
+  winston.format((info) => {
+    if (info.fromConsole) return false;
+    return info;
+  })(),
   winston.format.colorize(),
   winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
   winston.format.printf(({ level, message, timestamp, stack }) => {
@@ -63,30 +67,23 @@ export const logger = winston.createLogger({
   transports: transports,
 });
 
-// If in development, also log to the console
-if (process.env.NODE_ENV === 'development') {
-  logger.add(new winston.transports.Console({
-    format: consoleFormat,
-  }));
-}
-
 // Redirect console.log and console.error to winston
 const originalLog = console.log;
 const originalError = console.error;
 const originalWarn = console.warn;
 
 console.log = (...args) => {
-  logger.info(args.join(' '));
+  logger.info({ message: args.join(' '), fromConsole: true });
   originalLog.apply(console, args);
 };
 
 console.error = (...args) => {
-  logger.error(args.join(' '));
+  logger.error({ message: args.join(' '), fromConsole: true });
   originalError.apply(console, args);
 };
 
 console.warn = (...args) => {
-  logger.warn(args.join(' '));
+  logger.warn({ message: args.join(' '), fromConsole: true });
   originalWarn.apply(console, args);
 };
 

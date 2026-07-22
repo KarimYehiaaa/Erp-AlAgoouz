@@ -67,8 +67,11 @@
                   <span class="role-badge">{{ roleLabel(u.role_id) }}</span>
                 </td>
                 <td>
-                  <span :class="['badge', u.is_active ? 'badge-success' : 'badge-danger']">
-                    {{ u.is_active ? 'نشط' : 'معطل' }}
+                  <span style="display: inline-flex; align-items: center; gap: 8px;">
+                    <span :class="['status-dot-pulse', u.is_active ? 'success' : 'danger']"></span>
+                    <span style="font-size: 0.82rem; font-weight: 800; color: var(--text-strong);">
+                      {{ u.is_active ? 'نشط' : 'معطل' }}
+                    </span>
                   </span>
                 </td>
                 <td class="actions-cell">
@@ -341,7 +344,7 @@
     </section>
 
     <!-- Roles & Permissions Matrix Section -->
-    <section class="permissions-section card" style="margin-top: 24px;">
+    <section class="permissions-section card card-premium-flow" style="margin-top: 24px;">
       <div class="card-head" style="border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 18px;">
         <div class="title-info">
           <h3 style="margin: 0; font-size: 1.15rem; font-weight: 850; color: var(--text-strong);">🔑 إدارة صلاحيات المناصب والأدوار</h3>
@@ -366,13 +369,12 @@
             <div 
               v-for="(perms, moduleName) in groupedPermissions" 
               :key="moduleName" 
-              class="module-group" 
-              style="border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 16px; background: var(--bg-elevated);"
+              class="module-group"
             >
-              <h4 style="margin-top: 0; color: var(--primary-dark); font-weight: 855; font-size: 0.9rem; border-bottom: 2px solid var(--border); padding-bottom: 8px; margin-bottom: 12px; text-transform: uppercase;">
-                📂 قسم: {{ getModuleLabel(moduleName) }}
+              <h4 style="margin-top: 0; color: var(--primary-dark); font-weight: 850; font-size: 0.92rem; border-bottom: 2px solid var(--border); padding-bottom: 8px; margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
+                📂 {{ getModuleLabel(moduleName) }}
               </h4>
-              <div style="display: grid; gap: 10px;">
+              <div style="display: grid; gap: 10px; position: relative; z-index: 5;">
                 <label 
                   v-for="p in perms" 
                   :key="p.id" 
@@ -382,7 +384,7 @@
                     type="checkbox" 
                     :value="p.id" 
                     v-model="selectedPermissionIds" 
-                    style="width: 16px; height: 16px; accent-color: var(--primary);"
+                    style="width: 16px; height: 16px; accent-color: var(--accent);"
                   />
                   <span>{{ p.name_ar }}</span>
                 </label>
@@ -1053,6 +1055,61 @@ onMounted(refreshUsers);
   padding: 34px !important;
   font-size: 0.92rem;
   font-weight: 700;
+}
+.module-group {
+  border: 1px solid var(--card-border) !important;
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  background: var(--card-bg) !important;
+  backdrop-filter: blur(12px) saturate(1.08);
+  box-shadow: var(--shadow-xs);
+  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.28s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.28s ease;
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 7%, transparent) 0%, transparent 45%);
+    opacity: 0;
+    transition: opacity 0.35s ease;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -150%;
+    width: 50%;
+    height: 100%;
+    background: linear-gradient(
+      to right,
+      rgba(255, 255, 255, 0) 0%,
+      color-mix(in srgb, var(--accent) 18%, rgba(255, 255, 255, 0.28)) 50%,
+      rgba(255, 255, 255, 0) 100%
+    );
+    transform: skewX(-25deg);
+    pointer-events: none;
+    z-index: 2;
+    transition: none;
+  }
+
+  &:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-md);
+    border-color: color-mix(in srgb, var(--accent) 30%, var(--card-border));
+
+    &::before {
+      opacity: 1;
+    }
+    &::after {
+      left: 150%;
+      transition: left 0.85s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+  }
 }
 @media (max-width: 980px) {
   .users-layout {

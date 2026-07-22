@@ -910,4 +910,244 @@ table {
   }
 }
 
+/* Custom premium visual styles, neon pulse indicators, card glows, and page fade animations */
+.status-dot-pulse {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  display: inline-block;
+  position: relative;
+  vertical-align: middle;
+}
+.status-dot-pulse.success {
+  background-color: var(--success);
+  box-shadow: 0 0 8px var(--success);
+  animation: pulse-success 2s infinite ease-in-out;
+}
+.status-dot-pulse.warning {
+  background-color: var(--warning);
+  box-shadow: 0 0 8px var(--warning);
+  animation: pulse-warning 2s infinite ease-in-out;
+}
+.status-dot-pulse.danger {
+  background-color: var(--danger);
+  box-shadow: 0 0 8px var(--danger);
+  animation: pulse-danger 2s infinite ease-in-out;
+}
+
+@keyframes pulse-success {
+  0%, 100% { box-shadow: 0 0 3px var(--success); transform: scale(0.9); }
+  50% { box-shadow: 0 0 12px var(--success); transform: scale(1.15); }
+}
+@keyframes pulse-warning {
+  0%, 100% { box-shadow: 0 0 3px var(--warning); transform: scale(0.9); }
+  50% { box-shadow: 0 0 12px var(--warning); transform: scale(1.15); }
+}
+@keyframes pulse-danger {
+  0%, 100% { box-shadow: 0 0 3px var(--danger); transform: scale(0.9); }
+  50% { box-shadow: 0 0 12px var(--danger); transform: scale(1.15); }
+}
+
+/* Premium Gold Hover Overlay & Light Sweep effect for Cards */
+.card, .panel, .btn {
+  position: relative;
+  overflow: hidden;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 7%, transparent) 0%, transparent 45%);
+    opacity: 0;
+    transition: opacity 0.35s ease;
+    pointer-events: none;
+    z-index: 1;
+  }
+  
+  /* Reflective Frosted Glass Light Sweep animation */
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -150%;
+    width: 50%;
+    height: 100%;
+    background: linear-gradient(
+      to right,
+      rgba(255, 255, 255, 0) 0%,
+      color-mix(in srgb, var(--accent) 18%, rgba(255, 255, 255, 0.28)) 50%,
+      rgba(255, 255, 255, 0) 100%
+    );
+    transform: skewX(-25deg);
+    pointer-events: none;
+    z-index: 2;
+    transition: none;
+  }
+  
+  &:hover {
+    &::before {
+      opacity: 1;
+    }
+    &::after {
+      left: 150%;
+      transition: left 0.85s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+  }
+}
+
+/* Liquid Neon Border Flow for special high-priority cards (like P&L cards, metrics) */
+.card-premium-flow {
+  position: relative;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  z-index: 1;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: conic-gradient(
+      transparent,
+      transparent,
+      transparent,
+      var(--accent)
+    );
+    animation: border-rotate 8s linear infinite;
+    z-index: -2;
+  }
+
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 1.5px;
+    background: var(--bg-card);
+    border-radius: calc(var(--radius-lg) - 1.5px);
+    z-index: -1;
+  }
+}
+
+@keyframes border-rotate {
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* Page fade and slide-up transition */
+.fade-slide-enter-active, .fade-slide-leave-active {
+  transition: all 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.fade-slide-enter-from {
+  opacity: 0;
+  transform: translateY(12px);
+}
+.fade-slide-leave-to {
+  opacity: 0;
+  transform: translateY(-12px);
+}
+
+/* ── Custom Animation & Micro-interaction Classes ── */
+.hover-lift {
+  transition: transform var(--transition), box-shadow var(--transition), border-color var(--transition);
+  
+  &:hover {
+    transform: translateY(-4px) scale(1.01);
+    box-shadow: var(--shadow-md);
+  }
+  
+  &:active {
+    transform: translateY(-1px) scale(0.99);
+  }
+}
+
+/* Staggered Entrance Animations */
+.stagger-fade-item {
+  opacity: 0;
+  transform: translateY(16px);
+  animation: staggerFadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes staggerFadeIn {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@for $i from 1 through 10 {
+  .stagger-delay-#{$i} {
+    animation-delay: #{$i * 40}ms;
+  }
+}
+
+/* Floating Input Label Group */
+.float-label-group {
+  position: relative;
+  margin-bottom: var(--space-4);
+
+  .float-input {
+    width: 100%;
+    padding: var(--space-3) var(--space-3) var(--space-2);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    background: var(--bg-elevated);
+    color: var(--text-strong);
+    transition: border-color var(--transition), box-shadow var(--transition);
+
+    &:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--focus-ring);
+    }
+
+    &:focus ~ .float-label,
+    &:not(:placeholder-shown) ~ .float-label {
+      transform: translateY(-20px) scale(0.85);
+      color: var(--accent);
+      background: var(--bg-elevated);
+      padding: 0 4px;
+    }
+  }
+
+  .float-label {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    transform-origin: right top;
+    color: var(--text-muted);
+    pointer-events: none;
+    transition: transform var(--transition), color var(--transition), background var(--transition);
+  }
+}
+
+/* Accessible Reduced Motion Settings */
+@media (prefers-reduced-motion: reduce) {
+  .hover-lift {
+    transform: none !important;
+    transition: none !important;
+    &:hover {
+      transform: none !important;
+      box-shadow: none !important;
+    }
+  }
+  
+  .stagger-fade-item {
+    opacity: 1 !important;
+    transform: none !important;
+    animation: none !important;
+  }
+  
+  .shimmer,
+  .animate-pulse {
+    animation: none !important;
+    background: var(--bg-soft) !important;
+  }
+}
+
+
 

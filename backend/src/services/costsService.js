@@ -8,6 +8,7 @@ import {
   convertQty,
 } from './productCostService.js';
 import { consumeRecipeForSale as _consumeRecipe } from './recipesService.js';
+import { invalidateDashboardCache } from './dashboardService.js';
 
 const WEIGHT_UNITS = new Set(['g', 'kg']);
 const VOLUME_UNITS = new Set(['ml', 'l']);
@@ -196,6 +197,7 @@ export const createRecipe = async (data, userId) => {
     }
 
     await client.query('COMMIT');
+    invalidateDashboardCache();
     return getRecipeById(recipe.id);
   } catch (e) {
     await client.query('ROLLBACK');
@@ -227,6 +229,7 @@ export const updateRecipe = async (id, data) => {
     }
 
     await client.query('COMMIT');
+    invalidateDashboardCache();
     return getRecipeById(id);
   } catch (e) {
     await client.query('ROLLBACK');
@@ -250,6 +253,7 @@ export const deleteRecipe = async (id) => {
     await updateProductPriceFromLatestPurchaseInvoice(client, current.rows[0].product_id);
 
     await client.query('COMMIT');
+    invalidateDashboardCache();
   } catch (e) {
     await client.query('ROLLBACK');
     throw e;

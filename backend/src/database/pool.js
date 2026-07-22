@@ -3,28 +3,134 @@ import config from '../config/index.js';
 
 const { Pool, types } = pg;
 
-// Keep PostgreSQL DATE columns as plain YYYY-MM-DD strings.
-// This avoids timezone shifts when JS Date serialization converts to UTC.
+// ─── Type Parsers ──────────────────────────────────────────────────────────────
+// الحفاظ على تنسيق DATE كـ YYYY-MM-DD بدون تحويل UTC
 types.setTypeParser(1082, (value) => value);
+// NUMERIC → float بدلاً من string
+types.setTypeParser(1700, (value) => parseFloat(value));
+
+// ─── Connection Options ────────────────────────────────────────────────────────
+const connectionOptions = process.env.DATABASE_URL
+  ? { connectionString: process.env.DATABASE_URL }
+  : {
+      host: config.db.host,
+      port: config.db.port,
+      database: config.db.database,
+      user: config.db.user,
+      password: config.db.password,
+    };
+
+// ─── Pool Configuration ────────────────────────────────────────────────────────
+// تحديد الحد الأقصى للاتصالات حسب البيئة
+const maxConnections = process.env.VERCEL ? 1 : (config.db.ssl ? 10 : 60);
 
 const pool = new Pool({
-  host: config.db.host,
-  port: config.db.port,
-  database: config.db.database,
-  user: config.db.user,
-  password: config.db.password,
+  ...connectionOptions,
   ssl: config.db.ssl,
-  max: process.env.VERCEL ? 1 : (config.db.ssl ? 10 : 60),
+  max: maxConnections,
+  min: process.env.VERCEL ? 0 : 2,                   // اتصالان جاهزان دائماً (إلا Vercel)
   idleTimeoutMillis: process.env.VERCEL ? 1000 : 30000,
-  connectionTimeoutMillis: 5000,
+  connectionTimeoutMillis: 8000,                       // ← زيادة الـ timeout لـ Supabase
+  statement_timeout: 30000,                            // ← 30 ثانية حد أقصى للـ Query
+  query_timeout: 30000,                                // ← حماية إضافية على مستوى Client
+  keepAlive: true,                                     // ← منع انقطاع الاتصال الخامل
+  keepAliveInitialDelayMillis: 10000,
 });
 
-pool.on('error', (err) => {
-  console.error('Unexpected database error:', err);
+// ─── Pool Event Handlers ───────────────────────────────────────────────────────
+pool.on('error', (err, client) => {
+  // لا نستخدم console.error مباشرة — يمر عبر loggerService
+  console.error('[DB Pool] خطأ غير متوقع في اتصال قاعدة البيانات:', err.message);
+  // لا نقوم بـ process.exit هنا — نترك Pool يتعافى تلقائياً
 });
 
+pool.on('connect', (_client) => {
+  // تسجيل عند إنشاء اتصال جديد (debug level فقط)
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`[DB Pool] اتصال جديد — إجمالي: ${pool.totalCount} / ${maxConnections}`);
+  }
+});
+
+pool.on('remove', (_client) => {
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`[DB Pool] إزالة اتصال — متبقٍ: ${pool.totalCount}`);
+  }
+});
+
+// ─── Public API ────────────────────────────────────────────────────────────────
+/**
+ * تنفيذ استعلام SQL مع معالجة الأخطاء التلقائية
+ * @param {string} text - نص الاستعلام
+ * @param {Array} params - المعاملات
+ */
 export const query = (text, params) => pool.query(text, params);
 
+/**
+ * الحصول على اتصال منفرد من الـ Pool (للمعاملات)
+ * تذكر دائماً استدعاء client.release() بعد الانتهاء
+ */
 export const getClient = () => pool.connect();
+
+/**
+ * تنفيذ مجموعة استعلامات داخل معاملة واحدة (Transaction)
+ * يُلغي تلقائياً عند الخطأ ويُنفّذ عند النجاح
+ * @param {Function} fn - دالة تستقبل (client) وتُرجع Promise
+ */
+export const withTransaction = async (fn) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const result = await fn(client);
+    await client.query('COMMIT');
+    return result;
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+};
+
+/**
+ * فحص صحة الاتصال بقاعدة البيانات
+ * @returns {{ ok: boolean, latencyMs: number, error?: string, poolStats: object }}
+ */
+export const checkHealth = async () => {
+  const start = Date.now();
+  try {
+    await pool.query('SELECT 1 AS ping');
+    return {
+      ok: true,
+      latencyMs: Date.now() - start,
+      poolStats: {
+        total: pool.totalCount,
+        idle: pool.idleCount,
+        waiting: pool.waitingCount,
+        max: maxConnections,
+      },
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      latencyMs: Date.now() - start,
+      error: err.message,
+      poolStats: {
+        total: pool.totalCount,
+        idle: pool.idleCount,
+        waiting: pool.waitingCount,
+        max: maxConnections,
+      },
+    };
+  }
+};
+
+/**
+ * إغلاق جميع اتصالات الـ Pool بشكل آمن (عند إيقاف الخادم)
+ */
+export const closePool = async () => {
+  console.log('[DB Pool] إغلاق جميع الاتصالات...');
+  await pool.end();
+  console.log('[DB Pool] تم إغلاق الـ Pool بنجاح');
+};
 
 export default pool;

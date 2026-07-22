@@ -21,6 +21,7 @@
 
 import { query } from '../database/pool.js';
 import { getOpeningBalanceForDate } from './openingBalanceService.js';
+import { appCache } from '../utils/cache.js';
 
 const roundMoney = (v) => Math.round((Number(v) || 0) * 100) / 100;
 const toNum = (v) => Number(v || 0);
@@ -31,6 +32,10 @@ const toNum = (v) => Number(v || 0);
  * @param {string} toDate    YYYY-MM-DD
  */
 export const getProfitAndLoss = async (fromDate, toDate) => {
+  const cacheKey = `pl_${fromDate}_${toDate}`;
+  const cachedVal = appCache.get(cacheKey);
+  if (cachedVal) return cachedVal;
+
   const [
     salesData,
     cogsFromItems,
@@ -213,7 +218,7 @@ export const getProfitAndLoss = async (fromDate, toDate) => {
     };
   }
 
-  return {
+  const result = {
     period:   { from: fromDate, to: toDate },
     cogs_basis: cogsBasis,
     opening_balance: openingBalance,  // رصيد أول المدة للشفافية
@@ -275,6 +280,9 @@ export const getProfitAndLoss = async (fromDate, toDate) => {
       expenses:  expensesTotal,
     },
   };
+
+  appCache.set(cacheKey, result, 15 * 60 * 1000, ['pl_report']);
+  return result;
 };
 
 /**

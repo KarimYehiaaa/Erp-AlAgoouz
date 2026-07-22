@@ -1,5 +1,6 @@
 import { query } from '../database/pool.js';
 import { getOpeningBalanceForDate } from './openingBalanceService.js';
+import { appCache } from '../utils/cache.js';
 
 const toNumber = (value) => Number(value || 0);
 const roundMoney = (value) => Math.round(toNumber(value) * 100) / 100;
@@ -97,7 +98,16 @@ const _setCached = (key, data) => {
 };
 
 // استدعاء هذه الدالة من أي مكان لمسح الـ cache (مثلاً بعد حفظ بيع جديد)
-export const invalidateDashboardCache = () => _dashboardCache.clear();
+let _lastInvalidated = 0;
+export const invalidateDashboardCache = () => {
+  const now = Date.now();
+  if (now - _lastInvalidated > 30000) { // بحد أقصى مرة واحدة كل 30 ثانية
+    _dashboardCache.clear();
+    appCache.invalidateByTag('pl_report');
+    appCache.invalidateByTag('product_cost');
+    _lastInvalidated = now;
+  }
+};
 
 const _computeDashboardStats = async (filters = {}) => {
   const period = getPeriod(filters);

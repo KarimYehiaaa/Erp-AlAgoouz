@@ -16,13 +16,24 @@ if (!process.env.POSTGRES_PASSWORD && fs.existsSync(localPgFile)) {
 const { Client } = pg;
 
 export async function runMigrations() {
+  const connectionOptions = process.env.DATABASE_URL
+    ? { connectionString: process.env.DATABASE_URL }
+    : {
+        host: process.env.DB_HOST || 'localhost',
+        port: parseInt(process.env.DB_PORT || '5432', 10),
+        user: process.env.DB_USER || 'erp_user',
+        password: process.env.DB_PASSWORD,
+        database: process.env.DB_NAME || 'bin_al_ajouz',
+      };
+
+  const isSsl = process.env.DB_SSL === 'true' || 
+                !!process.env.DATABASE_URL || 
+                (connectionOptions.host && typeof connectionOptions.host === 'string' && 
+                 (connectionOptions.host.includes('supabase') || connectionOptions.host.includes('neon')));
+
   const client = new Client({
-    host: process.env.DB_HOST || 'localhost',
-    port: parseInt(process.env.DB_PORT || '5432', 10),
-    user: process.env.DB_USER || 'erp_user',
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME || 'bin_al_ajouz',
-    ...(process.env.DB_SSL === 'true' && { ssl: { rejectUnauthorized: false } }),
+    ...connectionOptions,
+    ...(isSsl && { ssl: { rejectUnauthorized: false } }),
   });
 
   try {

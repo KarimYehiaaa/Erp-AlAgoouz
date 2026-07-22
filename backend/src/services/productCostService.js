@@ -1,4 +1,6 @@
-//  UNIT_ALIASES  E5/1 'D-BJB) 'DEH-Q/ DCD 'DEDA'*
+import { appCache } from '../utils/cache.js';
+
+//   UNIT_ALIASES   E5/1 'D-BJB) 'DEH-Q/ DCD 'DEDA'*
 // EO5/NQ1 DJO3*H1N/ AJ recipesService.js H costsService.js (/D'K EF 'D*C1'1
 export const UNIT_ALIASES = {
   kg: 'kg',
@@ -65,94 +67,112 @@ export const calculateRecipeCost = (items = []) => {
 
 const normalizeId = (value) => Number(value);
 
-const loadProductBase = async (db, productId) => {
-  const result = await db.query(
-    `SELECT p.id, p.purchase_price
-     FROM products p
-     WHERE p.id = $1`,
-    [productId]
-  );
-  return result.rows[0] || null;
-};
-
-const loadRecipeItems = async (db, productId) => {
-  const result = await db.query(
-    `SELECT
-       r.id AS recipe_id,
-       ri.id AS recipe_item_id,
-       ri.ingredient_product_id,
-       ri.quantity,
-       ri.unit_code,
-       ip.unit AS ingredient_unit
-     FROM product_recipes r
-     JOIN product_recipe_items ri ON ri.recipe_id = r.id
-     JOIN products ip ON ip.id = ri.ingredient_product_id
-     WHERE r.product_id = $1
-       AND r.deleted_at IS NULL
-       AND r.is_active = TRUE
-     ORDER BY ri.sort_order, ri.id`,
-    [productId]
-  );
-  return result.rows;
-};
-
-const resolveEffectiveCostRecursive = async (db, productId, cache, stack) => {
-  const id = normalizeId(productId);
-  if (!id) return { cost: 0, source: 'purchase_price' };
-  if (cache.has(id)) return cache.get(id);
-  if (stack.has(id)) {
-    throw new Error(`Circular recipe dependency detected for product ${id}`);
-  }
-
-  const pending = (async () => {
-    stack.add(id);
-    try {
-      const base = await loadProductBase(db, id);
-      if (!base) {
-        return { cost: 0, source: 'purchase_price' };
-      }
-
-      const purchasePrice = roundMoney(base.purchase_price || 0);
-      const items = await loadRecipeItems(db, id);
-      if (!items.length) {
-        return { cost: purchasePrice, source: 'purchase_price' };
-      }
-
-      let totalCost = 0;
-      for (const item of items) {
-        const ingredient = await resolveEffectiveCostRecursive(db, item.ingredient_product_id, cache, stack);
-        const unitPrice = unitPriceFor(ingredient.cost, item.ingredient_unit, item.unit_code);
-        if (unitPrice == null) continue;
-        totalCost += Number(item.quantity || 0) * unitPrice;
-      }
-
-      totalCost = roundMoney(totalCost);
-      if (totalCost <= 0 && purchasePrice > 0) {
-        return { cost: purchasePrice, source: 'purchase_price' };
-      }
-
-      return { cost: totalCost, source: 'recipe' };
-    } finally {
-      stack.delete(id);
-    }
-  })();
-
-  cache.set(id, pending);
-  const resolved = await pending;
-  cache.set(id, resolved);
-  return resolved;
-};
-
 export const getProductsEffectiveCosts = async (db, productIds = []) => {
   const ids = [...new Set(productIds.map(Number).filter(Boolean))];
   if (!ids.length) return new Map();
 
-  const cache = new Map();
-  const stack = new Set();
   const costs = new Map();
+  const pendingIds = [];
+
+  // Check memory cache first
   for (const id of ids) {
-    costs.set(id, await resolveEffectiveCostRecursive(db, id, cache, stack));
+    const cachedVal = appCache.get(`product_cost_${id}`);
+    if (cachedVal) {
+      costs.set(id, cachedVal);
+    } else {
+      pendingIds.push(id);
+    }
   }
+
+  if (pendingIds.length > 0) {
+    // 1. Fetch all products base data
+    const prodRes = await db.query(
+      `SELECT id, purchase_price, unit FROM products WHERE deleted_at IS NULL`
+    );
+    const productMap = new Map();
+    for (const r of prodRes.rows) {
+      productMap.set(Number(r.id), r);
+    }
+
+    // 2. Fetch all active recipe items
+    const recipeItemsRes = await db.query(
+      `SELECT
+         r.product_id AS parent_product_id,
+         ri.ingredient_product_id,
+         ri.quantity,
+         ri.unit_code,
+         ip.unit AS ingredient_unit
+       FROM product_recipes r
+       JOIN product_recipe_items ri ON ri.recipe_id = r.id
+       JOIN products ip ON ip.id = ri.ingredient_product_id
+       WHERE r.deleted_at IS NULL AND r.is_active = TRUE`
+    );
+    
+    const recipeMap = new Map();
+    for (const item of recipeItemsRes.rows) {
+      const parentId = Number(item.parent_product_id);
+      if (!recipeMap.has(parentId)) {
+        recipeMap.set(parentId, []);
+      }
+      recipeMap.get(parentId).push(item);
+    }
+
+    // 3. Resolve costs in-memory recursively
+    const resolvedCache = new Map();
+    const stack = new Set();
+
+    const resolveCostInMemory = (id) => {
+      const normalizedIdVal = normalizeId(id);
+      if (!normalizedIdVal) return { cost: 0, source: 'purchase_price' };
+      if (resolvedCache.has(normalizedIdVal)) return resolvedCache.get(normalizedIdVal);
+      
+      if (stack.has(normalizedIdVal)) {
+        // Break circular dependency, fallback to base price
+        const base = productMap.get(normalizedIdVal);
+        return { cost: roundMoney(base?.purchase_price || 0), source: 'purchase_price' };
+      }
+
+      stack.add(normalizedIdVal);
+      try {
+        const base = productMap.get(normalizedIdVal);
+        if (!base) {
+          return { cost: 0, source: 'purchase_price' };
+        }
+
+        const purchasePrice = roundMoney(base.purchase_price || 0);
+        const items = recipeMap.get(normalizedIdVal) || [];
+        if (items.length === 0) {
+          return { cost: purchasePrice, source: 'purchase_price' };
+        }
+
+        let totalCost = 0;
+        for (const item of items) {
+          const ingId = Number(item.ingredient_product_id);
+          const ingredient = resolveCostInMemory(ingId);
+          const unitPrice = unitPriceFor(ingredient.cost, item.ingredient_unit, item.unit_code);
+          if (unitPrice == null) continue;
+          totalCost += Number(item.quantity || 0) * unitPrice;
+        }
+
+        totalCost = roundMoney(totalCost);
+        if (totalCost <= 0 && purchasePrice > 0) {
+          return { cost: purchasePrice, source: 'purchase_price' };
+        }
+
+        return { cost: totalCost, source: 'recipe' };
+      } finally {
+        stack.delete(normalizedIdVal);
+      }
+    };
+
+    // Run resolution and save to appCache
+    for (const id of pendingIds) {
+      const result = resolveCostInMemory(id);
+      costs.set(id, result);
+      appCache.set(`product_cost_${id}`, result, 15 * 60 * 1000, ['product_cost']);
+    }
+  }
+
   return costs;
 };
 

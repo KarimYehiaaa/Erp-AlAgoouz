@@ -2,6 +2,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { query, getClient } from '../database/pool.js';
 import { AppError } from '../middleware/errorHandler.js';
+import { encrypt, decrypt } from '../utils/crypto.js';
 
 const BACKUP_DIR = path.join(process.cwd(), 'backups');
 
@@ -98,9 +99,13 @@ export const createBackup = async () => {
         const res = await query(`SELECT * FROM ${t}`);
         out[t] = res.rows;
     }
+    const rawPayload = JSON.stringify({ meta: { created_at: new Date().toISOString() }, data: out });
+    const encryptedPayload = encrypt(rawPayload);
+    const backupJson = JSON.stringify({ encrypted: true, payload: encryptedPayload });
+
     const fileName = `backup-${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
     const filePath = path.join(BACKUP_DIR, fileName);
-    await fs.writeFile(filePath, JSON.stringify({ meta: { created_at: new Date().toISOString() }, data: out }, null, 2), 'utf8');
+    await fs.writeFile(filePath, backupJson, 'utf8');
     return { file: fileName, path: filePath };
 };
 
@@ -156,7 +161,15 @@ export const restoreBackup = async (name) => {
     const p = resolveBackupFilePath(name);
     let content;
     try { content = await fs.readFile(p, 'utf8'); } catch (e) { throw new AppError('النسخة غير موجودة', 404); }
-    const parsed = JSON.parse(content);
+    let parsed = JSON.parse(content);
+    if (parsed && parsed.encrypted) {
+        try {
+            const decrypted = decrypt(parsed.payload);
+            parsed = JSON.parse(decrypted);
+        } catch (err) {
+            throw new AppError('فشل فك تشفير النسخة الاحتياطية. قد يكون مفتاح التشفير غير صحيح.', 400);
+        }
+    }
     const data = parsed.data || {};
     // Choose tables in a dependency-safe order (only those present in the backup)
     const restoreTables = RESTORE_ORDER.filter((t) => ALLOWED_RESTORE_TABLES.has(t) && Object.prototype.hasOwnProperty.call(data, t));

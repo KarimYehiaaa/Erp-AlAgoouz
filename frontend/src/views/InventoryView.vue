@@ -389,6 +389,7 @@ const selectedTransferDestProduct = computed(() => {
 });
 
 const loadTransferProducts = async () => {
+  if (!showTransfer.value) return; // Guard: only load when modal is open
   const fromWhId = transfer.value.from_warehouse_id;
   if (!fromWhId) {
     transferProducts.value = [];
@@ -406,6 +407,7 @@ const loadTransferProducts = async () => {
 };
 
 const loadTransferDestProducts = async () => {
+  if (!showTransfer.value) return; // Guard: only load when modal is open
   const toWhId = transfer.value.to_warehouse_id;
   if (!toWhId) {
     transferDestProducts.value = [];
@@ -456,11 +458,14 @@ const openTransferModal = () => {
     transfer.value.product_id = null;
     transfer.value.to_product_id = null;
     transfer.value.quantity = 1;
+    
+    showTransfer.value = true; // Set flag first so queries pass the guard
     loadTransferProducts();
     loadTransferDestProducts();
     loadAllProducts();
+  } else {
+    showTransfer.value = true;
   }
-  showTransfer.value = true;
 };
 
 const fmtQty = (v) => { const n = Number(v || 0); return n % 1 === 0 ? n.toLocaleString('en-GB') : n.toFixed(3); };
@@ -487,7 +492,6 @@ const load = async () => {
       inventoryApi.list(params),
       inventoryApi.movements({ limit: 50 }),
       inventoryApi.warehouses(),
-      loadAllProducts(),
     ]);
     items.value = inv.data || [];
     movements.value = mov.data || [];

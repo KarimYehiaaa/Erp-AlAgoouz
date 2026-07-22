@@ -42,12 +42,10 @@
 
     <!-- Premium Skeleton Dashboard Loading Screen -->
     <div v-if="loading" class="skeleton-dashboard">
-      <div class="skeleton-grid">
-        <div v-for="i in 4" :key="i" class="skeleton-card shimmer"></div>
-      </div>
-      <div class="skeleton-chart-row">
-        <div class="skeleton-chart shimmer"></div>
-        <div class="skeleton-pulse shimmer"></div>
+      <SkeletonLoader type="card" :count="4" class="mb-4" />
+      <div class="skeleton-chart-row mt-4">
+        <SkeletonLoader type="box" height="320px" />
+        <SkeletonLoader type="box" height="320px" />
       </div>
     </div>
     <div v-else-if="error" class="state-panel panel is-error">
@@ -61,7 +59,8 @@
         <div
           v-for="(metric, index) in orderedMetrics"
           :key="metric.key"
-          class="metric-card-draggable circular-draggable"
+          class="metric-card-draggable circular-draggable stagger-fade-item"
+          :class="'stagger-delay-' + ((index % 10) + 1)"
           draggable="true"
           @dragstart="onDragStart($event, index)"
           @dragover.prevent
@@ -69,7 +68,7 @@
           title="اسحب البطاقة لتغيير الترتيب"
         >
           <RouterLink
-            class="metric-card circular-card"
+            class="metric-card circular-card hover-lift"
             :class="metric.tone"
             :to="metric.to"
           >
@@ -81,7 +80,7 @@
         </div>
       </section>
 
-      <section v-if="widgetVisibility.alertsTables" class="command-strip panel">
+      <section v-if="widgetVisibility.alertsTables" class="command-strip panel card-premium-flow">
         <div class="command-copy">
           <span>مركز المتابعة</span>
           <strong>{{ priorityHeadline }}</strong>

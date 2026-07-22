@@ -1,75 +1,135 @@
 import dotenv from 'dotenv';
-dotenv.config();
+import path from 'path';
+import { fileURLToPath } from 'url';
 
+// تحميل .env من مجلد backend (حيث يعمل العملية)
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+
+// ─── Helpers ───────────────────────────────────────────────────────────────────
+/**
+ * الحصول على متغير بيئة مطلوب — يرمي خطأ إن كان غائباً
+ */
 const requireEnv = (name) => {
   const value = process.env[name];
   if (!value || !value.trim()) {
-    throw new Error(`Missing required environment variable: ${name}`);
+    throw new Error(`❌ متغير البيئة مطلوب وغائب: ${name}`);
   }
-  return value;
+  return value.trim();
 };
 
-const parseConnectionString = (uri) => {
-  if (!uri) return null;
-  const doubleSlashIndex = uri.indexOf('//');
-  if (doubleSlashIndex === -1) return null;
-  const credsAndHost = uri.substring(doubleSlashIndex + 2);
-  const lastSlashIndex = credsAndHost.lastIndexOf('/');
-  if (lastSlashIndex === -1) return null;
-  const database = credsAndHost.substring(lastSlashIndex + 1).split('?')[0];
-  const credsAndHostOnly = credsAndHost.substring(0, lastSlashIndex);
-  const lastAtIndex = credsAndHostOnly.lastIndexOf('@');
-  if (lastAtIndex === -1) return null;
-  const hostAndPort = credsAndHostOnly.substring(lastAtIndex + 1);
-  const creds = credsAndHostOnly.substring(0, lastAtIndex);
-  const colonIndex = creds.indexOf(':');
-  if (colonIndex === -1) return null;
-  const user = creds.substring(0, colonIndex);
-  const password = decodeURIComponent(creds.substring(colonIndex + 1));
-  const hostColonIndex = hostAndPort.indexOf(':');
-  const host = hostColonIndex === -1 ? hostAndPort : hostAndPort.substring(0, hostColonIndex);
-  const port = hostColonIndex === -1 ? '5432' : hostAndPort.substring(hostColonIndex + 1);
-  return { user, password, host, port, database };
+/**
+ * الحصول على متغير بيئة اختياري مع قيمة افتراضية
+ */
+const optionalEnv = (name, defaultValue = '') => {
+  const value = process.env[name];
+  return (value && value.trim()) ? value.trim() : defaultValue;
 };
 
-let dbConfig = null;
+// ─── Database Configuration ────────────────────────────────────────────────────
+let dbConfig;
+
 if (process.env.DATABASE_URL) {
-  dbConfig = parseConnectionString(process.env.DATABASE_URL);
-}
-
-if (!dbConfig) {
+  // وضع Render / Supabase الكامل عبر Connection String
   dbConfig = {
-    user: process.env.DB_USER || 'erp_user',
-    password: process.env.DB_PASSWORD || '',
-    host: process.env.DB_HOST || 'localhost',
-    port: process.env.DB_PORT || '5432',
-    database: process.env.NODE_ENV === 'test' 
-      ? (process.env.DB_NAME_TEST || 'bin_al_ajouz_test') 
-      : (process.env.DB_NAME || 'bin_al_ajouz')
+    connectionString: process.env.DATABASE_URL,
+    host: null,
+    port: null,
+    database: null,
+    user: null,
+    password: null,
+  };
+} else {
+  // وضع الإعداد اليدوي (Local / Supabase Pooler)
+  dbConfig = {
+    user: optionalEnv('DB_USER', 'erp_user'),
+    password: optionalEnv('DB_PASSWORD', ''),
+    host: optionalEnv('DB_HOST', 'localhost'),
+    port: parseInt(optionalEnv('DB_PORT', '5432'), 10),
+    database: process.env.NODE_ENV === 'test'
+      ? optionalEnv('DB_NAME_TEST', 'bin_al_ajouz_test')
+      : optionalEnv('DB_NAME', 'bin_al_ajouz'),
   };
 }
 
-dbConfig.ssl = (process.env.DB_SSL === 'true' || !!process.env.DATABASE_URL || dbConfig.host.includes('supabase') || dbConfig.host.includes('neon'))
-  ? { rejectUnauthorized: false }
+// ─── SSL Detection ─────────────────────────────────────────────────────────────
+// تفعيل SSL إذا:
+// 1. DB_SSL=true صريح في .env
+// 2. يوجد DATABASE_URL (عادةً Supabase/Render)
+// 3. الـ Host يحتوي على 'supabase' أو 'neon' أو 'render'
+const isCloudDB = process.env.DATABASE_URL
+  || (dbConfig.host && (
+    dbConfig.host.includes('supabase')
+    || dbConfig.host.includes('neon')
+    || dbConfig.host.includes('render')
+    || dbConfig.host.includes('pooler')
+  ));
+
+const sslEnabled = process.env.DB_SSL === 'true' || !!isCloudDB;
+
+dbConfig.ssl = sslEnabled
+  ? { rejectUnauthorized: false }   // السماح بشهادات self-signed (Supabase)
   : false;
 
-export default {
-  port: parseInt(process.env.PORT || '3000', 10),
-  nodeEnv: process.env.NODE_ENV || 'development',
+// ─── Export Configuration ──────────────────────────────────────────────────────
+const config = {
+  // ── Server ──
+  port: parseInt(optionalEnv('PORT', '3000'), 10),
+  httpsPort: parseInt(optionalEnv('HTTPS_PORT', '3443'), 10),
+  nodeEnv: optionalEnv('NODE_ENV', 'development'),
+  isProduction: optionalEnv('NODE_ENV', 'development') === 'production',
+  isDevelopment: optionalEnv('NODE_ENV', 'development') === 'development',
+
+  // ── Database ──
   db: dbConfig,
+
+  // ── JWT ──
   jwt: {
     secret: requireEnv('JWT_SECRET'),
-    expiresIn: process.env.JWT_EXPIRES_IN || '8h',
+    expiresIn: optionalEnv('JWT_EXPIRES_IN', '8h'),
   },
-  corsOrigin: process.env.CORS_ORIGIN 
-    ? process.env.CORS_ORIGIN.split(',').map((o) => o.trim()) 
-    : 'http://localhost:5173',
+
+  // ── CORS ──
+  corsOrigin: process.env.CORS_ORIGIN
+    ? process.env.CORS_ORIGIN.split(',').map((o) => o.trim()).filter(Boolean)
+    : ['http://localhost:5173', 'http://localhost:8080'],
+
+  // ── Rate Limiting ──
   rateLimit: {
-    windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000', 10),
-    max: parseInt(process.env.RATE_LIMIT_MAX || '200', 10),
+    windowMs: parseInt(optionalEnv('RATE_LIMIT_WINDOW_MS', '900000'), 10),  // 15 دقيقة
+    max: parseInt(optionalEnv('RATE_LIMIT_MAX', '200'), 10),
   },
+
+  // ── Company ──
   company: {
-    name: process.env.COMPANY_NAME || 'بن العجوز',
+    name: optionalEnv('COMPANY_NAME', 'بن العجوز'),
+    nameEn: optionalEnv('COMPANY_NAME_EN', 'Bin Al-Ajouz'),
+    taxNumber: optionalEnv('COMPANY_TAX_NUMBER', ''),
+    phone: optionalEnv('COMPANY_PHONE', ''),
+    address: optionalEnv('COMPANY_ADDRESS', ''),
+  },
+
+  // ── Backup ──
+  backup: {
+    autoDir: optionalEnv('AUTO_BACKUP_DIR', ''),
+    skipCleanup: process.env.AUTO_BACKUP_SKIP_CLEANUP === '1',
+    skipExternal: process.env.AUTO_BACKUP_SKIP_EXTERNAL === '1',
   },
 };
 
+// ─── Validation at Startup ─────────────────────────────────────────────────────
+// التحقق من وجود إعدادات DB الأساسية
+if (!process.env.DATABASE_URL && !config.db.host) {
+  throw new Error('❌ لا يوجد إعداد قاعدة بيانات: يجب توفير DATABASE_URL أو DB_HOST');
+}
+
+// طباعة ملخص الإعدادات عند التشغيل (في بيئة التطوير فقط)
+if (config.isDevelopment && !process.env.SUPPRESS_CONFIG_LOG) {
+  const dbInfo = process.env.DATABASE_URL
+    ? `DATABASE_URL (Cloud)`
+    : `${config.db.host}:${config.db.port}/${config.db.database}`;
+  console.log(`[Config] 🗄️  DB: ${dbInfo} | SSL: ${sslEnabled} | Env: ${config.nodeEnv}`);
+  console.log(`[Config] 🏢  الشركة: ${config.company.name} | Port: ${config.port}`);
+}
+
+export default config;

@@ -231,16 +231,17 @@ const menuGroups = computed(() => {
   }
 
   &.active {
-    background: var(--sidebar-surface);
+    background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 7%, transparent) 0%, var(--sidebar-surface) 100%);
     color: #fff;
     box-shadow:
-      inset -3px 0 0 var(--accent),
-      0 10px 22px rgba(0, 0, 0, .14);
+      inset -3.5px 0 0 var(--accent),
+      0 8px 24px rgba(0, 0, 0, .25),
+      0 0 12px color-mix(in srgb, var(--accent) 15%, transparent);
 
     .nav-icon {
       color: #fff;
-      background: linear-gradient(145deg, color-mix(in srgb, var(--accent) 52%, transparent), rgba(255,255,255,.12));
-      box-shadow: 0 0 18px color-mix(in srgb, var(--accent) 28%, transparent);
+      background: linear-gradient(145deg, var(--accent), rgba(255,255,255,.15));
+      box-shadow: 0 0 18px color-mix(in srgb, var(--accent) 42%, transparent);
     }
   }
 }

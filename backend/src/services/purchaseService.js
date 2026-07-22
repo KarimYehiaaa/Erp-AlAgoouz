@@ -2,6 +2,7 @@ import { getClient, query } from '../database/pool.js';
 import { AppError } from '../middleware/errorHandler.js';
 import { getDefaultWarehouseId } from './warehouseService.js';
 import { parseLocalizedNumber } from '../utils/numberParsing.js';
+import { invalidateDashboardCache } from './dashboardService.js';
 
 export const parsePurchaseAmount = parseLocalizedNumber;
 
@@ -163,20 +164,24 @@ const reversePurchaseItems = async (client, invoice, items, userId, notePrefix =
 };
 
 const refreshPurchasePrices = async (client, productIds) => {
-  for (const productId of [...new Set(productIds.map(Number).filter(Boolean))]) {
-    await client.query(`
-      UPDATE products
-      SET purchase_price = COALESCE((
-        SELECT ROUND((SUM(pii.total_amount) / NULLIF(SUM(pii.quantity), 0))::numeric, 2)
-        FROM purchase_invoice_items pii
-        JOIN purchase_invoices pi ON pi.id = pii.purchase_invoice_id
-        WHERE pii.product_id = $1
-          AND pi.deleted_at IS NULL
-      ), purchase_price),
-      updated_at = NOW()
-      WHERE id = $1
-    `, [productId]);
-  }
+  const uniqueIds = [...new Set(productIds.map(Number).filter(Boolean))];
+  if (!uniqueIds.length) return;
+
+  await client.query(`
+    UPDATE products p
+    SET purchase_price = COALESCE(agg.avg_price, p.purchase_price),
+        updated_at = NOW()
+    FROM (
+      SELECT pii.product_id, 
+             ROUND((SUM(pii.total_amount) / NULLIF(SUM(pii.quantity), 0))::numeric, 2) AS avg_price
+      FROM purchase_invoice_items pii
+      JOIN purchase_invoices pi ON pi.id = pii.purchase_invoice_id
+      WHERE pii.product_id = ANY($1::int[])
+        AND pi.deleted_at IS NULL
+      GROUP BY pii.product_id
+    ) agg
+    WHERE p.id = agg.product_id
+  `, [uniqueIds]);
 };
 
 export const listPurchaseInvoices = async (filters = {}) => {
@@ -355,6 +360,7 @@ export const createPurchaseInvoice = async (payload, userId) => {
     await refreshPurchasePrices(client, normalized.map((item) => item.product_id));
 
     await client.query('COMMIT');
+    invalidateDashboardCache();
     return invoice;
   } catch (e) {
     await client.query('ROLLBACK');
@@ -410,6 +416,7 @@ export const updatePurchaseInvoice = async (invoiceId, payload, userId) => {
     await refreshPurchasePrices(client, [...oldProductIds, ...normalized.map((item) => item.product_id)]);
 
     await client.query('COMMIT');
+    invalidateDashboardCache();
     return {
       success: true,
       updatedId: id,
@@ -500,6 +507,7 @@ export const deletePurchaseInvoice = async (invoiceId, userId) => {
     await refreshPurchasePrices(client, affectedProductIds);
 
     await client.query('COMMIT');
+    invalidateDashboardCache();
     return { success: true, deletedId: id, invoice_number: inv.invoice_number, shortages };
   } catch (e) {
     await client.query('ROLLBACK');

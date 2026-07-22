@@ -1,16 +1,4 @@
-import pg from 'pg';
-import dotenv from 'dotenv';
-
-dotenv.config();
-
-const pool = new pg.Pool({
-  host: process.env.DB_HOST || 'localhost',
-  port: parseInt(process.env.DB_PORT || '5432', 10),
-  database: process.env.DB_NAME || 'bin_al_ajouz',
-  user: process.env.DB_USER || 'erp_user',
-  password: process.env.DB_PASSWORD,
-  ...(process.env.DB_SSL === 'true' && { ssl: { rejectUnauthorized: false } }),
-});
+import pool from './src/database/pool.js';
 
 const sql = `
 DO $$

@@ -71,9 +71,9 @@
 
           <!-- Premium Skeletons for Product Grid Loading -->
           <div v-if="loadingProducts" class="products-grid">
-            <div v-for="i in 8" :key="'sk-prod-' + i" class="product-card skeleton">
-              <div class="skeleton-line name shimmer"></div>
-              <div class="skeleton-line price shimmer" style="margin-top: 6px;"></div>
+            <div v-for="i in 8" :key="'sk-prod-' + i" class="product-card" style="display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 84px;">
+              <SkeletonLoader type="line" height="14px" width="80%" class="mb-2" />
+              <SkeletonLoader type="line" height="12px" width="50%" />
             </div>
           </div>
           <div v-else-if="!filteredProducts.length" class="empty-state">
@@ -390,7 +390,9 @@
         </div>
       </div>
 
-      <div v-if="loadingHistory" class="loading-state">⏳ جاري التحميل...</div>
+      <div v-slot:default v-if="loadingHistory" class="p-4" style="padding: 16px;">
+        <SkeletonLoader type="table" :rows="5" :cols="7" />
+      </div>
       <div v-else class="history-table-wrap">
         <table class="history-table">
           <thead>

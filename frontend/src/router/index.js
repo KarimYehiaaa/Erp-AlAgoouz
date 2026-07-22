@@ -33,7 +33,7 @@ const routes = [
       { path: 'operations', name: 'Operations', component: () => import('@/views/OperationsView.vue'), meta: { permission: 'reports.view' } },
       { path: 'forecasting', name: 'Forecasting', component: () => import('@/views/ForecastingView.vue'), meta: { permission: 'reports.view' } },
       { path: 'users', name: 'Users', component: () => import('@/views/UsersView.vue'), meta: { permission: 'users.manage' } },
-      { path: 'settings', name: 'Settings', component: () => import('@/views/SettingsView.vue'), meta: { permission: 'settings.manage' } },
+      { path: 'settings', name: 'Settings', component: () => import('@/views/SettingsView.vue'), meta: { permission: ['settings.view', 'settings.manage'] } },
     ],
   },
 ];

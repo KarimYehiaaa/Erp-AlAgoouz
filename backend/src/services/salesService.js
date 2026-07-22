@@ -182,23 +182,35 @@ const applySaleItems = async (client, { saleId, items, warehouseId, userId }) =>
   const productNamesMap = new Map(productNamesRes.rows.map((row) => [Number(row.id), row.name_ar]));
 
   const nonRecipeProductIds = productIds.filter((id) => !recipeSet.has(id));
-  const lockMap = new Map();
 
+  // 1. جلب المخزون الكلي لجميع المنتجات دفعة واحدة لتفادي استعلام N+1
+  const globalStocksRes = await client.query(
+    `SELECT product_id, COALESCE(SUM(quantity), 0) AS total 
+     FROM inventory WHERE product_id = ANY($1::int[]) GROUP BY product_id`,
+    [productIds]
+  );
+  const globalStockMap = new Map(globalStocksRes.rows.map(r => [Number(r.product_id), Number(r.total)]));
+
+  // 2. حجز وقفل سطور المخزن الرئيسي للمنتجات دفعة واحدة
   if (nonRecipeProductIds.length > 0) {
     for (const pid of nonRecipeProductIds) {
       await inventoryService.ensureInventoryRow(client, pid, warehouseId);
     }
     const sortedIds = [...new Set(nonRecipeProductIds)].sort((a, b) => a - b);
-    const lockRes = await client.query(
+    await client.query(
       `SELECT product_id, quantity FROM inventory
        WHERE warehouse_id = $1 AND product_id = ANY($2::int[])
        FOR UPDATE`,
       [warehouseId, sortedIds]
     );
-    for (const row of lockRes.rows) {
-      lockMap.set(Number(row.product_id), Number(row.quantity));
-    }
   }
+
+  // 3. جلب المخازن الفرعية المرشحة مرة واحدة فقط خارج الحلقة
+  const warehousesRes = await client.query(
+    `SELECT id FROM warehouses WHERE id <> $1 AND deleted_at IS NULL AND is_active = TRUE ORDER BY id`,
+    [warehouseId]
+  );
+  const candidateWarehouseIds = warehousesRes.rows.map(w => Number(w.id));
 
   for (const it of items) {
     const qty = Number(it.quantity || 0);
@@ -225,11 +237,7 @@ const applySaleItems = async (client, { saleId, items, warehouseId, userId }) =>
         userId,
       });
     } else {
-      const globalStockRes = await client.query(
-         `SELECT COALESCE(SUM(quantity), 0) AS total FROM inventory WHERE product_id = $1`,
-         [it.product_id]
-      );
-      const globalTotal = Number(globalStockRes.rows[0].total || 0);
+      const globalTotal = globalStockMap.get(Number(it.product_id)) || 0;
       if (globalTotal < qty) {
         const pName = productNamesMap.get(Number(it.product_id)) || 'المنتج';
         throw new AppError(
@@ -237,7 +245,7 @@ const applySaleItems = async (client, { saleId, items, warehouseId, userId }) =>
         );
       }
 
-      // 1. سحب المتاح من المخزن الرئيسي أولاً
+      // سحب المتاح من المخزن الرئيسي أولاً
       let remainingNeeded = qty;
       const primaryLock = await client.query(
         `SELECT quantity FROM inventory WHERE product_id = $1 AND warehouse_id = $2 FOR UPDATE`,
@@ -262,15 +270,10 @@ const applySaleItems = async (client, { saleId, items, warehouseId, userId }) =>
         remainingNeeded -= deductQty;
       }
 
-      // 2. سحب الباقي من المخازن الأخرى بالترتيب
+      // سحب الباقي من المخازن الأخرى بالترتيب
       if (remainingNeeded > 0.0001) {
-        const warehousesRes = await client.query(
-          `SELECT id FROM warehouses WHERE id <> $1 AND deleted_at IS NULL AND is_active = TRUE ORDER BY id`,
-          [warehouseId]
-        );
-        for (const w of warehousesRes.rows) {
+        for (const candidateWarehouseId of candidateWarehouseIds) {
           if (remainingNeeded <= 0) break;
-          const candidateWarehouseId = Number(w.id);
           await inventoryService.ensureInventoryRow(client, it.product_id, candidateWarehouseId);
           const otherLock = await client.query(
             `SELECT quantity FROM inventory WHERE product_id = $1 AND warehouse_id = $2 FOR UPDATE`,

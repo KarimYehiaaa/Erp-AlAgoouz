@@ -3,6 +3,7 @@ import path from 'path';
 import { query } from '../database/pool.js';
 import { getCloudConfig, uploadBackupToCloud } from './cloudBackupService.js';
 import { sendAlert } from './notificationService.js';
+import { encrypt } from '../utils/crypto.js';
 
 const getAutoBackupDir = () =>
     process.env.AUTO_BACKUP_DIR || path.join(process.cwd(), 'backups', 'auto-backups');
@@ -83,10 +84,13 @@ export const runAutoBackup = async () => {
         const fileName = `auto-backup-${timestamp}.json`;
         const filePath = path.join(getAutoBackupDir(), fileName);
         const backupData = { meta: { created_at: now.toISOString(), is_auto: true }, data: out };
+        const rawPayload = JSON.stringify(backupData);
+        const encryptedPayload = encrypt(rawPayload);
+        const backupJson = JSON.stringify({ encrypted: true, payload: encryptedPayload });
 
         await fs.writeFile(
             filePath, 
-            JSON.stringify(backupData, null, 2), 
+            backupJson, 
             'utf8'
         );
 

@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import { query } from '../database/pool.js';
 import * as backupService from './backupService.js';
 import { AppError } from '../middleware/errorHandler.js';
+import { decrypt } from '../utils/crypto.js';
 
 function base64url(str, encoding = 'utf8') {
   return Buffer.from(str, encoding)
@@ -109,23 +110,29 @@ export const uploadBackupToCloud = async (backupData, fileName, config) => {
   const provider = config?.provider || 'none';
   if (provider === 'none') return { success: false, message: 'Cloud backup is disabled.' };
 
+  const decryptedConfig = { ...config };
+  if (decryptedConfig.gdrive_key) decryptedConfig.gdrive_key = decrypt(decryptedConfig.gdrive_key);
+  if (decryptedConfig.dropbox_token) decryptedConfig.dropbox_token = decrypt(decryptedConfig.dropbox_token);
+  if (decryptedConfig.gdrive_client_secret) decryptedConfig.gdrive_client_secret = decrypt(decryptedConfig.gdrive_client_secret);
+  if (decryptedConfig.gdrive_refresh_token) decryptedConfig.gdrive_refresh_token = decrypt(decryptedConfig.gdrive_refresh_token);
+
   const content = JSON.stringify(backupData, null, 2);
   const blob = new Blob([content], { type: 'application/json' });
 
   if (provider === 'gdrive') {
-    const authType = config.gdrive_auth_type || 'service_account';
+    const authType = decryptedConfig.gdrive_auth_type || 'service_account';
     let accessToken;
 
     if (authType === 'service_account') {
-      const serviceAccountJson = config.gdrive_key;
+      const serviceAccountJson = decryptedConfig.gdrive_key;
       if (!serviceAccountJson) {
         throw new AppError('مفتاح حساب الخدمة لـ Google Drive مفقود', 400);
       }
       accessToken = await getGoogleDriveAccessToken(serviceAccountJson);
     } else if (authType === 'oauth') {
-      const clientId = config.gdrive_client_id;
-      const clientSecret = config.gdrive_client_secret;
-      const refreshToken = config.gdrive_refresh_token;
+      const clientId = decryptedConfig.gdrive_client_id;
+      const clientSecret = decryptedConfig.gdrive_client_secret;
+      const refreshToken = decryptedConfig.gdrive_refresh_token;
 
       if (!clientId || !clientSecret || !refreshToken) {
         throw new AppError('بيانات اتصالات Google OAuth2 (Client ID, Client Secret, Refresh Token) غير مكتملة', 400);
@@ -135,7 +142,7 @@ export const uploadBackupToCloud = async (backupData, fileName, config) => {
       throw new AppError('نوع المصادقة غير معروف لـ Google Drive', 400);
     }
 
-    const folderId = config.gdrive_folder_id?.trim();
+    const folderId = decryptedConfig.gdrive_folder_id?.trim();
     const metadata = {
       name: fileName.endsWith('.json') ? fileName : `${fileName}.json`,
       mimeType: 'application/json'
@@ -182,10 +189,10 @@ export const uploadBackupToCloud = async (backupData, fileName, config) => {
   }
 
   if (provider === 'dropbox') {
-    const token = config.dropbox_token?.trim();
+    const token = decryptedConfig.dropbox_token?.trim();
     if (!token) throw new AppError('Dropbox access token is missing', 400);
 
-    const folderPath = (config.dropbox_path || '/AlAgoouz-ERP-Backups').trim();
+    const folderPath = (decryptedConfig.dropbox_path || '/AlAgoouz-ERP-Backups').trim();
     const cleanFolder = folderPath.startsWith('/') ? folderPath : `/${folderPath}`;
     const cleanFileName = fileName.endsWith('.json') ? fileName : `${fileName}.json`;
     const targetPath = `${cleanFolder}/${cleanFileName}`.replace(/\/+/g, '/');
@@ -218,7 +225,7 @@ export const uploadBackupToCloud = async (backupData, fileName, config) => {
   }
 
   if (provider === 'webhook') {
-    const url = config.webhook_url?.trim();
+    const url = decryptedConfig.webhook_url?.trim();
     if (!url) throw new AppError('Webhook URL is missing', 400);
 
     const formData = new FormData();

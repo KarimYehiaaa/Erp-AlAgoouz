@@ -1,10 +1,12 @@
 <template>
+  <InteractiveBackground />
   <router-view />
 </template>
 
 <script setup>
 import { onMounted } from 'vue';
 import { useAppStore } from '@/stores/app';
+import InteractiveBackground from '@/components/InteractiveBackground.vue';
 
 const appStore = useAppStore();
 onMounted(() => {

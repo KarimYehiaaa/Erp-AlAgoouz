@@ -3,6 +3,7 @@ import { getClient, query } from '../database/pool.js';
 import { UNIT_ALIASES, normalizeUnit, convertQty } from './productCostService.js';
 import * as inventoryService from './inventoryService.js';
 import { getDefaultWarehouseId, getWarehouseIdByCode } from './warehouseService.js';
+import { invalidateDashboardCache } from './dashboardService.js';
 
 const WEIGHT_UNITS = new Set(['g', 'kg']);
 const VOLUME_UNITS = new Set(['ml', 'l']);
@@ -49,6 +50,16 @@ export const consumeRecipeForSale = async (
     ...warehousesRes.rows.map((w) => Number(w.id)).filter((id) => id && id !== warehouseId),
   ];
 
+  const ingredientIds = itemsRes.rows.map((row) => Number(row.ingredient_product_id));
+  const globalStocks = await client.query(
+    `SELECT product_id, COALESCE(SUM(quantity), 0) AS total 
+     FROM inventory 
+     WHERE product_id = ANY($1::int[]) 
+     GROUP BY product_id`,
+    [ingredientIds]
+  );
+  const globalStockMap = new Map(globalStocks.rows.map((r) => [Number(r.product_id), Number(r.total)]));
+
   for (const item of itemsRes.rows) {
     const recipeUnit = normalizeUnit(item.unit_code);
     const stockUnit = normalizeUnit(item.ingredient_unit);
@@ -72,11 +83,8 @@ export const consumeRecipeForSale = async (
       );
     }
 
-    const globalStockRes = await client.query(
-       `SELECT COALESCE(SUM(quantity), 0) AS total FROM inventory WHERE product_id = $1`,
-       [item.ingredient_product_id]
-    );
-    if (Number(globalStockRes.rows[0].total) < needed) {
+    const globalTotal = globalStockMap.get(Number(item.ingredient_product_id)) || 0;
+    if (globalTotal < needed) {
        throw new AppError(`مخزون المكونات غير كافٍ عبر جميع المخازن للمكون: ${item.ingredient_name}. المطلوب: ${needed.toFixed(3)} ${stockUnit}`);
     }
 
@@ -549,7 +557,35 @@ export const produceRecipeBatch = async ({ recipeId, quantity, warehouseId, note
            throw new AppError(`تعذر سحب الكمية المطلوبة بالكامل من المكون: ${req.ingredient_name} بسبب تغير المخزون بشكل متزامن.`, 400);
         }
       }
+    }
 
+    await inventoryService.ensureInventoryRow(client, recipe.product_id, targetWarehouseId);
+    await client.query(
+      `UPDATE inventory SET quantity = quantity + $1, updated_at = NOW()
+       WHERE product_id = $2 AND warehouse_id = $3`,
+      [producedQty, recipe.product_id, targetWarehouseId]
+    );
+    const prodMv = await client.query(
+      `INSERT INTO stock_movements (
+         product_id, to_warehouse_id, movement_type, quantity,
+         reference_type, reference_id, user_id, notes
+       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id`,
+      [
+        recipe.product_id,
+        targetWarehouseId,
+        operationMode,
+        producedQty,
+        operationMode,
+        recipeId,
+        userId,
+        notes || (operationMode === 'opening_production'
+          ? `Opening production balance for ${recipe.product_name}`
+          : `Production batch for ${recipe.product_name}`),
+      ]
+    );
+    const prodMovementId = prodMv.rows[0].id;
+
+    if (operationMode === 'production') {
       // 3. Apply the deductions
       for (const deduction of resolvedDeductions) {
         await client.query(
@@ -566,8 +602,8 @@ export const produceRecipeBatch = async ({ recipeId, quantity, warehouseId, note
             deduction.ingredient_product_id,
             deduction.warehouse_id,
             deduction.quantity,
-            'production',
-            recipeId,
+            'production_batch',
+            prodMovementId,
             userId,
             `Production ingredient consumption for ${recipe.product_name}`,
           ]
@@ -575,31 +611,6 @@ export const produceRecipeBatch = async ({ recipeId, quantity, warehouseId, note
         resolvedItems.push(deduction);
       }
     }
-
-    await inventoryService.ensureInventoryRow(client, recipe.product_id, targetWarehouseId);
-    await client.query(
-      `UPDATE inventory SET quantity = quantity + $1, updated_at = NOW()
-       WHERE product_id = $2 AND warehouse_id = $3`,
-      [producedQty, recipe.product_id, targetWarehouseId]
-    );
-    await client.query(
-      `INSERT INTO stock_movements (
-         product_id, to_warehouse_id, movement_type, quantity,
-         reference_type, reference_id, user_id, notes
-       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
-      [
-        recipe.product_id,
-        targetWarehouseId,
-        operationMode,
-        producedQty,
-        operationMode,
-        recipeId,
-        userId,
-        notes || (operationMode === 'opening_production'
-          ? `Opening production balance for ${recipe.product_name}`
-          : `Production batch for ${recipe.product_name}`),
-      ]
-    );
 
     const stock = await client.query(
       `SELECT quantity FROM inventory WHERE product_id = $1 AND warehouse_id = $2`,
@@ -628,6 +639,7 @@ export const produceRecipeBatch = async ({ recipeId, quantity, warehouseId, note
     );
 
     await client.query('COMMIT');
+    invalidateDashboardCache();
     return {
       recipe_id: recipeId,
       product_id: recipe.product_id,
@@ -765,21 +777,33 @@ export const reverseProductionBatch = async (movementId, userId, { reverseQty: r
 
     const proportionalFactor = reverseQty / originalQty;
 
-    // 4) جلب حركات الـ consumption المرتبطة بهذه الدفعة (±2 دقيقة)
-    const window = 2 * 60 * 1000;
-    const dupTime = new Date(mv.created_at).getTime();
-    const startTime = new Date(dupTime - window).toISOString();
-    const endTime = new Date(dupTime + window).toISOString();
-
-    const consRes = await client.query(
+    // 4) جلب حركات الـ consumption المرتبطة بهذه الدفعة
+    let consRes = await client.query(
       `SELECT * FROM stock_movements
        WHERE movement_type = 'consumption'
-         AND reference_type = $1
-         AND reference_id   = $2
-         AND created_at BETWEEN $3 AND $4
+         AND reference_type = 'production_batch'
+         AND reference_id   = $1
        ORDER BY id`,
-      [refType, recipeId, startTime, endTime]
+      [mv.id]
     );
+
+    if (consRes.rowCount === 0) {
+      // Fallback: جلب حركات الـ consumption المرتبطة بالنافذة الزمنية للبيانات القديمة
+      const window = 2 * 60 * 1000;
+      const dupTime = new Date(mv.created_at).getTime();
+      const startTime = new Date(dupTime - window).toISOString();
+      const endTime = new Date(dupTime + window).toISOString();
+
+      consRes = await client.query(
+        `SELECT * FROM stock_movements
+         WHERE movement_type = 'consumption'
+           AND reference_type = $1
+           AND reference_id   = $2
+           AND created_at BETWEEN $3 AND $4
+         ORDER BY id`,
+        [refType, recipeId, startTime, endTime]
+      );
+    }
 
     // 5) طرح المنتج النهائي من المخزون
     await client.query(
@@ -855,6 +879,7 @@ export const reverseProductionBatch = async (movementId, userId, { reverseQty: r
     );
 
     await client.query('COMMIT');
+    invalidateDashboardCache();
 
     // المخزون الجديد بعد العكس
     const newStock = await client.query(

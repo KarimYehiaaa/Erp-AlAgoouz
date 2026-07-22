@@ -38,19 +38,19 @@
             <div class="fields-grid">
               <div class="form-group">
                 <label>اسم المحل</label>
-                <input v-model="settings.company.name_ar" placeholder="بن العجوز" />
+                <input v-model="settings.company.name_ar" placeholder="بن العجوز" :disabled="!canEdit" />
               </div>
               <div class="form-group">
                 <label>رقم الهاتف</label>
-                <input v-model="settings.company.phone" placeholder="01xxxxxxxxx" dir="ltr" />
+                <input v-model="settings.company.phone" placeholder="01xxxxxxxxx" dir="ltr" :disabled="!canEdit" />
               </div>
               <div class="form-group full-width">
                 <label>العنوان (يظهر على الفاتورة)</label>
-                <input v-model="settings.company.address" placeholder="مثال: شارع التحرير — القاهرة" />
+                <input v-model="settings.company.address" placeholder="مثال: شارع التحرير — القاهرة" :disabled="!canEdit" />
               </div>
               <div class="form-group full-width">
                 <label>الشعار التجاري</label>
-                <input v-model="settings.company.tagline" placeholder="للبن التركي الأصيل" />
+                <input v-model="settings.company.tagline" placeholder="للبن التركي الأصيل" :disabled="!canEdit" />
               </div>
             </div>
 
@@ -58,7 +58,7 @@
               <div class="info-value">
                 📎 الشعار: استبدل الملف <code>public/logo.png</code>
               </div>
-              <button class="btn btn-save" :disabled="saving" @click="saveCompany">
+              <button v-if="canEdit" class="btn btn-save" :disabled="saving" @click="saveCompany">
                 <AppIcon name="save" :size="16" />
                 {{ saving ? 'جاري الحفظ...' : 'حفظ البيانات' }}
               </button>
@@ -160,8 +160,9 @@
               placeholder="اسم التصنيف الجديد..."
               class="add-input"
               @keyup.enter="addCategory"
+              :disabled="!canEdit"
             />
-            <button class="btn btn-add" :disabled="categorySaving || !newCategoryName.trim()" @click="addCategory">
+            <button class="btn btn-add" :disabled="categorySaving || !newCategoryName.trim() || !canEdit" @click="addCategory">
               <AppIcon name="add" :size="16" /> إضافة
             </button>
           </div>
@@ -170,7 +171,7 @@
             <div class="data-table-head">
               <span>التصنيف</span>
               <span class="col-num">المنتجات</span>
-              <span class="col-actions">الإجراءات</span>
+              <span v-if="canEdit" class="col-actions">الإجراءات</span>
             </div>
             <div v-if="!categories.length" class="data-table-empty">
               لا توجد تصنيفات — أضف أول تصنيف أعلاه
@@ -186,7 +187,7 @@
               <span class="col-num">
                 <span class="badge">{{ cat.products_count || 0 }}</span>
               </span>
-              <div class="col-actions row-actions">
+              <div v-if="canEdit" class="col-actions row-actions">
                 <template v-if="categoryEditing === cat.id">
                   <button class="action-btn save" :disabled="categorySaving" @click="saveCategory(cat)">حفظ</button>
                   <button class="action-btn" @click="cancelEditCategory">إلغاء</button>
@@ -219,8 +220,9 @@
               placeholder="مثل: كجم، لتر، قطعة، علبة..."
               class="add-input"
               @keyup.enter="addUnit"
+              :disabled="!canEdit"
             />
-            <button class="btn btn-add" :disabled="unitSaving || !newUnit.trim()" @click="addUnit">
+            <button class="btn btn-add" :disabled="unitSaving || !newUnit.trim() || !canEdit" @click="addUnit">
                 <AppIcon name="add" :size="16" /> إضافة
             </button>
           </div>
@@ -229,7 +231,7 @@
             <div class="data-table-head">
               <span>الوحدة</span>
               <span class="col-num">المنتجات</span>
-              <span class="col-actions">الإجراءات</span>
+              <span v-if="canEdit" class="col-actions">الإجراءات</span>
             </div>
             <div v-if="!productUnits.length" class="data-table-empty">
               لا توجد وحدات — أضف أول وحدة أعلاه
@@ -245,7 +247,7 @@
               <span class="col-num">
                 <span class="badge">{{ unit.products_count || 0 }}</span>
               </span>
-              <div class="col-actions row-actions">
+              <div v-if="canEdit" class="col-actions row-actions">
                 <template v-if="unitEditing === unit.id">
                   <button class="action-btn save" :disabled="unitSaving" @click="saveUnit(unit)">حفظ</button>
                   <button class="action-btn" @click="cancelEditUnit">إلغاء</button>
@@ -409,7 +411,7 @@
         <div class="settings-card">
           <div class="backup-toolbar">
             <div class="toolbar-group">
-              <button class="btn btn-add" @click="createBackup" :disabled="backuping">
+              <button class="btn btn-add" @click="createBackup" :disabled="backuping || !canEdit">
                 <AppIcon name="add" :size="16" /> إنشاء نسخة
               </button>
               <button class="btn btn-outline" @click="refreshBackups">
@@ -435,7 +437,7 @@
                 <button class="btn btn-sm btn-outline" @click="download(b.name)">
                   <AppIcon name="download" :size="14" /> تحميل
                 </button>
-                <button class="btn btn-sm btn-edit" @click="restore(b.name)">
+                <button v-if="canEdit" class="btn btn-sm btn-edit" @click="restore(b.name)">
                   <AppIcon name="arrowLeft" :size="14" /> استرداد
                 </button>
               </div>
@@ -455,7 +457,7 @@
           <div class="fields-grid">
             <div class="form-group full-width">
               <label>المزود السحابي</label>
-              <select v-model="cloudBackupSettings.provider">
+              <select v-model="cloudBackupSettings.provider" :disabled="!canEdit">
                 <option value="none">تعطيل النسخ السحابي</option>
                 <option value="gdrive">Google Drive (جوجل درايف)</option>
                 <option value="dropbox">Dropbox (دروب بوكس)</option>
@@ -469,7 +471,7 @@
             <div class="fields-grid">
               <div class="form-group full-width">
                 <label>نوع الاتصال بـ Google Drive</label>
-                <select v-model="cloudBackupSettings.gdrive_auth_type">
+                <select v-model="cloudBackupSettings.gdrive_auth_type" :disabled="!canEdit">
                   <option value="service_account">حساب خدمة (Service Account) — مناسب للمؤسسات والمساحات المشتركة</option>
                   <option value="oauth">حساب Google شخصي (OAuth2 / Refresh Token) — مناسب للحسابات الشخصية</option>
                 </select>
@@ -483,6 +485,7 @@
                   placeholder='{"type": "service_account", "project_id": ...}'
                   rows="5"
                   style="font-family: monospace; font-size: 0.82rem;"
+                  :disabled="!canEdit"
                 ></textarea>
                 <p class="hint mt-12">💡 أدخل محتوى ملف المفتاح JSON الخاص بـ Service Account من Google Cloud Console، وتأكد من مشاركة مجلد الـ Google Drive مع بريد حساب الخدمة.</p>
               </div>
@@ -496,6 +499,7 @@
                       type="text" 
                       v-model="cloudBackupSettings.gdrive_client_id" 
                       placeholder="أدخل Google Client ID"
+                      :disabled="!canEdit"
                     />
                   </div>
                   <div class="form-group">
@@ -504,6 +508,7 @@
                       type="password" 
                       v-model="cloudBackupSettings.gdrive_client_secret" 
                       placeholder="أدخل Google Client Secret"
+                      :disabled="!canEdit"
                     />
                   </div>
                   <div class="form-group full-width">
@@ -512,6 +517,7 @@
                       type="password" 
                       v-model="cloudBackupSettings.gdrive_refresh_token" 
                       placeholder="أدخل Google OAuth2 Refresh Token"
+                      :disabled="!canEdit"
                     />
                     <p class="hint mt-12">💡 يمكنك استخراج رمز التجديد (Refresh Token) بسهولة باستخدام أداة Google OAuth Playground.</p>
                   </div>
@@ -524,6 +530,7 @@
                   type="text" 
                   v-model="cloudBackupSettings.gdrive_folder_id" 
                   placeholder="أدخل Folder ID (اختياري)"
+                  :disabled="!canEdit"
                 />
                 <p class="hint">💡 إذا تركته فارغاً سيتم رفع الملف في المجلد الرئيسي لحساب جوجل درايف الخاص بك.</p>
               </div>
@@ -539,6 +546,7 @@
                   type="password" 
                   v-model="cloudBackupSettings.dropbox_token" 
                   placeholder="أدخل Dropbox Access Token"
+                  :disabled="!canEdit"
                 />
               </div>
               <div class="form-group full-width">
@@ -547,6 +555,7 @@
                   type="text" 
                   v-model="cloudBackupSettings.dropbox_path" 
                   placeholder="/AlAgoouz-ERP-Backups"
+                  :disabled="!canEdit"
                 />
               </div>
             </div>
@@ -561,6 +570,7 @@
                   type="text" 
                   v-model="cloudBackupSettings.webhook_url" 
                   placeholder="https://discord.com/api/webhooks/..."
+                  :disabled="!canEdit"
                 />
                 <p class="hint mt-12">💡 يدعم روابط Webhooks الخاصة بـ Discord بشكل مباشر مع تفاصيل محسنة.</p>
               </div>
@@ -568,14 +578,14 @@
           </div>
 
           <div class="cloud-actions">
-            <button class="btn btn-save" @click="saveCloudBackupSettings" :disabled="cloudSaving">
+            <button v-if="canEdit" class="btn btn-save" @click="saveCloudBackupSettings" :disabled="cloudSaving">
               <AppIcon name="save" :size="16" /> {{ cloudSaving ? 'جاري الحفظ...' : 'حفظ الإعدادات السحابية' }}
             </button>
             <button 
               v-if="cloudBackupSettings.provider !== 'none'" 
               class="btn btn-outline" 
               @click="testCloudBackup" 
-              :disabled="cloudTesting"
+              :disabled="cloudTesting || !canEdit"
             >
               <AppIcon name="theme" :size="16" /> {{ cloudTesting ? 'جاري الفحص...' : 'فحص الرفع التجريبي' }}
             </button>
@@ -583,7 +593,7 @@
         </div>
 
         <!-- استرداد من ملف -->
-        <div class="settings-card">
+        <div v-if="canEdit" class="settings-card">
           <h4 class="group-label">استرداد من ملف خارجي</h4>
           <p class="section-desc">رفع ملف JSON محفوظ مسبقاً لاستبدال بيانات النظام</p>
           <div class="restore-row">
@@ -599,7 +609,7 @@
         </div>
 
         <!-- منطقة الخطر -->
-        <div class="settings-card danger-zone">
+        <div v-if="canEdit" class="settings-card danger-zone">
           <h4 class="group-label danger">⚠️ منطقة الخطر</h4>
           <p class="section-desc">هذه الإجراءات لا يمكن التراجع عنها. تأكد من وجود نسخة احتياطية أولاً.</p>
           <button class="btn btn-delete" @click="clearSystem" :disabled="clearing">
@@ -621,8 +631,12 @@ import { useAppStore, STYLE_PRESETS, STYLE_SWATCHES } from '@/stores/app';
 import { CURRENCY } from '@/utils/currency';
 import { useProductMeta } from '@/composables/useProductMeta';
 
+import { useAuthStore } from '@/stores/auth';
+
 const { loadMeta: refreshMetaCache } = useProductMeta();
 const appStore = useAppStore();
+const authStore = useAuthStore();
+const canEdit = computed(() => authStore.hasPermission('settings.manage'));
 
 // ───── Tabs ─────
 const tabs = [

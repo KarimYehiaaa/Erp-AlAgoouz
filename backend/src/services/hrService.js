@@ -224,6 +224,8 @@ const calculateAttendanceFields = async (employeeId, workDate, checkIn, checkOut
     const workedHours = Math.max(0, diffMs / 36e5);
     regularHours = Math.min(workedHours, requiredHours);
     overtimeHours = employee.overtime_enabled ? Math.max(0, workedHours - requiredHours) : 0;
+  } else if (status === 'present') {
+    regularHours = requiredHours;
   }
 
   if (checkIn && employee.start_time) {
@@ -252,11 +254,14 @@ export const listAttendance = async (filters = {}) => {
 };
 
 export const saveAttendance = async (data, userId) => {
+  const employeeId = Number(data.employee_id);
+  if (!employeeId) throw new AppError('يرجى اختيار الموظف أولاً من القائمة', 400);
+
   const workDate = data.work_date || data.from_date || new Date().toISOString().slice(0, 10);
   const checkIn = data.check_in || null;
   const checkOut = data.check_out || null;
   const status = data.status || 'present';
-  const calc = await calculateAttendanceFields(data.employee_id, workDate, checkIn, checkOut, status);
+  const calc = await calculateAttendanceFields(employeeId, workDate, checkIn, checkOut, status);
   const result = await query(
     `INSERT INTO employee_attendance
       (employee_id, work_date, check_in, check_out, status, regular_hours, overtime_hours, late_minutes, notes, user_id)
@@ -273,12 +278,15 @@ export const saveAttendance = async (data, userId) => {
        user_id = EXCLUDED.user_id,
        deleted_at = NULL
      RETURNING *`,
-    [data.employee_id, workDate, checkIn, checkOut, status, calc.regularHours, calc.overtimeHours, calc.lateMinutes, data.notes || null, userId]
+    [employeeId, workDate, checkIn, checkOut, status, calc.regularHours, calc.overtimeHours, calc.lateMinutes, data.notes || null, userId]
   );
   return result.rows[0];
 };
 
 export const saveAttendanceRange = async (data, userId) => {
+  const employeeId = Number(data.employee_id);
+  if (!employeeId) throw new AppError('يرجى اختيار الموظف أولاً من القائمة', 400);
+
   const dates = datesBetween(data.from_date || data.work_date, data.to_date || data.from_date || data.work_date);
   if (!dates.length) return { count: 0, rows: [] };
 
@@ -287,7 +295,7 @@ export const saveAttendanceRange = async (data, userId) => {
     FROM employees e
     LEFT JOIN employee_shifts s ON s.id = e.shift_id
     WHERE e.id = $1 AND e.deleted_at IS NULL
-  `, [data.employee_id])).rows[0];
+  `, [employeeId])).rows[0];
   if (!employee) throw new AppError('الموظف غير موجود', 404);
 
   const requiredHours = toNumber(employee.required_hours, toNumber(employee.daily_required_hours, 8));
@@ -312,6 +320,8 @@ export const saveAttendanceRange = async (data, userId) => {
         const workedHours = Math.max(0, diffMs / 36e5);
         regularHours = Math.min(workedHours, requiredHours);
         overtimeHours = employee.overtime_enabled ? Math.max(0, workedHours - requiredHours) : 0;
+      } else if (status === 'present') {
+        regularHours = requiredHours;
       }
 
       if (checkIn && employee.start_time) {

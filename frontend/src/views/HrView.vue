@@ -558,8 +558,18 @@ const deleteEmployee = async (employee) => {
 };
 
 const saveAttendance = async () => {
+  if (!attendanceForm.value.employee_id) {
+    alert('يرجى اختيار الموظف أولاً من القائمة');
+    return;
+  }
   await runTask(async () => {
-    await hr.saveAttendance(attendanceForm.value);
+    const payload = {
+      ...attendanceForm.value,
+      check_in: attendanceForm.value.check_in || null,
+      check_out: attendanceForm.value.check_out || null,
+      notes: attendanceForm.value.notes || null,
+    };
+    await hr.saveAttendance(payload);
     attendanceForm.value = { ...attendanceForm.value, check_in: '', check_out: '', notes: '' };
     await refreshAll();
   }, 'تم حفظ الحضور للأيام المحددة بنجاح');

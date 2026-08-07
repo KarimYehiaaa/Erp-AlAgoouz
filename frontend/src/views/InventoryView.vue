@@ -419,13 +419,13 @@ const highlighted = ref({});
 
 const stockColumns = [
   { key: 'name_ar', label: 'المنتج' },
-  { key: 'sku', label: 'كود SKU' },
-  { key: 'total_quantity', label: 'إجمالي رصيد المنشأة' },
-  { key: 'main_quantity', label: '🏢 المخزن الرئيسي' },
-  { key: 'branch_quantity', label: '🏪 مخزن الفرع / المحل' },
-  { key: 'min_stock', label: 'الحد الأدنى (معتمد على الإجمالي)' },
-  { key: 'status', label: 'حالة المخزون' },
-  { key: 'actions', label: 'الإجراءات', align: 'right' }
+  { key: 'sku', label: 'الكود' },
+  { key: 'total_quantity', label: 'الإجمالي' },
+  { key: 'main_quantity', label: 'المخزن الرئيسي' },
+  { key: 'branch_quantity', label: 'مخزن الفرع' },
+  { key: 'min_stock', label: 'الحد الأدنى' },
+  { key: 'status', label: 'الحالة' },
+  { key: 'actions', label: '', align: 'right' }
 ];
 
 const getMainQty = (item) => {

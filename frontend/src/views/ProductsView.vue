@@ -294,9 +294,9 @@ const formErr = ref(false);
 const productsColumns = [
   { key: 'name', label: 'المنتج' },
   { key: 'category', label: 'القسم' },
-  { key: 'purchase_price', label: 'تكلفة الشراء' },
-  { key: 'sale_price', label: 'سعر البيع' },
-  { key: 'total_quantity', label: 'إجمالي رصيد المنشأة' },
+  { key: 'purchase_price', label: 'الشراء' },
+  { key: 'sale_price', label: 'البيع' },
+  { key: 'total_quantity', label: 'الإجمالي' },
   { key: 'status', label: 'الحالة' },
   { key: 'actions', label: '', align: 'right' },
 ];

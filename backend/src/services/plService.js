@@ -84,28 +84,32 @@ export const getProfitAndLoss = async (fromDate, toDate) => {
       [fromDate, toDate]
     ),
 
-    // ── 4. إجمالي المصاريف ──
+    // ── 4. إجمالي المصاريف (مواصفة المصاريف الثابتة والمتغيرة) ──
     query(
       `SELECT
-         COALESCE(SUM(amount), 0) AS expenses_total,
-         COUNT(*)::int            AS expenses_count
-       FROM expenses
-       WHERE deleted_at IS NULL
-         AND expense_date BETWEEN $1::date AND $2::date`,
+         COALESCE(SUM(e.amount), 0) AS expenses_total,
+         COALESCE(SUM(CASE WHEN COALESCE(e.is_fixed, ec.is_fixed, FALSE) = TRUE THEN e.amount ELSE 0 END), 0) AS fixed_expenses_total,
+         COALESCE(SUM(CASE WHEN COALESCE(e.is_fixed, ec.is_fixed, FALSE) = FALSE THEN e.amount ELSE 0 END), 0) AS variable_expenses_total,
+         COUNT(e.id)::int AS expenses_count
+       FROM expenses e
+       LEFT JOIN expense_categories ec ON ec.id = e.category_id
+       WHERE e.deleted_at IS NULL
+         AND e.expense_date BETWEEN $1::date AND $2::date`,
       [fromDate, toDate]
     ),
 
-    // ── 5. المصاريف مُجمَّعة بالتصنيف ──
+    // ── 5. المصاريف مُجمَّعة بالتصنيف ودرجة الثبات ──
     query(
       `SELECT
          COALESCE(ec.name_ar, 'أخرى') AS category,
+         COALESCE(e.is_fixed, ec.is_fixed, FALSE) AS is_fixed,
          COALESCE(SUM(e.amount), 0)   AS total,
          COUNT(e.id)::int             AS count
        FROM expenses e
        LEFT JOIN expense_categories ec ON ec.id = e.category_id
        WHERE e.deleted_at IS NULL
          AND e.expense_date BETWEEN $1::date AND $2::date
-       GROUP BY ec.id, ec.name_ar
+       GROUP BY ec.id, ec.name_ar, COALESCE(e.is_fixed, ec.is_fixed, FALSE)
        ORDER BY total DESC`,
       [fromDate, toDate]
     ),
@@ -166,38 +170,35 @@ export const getProfitAndLoss = async (fromDate, toDate) => {
   const cogsFromItems_   = roundMoney(toNum(cogsFromItems.rows[0]?.cogs_items));
   const cogsStored       = roundMoney(toNum(salesData.rows[0]?.cogs_stored));
   const purchases        = roundMoney(toNum(purchasesData.rows[0]?.purchases_total));
-  const expensesTotal    = roundMoney(toNum(expensesData.rows[0]?.expenses_total));
-  const returns          = roundMoney(toNum(returnsData.rows[0]?.returns_total));
+  const expensesTotal     = roundMoney(toNum(expensesData.rows[0]?.expenses_total));
+  const fixedExpenses     = roundMoney(toNum(expensesData.rows[0]?.fixed_expenses_total));
+  const variableExpenses  = roundMoney(toNum(expensesData.rows[0]?.variable_expenses_total));
+  const returns           = roundMoney(toNum(returnsData.rows[0]?.returns_total));
 
   // BUG-12 FIX: خوارزمية تحديد COGS الموثوقة
-  //
-  // المنطق:
-  //   cogsStored    = cost_amount مخزّن على كل بيع (POS + daily) → الأدق دائماً
-  //   cogsFromItems = cost_price من sale_items → POS فقط (لا يغطي daily)
-  //   purchases     = بديل أخير لنظام daily بحته (cogsStored = 0)
   let cogsUsed;
   let cogsBasis;
 
   if (cogsStored > 0) {
-    // مزيج POS + daily: استخدم cogsStored كمصدر موحد (الأكثر دقة)
     cogsUsed = cogsStored;
     cogsBasis = 'cost_stored';
   } else if (cogsFromItems_ > 0) {
-    // مبيعات POS فقط وcogsStored = 0 (edge case نادر)
     cogsUsed = cogsFromItems_;
     cogsBasis = 'sale_items';
   } else {
-    // daily بحته → استخدم المشتريات كتقريب
     cogsUsed = purchases;
     cogsBasis = 'purchases';
   }
 
-  const netRevenue        = revenue; // المبيعات المكتملة هي بالفعل صافي الإيرادات بعد استبعاد المرتجعات
-  const grossRevenue      = roundMoney(revenue + returns); // المبيعات الإجمالية قبل المرتجعات
-  const grossProfit       = roundMoney(netRevenue - cogsUsed);
-  const grossProfitMargin = netRevenue > 0 ? roundMoney((grossProfit / netRevenue) * 100) : 0;
-  const netProfit         = roundMoney(grossProfit - expensesTotal);
-  const netProfitMargin   = netRevenue > 0 ? roundMoney((netProfit / netRevenue) * 100) : 0;
+  const netRevenue            = revenue; // المبيعات المكتملة هي صافي الإيرادات
+  const grossRevenue          = roundMoney(revenue + returns); // المبيعات الإجمالية
+  const grossProfit           = roundMoney(netRevenue - cogsUsed);
+  const grossProfitMargin     = netRevenue > 0 ? roundMoney((grossProfit / netRevenue) * 100) : 0;
+  const operatingProfit       = roundMoney(grossProfit - variableExpenses);
+  const operatingProfitMargin = netRevenue > 0 ? roundMoney((operatingProfit / netRevenue) * 100) : 0;
+  const netProfit             = roundMoney(grossProfit - expensesTotal);
+  const netProfitMargin       = netRevenue > 0 ? roundMoney((netProfit / netRevenue) * 100) : 0;
+  const breakEvenRevenue      = grossProfitMargin > 0 ? roundMoney(fixedExpenses / (grossProfitMargin / 100)) : 0;
 
   /**
    * التدفق النقدي:

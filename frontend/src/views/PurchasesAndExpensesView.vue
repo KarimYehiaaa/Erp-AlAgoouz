@@ -235,8 +235,11 @@
         <button class="btn btn-primary" @click="openExpenseCreate">+ مصروف جديد</button>
       </div>
 
-      <div class="grid grid-2" style="margin-bottom: 20px">
-        <StatCard label="إجمالي مصروفات الفترة" :value="periodExpensesTotal" icon="money" />
+      <!-- Expenses Summary Stat Cards -->
+      <div class="grid grid-4" style="gap: 16px; margin-bottom: 20px;">
+        <StatCard label="إجمالي المصروفات" :value="formatMoney(periodExpensesTotal)" icon="cash" format="currency" />
+        <StatCard label="🏢 المصروفات الثابتة (إيجار/مرتبات/كهرباء)" :value="formatMoney(periodFixedExpensesTotal)" icon="building" format="currency" />
+        <StatCard label="🛒 المصروفات المتغيرة والتشغيلية" :value="formatMoney(periodVariableExpensesTotal)" icon="wallet" format="currency" />
         <StatCard label="عدد بنود المصروفات بالفترة" :value="periodExpensesCount" icon="receipt" format="number" />
       </div>
 
@@ -246,6 +249,7 @@
             <tr>
               <th>البند</th>
               <th>التصنيف</th>
+              <th>النوع</th>
               <th>المبلغ</th>
               <th>التاريخ</th>
               <th></th>
@@ -255,14 +259,19 @@
             <tr v-if="loadingExpenses" v-for="i in 3" :key="'e-sk-' + i">
               <td><div class="skeleton-shimmer" style="height: 18px; width: 140px;"></div></td>
               <td><div class="skeleton-shimmer" style="height: 18px; width: 100px;"></div></td>
+              <td><div class="skeleton-shimmer" style="height: 18px; width: 80px;"></div></td>
               <td><div class="skeleton-shimmer" style="height: 18px; width: 60px;"></div></td>
               <td><div class="skeleton-shimmer" style="height: 18px; width: 80px;"></div></td>
               <td><div class="skeleton-shimmer" style="height: 18px; width: 50px;"></div></td>
             </tr>
             <tr v-else v-for="e in expensesList" :key="e.id">
-              <td>{{ e.title }}</td>
+              <td style="font-weight: 700;">{{ e.title }}</td>
               <td>{{ e.category_name }}</td>
-              <td>{{ formatMoney(e.amount) }}</td>
+              <td>
+                <span v-if="e.is_fixed" class="badge" style="background: rgba(59,130,246,0.12); color: #3b82f6; font-size: 0.75rem; padding: 3px 8px; border-radius: 6px; font-weight: 800;">🏢 ثابت</span>
+                <span v-else class="badge" style="background: rgba(100,116,139,0.12); color: #64748b; font-size: 0.75rem; padding: 3px 8px; border-radius: 6px; font-weight: 700;">🛒 متغير</span>
+              </td>
+              <td style="font-weight: 800; color: var(--accent);">{{ formatMoney(e.amount) }}</td>
               <td>{{ e.expense_date }}</td>
               <td>
                 <button type="button" class="icon-btn" @click="openExpenseEdit(e)" title="تعديل">
@@ -274,7 +283,7 @@
               </td>
             </tr>
             <tr v-if="!loadingExpenses && !expensesList.length">
-              <td colspan="5">لا توجد مصروفات مسجلة</td>
+              <td colspan="6">لا توجد مصروفات مسجلة</td>
             </tr>
           </tbody>
         </table>
@@ -287,17 +296,28 @@
           <form @submit.prevent="saveExpense">
             <div class="form-group" style="margin-bottom: 12px;">
               <label>البند</label>
-              <input v-model="expenseForm.title" class="field-like" required @blur="suggestExpenseCategory" />
+              <input v-model="expenseForm.title" class="field-like" placeholder="مثال: إيجار المحل، فاتورة كهرباء، شراء أدوات..." required @blur="suggestExpenseCategory" />
             </div>
             <div class="form-group" style="margin-bottom: 12px;">
               <label>التصنيف</label>
-              <select v-model="expenseForm.category_id" class="field-like">
+              <select v-model="expenseForm.category_id" class="field-like" @change="onExpenseCategoryChange">
                 <option v-for="c in expenseCategories" :key="c.id" :value="c.id">{{ c.name_ar }}</option>
               </select>
             </div>
             <div class="form-group" style="margin-bottom: 12px;">
+              <label style="display: flex; align-items: center; justify-content: space-between; font-weight: 700;">
+                <span>طبيعة المصروف</span>
+                <span v-if="expenseForm.is_fixed" style="color: #3b82f6; font-size: 0.78rem; font-weight: 800;">🏢 مصروف ثابت (Overhead)</span>
+                <span v-else style="color: #64748b; font-size: 0.78rem; font-weight: 700;">🛒 مصروف متغير / تشغيلي</span>
+              </label>
+              <select v-model="expenseForm.is_fixed" class="field-like">
+                <option :value="false">🛒 مصروف متغير / تشغيلي (ضيافة، صيانة طارئة، نقل...)</option>
+                <option :value="true">🏢 مصروف ثابت / شهري (إيجار، مرتبات، كهرباء، مرافق...)</option>
+              </select>
+            </div>
+            <div class="form-group" style="margin-bottom: 12px;">
               <label>المبلغ</label>
-              <input v-model.number="expenseForm.amount" class="field-like" type="number" required />
+              <input v-model.number="expenseForm.amount" class="field-like" type="number" step="0.01" required />
             </div>
             <div class="form-group" style="margin-bottom: 16px;">
               <label>تاريخ المصروف</label>
@@ -556,6 +576,14 @@ const periodExpensesTotal = computed(() => {
   return expensesList.value.reduce((sum, e) => sum + Number(e.amount || 0), 0);
 });
 
+const periodFixedExpensesTotal = computed(() => {
+  return expensesList.value.filter(e => e.is_fixed).reduce((sum, e) => sum + Number(e.amount || 0), 0);
+});
+
+const periodVariableExpensesTotal = computed(() => {
+  return expensesList.value.filter(e => !e.is_fixed).reduce((sum, e) => sum + Number(e.amount || 0), 0);
+});
+
 const periodExpensesCount = computed(() => {
   return expensesList.value.length;
 });
@@ -566,16 +594,25 @@ const expensesFilters = ref({
 });
 
 const showExpenseForm = ref(false);
-const expenseForm = ref({ id: null, title: '', category_id: 1, amount: 0, expense_date: todayStr });
+const expenseForm = ref({ id: null, title: '', category_id: 1, is_fixed: false, amount: 0, expense_date: todayStr });
 
 const resetExpenseForm = () => {
+  const firstCat = expenseCategories.value[0];
   expenseForm.value = {
     id: null,
     title: '',
-    category_id: expenseCategories.value[0]?.id || 1,
+    category_id: firstCat?.id || 1,
+    is_fixed: firstCat ? Boolean(firstCat.is_fixed) : false,
     amount: 0,
     expense_date: todayStr,
   };
+};
+
+const onExpenseCategoryChange = () => {
+  const cat = expenseCategories.value.find((c) => c.id === expenseForm.value.category_id);
+  if (cat) {
+    expenseForm.value.is_fixed = Boolean(cat.is_fixed);
+  }
 };
 
 const openExpenseCreate = () => {
@@ -588,6 +625,7 @@ const openExpenseEdit = (row) => {
     id: row.id,
     title: row.title,
     category_id: row.category_id,
+    is_fixed: Boolean(row.is_fixed),
     amount: Number(row.amount || 0),
     expense_date: String(row.expense_date || '').slice(0, 10),
   };

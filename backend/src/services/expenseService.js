@@ -5,7 +5,7 @@ import { broadcast } from './websocketService.js';
 import { sanitizeLimit } from '../utils/money.js';
 
 export const getExpenses = async (filters = {}) => {
-  let sql = `SELECT e.*, ec.name_ar as category_name, u.full_name as user_name
+  let sql = `SELECT e.*, COALESCE(e.is_fixed, ec.is_fixed, FALSE) AS is_fixed, ec.name_ar as category_name, u.full_name as user_name
     FROM expenses e LEFT JOIN expense_categories ec ON e.category_id = ec.id
     LEFT JOIN users u ON e.user_id = u.id WHERE e.deleted_at IS NULL`;
   const params = [];
@@ -13,6 +13,10 @@ export const getExpenses = async (filters = {}) => {
   if (filters.from_date) { sql += ` AND e.expense_date >= $${i++}`; params.push(filters.from_date); }
   if (filters.to_date) { sql += ` AND e.expense_date <= $${i++}`; params.push(filters.to_date); }
   if (filters.category_id) { sql += ` AND e.category_id = $${i++}`; params.push(filters.category_id); }
+  if (filters.is_fixed !== undefined && filters.is_fixed !== null && filters.is_fixed !== '') {
+    sql += ` AND COALESCE(e.is_fixed, ec.is_fixed, FALSE) = $${i++}`;
+    params.push(filters.is_fixed === 'true' || filters.is_fixed === true);
+  }
   sql += ` ORDER BY e.expense_date DESC LIMIT ${sanitizeLimit(filters.limit)}`;
   return (await query(sql, params)).rows;
 };
@@ -20,10 +24,11 @@ export const getExpenses = async (filters = {}) => {
 export const createExpense = async (data, userId) => {
   const resSeq = await query(`SELECT nextval('seq_expenses_number') AS next_val`);
   const num = `EXP-${resSeq.rows[0].next_val}`;
+  const isFixed = data.is_fixed !== undefined ? Boolean(data.is_fixed) : false;
   const result = await query(
-    `INSERT INTO expenses (expense_number, category_id, title, amount, expense_date, payment_method, recurring, notes, user_id)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
-    [num, data.category_id, data.title, data.amount, data.expense_date || new Date(), data.payment_method || 'cash', data.recurring || false, data.notes, userId]
+    `INSERT INTO expenses (expense_number, category_id, title, amount, expense_date, payment_method, recurring, is_fixed, notes, user_id)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+    [num, data.category_id, data.title, data.amount, data.expense_date || new Date(), data.payment_method || 'cash', data.recurring || false, isFixed, data.notes, userId]
   );
   invalidateDashboardCache();
   broadcast('expenses_changed', result.rows[0]);
@@ -39,10 +44,11 @@ export const updateExpense = async (id, data) => {
          expense_date = COALESCE($4, expense_date),
          payment_method = COALESCE($5, payment_method),
          recurring = COALESCE($6, recurring),
-         notes = COALESCE($7, notes)
-     WHERE id = $8 AND deleted_at IS NULL
+         is_fixed = COALESCE($7, is_fixed),
+         notes = COALESCE($8, notes)
+     WHERE id = $9 AND deleted_at IS NULL
      RETURNING *`,
-    [data.category_id, data.title, data.amount, data.expense_date, data.payment_method, data.recurring, data.notes, id]
+    [data.category_id, data.title, data.amount, data.expense_date, data.payment_method, data.recurring, data.is_fixed, data.notes, id]
   );
   if (!result.rows[0]) throw new AppError('المصروف غير موجود', 404);
   invalidateDashboardCache();
@@ -50,14 +56,9 @@ export const updateExpense = async (id, data) => {
   return result.rows[0];
 };
 
-export const getCategories = async () => (await query(`SELECT * FROM expense_categories WHERE is_active = TRUE`)).rows;
+export const getCategories = async () => (await query(`SELECT id, name_ar, slug, is_fixed, is_active FROM expense_categories WHERE is_active = TRUE ORDER BY id ASC`)).rows;
 
 export const getExpenseReport = async (year, month) => {
-  const params = [year];
-  let dateFilter = `EXTRACT(YEAR FROM expense_date) = $1`;
-  if (month) { dateFilter += ` AND EXTRACT(MONTH FROM expense_date) = $2`; params.push(month); }
-
-  const byCategory = await query(
     `SELECT ec.name_ar, SUM(e.amount) as total, COUNT(*) as count
      FROM expenses e JOIN expense_categories ec ON e.category_id = ec.id
      WHERE ${dateFilter} AND e.deleted_at IS NULL GROUP BY ec.id, ec.name_ar ORDER BY total DESC`,

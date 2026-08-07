@@ -255,7 +255,6 @@ router.post('/backup/clear',         authenticate, authorize('settings.manage'),
 router.post('/backup/cloud-test',    authenticate, authorize('settings.manage'), requireAdmin, api.backup.cloudTest);
 router.get('/backup/logs',           authenticate, authorize('settings.manage'), requireAdmin, api.backup.getLogs);
 
-// ─── Admin Command Center — admin only ───────────────────────────────────────
 router.get('/admin/health',                     authenticate, requireAdmin, api.adminDashboard.health);
 router.get('/admin/sessions',                   authenticate, requireAdmin, api.adminDashboard.sessions);
 router.delete('/admin/sessions/:id',            authenticate, requireAdmin, auditLog('session_revoke', 'admin'), api.adminDashboard.revokeSession);
@@ -263,5 +262,11 @@ router.delete('/admin/sessions/user/:userId',   authenticate, requireAdmin, audi
 router.get('/admin/failed-logins',              authenticate, requireAdmin, api.adminDashboard.failedLogins);
 router.get('/admin/activity',                   authenticate, requireAdmin, api.adminDashboard.recentActivity);
 router.get('/admin/counts',                     authenticate, requireAdmin, api.adminDashboard.counts);
+router.get('/admin/backup',                     authenticate, requireAdmin, auditLog('admin_backup', 'admin'), api.adminDashboard.backup);
+router.post('/admin/repair-sequences',          authenticate, requireAdmin, auditLog('admin_repair_sequences', 'admin'), api.adminDashboard.repairSequences);
+router.get('/admin/risk-radar',                 authenticate, requireAdmin, api.adminDashboard.riskRadar);
+router.post('/admin/purge-logs',                authenticate, requireAdmin, auditLog('admin_purge_logs', 'admin'), api.adminDashboard.purgeLogs);
+router.post('/admin/broadcast',                 authenticate, requireAdmin, auditLog('admin_broadcast', 'admin'), api.adminDashboard.setBroadcast);
+router.get('/admin/broadcast',                  authenticate, api.adminDashboard.getBroadcast);
 
 export default router;

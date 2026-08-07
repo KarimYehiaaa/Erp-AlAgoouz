@@ -21,17 +21,17 @@
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 
-const emit = defineEmits(['backup', 'clearCache', 'exportReport']);
+const emit = defineEmits(['backup', 'clearCache', 'repairSequences', 'purgeLogs', 'broadcast']);
 const router = useRouter();
 const loading = ref(null);
 
 const actions = [
-  { key: 'backup', icon: '💾', label: 'نسخة احتياطية', colorClass: 'action-blue' },
-  { key: 'clearCache', icon: '🔄', label: 'تنظيف الكاش', colorClass: 'action-purple' },
-  { key: 'exportPL', icon: '📊', label: 'تقرير الأرباح', colorClass: 'action-green' },
-  { key: 'addUser', icon: '👤', label: 'إضافة مستخدم', colorClass: 'action-teal' },
-  { key: 'settings', icon: '⚙️', label: 'الإعدادات', colorClass: 'action-orange' },
-  { key: 'operations', icon: '🔧', label: 'مركز التشغيل', colorClass: 'action-indigo' },
+  { key: 'backup', icon: '💾', label: 'تنزيل نسخة احتياطية', colorClass: 'action-blue' },
+  { key: 'repairSequences', icon: '🛠️', label: 'إصلاح متسلسلات DB', colorClass: 'action-indigo' },
+  { key: 'purgeLogs', icon: '🧹', label: 'تنظيف السجلات القديمة', colorClass: 'action-purple' },
+  { key: 'broadcast', icon: '📢', label: 'إرسال تنبيه عام', colorClass: 'action-orange' },
+  { key: 'addUser', icon: '👤', label: 'إدارة المستخدمين', colorClass: 'action-teal' },
+  { key: 'operations', icon: '🔧', label: 'مركز التشغيل', colorClass: 'action-green' },
 ];
 
 const handleAction = async (action) => {
@@ -41,21 +41,23 @@ const handleAction = async (action) => {
     case 'backup':
       loading.value = 'backup';
       emit('backup');
-      setTimeout(() => { loading.value = null; }, 3000);
+      setTimeout(() => { loading.value = null; }, 2000);
       break;
-    case 'clearCache':
-      loading.value = 'clearCache';
-      emit('clearCache');
-      setTimeout(() => { loading.value = null; }, 1500);
+    case 'repairSequences':
+      loading.value = 'repairSequences';
+      emit('repairSequences');
+      setTimeout(() => { loading.value = null; }, 2000);
       break;
-    case 'exportPL':
-      router.push('/reports');
+    case 'purgeLogs':
+      loading.value = 'purgeLogs';
+      emit('purgeLogs');
+      setTimeout(() => { loading.value = null; }, 2000);
+      break;
+    case 'broadcast':
+      emit('broadcast');
       break;
     case 'addUser':
       router.push('/users');
-      break;
-    case 'settings':
-      router.push('/settings');
       break;
     case 'operations':
       router.push('/operations');

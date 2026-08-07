@@ -142,3 +142,105 @@ export const getSystemCounts = async () => {
     return { totalUsers: 0, activeUsers24h: 0, totalProducts: 0, totalCustomers: 0, lowStockProducts: 0 };
   }
 };
+
+export const repairSequences = async () => {
+  const tables = [
+    'users', 'roles', 'permissions', 'products', 'categories', 'units',
+    'customers', 'suppliers', 'invoices', 'invoice_items', 'inventory',
+    'sales', 'sale_items', 'expenses', 'expense_categories',
+    'employees', 'employee_attendance', 'employee_advances', 'payroll_runs'
+  ];
+  const results = [];
+  for (const table of tables) {
+    try {
+      await query(`SELECT setval(pg_get_serial_sequence('${table}', 'id'), COALESCE(MAX(id), 1)) FROM "${table}";`);
+      results.push({ table, status: 'repaired' });
+    } catch (err) {
+      results.push({ table, status: 'skipped' });
+    }
+  }
+  return { repairedCount: results.filter(r => r.status === 'repaired').length, details: results };
+};
+
+export const generateBackupSnapshot = async () => {
+  const tables = [
+    'users', 'roles', 'products', 'categories', 'units',
+    'customers', 'suppliers', 'expenses', 'employees',
+    'inventory', 'invoices', 'sales'
+  ];
+  const snapshot = {
+    version: '1.0',
+    generated_at: new Date().toISOString(),
+    system: 'AlAgoouz ERP Command Center Backup',
+    data: {}
+  };
+  for (const table of tables) {
+    try {
+      const res = await query(`SELECT * FROM "${table}" LIMIT 5000`);
+      snapshot.data[table] = res.rows;
+    } catch (err) {
+      snapshot.data[table] = [];
+    }
+  }
+  return snapshot;
+};
+
+export const getRiskRadarReport = async () => {
+  try {
+    const [overdueCustomers, lowMarginProducts, outOfStockProducts, staleInvoices] = await Promise.all([
+      query(`
+        SELECT c.id, c.name, c.phone, c.current_balance
+        FROM customers c
+        WHERE c.deleted_at IS NULL AND c.current_balance > 0
+        ORDER BY c.current_balance DESC LIMIT 5
+      `),
+      query(`
+        SELECT p.id, p.name_ar, p.selling_price, p.cost_price,
+               ROUND(CASE WHEN p.selling_price > 0 THEN ((p.selling_price - p.cost_price) / p.selling_price) * 100 ELSE 0 END, 1) as margin_percent
+        FROM products p
+        WHERE p.deleted_at IS NULL AND p.cost_price > 0 AND p.selling_price <= p.cost_price * 1.10
+        ORDER BY margin_percent ASC LIMIT 5
+      `),
+      query(`
+        SELECT p.id, p.name_ar, p.sku, COALESCE(i.quantity, 0) as total_qty
+        FROM products p
+        LEFT JOIN (SELECT product_id, SUM(quantity) as quantity FROM inventory GROUP BY product_id) i ON i.product_id = p.id
+        WHERE p.deleted_at IS NULL AND COALESCE(i.quantity, 0) <= 0
+        ORDER BY p.id DESC LIMIT 5
+      `),
+      query(`
+        SELECT inv.id, inv.invoice_number, inv.total_amount, inv.paid_amount, inv.payment_status, inv.created_at, c.name as customer_name
+        FROM invoices inv
+        LEFT JOIN customers c ON c.id = inv.customer_id
+        WHERE inv.deleted_at IS NULL AND inv.payment_status IN ('unpaid', 'partial')
+        AND inv.created_at < NOW() - INTERVAL '30 days'
+        ORDER BY inv.created_at ASC LIMIT 5
+      `)
+    ]);
+
+    return {
+      overdueCustomers: overdueCustomers.rows,
+      lowMarginProducts: lowMarginProducts.rows,
+      outOfStockProducts: outOfStockProducts.rows,
+      staleInvoices: staleInvoices.rows
+    };
+  } catch (err) {
+    console.error('Error fetching risk radar:', err);
+    return { overdueCustomers: [], lowMarginProducts: [], outOfStockProducts: [], staleInvoices: [] };
+  }
+};
+
+export const purgeOldAuditLogs = async (days = 90) => {
+  const d = Math.max(7, parseInt(days, 10) || 90);
+  const res = await query(`DELETE FROM activity_logs WHERE created_at < NOW() - INTERVAL '${d} days'`);
+  return { deletedCount: res.rowCount || 0 };
+};
+
+let currentBroadcast = { title: '', message: '', level: 'info', active: false, date: null };
+
+export const setBroadcast = (title, message, level = 'info') => {
+  currentBroadcast = { title, message, level, active: Boolean(message), date: new Date().toISOString() };
+  return currentBroadcast;
+};
+
+export const getBroadcast = () => currentBroadcast;

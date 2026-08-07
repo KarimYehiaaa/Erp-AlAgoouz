@@ -38,12 +38,17 @@
       <section class="admin-section">
         <h2 class="section-title">
           <span class="section-icon">💰</span>
-          المؤشرات المالية
+          المؤشرات المالية والمستهدفات
         </h2>
         <FinancialKPICards :dashboard="dashboardData" :counts="countsData" />
       </section>
 
-      <!-- Section 3 & 4: Activity Feed + Sessions (side by side) -->
+      <!-- Section 3: Risk Radar & Critical Warnings -->
+      <section class="admin-section">
+        <RiskRadar :data="riskRadarData" :loading="loading" />
+      </section>
+
+      <!-- Section 4 & 5: Activity Feed + Sessions (side by side) -->
       <div class="admin-columns">
         <section class="admin-section col-main">
           <ActivityFeed :items="activityData" @refresh="loadActivity" />
@@ -59,7 +64,7 @@
         </section>
       </div>
 
-      <!-- Section 5 & 6: Smart Alerts + Quick Actions -->
+      <!-- Section 6 & 7: Smart Alerts + Quick Actions -->
       <div class="admin-columns">
         <section class="admin-section col-main">
           <SmartAlerts :alerts="alertsData" />
@@ -68,9 +73,41 @@
         <section class="admin-section col-side">
           <QuickActions
             @backup="handleBackup"
+            @repair-sequences="handleRepairSequences"
+            @purge-logs="handlePurgeLogs"
+            @broadcast="showBroadcastModal = true"
             @clear-cache="handleClearCache"
           />
         </section>
+      </div>
+
+      <!-- Broadcast Modal -->
+      <div v-if="showBroadcastModal" class="modal-overlay" @click.self="showBroadcastModal = false">
+        <div class="card modal-card" style="width: min(500px, 90vw); margin-inline: auto; background: var(--bg-elevated, #1e293b); color: #fff; padding: 24px; border-radius: 16px;">
+          <h3 style="margin-top: 0;">📢 إرسال تنبيه عام لجميع المستخدمين</h3>
+          <form @submit.prevent="submitBroadcast">
+            <div class="form-group" style="margin-bottom: 12px;">
+              <label>عنوان التنبيه</label>
+              <input v-model="broadcastForm.title" class="field-like" placeholder="مثال: تنبيه صيانة، تحديث أسعار..." style="width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-input); color: #fff;" />
+            </div>
+            <div class="form-group" style="margin-bottom: 12px;">
+              <label>مستوى التنبيه</label>
+              <select v-model="broadcastForm.level" class="field-like" style="width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-input); color: #fff;">
+                <option value="info">ℹ️ معلومات عادية</option>
+                <option value="warning">⚠️ تحذير هام</option>
+                <option value="danger">🚨 تنبيه عاجل / طوارئ</option>
+              </select>
+            </div>
+            <div class="form-group" style="margin-bottom: 16px;">
+              <label>نص التنبيه *</label>
+              <textarea v-model="broadcastForm.message" required rows="3" class="field-like" placeholder="اكتب نص التنبيه الذي سيظهر لجميع مستخدمي النظام..." style="width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-input); color: #fff;"></textarea>
+            </div>
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+              <button type="submit" class="btn btn-primary">نشر التنبيه</button>
+              <button type="button" class="btn btn-outline" @click="showBroadcastModal = false">إلغاء</button>
+            </div>
+          </form>
+        </div>
       </div>
     </template>
   </div>
@@ -85,6 +122,7 @@ import ActivityFeed from '@/components/admin/ActivityFeed.vue';
 import SessionsManager from '@/components/admin/SessionsManager.vue';
 import SmartAlerts from '@/components/admin/SmartAlerts.vue';
 import QuickActions from '@/components/admin/QuickActions.vue';
+import RiskRadar from '@/components/admin/RiskRadar.vue';
 
 const initialLoading = ref(true);
 const loading = ref(false);
@@ -99,8 +137,13 @@ const activityData = ref([]);
 const sessionsData = ref([]);
 const failedLoginsData = ref([]);
 const alertsData = ref({});
+const riskRadarData = ref({});
 const revokingId = ref(null);
 const systemOk = ref(true);
+
+// Broadcast Modal
+const showBroadcastModal = ref(false);
+const broadcastForm = ref({ title: '', message: '', level: 'info' });
 
 // Auto-refresh interval
 let refreshInterval = null;
@@ -141,6 +184,15 @@ const loadCounts = async () => {
     countsData.value = res.data || {};
   } catch (e) {
     console.error('[Admin] Counts error:', e);
+  }
+};
+
+const loadRiskRadar = async () => {
+  try {
+    const res = await api.get('/admin/risk-radar');
+    riskRadarData.value = res.data || {};
+  } catch (e) {
+    console.error('[Admin] Risk radar error:', e);
   }
 };
 
@@ -190,6 +242,7 @@ const refreshAll = async () => {
       loadHealth(),
       loadDashboard(),
       loadCounts(),
+      loadRiskRadar(),
       loadActivity(),
       loadSessions(),
       loadFailedLogins(),
@@ -218,10 +271,49 @@ const handleRevokeSession = async (sessionId) => {
 
 const handleBackup = async () => {
   try {
-    await api.get('/backup/create');
-    alert('✅ تم إنشاء نسخة احتياطية بنجاح');
+    const res = await api.get('/admin/backup', { responseType: 'blob' });
+    const url = window.URL.createObjectURL(new Blob([res]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `alagoouz_erp_backup_${new Date().toISOString().slice(0, 10)}.json`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    alert('✅ تم تنزيل نسخة احتياطية كاملة لقاعدة البيانات بنجاح');
   } catch (e) {
-    alert('❌ فشل إنشاء النسخة الاحتياطية: ' + (e.response?.data?.message || e.message));
+    alert('❌ فشل تنزيل النسخة الاحتياطية: ' + (e.response?.data?.message || e.message));
+  }
+};
+
+const handleRepairSequences = async () => {
+  try {
+    const res = await api.post('/admin/repair-sequences');
+    alert(`✅ ${res.data?.message || 'تم إصلاح متسلسلات قاعدة البيانات بنجاح'}`);
+  } catch (e) {
+    alert('❌ فشل إصلاح المتسلسلات: ' + (e.response?.data?.message || e.message));
+  }
+};
+
+const handlePurgeLogs = async () => {
+  if (!confirm('هل تريد تنظيف سجلات النشاط القادمة من أكثر من 90 يوماً؟')) return;
+  try {
+    const res = await api.post('/admin/purge-logs', { days: 90 });
+    alert(`✅ تم حذف ${res.data?.data?.deletedCount || 0} سجل نشاط قديم`);
+    loadActivity();
+  } catch (e) {
+    alert('❌ فشل تنظيف السجلات: ' + (e.response?.data?.message || e.message));
+  }
+};
+
+const submitBroadcast = async () => {
+  if (!broadcastForm.value.message) return;
+  try {
+    await api.post('/admin/broadcast', broadcastForm.value);
+    alert('✅ تم نشر التنبيه العام لجميع المستخدمين بالنظام بنجاح');
+    showBroadcastModal.value = false;
+    broadcastForm.value = { title: '', message: '', level: 'info' };
+  } catch (e) {
+    alert('❌ فشل إرسال التنبيه: ' + (e.response?.data?.message || e.message));
   }
 };
 

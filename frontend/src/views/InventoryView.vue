@@ -35,32 +35,31 @@
             </div>
           </template>
           <template #cell-sku="{ item }">
-            <span class="mono">{{ item.sku }}</span>
+            <span class="mono">{{ item.sku || '—' }}</span>
           </template>
           <template #cell-total_quantity="{ item }">
             <span class="qty qty-total" :class="{ 'qty-low': item.is_low }">
-              {{ fmtQty(item.total_quantity !== undefined ? item.total_quantity : item.quantity) }}
+              <strong>{{ fmtQty(item.total_quantity !== undefined ? item.total_quantity : item.quantity) }}</strong>
             </span>
           </template>
-          <template #cell-breakdown="{ item }">
-            <div class="breakdown-pills">
-              <span
-                v-for="w in (item.warehouse_breakdown || [])"
-                :key="w.warehouse_id"
-                class="pill"
-                :class="w.warehouse_type === 'main' || (w.warehouse_name && w.warehouse_name.includes('رئيسي')) ? 'pill-main' : 'pill-branch'"
-              >
-                {{ w.warehouse_type === 'main' || (w.warehouse_name && w.warehouse_name.includes('رئيسي')) ? '🏢' : '🏪' }}
-                {{ w.warehouse_name }}: <strong>{{ fmtQty(w.quantity) }}</strong>
-              </span>
-              <span v-if="!item.warehouse_breakdown || !item.warehouse_breakdown.length" class="pill pill-main">
-                {{ item.warehouse_name }}: <strong>{{ fmtQty(item.quantity) }}</strong>
-              </span>
-            </div>
+          <template #cell-main_quantity="{ item }">
+            <span class="pill pill-main">
+              🏢 {{ fmtQty(getMainQty(item)) }}
+            </span>
+          </template>
+          <template #cell-branch_quantity="{ item }">
+            <span class="pill pill-branch">
+              🏪 {{ fmtQty(getBranchQty(item)) }}
+            </span>
+          </template>
+          <template #cell-min_stock="{ item }">
+            <span class="min-stock-tag" title="الحد الأدنى محسوب ومطبق بناءً على إجمالي رصيد المنشأة">
+              {{ fmtQty(item.min_stock || 0) }}
+            </span>
           </template>
           <template #cell-status="{ item }">
             <span :class="['badge', item.is_low ? 'badge-danger' : 'badge-success']">
-              {{ item.is_low ? '⚠️ منخفض' : '✅ طبيعي' }}
+              {{ item.is_low ? '⚠️ أقل من الحد الأدنى' : '✅ متوفر بالكامل' }}
             </span>
           </template>
           <template #cell-actions="{ item }">
@@ -420,13 +419,32 @@ const highlighted = ref({});
 
 const stockColumns = [
   { key: 'name_ar', label: 'المنتج' },
-  { key: 'sku', label: 'SKU' },
+  { key: 'sku', label: 'كود SKU' },
   { key: 'total_quantity', label: 'إجمالي رصيد المنشأة' },
-  { key: 'breakdown', label: 'توزيع الرصيد (المخزن الرئيسي | محل البيع)' },
-  { key: 'min_stock', label: 'الحد الأدنى' },
-  { key: 'status', label: 'الحالة' },
-  { key: 'actions', label: '', align: 'right' }
+  { key: 'main_quantity', label: '🏢 المخزن الرئيسي' },
+  { key: 'branch_quantity', label: '🏪 مخزن الفرع / المحل' },
+  { key: 'min_stock', label: 'الحد الأدنى (معتمد على الإجمالي)' },
+  { key: 'status', label: 'حالة المخزون' },
+  { key: 'actions', label: 'الإجراءات', align: 'right' }
 ];
+
+const getMainQty = (item) => {
+  if (item.main_quantity !== undefined && item.main_quantity !== null) return item.main_quantity;
+  if (item.warehouse_breakdown && Array.isArray(item.warehouse_breakdown)) {
+    const mainW = item.warehouse_breakdown.find(w => w.warehouse_type === 'main' || (w.warehouse_name && w.warehouse_name.includes('رئيسي')));
+    if (mainW) return mainW.quantity;
+  }
+  return (item.warehouse_name && item.warehouse_name.includes('رئيسي')) ? item.quantity : 0;
+};
+
+const getBranchQty = (item) => {
+  if (item.branch_quantity !== undefined && item.branch_quantity !== null) return item.branch_quantity;
+  if (item.warehouse_breakdown && Array.isArray(item.warehouse_breakdown)) {
+    const branchW = item.warehouse_breakdown.find(w => w.warehouse_type !== 'main' && (!w.warehouse_name || !w.warehouse_name.includes('رئيسي')));
+    if (branchW) return branchW.quantity;
+  }
+  return (item.warehouse_name && !item.warehouse_name.includes('رئيسي')) ? item.quantity : 0;
+};
 
 const movementsColumns = [
   { key: 'product_name', label: 'المنتج' },

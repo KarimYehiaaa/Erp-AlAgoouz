@@ -66,8 +66,10 @@
           <template #cell-sale_price="{ item }">
             {{ formatMoney(item.sale_price) }}
           </template>
-          <template #cell-warehouse="{ item }">
-            <span class="warehouse-cell">{{ item.primary_warehouse_name || '—' }}</span>
+          <template #cell-total_quantity="{ item }">
+            <span class="warehouse-cell" style="font-weight: 800; color: var(--accent, #c77a2f);">
+              📦 {{ item.total_quantity !== undefined ? item.total_quantity : (item.quantity || 0) }}
+            </span>
           </template>
           <template #cell-status="{ item }">
             {{ item.is_active ? 'نشط' : 'معطل' }}
@@ -292,9 +294,9 @@ const formErr = ref(false);
 const productsColumns = [
   { key: 'name', label: 'المنتج' },
   { key: 'category', label: 'القسم' },
-  { key: 'purchase_price', label: 'شراء' },
-  { key: 'sale_price', label: 'بيع' },
-  { key: 'warehouse', label: 'المخزن' },
+  { key: 'purchase_price', label: 'تكلفة الشراء' },
+  { key: 'sale_price', label: 'سعر البيع' },
+  { key: 'total_quantity', label: 'إجمالي رصيد المنشأة' },
   { key: 'status', label: 'الحالة' },
   { key: 'actions', label: '', align: 'right' },
 ];

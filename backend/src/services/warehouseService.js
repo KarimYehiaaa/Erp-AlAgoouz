@@ -38,3 +38,17 @@ export const getWarehouseIdByCode = async (code, db = query) => {
   return Number(result.rows[0]?.id || 0) || null;
 };
 
+export const getMainWarehouseId = async (db = query) => {
+  const byCode = await getWarehouseIdByCode('MAIN', db);
+  if (byCode) return byCode;
+  const result = await db(`SELECT id FROM warehouses WHERE (type = 'main' OR code = 'MAIN') AND deleted_at IS NULL AND is_active = TRUE LIMIT 1`);
+  return Number(result.rows[0]?.id || 0) || await getDefaultWarehouseId(db);
+};
+
+export const getStoreWarehouseId = async (db = query) => {
+  const byCode = await getWarehouseIdByCode('STORE', db);
+  if (byCode) return byCode;
+  const result = await db(`SELECT id FROM warehouses WHERE (type = 'store' OR code = 'STORE') AND deleted_at IS NULL AND is_active = TRUE LIMIT 1`);
+  return Number(result.rows[0]?.id || 0) || await getDefaultWarehouseId(db);
+};
+

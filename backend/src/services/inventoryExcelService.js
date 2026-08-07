@@ -1,4 +1,4 @@
-﻿/**
+/**
  * inventoryExcelService.js
  * Build and process the inventory return Excel template.
  */
@@ -7,8 +7,7 @@ import { query } from '../database/pool.js';
 import { AppError } from '../middleware/errorHandler.js';
 import { returnProductToStock } from './inventoryService.js';
 import { readSafeWorkbook } from './excelSecurity.js';
-
-const roundMoney = (value) => Math.round((Number(value) || 0) * 100) / 100;
+import { roundMoney } from '../utils/money.js';
 
 const normalizeDigits = (value) => String(value ?? '')
   .replace(/[٠-٩]/g, (d) => '0123456789'['٠١٢٣٤٥٦٧٨٩'.indexOf(d)])

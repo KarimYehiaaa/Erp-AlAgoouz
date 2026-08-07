@@ -194,8 +194,8 @@ const customStyle = computed(() => {
   background: var(--bg-soft);
   border-radius: var(--radius-xs);
   
-  &.w-3/4 { width: 75%; }
-  &.w-1/2 { width: 50%; }
+  &.w-3\/4 { width: 75%; }
+  &.w-1\/2 { width: 50%; }
 }
 
 /* Card Style */

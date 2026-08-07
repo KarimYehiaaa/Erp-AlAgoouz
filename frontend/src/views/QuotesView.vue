@@ -83,7 +83,7 @@
         </div>
 
         <div class="preview-doc invoice-doc">
-          <img src="/logo.png?v=3" class="inv-watermark" alt="" />
+          <img src="/logo.png" class="inv-watermark" alt="" />
           <header class="inv-header">
             <div class="inv-brand">
               <AppLogo size="lg" :rounded="true" />

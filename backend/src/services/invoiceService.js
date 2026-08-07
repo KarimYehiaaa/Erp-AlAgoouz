@@ -1,6 +1,8 @@
 import { getClient, query } from '../database/pool.js';
 import { AppError } from '../middleware/errorHandler.js';
 import { parseLocalizedNumber } from '../utils/numberParsing.js';
+import { roundMoney, toNumber, sanitizeLimit } from '../utils/money.js';
+import { recalculateCustomerBalance } from './customerBalanceService.js';
 
 const generateInvoiceNumber = async (client) => {
   const settings = await client.query(`SELECT value FROM settings WHERE key = 'invoice'`);
@@ -9,16 +11,7 @@ const generateInvoiceNumber = async (client) => {
   return `${config.prefix || 'INV'}-${String(res.rows[0].next_val).padStart(5, '0')}`;
 };
 
-const roundMoney = (value) => Math.round((Number(value) || 0) * 100) / 100;
-const toNumber = (value, fallback = 0) => {
-  const n = Number(value);
-  return Number.isFinite(n) ? n : fallback;
-};
-const sanitizeLimit = (value, fallback = 100, max = 500) => {
-  const n = Math.floor(toNumber(value, fallback));
-  if (!Number.isFinite(n) || n <= 0) return fallback;
-  return Math.min(n, max);
-};
+
 export const parseInvoiceData = (data = {}) => {
   const items = Array.isArray(data.items) ? data.items : [];
   if (!items.length) throw new AppError('لا توجد بنود في الفاتورة');
@@ -151,6 +144,29 @@ export const createInvoice = async (data, userId) => {
       );
     }
 
+    // Record payment if invoice is created as paid or partial
+    const stamp = Date.now();
+    if (paymentStatus === 'paid') {
+      const payNum = `PAY-INV${invoice.id}-${stamp}`;
+      await client.query(
+        `INSERT INTO payments (payment_number, reference_type, reference_id, amount, payment_method, notes, user_id)
+         VALUES ($1, 'invoice', $2, $3, $4, $5, $6)`,
+        [payNum, invoice.id, totalAmount, data.payment_method || 'cash', data.notes || null, userId]
+      );
+    } else if (paymentStatus === 'partial' && Number(data.paid_amount) > 0) {
+      const paidAmt = Math.min(totalAmount, Number(data.paid_amount));
+      const payNum = `PAY-INV${invoice.id}-${stamp}`;
+      await client.query(
+        `INSERT INTO payments (payment_number, reference_type, reference_id, amount, payment_method, notes, user_id)
+         VALUES ($1, 'invoice', $2, $3, $4, $5, $6)`,
+        [payNum, invoice.id, paidAmt, data.payment_method || 'cash', data.notes || null, userId]
+      );
+    }
+
+    if (data.customer_id) {
+      await recalculateCustomerBalance((text, params) => client.query(text, params), data.customer_id);
+    }
+
     await client.query(
       `INSERT INTO activity_logs (user_id, module, action_ar, details) VALUES ($1,'invoices',$2,$3)`,
       [userId, `إنشاء فاتورة ${invoiceNumber}`, JSON.stringify({ invoice_id: invoice.id, total: totalAmount })]
@@ -217,6 +233,33 @@ export const updateInvoice = async (id, data, userId) => {
       );
     }
 
+    // Handle payment status changes for manual invoices
+    const existingPaid = (await client.query(
+      `SELECT COALESCE(SUM(amount), 0) AS total FROM payments WHERE reference_type = 'invoice' AND reference_id = $1`,
+      [id]
+    )).rows[0].total;
+
+    if (paymentStatus === 'paid' && Number(existingPaid) < totalAmount - 0.01) {
+      const remainingToPay = totalAmount - Number(existingPaid);
+      const payNum = `PAY-INV${id}-${Date.now()}`;
+      await client.query(
+        `INSERT INTO payments (payment_number, reference_type, reference_id, amount, payment_method, notes, user_id)
+         VALUES ($1, 'invoice', $2, $3, $4, $5, $6)`,
+        [payNum, id, remainingToPay, data.payment_method || 'cash', data.notes || null, userId]
+      );
+    }
+
+    // Recalculate customer balance for old and new customer
+    const oldCustomerId = invoice.customer_id;
+    const newCustomerId = data.customer_id || null;
+
+    if (oldCustomerId) {
+      await recalculateCustomerBalance((text, params) => client.query(text, params), oldCustomerId);
+    }
+    if (newCustomerId && newCustomerId !== oldCustomerId) {
+      await recalculateCustomerBalance((text, params) => client.query(text, params), newCustomerId);
+    }
+
     await client.query(
       `INSERT INTO activity_logs (user_id, module, action_ar, details) VALUES ($1,'invoices',$2,$3)`,
       [userId, `تعديل فاتورة ${invoice.invoice_number}`, JSON.stringify({ invoice_id: id, total: totalAmount })]
@@ -248,6 +291,10 @@ export const deleteInvoice = async (id, userId = null) => {
     }
 
     await client.query(`UPDATE invoices SET deleted_at = NOW() WHERE id = $1`, [id]);
+
+    if (invoice.customer_id) {
+      await recalculateCustomerBalance((text, params) => client.query(text, params), invoice.customer_id);
+    }
 
     await client.query(
       `INSERT INTO activity_logs (user_id, module, action_ar, details) VALUES ($1,'invoices',$2,$3)`,

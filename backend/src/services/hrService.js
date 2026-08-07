@@ -1,14 +1,9 @@
 import { getClient, query } from '../database/pool.js';
 import { AppError } from '../middleware/errorHandler.js';
 import { invalidateDashboardCache } from './dashboardService.js';
+import { roundMoney, toNumber } from '../utils/money.js';
 
-const toNumber = (value, fallback = 0) => {
-  if (value === null || value === undefined || value === '') return fallback;
-  const n = Number(value);
-  return Number.isFinite(n) ? n : fallback;
-};
 
-const roundMoney = (value) => Math.round(toNumber(value) * 100) / 100;
 
 const getMonthBounds = (periodMonth) => {
   const raw = periodMonth || new Date().toISOString().slice(0, 7);

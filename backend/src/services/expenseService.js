@@ -2,11 +2,7 @@ import { query } from '../database/pool.js';
 import { AppError } from '../middleware/errorHandler.js';
 import { invalidateDashboardCache } from './dashboardService.js';
 import { broadcast } from './websocketService.js';
-const sanitizeLimit = (value, fallback = 100, max = 500) => {
-  const n = Math.floor(Number(value));
-  if (!Number.isFinite(n) || n <= 0) return fallback;
-  return Math.min(n, max);
-};
+import { sanitizeLimit } from '../utils/money.js';
 
 export const getExpenses = async (filters = {}) => {
   let sql = `SELECT e.*, ec.name_ar as category_name, u.full_name as user_name

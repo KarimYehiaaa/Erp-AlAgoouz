@@ -16,8 +16,8 @@ defineProps({
   rounded: { type: Boolean, default: true },
 });
 
-// Use the transparent logo with cache buster
-const logoSrc = ref('/logo.png?v=3');
+// Use the official Al-Agoouz brand logo
+const logoSrc = ref('/logo.png');
 const onError = () => {
   if (logoSrc.value !== '/logo.svg') logoSrc.value = '/logo.svg';
 };

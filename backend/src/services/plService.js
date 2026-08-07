@@ -22,8 +22,9 @@
 import { query } from '../database/pool.js';
 import { getOpeningBalanceForDate } from './openingBalanceService.js';
 import { appCache } from '../utils/cache.js';
+import { roundMoney } from '../utils/money.js';
 
-const roundMoney = (v) => Math.round((Number(v) || 0) * 100) / 100;
+
 const toNum = (v) => Number(v || 0);
 
 /**

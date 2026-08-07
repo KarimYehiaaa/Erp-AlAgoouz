@@ -10,6 +10,7 @@
     "test": "node scripts/run-tests.js",
     "setup-db": "node src/database/setup.js",
     "reset-admin": "node src/database/reset-admin.js",
+    "factory-reset": "node src/database/factoryReset.js",
     "migrate-supabase": "node scripts/migrate-supabase.js"
   },
   "dependencies": {

@@ -1,9 +1,9 @@
 import { query } from '../database/pool.js';
 import { getOpeningBalanceForDate } from './openingBalanceService.js';
 import { appCache } from '../utils/cache.js';
+import { roundMoney, toNumber } from '../utils/money.js';
 
-const toNumber = (value) => Number(value || 0);
-const roundMoney = (value) => Math.round(toNumber(value) * 100) / 100;
+
 const formatDate = (date) => {
   const yyyy = date.getFullYear();
   const mm = String(date.getMonth() + 1).padStart(2, '0');

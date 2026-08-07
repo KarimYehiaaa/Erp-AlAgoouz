@@ -1,4 +1,5 @@
 import { appCache } from '../utils/cache.js';
+import { roundMoney } from '../utils/money.js';
 
 //   UNIT_ALIASES   E5/1 'D-BJB) 'DEH-Q/ DCD 'DEDA'*
 // EO5/NQ1 DJO3*H1N/ AJ recipesService.js H costsService.js (/D'K EF 'D*C1'1
@@ -26,7 +27,7 @@ export const UNIT_ALIASES = {
   'قطعة': 'count',
 };
 
-export const roundMoney = (value) => Math.round((Number(value) || 0) * 100) / 100;
+
 
 export const normalizeUnit = (u) => UNIT_ALIASES[String(u || '').trim().toLowerCase()] || null;
 

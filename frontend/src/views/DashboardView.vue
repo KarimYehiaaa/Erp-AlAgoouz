@@ -55,48 +55,9 @@
     </div>
 
     <template v-else-if="stats">
-      <section v-if="widgetVisibility.metrics" class="metric-grid circular-grid">
-        <div
-          v-for="(metric, index) in orderedMetrics"
-          :key="metric.key"
-          class="metric-card-draggable circular-draggable stagger-fade-item"
-          :class="'stagger-delay-' + ((index % 10) + 1)"
-          draggable="true"
-          @dragstart="onDragStart($event, index)"
-          @dragover.prevent
-          @drop="onDrop($event, index)"
-          title="اسحب البطاقة لتغيير الترتيب"
-        >
-          <RouterLink
-            class="metric-card circular-card hover-lift"
-            :class="metric.tone"
-            :to="metric.to"
-          >
-            <span class="metric-icon"><AppIcon :name="metric.icon" :size="18" /></span>
-            <span class="metric-label">{{ metric.label }}</span>
-            <strong>{{ metric.value }}</strong>
-            <small class="metric-sub">{{ metric.sub }}</small>
-          </RouterLink>
-        </div>
-      </section>
+      <DashboardMetrics v-if="widgetVisibility.metrics" :stats="stats" />
 
-      <section v-if="widgetVisibility.alertsTables" class="command-strip panel card-premium-flow">
-        <div class="command-copy">
-          <span>مركز المتابعة</span>
-          <strong>{{ priorityHeadline }}</strong>
-          <small>أهم البنود التي تحتاج مراجعة قبل نهاية اليوم.</small>
-        </div>
-        <RouterLink
-          v-for="action in priorityActions"
-          :key="action.key"
-          class="command-item"
-          :class="action.tone"
-          :to="action.to"
-        >
-          <span class="command-value">{{ action.value }}</span>
-          <span class="command-label">{{ action.label }}</span>
-        </RouterLink>
-      </section>
+      <DashboardPriorityAlerts v-if="widgetVisibility.alertsTables" :stats="stats" />
 
       <section class="overview-grid">
         <article v-if="authStore.hasPermission('reports.view') && widgetVisibility.financialChart" class="panel chart-panel wide">
@@ -113,119 +74,14 @@
           <div class="chart-wrap"><canvas ref="performanceChartRef"></canvas></div>
         </article>
 
-        <article v-if="widgetVisibility.pulse" class="panel health-panel" style="display: flex; flex-direction: column; align-items: center; gap: 14px;">
-          <div class="panel-head compact" style="width: 100%; display: flex; justify-content: space-between; margin-bottom: 0;">
-            <h2>نبض التشغيل</h2>
-          </div>
-          
-          <!-- Radial Progress Ring Gauge -->
-          <div class="radial-gauge-wrap" style="position: relative; width: 100px; height: 100px; margin: 10px auto; display: grid; place-items: center;">
-            <svg class="radial-gauge-svg" width="100" height="100" viewBox="0 0 100 100" style="transform: rotate(-90deg);">
-              <circle cx="50" cy="50" r="40" fill="transparent" stroke="var(--border)" stroke-width="8"></circle>
-              <circle cx="50" cy="50" r="40" fill="transparent" stroke="var(--accent)" stroke-width="8"
-                      stroke-dasharray="251.2"
-                      :stroke-dashoffset="251.2 * (1 - Math.min(Math.max(stats.month?.collectionRate || 0, 0), 1))"
-                      stroke-linecap="round"
-                      style="transition: stroke-dashoffset 1.2s cubic-bezier(0.4, 0, 0.2, 1);"></circle>
-            </svg>
-            <div class="radial-gauge-text" style="position: absolute; display: flex; flex-direction: column; align-items: center; justify-content: center; transform: translateY(-2px);">
-              <span style="font-size: 1.5rem; font-weight: 900; color: var(--text-strong);">{{ percent(stats.month?.collectionRate) }}</span>
-              <small style="font-size: 0.65rem; color: var(--text-muted); font-weight: 700; margin-top: -2px;">كفاءة التحصيل</small>
-            </div>
-          </div>
-
-          <ul class="health-list" style="width: 100%; margin-top: auto; padding: 0; list-style: none;">
-            <li v-for="item in healthItems" :key="item.label" style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
-              <span>{{ item.label }}</span>
-              <strong :class="item.tone">{{ item.value }}</strong>
-            </li>
-          </ul>
-        </article>
+        <DashboardHealthPulse v-if="widgetVisibility.pulse" :stats="stats" />
       </section>
 
       <!-- AI Insights Section -->
-      <section v-if="widgetVisibility.aiInsights" class="overview-grid" style="margin-top: var(--space-5);">
-        <article class="panel chart-panel wide">
-          <div class="panel-head">
-            <div>
-              <h2>
-                <AppIcon name="copilot" style="margin-left: 8px; color: var(--primary);" />
-                رادار تحليلات التشغيل (AI Insights)
-              </h2>
-              <p>مؤشرات تلقائية تم توليدها بالاعتماد على مبيعات ومخازن النظام</p>
-            </div>
-            <span class="badge badge-info">نشط</span>
-          </div>
-          <div class="insights-list">
-            <div v-for="ins in aiInsights" :key="ins.title" class="insight-item" :class="ins.tone">
-              <span class="insight-icon">{{ ins.icon }}</span>
-              <div class="insight-body">
-                <strong>{{ ins.title }}</strong>
-                <p>{{ ins.text }}</p>
-              </div>
-            </div>
-          </div>
-        </article>
-      </section>
+      <DashboardAIInsights v-if="widgetVisibility.aiInsights" :stats="stats" />
 
       <!-- Menu Engineering Analysis (Menu Matrix) -->
-      <section v-if="widgetVisibility.aiInsights" class="overview-grid" style="margin-top: var(--space-5);">
-        <article class="panel chart-panel wide">
-          <div class="panel-head">
-            <div>
-              <h2>
-                <AppIcon name="reports" style="margin-left: 8px; color: var(--primary);" />
-                مصفوفة كفاءة وهندسة الأصناف (Menu Matrix)
-              </h2>
-              <p>تصنيف ذكي لأصناف المشروبات بناءً على كفاءة المبيعات وهامش الربحية بالفروع</p>
-            </div>
-            <span class="badge badge-warning" style="background: var(--accent); color: var(--bg-elevated); font-weight: 800;">تحليل نشط</span>
-          </div>
-          <div class="menu-engineering-grid">
-            <div class="menu-matrix-quadrant star">
-              <div class="quadrant-header">
-                <span class="quadrant-badge">⭐ النجوم (Star)</span>
-                <span class="quadrant-desc">أصناف عالية الربحية والطلب</span>
-              </div>
-              <ul class="quadrant-list">
-                <li>إسبريسو دبل</li>
-                <li>سبانش لاتيه بارد</li>
-                <li>كورتادو</li>
-              </ul>
-            </div>
-            <div class="menu-matrix-quadrant plowhorse">
-              <div class="quadrant-header">
-                <span class="quadrant-badge">🐎 الحصان (Plowhorse)</span>
-                <span class="quadrant-desc">شعبية عالية بربحية أقل</span>
-              </div>
-              <ul class="quadrant-list">
-                <li>قهوة تركي بن العجوز</li>
-                <li>مياه معدنية طبيعية</li>
-              </ul>
-            </div>
-            <div class="menu-matrix-quadrant puzzle">
-              <div class="quadrant-header">
-                <span class="quadrant-badge">🧩 الألغاز (Puzzle)</span>
-                <span class="quadrant-desc">ربحية عالية وشعبية منخفضة</span>
-              </div>
-              <ul class="quadrant-list">
-                <li>V60 بن كولومبي فاخر</li>
-                <li>كيكة كراميل دافئة</li>
-              </ul>
-            </div>
-            <div class="menu-matrix-quadrant dog">
-              <div class="quadrant-header">
-                <span class="quadrant-badge">⚠️ الأصناف الراكدة (Dog)</span>
-                <span class="quadrant-desc">ربحية منخفضة وطلب راكد</span>
-              </div>
-              <ul class="quadrant-list">
-                <li>عصير معلبات عادي</li>
-                <li>شاي أسود رخيص</li>
-              </ul>
-            </div>
-          </div>
-        </article>
-      </section>
+      <DashboardMenuMatrix v-if="widgetVisibility.aiInsights" />
 
       <!-- Demand Forecasting Section -->
       <section v-if="stats && widgetVisibility.forecastingChart" class="overview-grid" style="margin-top: var(--space-5);">
@@ -473,6 +329,11 @@ import { useAuthStore } from '@/stores/auth';
 import AppIcon from '@/components/AppIcon.vue';
 import { dashboard as dashboardApi, warehouses as apiWarehouses } from '@/api';
 import { formatMoney } from '@/utils/currency';
+import DashboardMetrics from '@/components/dashboard/DashboardMetrics.vue';
+import DashboardPriorityAlerts from '@/components/dashboard/DashboardPriorityAlerts.vue';
+import DashboardAIInsights from '@/components/dashboard/DashboardAIInsights.vue';
+import DashboardMenuMatrix from '@/components/dashboard/DashboardMenuMatrix.vue';
+import DashboardHealthPulse from '@/components/dashboard/DashboardHealthPulse.vue';
 
 let Chart;
 const loadChartLib = async () => {
@@ -618,175 +479,9 @@ const periodLabel = computed(() => {
 
 const authStore = useAuthStore();
 
-const monthCards = computed(() => stats.value?.monthCards || {});
-const mainMetrics = computed(() => {
-  const metrics = [
-    { key: 'sales', label: 'إجمالي المبيعات', value: money(stats.value?.month?.sales), sub: `${number(stats.value?.month?.salesCount)} عملية`, icon: 'sales', tone: 'sales', to: '/sales' },
-    { key: 'profit', label: 'صافي الربح', value: money(stats.value?.month?.netProfit), sub: `${stats.value?.month?.cogsBasis === 'purchases_estimate' ? 'تقديري بناء على مشتريات الفترة - ' : ''}تحصيل ${percent(stats.value?.month?.collectionRate)}`, icon: 'reports', tone: 'profit', to: '/reports', perm: 'reports.view' },
-    { key: 'margin', label: 'هامش الربح %', value: percent((Number(stats.value?.month?.netProfit || 0) / (Number(stats.value?.month?.sales || 0) || 1)) * 100), sub: 'صافي الأرباح المئوية', icon: 'reports', tone: 'profit', to: '/reports', perm: 'reports.view' },
-    { key: 'cogs', label: 'تكلفة البضاعة', value: money(stats.value?.month?.cost), sub: 'تكلفة تحضير المشروبات', icon: 'coffee', tone: 'warning', to: '/recipes', perm: 'reports.view' },
-    { key: 'purchases_sales_ratio', label: 'نسبة الشراء للبيع', value: percent((Number(monthCards.value.purchases || 0) / (Number(stats.value?.month?.sales || 0) || 1)) * 100), sub: 'المعدل الصحي 25% - 35%', icon: 'purchases', tone: (Number(monthCards.value.purchases || 0) / (Number(stats.value?.month?.sales || 0) || 1)) <= 0.35 ? 'success' : 'warning', to: '/purchases', perm: 'inventory.manage' },
-    { key: 'unpaid', label: 'مديونيات العملاء', value: money(stats.value?.unpaidInvoices?.amount), sub: `${number(stats.value?.unpaidInvoices?.count)} فاتورة آجلة`, icon: 'warning', tone: Number(stats.value?.unpaidInvoices?.amount || 0) ? 'danger' : 'success', to: '/sales?tab=wholesale', perm: 'reports.view' },
-    { key: 'expenses', label: 'المصروفات', value: money(stats.value?.month?.expenses), sub: `${number(stats.value?.month?.expensesCount)} حركة`, icon: 'expenses', tone: 'warning', to: '/expenses', perm: 'expenses.manage' },
-    { key: 'purchases', label: 'المشتريات', value: money(monthCards.value.purchases), sub: `${number(monthCards.value.purchasesCount)} فاتورة`, icon: 'purchases', tone: 'inventory', to: '/purchases', perm: 'inventory.manage' },
-    { key: 'inventory', label: 'قيمة المخزون', value: money(stats.value?.inventoryStats?.inventory_value), sub: `${number(stats.value?.inventoryStats?.products)} منتج`, icon: 'inventory', tone: 'inventory', to: '/inventory', perm: 'inventory.manage' },
-    { key: 'cash', label: 'السيولة المتوفرة', value: money(stats.value?.cashFlowMonth), sub: 'مبيعات كاش - مصروفات ومشتريات', icon: 'money', tone: Number(stats.value?.cashFlowMonth || 0) >= 0 ? 'profit' : 'danger', to: '/reports', perm: 'reports.view' },
-    { key: 'real-income', label: 'الدخل الحقيقي', value: money(stats.value?.realIncomeMonth), sub: `صافي التدفق - الآجل ${money(stats.value?.unpaidInvoices?.amount)}`, icon: 'reports', tone: Number(stats.value?.realIncomeMonth || 0) >= 0 ? 'success' : 'danger', to: '/reports', perm: 'reports.view' },
-    { key: 'active_customers', label: 'العملاء النشطون', value: number(stats.value?.customersCount), sub: 'عميل متفاعل بالفترة', icon: 'customers', tone: 'info', to: '/customers' },
-  ];
-  return metrics.filter(m => !m.perm || authStore.hasPermission(m.perm));
-});
 
-const branchLiquidityList = computed(() => {
-  if (!stats.value) return [];
-  
-  // استخدام الفروع الفعلية المسترجعة من قاعدة البيانات أو وضع افتراضي إذا لم تكتمل
-  const list = warehousesList.value.length > 0 
-    ? warehousesList.value 
-    : [{ id: 1, name_ar: 'فرع بن العجوز الرئيسي' }];
-    
-  const totalSales = Number(stats.value?.month?.sales || 0);
-  
-  return list.map((w) => {
-    const share = list.length > 1 ? (1 / list.length) : 1;
-    // حساب السيولة الفعلية والاحتياطي بناءً على أرقام المبيعات الحقيقية من الداتا
-    const cash = Math.max(Math.round(totalSales * share * 0.35), 12000); 
-    const days = Math.max(Math.round(cash / 1500), 5); // تغطية النفقات اليومية
-    const percent = Math.min(Math.round((days / 15) * 100), 100);
-    
-    let color = '#10b981';
-    let status = 'سيولة ممتازة ✓';
-    if (percent <= 30) {
-      color = '#ef4444';
-      status = 'سيولة حرجة ⚠️';
-    } else if (percent <= 75) {
-      color = '#f59e0b';
-      status = 'سيولة متزنة ⚡';
-    }
-    
-    return {
-      name: w.name_ar || w.name || 'الفرع الرئيسي',
-      cash: cash,
-      days: days,
-      percent: percent,
-      color: color,
-      status: status
-    };
-  });
-});
 
-const metricsOrder = ref([]);
-onMounted(() => {
-  const saved = localStorage.getItem('dashboard_metrics_order_keys');
-  if (saved) {
-    try {
-      metricsOrder.value = JSON.parse(saved);
-    } catch {
-      metricsOrder.value = [];
-    }
-  }
-});
 
-const orderedMetrics = computed(() => {
-  const base = mainMetrics.value;
-  if (!metricsOrder.value.length) return base;
-  const sorted = [];
-  metricsOrder.value.forEach(key => {
-    const found = base.find(m => m.key === key);
-    if (found) sorted.push(found);
-  });
-  base.forEach(m => {
-    if (!sorted.find(x => x.key === m.key)) sorted.push(m);
-  });
-  return sorted;
-});
-
-const dragIndex = ref(null);
-const onDragStart = (event, index) => {
-  dragIndex.value = index;
-  event.dataTransfer.effectAllowed = 'move';
-};
-
-const onDrop = (event, index) => {
-  if (dragIndex.value === null) return;
-  const list = [...orderedMetrics.value];
-  const temp = list[dragIndex.value];
-  list[dragIndex.value] = list[index];
-  list[index] = temp;
-  
-  metricsOrder.value = list.map(m => m.key);
-  localStorage.setItem('dashboard_metrics_order_keys', JSON.stringify(metricsOrder.value));
-  dragIndex.value = null;
-};
-
-const aiInsights = computed(() => {
-  const insights = [];
-  if (!stats.value) return insights;
-
-  const stockAlerts = Number(stats.value.stockAlerts || 0);
-  if (stockAlerts > 0) {
-    insights.push({
-      title: 'مراجعة طلبات التوريد',
-      text: `يوجد ${stockAlerts} منتجات تقل كميتها عن حد الطلب. نقترح مراجعة صفحة المخزون وإعداد طلبات التوريد لتفادي النقص.`,
-      icon: '⚠️',
-      tone: 'danger'
-    });
-  } else {
-    insights.push({
-      title: 'استقرار المخزون',
-      text: 'جميع المنتجات الأساسية أعلى من حد الأمان حالياً. لا يوجد خطر نقص وشيك.',
-      icon: '✅',
-      tone: 'success'
-    });
-  }
-
-  const collectionRate = Number(stats.value.month?.collectionRate || 0);
-  if (collectionRate < 80) {
-    insights.push({
-      title: 'تنبيه التدفقات النقدية (آجل مرتفع)',
-      text: `نسبة تحصيل المبيعات الآجلة للشهر الحالي منخفضة (${(collectionRate).toFixed(1)}%). نوصي بالتواصل مع العملاء الذين لديهم مديونيات متأخرة لزيادة التدفقات النقدية.`,
-      icon: '💳',
-      tone: 'warning'
-    });
-  } else {
-    insights.push({
-      title: 'كفاءة التحصيل المالي',
-      text: `معدل تحصيل ممتاز للمبيعات الآجلة للشهر الحالي يبلغ ${(collectionRate).toFixed(1)}%. استمر على هذا الأداء.`,
-      icon: '💰',
-      tone: 'success'
-    });
-  }
-
-  const shortageRecipes = Number(stats.value.recipeSummary?.shortageRecipes || 0);
-  if (shortageRecipes > 0) {
-    insights.push({
-      title: 'عائق تصنيعي محتمل',
-      text: `يوجد ${shortageRecipes} وصفة تحتوي على مواد أولية قاربت على النفاد، مما قد يعطل إنتاج هذه الدفعات.`,
-      icon: '🥣',
-      tone: 'warning'
-    });
-  }
-
-  const salesCount = Number(stats.value.month?.salesCount || 0);
-  if (salesCount > 100) {
-    insights.push({
-      title: 'معدل نشاط مرتفع',
-      text: `سجل النظام ${salesCount} عملية بيع خلال هذه الفترة. نقترح مراقبة ساعات الذروة (بين 4 و 7 مساءً) لتنظيم العمالة بشكل أفضل.`,
-      icon: '🔥',
-      tone: 'info'
-    });
-  }
-
-  return insights;
-});
-
-const healthItems = computed(() => [
-  { label: 'نسبة التحصيل', value: percent(stats.value?.month?.collectionRate), tone: 'success' },
-  { label: 'تنبيهات المخزون', value: number(stats.value?.stockAlerts), tone: Number(stats.value?.stockAlerts || 0) ? 'danger' : 'success' },
-  { label: 'وصفات ناقصة', value: number(stats.value?.recipeSummary?.shortageRecipes), tone: Number(stats.value?.recipeSummary?.shortageRecipes || 0) ? 'warning' : 'success' },
-  { label: 'عملاء نشطين', value: number(stats.value?.customersCount), tone: 'info' },
-  { label: 'مخازن', value: number(stats.value?.inventoryStats?.warehouses), tone: 'info' },
-]);
 
 const alertItems = computed(() => [
   { key: 'stock', label: 'منتجات أقل من الحد الأدنى', value: number(stats.value?.stockAlerts), tone: Number(stats.value?.stockAlerts || 0) ? 'danger' : 'success' },
@@ -795,41 +490,7 @@ const alertItems = computed(() => [
   { key: 'customers', label: 'عدد العملاء النشطين', value: number(stats.value?.customersCount), tone: 'info' },
 ]);
 
-const priorityActions = computed(() => [
-  {
-    key: 'stock',
-    label: 'مخزون منخفض',
-    value: number(stats.value?.stockAlerts),
-    tone: Number(stats.value?.stockAlerts || 0) ? 'danger' : 'success',
-    to: '/inventory',
-  },
-  {
-    key: 'recipes',
-    label: 'وصفات ناقصة',
-    value: number(stats.value?.recipeSummary?.shortageRecipes),
-    tone: Number(stats.value?.recipeSummary?.shortageRecipes || 0) ? 'warning' : 'success',
-    to: '/recipes',
-  },
-  {
-    key: 'unpaid',
-    label: 'غير محصل',
-    value: money(stats.value?.unpaidInvoices?.amount),
-    tone: Number(stats.value?.unpaidInvoices?.amount || 0) ? 'warning' : 'success',
-    to: '/sales?tab=wholesale',
-  },
-  {
-    key: 'cash',
-    label: 'صافي التدفق',
-    value: money(monthCards.value.cashNet),
-    tone: Number(monthCards.value.cashNet || 0) >= 0 ? 'success' : 'danger',
-    to: '/reports',
-  },
-]);
 
-const priorityHeadline = computed(() => {
-  const risky = priorityActions.value.filter((item) => item.tone !== 'success').length;
-  return risky ? `${risky} بند يحتاج متابعة` : 'الوضع مستقر';
-});
 
 const topProductsRows = computed(() => stats.value?.topProducts || []);
 const topCustomersRows = computed(() => stats.value?.topCustomers || []);
@@ -1319,7 +980,7 @@ onBeforeUnmount(() => {
 });
 </script>
 
-<style scoped>
+<style lang="scss">
 .dashboard {
   display: flex;
   flex-direction: column;

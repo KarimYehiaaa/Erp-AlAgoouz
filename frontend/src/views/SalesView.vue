@@ -256,39 +256,34 @@
           </div>
           <span class="history-total">{{ formatMoney(periodTotal) }}</span>
         </div>
-        <table>
-          <thead>
-            <tr>
-              <th>التاريخ</th>
-              <th>المبلغ</th>
-              <th>الدفع</th>
-              <th>إجراء</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-if="loadingSales" v-for="i in 3" :key="'s-sk-' + i">
-              <td><div class="skeleton-shimmer" style="height: 18px; width: 100px;"></div></td>
-              <td><div class="skeleton-shimmer" style="height: 18px; width: 80px;"></div></td>
-              <td><div class="skeleton-shimmer" style="height: 18px; width: 60px;"></div></td>
-              <td><div class="skeleton-shimmer" style="height: 18px; width: 50px;"></div></td>
-            </tr>
-            <tr v-else v-for="s in sales" :key="s.id" :class="{ 'payment-open': isOpenPayment(s) }">
-              <td class="history-date">{{ formatDate(s.sale_date || s.created_at) }}</td>
-              <td class="history-amount">{{ formatMoney(s.total_amount) }}</td>
-              <td class="history-payment">
-                <span :class="paymentBadge(s.payment_status)">{{ paymentStatusLabel(s.payment_status) }}</span>
-              </td>
-              <td class="history-action">
-                <button type="button" class="history-edit-btn" :disabled="activeTab === 'monthly' || saving || s.status !== 'completed'" @click="startEdit(s)">
-                  تعديل
-                </button>
-              </td>
-            </tr>
-            <tr v-if="!loadingSales && !sales.length">
-              <td colspan="4" class="empty">لا توجد مبيعات في هذه الفترة</td>
-            </tr>
-          </tbody>
-        </table>
+        <BaseTable
+          :items="sales"
+          :columns="salesColumns"
+          :loading="loadingSales"
+          empty-message="لا توجد مبيعات في هذه الفترة"
+        >
+          <template #cell-sale_date="{ item }">
+            <span class="history-date">{{ formatDate(item.sale_date || item.created_at) }}</span>
+          </template>
+          <template #cell-total_amount="{ item }">
+            <span class="history-amount">{{ formatMoney(item.total_amount) }}</span>
+          </template>
+          <template #cell-payment_status="{ item }">
+            <span class="history-payment" :class="paymentBadge(item.payment_status)">
+              {{ paymentStatusLabel(item.payment_status) }}
+            </span>
+          </template>
+          <template #cell-actions="{ item }">
+            <button 
+              type="button" 
+              class="history-edit-btn" 
+              :disabled="activeTab === 'monthly' || saving || item.status !== 'completed'" 
+              @click="startEdit(item)"
+            >
+              تعديل
+            </button>
+          </template>
+        </BaseTable>
       </div>
     </div>
 
@@ -432,6 +427,7 @@ import { ref, computed, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import StatCard from '@/components/StatCard.vue';
 import AppIcon from '@/components/AppIcon.vue';
+import BaseTable from '@/components/ui/BaseTable.vue';
 import { sales as salesApi, customers as customersApi } from '@/api';
 import { formatMoney } from '@/utils/currency';
 
@@ -448,6 +444,13 @@ const today = localTodayYmd();
 const activeTab = ref(route.query.tab || 'branch');
 const sales = ref([]);
 const loadingSales = ref(false);
+
+const salesColumns = [
+  { key: 'sale_date', label: 'التاريخ' },
+  { key: 'total_amount', label: 'المبلغ' },
+  { key: 'payment_status', label: 'الدفع' },
+  { key: 'actions', label: 'إجراء', align: 'center' }
+];
 const wholesaleCustomers = ref([]);
 const saving = ref(false);
 const openingBalanceLoading = ref(false);

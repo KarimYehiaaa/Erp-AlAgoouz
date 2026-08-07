@@ -15,6 +15,7 @@ import { backup } from './backupController.js';
 import { pl } from './plController.js';
 import { stocktake } from './stocktakeController.js';
 import { forecasting } from './forecastingController.js';
+import { adminDashboard } from './adminDashboardController.js';
 
 export {
   dashboard,
@@ -35,4 +36,5 @@ export {
   pl,
   stocktake,
   forecasting,
+  adminDashboard,
 };

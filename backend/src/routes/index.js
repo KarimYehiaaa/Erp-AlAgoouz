@@ -48,6 +48,7 @@ const loginLimiter = rateLimit({
   max: 10,                    // 10 محاولات فقط
   message: { success: false, message: 'تم تجاوز محاولات الدخول. حاول مرة أخرى بعد 15 دقيقة.' },
   skipSuccessfulRequests: true,
+  skip: (req) => config.isDevelopment || req.ip === '127.0.0.1' || req.ip === '::1' || req.ip === '::ffff:127.0.0.1',
 });
 
 // Middleware للتأكد أن المستخدم admin (role_name = 'admin')
@@ -61,6 +62,8 @@ const requireAdmin = (req, res, next) => {
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 router.post('/auth/login', loginLimiter, validateBody(loginSchema), authCtrl.login);
 router.get('/auth/profile', authenticate, authCtrl.profile);
+router.post('/auth/refresh', authCtrl.refresh);
+router.post('/auth/logout', authenticate, authCtrl.logoutHandler);
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 router.get('/dashboard', authenticate, authorize('dashboard.view'), api.dashboard);
@@ -249,5 +252,14 @@ router.post('/backup/restore-file',  authenticate, authorize('settings.manage'),
 router.post('/backup/clear',         authenticate, authorize('settings.manage'), requireAdmin, requireConfirmation('CONFIRM_CLEAR'), auditLog('data_clear', 'backup'), api.backup.clear);
 router.post('/backup/cloud-test',    authenticate, authorize('settings.manage'), requireAdmin, api.backup.cloudTest);
 router.get('/backup/logs',           authenticate, authorize('settings.manage'), requireAdmin, api.backup.getLogs);
+
+// ─── Admin Command Center — admin only ───────────────────────────────────────
+router.get('/admin/health',                     authenticate, requireAdmin, api.adminDashboard.health);
+router.get('/admin/sessions',                   authenticate, requireAdmin, api.adminDashboard.sessions);
+router.delete('/admin/sessions/:id',            authenticate, requireAdmin, auditLog('session_revoke', 'admin'), api.adminDashboard.revokeSession);
+router.delete('/admin/sessions/user/:userId',   authenticate, requireAdmin, auditLog('all_sessions_revoke', 'admin'), api.adminDashboard.revokeAllSessions);
+router.get('/admin/failed-logins',              authenticate, requireAdmin, api.adminDashboard.failedLogins);
+router.get('/admin/activity',                   authenticate, requireAdmin, api.adminDashboard.recentActivity);
+router.get('/admin/counts',                     authenticate, requireAdmin, api.adminDashboard.counts);
 
 export default router;

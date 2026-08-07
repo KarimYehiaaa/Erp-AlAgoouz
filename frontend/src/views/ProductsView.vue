@@ -42,68 +42,57 @@
 
     <template v-if="tab === 'list'">
       <div class="card table-wrap">
-        <table class="products-table">
-          <thead>
-            <tr>
-              <th>المنتج</th>
-              <th>التصنيف</th>
-              <th>شراء</th>
-              <th>بيع</th>
-              <th>المخزن</th>
-              <th>الحالة</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-if="loading" v-for="i in 3" :key="'p-sk-' + i">
-              <td>
-                <div class="skeleton-shimmer" style="height: 18px; width: 140px;"></div>
-                <div class="skeleton-shimmer" style="height: 12px; width: 80px; margin-top: 4px;"></div>
-              </td>
-              <td><div class="skeleton-shimmer" style="height: 18px; width: 90px;"></div></td>
-              <td><div class="skeleton-shimmer" style="height: 18px; width: 60px;"></div></td>
-              <td><div class="skeleton-shimmer" style="height: 18px; width: 60px;"></div></td>
-              <td><div class="skeleton-shimmer" style="height: 18px; width: 110px;"></div></td>
-              <td><div class="skeleton-shimmer" style="height: 18px; width: 50px;"></div></td>
-              <td><div class="skeleton-shimmer" style="height: 18px; width: 120px;"></div></td>
-            </tr>
-            <tr v-else v-for="p in products" :key="p.id">
-              <td class="product-name-cell">
-                <div class="product-title">
-                  <span class="product-name">{{ p.name_ar }}</span>
-                  <span class="product-sku">{{ p.sku }}</span>
-                </div>
-                <span class="product-unit-badge">{{ unitLabel(p.unit) }}</span>
-              </td>
-              <td>{{ p.category_name || '—' }}</td>
-              <td>{{ formatMoney(p.purchase_price) }}</td>
-              <td>{{ formatMoney(p.sale_price) }}</td>
-              <td class="warehouse-cell">{{ p.primary_warehouse_name || '—' }}</td>
-              <td>{{ p.is_active ? 'نشط' : 'معطل' }}</td>
-              <td class="actions-cell">
-                <button type="button" class="icon-btn edit" title="تعديل" @click="editProduct(p)">
-                  <AppIcon name="edit" :size="16" />
-                </button>
-                <button
-                  type="button"
-                  class="icon-btn"
-                  :class="{ disabled: p.has_active_recipe }"
-                  :disabled="p.has_active_recipe"
-                  :title="p.has_active_recipe ? 'منتج وصفة نشطة: لا يتم استرداد مخزونه مباشرة' : 'استرداد'"
-                  @click="openReturn(p)"
-                >
-                  <AppIcon name="arrowLeft" :size="16" />
-                </button>
-                <button type="button" class="icon-btn danger" title="حذف المنتج" @click="deleteOneProduct(p)">
-                  <AppIcon name="delete" :size="16" />
-                </button>
-              </td>
-            </tr>
-            <tr v-if="!loading && !products.length">
-              <td colspan="7" class="empty">لا توجد منتجات مسجلة</td>
-            </tr>
-          </tbody>
-        </table>
+        <BaseTable
+          :items="products"
+          :columns="productsColumns"
+          :loading="loading"
+          empty-message="لا توجد منتجات مسجلة"
+        >
+          <template #cell-name="{ item }">
+            <div class="product-name-cell">
+              <div class="product-title">
+                <span class="product-name">{{ item.name_ar }}</span>
+                <span class="product-sku">{{ item.sku }}</span>
+              </div>
+              <span class="product-unit-badge">{{ unitLabel(item.unit) }}</span>
+            </div>
+          </template>
+          <template #cell-category="{ item }">
+            {{ item.category_name || '—' }}
+          </template>
+          <template #cell-purchase_price="{ item }">
+            {{ formatMoney(item.purchase_price) }}
+          </template>
+          <template #cell-sale_price="{ item }">
+            {{ formatMoney(item.sale_price) }}
+          </template>
+          <template #cell-warehouse="{ item }">
+            <span class="warehouse-cell">{{ item.primary_warehouse_name || '—' }}</span>
+          </template>
+          <template #cell-status="{ item }">
+            {{ item.is_active ? 'نشط' : 'معطل' }}
+          </template>
+          <template #cell-actions="{ item }">
+            <div class="actions-cell">
+              <button type="button" class="icon-btn edit" title="تعديل" @click="editProduct(item)">
+                <AppIcon name="edit" :size="16" />
+              </button>
+              <button
+                type="button"
+                class="icon-btn"
+                :class="{ disabled: item.has_active_recipe }"
+                :disabled="item.has_active_recipe"
+                :title="item.has_active_recipe ? 'منتج وصفة نشطة: لا يتم استرداد مخزونه مباشرة' : 'استرداد'"
+                @click="openReturn(item)"
+              >
+                <AppIcon name="arrowLeft" :size="16" />
+              </button>
+              <button type="button" class="icon-btn danger" title="حذف المنتج" @click="deleteOneProduct(item)">
+                <AppIcon name="delete" :size="16" />
+              </button>
+            </div>
+          </template>
+        </BaseTable>
       </div>
 
       <div class="danger-mini card">
@@ -200,16 +189,38 @@
             </div>
             <div class="form-group"><label>سعر الشراء</label><input v-model.number="form.purchase_price" type="number" step="0.01" /></div>
             <div class="form-group"><label>سعر البيع</label><input v-model.number="form.sale_price" type="number" step="0.01" required /></div>
-            <div class="form-group"><label>المخزن</label>
-              <select v-model="form.primary_warehouse_id">
-                <option :value="null" disabled>{{ warehouses.length ? 'اختر المخزن' : 'لا توجد مخازن متاحة' }}</option>
-                <option v-for="w in warehouses" :key="w.id" :value="w.id">{{ w.name_ar }}</option>
-              </select>
-            </div>
             <div class="form-group"><label>الوحدة</label>
               <select v-model="form.unit" required>
                 <option v-for="unit in availableUnits" :key="unit" :value="unit">{{ unitLabel(unit) }}</option>
               </select>
+            </div>
+            
+            <div class="form-group span-2" v-if="warehouses.length" style="margin-top: 6px;">
+              <div style="background: var(--bg-elevated, rgba(255,255,255,0.03)); border: 1px solid var(--border, rgba(255,255,255,0.08)); padding: 14px; border-radius: 12px;">
+                <label style="font-weight: 800; font-size: 0.92rem; color: var(--accent, #c77a2f); margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
+                  📦 توزيع كميات المخزون بالمنشأة
+                </label>
+                <small style="display: block; color: var(--text-muted, #888); font-size: 0.78rem; margin-bottom: 12px;">
+                  حدد الرصيد المتاح في التخزين الخلفي (المخزن الرئيسي) والرصيد المعروض في صالة البيع (الفرع):
+                </small>
+                <div class="grid grid-2" style="gap: 12px;">
+                  <div v-for="w in warehouses" :key="w.id" class="form-group" style="margin: 0;">
+                    <label style="font-size: 0.82rem; font-weight: 700; display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+                      <span>{{ w.name_ar }}</span>
+                      <span v-if="w.type === 'main' || w.code === 'MAIN'" style="font-size: 0.72rem; color: #3b82f6; font-weight: 800; background: rgba(59,130,246,0.1); padding: 2px 6px; border-radius: 4px;">🏢 مخزن رئيسي</span>
+                      <span v-else style="font-size: 0.72rem; color: #10b981; font-weight: 800; background: rgba(16,185,129,0.1); padding: 2px 6px; border-radius: 4px;">🏪 محل البيع / الفرع</span>
+                    </label>
+                    <input
+                      v-model.number="form.warehouse_stocks[w.id]"
+                      type="number"
+                      min="0"
+                      step="0.001"
+                      placeholder="أدخل الكمية..."
+                      style="font-weight: 700; font-size: 1rem;"
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
           <p v-if="formMsg" class="form-msg" :class="{ err: formErr }">{{ formMsg }}</p>
@@ -259,6 +270,7 @@ import { ref, onMounted, onBeforeUnmount, computed } from 'vue';
 import { products as api, warehouses as warehousesApi } from '@/api';
 import { formatMoney } from '@/utils/currency';
 import { useProductMeta } from '@/composables/useProductMeta';
+import BaseTable from '@/components/ui/BaseTable.vue';
 
 const { categories, units: productUnits, loadMeta, unitLabel, unitNames } = useProductMeta();
 
@@ -276,6 +288,16 @@ const savingProduct = ref(false);
 const returning = ref(false);
 const formMsg = ref('');
 const formErr = ref(false);
+
+const productsColumns = [
+  { key: 'name', label: 'المنتج' },
+  { key: 'category', label: 'القسم' },
+  { key: 'purchase_price', label: 'شراء' },
+  { key: 'sale_price', label: 'بيع' },
+  { key: 'warehouse', label: 'المخزن' },
+  { key: 'status', label: 'الحالة' },
+  { key: 'actions', label: '', align: 'right' },
+];
 
 const form = ref({
   sku: '',
@@ -361,11 +383,26 @@ const loadReturns = async () => {
 const openForm = (p = null) => {
   formMsg.value = '';
   formErr.value = false;
+
+  const stocksObj = {};
+  warehouses.value.forEach((w) => {
+    stocksObj[w.id] = 0;
+  });
+  if (p && p.stock_details) {
+    const list = Array.isArray(p.stock_details) ? p.stock_details : [];
+    list.forEach((item) => {
+      if (item.warehouse_id) {
+        stocksObj[item.warehouse_id] = Number(item.quantity || 0);
+      }
+    });
+  }
+
   form.value = p
     ? {
       ...p,
       primary_warehouse_id: p.primary_warehouse_id || warehouses.value[0]?.id || null,
       _original_primary_warehouse_id: p.primary_warehouse_id || warehouses.value[0]?.id || null,
+      warehouse_stocks: stocksObj,
     }
     : {
       sku: buildNextSku(products.value),
@@ -377,6 +414,7 @@ const openForm = (p = null) => {
       unit: unitNames()[0] || 'قطعة',
       primary_warehouse_id: warehouses.value[0]?.id || null,
       _original_primary_warehouse_id: null,
+      warehouse_stocks: stocksObj,
     };
   showForm.value = true;
   if (!p) {
@@ -392,18 +430,14 @@ const saveProduct = async () => {
   formMsg.value = '';
   formErr.value = false;
 
-  const primaryWarehouseId = Number(form.value.primary_warehouse_id);
-  if (!primaryWarehouseId) {
-    formErr.value = true;
-    formMsg.value = 'اختر مخزن المنتج أولًا. لو القائمة فاضية راجع إعدادات المخازن.';
-    return;
-  }
+  const primaryWarehouseId = Number(form.value.primary_warehouse_id) || warehouses.value[0]?.id || 1;
 
   savingProduct.value = true;
   try {
     const payload = {
       ...form.value,
       primary_warehouse_id: primaryWarehouseId,
+      warehouse_stocks: form.value.warehouse_stocks,
     };
     delete payload._original_primary_warehouse_id;
     payload.category_id = payload.category_id || null;

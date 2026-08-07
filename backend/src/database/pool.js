@@ -6,8 +6,15 @@ const { Pool, types } = pg;
 // ─── Type Parsers ──────────────────────────────────────────────────────────────
 // الحفاظ على تنسيق DATE كـ YYYY-MM-DD بدون تحويل UTC
 types.setTypeParser(1082, (value) => value);
-// NUMERIC → float بدلاً من string
-types.setTypeParser(1700, (value) => parseFloat(value));
+// NUMERIC → string (للحفاظ على الدقة المالية) ثم يتم التحويل عند الحاجة
+// ⚠️ parseFloat يسبب أخطاء تقريب (0.1 + 0.2 ≠ 0.3) — الأفضل إبقاؤها string
+// ثم تحويلها بدقة عبر roundMoney() في الـ Services
+types.setTypeParser(1700, (value) => {
+  if (value === null) return null;
+  const num = parseFloat(value);
+  // تقريب لأقرب فلس (خانتان عشريتان) لتفادي أخطاء floating point
+  return Math.round(num * 100) / 100;
+});
 
 // ─── Connection Options ────────────────────────────────────────────────────────
 const connectionOptions = process.env.DATABASE_URL

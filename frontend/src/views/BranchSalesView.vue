@@ -69,6 +69,24 @@
             </div>
           </div>
 
+          <!-- Category Interactive Pills Bar -->
+          <div v-if="categories.length" class="category-pills-bar">
+            <button
+              type="button"
+              class="pill-btn"
+              :class="{ active: !selectedCategory }"
+              @click="selectedCategory = ''; filterProducts()"
+            >✨ الكل</button>
+            <button
+              v-for="cat in categories"
+              :key="cat.id"
+              type="button"
+              class="pill-btn"
+              :class="{ active: String(selectedCategory) === String(cat.id) }"
+              @click="selectedCategory = cat.id; filterProducts()"
+            >{{ cat.name_ar }}</button>
+          </div>
+
           <!-- Premium Skeletons for Product Grid Loading -->
           <div v-if="loadingProducts" class="products-grid">
             <div v-for="i in 8" :key="'sk-prod-' + i" class="product-card" style="display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 84px;">
@@ -390,7 +408,7 @@
         </div>
       </div>
 
-      <div v-slot:default v-if="loadingHistory" class="p-4" style="padding: 16px;">
+      <div v-if="loadingHistory" class="p-4" style="padding: 16px;">
         <SkeletonLoader type="table" :rows="5" :cols="7" />
       </div>
       <div v-else class="history-table-wrap">
@@ -1175,6 +1193,41 @@ const submitCounts = async () => {
   .search-input, .category-select {
     flex: 1; min-width: 120px; padding: 8px 12px; border: 1px solid var(--border);
     border-radius: var(--radius); background: var(--bg); font-size: 0.9rem;
+  }
+}
+
+/* Category Pills Bar */
+.category-pills-bar {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 4px 2px 10px 2px;
+  margin-bottom: 12px;
+  scrollbar-width: thin;
+
+  .pill-btn {
+    padding: 6px 14px;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    background: var(--bg-card, var(--bg));
+    color: var(--text);
+    font-size: 0.84rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s ease;
+
+    &:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
+    &.active {
+      background: var(--primary);
+      color: #fff;
+      border-color: var(--primary);
+      box-shadow: 0 2px 6px color-mix(in srgb, var(--primary) 30%, transparent);
+    }
   }
 }
 

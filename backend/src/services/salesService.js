@@ -8,18 +8,9 @@ import { recalculateCustomerBalance } from './customerBalanceService.js';
 import { invalidateDashboardCache } from './dashboardService.js';
 import { broadcast } from './websocketService.js';
 import { getPaginationParams, buildPaginationMeta } from '../utils/pagination.js';
+import { roundMoney, parseAmount, sanitizeLimit } from '../utils/money.js';
 
-const roundMoney = (value) => Math.round((Number(value) || 0) * 100) / 100;
 
-const parseAmount = (value, fallback = 0) => {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : fallback;
-};
-const sanitizeLimit = (value, fallback = 200, max = 500) => {
-  const n = Math.floor(parseAmount(value, fallback));
-  if (!Number.isFinite(n) || n <= 0) return fallback;
-  return Math.min(n, max);
-};
 
 export const calculateSaleTotals = (items = [], data = {}) => {
   const normalizedItems = [];
@@ -551,7 +542,7 @@ export const updateSale = async (saleId, data, userId) => {
 
     await client.query(
       `INSERT INTO activity_logs (user_id, module, action_ar, details) VALUES ($1,'sales',$2,$3)`,
-      [userId, `*9/JD A'*H1) (J9 ${existingSale.sale_number}`, JSON.stringify({ sale_id: saleId, amount: totalAmount })]
+      [userId, `تعديل فاتورة بيع ${existingSale.sale_number}`, JSON.stringify({ sale_id: saleId, amount: totalAmount })]
     );
 
     await client.query('COMMIT');

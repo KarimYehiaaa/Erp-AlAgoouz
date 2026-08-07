@@ -5,45 +5,20 @@
     <div class="layout-main">
       <AppNavbar />
       <main class="layout-content">
-        <router-view v-slot="{ Component }">
-          <transition name="fade-slide" mode="out-in">
-            <component :is="Component" />
-          </transition>
-        </router-view>
+        <ErrorBoundary>
+          <router-view v-slot="{ Component }">
+            <transition name="fade-slide" mode="out-in">
+              <component :is="Component" />
+            </transition>
+          </router-view>
+        </ErrorBoundary>
       </main>
     </div>
     <CommandPalette />
     <NotificationDrawer />
 
     <!-- Global Premium Toasts Container -->
-    <div class="toast-container">
-      <transition-group name="toast-slide">
-        <div 
-          v-for="toast in appStore.toasts" 
-          :key="toast.id" 
-          class="toast-alert" 
-          :class="toast.type"
-        >
-          <span class="toast-icon">🔔</span>
-          <span class="toast-message">{{ toast.message }}</span>
-          <button 
-            v-if="toast.onUndo" 
-            type="button" 
-            class="toast-undo-btn" 
-            @click="toast.onUndo(); appStore.removeToast(toast.id)"
-          >
-            تراجع
-          </button>
-          <button 
-            type="button" 
-            class="toast-close-btn" 
-            @click="appStore.removeToast(toast.id)"
-          >
-            ✕
-          </button>
-        </div>
-      </transition-group>
-    </div>
+    <ToastContainer />
 
     <!-- Floating Shortcuts HUD Overlay -->
     <div v-if="showShortcutsHUD" class="modal" @click.self="showShortcutsHUD = false" style="z-index: 99999;">
@@ -85,6 +60,8 @@ import AppSidebar from '@/components/AppSidebar.vue';
 import AppNavbar from '@/components/AppNavbar.vue';
 import CommandPalette from '@/components/CommandPalette.vue';
 import NotificationDrawer from '@/components/NotificationDrawer.vue';
+import ToastContainer from '@/components/ui/ToastContainer.vue';
+import ErrorBoundary from '@/components/ui/ErrorBoundary.vue';
 import { useAppStore } from '@/stores/app';
 
 const appStore = useAppStore();

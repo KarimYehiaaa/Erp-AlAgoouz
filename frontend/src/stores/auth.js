@@ -53,6 +53,9 @@ export const useAuthStore = defineStore('auth', () => {
     permissions.value = res.data.permissions || [];
     profileLoaded.value = true;
     localStorage.setItem('token', res.data.token);
+    if (res.data.refreshToken) {
+      localStorage.setItem('refreshToken', res.data.refreshToken);
+    }
     localStorage.setItem('user', JSON.stringify(res.data.user));
     return res;
   };
@@ -63,6 +66,7 @@ export const useAuthStore = defineStore('auth', () => {
     permissions.value = [];
     profileLoaded.value = false;
     localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
     localStorage.removeItem('user');
   };
 

@@ -32,6 +32,20 @@ export const recalculateCustomerBalance = async (db = query, customerId) => {
           AND s.deleted_at IS NULL
           AND s.sale_type = 'wholesale'
           AND s.status IN ('completed', 'returned')
+
+        UNION ALL
+
+        SELECT
+          COALESCE(i.total_amount, 0) - COALESCE((
+            SELECT SUM(amount)
+            FROM payments p
+            WHERE p.reference_type = 'invoice'
+              AND p.reference_id = i.id
+          ), 0) AS outstanding
+        FROM invoices i
+        WHERE i.customer_id = $1
+          AND i.sale_id IS NULL
+          AND i.deleted_at IS NULL
       ) source
     ), 0)
     WHERE c.id = $1

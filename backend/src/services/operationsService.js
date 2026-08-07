@@ -1,13 +1,8 @@
 import { query } from '../database/pool.js';
 import { getProducts } from './productService.js';
+import { toNumber, sanitizeLimit } from '../utils/money.js';
 
-const toNumber = (value) => Number(value || 0);
 
-const sanitizeLimit = (value, fallback = 50, max = 200) => {
-  const n = Math.floor(Number(value));
-  if (!Number.isFinite(n) || n <= 0) return fallback;
-  return Math.min(n, max);
-};
 
 const normalizeFilter = (value) => {
   const text = String(value || '').trim();

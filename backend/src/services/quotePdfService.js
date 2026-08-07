@@ -6,15 +6,13 @@ import { fileURLToPath, pathToFileURL } from 'url';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
 import { query } from '../database/pool.js';
+import { toNumber } from '../utils/money.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const execFileAsync = promisify(execFile);
 
-const toNumber = (value, fallback = 0) => {
-  const n = Number(value);
-  return Number.isFinite(n) ? n : fallback;
-};
+
 
 const toDate = (value) => {
   if (!value) return new Date();

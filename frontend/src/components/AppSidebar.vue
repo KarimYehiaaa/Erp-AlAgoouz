@@ -94,6 +94,7 @@ const rawMenuGroups = [
       { to: '/hr', label: 'الموظفين والرواتب', icon: 'hr', perm: 'hr.manage' },
       { to: '/users', label: 'المستخدمين', icon: 'users', perm: 'users.manage' },
       { to: '/settings', label: 'الإعدادات', icon: 'settings', perm: 'settings.manage' },
+      { to: '/admin-dashboard', label: 'مركز التحكم', icon: 'gauge', perm: 'users.manage' },
     ],
   },
 ];

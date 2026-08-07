@@ -31,6 +31,7 @@ app.use(rateLimit({
   windowMs: config.rateLimit.windowMs,
   max: config.rateLimit.max,
   message: { success: false, message: 'تم تجاوز عدد المحاولات. حاول مرة أخرى لاحقًا.' },
+  skip: (req) => config.isDevelopment || req.ip === '127.0.0.1' || req.ip === '::1' || req.ip === '::ffff:127.0.0.1',
 }));
 
 app.use('/assets', express.static(path.join(__dirname, '../../assets')));

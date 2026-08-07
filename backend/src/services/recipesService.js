@@ -13,9 +13,9 @@ const unitGroup = (u) => (
 );
 
 /**
- * *FAJ0 '3*GD'C 'DH5A) 9F/ 'D(J9:
- * - J.5E 'DE.2HF EF 'DECHF'*
- * - J3,D -1C'* stock_movements
+ * تنفيذ استهلاك الوصفة عند البيع:
+ * - يخصم المخزون من المكونات
+ * - يسجل حركات stock_movements
  */
 export const consumeRecipeForSale = async (
   client,
@@ -65,12 +65,12 @@ export const consumeRecipeForSale = async (
     const stockUnit = normalizeUnit(item.ingredient_unit);
 
     if (!recipeUnit || !stockUnit) {
-      throw new AppError(`'DH-/) :J1 E/9HE) AJ ECHF: ${item.ingredient_name}`);
+      throw new AppError(`الوحدة غير مدعومة في مكون: ${item.ingredient_name}`);
     }
 
     if (unitGroup(recipeUnit) !== unitGroup(stockUnit)) {
       throw new AppError(
-        `9/E *H'AB H-/) 'DECHF ${item.ingredient_name}: 'DH5A) ${recipeUnit} H'DE.2HF ${stockUnit}`
+        `عدم توافق وحدة المكون ${item.ingredient_name}: الوصفة ${recipeUnit} والمخزون ${stockUnit}`
       );
     }
 
@@ -79,7 +79,7 @@ export const consumeRecipeForSale = async (
 
     if (needed == null) {
       throw new AppError(
-        `*901 *-HJD H-/) 'DECHF ${item.ingredient_name} EF ${recipeUnit} %DI ${stockUnit}`
+        `تعذر تحويل وحدة المكون ${item.ingredient_name} من ${recipeUnit} إلى ${stockUnit}`
       );
     }
 
@@ -208,12 +208,12 @@ export const restoreRecipeForSale = async (
     const stockUnit = normalizeUnit(item.ingredient_unit);
 
     if (!recipeUnit || !stockUnit) {
-      throw new AppError(`'DH-/) :J1 E/9HE) AJ ECHF: ${item.ingredient_name}`);
+      throw new AppError(`الوحدة غير مدعومة في مكون: ${item.ingredient_name}`);
     }
 
     if (unitGroup(recipeUnit) !== unitGroup(stockUnit)) {
       throw new AppError(
-        `9/E *H'AB H-/) 'DECHF ${item.ingredient_name}: 'DH5A) ${recipeUnit} H'DE.2HF ${stockUnit}`
+        `عدم توافق وحدة المكون ${item.ingredient_name}: الوصفة ${recipeUnit} والمخزون ${stockUnit}`
       );
     }
 
@@ -222,7 +222,7 @@ export const restoreRecipeForSale = async (
 
     if (qtyToRestore == null) {
       throw new AppError(
-        `*901 *-HJD H-/) 'DECHF ${item.ingredient_name} EF ${recipeUnit} %DI ${stockUnit}`
+        `تعذر تحويل وحدة المكون ${item.ingredient_name} من ${recipeUnit} إلى ${stockUnit}`
       );
     }
 

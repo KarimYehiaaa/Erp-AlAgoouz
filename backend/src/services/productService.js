@@ -2,17 +2,17 @@ import { getClient, query } from '../database/pool.js';
 import { AppError } from '../middleware/errorHandler.js';
 import { getProductsEffectiveCosts } from './productCostService.js';
 import { getDefaultWarehouseId, getWarehouseIdByCode } from './warehouseService.js';
-const sanitizeLimit = (value, fallback = 100, max = 500) => {
-  const n = Math.floor(Number(value));
-  if (!Number.isFinite(n) || n <= 0) return fallback;
-  return Math.min(n, max);
-};
+import { sanitizeLimit } from '../utils/money.js';
 
 export const getProducts = async (filters = {}) => {
   let sql = `SELECT p.*, pc.name_ar as category_name,
     COALESCE(ar.has_active_recipe, FALSE) as has_active_recipe,
     COALESCE(inv.total_stock, 0) as total_stock,
-    COALESCE(pw.name_ar, fallback_w.name_ar) as primary_warehouse_name
+    COALESCE(pw.name_ar, fallback_w.name_ar) as primary_warehouse_name,
+    (
+      SELECT json_agg(json_build_object('warehouse_id', i.warehouse_id, 'warehouse_name', w.name_ar, 'quantity', i.quantity))
+      FROM inventory i JOIN warehouses w ON i.warehouse_id = w.id WHERE i.product_id = p.id
+    ) as stock_details
     FROM products p
     LEFT JOIN product_categories pc ON p.category_id = pc.id
     LEFT JOIN warehouses pw ON pw.id = p.primary_warehouse_id
@@ -144,7 +144,17 @@ export const createProduct = async (data) => {
       [sku, barcode, data.name_ar, data.description, data.category_id, data.unit || 'count',
         data.purchase_price || 0, data.sale_price, data.wholesale_price, data.min_stock || 5, data.image_url, data.is_active ?? true, data.track_expiry ?? false, data.primary_warehouse_id || null]
     );
-    if (data.initial_stock) {
+    if (data.warehouse_stocks && typeof data.warehouse_stocks === 'object') {
+      for (const [wId, qty] of Object.entries(data.warehouse_stocks)) {
+        const val = toNumber(qty);
+        await client.query(
+          `INSERT INTO inventory (product_id, warehouse_id, quantity) VALUES ($1,$2,$3)
+           ON CONFLICT (product_id, warehouse_id, COALESCE(batch_number, ''))
+           DO UPDATE SET quantity = EXCLUDED.quantity, updated_at = NOW()`,
+          [result.rows[0].id, wId, val]
+        );
+      }
+    } else if (data.initial_stock) {
       for (const [warehouseId, qty] of Object.entries(data.initial_stock)) {
         await client.query(
           `INSERT INTO inventory (product_id, warehouse_id, quantity) VALUES ($1,$2,$3)
@@ -234,6 +244,18 @@ export const updateProduct = async (id, data) => {
         'UPDATE products SET primary_warehouse_id = $1, updated_at = NOW() WHERE id = $2',
         [nextWarehouseId, id]
       );
+    }
+
+    if (data.warehouse_stocks && typeof data.warehouse_stocks === 'object') {
+      for (const [wId, qty] of Object.entries(data.warehouse_stocks)) {
+        const val = toNumber(qty);
+        await client.query(
+          `INSERT INTO inventory (product_id, warehouse_id, quantity) VALUES ($1,$2,$3)
+           ON CONFLICT (product_id, warehouse_id, COALESCE(batch_number, ''))
+           DO UPDATE SET quantity = EXCLUDED.quantity, updated_at = NOW()`,
+          [id, wId, val]
+        );
+      }
     }
 
     await client.query('COMMIT');

@@ -86,7 +86,9 @@ const config = {
   // ── JWT ──
   jwt: {
     secret: requireEnv('JWT_SECRET'),
-    expiresIn: optionalEnv('JWT_EXPIRES_IN', '8h'),
+    expiresIn: optionalEnv('JWT_EXPIRES_IN', '15m'),
+    refreshSecret: optionalEnv('JWT_REFRESH_SECRET', requireEnv('JWT_SECRET') + '_refresh'),
+    refreshExpiresIn: optionalEnv('JWT_REFRESH_EXPIRES_IN', '7d'),
   },
 
   // ── CORS ──

@@ -11,7 +11,10 @@ const pinia = createPinia();
 app.use(pinia);
 app.use(router);
 app.component('AppIcon', AppIcon);
-app.component('SkeletonLoader', SkeletonLoader);
+app.config.errorHandler = (err, instance, info) => {
+  console.error('[Global Vue ErrorHandler caught error]:', err, info);
+};
+
 app.mount('#app');
 
 // 📲 Register PWA Service Worker

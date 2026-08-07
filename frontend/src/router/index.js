@@ -34,6 +34,7 @@ const routes = [
       { path: 'forecasting', name: 'Forecasting', component: () => import('@/views/ForecastingView.vue'), meta: { permission: 'reports.view' } },
       { path: 'users', name: 'Users', component: () => import('@/views/UsersView.vue'), meta: { permission: 'users.manage' } },
       { path: 'settings', name: 'Settings', component: () => import('@/views/SettingsView.vue'), meta: { permission: ['settings.view', 'settings.manage'] } },
+      { path: 'admin-dashboard', name: 'AdminDashboard', component: () => import('@/views/AdminDashboardView.vue'), meta: { requireAdmin: true } },
     ],
   },
 ];
@@ -55,6 +56,13 @@ router.beforeEach(async (to, _from, next) => {
       ? to.meta.permission.some((p) => auth.hasPermission(p))
       : auth.hasPermission(to.meta.permission);
     if (!hasPerm) {
+      return next('/');
+    }
+  }
+  
+  // Admin-only pages
+  if (to.meta.requireAdmin && auth.isAuthenticated) {
+    if (auth.user?.role_name !== 'admin') {
       return next('/');
     }
   }

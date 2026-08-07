@@ -21,57 +21,68 @@
 
     <!-- ===== STOCK TAB ===== -->
     <template v-if="tab === 'stock'">
-      <div class="card table-wrap">
-        <table class="inv-table">
-          <thead>
-            <tr>
-              <th>المنتج</th><th>SKU</th><th>المخزن</th>
-              <th>الكمية الحالية</th><th>الحد الأدنى</th><th>الحالة</th><th></th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-if="loading" v-for="i in 3" :key="'inv-sk-' + i">
-              <td><div class="skeleton-shimmer" style="height: 18px; width: 140px;"></div></td>
-              <td><div class="skeleton-shimmer" style="height: 18px; width: 80px;"></div></td>
-              <td><div class="skeleton-shimmer" style="height: 18px; width: 100px;"></div></td>
-              <td><div class="skeleton-shimmer" style="height: 18px; width: 60px;"></div></td>
-              <td><div class="skeleton-shimmer" style="height: 18px; width: 60px;"></div></td>
-              <td><div class="skeleton-shimmer" style="height: 18px; width: 85px;"></div></td>
-              <td><div class="skeleton-shimmer" style="height: 18px; width: 80px;"></div></td>
-            </tr>
-            <tr v-else v-for="i in items" :key="`${i.product_id}-${i.warehouse_id}`" :class="[ { 'row-low': i.is_low }, { 'row-highlight': isHighlighted(i) } ]">
-              <td class="product-name">
-                {{ i.name_ar }}
-                <span v-if="i.has_active_recipe" class="recipe-chip">وصفة</span>
-              </td>
-              <td class="mono">{{ i.sku }}</td>
-              <td>{{ i.warehouse_name }}</td>
-              <td class="qty" :class="{ 'qty-low': i.is_low }">{{ fmtQty(i.quantity) }}</td>
-              <td>{{ i.min_stock }}</td>
-              <td>
-                <span :class="['badge', i.is_low ? 'badge-danger' : 'badge-success']">
-                  {{ i.is_low ? '⚠️ منخفض' : '✅ طبيعي' }}
-                </span>
-              </td>
-              <td>
-                <button
-                  class="icon-btn"
-                  :class="{ disabled: i.has_active_recipe }"
-                  :disabled="i.has_active_recipe"
-                  :title="i.has_active_recipe ? 'منتج وصفة نشطة: يتم تحديثه من مكونات الوصفة فقط' : 'تعديل'"
-                  @click="openEdit(i)"
-                >✎</button>
-                <button
-                  class="icon-btn btn-danger"
-                  title="تسجيل هالك"
-                  @click="openWastage(i)"
-                >🗑️</button>
-              </td>
-            </tr>
-            <tr v-if="!loading && !items.length"><td colspan="7" class="empty">لا توجد بيانات مخزون</td></tr>
-          </tbody>
-        </table>
-      </div>
+        <BaseTable
+          :items="items"
+          :columns="stockColumns"
+          :loading="loading"
+          empty-message="لا توجد بيانات مخزون"
+          :row-class="(i) => [ { 'row-low': i.is_low }, { 'row-highlight': isHighlighted(i) } ]"
+        >
+          <template #cell-name_ar="{ item }">
+            <div class="product-name">
+              {{ item.name_ar }}
+              <span v-if="item.has_active_recipe" class="recipe-chip">وصفة</span>
+            </div>
+          </template>
+          <template #cell-sku="{ item }">
+            <span class="mono">{{ item.sku }}</span>
+          </template>
+          <template #cell-total_quantity="{ item }">
+            <span class="qty qty-total" :class="{ 'qty-low': item.is_low }">
+              {{ fmtQty(item.total_quantity !== undefined ? item.total_quantity : item.quantity) }}
+            </span>
+          </template>
+          <template #cell-breakdown="{ item }">
+            <div class="breakdown-pills">
+              <span
+                v-for="w in (item.warehouse_breakdown || [])"
+                :key="w.warehouse_id"
+                class="pill"
+                :class="w.warehouse_type === 'main' || (w.warehouse_name && w.warehouse_name.includes('رئيسي')) ? 'pill-main' : 'pill-branch'"
+              >
+                {{ w.warehouse_type === 'main' || (w.warehouse_name && w.warehouse_name.includes('رئيسي')) ? '🏢' : '🏪' }}
+                {{ w.warehouse_name }}: <strong>{{ fmtQty(w.quantity) }}</strong>
+              </span>
+              <span v-if="!item.warehouse_breakdown || !item.warehouse_breakdown.length" class="pill pill-main">
+                {{ item.warehouse_name }}: <strong>{{ fmtQty(item.quantity) }}</strong>
+              </span>
+            </div>
+          </template>
+          <template #cell-status="{ item }">
+            <span :class="['badge', item.is_low ? 'badge-danger' : 'badge-success']">
+              {{ item.is_low ? '⚠️ منخفض' : '✅ طبيعي' }}
+            </span>
+          </template>
+          <template #cell-actions="{ item }">
+            <button
+              class="icon-btn"
+              title="تحويل بين المخزن الرئيسي وصالة البيع"
+              @click="openTransferProduct(item)"
+            >🔄</button>
+            <button
+              class="icon-btn"
+              :class="{ disabled: item.has_active_recipe }"
+              :disabled="item.has_active_recipe"
+              :title="item.has_active_recipe ? 'منتج وصفة نشطة: يتم تحديثه من مكونات الوصفة فقط' : 'تعديل'"
+              @click="openEdit(item)"
+            >✎</button>
+            <button
+              class="icon-btn btn-danger"
+              title="تسجيل هالك"
+              @click="openWastage(item)"
+            >🗑️</button>
+          </template>
+        </BaseTable>
     </template>
 
     <!-- ===== EXCEL RETURN TAB ===== -->
@@ -227,23 +238,33 @@
     <template v-if="tab === 'movements'">
       <div class="card table-wrap">
         <h3 style="margin-bottom: 14px;">📋 سجل حركة المخزون</h3>
-        <table class="inv-table">
-          <thead>
-            <tr><th>المنتج</th><th>النوع</th><th>الكمية</th><th>من</th><th>إلى</th><th>بواسطة</th><th>التاريخ</th></tr>
-          </thead>
-          <tbody>
-            <tr v-for="m in movements" :key="m.id">
-              <td>{{ m.product_name }}</td>
-              <td><span :class="['move-badge', m.movement_type]">{{ movementLabel(m.movement_type) }}</span></td>
-              <td class="qty">{{ fmtQty(m.quantity) }}</td>
-              <td>{{ m.from_warehouse || '—' }}</td>
-              <td>{{ m.to_warehouse || '—' }}</td>
-              <td>{{ m.user_name || '—' }}</td>
-              <td>{{ new Date(m.created_at).toLocaleString('en-GB') }}</td>
-            </tr>
-            <tr v-if="!movements.length"><td colspan="7" class="empty">لا توجد حركات</td></tr>
-          </tbody>
-        </table>
+        <BaseTable
+          :items="movements"
+          :columns="movementsColumns"
+          empty-message="لا توجد حركات"
+        >
+          <template #cell-product_name="{ item }">
+            {{ item.product_name }}
+          </template>
+          <template #cell-movement_type="{ item }">
+            <span :class="['move-badge', item.movement_type]">{{ movementLabel(item.movement_type) }}</span>
+          </template>
+          <template #cell-quantity="{ item }">
+            <span class="qty">{{ fmtQty(item.quantity) }}</span>
+          </template>
+          <template #cell-from_warehouse="{ item }">
+            {{ item.from_warehouse || '—' }}
+          </template>
+          <template #cell-to_warehouse="{ item }">
+            {{ item.to_warehouse || '—' }}
+          </template>
+          <template #cell-user_name="{ item }">
+            {{ item.user_name || '—' }}
+          </template>
+          <template #cell-created_at="{ item }">
+            {{ new Date(item.created_at).toLocaleString('en-GB') }}
+          </template>
+        </BaseTable>
       </div>
     </template>
 
@@ -267,7 +288,33 @@
     <!-- Transfer Modal -->
     <div v-if="showTransfer" class="modal" @click.self="showTransfer = false">
       <div class="card modal-content">
-        <h3>🔄 تحويل بين المخازن</h3>
+        <h3>🔄 تحويل بين المخزن الرئيسي وصالة البيع (الفرع)</h3>
+        <div style="display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap;">
+          <button
+            type="button"
+            class="btn btn-sm btn-outline"
+            style="font-size: 0.78rem; font-weight: 800; color: #3b82f6; border-color: rgba(59,130,246,0.3);"
+            @click="setTransferDirection('main', 'store')"
+          >
+            🏢 من الرئيسي ➔ 🏪 للفرع
+          </button>
+          <button
+            type="button"
+            class="btn btn-sm btn-outline"
+            style="font-size: 0.78rem; font-weight: 800; color: #10b981; border-color: rgba(16,185,129,0.3);"
+            @click="setTransferDirection('store', 'main')"
+          >
+            🏪 من الفرع ➔ 🏢 للرئيسي
+          </button>
+          <button
+            type="button"
+            class="btn btn-sm btn-outline"
+            style="font-size: 0.78rem; font-weight: 700;"
+            @click="swapTransferDirection"
+          >
+            🔄 عكس الاتجاه
+          </button>
+        </div>
         <form @submit.prevent="doTransfer">
           <div class="form-group">
             <label>من مخزن (المصدر)</label>
@@ -351,6 +398,7 @@
 import { onMounted, ref, watch, computed } from 'vue';
 import { onBeforeUnmount } from 'vue';
 import { inventory as inventoryApi, products as productsApi } from '@/api';
+import BaseTable from '@/components/ui/BaseTable.vue';
 
 const tab = ref('stock');
 const items = ref([]);
@@ -369,6 +417,26 @@ const msg = ref('');
 const err = ref(false);
 const excelResult = ref(null);
 const highlighted = ref({});
+
+const stockColumns = [
+  { key: 'name_ar', label: 'المنتج' },
+  { key: 'sku', label: 'SKU' },
+  { key: 'total_quantity', label: 'إجمالي رصيد المنشأة' },
+  { key: 'breakdown', label: 'توزيع الرصيد (المخزن الرئيسي | محل البيع)' },
+  { key: 'min_stock', label: 'الحد الأدنى' },
+  { key: 'status', label: 'الحالة' },
+  { key: 'actions', label: '', align: 'right' }
+];
+
+const movementsColumns = [
+  { key: 'product_name', label: 'المنتج' },
+  { key: 'movement_type', label: 'النوع' },
+  { key: 'quantity', label: 'الكمية' },
+  { key: 'from_warehouse', label: 'من' },
+  { key: 'to_warehouse', label: 'إلى' },
+  { key: 'user_name', label: 'بواسطة' },
+  { key: 'created_at', label: 'التاريخ' },
+];
 
 const editForm = ref({ id: null, product_id: null, warehouse_id: null, name_ar: '', warehouse_name: '', quantity: 0, min_stock: 0 });
 const wastageForm = ref({ product_id: null, warehouse_id: null, name_ar: '', current_qty: 0, quantity: 0, notes: '' });
@@ -449,6 +517,37 @@ const loadAllProducts = async () => {
   } catch (e) {
     console.error('Error loading products list:', e);
   }
+};
+
+const swapTransferDirection = () => {
+  const temp = transfer.value.from_warehouse_id;
+  transfer.value.from_warehouse_id = transfer.value.to_warehouse_id;
+  transfer.value.to_warehouse_id = temp;
+};
+
+const setTransferDirection = (fromType, toType) => {
+  const fromW = warehouses.value.find((w) =>
+    fromType === 'main'
+      ? w.type === 'main' || w.code === 'MAIN' || (w.name_ar && w.name_ar.includes('رئيسي'))
+      : w.type === 'store' || w.code === 'STORE' || (w.name_ar && (w.name_ar.includes('فرع') || w.name_ar.includes('محل')))
+  );
+  const toW = warehouses.value.find((w) =>
+    toType === 'main'
+      ? w.type === 'main' || w.code === 'MAIN' || (w.name_ar && w.name_ar.includes('رئيسي'))
+      : w.type === 'store' || w.code === 'STORE' || (w.name_ar && (w.name_ar.includes('فرع') || w.name_ar.includes('محل')))
+  );
+  if (fromW && toW) {
+    transfer.value.from_warehouse_id = fromW.id;
+    transfer.value.to_warehouse_id = toW.id;
+  }
+};
+
+const openTransferProduct = (item) => {
+  openTransferModal();
+  setTimeout(() => {
+    transfer.value.product_id = item.product_id;
+    transfer.value.to_product_id = item.product_id;
+  }, 100);
 };
 
 const openTransferModal = () => {
@@ -845,5 +944,36 @@ onMounted(load);
 @keyframes inv-highlight {
   0% { background: color-mix(in srgb, var(--success) 35%, transparent); }
   100% { background: transparent; }
+}
+
+.breakdown-pills {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.pill {
+  font-size: 0.78rem;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: var(--bg-elevated, rgba(255,255,255,0.06));
+  border: 1px solid var(--border, rgba(255,255,255,0.08));
+  color: var(--text, #ccc);
+  white-space: nowrap;
+}
+.pill-main {
+  background: rgba(59,130,246,0.1);
+  border-color: rgba(59,130,246,0.25);
+  color: #3b82f6;
+}
+.pill-branch {
+  background: rgba(16,185,129,0.1);
+  border-color: rgba(16,185,129,0.25);
+  color: #10b981;
+}
+.qty-total {
+  font-size: 1.05rem;
+  font-weight: 900;
+  color: var(--accent, #c77a2f);
 }
 </style>

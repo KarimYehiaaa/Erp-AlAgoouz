@@ -14,7 +14,7 @@ export const authenticate = async (req, res, next) => {
     const decoded = jwt.verify(token, config.jwt.secret);
 
     const result = await query(
-      `SELECT u.id, u.uuid, u.username, u.full_name, u.email, u.role_id, r.name as role_name, r.name_ar as role_name_ar
+      `SELECT u.id, u.uuid, u.username, u.full_name, u.email, u.role_id, u.password_changed_at, r.name as role_name, r.name_ar as role_name_ar
        FROM users u
        JOIN roles r ON u.role_id = r.id
        WHERE u.id = $1 AND u.is_active = TRUE AND u.deleted_at IS NULL`,
@@ -25,7 +25,16 @@ export const authenticate = async (req, res, next) => {
       throw new AppError('المستخدم غير موجود أو غير نشط', 401, 'UNAUTHORIZED');
     }
 
-    req.user = result.rows[0];
+    // Reject tokens issued before password change
+    const user = result.rows[0];
+    if (user.password_changed_at) {
+      const changedAtSec = Math.floor(new Date(user.password_changed_at).getTime() / 1000);
+      if (decoded.iat < changedAtSec) {
+        throw new AppError('تم تغيير كلمة المرور. يرجى تسجيل الدخول مرة أخرى', 401, 'PASSWORD_CHANGED');
+      }
+    }
+
+    req.user = user;
     next();
   } catch (err) {
     if (err.name === 'JsonWebTokenError' || err.name === 'TokenExpiredError') {

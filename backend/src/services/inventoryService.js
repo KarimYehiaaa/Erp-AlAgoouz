@@ -1,6 +1,7 @@
 import { getClient, query } from '../database/pool.js';
 import { AppError } from '../middleware/errorHandler.js';
 import { invalidateDashboardCache } from './dashboardService.js';
+import { toNumber, sanitizeLimit } from '../utils/money.js';
 
 /**
  * Helpers to ensure / lock inventory rows inside a transaction.
@@ -49,18 +50,6 @@ const assertNotRecipeProduct = async (client, productId) => {
     throw new AppError('لا يمكن تعديل مخزون منتج مرتبط بوصفة نشطة', 400);
   }
 };
-
-const toNumber = (value, fallback = 0) => {
-  const n = Number(value);
-  return Number.isFinite(n) ? n : fallback;
-};
-
-const sanitizeLimit = (value, fallback = 100, max = 500) => {
-  const n = Math.floor(toNumber(value, fallback));
-  if (!Number.isFinite(n) || n <= 0) return fallback;
-  return Math.min(n, max);
-};
-
 const ADJUSTMENT_MOVEMENT_TYPES = new Set(['adjustment']);
 
 const ensureStockTarget = async (client, productId, warehouseId) => {
@@ -84,11 +73,15 @@ const ensureStockTarget = async (client, productId, warehouseId) => {
 export const getInventory = async (warehouseId) => {
   const params = [];
   let sql = `
-    SELECT
+    SELECT DISTINCT ON (p.id)
       COALESCE(i.id, 0) AS id,
       p.id AS product_id,
       w.id AS warehouse_id,
       COALESCE(i.quantity, 0) AS quantity,
+      COALESCE(inv_summary.total_stock, 0) AS total_quantity,
+      COALESCE(inv_summary.main_stock, 0) AS main_quantity,
+      COALESCE(inv_summary.branch_stock, 0) AS branch_quantity,
+      COALESCE(inv_summary.breakdown, '[]'::json) AS warehouse_breakdown,
       i.batch_number,
       i.updated_at,
       p.sku,
@@ -103,7 +96,7 @@ export const getInventory = async (warehouseId) => {
           AND r.is_active = TRUE
       ) AS has_active_recipe,
       w.name_ar AS warehouse_name,
-      CASE WHEN COALESCE(i.quantity, 0) <= p.min_stock THEN TRUE ELSE FALSE END AS is_low
+      CASE WHEN COALESCE(inv_summary.total_stock, 0) <= p.min_stock THEN TRUE ELSE FALSE END AS is_low
     FROM products p
     JOIN warehouses w
       ON w.deleted_at IS NULL
@@ -123,6 +116,21 @@ export const getInventory = async (warehouseId) => {
     LEFT JOIN inventory i
       ON i.product_id = p.id
       AND i.warehouse_id = w.id
+    LEFT JOIN LATERAL (
+      SELECT
+        COALESCE(SUM(inv2.quantity), 0) AS total_stock,
+        COALESCE(SUM(CASE WHEN wh2.type = 'main' OR wh2.code = 'MAIN' THEN inv2.quantity ELSE 0 END), 0) AS main_stock,
+        COALESCE(SUM(CASE WHEN wh2.type != 'main' AND wh2.code != 'MAIN' THEN inv2.quantity ELSE 0 END), 0) AS branch_stock,
+        json_agg(json_build_object(
+          'warehouse_id', wh2.id,
+          'warehouse_name', wh2.name_ar,
+          'warehouse_type', wh2.type,
+          'quantity', COALESCE(inv2.quantity, 0)
+        )) AS breakdown
+      FROM inventory inv2
+      JOIN warehouses wh2 ON wh2.id = inv2.warehouse_id AND wh2.deleted_at IS NULL AND wh2.is_active = TRUE
+      WHERE inv2.product_id = p.id
+    ) inv_summary ON TRUE
     WHERE p.deleted_at IS NULL
       AND p.is_active = TRUE
   `;
@@ -132,7 +140,7 @@ export const getInventory = async (warehouseId) => {
     params.push(warehouseId);
   }
 
-  sql += ` ORDER BY p.name_ar, w.id, COALESCE(i.batch_number, '')`;
+  sql += ` ORDER BY p.id, p.name_ar`;
   return (await query(sql, params)).rows;
 };
 
@@ -332,7 +340,7 @@ export const returnProductToStock = async (data, userId) => {
       `INSERT INTO activity_logs (user_id, module, action_ar, details) VALUES ($1,'products',$2,$3)`,
       [
         userId,
-        `'3*1/'/ EF*,: ${product.rows[0].name_ar} (+${qty})`,
+        `استرداد منتج: ${product.rows[0].name_ar} (+${qty})`,
         JSON.stringify({ product_id, warehouse_id, quantity: qty, new_stock: stock.rows[0]?.quantity }),
       ]
     );
@@ -376,8 +384,9 @@ export const clearAllInventoryData = async (userId) => {
     const inventoryCountRes = await client.query(`SELECT COUNT(*)::int AS count FROM inventory`);
     const movementCountRes = await client.query(`SELECT COUNT(*)::int AS count FROM stock_movements`);
 
-    await client.query(`TRUNCATE TABLE stock_movements RESTART IDENTITY CASCADE`);
-    await client.query(`TRUNCATE TABLE inventory RESTART IDENTITY CASCADE`);
+    // استخدام DELETE بدلاً من TRUNCATE لضمان تفعيل triggers التدقيق (Row-Level Audits)
+    await client.query(`DELETE FROM stock_movements`);
+    await client.query(`DELETE FROM inventory`);
 
     await client.query(
       `INSERT INTO activity_logs (user_id, module, action_ar, details)

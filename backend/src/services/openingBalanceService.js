@@ -1,7 +1,6 @@
 import { query } from '../database/pool.js';
 import { AppError } from '../middleware/errorHandler.js';
-
-const roundMoney = (value) => Math.round((Number(value) || 0) * 100) / 100;
+import { roundMoney } from '../utils/money.js';
 
 const normalizeDate = (value, fieldName) => {
   const date = String(value || '').trim();

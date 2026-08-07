@@ -1,12 +1,7 @@
 import { getClient, query } from '../database/pool.js';
 import { AppError } from '../middleware/errorHandler.js';
 import { recalculateCustomerBalance } from './customerBalanceService.js';
-
-const sanitizeLimit = (value, fallback = 100, max = 500) => {
-  const n = Math.floor(Number(value));
-  if (!Number.isFinite(n) || n <= 0) return fallback;
-  return Math.min(n, max);
-};
+import { sanitizeLimit } from '../utils/money.js';
 
 const generateCustomerCode = async () => {
   const res = await query(
@@ -47,6 +42,22 @@ export const getCustomers = async (filters = {}) => {
         WHERE s.deleted_at IS NULL
           AND s.sale_type = 'wholesale'
           AND s.status = 'completed'
+
+        UNION ALL
+
+        SELECT i.customer_id,
+               COALESCE(i.total_amount, 0) AS total_purchased,
+               COALESCE(p.total_paid, 0) AS total_paid
+        FROM invoices i
+        LEFT JOIN (
+          SELECT reference_id, SUM(amount) AS total_paid
+          FROM payments
+          WHERE reference_type = 'invoice'
+          GROUP BY reference_id
+        ) p ON p.reference_id = i.id
+        WHERE i.customer_id IS NOT NULL
+          AND i.sale_id IS NULL
+          AND i.deleted_at IS NULL
       ) source
       GROUP BY customer_id
     ) cs ON cs.customer_id = c.id
@@ -82,7 +93,20 @@ export const getCustomerById = async (id) => {
        AND s.deleted_at IS NULL
        AND s.sale_type = 'wholesale'
        AND s.status = 'completed'
-     ORDER BY s.created_at DESC
+     UNION ALL
+     SELECT
+       'invoice' AS entry_type,
+       i.id,
+       NULL::text AS sale_number,
+       i.invoice_number,
+       i.total_amount,
+       i.payment_status,
+       i.created_at
+     FROM invoices i
+     WHERE i.customer_id = $1
+       AND i.sale_id IS NULL
+       AND i.deleted_at IS NULL
+     ORDER BY created_at DESC
      LIMIT 20`,
     [id]
   );
@@ -129,29 +153,50 @@ export const recordPayment = async (customerId, data) => {
     )).rows[0];
     if (!customer) throw new AppError('العميل غير موجود', 404);
 
-    const sales = (await client.query(
+    const debts = (await client.query(
       `SELECT
-         s.id, s.sale_number, s.total_amount,
-         COALESCE((SELECT SUM(amount) FROM payments WHERE reference_type = 'sale' AND reference_id = s.id), 0) AS paid_amount
+         'sale' AS entry_type,
+         s.id,
+         s.sale_number AS entry_number,
+         s.total_amount,
+         COALESCE((SELECT SUM(amount) FROM payments WHERE reference_type = 'sale' AND reference_id = s.id), 0) AS paid_amount,
+         COALESCE(s.sale_date, DATE(s.created_at)) AS entry_date,
+         s.created_at
        FROM sales s
        WHERE s.customer_id = $1
         AND s.deleted_at IS NULL
         AND s.status = 'completed'
-       ORDER BY COALESCE(s.sale_date, DATE(s.created_at)), s.created_at, s.id
+
+       UNION ALL
+
+       SELECT
+         'invoice' AS entry_type,
+         i.id,
+         i.invoice_number AS entry_number,
+         i.total_amount,
+         COALESCE((SELECT SUM(amount) FROM payments WHERE reference_type = 'invoice' AND reference_id = i.id), 0) AS paid_amount,
+         COALESCE(i.due_date, DATE(i.issued_at)) AS entry_date,
+         i.created_at
+       FROM invoices i
+       WHERE i.customer_id = $1
+        AND i.sale_id IS NULL
+        AND i.deleted_at IS NULL
+
+       ORDER BY entry_date, created_at, id
        FOR UPDATE`,
       [customerId]
     )).rows;
 
-    const openSales = sales
-      .map((sale) => ({
-        ...sale,
-        remaining: Math.max(0, Number(sale.total_amount || 0) - Number(sale.paid_amount || 0)),
+    const openDebts = debts
+      .map((debt) => ({
+        ...debt,
+        remaining: Math.max(0, Number(debt.total_amount || 0) - Number(debt.paid_amount || 0)),
       }))
-      .filter((sale) => sale.remaining > 0.01);
+      .filter((debt) => debt.remaining > 0.01);
 
-    const totalRemaining = openSales.reduce((sum, sale) => sum + sale.remaining, 0);
+    const totalRemaining = openDebts.reduce((sum, debt) => sum + debt.remaining, 0);
     if (totalRemaining <= 0.01) {
-      throw new AppError('لا توجد مبيعات مستحقة لهذا العميل');
+      throw new AppError('لا توجد مبيعات أو فواتير مستحقة لهذا العميل');
     }
     if (amount > totalRemaining + 0.01) {
       throw new AppError(`المبلغ (${amount}) أكبر من إجمالي المستحق (${totalRemaining.toFixed(2)})`);
@@ -161,29 +206,40 @@ export const recordPayment = async (customerId, data) => {
     const allocations = [];
     const stamp = Date.now();
 
-    for (const sale of openSales) {
+    for (const debt of openDebts) {
       if (remainingPayment <= 0.001) break;
 
-      const paidForSale = Math.min(remainingPayment, sale.remaining);
-      const newPaid = Number(sale.paid_amount || 0) + paidForSale;
-      const newStatus = newPaid >= Number(sale.total_amount) - 0.01 ? 'paid' : 'partial';
-      const payNum = `PAY-S${sale.id}-${stamp}-${allocations.length + 1}`;
+      const paidForDebt = Math.min(remainingPayment, debt.remaining);
+      const newPaid = Number(debt.paid_amount || 0) + paidForDebt;
+      const newStatus = newPaid >= Number(debt.total_amount) - 0.01 ? 'paid' : 'partial';
 
-      await client.query(
-        `INSERT INTO payments (payment_number, reference_type, reference_id, amount, payment_method, notes, user_id)
-         VALUES ($1, 'sale', $2, $3, $4, $5, $6)`,
-        [payNum, sale.id, paidForSale, data.payment_method || 'cash', data.notes || null, data.user_id || null]
-      );
-      await client.query(`UPDATE sales SET payment_status = $1 WHERE id = $2`, [newStatus, sale.id]);
-      await client.query(`UPDATE invoices SET payment_status = $1 WHERE sale_id = $2`, [newStatus, sale.id]);
+      if (debt.entry_type === 'sale') {
+        const payNum = `PAY-S${debt.id}-${stamp}-${allocations.length + 1}`;
+        await client.query(
+          `INSERT INTO payments (payment_number, reference_type, reference_id, amount, payment_method, notes, user_id)
+           VALUES ($1, 'sale', $2, $3, $4, $5, $6)`,
+          [payNum, debt.id, paidForDebt, data.payment_method || 'cash', data.notes || null, data.user_id || null]
+        );
+        await client.query(`UPDATE sales SET payment_status = $1 WHERE id = $2`, [newStatus, debt.id]);
+        await client.query(`UPDATE invoices SET payment_status = $1 WHERE sale_id = $2`, [newStatus, debt.id]);
+      } else {
+        const payNum = `PAY-INV${debt.id}-${stamp}-${allocations.length + 1}`;
+        await client.query(
+          `INSERT INTO payments (payment_number, reference_type, reference_id, amount, payment_method, notes, user_id)
+           VALUES ($1, 'invoice', $2, $3, $4, $5, $6)`,
+          [payNum, debt.id, paidForDebt, data.payment_method || 'cash', data.notes || null, data.user_id || null]
+        );
+        await client.query(`UPDATE invoices SET payment_status = $1 WHERE id = $2`, [newStatus, debt.id]);
+      }
 
       allocations.push({
-        sale_id: sale.id,
-        sale_number: sale.sale_number,
-        amount: paidForSale,
+        type: debt.entry_type,
+        id: debt.id,
+        number: debt.entry_number,
+        amount: paidForDebt,
         new_status: newStatus,
       });
-      remainingPayment -= paidForSale;
+      remainingPayment -= paidForDebt;
     }
 
     await recalculateCustomerBalance((text, params) => client.query(text, params), customerId);
@@ -283,7 +339,32 @@ export const getCustomerStatement = async (id) => {
     [id]
   );
 
-  const invoices = { rows: [] };
+  const invoices = await query(
+    `SELECT
+       'invoice' AS entry_type,
+       i.id,
+       NULL::text AS sale_number,
+       i.invoice_number,
+       i.invoice_number AS entry_number,
+       i.issued_at AS entry_date,
+       i.total_amount,
+       i.payment_status,
+       'completed'::text AS status,
+       i.notes,
+       i.created_at,
+       COALESCE(
+         (SELECT SUM(amount) FROM payments
+          WHERE reference_type = 'invoice' AND reference_id = i.id), 0
+       ) AS paid_amount,
+       (SELECT payment_method FROM payments
+        WHERE reference_type = 'invoice' AND reference_id = i.id
+        ORDER BY created_at DESC LIMIT 1) AS payment_method
+      FROM invoices i
+      WHERE i.customer_id = $1
+        AND i.sale_id IS NULL
+        AND i.deleted_at IS NULL`,
+    [id]
+  );
 
   const rows = [...sales.rows, ...invoices.rows].sort((a, b) => {
     const dateA = new Date(a.entry_date || a.created_at || 0).getTime();
@@ -291,12 +372,8 @@ export const getCustomerStatement = async (id) => {
     return dateB - dateA;
   });
 
-  const salesRows = rows.filter((r) => r.entry_type === 'sale');
-
-  const totalPurchased = salesRows.reduce((sum, r) => sum + Number(r.total_amount || 0), 0);
-
-  const totalPaid = salesRows.reduce((sum, r) => sum + Number(r.paid_amount || 0), 0);
-
+  const totalPurchased = rows.reduce((sum, r) => sum + Number(r.total_amount || 0), 0);
+  const totalPaid = rows.reduce((sum, r) => sum + Number(r.paid_amount || 0), 0);
   const totalBalance = Math.max(0, totalPurchased - totalPaid);
 
   return {
@@ -305,7 +382,9 @@ export const getCustomerStatement = async (id) => {
       total_purchased: totalPurchased,
       total_paid: totalPaid,
       total_balance: totalBalance,
-      sales_count: rows.filter((r) => r.entry_type === 'sale').length,
+      sales_count: sales.rows.length,
+      invoices_count: invoices.rows.length,
+      total_entries: rows.length,
     },
     transactions: rows,
   };

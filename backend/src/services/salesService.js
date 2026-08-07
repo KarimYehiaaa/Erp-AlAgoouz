@@ -319,6 +319,10 @@ export const createDailySale = async (data, userId) => {
     customerId = c.rows[0]?.id || null;
   }
 
+  if (saleType === 'wholesale' && !customerId) {
+    throw new AppError('يجب اختيار وتحديد اسم العميل عند إنشاء مبيعات الجملة', 400);
+  }
+
   let costAmount = 0;
   const subtotal = totals.subtotal;
   const totalAmount = totals.totalAmount;
@@ -421,6 +425,10 @@ export const updateSale = async (saleId, data, userId) => {
   if (data.customer_code && !customerId) {
     const c = await query(`SELECT id FROM customers WHERE code = $1 AND deleted_at IS NULL`, [data.customer_code]);
     customerId = c.rows[0]?.id || null;
+  }
+
+  if (saleType === 'wholesale' && !customerId) {
+    throw new AppError('يجب اختيار وتحديد اسم العميل عند تعديل مبيعات الجملة', 400);
   }
 
   const client = await getClient();

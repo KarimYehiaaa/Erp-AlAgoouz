@@ -180,10 +180,10 @@
             <input v-model.number="form.total_amount" type="number" min="0.01" step="0.01" required placeholder="0.00" />
           </div>
           <div v-if="activeTab === 'wholesale'" class="form-group">
-            <label>العميل</label>
-            <select v-model="form.customer_id">
-              <option :value="null">— بدون عميل —</option>
-              <option v-for="c in wholesaleCustomers" :key="c.id" :value="c.id">{{ c.name_ar }} ({{ c.code }})</option>
+            <label>اسم العميل *</label>
+            <select v-model="form.customer_id" required>
+              <option :value="null" disabled>-- اختر اسم العميل (مطلوب) --</option>
+              <option v-for="c in wholesaleCustomers" :key="c.id" :value="c.id">👤 {{ c.name_ar }} ({{ c.code }})</option>
             </select>
           </div>
           <div class="grid grid-2">
@@ -258,12 +258,20 @@
         </div>
         <BaseTable
           :items="sales"
-          :columns="salesColumns"
+          :columns="activeColumns"
           :loading="loadingSales"
           empty-message="لا توجد مبيعات في هذه الفترة"
         >
           <template #cell-sale_date="{ item }">
             <span class="history-date">{{ formatDate(item.sale_date || item.created_at) }}</span>
+          </template>
+          <template #cell-sale_number="{ item }">
+            <span class="mono" style="font-weight: 700;">{{ item.sale_number || item.invoice_number || '—' }}</span>
+          </template>
+          <template #cell-customer_name="{ item }">
+            <span class="customer-chip" style="font-weight: 800; color: var(--accent, #c77a2f);">
+              👤 {{ item.customer_name || item.customer_name_ar || 'عميل جملة' }}
+            </span>
           </template>
           <template #cell-total_amount="{ item }">
             <span class="history-amount">{{ formatMoney(item.total_amount) }}</span>
@@ -451,6 +459,26 @@ const salesColumns = [
   { key: 'payment_status', label: 'الدفع' },
   { key: 'actions', label: 'إجراء', align: 'center' }
 ];
+
+const activeColumns = computed(() => {
+  if (activeTab.value === 'wholesale') {
+    return [
+      { key: 'sale_date', label: 'التاريخ' },
+      { key: 'sale_number', label: 'رقم الفاتورة' },
+      { key: 'customer_name', label: 'اسم العميل' },
+      { key: 'total_amount', label: 'المبلغ' },
+      { key: 'payment_status', label: 'حالة الدفع' },
+      { key: 'actions', label: 'إجراء', align: 'center' }
+    ];
+  }
+  return [
+    { key: 'sale_date', label: 'التاريخ' },
+    { key: 'sale_number', label: 'رقم العملية' },
+    { key: 'total_amount', label: 'المبلغ' },
+    { key: 'payment_status', label: 'حالة الدفع' },
+    { key: 'actions', label: 'إجراء', align: 'center' }
+  ];
+});
 const wholesaleCustomers = ref([]);
 const saving = ref(false);
 const openingBalanceLoading = ref(false);
@@ -698,6 +726,10 @@ const load = async () => {
 };
 
 const submitSale = async () => {
+  if (activeTab.value === 'wholesale' && !form.value.customer_id) {
+    alert('عذراً، يجب اختيار واسم العميل مطلوب لتسجيل فاتورة مبيعات الجملة.');
+    return;
+  }
   saving.value = true;
   try {
     const payload = {

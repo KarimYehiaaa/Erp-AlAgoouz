@@ -115,24 +115,50 @@ export const getCustomerById = async (id) => {
 
 export const createCustomer = async (data) => {
   const customerCode = String(data.code || '').trim() || await generateCustomerCode();
+  const openingBalance = data.opening_balance !== undefined && data.opening_balance !== null
+    ? parseFloat(data.opening_balance) || 0
+    : (data.current_balance !== undefined && data.current_balance !== null ? parseFloat(data.current_balance) || 0 : 0);
+
   const result = await query(
-    `INSERT INTO customers (code, name_ar, phone, email, address, customer_type, credit_limit, notes)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
-    [customerCode, data.name_ar, data.phone, data.email, data.address, data.customer_type || 'retail', data.credit_limit || 0, data.notes]
+    `INSERT INTO customers (code, name_ar, phone, email, address, customer_type, credit_limit, opening_balance, balance, current_balance, notes)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
+    [customerCode, data.name_ar, data.phone, data.email, data.address, data.customer_type || 'retail', data.credit_limit || 0, openingBalance, openingBalance, openingBalance, data.notes]
   );
-  return result.rows[0];
+  const created = result.rows[0];
+  await recalculateCustomerBalance(query, created.id);
+  return (await query(`SELECT * FROM customers WHERE id = $1`, [created.id])).rows[0];
 };
 
 export const updateCustomer = async (id, data) => {
+  const hasOpening = (data.opening_balance !== undefined && data.opening_balance !== null) || (data.current_balance !== undefined && data.current_balance !== null);
+  const openingBalance = hasOpening
+    ? parseFloat(data.opening_balance !== undefined && data.opening_balance !== null ? data.opening_balance : data.current_balance) || 0
+    : null;
+
   const result = await query(
-    `UPDATE customers SET name_ar=COALESCE($1,name_ar), phone=COALESCE($2,phone), email=COALESCE($3,email),
-     address=COALESCE($4,address), customer_type=COALESCE($5,customer_type), credit_limit=COALESCE($6,credit_limit),
-     loyalty_points=COALESCE($7,loyalty_points), notes=COALESCE($8,notes), is_active=COALESCE($9,is_active)
-     WHERE id=$10 AND deleted_at IS NULL RETURNING *`,
-    [data.name_ar, data.phone, data.email, data.address, data.customer_type, data.credit_limit, data.loyalty_points, data.notes, data.is_active, id]
+    `UPDATE customers SET
+       name_ar = COALESCE($1, name_ar),
+       phone = COALESCE($2, phone),
+       email = COALESCE($3, email),
+       address = COALESCE($4, address),
+       customer_type = COALESCE($5, customer_type),
+       credit_limit = COALESCE($6, credit_limit),
+       loyalty_points = COALESCE($7, loyalty_points),
+       notes = COALESCE($8, notes),
+       is_active = COALESCE($9, is_active),
+       opening_balance = CASE WHEN $10::decimal IS NOT NULL THEN $10::decimal ELSE opening_balance END,
+       updated_at = NOW()
+     WHERE id = $11 AND deleted_at IS NULL RETURNING *`,
+    [
+      data.name_ar, data.phone, data.email, data.address,
+      data.customer_type, data.credit_limit, data.loyalty_points,
+      data.notes, data.is_active, openingBalance, id
+    ]
   );
   if (!result.rows[0]) throw new AppError('العميل غير موجود', 404);
-  return result.rows[0];
+
+  await recalculateCustomerBalance(query, id);
+  return (await query(`SELECT * FROM customers WHERE id = $1`, [id])).rows[0];
 };
 
 export const deleteCustomer = async (id) => {

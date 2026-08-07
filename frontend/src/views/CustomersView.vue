@@ -308,6 +308,13 @@
               <option value="wholesale">جملة</option>
             </select>
           </div>
+          <div class="form-group">
+            <label>المديونية / رصيد بداية المدة (ج.م)</label>
+            <input v-model.number="form.opening_balance" type="number" min="0" step="0.01" placeholder="أدخل مديونية سابقة إن وجدت..." />
+            <small style="color: var(--text-muted, #888); font-size: 0.76rem; display: block; margin-top: 4px;">
+              💡 تُضاف هذه المديونية تلقائياً وحسابياً في رصيد ومديونية العميل الكلية المستحقة.
+            </small>
+          </div>
           <div class="form-group"><label>حد ائتماني (ج.م)</label><input v-model.number="form.credit_limit" type="number" min="0" /></div>
           <div class="modal-actions">
             <button type="button" class="btn btn-outline" @click="showForm = false">إلغاء</button>
@@ -477,8 +484,11 @@ const submitSalePayment = async () => {
 // ─── form ─────────────────────────────────────────────────────────────────────
 const openForm = (c = null) => {
   form.value = c
-    ? { ...c }
-    : { code: '', name_ar: '', phone: '', customer_type: 'retail', credit_limit: 0 };
+    ? {
+        ...c,
+        opening_balance: Number(c.opening_balance || 0)
+      }
+    : { code: '', name_ar: '', phone: '', customer_type: 'retail', credit_limit: 0, opening_balance: 0 };
   showForm.value = true;
 };
 

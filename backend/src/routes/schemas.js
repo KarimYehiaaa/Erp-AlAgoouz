@@ -233,6 +233,8 @@ export const customerCreateSchema = z.object({
   address: nullableText(1000),
   customer_type: z.enum(['retail', 'wholesale']).optional(),
   credit_limit: optionalNonNegativeNumber,
+  opening_balance: optionalNonNegativeNumber,
+  current_balance: optionalNonNegativeNumber,
   notes: nullableText(2000),
 }).passthrough();
 

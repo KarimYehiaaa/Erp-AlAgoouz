@@ -161,7 +161,8 @@ const updateTimeStr = () => {
 const loadHealth = async () => {
   try {
     const res = await api.get('/admin/health');
-    healthData.value = res.data || {};
+    const payload = res.data !== undefined ? res.data : res;
+    healthData.value = payload?.server ? payload : (payload?.data || payload || {});
     systemOk.value = healthData.value?.database?.ok !== false;
   } catch (e) {
     console.error('[Admin] Health error:', e);
@@ -172,7 +173,7 @@ const loadHealth = async () => {
 const loadDashboard = async () => {
   try {
     const res = await api.get('/dashboard', { params: { period: 'month' } });
-    dashboardData.value = res.data || {};
+    dashboardData.value = res.data !== undefined ? res.data : res || {};
   } catch (e) {
     console.error('[Admin] Dashboard error:', e);
   }
@@ -181,7 +182,7 @@ const loadDashboard = async () => {
 const loadCounts = async () => {
   try {
     const res = await api.get('/admin/counts');
-    countsData.value = res.data || {};
+    countsData.value = res.data !== undefined ? res.data : res || {};
   } catch (e) {
     console.error('[Admin] Counts error:', e);
   }
@@ -190,7 +191,7 @@ const loadCounts = async () => {
 const loadRiskRadar = async () => {
   try {
     const res = await api.get('/admin/risk-radar');
-    riskRadarData.value = res.data || {};
+    riskRadarData.value = res.data !== undefined ? res.data : res || {};
   } catch (e) {
     console.error('[Admin] Risk radar error:', e);
   }
@@ -199,7 +200,7 @@ const loadRiskRadar = async () => {
 const loadActivity = async () => {
   try {
     const res = await api.get('/admin/activity', { params: { limit: 50 } });
-    activityData.value = res.data || [];
+    activityData.value = res.data !== undefined ? res.data : res || [];
   } catch (e) {
     console.error('[Admin] Activity error:', e);
   }
@@ -208,7 +209,7 @@ const loadActivity = async () => {
 const loadSessions = async () => {
   try {
     const res = await api.get('/admin/sessions');
-    sessionsData.value = res.data || [];
+    sessionsData.value = res.data !== undefined ? res.data : res || [];
   } catch (e) {
     console.error('[Admin] Sessions error:', e);
     sessionsData.value = [];
@@ -218,7 +219,7 @@ const loadSessions = async () => {
 const loadFailedLogins = async () => {
   try {
     const res = await api.get('/admin/failed-logins', { params: { hours: 24 } });
-    failedLoginsData.value = res.data || [];
+    failedLoginsData.value = res.data !== undefined ? res.data : res || [];
   } catch (e) {
     console.error('[Admin] Failed logins error:', e);
     failedLoginsData.value = [];

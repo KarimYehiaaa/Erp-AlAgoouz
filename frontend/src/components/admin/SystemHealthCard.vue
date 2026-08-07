@@ -85,8 +85,9 @@ const props = defineProps({
   health: { type: Object, default: () => ({}) },
 });
 
-const server = computed(() => props.health?.server || {});
-const db = computed(() => props.health?.database || {});
+const rawData = computed(() => props.health?.data || props.health || {});
+const server = computed(() => rawData.value?.server || props.health?.server || {});
+const db = computed(() => rawData.value?.database || props.health?.database || {});
 
 const formattedUptime = computed(() => {
   const secs = server.value.uptime || 0;

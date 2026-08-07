@@ -21,6 +21,7 @@ export const hr = {
   deleteAttendance: async (req, res, next) => { try { ok(res, await hrService.deleteAttendance(req.params.id), 'تم حذف سجل الحضور'); } catch (e) { next(e); } },
   advances: async (req, res, next) => { try { ok(res, await hrService.listAdvances(req.query)); } catch (e) { next(e); } },
   createAdvance: async (req, res, next) => { try { ok(res, await hrService.createAdvance(req.body, req.user.id), 'تم صرف السلفة'); } catch (e) { next(e); } },
+  deleteAdvance: async (req, res, next) => { try { ok(res, await hrService.deleteAdvance(req.params.id), 'تم حذف السلفة'); } catch (e) { next(e); } },
   payrollRuns: async (_req, res, next) => { try { ok(res, await hrService.listPayrollRuns()); } catch (e) { next(e); } },
   previewPayroll: async (req, res, next) => { try { ok(res, await hrService.previewPayroll(req.query.period_month)); } catch (e) { next(e); } },
   createPayroll: async (req, res, next) => { try { ok(res, await hrService.createOrRecalculatePayroll(req.body.period_month, req.user.id), 'تم حساب مسير المرتبات'); } catch (e) { next(e); } },

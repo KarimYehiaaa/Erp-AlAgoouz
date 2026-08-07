@@ -285,6 +285,7 @@
               <th>القسط الشهري</th>
               <th>المبلغ المتبقي</th>
               <th>الحالة</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
@@ -295,6 +296,7 @@
               <td><div class="skeleton-shimmer" style="height: 18px; width: 80px;"></div></td>
               <td><div class="skeleton-shimmer" style="height: 18px; width: 80px;"></div></td>
               <td><div class="skeleton-shimmer" style="height: 18px; width: 60px;"></div></td>
+              <td><div class="skeleton-shimmer" style="height: 18px; width: 40px;"></div></td>
             </tr>
             <tr v-else v-for="advance in advances" :key="advance.id">
               <td>{{ advance.advance_date }}</td>
@@ -307,8 +309,13 @@
                   {{ advance.status === 'closed' ? 'منتهية' : 'نشطة' }}
                 </span>
               </td>
+              <td>
+                <button type="button" class="icon-btn danger" @click="deleteAdvance(advance)" title="حذف السلفة">
+                  <AppIcon name="delete" :size="16" />
+                </button>
+              </td>
             </tr>
-            <tr v-if="!loading && !advances.length"><td colspan="6" class="empty">لا توجد سلف نشطة</td></tr>
+            <tr v-if="!loading && !advances.length"><td colspan="7" class="empty">لا توجد سلف نشطة</td></tr>
           </tbody>
         </table>
       </div>
@@ -606,6 +613,15 @@ const createAdvance = async () => {
     advanceForm.value = { employee_id: '', advance_date: today, amount: null, installments_count: 1, notes: '' };
     await refreshAll();
   }, 'تم صرف السلفة وتسجيلها كمصروف');
+};
+
+const deleteAdvance = async (advance) => {
+  const ok = window.confirm(`هل أنت تأكد من حذف سلفة الموظف "${advance.employee_name}" بمبلغ ${advance.amount} جنيه؟`);
+  if (!ok) return;
+  await runTask(async () => {
+    await hr.deleteAdvance(advance.id);
+    await refreshAll();
+  }, 'تم حذف السلفة بنجاح');
 };
 
 const loadPayrollPreview = async () => {

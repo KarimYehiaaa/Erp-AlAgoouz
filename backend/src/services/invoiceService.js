@@ -3,6 +3,8 @@ import { AppError } from '../middleware/errorHandler.js';
 import { parseLocalizedNumber } from '../utils/numberParsing.js';
 import { roundMoney, toNumber, sanitizeLimit } from '../utils/money.js';
 import { recalculateCustomerBalance } from './customerBalanceService.js';
+import { getDefaultWarehouseId } from './warehouseService.js';
+import { ensureInventoryRow } from './inventoryService.js';
 
 const generateInvoiceNumber = async (client) => {
   const settings = await client.query(`SELECT value FROM settings WHERE key = 'invoice'`);
@@ -18,17 +20,21 @@ export const parseInvoiceData = (data = {}) => {
 
   let subtotal = 0;
   const parsedItems = items.map((item, idx) => {
+    if (!item.product_id) {
+      throw new AppError(`البند رقم ${idx + 1}: يجب اختيار منتج مسجل من القائمة`);
+    }
+    const productId = Number(item.product_id);
     const qty = parseLocalizedNumber(item.quantity);
     const price = parseLocalizedNumber(item.unit_price);
     const disc = parseLocalizedNumber(item.discount_amount ?? 0, 0);
-    if (!Number.isFinite(qty) || qty <= 0) throw new AppError(`Item ${idx + 1}: quantity must be greater than zero`);
-    if (!Number.isFinite(price) || price < 0) throw new AppError(`Item ${idx + 1}: unit price cannot be negative`);
-    if (!Number.isFinite(disc) || disc < 0) throw new AppError(`Item ${idx + 1}: discount cannot be negative`);
-    if (disc > roundMoney(qty * price)) throw new AppError(`Item ${idx + 1}: discount cannot exceed line total`);
+    if (!Number.isFinite(qty) || qty <= 0) throw new AppError(`البند رقم ${idx + 1}: الكمية يجب أن تكون أكبر من صفر`);
+    if (!Number.isFinite(price) || price < 0) throw new AppError(`البند رقم ${idx + 1}: السعر لا يمكن أن يكون بالسالب`);
+    if (!Number.isFinite(disc) || disc < 0) throw new AppError(`البند رقم ${idx + 1}: الخصم لا يمكن أن يكون بالسالب`);
+    if (disc > roundMoney(qty * price)) throw new AppError(`البند رقم ${idx + 1}: الخصم يتجاوز إجمالي البند`);
     const lineTotal = qty * price - disc;
     subtotal += lineTotal;
     return {
-      product_id: item.product_id || null,
+      product_id: productId,
       description: item.description || item.product_name || 'وصف البند',
       quantity: qty,
       unit_price: price,
@@ -37,6 +43,96 @@ export const parseInvoiceData = (data = {}) => {
       sort_order: idx,
     };
   });
+
+const deductInvoiceInventory = async (client, invoiceId, items, userId, invoiceNumber) => {
+  const defaultWhId = await getDefaultWarehouseId((text, params) => client.query(text, params));
+
+  for (const item of items) {
+    if (!item.product_id) continue;
+    const productId = Number(item.product_id);
+    const qty = Number(item.quantity || 0);
+    if (qty <= 0) continue;
+
+    const stockRes = await client.query(
+      `SELECT COALESCE(SUM(quantity), 0) AS total FROM inventory WHERE product_id = $1`,
+      [productId]
+    );
+    const globalTotal = Number(stockRes.rows[0]?.total || 0);
+
+    const productRes = await client.query(`SELECT name_ar, primary_warehouse_id FROM products WHERE id = $1`, [productId]);
+    const pName = productRes.rows[0]?.name_ar || 'المنتج';
+
+    if (globalTotal < qty - 0.0001) {
+      throw new AppError(`لا يوجد مخزون كافٍ للمنتج (${pName}). المطلوب ${qty} والمتاح كلياً بالمنشأة ${globalTotal}`);
+    }
+
+    const targetWhId = productRes.rows[0]?.primary_warehouse_id || defaultWhId;
+    let remainingNeeded = qty;
+
+    if (targetWhId) {
+      await ensureInventoryRow(client, productId, targetWhId);
+      const lock = await client.query(
+        `SELECT quantity FROM inventory WHERE product_id = $1 AND warehouse_id = $2 FOR UPDATE`,
+        [productId, targetWhId]
+      );
+      const avail = Number(lock.rows[0]?.quantity || 0);
+      if (avail > 0) {
+        const deductQty = Math.min(avail, remainingNeeded);
+        await client.query(
+          `UPDATE inventory SET quantity = quantity - $1, updated_at = NOW() WHERE product_id = $2 AND warehouse_id = $3`,
+          [deductQty, productId, targetWhId]
+        );
+        await client.query(
+          `INSERT INTO stock_movements (product_id, from_warehouse_id, movement_type, quantity, reference_type, reference_id, user_id, notes)
+           VALUES ($1, $2, 'sale', $3, 'invoice', $4, $5, $6)`,
+          [productId, targetWhId, deductQty, invoiceId, userId, `صرف فاتورة مبيعات ${invoiceNumber}`]
+        );
+        remainingNeeded -= deductQty;
+      }
+    }
+
+    if (remainingNeeded > 0.0001) {
+      const otherWhs = await client.query(
+        `SELECT warehouse_id, quantity FROM inventory WHERE product_id = $1 AND warehouse_id != $2 AND quantity > 0 ORDER BY quantity DESC FOR UPDATE`,
+        [productId, targetWhId || 0]
+      );
+      for (const row of otherWhs.rows) {
+        if (remainingNeeded <= 0.0001) break;
+        const avail = Number(row.quantity || 0);
+        const deductQty = Math.min(avail, remainingNeeded);
+        await client.query(
+          `UPDATE inventory SET quantity = quantity - $1, updated_at = NOW() WHERE product_id = $2 AND warehouse_id = $3`,
+          [deductQty, productId, row.warehouse_id]
+        );
+        await client.query(
+          `INSERT INTO stock_movements (product_id, from_warehouse_id, movement_type, quantity, reference_type, reference_id, user_id, notes)
+           VALUES ($1, $2, 'sale', $3, 'invoice', $4, $5, $6)`,
+          [productId, row.warehouse_id, deductQty, invoiceId, userId, `صرف فاتورة مبيعات ${invoiceNumber}`]
+        );
+        remainingNeeded -= deductQty;
+      }
+    }
+  }
+};
+
+const restoreInvoiceInventory = async (client, invoiceId, userId, invoiceNumber) => {
+  const movements = (await client.query(
+    `SELECT * FROM stock_movements WHERE reference_type = 'invoice' AND reference_id = $1 AND movement_type = 'sale'`,
+    [invoiceId]
+  )).rows;
+
+  for (const m of movements) {
+    await client.query(
+      `UPDATE inventory SET quantity = quantity + $1, updated_at = NOW() WHERE product_id = $2 AND warehouse_id = $3`,
+      [m.quantity, m.product_id, m.from_warehouse_id]
+    );
+    await client.query(
+      `INSERT INTO stock_movements (product_id, to_warehouse_id, movement_type, quantity, reference_type, reference_id, user_id, notes)
+       VALUES ($1, $2, 'return', $3, 'invoice', $4, $5, $6)`,
+      [m.product_id, m.from_warehouse_id, m.quantity, invoiceId, userId, `إعادة مخزون إثر إلغاء/تعديل فاتورة ${invoiceNumber}`]
+    );
+  }
+};
 
   const discountPercent = parseLocalizedNumber(data.discount_percent ?? 0, 0);
   const percentDiscount = (subtotal * discountPercent) / 100;
@@ -144,6 +240,9 @@ export const createInvoice = async (data, userId) => {
       );
     }
 
+    // Deduct stock for manual invoice items
+    await deductInvoiceInventory(client, invoice.id, parsedItems, userId, invoiceNumber);
+
     // Record payment if invoice is created as paid or partial
     const stamp = Date.now();
     if (paymentStatus === 'paid') {
@@ -224,6 +323,9 @@ export const updateInvoice = async (id, data, userId) => {
       ]
     );
 
+    // Restore previous stock for old invoice items
+    await restoreInvoiceInventory(client, id, userId, invoice.invoice_number);
+
     await client.query(`DELETE FROM invoice_items WHERE invoice_id = $1`, [id]);
     for (const item of parsedItems) {
       await client.query(
@@ -232,6 +334,9 @@ export const updateInvoice = async (id, data, userId) => {
         [id, item.product_id, item.description, item.quantity, item.unit_price, item.discount_amount, item.total_amount, item.sort_order]
       );
     }
+
+    // Deduct stock for new invoice items
+    await deductInvoiceInventory(client, id, parsedItems, userId, invoice.invoice_number);
 
     // Handle payment status changes for manual invoices
     const existingPaid = (await client.query(
@@ -289,6 +394,9 @@ export const deleteInvoice = async (id, userId = null) => {
     if (invoice.sale_id) {
       throw new AppError('لا يمكن حذف فاتورة مرتبطة بعملية بيع', 400);
     }
+
+    // Restore stock on invoice deletion
+    await restoreInvoiceInventory(client, id, userId, invoice.invoice_number);
 
     await client.query(`UPDATE invoices SET deleted_at = NOW() WHERE id = $1`, [id]);
 

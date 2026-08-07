@@ -275,8 +275,7 @@ export const expenseUpdateSchema = expenseSchema.partial().passthrough();
 
 // ─── Invoices ────────────────────────────────────────────────────────────────
 export const invoiceItemSchema = z.object({
-  product_id: optionalPositiveId,
-  product_name: nullableText(255),
+  product_id: z.number({ required_error: 'يجب اختيار منتج من القائمة لكل بند' }).int().positive('يجب اختيار منتج صحيح'),
   description: nullableText(1000),
   quantity: positiveNumber,
   unit_price: nonNegativeNumber,

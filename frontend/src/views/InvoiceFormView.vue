@@ -90,18 +90,21 @@
           <tbody>
             <tr v-for="(line, i) in form.items" :key="i">
               <td>
-                <input 
-                  v-model="line.description" 
-                  list="products-list" 
+                <select 
+                  v-model="line.product_id" 
                   class="desc-input" 
-                  placeholder="اسم المنتج أو وصف البند..." 
-                  @input="onProductType(line)" 
-                  required 
-                />
+                  @change="onProductSelect(line)" 
+                  required
+                >
+                  <option :value="null" disabled>اختر منتج من القائمة *</option>
+                  <option v-for="p in products" :key="p.id" :value="p.id">
+                    {{ p.name_ar }} (المخزون المتاح: {{ p.total_quantity !== undefined ? p.total_quantity : (p.quantity || '—') }}) — {{ formatMoney(p.sale_price) }}
+                  </option>
+                </select>
               </td>
-              <td><input v-model="line.quantity" type="text" inputmode="decimal" required /></td>
-              <td><input v-model="line.unit_price" type="text" inputmode="decimal" required /></td>
-              <td><input v-model="line.discount_amount" type="text" inputmode="decimal" /></td>
+              <td><input v-model="line.quantity" type="text" inputmode="decimal" placeholder="الكمية" required /></td>
+              <td><input v-model="line.unit_price" type="text" inputmode="decimal" placeholder="السعر" required /></td>
+              <td><input v-model="line.discount_amount" type="text" inputmode="decimal" placeholder="خصم" /></td>
               <td class="line-total">{{ formatMoney(lineTotal(line)) }}</td>
               <td>
                 <button v-if="form.items.length > 1" type="button" class="btn btn-sm btn-danger" @click="removeLine(i)">×</button>
@@ -109,11 +112,6 @@
             </tr>
           </tbody>
         </table>
-        
-        <!-- Autocomplete Suggestions Datalist -->
-        <datalist id="products-list">
-          <option v-for="p in products" :key="p.id" :value="p.name_ar">{{ p.name_ar }}</option>
-        </datalist>
       </div>
     </form>
 
@@ -266,13 +264,11 @@ const afterDiscount = computed(() => Math.max(0, subtotal.value - discountTotal.
 const taxAmount = computed(() => (form.value.tax_enabled ? (afterDiscount.value * TAX_RATE) / 100 : 0));
 const grandTotal = computed(() => afterDiscount.value + taxAmount.value);
 
-const onProductType = (line) => {
-  const p = products.value.find((x) => x.name_ar === line.description);
+const onProductSelect = (line) => {
+  const p = products.value.find((x) => Number(x.id) === Number(line.product_id));
   if (p) {
-    line.product_id = p.id;
+    line.description = p.name_ar;
     line.unit_price = Number(p.sale_price) || 0;
-  } else {
-    line.product_id = null;
   }
 };
 
@@ -309,11 +305,12 @@ const loadInvoice = async () => {
 
 const submit = async () => {
   error.value = '';
-  const validItems = form.value.items.filter((l) => l.description?.trim() && lineTotal(l) > 0);
-  if (!validItems.length) {
-    error.value = 'أضف بندًا واحدًا على الأقل بمبلغ أكبر من صفر';
+  const invalidItem = form.value.items.find((l) => !l.product_id || lineTotal(l) <= 0);
+  if (invalidItem) {
+    error.value = 'يرجى اختيار منتج مسجل من القائمة لجميع البنود، وتأكد من أن المبلغ أكبر من صفر';
     return;
   }
+
   saving.value = true;
   try {
     const payload = {
@@ -326,13 +323,16 @@ const submit = async () => {
       discount_percent: form.value.discount_percent || 0,
       discount_amount: form.value.discount_amount || 0,
       notes: form.value.notes || null,
-      items: validItems.map((l) => ({
-        product_id: l.product_id || null,
-        description: l.description.trim(),
-        quantity: parseLocalizedNumber(l.quantity),
-        unit_price: parseLocalizedNumber(l.unit_price),
-        discount_amount: parseLocalizedNumber(l.discount_amount || 0),
-      })),
+      items: form.value.items.map((l) => {
+        const p = products.value.find((x) => Number(x.id) === Number(l.product_id));
+        return {
+          product_id: Number(l.product_id),
+          description: p ? p.name_ar : (l.description || 'منتج مسجل'),
+          quantity: parseLocalizedNumber(l.quantity),
+          unit_price: parseLocalizedNumber(l.unit_price),
+          discount_amount: parseLocalizedNumber(l.discount_amount || 0),
+        };
+      }),
     };
     if (isEdit.value) {
       await invoicesApi.update(route.params.id, payload);

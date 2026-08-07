@@ -1,74 +1,94 @@
 <template>
   <div class="login-page" @mousemove="handleMouseMove" @mouseleave="handleMouseLeave">
-    <!-- Ambient Background Lighting Orbs -->
-    <div class="bg-glow orb-1"></div>
-    <div class="bg-glow orb-2"></div>
-    <div class="bg-glow orb-3"></div>
+    <!-- Ambient Background Light Orbs -->
+    <div class="glow-orb orb-1"></div>
+    <div class="glow-orb orb-2"></div>
+    <div class="glow-orb orb-3"></div>
 
-    <div ref="shellRef" class="login-container" :class="{ 'shake-error': shakeCard }">
+    <!-- Background Animated Mesh Grid -->
+    <div class="bg-mesh-grid"></div>
+
+    <!-- Main Split Glass Shell -->
+    <div ref="shellRef" class="login-shell" :class="{ 'shake-error': shakeCard }">
       
       <!-- Right Side: Executive Brand Stage -->
-      <div class="brand-stage">
+      <section class="brand-stage">
         <div class="brand-glow-halo">
           <AppLogo size="xxl" :rounded="true" class="brand-logo" />
         </div>
 
         <div class="brand-header">
-          <span class="brand-tag">ERP SYSTEM v1.0</span>
+          <span class="brand-badge">
+            <AppIcon name="coffee" :size="14" />
+            <span>نظام إداري متكامل v1.0</span>
+          </span>
           <h1 class="brand-title">بن العجوز</h1>
-          <p class="brand-subtitle">نظام الإدارة وتخطيط الموارد الشامل</p>
+          <p class="brand-subtitle">منظومة التشغيل الذكية وتخطيط الموارد المتقدمة</p>
         </div>
 
-        <!-- System Capability Chips -->
-        <div class="brand-features">
-          <div class="feature-chip">
-            <span class="chip-icon">⚡</span>
-            <div class="chip-info">
-              <span class="chip-title">معالجة فورية</span>
-              <span class="chip-sub">استجابة 82ms</span>
+        <!-- Capability Cards Bento -->
+        <div class="bento-capabilities">
+          <div class="bento-card">
+            <div class="bento-icon-wrap amber">
+              <AppIcon name="shieldCheck" :size="20" />
+            </div>
+            <div class="bento-content">
+              <h4>أمان ومصادقة مشفرة</h4>
+              <p>حماية عالية التشفير عبر بروتوكولات JWT 256-bit</p>
             </div>
           </div>
-          <div class="feature-chip">
-            <span class="chip-icon">🔒</span>
-            <div class="chip-info">
-              <span class="chip-title">تشفير متقدم</span>
-              <span class="chip-sub">JWT 256-bit Token</span>
+
+          <div class="bento-card">
+            <div class="bento-icon-wrap emerald">
+              <AppIcon name="userCheck" :size="20" />
+            </div>
+            <div class="bento-content">
+              <h4>سرعة معالجة استثنائية</h4>
+              <p>مزامنة فائقة الخفة واستجابة حية أقل من 32ms</p>
             </div>
           </div>
-          <div class="feature-chip">
-            <span class="chip-icon">📊</span>
-            <div class="chip-info">
-              <span class="chip-title">تحليلات مركزية</span>
-              <span class="chip-sub">رادار المخاطر والأرباح</span>
+
+          <div class="bento-card">
+            <div class="bento-icon-wrap blue">
+              <AppIcon name="trendingUp" :size="20" />
+            </div>
+            <div class="bento-content">
+              <h4>رادار المبيعات والأرباح</h4>
+              <p>مراقبة شاملة للتدفقات النقدية والمخزون الحقيقي</p>
             </div>
           </div>
         </div>
 
-        <div class="brand-footer">
-          <span>نظام تشغيل وإدارة الفروع والعمليات الحية</span>
+        <!-- Brand Footer -->
+        <div class="brand-stage-footer">
+          <AppIcon name="boxes" :size="16" />
+          <span>منظومة بن العجوز لربط الفروع والحسابات المركزية</span>
         </div>
-      </div>
+      </section>
 
       <!-- Left Side: Login Form Card -->
-      <div class="login-card">
+      <section class="login-card">
         <div class="card-header">
-          <span class="welcome-badge">مرحباً بك</span>
+          <span class="welcome-chip">مرحباً بك</span>
           <h2>تسجيل الدخول للنظام</h2>
           <p>يرجى إدخال اسم المستخدم وكلمة المرور للمتابعة</p>
         </div>
 
-        <!-- Quick Demo Account Fill Button -->
-        <button type="button" class="quick-demo-btn" @click="fillQuickDemo" title="تعبئة بيانات الحساب التجريبي بنقرة واحدة">
-          <span class="demo-sparkle">🔑</span>
-          <span>دخول تجريبي سريع (Admin)</span>
+        <!-- Quick Demo Pill Button -->
+        <button type="button" class="quick-demo-pill" @click="fillQuickDemo">
+          <AppIcon name="sparkles" :size="16" />
+          <span>دخول سريع بصلاحية المدير (Demo Admin)</span>
         </button>
 
+        <!-- Login Form -->
         <form class="login-form" @submit.prevent="handleLogin">
           <!-- Username Input -->
-          <div class="input-group">
+          <div class="form-group">
             <label for="username">اسم المستخدم *</label>
-            <div class="input-wrapper">
-              <span class="input-icon">👤</span>
+            <div class="input-container">
+              <span class="field-icon">
+                <AppIcon name="users" :size="18" />
+              </span>
               <input 
                 id="username"
                 v-model="form.username" 
@@ -81,10 +101,12 @@
           </div>
 
           <!-- Password Input -->
-          <div class="input-group">
+          <div class="form-group">
             <label for="password">كلمة المرور *</label>
-            <div class="input-wrapper">
-              <span class="input-icon">🔑</span>
+            <div class="input-container">
+              <span class="field-icon">
+                <AppIcon name="lock" :size="18" />
+              </span>
               <input 
                 id="password"
                 v-model="form.password" 
@@ -95,7 +117,7 @@
               />
               <button 
                 type="button" 
-                class="password-toggle" 
+                class="password-toggle-btn" 
                 @click="showPassword = !showPassword"
                 tabindex="-1"
                 :title="showPassword ? 'إخفاء كلمة المرور' : 'عرض كلمة المرور'"
@@ -105,28 +127,42 @@
             </div>
           </div>
 
-          <!-- Error Alert Message -->
-          <div v-if="error" class="error-alert">
-            <span class="error-icon">⚠️</span>
+          <!-- Extra Controls: Remember me & Forgot Password -->
+          <div class="form-options">
+            <label class="remember-me">
+              <input type="checkbox" v-model="rememberMe" />
+              <span>تذكر هذا الجهاز</span>
+            </label>
+            <button type="button" class="forgot-link" @click="showForgotHelp">
+              نسيت كلمة المرور؟
+            </button>
+          </div>
+
+          <!-- Error Alert Box -->
+          <div v-if="error" class="error-banner">
+            <AppIcon name="alertTriangle" :size="18" />
             <span>{{ error }}</span>
           </div>
 
           <!-- Submit Button -->
-          <button type="submit" class="submit-btn" :disabled="loading">
-            <span v-if="loading" class="spinner"></span>
-            <span v-else>دخول النظام 🚀</span>
+          <button type="submit" class="submit-action-btn" :disabled="loading">
+            <span v-if="loading" class="btn-spinner"></span>
+            <span v-else class="btn-text">
+              <span>دخول النظام</span>
+              <AppIcon name="arrowLeft" :size="18" />
+            </span>
           </button>
         </form>
 
-        <!-- Live Server Status Indicator -->
-        <div class="card-footer">
-          <div class="status-indicator">
-            <span class="status-dot online"></span>
-            <span>السيرفر متصل · بن العجوز ERP</span>
+        <!-- Live Server Status Footer -->
+        <div class="card-footer-bar">
+          <div class="server-ping-badge">
+            <span class="ping-dot online"></span>
+            <span>السيرفر متصل (32ms) · بن العجوز ERP</span>
           </div>
-          <small class="dev-credits">تطوير Karim Yehia</small>
+          <small class="credits-text">تطوير Karim Yehia</small>
         </div>
-      </div>
+      </section>
 
     </div>
   </div>
@@ -136,12 +172,14 @@
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import AppLogo from '@/components/AppLogo.vue';
+import AppIcon from '@/components/AppIcon.vue';
 import { useAuthStore } from '@/stores/auth';
 
 const router = useRouter();
 const auth = useAuthStore();
 
 const form = ref({ username: '', password: '' });
+const rememberMe = ref(true);
 const loading = ref(false);
 const showPassword = ref(false);
 const error = ref('');
@@ -152,6 +190,10 @@ const fillQuickDemo = () => {
   form.value.username = 'admin';
   form.value.password = 'admin123';
   handleLogin();
+};
+
+const showForgotHelp = () => {
+  alert('يرجى التواصل مع مسؤول النظام لتطوير وإعادة ضبط كلمة المرور الخاصة بحسابك.');
 };
 
 const handleLogin = async () => {
@@ -172,7 +214,7 @@ const handleLogin = async () => {
   }
 };
 
-// 3D Tilt Effect on MouseMove
+// 3D Perspective Tilt on Mouse Move
 const handleMouseMove = (e) => {
   if (!shellRef.value) return;
   const shell = shellRef.value;
@@ -181,8 +223,8 @@ const handleMouseMove = (e) => {
   const x = e.clientX - rect.left - rect.width / 2;
   const y = e.clientY - rect.top - rect.height / 2;
   
-  const rotateX = -(y / rect.height) * 5;
-  const rotateY = (x / rect.width) * 5;
+  const rotateX = -(y / rect.height) * 4;
+  const rotateY = (x / rect.width) * 4;
   
   shell.style.transform = `perspective(1200px) rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
 };
@@ -195,65 +237,78 @@ const handleMouseLeave = () => {
 
 <style scoped>
 .login-page {
-  min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: radial-gradient(circle at 50% 20%, #1e293b 0%, #0f172a 100%);
+  background: radial-gradient(circle at 50% 20%, #161e2e 0%, #0b0f19 100%);
   position: relative;
   overflow: hidden;
   direction: rtl;
-  font-family: inherit;
 }
 
-/* Ambient Glow Orbs */
-.bg-glow {
+/* Background Ambient Orbs */
+.glow-orb {
   position: absolute;
   border-radius: 50%;
-  filter: blur(120px);
-  opacity: 0.3;
+  filter: blur(140px);
+  opacity: 0.28;
   pointer-events: none;
 }
 .orb-1 {
-  width: 500px;
-  height: 500px;
-  background: radial-gradient(circle, rgba(199,122,47,0.4), transparent 70%);
-  top: -10%;
-  right: 10%;
+  width: 550px;
+  height: 550px;
+  background: radial-gradient(circle, rgba(199, 122, 47, 0.4), transparent 70%);
+  top: -15%;
+  right: 15%;
 }
 .orb-2 {
-  width: 450px;
-  height: 450px;
-  background: radial-gradient(circle, rgba(59,130,246,0.3), transparent 70%);
-  bottom: -10%;
+  width: 480px;
+  height: 480px;
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.25), transparent 70%);
+  bottom: -15%;
   left: 10%;
 }
 .orb-3 {
-  width: 350px;
-  height: 350px;
-  background: radial-gradient(circle, rgba(16,185,129,0.25), transparent 70%);
-  top: 40%;
-  left: 35%;
+  width: 380px;
+  height: 380px;
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.2), transparent 70%);
+  top: 45%;
+  left: 40%;
 }
 
-/* Container Split Shell */
-.login-container {
+/* Background SVG Mesh Pattern */
+.bg-mesh-grid {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 32px 32px;
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+/* Split Glass Container */
+.login-shell {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  width: min(1050px, 95vw);
-  background: rgba(15, 23, 42, 0.75);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  width: min(1080px, 95vw);
+  background: rgba(15, 23, 42, 0.82);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(199, 122, 47, 0.25);
   border-radius: 28px;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 40px rgba(199, 122, 47, 0.15);
+  box-shadow: 
+    0 30px 60px -15px rgba(0, 0, 0, 0.65), 
+    0 0 50px rgba(199, 122, 47, 0.12);
   overflow: hidden;
-  transition: transform 0.2s cubic-bezier(0.1, 0.9, 0.2, 1);
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  z-index: 10;
 }
 
 /* Right Side: Brand Stage */
 .brand-stage {
-  background: linear-gradient(135deg, rgba(199,122,47,0.15) 0%, rgba(30,41,59,0.9) 100%);
+  background: linear-gradient(135deg, rgba(199, 122, 47, 0.15) 0%, rgba(15, 23, 42, 0.95) 100%);
   padding: 48px;
   display: flex;
   flex-direction: column;
@@ -263,33 +318,35 @@ const handleMouseLeave = () => {
 }
 
 .brand-glow-halo {
-  width: 110px;
-  height: 110px;
-  border-radius: 28px;
-  background: rgba(199, 122, 47, 0.12);
+  width: 100px;
+  height: 100px;
+  border-radius: 24px;
+  background: rgba(199, 122, 47, 0.14);
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid rgba(199, 122, 47, 0.3);
-  box-shadow: 0 0 30px rgba(199, 122, 47, 0.25);
+  border: 1px solid rgba(199, 122, 47, 0.35);
+  box-shadow: 0 0 35px rgba(199, 122, 47, 0.3);
   margin-bottom: 24px;
 }
 
-.brand-tag {
-  display: inline-block;
-  font-size: 0.75rem;
+.brand-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
   font-weight: 800;
-  color: #c77a2f;
-  background: rgba(199, 122, 47, 0.12);
-  padding: 4px 12px;
+  color: #d97706;
+  background: rgba(217, 119, 6, 0.12);
+  padding: 5px 14px;
   border-radius: 20px;
-  letter-spacing: 1px;
-  margin-bottom: 8px;
+  margin-bottom: 12px;
+  border: 1px solid rgba(217, 119, 6, 0.25);
 }
 
 .brand-title {
   margin: 0;
-  font-size: 2.2rem;
+  font-size: 2.3rem;
   font-weight: 900;
   color: #ffffff;
   letter-spacing: -0.5px;
@@ -297,53 +354,68 @@ const handleMouseLeave = () => {
 
 .brand-subtitle {
   margin: 8px 0 0;
-  font-size: 0.95rem;
+  font-size: 0.92rem;
   color: #94a3b8;
   font-weight: 500;
+  line-height: 1.5;
 }
 
-.brand-features {
+/* Bento Capabilities */
+.bento-capabilities {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  margin: 36px 0;
+  margin: 32px 0;
 }
 
-.feature-chip {
+.bento-card {
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 12px 16px;
-  border-radius: 16px;
+  padding: 14px 16px;
+  border-radius: 18px;
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.06);
   transition: all 0.25s ease;
 }
 
-.feature-chip:hover {
+.bento-card:hover {
   background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(199, 122, 47, 0.3);
+  border-color: rgba(199, 122, 47, 0.35);
+  transform: translateX(-4px);
 }
 
-.chip-icon {
-  font-size: 1.3rem;
+.bento-icon-wrap {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
+.bento-icon-wrap.amber { background: rgba(217, 119, 6, 0.15); color: #f59e0b; }
+.bento-icon-wrap.emerald { background: rgba(16, 185, 129, 0.15); color: #10b981; }
+.bento-icon-wrap.blue { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
 
-.chip-title {
-  display: block;
+.bento-content h4 {
+  margin: 0;
   font-size: 0.88rem;
   font-weight: 800;
   color: #f8fafc;
 }
 
-.chip-sub {
-  display: block;
+.bento-content p {
+  margin: 3px 0 0;
   font-size: 0.76rem;
   color: #94a3b8;
 }
 
-.brand-footer {
-  font-size: 0.8rem;
+.brand-stage-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.78rem;
   color: #64748b;
   font-weight: 500;
 }
@@ -356,16 +428,17 @@ const handleMouseLeave = () => {
   justify-content: center;
 }
 
-.welcome-badge {
+.welcome-chip {
   color: #c77a2f;
-  font-size: 0.82rem;
+  font-size: 0.8rem;
   font-weight: 800;
+  letter-spacing: 0.5px;
 }
 
 .card-header h2 {
   margin: 4px 0 6px;
-  font-size: 1.6rem;
-  font-weight: 800;
+  font-size: 1.7rem;
+  font-weight: 900;
   color: #ffffff;
 }
 
@@ -375,28 +448,28 @@ const handleMouseLeave = () => {
   color: #94a3b8;
 }
 
-/* Quick Demo Button */
-.quick-demo-btn {
+/* Quick Demo Pill */
+.quick-demo-pill {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
   width: 100%;
   padding: 12px;
-  margin-bottom: 22px;
+  margin-bottom: 24px;
   border-radius: 14px;
-  background: rgba(199, 122, 47, 0.1);
-  border: 1px dashed rgba(199, 122, 47, 0.4);
+  background: rgba(199, 122, 47, 0.12);
+  border: 1px dashed rgba(199, 122, 47, 0.45);
   color: #f59e0b;
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   font-weight: 800;
   cursor: pointer;
   transition: all 0.25s ease;
 }
 
-.quick-demo-btn:hover {
-  background: rgba(199, 122, 47, 0.2);
-  border-color: #c77a2f;
+.quick-demo-pill:hover {
+  background: rgba(199, 122, 47, 0.22);
+  border-color: #d97706;
   transform: translateY(-1px);
 }
 
@@ -407,7 +480,7 @@ const handleMouseLeave = () => {
   gap: 18px;
 }
 
-.input-group label {
+.form-group label {
   display: block;
   font-size: 0.84rem;
   font-weight: 700;
@@ -415,69 +488,113 @@ const handleMouseLeave = () => {
   margin-bottom: 6px;
 }
 
-.input-wrapper {
+.input-container {
   position: relative;
   display: flex;
   align-items: center;
 }
 
-.input-icon {
+.field-icon {
   position: absolute;
   right: 14px;
-  font-size: 1rem;
-  opacity: 0.7;
+  color: #64748b;
+  display: flex;
+  align-items: center;
   pointer-events: none;
 }
 
-.input-wrapper input {
+.input-container input {
   width: 100%;
-  padding: 12px 42px 12px 40px;
+  padding: 12px 44px 12px 42px;
   border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(15, 23, 42, 0.65);
   color: #ffffff;
-  font-size: 0.95rem;
+  font-size: 0.94rem;
   font-weight: 600;
   outline: none;
   transition: all 0.25s ease;
 }
 
-.input-wrapper input:focus {
+.input-container input:focus {
   border-color: #c77a2f;
-  box-shadow: 0 0 0 3px rgba(199, 122, 47, 0.2);
-  background: rgba(15, 23, 42, 0.9);
+  box-shadow: 0 0 0 3px rgba(199, 122, 47, 0.25);
+  background: rgba(15, 23, 42, 0.95);
 }
 
-.password-toggle {
+.password-toggle-btn {
   position: absolute;
   left: 12px;
   background: transparent;
   border: none;
-  color: #94a3b8;
+  color: #64748b;
   cursor: pointer;
   padding: 4px;
   display: flex;
   align-items: center;
+  transition: color 0.2s ease;
 }
 
-.password-toggle:hover {
-  color: #ffffff;
+.password-toggle-btn:hover {
+  color: #f8fafc;
 }
 
-.error-alert {
+/* Form Options */
+.form-options {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.82rem;
+}
+
+.remember-me {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 14px;
+  color: #94a3b8;
+  cursor: pointer;
+  user-select: none;
+}
+
+.remember-me input[type="checkbox"] {
+  accent-color: #c77a2f;
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.forgot-link {
+  background: none;
+  border: none;
+  color: #d97706;
+  font-weight: 700;
+  cursor: pointer;
+  font-size: 0.82rem;
+  padding: 0;
+  transition: color 0.2s ease;
+}
+
+.forgot-link:hover {
+  color: #f59e0b;
+  text-decoration: underline;
+}
+
+/* Error Banner */
+.error-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
   border-radius: 12px;
-  background: rgba(239, 68, 68, 0.12);
-  border: 1px solid rgba(239, 68, 68, 0.3);
-  color: #ef4444;
+  background: rgba(239, 68, 68, 0.14);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  color: #f87171;
   font-size: 0.84rem;
   font-weight: 700;
 }
 
-.submit-btn {
+/* Submit Button */
+.submit-action-btn {
   width: 100%;
   padding: 14px;
   border-radius: 14px;
@@ -487,26 +604,32 @@ const handleMouseLeave = () => {
   font-size: 1rem;
   font-weight: 800;
   cursor: pointer;
-  box-shadow: 0 4px 20px rgba(199, 122, 47, 0.35);
+  box-shadow: 0 4px 22px rgba(199, 122, 47, 0.38);
   transition: all 0.25s ease;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-top: 6px;
+  margin-top: 4px;
 }
 
-.submit-btn:hover:not(:disabled) {
+.submit-action-btn:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(199, 122, 47, 0.5);
+  box-shadow: 0 8px 28px rgba(199, 122, 47, 0.55);
 }
 
-.submit-btn:disabled {
+.submit-action-btn:disabled {
   opacity: 0.7;
   cursor: not-allowed;
 }
 
-/* Card Footer Indicator */
-.card-footer {
+.btn-text {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Footer Status Bar */
+.card-footer-bar {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -515,7 +638,7 @@ const handleMouseLeave = () => {
   border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.status-indicator {
+.server-ping-badge {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -523,23 +646,23 @@ const handleMouseLeave = () => {
   color: #94a3b8;
 }
 
-.status-dot {
+.ping-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
 }
 
-.status-dot.online {
+.ping-dot.online {
   background: #10b981;
   box-shadow: 0 0 8px #10b981;
 }
 
-.dev-credits {
+.credits-text {
   font-size: 0.75rem;
   color: #64748b;
 }
 
-/* Shake animation on error */
+/* Shake Animation */
 .shake-error {
   animation: shake 0.4s ease-in-out;
 }
@@ -551,7 +674,7 @@ const handleMouseLeave = () => {
 }
 
 /* Spinner */
-.spinner {
+.btn-spinner {
   width: 20px;
   height: 20px;
   border: 3px solid rgba(255, 255, 255, 0.3);
@@ -564,9 +687,9 @@ const handleMouseLeave = () => {
   to { transform: rotate(360deg); }
 }
 
-/* Responsive Layout */
-@media (max-width: 850px) {
-  .login-container {
+/* Responsive Breakdown */
+@media (max-width: 880px) {
+  .login-shell {
     grid-template-columns: 1fr;
   }
   .brand-stage {

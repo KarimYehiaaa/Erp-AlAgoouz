@@ -135,6 +135,7 @@ export const hr = {
   deleteEmployee: (id) => api.delete(`/hr/employees/${id}`),
   attendance: (params) => api.get('/hr/attendance', { params }),
   saveAttendance: (data) => api.post('/hr/attendance', data),
+  deleteAttendance: (id) => api.delete(`/hr/attendance/${id}`),
   advances: (params) => api.get('/hr/advances', { params }),
   createAdvance: (data) => api.post('/hr/advances', data),
   payrollRuns: () => api.get('/hr/payroll'),

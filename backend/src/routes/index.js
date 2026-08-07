@@ -80,6 +80,7 @@ router.put('/hr/employees/:id', authenticate, authorize('hr.manage'), validateBo
 router.delete('/hr/employees/:id', authenticate, authorize('hr.manage'), api.hr.deleteEmployee);
 router.get('/hr/attendance', authenticate, authorize('hr.manage'), api.hr.attendance);
 router.post('/hr/attendance', authenticate, authorize('hr.manage'), validateBody(attendanceSchema), api.hr.saveAttendance);
+router.delete('/hr/attendance/:id', authenticate, authorize('hr.manage'), api.hr.deleteAttendance);
 router.get('/hr/advances', authenticate, authorize('hr.manage'), api.hr.advances);
 router.post('/hr/advances', authenticate, authorize('hr.manage'), validateBody(advanceSchema), api.hr.createAdvance);
 router.get('/hr/payroll/preview', authenticate, authorize('hr.manage'), api.hr.previewPayroll);

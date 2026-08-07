@@ -205,6 +205,8 @@
               <th>ساعات العمل</th>
               <th>إضافي</th>
               <th>تأخير</th>
+              <th>ملاحظات</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
@@ -215,16 +217,24 @@
               <td><div class="skeleton-shimmer" style="height: 18px; width: 90px;"></div></td>
               <td><div class="skeleton-shimmer" style="height: 18px; width: 90px;"></div></td>
               <td><div class="skeleton-shimmer" style="height: 18px; width: 80px;"></div></td>
+              <td><div class="skeleton-shimmer" style="height: 18px; width: 100px;"></div></td>
+              <td><div class="skeleton-shimmer" style="height: 18px; width: 40px;"></div></td>
             </tr>
             <tr v-else v-for="row in attendance" :key="row.id">
-              <td>{{ row.work_date }}</td>
+              <td style="font-weight: 700;">{{ row.work_date }}</td>
               <td><strong>{{ row.employee_name }}</strong></td>
               <td><span class="pill" :class="row.status === 'present' ? 'success' : 'warning'">{{ attendanceLabel(row.status) }}</span></td>
-              <td>{{ formatNumber(row.regular_hours) }} ساعة</td>
+              <td style="font-weight: 800; color: var(--accent);">{{ formatNumber(row.regular_hours) }} ساعة</td>
               <td>{{ formatNumber(row.overtime_hours) }} ساعة</td>
               <td>{{ row.late_minutes }} دقيقة</td>
+              <td style="font-size: 0.85rem; color: var(--text-muted);">{{ row.notes || '—' }}</td>
+              <td>
+                <button type="button" class="icon-btn danger" @click="deleteAttendance(row)" title="حذف الحضور">
+                  <AppIcon name="delete" :size="16" />
+                </button>
+              </td>
             </tr>
-            <tr v-if="!loading && !attendance.length"><td colspan="6" class="empty">لا يوجد حضور مسجل</td></tr>
+            <tr v-if="!loading && !attendance.length"><td colspan="8" class="empty">لا يوجد حضور مسجل لهذا الشهر</td></tr>
           </tbody>
         </table>
       </div>
@@ -570,9 +580,24 @@ const saveAttendance = async () => {
       notes: attendanceForm.value.notes || null,
     };
     await hr.saveAttendance(payload);
+    
+    // Automatically switch month filter if saved attendance date is in another month
+    if (payload.from_date && payload.from_date.slice(0, 7) !== periodMonth.value) {
+      periodMonth.value = payload.from_date.slice(0, 7);
+    }
+
     attendanceForm.value = { ...attendanceForm.value, check_in: '', check_out: '', notes: '' };
     await refreshAll();
   }, 'تم حفظ الحضور للأيام المحددة بنجاح');
+};
+
+const deleteAttendance = async (row) => {
+  const ok = window.confirm(`هل أنت تأكد من حذف سجل حضور الموظف "${row.employee_name}" بتاريخ ${row.work_date}؟`);
+  if (!ok) return;
+  await runTask(async () => {
+    await hr.deleteAttendance(row.id);
+    await refreshAll();
+  }, 'تم حذف سجل الحضور بنجاح');
 };
 
 const createAdvance = async () => {

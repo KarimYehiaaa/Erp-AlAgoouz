@@ -241,13 +241,13 @@ const calculateAttendanceFields = async (employeeId, workDate, checkIn, checkOut
 export const listAttendance = async (filters = {}) => {
   const params = [];
   let sql = `
-    SELECT a.*, e.full_name AS employee_name, e.job_title
+    SELECT a.*, TO_CHAR(a.work_date, 'YYYY-MM-DD') AS work_date, e.full_name AS employee_name, e.job_title
     FROM employee_attendance a
     JOIN employees e ON e.id = a.employee_id
     WHERE a.deleted_at IS NULL
   `;
-  if (filters.from_date) { params.push(filters.from_date); sql += ` AND a.work_date >= $${params.length}`; }
-  if (filters.to_date) { params.push(filters.to_date); sql += ` AND a.work_date <= $${params.length}`; }
+  if (filters.from_date) { params.push(filters.from_date); sql += ` AND a.work_date >= $${params.length}::date`; }
+  if (filters.to_date) { params.push(filters.to_date); sql += ` AND a.work_date <= $${params.length}::date`; }
   if (filters.employee_id) { params.push(filters.employee_id); sql += ` AND a.employee_id = $${params.length}`; }
   sql += ` ORDER BY a.work_date DESC, e.full_name LIMIT 300`;
   return (await query(sql, params)).rows;

@@ -18,6 +18,7 @@ export const hr = {
       ok(res, result, 'تم حفظ الحضور');
     } catch (e) { next(e); }
   },
+  deleteAttendance: async (req, res, next) => { try { ok(res, await hrService.deleteAttendance(req.params.id), 'تم حذف سجل الحضور'); } catch (e) { next(e); } },
   advances: async (req, res, next) => { try { ok(res, await hrService.listAdvances(req.query)); } catch (e) { next(e); } },
   createAdvance: async (req, res, next) => { try { ok(res, await hrService.createAdvance(req.body, req.user.id), 'تم صرف السلفة'); } catch (e) { next(e); } },
   payrollRuns: async (_req, res, next) => { try { ok(res, await hrService.listPayrollRuns()); } catch (e) { next(e); } },

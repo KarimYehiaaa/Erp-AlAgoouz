@@ -85,9 +85,16 @@ const props = defineProps({
   health: { type: Object, default: () => ({}) },
 });
 
-const rawData = computed(() => props.health?.data || props.health || {});
-const server = computed(() => rawData.value?.server || props.health?.server || {});
-const db = computed(() => rawData.value?.database || props.health?.database || {});
+const getPropData = (obj) => {
+  if (!obj) return {};
+  if (obj.server && obj.database) return obj;
+  if (obj.data && typeof obj.data === 'object') return getPropData(obj.data);
+  return obj;
+};
+
+const normalizedHealth = computed(() => getPropData(props.health));
+const server = computed(() => normalizedHealth.value?.server || {});
+const db = computed(() => normalizedHealth.value?.database || {});
 
 const formattedUptime = computed(() => {
   const secs = server.value.uptime || 0;

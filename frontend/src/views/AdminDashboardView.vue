@@ -161,9 +161,8 @@ const updateTimeStr = () => {
 const loadHealth = async () => {
   try {
     const res = await api.get('/admin/health');
-    const payload = res.data !== undefined ? res.data : res;
-    healthData.value = payload?.server ? payload : (payload?.data || payload || {});
-    systemOk.value = healthData.value?.database?.ok !== false;
+    healthData.value = res?.data !== undefined ? res.data : res;
+    systemOk.value = true;
   } catch (e) {
     console.error('[Admin] Health error:', e);
     systemOk.value = false;

@@ -93,18 +93,20 @@ test('effective product cost resolves recipe ingredients recursively', async () 
       const text = String(sql).toLowerCase();
       const productId = Number(params[0]);
 
-      if (text.includes('select p.id, p.purchase_price') && text.includes('from products p')) {
-        const rows = {
-          10: [{ id: 10, purchase_price: 99 }],
-          11: [{ id: 11, purchase_price: 25 }],
+      if (text.includes('purchase_price') && text.includes('from products')) {
+        return {
+          rows: [
+            { id: 10, purchase_price: 99, unit: 'kg' },
+            { id: 11, purchase_price: 25, unit: 'kg' },
+          ],
         };
-        return { rows: rows[productId] || [] };
       }
 
       if (text.includes('from product_recipes r') && text.includes('join product_recipe_items ri')) {
-        const rows = {
-          10: [
+        return {
+          rows: [
             {
+              parent_product_id: 10,
               recipe_id: 7,
               recipe_item_id: 1,
               ingredient_product_id: 11,
@@ -113,9 +115,7 @@ test('effective product cost resolves recipe ingredients recursively', async () 
               ingredient_unit: 'kg',
             },
           ],
-          11: [],
         };
-        return { rows: rows[productId] || [] };
       }
 
       return { rows: [] };

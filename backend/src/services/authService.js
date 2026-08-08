@@ -9,6 +9,26 @@ import { AppError } from '../middleware/errorHandler.js';
 /** Hash a refresh token for secure DB storage */
 const hashToken = (token) => crypto.createHash('sha256').update(token).digest('hex');
 
+const logFailedLogin = async (username, userId, meta = {}, reason = 'invalid_credentials') => {
+  try {
+    await query(
+      `INSERT INTO activity_logs (user_id, module, action_ar, details)
+       VALUES ($1, 'auth', 'تسجيل دخول فاشل', $2)`,
+      [
+        userId || null,
+        JSON.stringify({
+          username,
+          ip: meta.ip || null,
+          userAgent: meta.userAgent || null,
+          reason,
+        }),
+      ]
+    );
+  } catch (err) {
+    console.error('[Auth] فشل تسجيل محاولة دخول فاشلة:', err.message);
+  }
+};
+
 /** Generate access + refresh token pair */
 const issueTokens = (userId, roleName) => {
   const jti = uuidv4();
@@ -35,6 +55,7 @@ export const login = async (username, password, meta = {}) => {
 
   const user = result.rows[0];
   if (!user || !user.is_active) {
+    await logFailedLogin(username, user?.id || null, meta, user ? 'inactive_user' : 'unknown_user');
     throw new AppError('اسم المستخدم أو كلمة المرور غير صحيحة', 401);
   }
 
@@ -51,6 +72,7 @@ export const login = async (username, password, meta = {}) => {
     }
   }
   if (!valid) {
+    await logFailedLogin(username, user.id, meta, 'wrong_password');
     throw new AppError('اسم المستخدم أو كلمة المرور غير صحيحة', 401);
   }
 
@@ -72,13 +94,22 @@ export const login = async (username, password, meta = {}) => {
     [user.id, hashToken(refreshToken), expiresAt, meta.ip || null, meta.userAgent || null]
   );
 
-  await query(
-    `INSERT INTO activity_logs (user_id, module, action_ar) VALUES ($1, 'auth', 'تسجيل دخول')`,
-    [user.id]
-  );
+  const isDefaultAdminPassword = user.username === 'admin' && (password === 'admin123' || user.password_hash === 'admin123');
+  if (isDefaultAdminPassword) {
+    console.warn(`⚠️ [أمان النظام] تم تسجيل الدخول بحساب المدير الافتراضي (${user.username}). يُنصح بتغيير كلمة المرور فوراً.`);
+  }
 
   const { password_hash, ...safeUser } = user;
-  return { user: safeUser, permissions: perms.rows, token: accessToken, refreshToken };
+  return {
+    user: {
+      ...safeUser,
+      requires_password_change: isDefaultAdminPassword
+    },
+    permissions: perms.rows,
+    token: accessToken,
+    refreshToken,
+    warning: isDefaultAdminPassword ? 'تنبيه أمني: يرجى تغيير كلمة المرور الافتراضية لحساب المدير لحماية النظام.' : undefined
+  };
 };
 
 export const refreshAccessToken = async (refreshToken) => {

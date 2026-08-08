@@ -3,7 +3,10 @@ import * as authService from '../services/authService.js';
 export const login = async (req, res, next) => {
   try {
     const { username, password } = req.body;
-    const data = await authService.login(username, password);
+    const data = await authService.login(username, password, {
+      ip: req.ip,
+      userAgent: req.get('user-agent'),
+    });
     res.json({ success: true, data });
   } catch (err) { next(err); }
 };

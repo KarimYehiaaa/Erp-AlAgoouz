@@ -1,4 +1,4 @@
-﻿FROM node:18-alpine
+FROM node:20-alpine
 
 WORKDIR /app
 
@@ -10,12 +10,13 @@ COPY backend/package.json ./backend/
 RUN npm install
 RUN cd backend && npm install
 
-# نسخ ملفات المشروع بالكامل (التي تحتوي على frontend/dist المسبق بناؤه)
+# نسخ ملفات المشروع بالكامل
 COPY . .
 
-# Hugging Face يتطلب الاستماع للبورت 7860
-ENV PORT=7860
-EXPOSE 7860
+# دعم المنفذ المرن (افتراضي 7860 لـ Hugging Face و3000 للمحلي)
+ARG PORT=7860
+ENV PORT=${PORT}
+EXPOSE 7860 3000
 
 # تشغيل السيرفر
 CMD ["npm", "start"]

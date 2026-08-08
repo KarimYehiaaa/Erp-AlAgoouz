@@ -82,13 +82,14 @@ export const getActiveSessions = async () => {
 
 export const getFailedLogins = async (hours = 24) => {
   try {
+    const safeHours = Math.min(Math.max(parseInt(hours, 10) || 24, 1), 168);
     const res = await query(`
-      SELECT user_id, action_ar, ip_address, created_at
+      SELECT user_id, action_ar, details->>'ip' AS ip_address, details, created_at
       FROM activity_logs
       WHERE module = 'auth' AND action_ar LIKE '%فاشل%'
-      AND created_at > NOW() - INTERVAL '${parseInt(hours, 10)} hours'
+      AND created_at > NOW() - ($1 || ' hours')::interval
       ORDER BY created_at DESC LIMIT 50
-    `);
+    `, [String(safeHours)]);
     return res.rows;
   } catch (err) {
     return [];

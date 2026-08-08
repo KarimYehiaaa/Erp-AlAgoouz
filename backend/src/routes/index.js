@@ -7,6 +7,7 @@
 import { Router } from 'express';
 import multer from 'multer';
 import rateLimit from 'express-rate-limit';
+import config from '../config/index.js';
 import { authenticate, authorize, auditLog } from '../middleware/auth.js';
 import { requireConfirmation } from '../middleware/confirmAction.js';
 import { validateBody, validateQuery } from '../middleware/validate.js';
@@ -51,6 +52,14 @@ const loginLimiter = rateLimit({
   skip: (req) => config.isDevelopment || req.ip === '127.0.0.1' || req.ip === '::1' || req.ip === '::ffff:127.0.0.1',
 });
 
+const refreshLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  message: { success: false, message: 'تم تجاوز محاولات تجديد الجلسة. حاول مرة أخرى بعد 15 دقيقة.' },
+  skipSuccessfulRequests: true,
+  skip: (req) => config.isDevelopment || req.ip === '127.0.0.1' || req.ip === '::1' || req.ip === '::ffff:127.0.0.1',
+});
+
 // Middleware للتأكد أن المستخدم admin (role_name = 'admin')
 const requireAdmin = (req, res, next) => {
   if (req.user?.role_name !== 'admin') {
@@ -62,7 +71,7 @@ const requireAdmin = (req, res, next) => {
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 router.post('/auth/login', loginLimiter, validateBody(loginSchema), authCtrl.login);
 router.get('/auth/profile', authenticate, authCtrl.profile);
-router.post('/auth/refresh', authCtrl.refresh);
+router.post('/auth/refresh', refreshLimiter, authCtrl.refresh);
 router.post('/auth/logout', authenticate, authCtrl.logoutHandler);
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────

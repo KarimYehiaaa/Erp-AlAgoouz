@@ -1,4 +1,4 @@
-name: CI
+name: CI Workflow
 
 on:
   push:
@@ -8,7 +8,7 @@ on:
 
 jobs:
   backend-tests:
-    name: Backend tests
+    name: Backend Tests & Quality Audit
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -24,7 +24,29 @@ jobs:
         run: |
           npm ci
 
-      - name: Run backend tests
+      - name: Run backend unit tests
         working-directory: backend
         run: |
           npm test
+
+  frontend-build:
+    name: Frontend Build & Compilation Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: |
+          npm ci
+
+      - name: Build frontend production bundle
+        working-directory: frontend
+        run: |
+          npm run build

@@ -1,5 +1,5 @@
 import XLSX from 'xlsx';
-import { AppError } from '../middleware/errorHandler.js';
+import { AppError } from '../types/errors.js';
 
 const MAX_EXCEL_BYTES = 5 * 1024 * 1024;
 const MAX_SHEETS = 5;

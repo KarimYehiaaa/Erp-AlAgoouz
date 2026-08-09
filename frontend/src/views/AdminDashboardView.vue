@@ -7,11 +7,9 @@
         <p class="admin-subtitle">مراقبة شاملة لصحة النظام والعمليات والأداء المالي</p>
       </div>
       <div class="header-actions">
-        <span class="last-update">
-          آخر تحديث: {{ lastUpdateStr }}
-        </span>
+        <span class="last-update"> آخر تحديث: {{ lastUpdateStr }} </span>
         <button class="btn-refresh" @click="refreshAll" :disabled="loading">
-          <span :class="{ 'spin': loading }">🔄</span>
+          <span :class="{ spin: loading }">🔄</span>
           {{ loading ? 'جاري التحديث...' : 'تحديث' }}
         </button>
       </div>
@@ -83,28 +81,77 @@
 
       <!-- Broadcast Modal -->
       <div v-if="showBroadcastModal" class="modal-overlay" @click.self="showBroadcastModal = false">
-        <div class="card modal-card" style="width: min(500px, 90vw); margin-inline: auto; background: var(--bg-elevated, #1e293b); color: #fff; padding: 24px; border-radius: 16px;">
-          <h3 style="margin-top: 0;">📢 إرسال تنبيه عام لجميع المستخدمين</h3>
+        <div
+          class="card modal-card"
+          style="
+            width: min(500px, 90vw);
+            margin-inline: auto;
+            background: var(--bg-elevated, #1e293b);
+            color: #fff;
+            padding: 24px;
+            border-radius: 16px;
+          "
+        >
+          <h3 style="margin-top: 0">📢 إرسال تنبيه عام لجميع المستخدمين</h3>
           <form @submit.prevent="submitBroadcast">
-            <div class="form-group" style="margin-bottom: 12px;">
+            <div class="form-group" style="margin-bottom: 12px">
               <label>عنوان التنبيه</label>
-              <input v-model="broadcastForm.title" class="field-like" placeholder="مثال: تنبيه صيانة، تحديث أسعار..." style="width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-input); color: #fff;" />
+              <input
+                v-model="broadcastForm.title"
+                class="field-like"
+                placeholder="مثال: تنبيه صيانة، تحديث أسعار..."
+                style="
+                  width: 100%;
+                  padding: 8px 12px;
+                  border-radius: 8px;
+                  border: 1px solid var(--border);
+                  background: var(--bg-input);
+                  color: #fff;
+                "
+              />
             </div>
-            <div class="form-group" style="margin-bottom: 12px;">
+            <div class="form-group" style="margin-bottom: 12px">
               <label>مستوى التنبيه</label>
-              <select v-model="broadcastForm.level" class="field-like" style="width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-input); color: #fff;">
+              <select
+                v-model="broadcastForm.level"
+                class="field-like"
+                style="
+                  width: 100%;
+                  padding: 8px 12px;
+                  border-radius: 8px;
+                  border: 1px solid var(--border);
+                  background: var(--bg-input);
+                  color: #fff;
+                "
+              >
                 <option value="info">ℹ️ معلومات عادية</option>
                 <option value="warning">⚠️ تحذير هام</option>
                 <option value="danger">🚨 تنبيه عاجل / طوارئ</option>
               </select>
             </div>
-            <div class="form-group" style="margin-bottom: 16px;">
+            <div class="form-group" style="margin-bottom: 16px">
               <label>نص التنبيه *</label>
-              <textarea v-model="broadcastForm.message" required rows="3" class="field-like" placeholder="اكتب نص التنبيه الذي سيظهر لجميع مستخدمي النظام..." style="width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-input); color: #fff;"></textarea>
+              <textarea
+                v-model="broadcastForm.message"
+                required
+                rows="3"
+                class="field-like"
+                placeholder="اكتب نص التنبيه الذي سيظهر لجميع مستخدمي النظام..."
+                style="
+                  width: 100%;
+                  padding: 8px 12px;
+                  border-radius: 8px;
+                  border: 1px solid var(--border);
+                  background: var(--bg-input);
+                  color: #fff;
+                "
+              ></textarea>
             </div>
-            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+            <div style="display: flex; gap: 10px; justify-content: flex-end">
               <button type="submit" class="btn btn-primary">نشر التنبيه</button>
-              <button type="button" class="btn btn-outline" @click="showBroadcastModal = false">إلغاء</button>
+              <button type="button" class="btn btn-outline" @click="showBroadcastModal = false">
+                إلغاء
+              </button>
             </div>
           </form>
         </div>
@@ -115,7 +162,7 @@
 
 <script setup>
 import { ref, onMounted, onBeforeUnmount } from 'vue';
-import api from '@/api/index.js';
+import api from '@/api/index';
 import SystemHealthCard from '@/components/admin/SystemHealthCard.vue';
 import FinancialKPICards from '@/components/admin/FinancialKPICards.vue';
 import ActivityFeed from '@/components/admin/ActivityFeed.vue';
@@ -261,7 +308,7 @@ const handleRevokeSession = async (sessionId) => {
   revokingId.value = sessionId;
   try {
     await api.delete(`/admin/sessions/${sessionId}`);
-    sessionsData.value = sessionsData.value.filter(s => s.id !== sessionId);
+    sessionsData.value = sessionsData.value.filter((s) => s.id !== sessionId);
   } catch (e) {
     alert('فشل إنهاء الجلسة: ' + (e.response?.data?.message || e.message));
   } finally {
@@ -275,7 +322,10 @@ const handleBackup = async () => {
     const url = window.URL.createObjectURL(new Blob([res]));
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', `alagoouz_erp_backup_${new Date().toISOString().slice(0, 10)}.json`);
+    link.setAttribute(
+      'download',
+      `alagoouz_erp_backup_${new Date().toISOString().slice(0, 10)}.json`,
+    );
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -391,8 +441,8 @@ onBeforeUnmount(() => {
   gap: 6px;
   padding: 8px 16px;
   border-radius: 10px;
-  border: 1px solid var(--border, rgba(255,255,255,0.1));
-  background: var(--card-bg, rgba(255,255,255,0.04));
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+  background: var(--card-bg, rgba(255, 255, 255, 0.04));
   color: var(--text, #ccc);
   font-size: 0.82rem;
   font-weight: 700;
@@ -401,8 +451,8 @@ onBeforeUnmount(() => {
 }
 
 .btn-refresh:hover:not(:disabled) {
-  background: rgba(59,130,246,0.1);
-  border-color: rgba(59,130,246,0.3);
+  background: rgba(59, 130, 246, 0.1);
+  border-color: rgba(59, 130, 246, 0.3);
   color: #3b82f6;
 }
 
@@ -412,8 +462,12 @@ onBeforeUnmount(() => {
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .spin {
@@ -435,7 +489,7 @@ onBeforeUnmount(() => {
 .loading-spinner {
   width: 40px;
   height: 40px;
-  border: 3px solid var(--border, rgba(255,255,255,0.1));
+  border: 3px solid var(--border, rgba(255, 255, 255, 0.1));
   border-top-color: var(--accent, #c77a2f);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
@@ -469,24 +523,34 @@ onBeforeUnmount(() => {
 
 .status-dot.ok {
   background: #10b981;
-  box-shadow: 0 0 8px rgba(16,185,129,0.5);
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
   animation: pulse-green 2s ease-in-out infinite;
 }
 
 .status-dot.critical {
   background: #ef4444;
-  box-shadow: 0 0 8px rgba(239,68,68,0.5);
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.5);
   animation: pulse-red 1s ease-in-out infinite;
 }
 
 @keyframes pulse-green {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
 }
 
 @keyframes pulse-red {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.3; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
 }
 
 /* Two Column Layout */

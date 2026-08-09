@@ -12,22 +12,22 @@ export const getCashFlowProjection = async (params = {}) => {
     `SELECT COALESCE(SUM(total_amount), 0) AS val 
      FROM sales 
      WHERE status = 'completed' AND deleted_at IS NULL AND warehouse_id = $1`,
-    [warehouseId]
+    [warehouseId],
   );
   const expensesSumRes = await query(
     `SELECT COALESCE(SUM(amount), 0) AS val 
      FROM expenses 
-     WHERE deleted_at IS NULL`
+     WHERE deleted_at IS NULL`,
   );
   const purchasesSumRes = await query(
     `SELECT COALESCE(SUM(total_amount), 0) AS val 
      FROM purchase_invoices 
      WHERE deleted_at IS NULL AND warehouse_id = $1`,
-    [warehouseId]
+    [warehouseId],
   );
 
   const activeWarehousesRes = await query(
-    `SELECT COUNT(*)::numeric AS count FROM warehouses WHERE deleted_at IS NULL AND is_active = TRUE`
+    `SELECT COUNT(*)::numeric AS count FROM warehouses WHERE deleted_at IS NULL AND is_active = TRUE`,
   );
   const warehousesCount = Math.max(1, Number(activeWarehousesRes.rows[0]?.count || 1));
 
@@ -36,7 +36,7 @@ export const getCashFlowProjection = async (params = {}) => {
   const totalPurchases = Number(purchasesSumRes.rows[0].val);
 
   // نوزع المصاريف العمومية بالتساوي على الفروع/المستودعات لتجنب تشويه الحسابات لفرع واحد
-  let currentCash = totalSales - (totalExpenses / warehousesCount) - totalPurchases;
+  let currentCash = totalSales - totalExpenses / warehousesCount - totalPurchases;
   if (currentCash <= 0) {
     currentCash = 15000.0;
   }
@@ -55,12 +55,12 @@ export const getCashFlowProjection = async (params = {}) => {
     GROUP BY dow
   `;
   const salesDensity = (await query(salesDensitySql, [warehouseId])).rows;
-  
+
   const dowSalesMap = {};
   for (let i = 0; i < 7; i++) {
     dowSalesMap[i] = 0.0;
   }
-  salesDensity.forEach(row => {
+  salesDensity.forEach((row) => {
     dowSalesMap[Number(row.dow)] = Number((Number(row.total_sales) / WEEKS_COUNT).toFixed(2));
   });
 
@@ -68,7 +68,7 @@ export const getCashFlowProjection = async (params = {}) => {
   const expensesAvgRes = await query(
     `SELECT COALESCE(SUM(amount), 0) / 90.0 AS avg_daily
      FROM expenses
-     WHERE deleted_at IS NULL AND expense_date >= CURRENT_DATE - INTERVAL '90 days'`
+     WHERE deleted_at IS NULL AND expense_date >= CURRENT_DATE - INTERVAL '90 days'`,
   );
   const avgDailyExpenses = Number(Number(expensesAvgRes.rows[0].avg_daily || 0).toFixed(2));
 
@@ -77,7 +77,7 @@ export const getCashFlowProjection = async (params = {}) => {
     `SELECT COALESCE(SUM(total_amount), 0) / 90.0 AS avg_daily
      FROM purchase_invoices
      WHERE deleted_at IS NULL AND warehouse_id = $1 AND invoice_date >= CURRENT_DATE - INTERVAL '90 days'`,
-    [warehouseId]
+    [warehouseId],
   );
   const avgDailyPurchases = Number(Number(purchasesAvgRes.rows[0].avg_daily || 0).toFixed(2));
 
@@ -95,7 +95,7 @@ export const getCashFlowProjection = async (params = {}) => {
     3: 'الأربعاء',
     4: 'الخميس',
     5: 'الجمعة',
-    6: 'السبت'
+    6: 'السبت',
   };
 
   for (let i = 1; i <= projectionDays; i++) {
@@ -104,7 +104,7 @@ export const getCashFlowProjection = async (params = {}) => {
     const dow = futureDate.getDay();
 
     const projectedIn = dowSalesMap[dow] || 0;
-    const projectedOut = (avgDailyExpenses / warehousesCount) + avgDailyPurchases;
+    const projectedOut = avgDailyExpenses / warehousesCount + avgDailyPurchases;
 
     cashTracker = cashTracker + projectedIn - projectedOut;
 
@@ -117,15 +117,16 @@ export const getCashFlowProjection = async (params = {}) => {
       day_name: dayNamesAr[dow],
       projected_in: Number(projectedIn.toFixed(2)),
       projected_out: Number(projectedOut.toFixed(2)),
-      balance: Number(cashTracker.toFixed(2))
+      balance: Number(cashTracker.toFixed(2)),
     });
   }
 
   // 6. تحديد التحذيرات والتوصيات بناءً على النتائج
   const endingBalance = dailyPoints[dailyPoints.length - 1].balance;
   const netChange = Number((endingBalance - currentCash).toFixed(2));
-  
-  let warningMsg = 'الوضع المالي مستقر تماماً. الإيرادات المتوقعة تغطي مصاريف التشغيل والمشتريات بنجاح دون أية فجوات نقدية للـ 30 يوماً القادمة.';
+
+  let warningMsg =
+    'الوضع المالي مستقر تماماً. الإيرادات المتوقعة تغطي مصاريف التشغيل والمشتريات بنجاح دون أية فجوات نقدية للـ 30 يوماً القادمة.';
   let status = 'healthy'; // healthy, warning, danger
 
   if (runwayDays !== null) {
@@ -143,6 +144,6 @@ export const getCashFlowProjection = async (params = {}) => {
     runwayDays,
     status,
     warningMsg,
-    dailyPoints
+    dailyPoints,
   };
 };

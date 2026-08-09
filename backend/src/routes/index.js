@@ -16,26 +16,52 @@ import * as api from '../controllers/apiController.js';
 
 // ── استيراد جميع Schemas من الملف المستقل ──
 import {
-  loginSchema, copilotSchema, commonQuerySchema,
-  productCreateSchema, productUpdateSchema,
-  categoryCreateSchema, categoryUpdateSchema,
-  unitCreateSchema, unitUpdateSchema,
-  bulkPriceAdjustSchema, productWarehouseSchema, productReturnSchema,
-  inventoryTransferSchema, inventoryAdjustSchema,
-  stocktakeCreateSchema, stocktakeUpdateSchema,
+  loginSchema,
+  copilotSchema,
+  commonQuerySchema,
+  productCreateSchema,
+  productUpdateSchema,
+  categoryCreateSchema,
+  categoryUpdateSchema,
+  unitCreateSchema,
+  unitUpdateSchema,
+  bulkPriceAdjustSchema,
+  productWarehouseSchema,
+  productReturnSchema,
+  inventoryTransferSchema,
+  inventoryAdjustSchema,
+  stocktakeCreateSchema,
+  stocktakeUpdateSchema,
   purchaseInvoiceSchema,
-  saleSchema, saleReturnSchema, openingBalanceSchema,
-  customerCreateSchema, customerUpdateSchema,
-  supplierCreateSchema, supplierUpdateSchema,
+  saleSchema,
+  saleReturnSchema,
+  openingBalanceSchema,
+  customerCreateSchema,
+  customerUpdateSchema,
+  supplierCreateSchema,
+  supplierUpdateSchema,
   paymentSchema,
-  expenseSchema, expenseUpdateSchema,
+  expenseSchema,
+  expenseUpdateSchema,
   invoiceSchema,
-  quoteTemplateSchema, quotePdfSchema,
-  userCreateSchema, userUpdateSchema,
-  settingUpdateSchema, createRoleSchema, updateRoleSchema, updateRolePermissionsSchema,
-  shiftSchema, employeeSchema, employeeUpdateSchema,
-  attendanceSchema, advanceSchema, payrollSchema, payrollPaySchema,
-  recipeSchema, recipeProductionSchema, reverseProductionSchema,
+  quoteTemplateSchema,
+  quotePdfSchema,
+  userCreateSchema,
+  userUpdateSchema,
+  settingUpdateSchema,
+  createRoleSchema,
+  updateRoleSchema,
+  updateRolePermissionsSchema,
+  shiftSchema,
+  employeeSchema,
+  employeeUpdateSchema,
+  attendanceSchema,
+  advanceSchema,
+  payrollSchema,
+  payrollPaySchema,
+  recipeSchema,
+  recipeProductionSchema,
+  reverseProductionSchema,
 } from './schemas.js';
 
 const router = Router();
@@ -45,19 +71,30 @@ const salesAuth = authorize('sales.branch', 'sales.wholesale', 'sales.pos', 'rep
 
 // BUG-13 FIX: تقليل الحد من 150 محاولة/5د إلى 10 محاولات/15د — حماية من Brute-Force
 const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,   // 15 دقيقة
-  max: 10,                    // 10 محاولات فقط
+  windowMs: 15 * 60 * 1000, // 15 دقيقة
+  max: 10, // 10 محاولات فقط
   message: { success: false, message: 'تم تجاوز محاولات الدخول. حاول مرة أخرى بعد 15 دقيقة.' },
   skipSuccessfulRequests: true,
-  skip: (req) => config.isDevelopment || req.ip === '127.0.0.1' || req.ip === '::1' || req.ip === '::ffff:127.0.0.1',
+  skip: (req) =>
+    config.isDevelopment ||
+    req.ip === '127.0.0.1' ||
+    req.ip === '::1' ||
+    req.ip === '::ffff:127.0.0.1',
 });
 
 const refreshLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 30,
-  message: { success: false, message: 'تم تجاوز محاولات تجديد الجلسة. حاول مرة أخرى بعد 15 دقيقة.' },
+  message: {
+    success: false,
+    message: 'تم تجاوز محاولات تجديد الجلسة. حاول مرة أخرى بعد 15 دقيقة.',
+  },
   skipSuccessfulRequests: true,
-  skip: (req) => config.isDevelopment || req.ip === '127.0.0.1' || req.ip === '::1' || req.ip === '::ffff:127.0.0.1',
+  skip: (req) =>
+    config.isDevelopment ||
+    req.ip === '127.0.0.1' ||
+    req.ip === '::1' ||
+    req.ip === '::ffff:127.0.0.1',
 });
 
 // Middleware للتأكد أن المستخدم admin (role_name = 'admin')
@@ -77,205 +114,904 @@ router.post('/auth/logout', authenticate, authCtrl.logoutHandler);
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 router.get('/dashboard', authenticate, authorize('dashboard.view'), api.dashboard);
 router.get('/operations/alerts', authenticate, authorize('dashboard.view'), api.operations.alerts);
-router.get('/operations/audit-logs', authenticate, authorize('users.manage', 'reports.view'), api.operations.auditLogs);
+router.get(
+  '/operations/audit-logs',
+  authenticate,
+  authorize('users.manage', 'reports.view'),
+  api.operations.auditLogs,
+);
 
 // ─── HR / Payroll ─────────────────────────────────────────────────────────────
 router.get('/hr/summary', authenticate, authorize('hr.manage'), api.hr.summary);
 router.get('/hr/shifts', authenticate, authorize('hr.manage'), api.hr.shifts);
-router.post('/hr/shifts', authenticate, authorize('hr.manage'), validateBody(shiftSchema), api.hr.createShift);
+router.post(
+  '/hr/shifts',
+  authenticate,
+  authorize('hr.manage'),
+  validateBody(shiftSchema),
+  api.hr.createShift,
+);
 router.get('/hr/employees', authenticate, authorize('hr.manage'), api.hr.employees);
-router.post('/hr/employees', authenticate, authorize('hr.manage'), validateBody(employeeSchema), api.hr.createEmployee);
-router.put('/hr/employees/:id', authenticate, authorize('hr.manage'), validateBody(employeeUpdateSchema), api.hr.updateEmployee);
+router.post(
+  '/hr/employees',
+  authenticate,
+  authorize('hr.manage'),
+  validateBody(employeeSchema),
+  api.hr.createEmployee,
+);
+router.put(
+  '/hr/employees/:id',
+  authenticate,
+  authorize('hr.manage'),
+  validateBody(employeeUpdateSchema),
+  api.hr.updateEmployee,
+);
 router.delete('/hr/employees/:id', authenticate, authorize('hr.manage'), api.hr.deleteEmployee);
 router.get('/hr/attendance', authenticate, authorize('hr.manage'), api.hr.attendance);
-router.post('/hr/attendance', authenticate, authorize('hr.manage'), validateBody(attendanceSchema), api.hr.saveAttendance);
+router.post(
+  '/hr/attendance',
+  authenticate,
+  authorize('hr.manage'),
+  validateBody(attendanceSchema),
+  api.hr.saveAttendance,
+);
 router.delete('/hr/attendance/:id', authenticate, authorize('hr.manage'), api.hr.deleteAttendance);
 router.get('/hr/advances', authenticate, authorize('hr.manage'), api.hr.advances);
-router.post('/hr/advances', authenticate, authorize('hr.manage'), validateBody(advanceSchema), api.hr.createAdvance);
+router.post(
+  '/hr/advances',
+  authenticate,
+  authorize('hr.manage'),
+  validateBody(advanceSchema),
+  api.hr.createAdvance,
+);
 router.delete('/hr/advances/:id', authenticate, authorize('hr.manage'), api.hr.deleteAdvance);
 router.get('/hr/payroll/preview', authenticate, authorize('hr.manage'), api.hr.previewPayroll);
 router.get('/hr/payroll', authenticate, authorize('hr.manage'), api.hr.payrollRuns);
-router.post('/hr/payroll', authenticate, authorize('hr.manage'), validateBody(payrollSchema), api.hr.createPayroll);
+router.post(
+  '/hr/payroll',
+  authenticate,
+  authorize('hr.manage'),
+  validateBody(payrollSchema),
+  api.hr.createPayroll,
+);
 router.get('/hr/payroll/:id', authenticate, authorize('hr.manage'), api.hr.getPayroll);
-router.post('/hr/payroll/:id/pay', authenticate, authorize('hr.manage'), validateBody(payrollPaySchema), api.hr.payPayroll);
+router.post(
+  '/hr/payroll/:id/pay',
+  authenticate,
+  authorize('hr.manage'),
+  validateBody(payrollPaySchema),
+  api.hr.payPayroll,
+);
 
 // ─── Branch Sales Excel ───────────────────────────────────────────────────────
-router.get('/sales/branch/template', authenticate, authorize('sales.branch'), api.sales.branchTemplate);
-router.post('/sales/branch/validate', authenticate, authorize('sales.branch'), upload.single('file'), api.sales.branchValidateExcel);
-router.post('/sales/branch/import', authenticate, authorize('sales.branch'), upload.single('file'), api.sales.branchImportExcel);
+router.get(
+  '/sales/branch/template',
+  authenticate,
+  authorize('sales.branch'),
+  api.sales.branchTemplate,
+);
+router.post(
+  '/sales/branch/validate',
+  authenticate,
+  authorize('sales.branch'),
+  upload.single('file'),
+  api.sales.branchValidateExcel,
+);
+router.post(
+  '/sales/branch/import',
+  authenticate,
+  authorize('sales.branch'),
+  upload.single('file'),
+  api.sales.branchImportExcel,
+);
 
 // ─── Sales — مبيعات يومية (فرع / جملة) ──────────────────────────────────────
-router.get('/sales/summary', authenticate, salesAuth, validateQuery(commonQuerySchema), api.sales.summary);
+router.get(
+  '/sales/summary',
+  authenticate,
+  salesAuth,
+  validateQuery(commonQuerySchema),
+  api.sales.summary,
+);
 router.get('/sales/opening-balance', authenticate, salesAuth, api.sales.openingBalance);
-router.put('/sales/opening-balance', authenticate, salesAuth, validateBody(openingBalanceSchema), api.sales.saveOpeningBalance);
+router.put(
+  '/sales/opening-balance',
+  authenticate,
+  salesAuth,
+  validateBody(openingBalanceSchema),
+  api.sales.saveOpeningBalance,
+);
 router.get('/sales/template', authenticate, salesAuth, api.sales.template);
-router.post('/sales/import/validate', authenticate, salesAuth, upload.single('file'), api.sales.validateExcel);
+router.post(
+  '/sales/import/validate',
+  authenticate,
+  salesAuth,
+  upload.single('file'),
+  api.sales.validateExcel,
+);
 router.post('/sales/import', authenticate, salesAuth, upload.single('file'), api.sales.importExcel);
 router.get('/sales', authenticate, salesAuth, validateQuery(commonQuerySchema), api.sales.list);
 router.get('/sales/:id', authenticate, salesAuth, api.sales.get);
-router.post('/sales', authenticate, salesAuth, validateBody(saleSchema), auditLog('sale_create', 'sales'), api.sales.create);
-router.put('/sales/:id', authenticate, salesAuth, validateBody(saleSchema), auditLog('sale_update', 'sales'), api.sales.update);
-router.post('/sales/:id/return', authenticate, authorize('sales.return'), validateBody(saleReturnSchema), api.sales.return);
-router.delete('/sales', authenticate, salesAuth, requireConfirmation('CONFIRM_DELETE_ALL_SALES'), auditLog('sales_delete_all', 'sales'), api.sales.deleteAll);
-router.delete('/sales/date/:saleDate', authenticate, salesAuth, requireConfirmation('CONFIRM_DELETE_SALES_DATE'), auditLog('sales_delete_date', 'sales'), api.sales.deleteByDate);
-router.delete('/sales/type/:saleType', authenticate, authorize('settings.manage'), requireConfirmation('CONFIRM_DELETE_SALES_TYPE'), auditLog('sales_delete_type', 'sales'), api.sales.deleteByType);
+router.post(
+  '/sales',
+  authenticate,
+  salesAuth,
+  validateBody(saleSchema),
+  auditLog('sale_create', 'sales'),
+  api.sales.create,
+);
+router.put(
+  '/sales/:id',
+  authenticate,
+  salesAuth,
+  validateBody(saleSchema),
+  auditLog('sale_update', 'sales'),
+  api.sales.update,
+);
+router.post(
+  '/sales/:id/return',
+  authenticate,
+  authorize('sales.return'),
+  validateBody(saleReturnSchema),
+  api.sales.return,
+);
+router.delete(
+  '/sales',
+  authenticate,
+  salesAuth,
+  requireConfirmation('CONFIRM_DELETE_ALL_SALES'),
+  auditLog('sales_delete_all', 'sales'),
+  api.sales.deleteAll,
+);
+router.delete(
+  '/sales/date/:saleDate',
+  authenticate,
+  salesAuth,
+  requireConfirmation('CONFIRM_DELETE_SALES_DATE'),
+  auditLog('sales_delete_date', 'sales'),
+  api.sales.deleteByDate,
+);
+router.delete(
+  '/sales/type/:saleType',
+  authenticate,
+  authorize('settings.manage'),
+  requireConfirmation('CONFIRM_DELETE_SALES_TYPE'),
+  auditLog('sales_delete_type', 'sales'),
+  api.sales.deleteByType,
+);
 
 // ─── Products ─────────────────────────────────────────────────────────────────
-router.get('/products/branch', authenticate, authorize('products.manage', 'sales.branch'), api.products.branchProducts);
-router.get('/products/costs-report', authenticate, authorize('products.manage', 'reports.view'), api.products.costsReport);
+router.get(
+  '/products/branch',
+  authenticate,
+  authorize('products.manage', 'sales.branch'),
+  api.products.branchProducts,
+);
+router.get(
+  '/products/costs-report',
+  authenticate,
+  authorize('products.manage', 'reports.view'),
+  api.products.costsReport,
+);
 router.get('/products/categories', authenticate, api.products.categories);
-router.post('/products/categories', authenticate, authorize('products.manage'), validateBody(categoryCreateSchema), auditLog('category_create', 'products'), api.products.createCategory);
-router.put('/products/categories/:id', authenticate, authorize('products.manage'), validateBody(categoryUpdateSchema), auditLog('category_update', 'products'), api.products.updateCategory);
-router.delete('/products/categories/:id', authenticate, authorize('products.manage'), auditLog('category_delete', 'products'), api.products.deleteCategory);
+router.post(
+  '/products/categories',
+  authenticate,
+  authorize('products.manage'),
+  validateBody(categoryCreateSchema),
+  auditLog('category_create', 'products'),
+  api.products.createCategory,
+);
+router.put(
+  '/products/categories/:id',
+  authenticate,
+  authorize('products.manage'),
+  validateBody(categoryUpdateSchema),
+  auditLog('category_update', 'products'),
+  api.products.updateCategory,
+);
+router.delete(
+  '/products/categories/:id',
+  authenticate,
+  authorize('products.manage'),
+  auditLog('category_delete', 'products'),
+  api.products.deleteCategory,
+);
 router.get('/products/units', authenticate, api.products.units);
-router.post('/products/units', authenticate, authorize('products.manage'), validateBody(unitCreateSchema), auditLog('unit_create', 'products'), api.products.createUnit);
-router.put('/products/units/:id', authenticate, authorize('products.manage'), validateBody(unitUpdateSchema), auditLog('unit_update', 'products'), api.products.updateUnit);
-router.delete('/products/units/:id', authenticate, authorize('products.manage'), auditLog('unit_delete', 'products'), api.products.deleteUnit);
+router.post(
+  '/products/units',
+  authenticate,
+  authorize('products.manage'),
+  validateBody(unitCreateSchema),
+  auditLog('unit_create', 'products'),
+  api.products.createUnit,
+);
+router.put(
+  '/products/units/:id',
+  authenticate,
+  authorize('products.manage'),
+  validateBody(unitUpdateSchema),
+  auditLog('unit_update', 'products'),
+  api.products.updateUnit,
+);
+router.delete(
+  '/products/units/:id',
+  authenticate,
+  authorize('products.manage'),
+  auditLog('unit_delete', 'products'),
+  api.products.deleteUnit,
+);
 router.get('/products/template', authenticate, authorize('products.manage'), api.products.template);
 router.get('/products/export', authenticate, authorize('products.manage'), api.products.export);
-router.post('/products/import', authenticate, authorize('products.manage'), upload.single('file'), api.products.importExcel);
-router.post('/products/return', authenticate, authorize('products.manage', 'sales.return'), validateBody(productReturnSchema), api.products.returnStock);
-router.get('/products/returns/list', authenticate, authorize('products.manage'), api.products.returns);
-router.post('/products/delete-all', authenticate, authorize('products.manage'), requireConfirmation('CONFIRM_DELETE_ALL_PRODUCTS'), auditLog('products_delete_all', 'products'), api.products.deleteAll);
-router.get('/products', authenticate, authorize('products.manage', 'sales.branch', 'sales.wholesale', 'sales.pos'), validateQuery(commonQuerySchema), api.products.list);
+router.post(
+  '/products/import',
+  authenticate,
+  authorize('products.manage'),
+  upload.single('file'),
+  api.products.importExcel,
+);
+router.post(
+  '/products/return',
+  authenticate,
+  authorize('products.manage', 'sales.return'),
+  validateBody(productReturnSchema),
+  api.products.returnStock,
+);
+router.get(
+  '/products/returns/list',
+  authenticate,
+  authorize('products.manage'),
+  api.products.returns,
+);
+router.post(
+  '/products/delete-all',
+  authenticate,
+  authorize('products.manage'),
+  requireConfirmation('CONFIRM_DELETE_ALL_PRODUCTS'),
+  auditLog('products_delete_all', 'products'),
+  api.products.deleteAll,
+);
+router.get(
+  '/products',
+  authenticate,
+  authorize('products.manage', 'sales.branch', 'sales.wholesale', 'sales.pos'),
+  validateQuery(commonQuerySchema),
+  api.products.list,
+);
 router.get('/products/next-sku', authenticate, authorize('products.manage'), api.products.nextSku);
-router.post('/products', authenticate, authorize('products.manage'), validateBody(productCreateSchema), api.products.create);
+router.post(
+  '/products',
+  authenticate,
+  authorize('products.manage'),
+  validateBody(productCreateSchema),
+  api.products.create,
+);
 // BUG-14 FIX: حذف DELETE /products المكررة — الحذف الكلي متاح عبر POST /products/delete-all
-router.put('/products/bulk-price', authenticate, authorize('products.manage'), validateBody(bulkPriceAdjustSchema), api.products.bulkPriceAdjust);
-router.get('/products/:id', authenticate, authorize('products.manage', 'sales.branch'), api.products.get);
-router.put('/products/:id/warehouse', authenticate, authorize('products.manage'), validateBody(productWarehouseSchema), api.products.setWarehouse);
-router.put('/products/:id', authenticate, authorize('products.manage'), validateBody(productUpdateSchema), api.products.update);
+router.put(
+  '/products/bulk-price',
+  authenticate,
+  authorize('products.manage'),
+  validateBody(bulkPriceAdjustSchema),
+  api.products.bulkPriceAdjust,
+);
+router.get(
+  '/products/:id',
+  authenticate,
+  authorize('products.manage', 'sales.branch'),
+  api.products.get,
+);
+router.put(
+  '/products/:id/warehouse',
+  authenticate,
+  authorize('products.manage'),
+  validateBody(productWarehouseSchema),
+  api.products.setWarehouse,
+);
+router.put(
+  '/products/:id',
+  authenticate,
+  authorize('products.manage'),
+  validateBody(productUpdateSchema),
+  api.products.update,
+);
 router.delete('/products/:id', authenticate, authorize('products.manage'), api.products.delete);
 
 // ─── Inventory ────────────────────────────────────────────────────────────────
 router.get('/inventory', authenticate, authorize('inventory.manage'), api.inventory.list);
-router.get('/inventory/movements', authenticate, authorize('inventory.manage'), api.inventory.movements);
-router.get('/inventory/return-template', authenticate, authorize('inventory.manage'), api.inventory.returnTemplate);
-router.post('/inventory/return-validate', authenticate, authorize('inventory.manage'), upload.single('file'), api.inventory.validateReturnExcel);
-router.post('/inventory/return-import', authenticate, authorize('inventory.manage'), upload.single('file'), api.inventory.importReturnExcel);
+router.get(
+  '/inventory/movements',
+  authenticate,
+  authorize('inventory.manage'),
+  api.inventory.movements,
+);
+router.get(
+  '/inventory/return-template',
+  authenticate,
+  authorize('inventory.manage'),
+  api.inventory.returnTemplate,
+);
+router.post(
+  '/inventory/return-validate',
+  authenticate,
+  authorize('inventory.manage'),
+  upload.single('file'),
+  api.inventory.validateReturnExcel,
+);
+router.post(
+  '/inventory/return-import',
+  authenticate,
+  authorize('inventory.manage'),
+  upload.single('file'),
+  api.inventory.importReturnExcel,
+);
 router.get('/warehouses', authenticate, api.inventory.warehouses);
-router.post('/inventory/transfer', authenticate, authorize('inventory.manage'), validateBody(inventoryTransferSchema), api.inventory.transfer);
-router.post('/inventory/adjust', authenticate, authorize('inventory.manage'), validateBody(inventoryAdjustSchema), auditLog('inventory_adjust', 'inventory'), api.inventory.adjust);
-router.delete('/inventory', authenticate, authorize('inventory.manage'), requireConfirmation('CONFIRM_CLEAR_INVENTORY'), auditLog('inventory_clear_all', 'inventory'), api.inventory.clearAll);
+router.post(
+  '/inventory/transfer',
+  authenticate,
+  authorize('inventory.manage'),
+  validateBody(inventoryTransferSchema),
+  api.inventory.transfer,
+);
+router.post(
+  '/inventory/adjust',
+  authenticate,
+  authorize('inventory.manage'),
+  validateBody(inventoryAdjustSchema),
+  auditLog('inventory_adjust', 'inventory'),
+  api.inventory.adjust,
+);
+router.delete(
+  '/inventory',
+  authenticate,
+  authorize('inventory.manage'),
+  requireConfirmation('CONFIRM_CLEAR_INVENTORY'),
+  auditLog('inventory_clear_all', 'inventory'),
+  api.inventory.clearAll,
+);
 
 // ─── Stocktake & Reconciliation ───────────────────────────────────────────────
 router.get('/stocktakes', authenticate, authorize('inventory.manage'), api.stocktake.list);
-router.post('/stocktakes', authenticate, authorize('inventory.manage'), validateBody(stocktakeCreateSchema), auditLog('stocktake_create', 'inventory'), api.stocktake.create);
+router.post(
+  '/stocktakes',
+  authenticate,
+  authorize('inventory.manage'),
+  validateBody(stocktakeCreateSchema),
+  auditLog('stocktake_create', 'inventory'),
+  api.stocktake.create,
+);
 router.get('/stocktakes/:id', authenticate, authorize('inventory.manage'), api.stocktake.get);
-router.put('/stocktakes/:id/items', authenticate, authorize('inventory.manage'), validateBody(stocktakeUpdateSchema), api.stocktake.updateItems);
-router.post('/stocktakes/:id/complete', authenticate, authorize('inventory.manage'), auditLog('stocktake_complete', 'inventory'), api.stocktake.complete);
-router.delete('/stocktakes/:id', authenticate, authorize('inventory.manage'), auditLog('stocktake_delete', 'inventory'), api.stocktake.delete);
+router.put(
+  '/stocktakes/:id/items',
+  authenticate,
+  authorize('inventory.manage'),
+  validateBody(stocktakeUpdateSchema),
+  api.stocktake.updateItems,
+);
+router.post(
+  '/stocktakes/:id/complete',
+  authenticate,
+  authorize('inventory.manage'),
+  auditLog('stocktake_complete', 'inventory'),
+  api.stocktake.complete,
+);
+router.delete(
+  '/stocktakes/:id',
+  authenticate,
+  authorize('inventory.manage'),
+  auditLog('stocktake_delete', 'inventory'),
+  api.stocktake.delete,
+);
 
 // ─── Purchases ────────────────────────────────────────────────────────────────
-router.get('/purchases', authenticate, authorize('inventory.manage', 'products.manage'), validateQuery(commonQuerySchema), api.purchases.list);
-router.post('/purchases', authenticate, authorize('inventory.manage', 'products.manage'), validateBody(purchaseInvoiceSchema), auditLog('purchase_create', 'purchases'), api.purchases.create);
-router.put('/purchases/:id', authenticate, authorize('inventory.manage', 'products.manage'), validateBody(purchaseInvoiceSchema), auditLog('purchase_update', 'purchases'), api.purchases.update);
-router.delete('/purchases/:id', authenticate, authorize('inventory.manage', 'products.manage'), api.purchases.delete);
+router.get(
+  '/purchases',
+  authenticate,
+  authorize('inventory.manage', 'products.manage'),
+  validateQuery(commonQuerySchema),
+  api.purchases.list,
+);
+router.post(
+  '/purchases',
+  authenticate,
+  authorize('inventory.manage', 'products.manage'),
+  validateBody(purchaseInvoiceSchema),
+  auditLog('purchase_create', 'purchases'),
+  api.purchases.create,
+);
+router.put(
+  '/purchases/:id',
+  authenticate,
+  authorize('inventory.manage', 'products.manage'),
+  validateBody(purchaseInvoiceSchema),
+  auditLog('purchase_update', 'purchases'),
+  api.purchases.update,
+);
+router.delete(
+  '/purchases/:id',
+  authenticate,
+  authorize('inventory.manage', 'products.manage'),
+  api.purchases.delete,
+);
 
 // ─── Costs / Recipes ──────────────────────────────────────────────────────────
 router.get('/costs/recipes', authenticate, authorize('products.manage'), api.costs.listRecipes);
 router.get('/costs/recipes/:id', authenticate, authorize('products.manage'), api.costs.getRecipe);
-router.post('/costs/recipes', authenticate, authorize('products.manage'), validateBody(recipeSchema), api.costs.createRecipe);
-router.put('/costs/recipes/:id', authenticate, authorize('products.manage'), validateBody(recipeSchema), api.costs.updateRecipe);
-router.delete('/costs/recipes/:id', authenticate, authorize('products.manage'), api.costs.deleteRecipe);
-router.post('/costs/recipes/:id/produce', authenticate, authorize('products.manage'), validateBody(recipeProductionSchema), api.costs.produceRecipe);
-router.get('/costs/productions', authenticate, authorize('products.manage'), api.costs.listProductions);
-router.post('/costs/productions/:movementId/reverse', authenticate, authorize('products.manage'), validateBody(reverseProductionSchema), api.costs.reverseProduction);
+router.post(
+  '/costs/recipes',
+  authenticate,
+  authorize('products.manage'),
+  validateBody(recipeSchema),
+  api.costs.createRecipe,
+);
+router.put(
+  '/costs/recipes/:id',
+  authenticate,
+  authorize('products.manage'),
+  validateBody(recipeSchema),
+  api.costs.updateRecipe,
+);
+router.delete(
+  '/costs/recipes/:id',
+  authenticate,
+  authorize('products.manage'),
+  api.costs.deleteRecipe,
+);
+router.post(
+  '/costs/recipes/:id/produce',
+  authenticate,
+  authorize('products.manage'),
+  validateBody(recipeProductionSchema),
+  api.costs.produceRecipe,
+);
+router.get(
+  '/costs/productions',
+  authenticate,
+  authorize('products.manage'),
+  api.costs.listProductions,
+);
+router.post(
+  '/costs/productions/:movementId/reverse',
+  authenticate,
+  authorize('products.manage'),
+  validateBody(reverseProductionSchema),
+  api.costs.reverseProduction,
+);
 
 // ─── Customers ────────────────────────────────────────────────────────────────
-router.get('/customers', authenticate, authorize('customers.manage', 'sales.branch', 'sales.wholesale'), validateQuery(commonQuerySchema), api.customers.list);
+router.get(
+  '/customers',
+  authenticate,
+  authorize('customers.manage', 'sales.branch', 'sales.wholesale'),
+  validateQuery(commonQuerySchema),
+  api.customers.list,
+);
 router.get('/customers/:id', authenticate, authorize('customers.manage'), api.customers.get);
-router.get('/customers/:id/statement', authenticate, authorize('customers.manage'), api.customers.statement);
-router.post('/customers/:id/payment', authenticate, authorize('customers.manage'), validateBody(paymentSchema), api.customers.recordPayment);
-router.post('/customers/sales/:saleId/payment', authenticate, authorize('customers.manage'), validateBody(paymentSchema), api.customers.recordSalePayment);
-router.post('/customers', authenticate, authorize('customers.manage'), validateBody(customerCreateSchema), api.customers.create);
-router.put('/customers/:id', authenticate, authorize('customers.manage'), validateBody(customerUpdateSchema), api.customers.update);
+router.get(
+  '/customers/:id/statement',
+  authenticate,
+  authorize('customers.manage'),
+  api.customers.statement,
+);
+router.post(
+  '/customers/:id/payment',
+  authenticate,
+  authorize('customers.manage'),
+  validateBody(paymentSchema),
+  api.customers.recordPayment,
+);
+router.post(
+  '/customers/sales/:saleId/payment',
+  authenticate,
+  authorize('customers.manage'),
+  validateBody(paymentSchema),
+  api.customers.recordSalePayment,
+);
+router.post(
+  '/customers',
+  authenticate,
+  authorize('customers.manage'),
+  validateBody(customerCreateSchema),
+  api.customers.create,
+);
+router.put(
+  '/customers/:id',
+  authenticate,
+  authorize('customers.manage'),
+  validateBody(customerUpdateSchema),
+  api.customers.update,
+);
 router.delete('/customers/:id', authenticate, authorize('customers.manage'), api.customers.delete);
 
 // ─── Expenses ─────────────────────────────────────────────────────────────────
-router.get('/expenses', authenticate, authorize('expenses.manage', 'reports.view'), validateQuery(commonQuerySchema), api.expenses.list);
-router.get('/expenses/categories', authenticate, authorize('expenses.manage'), api.expenses.categories);
-router.get('/expenses/report', authenticate, authorize('expenses.manage', 'reports.view'), api.expenses.report);
-router.post('/expenses', authenticate, authorize('expenses.manage'), validateBody(expenseSchema), auditLog('expense_create', 'expenses'), api.expenses.create);
-router.put('/expenses/:id', authenticate, authorize('expenses.manage'), validateBody(expenseUpdateSchema), auditLog('expense_update', 'expenses'), api.expenses.update);
-router.delete('/expenses/:id', authenticate, authorize('expenses.manage'), auditLog('expense_delete', 'expenses'), api.expenses.delete);
+router.get(
+  '/expenses',
+  authenticate,
+  authorize('expenses.manage', 'reports.view'),
+  validateQuery(commonQuerySchema),
+  api.expenses.list,
+);
+router.get(
+  '/expenses/categories',
+  authenticate,
+  authorize('expenses.manage'),
+  api.expenses.categories,
+);
+router.get(
+  '/expenses/report',
+  authenticate,
+  authorize('expenses.manage', 'reports.view'),
+  api.expenses.report,
+);
+router.post(
+  '/expenses',
+  authenticate,
+  authorize('expenses.manage'),
+  validateBody(expenseSchema),
+  auditLog('expense_create', 'expenses'),
+  api.expenses.create,
+);
+router.put(
+  '/expenses/:id',
+  authenticate,
+  authorize('expenses.manage'),
+  validateBody(expenseUpdateSchema),
+  auditLog('expense_update', 'expenses'),
+  api.expenses.update,
+);
+router.delete(
+  '/expenses/:id',
+  authenticate,
+  authorize('expenses.manage'),
+  auditLog('expense_delete', 'expenses'),
+  api.expenses.delete,
+);
 
 // ─── Suppliers ────────────────────────────────────────────────────────────────
-router.get('/suppliers', authenticate, authorize('suppliers.manage'), validateQuery(commonQuerySchema), api.suppliers.list);
+router.get(
+  '/suppliers',
+  authenticate,
+  authorize('suppliers.manage'),
+  validateQuery(commonQuerySchema),
+  api.suppliers.list,
+);
 router.get('/suppliers/:id', authenticate, authorize('suppliers.manage'), api.suppliers.get);
-router.post('/suppliers', authenticate, authorize('suppliers.manage'), validateBody(supplierCreateSchema), api.suppliers.create);
-router.put('/suppliers/:id', authenticate, authorize('suppliers.manage'), validateBody(supplierUpdateSchema), api.suppliers.update);
+router.post(
+  '/suppliers',
+  authenticate,
+  authorize('suppliers.manage'),
+  validateBody(supplierCreateSchema),
+  api.suppliers.create,
+);
+router.put(
+  '/suppliers/:id',
+  authenticate,
+  authorize('suppliers.manage'),
+  validateBody(supplierUpdateSchema),
+  api.suppliers.update,
+);
 router.delete('/suppliers/:id', authenticate, authorize('suppliers.manage'), api.suppliers.delete);
-router.get('/suppliers/:id/invoices', authenticate, authorize('suppliers.manage'), api.suppliers.invoices);
-router.get('/suppliers/:id/payments', authenticate, authorize('suppliers.manage'), api.suppliers.payments);
-router.post('/suppliers/:id/payments', authenticate, authorize('suppliers.manage'), validateBody(paymentSchema), api.suppliers.recordPayment);
+router.get(
+  '/suppliers/:id/invoices',
+  authenticate,
+  authorize('suppliers.manage'),
+  api.suppliers.invoices,
+);
+router.get(
+  '/suppliers/:id/payments',
+  authenticate,
+  authorize('suppliers.manage'),
+  api.suppliers.payments,
+);
+router.post(
+  '/suppliers/:id/payments',
+  authenticate,
+  authorize('suppliers.manage'),
+  validateBody(paymentSchema),
+  api.suppliers.recordPayment,
+);
 
 // ─── Invoices ─────────────────────────────────────────────────────────────────
-router.get('/invoices', authenticate, authorize('invoices.manage', 'sales.branch'), validateQuery(commonQuerySchema), api.invoices.list);
-router.post('/invoices', authenticate, authorize('invoices.manage'), validateBody(invoiceSchema), api.invoices.create);
-router.get('/invoices/:id/pdf', authenticate, authorize('invoices.manage', 'sales.branch'), api.invoices.pdf);
-router.get('/invoices/:id', authenticate, authorize('invoices.manage', 'sales.branch'), api.invoices.get);
-router.put('/invoices/:id', authenticate, authorize('invoices.manage'), validateBody(invoiceSchema), api.invoices.update);
+router.get(
+  '/invoices',
+  authenticate,
+  authorize('invoices.manage', 'sales.branch'),
+  validateQuery(commonQuerySchema),
+  api.invoices.list,
+);
+router.post(
+  '/invoices',
+  authenticate,
+  authorize('invoices.manage'),
+  validateBody(invoiceSchema),
+  api.invoices.create,
+);
+router.get(
+  '/invoices/:id/pdf',
+  authenticate,
+  authorize('invoices.manage', 'sales.branch'),
+  api.invoices.pdf,
+);
+router.get(
+  '/invoices/:id',
+  authenticate,
+  authorize('invoices.manage', 'sales.branch'),
+  api.invoices.get,
+);
+router.put(
+  '/invoices/:id',
+  authenticate,
+  authorize('invoices.manage'),
+  validateBody(invoiceSchema),
+  api.invoices.update,
+);
 router.delete('/invoices/:id', authenticate, authorize('invoices.manage'), api.invoices.delete);
 
 // ─── Quotes ───────────────────────────────────────────────────────────────────
-router.get('/quotes/template', authenticate, authorize('invoices.manage', 'sales.branch'), api.quotes.template);
-router.put('/quotes/template', authenticate, authorize('invoices.manage', 'sales.branch'), validateBody(quoteTemplateSchema), api.quotes.template);
-router.post('/quotes/pdf', authenticate, authorize('invoices.manage', 'sales.branch'), validateBody(quotePdfSchema), api.quotes.pdf);
+router.get(
+  '/quotes/template',
+  authenticate,
+  authorize('invoices.manage', 'sales.branch'),
+  api.quotes.template,
+);
+router.put(
+  '/quotes/template',
+  authenticate,
+  authorize('invoices.manage', 'sales.branch'),
+  validateBody(quoteTemplateSchema),
+  api.quotes.template,
+);
+router.post(
+  '/quotes/pdf',
+  authenticate,
+  authorize('invoices.manage', 'sales.branch'),
+  validateBody(quotePdfSchema),
+  api.quotes.pdf,
+);
 
 // ─── Users & Settings ─────────────────────────────────────────────────────────
 router.get('/users', authenticate, authorize('users.manage'), api.users.list);
-router.post('/users', authenticate, authorize('users.manage'), validateBody(userCreateSchema), auditLog('user_create', 'users'), api.users.create);
-router.put('/users/:id', authenticate, authorize('users.manage'), validateBody(userUpdateSchema), auditLog('user_update', 'users'), api.users.update);
-router.delete('/users/:id', authenticate, authorize('users.manage'), auditLog('user_delete', 'users'), api.users.delete);
+router.post(
+  '/users',
+  authenticate,
+  authorize('users.manage'),
+  validateBody(userCreateSchema),
+  auditLog('user_create', 'users'),
+  api.users.create,
+);
+router.put(
+  '/users/:id',
+  authenticate,
+  authorize('users.manage'),
+  validateBody(userUpdateSchema),
+  auditLog('user_update', 'users'),
+  api.users.update,
+);
+router.delete(
+  '/users/:id',
+  authenticate,
+  authorize('users.manage'),
+  auditLog('user_delete', 'users'),
+  api.users.delete,
+);
 router.get('/roles', authenticate, authorize('users.manage'), api.users.roles);
-router.post('/roles', authenticate, authorize('users.manage'), validateBody(createRoleSchema), auditLog('role_create', 'users'), api.users.createRole);
-router.put('/roles/:id', authenticate, authorize('users.manage'), validateBody(updateRoleSchema), auditLog('role_update', 'users'), api.users.updateRole);
-router.delete('/roles/:id', authenticate, authorize('users.manage'), auditLog('role_delete', 'users'), api.users.deleteRole);
+router.post(
+  '/roles',
+  authenticate,
+  authorize('users.manage'),
+  validateBody(createRoleSchema),
+  auditLog('role_create', 'users'),
+  api.users.createRole,
+);
+router.put(
+  '/roles/:id',
+  authenticate,
+  authorize('users.manage'),
+  validateBody(updateRoleSchema),
+  auditLog('role_update', 'users'),
+  api.users.updateRole,
+);
+router.delete(
+  '/roles/:id',
+  authenticate,
+  authorize('users.manage'),
+  auditLog('role_delete', 'users'),
+  api.users.deleteRole,
+);
 router.get('/permissions', authenticate, authorize('users.manage'), api.users.listPermissions);
-router.get('/roles/:id/permissions', authenticate, authorize('users.manage'), api.users.getRolePermissions);
-router.post('/roles/:id/permissions', authenticate, authorize('users.manage'), validateBody(updateRolePermissionsSchema), auditLog('role_permissions_update', 'users'), api.users.updateRolePermissions);
+router.get(
+  '/roles/:id/permissions',
+  authenticate,
+  authorize('users.manage'),
+  api.users.getRolePermissions,
+);
+router.post(
+  '/roles/:id/permissions',
+  authenticate,
+  authorize('users.manage'),
+  validateBody(updateRolePermissionsSchema),
+  auditLog('role_permissions_update', 'users'),
+  api.users.updateRolePermissions,
+);
 router.get('/notifications', authenticate, api.users.notifications);
-router.get('/settings', authenticate, authorize('settings.view', 'settings.manage'), api.users.settings);
-router.put('/settings/:key', authenticate, authorize('settings.manage'), validateBody(settingUpdateSchema), api.users.updateSetting);
+router.get(
+  '/settings',
+  authenticate,
+  authorize('settings.view', 'settings.manage'),
+  api.users.settings,
+);
+router.put(
+  '/settings/:key',
+  authenticate,
+  authorize('settings.manage'),
+  validateBody(settingUpdateSchema),
+  api.users.updateSetting,
+);
 
 // ─── Reports & AI Forecasting ─────────────────────────────────────────────────
-router.get('/forecasting', authenticate, authorize('reports.view'), api.forecasting.getDemandForecast);
-router.get('/forecasting/basket-associations', authenticate, authorize('sales.branch', 'sales.wholesale', 'sales.pos'), api.forecasting.getBasketAssociations);
-router.post('/forecasting/copilot', authenticate, authorize('dashboard.view'), validateBody(copilotSchema), api.forecasting.askCopilot);
-router.get('/forecasting/staffing', authenticate, authorize('reports.view'), api.forecasting.getStaffingForecast);
-router.get('/forecasting/pricing-alerts', authenticate, authorize('reports.view', 'products.manage'), api.forecasting.getSmartPricingAlerts);
-router.get('/forecasting/cashflow-projection', authenticate, authorize('reports.view'), api.forecasting.getCashFlowProjection);
-router.get('/expenses/suggest-category', authenticate, authorize('expenses.manage'), api.forecasting.suggestExpenseCategory);
+router.get(
+  '/forecasting',
+  authenticate,
+  authorize('reports.view'),
+  api.forecasting.getDemandForecast,
+);
+router.get(
+  '/forecasting/basket-associations',
+  authenticate,
+  authorize('sales.branch', 'sales.wholesale', 'sales.pos'),
+  api.forecasting.getBasketAssociations,
+);
+router.post(
+  '/forecasting/copilot',
+  authenticate,
+  authorize('dashboard.view'),
+  validateBody(copilotSchema),
+  api.forecasting.askCopilot,
+);
+router.get(
+  '/forecasting/staffing',
+  authenticate,
+  authorize('reports.view'),
+  api.forecasting.getStaffingForecast,
+);
+router.get(
+  '/forecasting/pricing-alerts',
+  authenticate,
+  authorize('reports.view', 'products.manage'),
+  api.forecasting.getSmartPricingAlerts,
+);
+router.get(
+  '/forecasting/cashflow-projection',
+  authenticate,
+  authorize('reports.view'),
+  api.forecasting.getCashFlowProjection,
+);
+router.get(
+  '/expenses/suggest-category',
+  authenticate,
+  authorize('expenses.manage'),
+  api.forecasting.suggestExpenseCategory,
+);
 // P&L — يجب أن تكون قبل /:type عشان Express ما يأخذش pl كـ type
 router.get('/reports/pl/monthly', authenticate, authorize('reports.view'), api.pl.report);
-router.get('/reports/pl/trend',   authenticate, authorize('reports.view'), api.pl.trend);
-router.get('/reports/:type',      authenticate, authorize('reports.view'), api.users.reports);
+router.get('/reports/pl/trend', authenticate, authorize('reports.view'), api.pl.trend);
+router.get('/reports/:type', authenticate, authorize('reports.view'), api.users.reports);
 
 // ─── Backup / Restore — admin only ───────────────────────────────────────────
 // إصلاح: كانت متاحة لأي settings.manage بدون تمييز
-router.get('/backup/create',         authenticate, authorize('settings.manage'), requireAdmin, auditLog('backup_create', 'backup'), api.backup.create);
-router.get('/backup/list',           authenticate, authorize('settings.manage'), requireAdmin, api.backup.list);
-router.get('/backup/download/:name', authenticate, authorize('settings.manage'), requireAdmin, api.backup.download);
+router.get(
+  '/backup/create',
+  authenticate,
+  authorize('settings.manage'),
+  requireAdmin,
+  auditLog('backup_create', 'backup'),
+  api.backup.create,
+);
+router.get(
+  '/backup/list',
+  authenticate,
+  authorize('settings.manage'),
+  requireAdmin,
+  api.backup.list,
+);
+router.get(
+  '/backup/download/:name',
+  authenticate,
+  authorize('settings.manage'),
+  requireAdmin,
+  api.backup.download,
+);
 // BUG-16 FIX: تسجيل audit log لعمليات الاستعادة والحذف الكلي (الأكثر خطورة)
-router.post('/backup/restore',       authenticate, authorize('settings.manage'), requireAdmin, requireConfirmation('CONFIRM_RESTORE_BACKUP'), auditLog('backup_restore', 'backup'), api.backup.restore);
-router.post('/backup/restore-file',  authenticate, authorize('settings.manage'), requireAdmin, upload.single('file'), requireConfirmation('CONFIRM_RESTORE_BACKUP'), auditLog('backup_restore_file', 'backup'), api.backup.restoreFile);
-router.post('/backup/clear',         authenticate, authorize('settings.manage'), requireAdmin, requireConfirmation('CONFIRM_CLEAR'), auditLog('data_clear', 'backup'), api.backup.clear);
-router.post('/backup/cloud-test',    authenticate, authorize('settings.manage'), requireAdmin, api.backup.cloudTest);
-router.get('/backup/logs',           authenticate, authorize('settings.manage'), requireAdmin, api.backup.getLogs);
+router.post(
+  '/backup/restore',
+  authenticate,
+  authorize('settings.manage'),
+  requireAdmin,
+  requireConfirmation('CONFIRM_RESTORE_BACKUP'),
+  auditLog('backup_restore', 'backup'),
+  api.backup.restore,
+);
+router.post(
+  '/backup/restore-file',
+  authenticate,
+  authorize('settings.manage'),
+  requireAdmin,
+  upload.single('file'),
+  requireConfirmation('CONFIRM_RESTORE_BACKUP'),
+  auditLog('backup_restore_file', 'backup'),
+  api.backup.restoreFile,
+);
+router.post(
+  '/backup/clear',
+  authenticate,
+  authorize('settings.manage'),
+  requireAdmin,
+  requireConfirmation('CONFIRM_CLEAR'),
+  auditLog('data_clear', 'backup'),
+  api.backup.clear,
+);
+router.post(
+  '/backup/cloud-test',
+  authenticate,
+  authorize('settings.manage'),
+  requireAdmin,
+  api.backup.cloudTest,
+);
+router.get(
+  '/backup/logs',
+  authenticate,
+  authorize('settings.manage'),
+  requireAdmin,
+  api.backup.getLogs,
+);
 
-router.get('/admin/health',                     authenticate, requireAdmin, api.adminDashboard.health);
-router.get('/admin/sessions',                   authenticate, requireAdmin, api.adminDashboard.sessions);
-router.delete('/admin/sessions/:id',            authenticate, requireAdmin, auditLog('session_revoke', 'admin'), api.adminDashboard.revokeSession);
-router.delete('/admin/sessions/user/:userId',   authenticate, requireAdmin, auditLog('all_sessions_revoke', 'admin'), api.adminDashboard.revokeAllSessions);
-router.get('/admin/failed-logins',              authenticate, requireAdmin, api.adminDashboard.failedLogins);
-router.get('/admin/activity',                   authenticate, requireAdmin, api.adminDashboard.recentActivity);
-router.get('/admin/counts',                     authenticate, requireAdmin, api.adminDashboard.counts);
-router.get('/admin/backup',                     authenticate, requireAdmin, auditLog('admin_backup', 'admin'), api.adminDashboard.backup);
-router.post('/admin/repair-sequences',          authenticate, requireAdmin, auditLog('admin_repair_sequences', 'admin'), api.adminDashboard.repairSequences);
-router.get('/admin/risk-radar',                 authenticate, requireAdmin, api.adminDashboard.riskRadar);
-router.post('/admin/purge-logs',                authenticate, requireAdmin, auditLog('admin_purge_logs', 'admin'), api.adminDashboard.purgeLogs);
-router.post('/admin/broadcast',                 authenticate, requireAdmin, auditLog('admin_broadcast', 'admin'), api.adminDashboard.setBroadcast);
-router.get('/admin/broadcast',                  authenticate, api.adminDashboard.getBroadcast);
+router.get('/admin/health', authenticate, requireAdmin, api.adminDashboard.health);
+router.get('/admin/sessions', authenticate, requireAdmin, api.adminDashboard.sessions);
+router.delete(
+  '/admin/sessions/:id',
+  authenticate,
+  requireAdmin,
+  auditLog('session_revoke', 'admin'),
+  api.adminDashboard.revokeSession,
+);
+router.delete(
+  '/admin/sessions/user/:userId',
+  authenticate,
+  requireAdmin,
+  auditLog('all_sessions_revoke', 'admin'),
+  api.adminDashboard.revokeAllSessions,
+);
+router.get('/admin/failed-logins', authenticate, requireAdmin, api.adminDashboard.failedLogins);
+router.get('/admin/activity', authenticate, requireAdmin, api.adminDashboard.recentActivity);
+router.get('/admin/counts', authenticate, requireAdmin, api.adminDashboard.counts);
+router.get(
+  '/admin/backup',
+  authenticate,
+  requireAdmin,
+  auditLog('admin_backup', 'admin'),
+  api.adminDashboard.backup,
+);
+router.post(
+  '/admin/repair-sequences',
+  authenticate,
+  requireAdmin,
+  auditLog('admin_repair_sequences', 'admin'),
+  api.adminDashboard.repairSequences,
+);
+router.get('/admin/risk-radar', authenticate, requireAdmin, api.adminDashboard.riskRadar);
+router.post(
+  '/admin/purge-logs',
+  authenticate,
+  requireAdmin,
+  auditLog('admin_purge_logs', 'admin'),
+  api.adminDashboard.purgeLogs,
+);
+router.post(
+  '/admin/broadcast',
+  authenticate,
+  requireAdmin,
+  auditLog('admin_broadcast', 'admin'),
+  api.adminDashboard.setBroadcast,
+);
+router.get('/admin/broadcast', authenticate, api.adminDashboard.getBroadcast);
 
 export default router;

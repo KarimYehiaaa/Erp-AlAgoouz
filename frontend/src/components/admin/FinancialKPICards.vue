@@ -3,7 +3,11 @@
     <div v-for="card in cards" :key="card.key" class="kpi-card" :class="card.colorClass">
       <div class="kpi-header">
         <span class="kpi-icon">{{ card.icon }}</span>
-        <span v-if="card.change !== null" class="kpi-change" :class="card.change >= 0 ? 'up' : 'down'">
+        <span
+          v-if="card.change !== null"
+          class="kpi-change"
+          :class="card.change >= 0 ? 'up' : 'down'"
+        >
           {{ card.change >= 0 ? '↑' : '↓' }} {{ Math.abs(card.change).toFixed(1) }}%
         </span>
       </div>
@@ -117,11 +121,13 @@ const cards = computed(() => {
 .kpi-card {
   padding: 18px 20px;
   border-radius: 16px;
-  background: var(--card-bg, rgba(255,255,255,0.04));
-  border: 1px solid var(--border, rgba(255,255,255,0.08));
+  background: var(--card-bg, rgba(255, 255, 255, 0.04));
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
   position: relative;
   overflow: hidden;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .kpi-card::before {
@@ -134,18 +140,34 @@ const cards = computed(() => {
   border-radius: 0 16px 16px 0;
 }
 
-.kpi-card.green::before { background: #10b981; }
-.kpi-card.emerald::before { background: #34d399; }
-.kpi-card.blue::before { background: #3b82f6; }
-.kpi-card.orange::before { background: #f59e0b; }
-.kpi-card.purple::before { background: #8b5cf6; }
-.kpi-card.cyan::before { background: #06b6d4; }
-.kpi-card.indigo::before { background: #6366f1; }
-.kpi-card.teal::before { background: #14b8a6; }
+.kpi-card.green::before {
+  background: #10b981;
+}
+.kpi-card.emerald::before {
+  background: #34d399;
+}
+.kpi-card.blue::before {
+  background: #3b82f6;
+}
+.kpi-card.orange::before {
+  background: #f59e0b;
+}
+.kpi-card.purple::before {
+  background: #8b5cf6;
+}
+.kpi-card.cyan::before {
+  background: #06b6d4;
+}
+.kpi-card.indigo::before {
+  background: #6366f1;
+}
+.kpi-card.teal::before {
+  background: #14b8a6;
+}
 
 .kpi-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
 }
 
 .kpi-header {
@@ -167,12 +189,12 @@ const cards = computed(() => {
 }
 
 .kpi-change.up {
-  background: rgba(16,185,129,0.12);
+  background: rgba(16, 185, 129, 0.12);
   color: #10b981;
 }
 
 .kpi-change.down {
-  background: rgba(239,68,68,0.12);
+  background: rgba(239, 68, 68, 0.12);
   color: #ef4444;
 }
 

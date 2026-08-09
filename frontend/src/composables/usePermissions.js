@@ -29,8 +29,8 @@ export function usePermissions() {
   };
 
   /** هل المستخدم ادمن؟ */
-  const isAdmin = computed(() =>
-    authStore.user?.role === 'admin' || authStore.hasPermission('admin'),
+  const isAdmin = computed(
+    () => authStore.user?.role === 'admin' || authStore.hasPermission('admin'),
   );
 
   /** هل المستخدم مسجل دخول؟ */

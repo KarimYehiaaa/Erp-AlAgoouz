@@ -1,4 +1,4 @@
-﻿import XLSX from 'xlsx';
+import XLSX from 'xlsx';
 import { deleteAllSales, importDailySales } from './salesService.js';
 import { readSafeWorkbook } from './excelSecurity.js';
 import { parseLocalizedNumber } from '../utils/numberParsing.js';
@@ -16,26 +16,28 @@ const TEMPLATE_HEADERS = [
 ];
 
 const HEADER_ALIASES = {
-  sale_date: ['sale_date', 'date', 'التاريخ', 'تاريخ'],
-  sale_type: ['sale_type', 'type', 'النوع', 'نوع البيع'],
-  total_amount: ['total_amount', 'amount', 'القيمة', 'الإجمالي'],
-  customer_code: ['customer_code', 'customer', 'customer name', 'العميل', 'كود العميل'],
-  payment_status: ['payment_status', 'status', 'حالة الدفع'],
-  payment_method: ['payment_method', 'method', 'طريقة الدفع'],
-  profit_amount: ['profit_amount', 'profit', 'الربح'],
-  notes: ['notes', 'note', 'ملاحظات'],
-  action: ['action', 'إجراء', 'الاجراء'],
+  sale_date: ['sale_date', 'date', '???????', '?????'],
+  sale_type: ['sale_type', 'type', '?????', '??? ?????'],
+  total_amount: ['total_amount', 'amount', '??????', '????????'],
+  customer_code: ['customer_code', 'customer', 'customer name', '??????', '??? ??????'],
+  payment_status: ['payment_status', 'status', '???? ?????'],
+  payment_method: ['payment_method', 'method', '????? ?????'],
+  profit_amount: ['profit_amount', 'profit', '?????'],
+  notes: ['notes', 'note', '???????'],
+  action: ['action', '?????', '???????'],
 };
 
-const normalizeText = (value) => String(value ?? '')
-  .trim()
-  .toLowerCase()
-  .replace(/[\s_\-]+/g, '');
+const normalizeText = (value) =>
+  String(value ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_\-]+/g, '');
 
-const normalizeDigits = (value) => String(value ?? '')
-  .replace(/[٠-٩]/g, (d) => '0123456789'['٠١٢٣٤٥٦٧٨٩'.indexOf(d)])
-  .replace(/[\u200f\u200e]/g, '')
-  .trim();
+const normalizeDigits = (value) =>
+  String(value ?? '')
+    .replace(/[?-?]/g, (d) => '0123456789'['??????????'.indexOf(d)])
+    .replace(/[\u200f\u200e]/g, '')
+    .trim();
 
 const toNumber = (value, fallback = 0) => {
   return parseLocalizedNumber(value, fallback);
@@ -107,30 +109,37 @@ const parseDate = (value) => {
 const normalizeSaleType = (value) => {
   const text = normalizeText(value);
   if (!text) return null;
-  if (['branch', 'فروع', 'فرع', 'مبيعاتمحل', 'محل'].includes(text) || text.startsWith('branch')) return 'branch';
-  if (['wholesale', 'جملة', 'جمله', 'wholesales'].includes(text) || text.startsWith('wholesale')) return 'wholesale';
+  if (['branch', '????', '???', '?????????', '???'].includes(text) || text.startsWith('branch'))
+    return 'branch';
+  if (['wholesale', '????', '????', 'wholesales'].includes(text) || text.startsWith('wholesale'))
+    return 'wholesale';
   return null;
 };
 
 const normalizePaymentStatus = (value) => {
   const text = normalizeText(value);
-  if (!text || ['paid', 'مدفوع', 'تمام'].includes(text)) return 'paid';
-  if (['unpaid', 'غيرمدفوع', 'مستحق'].includes(text)) return 'unpaid';
-  if (['partial', 'جزئي', 'مدفوعجزئيا'].includes(text)) return 'partial';
+  if (!text || ['paid', '?????', '????'].includes(text)) return 'paid';
+  if (['unpaid', '????????', '?????'].includes(text)) return 'unpaid';
+  if (['partial', '????', '??????????'].includes(text)) return 'partial';
   return 'paid';
 };
 
 const normalizePaymentMethod = (value) => {
   const text = normalizeText(value);
-  if (!text || ['cash', 'نقدي', 'كاش'].includes(text)) return 'cash';
-  if (['card', 'بطاقة', 'فيزا'].includes(text)) return 'card';
-  if (['transfer', 'تحويل'].includes(text)) return 'transfer';
-  if (['credit', 'اجل', 'آجل'].includes(text)) return 'credit';
+  if (!text || ['cash', '????', '???'].includes(text)) return 'cash';
+  if (['card', '?????', '????'].includes(text)) return 'card';
+  if (['transfer', '?????'].includes(text)) return 'transfer';
+  if (['credit', '???', '???'].includes(text)) return 'credit';
   return 'cash';
 };
 
 const headersFromRow = (row) => row.map((h) => normalizeText(h));
-const findIndex = (headers, aliases) => headers.findIndex((header) => aliases.some((alias) => header === normalizeText(alias) || header.includes(normalizeText(alias))));
+const findIndex = (headers, aliases) =>
+  headers.findIndex((header) =>
+    aliases.some(
+      (alias) => header === normalizeText(alias) || header.includes(normalizeText(alias)),
+    ),
+  );
 
 const resolveHeaderIndices = (headers) => ({
   sale_date: findIndex(headers, HEADER_ALIASES.sale_date),
@@ -149,8 +158,8 @@ export const buildImportTemplate = () => {
 
   const dataSheet = [
     TEMPLATE_HEADERS,
-    ['2026-05-21', 'branch', 1500, 'C-001', 'paid', 'cash', 200, 'مبيعات يومية', ''],
-    ['2026-05-21', 'wholesale', 8500, 'C-002', 'partial', 'transfer', 1200, 'مبيعات جملة', ''],
+    ['2026-05-21', 'branch', 1500, 'C-001', 'paid', 'cash', 200, '?????? ?????', ''],
+    ['2026-05-21', 'wholesale', 8500, 'C-002', 'partial', 'transfer', 1200, '?????? ????', ''],
   ];
 
   const wsData = XLSX.utils.aoa_to_sheet(dataSheet);
@@ -158,12 +167,12 @@ export const buildImportTemplate = () => {
   XLSX.utils.book_append_sheet(wb, wsData, 'sales');
 
   const wsHelp = XLSX.utils.aoa_to_sheet([
-    ['تعليمات'],
-    ['املأ الصفوف بالبيانات ثم ارفع الملف من جديد.'],
-    ['استخدام delete_all يحتاج تأكيداً صريحاً من النظام قبل التنفيذ.'],
-    ['الأنواع المسموح بها: branch أو wholesale.'],
-    ['حالات الدفع: paid أو unpaid أو partial.'],
-    ['طرق الدفع: cash أو card أو transfer أو credit.'],
+    ['???????'],
+    ['???? ?????? ????????? ?? ???? ????? ?? ????.'],
+    ['??????? delete_all ????? ??????? ?????? ?? ?????? ??? ???????.'],
+    ['??????? ??????? ???: branch ?? wholesale.'],
+    ['????? ?????: paid ?? unpaid ?? partial.'],
+    ['??? ?????: cash ?? card ?? transfer ?? credit.'],
   ]);
   wsHelp['!cols'] = [{ wch: 60 }];
   XLSX.utils.book_append_sheet(wb, wsHelp, 'instructions');
@@ -176,21 +185,28 @@ const parseRow = (row, indices) => {
   if (action === 'delete_all') return { action: 'delete_all' };
 
   const saleType = normalizeSaleType(indices.sale_type >= 0 ? row[indices.sale_type] : null);
-  if (!saleType) throw new Error('نوع البيع غير صالح');
+  if (!saleType) throw new Error('??? ????? ??? ????');
 
   const saleDate = parseDate(indices.sale_date >= 0 ? row[indices.sale_date] : null);
-  if (!saleDate) throw new Error('تاريخ البيع غير صالح');
+  if (!saleDate) throw new Error('????? ????? ??? ????');
 
   const totalAmount = toNumber(indices.total_amount >= 0 ? row[indices.total_amount] : null, 0);
-  if (totalAmount <= 0) throw new Error('إجمالي المبلغ يجب أن يكون أكبر من صفر');
+  if (totalAmount <= 0) throw new Error('?????? ?????? ??? ?? ???? ???? ?? ???');
 
   return {
     sale_date: saleDate,
     sale_type: saleType,
     total_amount: totalAmount,
-    customer_code: indices.customer_code >= 0 ? String(row[indices.customer_code] || '').trim() || undefined : undefined,
-    payment_status: normalizePaymentStatus(indices.payment_status >= 0 ? row[indices.payment_status] : null),
-    payment_method: normalizePaymentMethod(indices.payment_method >= 0 ? row[indices.payment_method] : null),
+    customer_code:
+      indices.customer_code >= 0
+        ? String(row[indices.customer_code] || '').trim() || undefined
+        : undefined,
+    payment_status: normalizePaymentStatus(
+      indices.payment_status >= 0 ? row[indices.payment_status] : null,
+    ),
+    payment_method: normalizePaymentMethod(
+      indices.payment_method >= 0 ? row[indices.payment_method] : null,
+    ),
     profit_amount: toNumber(indices.profit_amount >= 0 ? row[indices.profit_amount] : null, 0),
     notes: indices.notes >= 0 ? String(row[indices.notes] || '').trim() || undefined : undefined,
   };
@@ -200,12 +216,12 @@ export const parseSalesExcel = (buffer) => {
   const wb = readSafeWorkbook(buffer, { cellDates: true });
   const sheet = wb.Sheets[wb.SheetNames[0]];
   const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
-  if (rows.length < 2) throw new Error('ملف المبيعات فارغ');
+  if (rows.length < 2) throw new Error('??? ???????? ????');
 
   const headers = headersFromRow(rows[0]);
   const indices = resolveHeaderIndices(headers);
   if (indices.sale_date === -1 || indices.sale_type === -1 || indices.total_amount === -1) {
-    throw new Error('ملف المبيعات لا يحتوي على الأعمدة الأساسية');
+    throw new Error('??? ???????? ?? ????? ??? ??????? ????????');
   }
 
   const parsed = [];
@@ -228,7 +244,7 @@ export const parseSalesExcel = (buffer) => {
   }
 
   if (!parsed.length && !hasDeleteAll && errors.length) {
-    throw new Error(errors.map((e) => `الصف ${e.row}: ${e.message}`).join(' | '));
+    throw new Error(errors.map((e) => `???? ${e.row}: ${e.message}`).join(' | '));
   }
 
   return { rows: parsed, errors, hasDeleteAll };

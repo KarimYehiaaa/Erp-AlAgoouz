@@ -1,4 +1,4 @@
-FROM node:20-alpine
+FROM node:22-alpine
 
 # Install pg_dump (postgresql-client) so the backup script can run inside the container
 RUN apk update && apk add --no-cache postgresql-client

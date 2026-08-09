@@ -14,10 +14,7 @@ export function useProductMeta() {
   const loadMeta = async (force = false) => {
     if (_loaded && !force) return;
     try {
-      const [catRes, unitRes] = await Promise.all([
-        productsApi.categories(),
-        productsApi.units(),
-      ]);
+      const [catRes, unitRes] = await Promise.all([productsApi.categories(), productsApi.units()]);
       _categories.value = catRes?.data || [];
       _units.value = unitRes?.data || [];
       _loaded = true;
@@ -36,17 +33,25 @@ export function useProductMeta() {
 
     // أولاً: ابحث في الوحدات المحملة من الـ DB
     const found = _units.value.find(
-      (u) => u.name_ar === str || u.name_ar.toLowerCase() === str.toLowerCase()
+      (u) => u.name_ar === str || u.name_ar.toLowerCase() === str.toLowerCase(),
     );
     if (found) return found.name_ar;
 
     // ثانياً: fallback للأكواد القديمة
     const legacyMap = {
-      count: 'عدد', unit: 'عدد', piece: 'عدد', pieces: 'عدد',
-      kg: 'كجم', kilo: 'كجم',
-      g: 'جرام', gram: 'جرام',
-      l: 'لتر', liter: 'لتر', litre: 'لتر',
-      ml: 'مل', milli: 'مل',
+      count: 'عدد',
+      unit: 'عدد',
+      piece: 'عدد',
+      pieces: 'عدد',
+      kg: 'كجم',
+      kilo: 'كجم',
+      g: 'جرام',
+      gram: 'جرام',
+      l: 'لتر',
+      liter: 'لتر',
+      litre: 'لتر',
+      ml: 'مل',
+      milli: 'مل',
     };
     return legacyMap[str.toLowerCase()] || str;
   };

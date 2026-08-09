@@ -2,10 +2,10 @@
   <div class="purchases-expenses-page">
     <!-- Tabs Navigation -->
     <div class="tabs-container" v-if="canManagePurchases && canManageExpenses">
-      <div 
-        class="tab-slider" 
+      <div
+        class="tab-slider"
         :style="{
-          transform: activeTab === 'purchases' ? 'translateX(0)' : 'translateX(calc(-100% - 4px))'
+          transform: activeTab === 'purchases' ? 'translateX(0)' : 'translateX(calc(-100% - 4px))',
         }"
       ></div>
       <button
@@ -33,10 +33,13 @@
          ============================================== -->
     <div v-if="activeTab === 'purchases' && canManagePurchases" class="tab-content animate-in">
       <Teleport to="body" :disabled="!editingInvoiceId">
-        <div :class="{ 'modal-overlay': editingInvoiceId }" @click.self="editingInvoiceId ? cancelPurchaseEdit() : null">
+        <div
+          :class="{ 'modal-overlay': editingInvoiceId }"
+          @click.self="editingInvoiceId ? cancelPurchaseEdit() : null"
+        >
           <div class="card form-card" :class="{ 'modal-card': editingInvoiceId }">
             <h3>{{ editingInvoiceId ? 'تعديل فاتورة مشتريات' : 'إدخال فاتورة مشتريات' }}</h3>
-            
+
             <div class="invoice-meta-panel grid grid-3">
               <div class="form-group">
                 <label>تاريخ الفاتورة</label>
@@ -46,12 +49,18 @@
                 <label>المورد</label>
                 <select v-model.number="purchaseForm.supplier_id" class="field-like">
                   <option :value="null">— بدون مورد —</option>
-                  <option v-for="s in suppliersList" :key="s.id" :value="s.id">{{ s.name_ar }}</option>
+                  <option v-for="s in suppliersList" :key="s.id" :value="s.id">
+                    {{ s.name_ar }}
+                  </option>
                 </select>
               </div>
               <div class="form-group">
                 <label>ملاحظات الفاتورة</label>
-                <input v-model="purchaseForm.notes" class="field-like" placeholder="ملاحظات إضافية..." />
+                <input
+                  v-model="purchaseForm.notes"
+                  class="field-like"
+                  placeholder="ملاحظات إضافية..."
+                />
               </div>
             </div>
 
@@ -61,18 +70,24 @@
                   <th>المنتج</th>
                   <th>المخزن</th>
                   <th>الوحدة</th>
-                  <th style="width: 120px;">الكمية</th>
-                  <th style="width: 140px;">السعر</th>
-                  <th style="width: 150px;">الإجمالي</th>
-                  <th style="width: 50px;"></th>
+                  <th style="width: 120px">الكمية</th>
+                  <th style="width: 140px">السعر</th>
+                  <th style="width: 150px">الإجمالي</th>
+                  <th style="width: 50px"></th>
                 </tr>
               </thead>
               <tbody>
                 <tr v-for="(item, i) in purchaseForm.items" :key="i">
                   <td>
-                    <select v-model.number="item.product_id" class="field-like" @change="onProductChange(item)">
+                    <select
+                      v-model.number="item.product_id"
+                      class="field-like"
+                      @change="onProductChange(item)"
+                    >
                       <option :value="null">اختر المنتج</option>
-                      <option v-for="p in products" :key="p.id" :value="p.id">{{ p.name_ar }} ({{ unitLabel(p.unit) }})</option>
+                      <option v-for="p in products" :key="p.id" :value="p.id">
+                        {{ p.name_ar }} ({{ unitLabel(p.unit) }})
+                      </option>
                     </select>
                   </td>
                   <td>
@@ -82,19 +97,44 @@
                   </td>
                   <td>
                     <select v-model="item.unit" class="field-like">
-                      <option v-for="u in unitNames(item.unit)" :key="u" :value="u">{{ unitLabel(u) }}</option>
+                      <option v-for="u in unitNames(item.unit)" :key="u" :value="u">
+                        {{ unitLabel(u) }}
+                      </option>
                     </select>
                   </td>
-                  <td><input v-model="item.quantity" class="field-like" type="text" inputmode="decimal" style="text-align: center;" /></td>
-                  <td><input v-model="item.unit_price" class="field-like" type="text" inputmode="decimal" style="text-align: center;" /></td>
-                  <td style="font-weight: 700; color: var(--text-strong); text-align: left; padding-left: 12px;">
+                  <td>
+                    <input
+                      v-model="item.quantity"
+                      class="field-like"
+                      type="text"
+                      inputmode="decimal"
+                      style="text-align: center"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      v-model="item.unit_price"
+                      class="field-like"
+                      type="text"
+                      inputmode="decimal"
+                      style="text-align: center"
+                    />
+                  </td>
+                  <td
+                    style="
+                      font-weight: 700;
+                      color: var(--text-strong);
+                      text-align: left;
+                      padding-left: 12px;
+                    "
+                  >
                     {{ formatMoney(toDecimal(item.quantity) * toDecimal(item.unit_price)) }}
                   </td>
                   <td>
-                    <button 
-                      type="button" 
-                      class="icon-btn danger" 
-                      @click="removePurchaseItem(i)" 
+                    <button
+                      type="button"
+                      class="icon-btn danger"
+                      @click="removePurchaseItem(i)"
                       :disabled="purchaseForm.items.length === 1"
                       title="حذف هذا الصنف"
                     >
@@ -117,15 +157,33 @@
             </div>
 
             <div class="actions">
-              <button class="btn btn-primary" :disabled="purchasesSaving" @click="savePurchaseInvoice">
-                {{ purchasesSaving ? 'جاري الحفظ...' : (editingInvoiceId ? 'حفظ التعديل' : 'حفظ الفاتورة') }}
+              <button
+                class="btn btn-primary"
+                :disabled="purchasesSaving"
+                @click="savePurchaseInvoice"
+              >
+                {{
+                  purchasesSaving
+                    ? 'جاري الحفظ...'
+                    : editingInvoiceId
+                      ? 'حفظ التعديل'
+                      : 'حفظ الفاتورة'
+                }}
               </button>
-              <button v-if="editingInvoiceId" type="button" class="btn btn-outline" :disabled="purchasesSaving" @click="cancelPurchaseEdit">
+              <button
+                v-if="editingInvoiceId"
+                type="button"
+                class="btn btn-outline"
+                :disabled="purchasesSaving"
+                @click="cancelPurchaseEdit"
+              >
                 إلغاء التعديل
               </button>
             </div>
 
-            <p v-if="purchasesMsg" :class="['msg', purchasesErr ? 'err' : 'ok']">{{ purchasesMsg }}</p>
+            <p v-if="purchasesMsg" :class="['msg', purchasesErr ? 'err' : 'ok']">
+              {{ purchasesMsg }}
+            </p>
           </div>
         </div>
       </Teleport>
@@ -150,9 +208,14 @@
         </div>
 
         <!-- Quick Dashboard for Selected Period Purchases -->
-        <div class="grid grid-2" style="margin-bottom: 20px;">
+        <div class="grid grid-2" style="margin-bottom: 20px">
           <StatCard label="إجمالي قيمة مشتريات الفترة" :value="periodPurchasesTotal" icon="money" />
-          <StatCard label="عدد فواتير المشتريات بالفترة" :value="periodPurchasesCount" icon="receipt" format="number" />
+          <StatCard
+            label="عدد فواتير المشتريات بالفترة"
+            :value="periodPurchasesCount"
+            icon="receipt"
+            format="number"
+          />
         </div>
 
         <table class="items-table">
@@ -169,13 +232,13 @@
           </thead>
           <tbody>
             <tr v-if="loadingPurchases" v-for="i in 3" :key="'p-sk-' + i">
-              <td><div class="skeleton-shimmer" style="height: 18px; width: 70px;"></div></td>
-              <td><div class="skeleton-shimmer" style="height: 18px; width: 80px;"></div></td>
-              <td><div class="skeleton-shimmer" style="height: 18px; width: 120px;"></div></td>
-              <td><div class="skeleton-shimmer" style="height: 18px; width: 90px;"></div></td>
-              <td><div class="skeleton-shimmer" style="height: 18px; width: 60px;"></div></td>
-              <td><div class="skeleton-shimmer" style="height: 18px; width: 30px;"></div></td>
-              <td><div class="skeleton-shimmer" style="height: 18px; width: 50px;"></div></td>
+              <td><div class="skeleton-shimmer" style="height: 18px; width: 70px"></div></td>
+              <td><div class="skeleton-shimmer" style="height: 18px; width: 80px"></div></td>
+              <td><div class="skeleton-shimmer" style="height: 18px; width: 120px"></div></td>
+              <td><div class="skeleton-shimmer" style="height: 18px; width: 90px"></div></td>
+              <td><div class="skeleton-shimmer" style="height: 18px; width: 60px"></div></td>
+              <td><div class="skeleton-shimmer" style="height: 18px; width: 30px"></div></td>
+              <td><div class="skeleton-shimmer" style="height: 18px; width: 50px"></div></td>
             </tr>
             <tr v-else v-for="inv in invoices" :key="inv.id">
               <td>{{ inv.invoice_number }}</td>
@@ -217,7 +280,7 @@
          2. EXPENSES TAB
          ============================================== -->
     <div v-if="activeTab === 'expenses' && canManageExpenses" class="tab-content animate-in">
-      <div class="card-header-row" style="margin-bottom: 16px;">
+      <div class="card-header-row" style="margin-bottom: 16px">
         <div class="purchases-filters">
           <div class="filter-group">
             <label>من تاريخ</label>
@@ -236,11 +299,31 @@
       </div>
 
       <!-- Expenses Summary Stat Cards -->
-      <div class="grid grid-4" style="gap: 16px; margin-bottom: 20px;">
-        <StatCard label="إجمالي المصروفات" :value="formatMoney(periodExpensesTotal)" icon="cash" format="currency" />
-        <StatCard label="🏢 المصروفات الثابتة (إيجار/مرتبات/كهرباء)" :value="formatMoney(periodFixedExpensesTotal)" icon="building" format="currency" />
-        <StatCard label="🛒 المصروفات المتغيرة والتشغيلية" :value="formatMoney(periodVariableExpensesTotal)" icon="wallet" format="currency" />
-        <StatCard label="عدد بنود المصروفات بالفترة" :value="periodExpensesCount" icon="receipt" format="number" />
+      <div class="grid grid-4" style="gap: 16px; margin-bottom: 20px">
+        <StatCard
+          label="إجمالي المصروفات"
+          :value="formatMoney(periodExpensesTotal)"
+          icon="cash"
+          format="currency"
+        />
+        <StatCard
+          label="🏢 المصروفات الثابتة (إيجار/مرتبات/كهرباء)"
+          :value="formatMoney(periodFixedExpensesTotal)"
+          icon="building"
+          format="currency"
+        />
+        <StatCard
+          label="🛒 المصروفات المتغيرة والتشغيلية"
+          :value="formatMoney(periodVariableExpensesTotal)"
+          icon="wallet"
+          format="currency"
+        />
+        <StatCard
+          label="عدد بنود المصروفات بالفترة"
+          :value="periodExpensesCount"
+          icon="receipt"
+          format="number"
+        />
       </div>
 
       <div class="card table-wrap">
@@ -257,21 +340,45 @@
           </thead>
           <tbody>
             <tr v-if="loadingExpenses" v-for="i in 3" :key="'e-sk-' + i">
-              <td><div class="skeleton-shimmer" style="height: 18px; width: 140px;"></div></td>
-              <td><div class="skeleton-shimmer" style="height: 18px; width: 100px;"></div></td>
-              <td><div class="skeleton-shimmer" style="height: 18px; width: 80px;"></div></td>
-              <td><div class="skeleton-shimmer" style="height: 18px; width: 60px;"></div></td>
-              <td><div class="skeleton-shimmer" style="height: 18px; width: 80px;"></div></td>
-              <td><div class="skeleton-shimmer" style="height: 18px; width: 50px;"></div></td>
+              <td><div class="skeleton-shimmer" style="height: 18px; width: 140px"></div></td>
+              <td><div class="skeleton-shimmer" style="height: 18px; width: 100px"></div></td>
+              <td><div class="skeleton-shimmer" style="height: 18px; width: 80px"></div></td>
+              <td><div class="skeleton-shimmer" style="height: 18px; width: 60px"></div></td>
+              <td><div class="skeleton-shimmer" style="height: 18px; width: 80px"></div></td>
+              <td><div class="skeleton-shimmer" style="height: 18px; width: 50px"></div></td>
             </tr>
             <tr v-else v-for="e in expensesList" :key="e.id">
-              <td style="font-weight: 700;">{{ e.title }}</td>
+              <td style="font-weight: 700">{{ e.title }}</td>
               <td>{{ e.category_name }}</td>
               <td>
-                <span v-if="e.is_fixed" class="badge" style="background: rgba(59,130,246,0.12); color: #3b82f6; font-size: 0.75rem; padding: 3px 8px; border-radius: 6px; font-weight: 800;">🏢 ثابت</span>
-                <span v-else class="badge" style="background: rgba(100,116,139,0.12); color: #64748b; font-size: 0.75rem; padding: 3px 8px; border-radius: 6px; font-weight: 700;">🛒 متغير</span>
+                <span
+                  v-if="e.is_fixed"
+                  class="badge"
+                  style="
+                    background: rgba(59, 130, 246, 0.12);
+                    color: #3b82f6;
+                    font-size: 0.75rem;
+                    padding: 3px 8px;
+                    border-radius: 6px;
+                    font-weight: 800;
+                  "
+                  >🏢 ثابت</span
+                >
+                <span
+                  v-else
+                  class="badge"
+                  style="
+                    background: rgba(100, 116, 139, 0.12);
+                    color: #64748b;
+                    font-size: 0.75rem;
+                    padding: 3px 8px;
+                    border-radius: 6px;
+                    font-weight: 700;
+                  "
+                  >🛒 متغير</span
+                >
               </td>
-              <td style="font-weight: 800; color: var(--accent);">{{ formatMoney(e.amount) }}</td>
+              <td style="font-weight: 800; color: var(--accent)">{{ formatMoney(e.amount) }}</td>
               <td>{{ e.expense_date }}</td>
               <td>
                 <button type="button" class="icon-btn" @click="openExpenseEdit(e)" title="تعديل">
@@ -291,35 +398,68 @@
 
       <!-- Expense Modal Form -->
       <div v-if="showExpenseForm" class="modal-overlay" @click.self="showExpenseForm = false">
-        <div class="card modal-card" style="width: min(500px, 90vw); margin-inline: auto;">
+        <div class="card modal-card" style="width: min(500px, 90vw); margin-inline: auto">
           <h3>{{ expenseForm.id ? 'تعديل' : 'إضافة' }} مصروف</h3>
           <form @submit.prevent="saveExpense">
-            <div class="form-group" style="margin-bottom: 12px;">
+            <div class="form-group" style="margin-bottom: 12px">
               <label>البند</label>
-              <input v-model="expenseForm.title" class="field-like" placeholder="مثال: إيجار المحل، فاتورة كهرباء، شراء أدوات..." required @blur="suggestExpenseCategory" />
+              <input
+                v-model="expenseForm.title"
+                class="field-like"
+                placeholder="مثال: إيجار المحل، فاتورة كهرباء، شراء أدوات..."
+                required
+                @blur="suggestExpenseCategory"
+              />
             </div>
-            <div class="form-group" style="margin-bottom: 12px;">
+            <div class="form-group" style="margin-bottom: 12px">
               <label>التصنيف</label>
-              <select v-model="expenseForm.category_id" class="field-like" @change="onExpenseCategoryChange">
-                <option v-for="c in expenseCategories" :key="c.id" :value="c.id">{{ c.name_ar }}</option>
+              <select
+                v-model="expenseForm.category_id"
+                class="field-like"
+                @change="onExpenseCategoryChange"
+              >
+                <option v-for="c in expenseCategories" :key="c.id" :value="c.id">
+                  {{ c.name_ar }}
+                </option>
               </select>
             </div>
-            <div class="form-group" style="margin-bottom: 12px;">
-              <label style="display: flex; align-items: center; justify-content: space-between; font-weight: 700;">
+            <div class="form-group" style="margin-bottom: 12px">
+              <label
+                style="
+                  display: flex;
+                  align-items: center;
+                  justify-content: space-between;
+                  font-weight: 700;
+                "
+              >
                 <span>طبيعة المصروف</span>
-                <span v-if="expenseForm.is_fixed" style="color: #3b82f6; font-size: 0.78rem; font-weight: 800;">🏢 مصروف ثابت (Overhead)</span>
-                <span v-else style="color: #64748b; font-size: 0.78rem; font-weight: 700;">🛒 مصروف متغير / تشغيلي</span>
+                <span
+                  v-if="expenseForm.is_fixed"
+                  style="color: #3b82f6; font-size: 0.78rem; font-weight: 800"
+                  >🏢 مصروف ثابت (Overhead)</span
+                >
+                <span v-else style="color: #64748b; font-size: 0.78rem; font-weight: 700"
+                  >🛒 مصروف متغير / تشغيلي</span
+                >
               </label>
               <select v-model="expenseForm.is_fixed" class="field-like">
                 <option :value="false">🛒 مصروف متغير / تشغيلي (ضيافة، صيانة طارئة، نقل...)</option>
-                <option :value="true">🏢 مصروف ثابت / شهري (إيجار، مرتبات، كهرباء، مرافق...)</option>
+                <option :value="true">
+                  🏢 مصروف ثابت / شهري (إيجار، مرتبات، كهرباء، مرافق...)
+                </option>
               </select>
             </div>
-            <div class="form-group" style="margin-bottom: 12px;">
+            <div class="form-group" style="margin-bottom: 12px">
               <label>المبلغ</label>
-              <input v-model.number="expenseForm.amount" class="field-like" type="number" step="0.01" required />
+              <input
+                v-model.number="expenseForm.amount"
+                class="field-like"
+                type="number"
+                step="0.01"
+                required
+              />
             </div>
-            <div class="form-group" style="margin-bottom: 16px;">
+            <div class="form-group" style="margin-bottom: 16px">
               <label>تاريخ المصروف</label>
               <input v-model="expenseForm.expense_date" class="field-like" type="date" />
             </div>
@@ -327,7 +467,9 @@
               <button type="submit" class="btn btn-primary" :disabled="expensesSaving">
                 {{ expensesSaving ? 'جاري الحفظ...' : 'حفظ' }}
               </button>
-              <button type="button" class="btn btn-outline" @click="showExpenseForm = false">إلغاء</button>
+              <button type="button" class="btn btn-outline" @click="showExpenseForm = false">
+                إلغاء
+              </button>
             </div>
           </form>
         </div>
@@ -339,7 +481,12 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue';
 import { useRoute } from 'vue-router';
-import { products as productsApi, purchases as purchasesApi, suppliers as suppliersApi, expenses as expensesApi } from '@/api';
+import {
+  products as productsApi,
+  purchases as purchasesApi,
+  suppliers as suppliersApi,
+  expenses as expensesApi,
+} from '@/api';
 import { formatMoney } from '@/utils/currency';
 import { useProductMeta } from '@/composables/useProductMeta';
 import { useAuthStore } from '@/stores/auth';
@@ -376,9 +523,10 @@ const todayStr = new Date().toISOString().split('T')[0];
 const firstDayOfMonth = todayStr.slice(0, 8) + '01';
 
 // Number normalization helpers
-const normalizeDigits = (value) => String(value ?? '')
-  .replace(/[٠-٩]/g, (digit) => '0123456789'['٠١٢٣٤٥٦٧٨٩'.indexOf(digit)])
-  .replace(/[۰-۹]/g, (digit) => '0123456789'['۰۱۲۳۴۵٦۷۸۹'.indexOf(digit)]);
+const normalizeDigits = (value) =>
+  String(value ?? '')
+    .replace(/[٠-٩]/g, (digit) => '0123456789'['٠١٢٣٤٥٦٧٨٩'.indexOf(digit)])
+    .replace(/[۰-۹]/g, (digit) => '0123456789'['۰۱۲۳۴۵٦۷۸۹'.indexOf(digit)]);
 
 const toDecimal = (value, fallback = 0) => {
   if (typeof value === 'number') return Number.isFinite(value) ? value : fallback;
@@ -406,7 +554,13 @@ const purchasesFilters = ref({
   limit: 200,
 });
 
-const emptyItem = () => ({ product_id: null, warehouse_name: '', unit: unitNames()[0] || 'قطعة', quantity: 1, unit_price: 0 });
+const emptyItem = () => ({
+  product_id: null,
+  warehouse_name: '',
+  unit: unitNames()[0] || 'قطعة',
+  quantity: 1,
+  unit_price: 0,
+});
 const purchaseForm = ref({
   invoice_date: todayStr,
   supplier_id: null,
@@ -415,7 +569,7 @@ const purchaseForm = ref({
 });
 
 const purchaseTotalAmount = computed(() =>
-  purchaseForm.value.items.reduce((s, x) => s + toDecimal(x.quantity) * toDecimal(x.unit_price), 0)
+  purchaseForm.value.items.reduce((s, x) => s + toDecimal(x.quantity) * toDecimal(x.unit_price), 0),
 );
 
 const periodPurchasesTotal = computed(() => {
@@ -433,7 +587,7 @@ const selectPurchasesMonth = (event) => {
   const fromDate = `${year}-${String(month).padStart(2, '0')}-01`;
   const lastDay = new Date(year, month, 0).getDate();
   const toDate = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
-  
+
   purchasesFilters.value.from_date = fromDate;
   purchasesFilters.value.to_date = toDate;
   loadPurchasesOnly();
@@ -445,7 +599,11 @@ const loadPurchasesOnly = async () => {
   try {
     const [p, inv, sup] = await Promise.all([
       productsApi.list({ limit: 1000 }),
-      purchasesApi.list({ from_date: purchasesFilters.value.from_date, to_date: purchasesFilters.value.to_date, limit: purchasesFilters.value.limit }),
+      purchasesApi.list({
+        from_date: purchasesFilters.value.from_date,
+        to_date: purchasesFilters.value.to_date,
+        limit: purchasesFilters.value.limit,
+      }),
       suppliersApi.list(),
     ]);
     products.value = p.data || [];
@@ -577,11 +735,15 @@ const periodExpensesTotal = computed(() => {
 });
 
 const periodFixedExpensesTotal = computed(() => {
-  return expensesList.value.filter(e => e.is_fixed).reduce((sum, e) => sum + Number(e.amount || 0), 0);
+  return expensesList.value
+    .filter((e) => e.is_fixed)
+    .reduce((sum, e) => sum + Number(e.amount || 0), 0);
 });
 
 const periodVariableExpensesTotal = computed(() => {
-  return expensesList.value.filter(e => !e.is_fixed).reduce((sum, e) => sum + Number(e.amount || 0), 0);
+  return expensesList.value
+    .filter((e) => !e.is_fixed)
+    .reduce((sum, e) => sum + Number(e.amount || 0), 0);
 });
 
 const periodExpensesCount = computed(() => {
@@ -594,7 +756,14 @@ const expensesFilters = ref({
 });
 
 const showExpenseForm = ref(false);
-const expenseForm = ref({ id: null, title: '', category_id: 1, is_fixed: false, amount: 0, expense_date: todayStr });
+const expenseForm = ref({
+  id: null,
+  title: '',
+  category_id: 1,
+  is_fixed: false,
+  amount: 0,
+  expense_date: todayStr,
+});
 
 const resetExpenseForm = () => {
   const firstCat = expenseCategories.value[0];
@@ -639,7 +808,7 @@ const selectExpensesMonth = (event) => {
   const fromDate = `${year}-${String(month).padStart(2, '0')}-01`;
   const lastDay = new Date(year, month, 0).getDate();
   const toDate = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
-  
+
   expensesFilters.value.from_date = fromDate;
   expensesFilters.value.to_date = toDate;
   loadExpensesOnly();
@@ -650,7 +819,11 @@ const loadExpensesOnly = async () => {
   loadingExpenses.value = true;
   try {
     const [listRes, c] = await Promise.all([
-      expensesApi.list({ from_date: expensesFilters.value.from_date, to_date: expensesFilters.value.to_date, limit: 1000 }),
+      expensesApi.list({
+        from_date: expensesFilters.value.from_date,
+        to_date: expensesFilters.value.to_date,
+        limit: 1000,
+      }),
       expensesApi.categories(),
     ]);
 
@@ -669,7 +842,7 @@ const suggestExpenseCategory = async () => {
   try {
     const res = await expensesApi.suggestCategory(title);
     if (res.data?.category_id) {
-      const exists = expenseCategories.value.some(c => c.id === res.data.category_id);
+      const exists = expenseCategories.value.some((c) => c.id === res.data.category_id);
       if (exists) {
         expenseForm.value.category_id = res.data.category_id;
       }
@@ -712,7 +885,11 @@ onMounted(() => {
 </script>
 
 <style lang="scss" scoped>
-.purchases-expenses-page { display: flex; flex-direction: column; gap: 16px; }
+.purchases-expenses-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
 
 /* Tabs Design */
 .tabs-container {
@@ -762,32 +939,69 @@ onMounted(() => {
   }
 }
 
-.items-table { width: 100%; }
-.items-table th, .items-table td { padding: 8px; text-align: right; vertical-align: middle; }
-.items-table input, .items-table select { width: 100%; }
+.items-table {
+  width: 100%;
+}
+.items-table th,
+.items-table td {
+  padding: 8px;
+  text-align: right;
+  vertical-align: middle;
+}
+.items-table input,
+.items-table select {
+  width: 100%;
+}
 .field-like {
-  width: 100%; padding: 10px 12px;
-  border: 2px solid var(--border); border-radius: var(--radius-sm);
-  background: var(--bg-elevated); font-size: 0.9rem; font-weight: 600;
+  width: 100%;
+  padding: 10px 12px;
+  border: 2px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  font-size: 0.9rem;
+  font-weight: 600;
   transition: var(--transition);
-  &:focus { outline: none; border-color: var(--primary); }
+  &:focus {
+    outline: none;
+    border-color: var(--primary);
+  }
 }
 .warehouse-chip {
-  display: inline-flex; align-items: center; min-height: 38px;
-  padding: 8px 10px; border-radius: var(--radius-sm);
+  display: inline-flex;
+  align-items: center;
+  min-height: 38px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
   background: color-mix(in srgb, var(--info) 10%, var(--bg-elevated));
   border: 1px solid color-mix(in srgb, var(--info) 24%, transparent);
-  color: var(--text-strong); font-weight: 700; white-space: nowrap;
+  color: var(--text-strong);
+  font-weight: 700;
+  white-space: nowrap;
 }
 .warehouse-chip.missing {
   background: var(--bg-elevated);
   border-color: var(--border);
   color: var(--text-muted);
 }
-.actions { margin-top: 10px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-.total { font-weight: 800; color: var(--text-strong); }
-.msg.ok  { color: var(--success); font-weight: 700; }
-.msg.err { color: var(--danger);  font-weight: 700; }
+.actions {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.total {
+  font-weight: 800;
+  color: var(--text-strong);
+}
+.msg.ok {
+  color: var(--success);
+  font-weight: 700;
+}
+.msg.err {
+  color: var(--danger);
+  font-weight: 700;
+}
 
 /* Modal and form card */
 .modal-overlay {
@@ -817,7 +1031,9 @@ onMounted(() => {
   flex-wrap: wrap;
   gap: 12px;
   margin-bottom: 16px;
-  h3 { margin: 0; }
+  h3 {
+    margin: 0;
+  }
 }
 .purchases-filters {
   display: flex;
@@ -828,8 +1044,18 @@ onMounted(() => {
     display: flex;
     align-items: center;
     gap: 6px;
-    label { font-size: 0.75rem; color: var(--text-muted); font-weight: 700; }
-    input { padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-elevated); font-size: 0.88rem; }
+    label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-weight: 700;
+    }
+    input {
+      padding: 8px 10px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--bg-elevated);
+      font-size: 0.88rem;
+    }
   }
   .month-filter-btn {
     position: relative;

@@ -3,7 +3,9 @@
     <div class="error-boundary-content">
       <div class="error-icon">⚠️</div>
       <h3>حدث خطأ غير متوقع في هذه الشاشة</h3>
-      <p class="error-msg">{{ errorMessage || 'عفواً، واجه التطبيق خطأ غير متوقع أثناء معالجة البيانات.' }}</p>
+      <p class="error-msg">
+        {{ errorMessage || 'عفواً، واجه التطبيق خطأ غير متوقع أثناء معالجة البيانات.' }}
+      </p>
       <div class="error-actions">
         <button type="button" class="btn btn-primary" @click="resetError">
           🔄 إعادة محاولة الشاشة

@@ -1,23 +1,24 @@
 import { getClient, query } from '../database/pool.js';
-import { AppError } from '../middleware/errorHandler.js';
+import { AppError } from '../types/errors.js';
 import { invalidateDashboardCache } from './dashboardService.js';
 import { roundMoney, toNumber } from '../utils/money.js';
-
-
 
 const getMonthBounds = (periodMonth) => {
   const raw = periodMonth || new Date().toISOString().slice(0, 7);
   const month = raw.length === 7 ? `${raw}-01` : raw.slice(0, 10);
-  if (!/^\d{4}-\d{2}-01$/.test(month)) throw new AppError('شهر المرتب يجب أن يكون بصيغة YYYY-MM', 400);
+  if (!/^\d{4}-\d{2}-01$/.test(month))
+    throw new AppError('شهر المرتب يجب أن يكون بصيغة YYYY-MM', 400);
   return { month };
 };
 
 const ensureExpenseCategory = async (client, slug, nameAr) => {
-  const existing = await client.query(`SELECT id FROM expense_categories WHERE slug = $1 LIMIT 1`, [slug]);
+  const existing = await client.query(`SELECT id FROM expense_categories WHERE slug = $1 LIMIT 1`, [
+    slug,
+  ]);
   if (existing.rows[0]) return existing.rows[0].id;
   const created = await client.query(
     `INSERT INTO expense_categories (name_ar, slug, is_active) VALUES ($1, $2, TRUE) RETURNING id`,
-    [nameAr, slug]
+    [nameAr, slug],
   );
   return created.rows[0].id;
 };
@@ -31,7 +32,8 @@ const normalizeTime = (value) => {
 const datesBetween = (fromDate, toDate) => {
   const start = new Date(`${fromDate}T00:00:00Z`);
   const end = new Date(`${toDate || fromDate}T00:00:00Z`);
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) throw new AppError('نطاق التاريخ غير صحيح', 400);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()))
+    throw new AppError('نطاق التاريخ غير صحيح', 400);
   if (end < start) throw new AppError('تاريخ النهاية يجب أن يكون بعد تاريخ البداية', 400);
   const days = Math.floor((end.getTime() - start.getTime()) / 86400000) + 1;
   if (days > 31) throw new AppError('يمكن تسجيل الحضور حتى 31 يوم في العملية الواحدة', 400);
@@ -53,7 +55,9 @@ const mergeDateWithTime = (date, dateTimeValue) => {
 export const getHrSummary = async (periodMonth) => {
   const { month } = getMonthBounds(periodMonth);
   const [employees, todayAttendance, advances, payroll] = await Promise.all([
-    query(`SELECT COUNT(*)::int AS count FROM employees WHERE deleted_at IS NULL AND is_active = TRUE`),
+    query(
+      `SELECT COUNT(*)::int AS count FROM employees WHERE deleted_at IS NULL AND is_active = TRUE`,
+    ),
     query(`
       SELECT
         COUNT(*) FILTER (WHERE status = 'present')::int AS present,
@@ -66,12 +70,15 @@ export const getHrSummary = async (periodMonth) => {
       FROM employee_advances
       WHERE deleted_at IS NULL AND status = 'active'
     `),
-    query(`
+    query(
+      `
       SELECT status, total_net, total_advances
       FROM payroll_runs
       WHERE deleted_at IS NULL AND period_month = $1::date
       LIMIT 1
-    `, [month]),
+    `,
+      [month],
+    ),
   ]);
 
   return {
@@ -83,9 +90,8 @@ export const getHrSummary = async (periodMonth) => {
   };
 };
 
-export const listShifts = async () => (
-  await query(`SELECT * FROM employee_shifts WHERE deleted_at IS NULL ORDER BY id`)
-).rows;
+export const listShifts = async () =>
+  (await query(`SELECT * FROM employee_shifts WHERE deleted_at IS NULL ORDER BY id`)).rows;
 
 export const createShift = async (data) => {
   const result = await query(
@@ -99,7 +105,7 @@ export const createShift = async (data) => {
       Math.max(0, Math.floor(toNumber(data.grace_minutes, 15))),
       data.overtime_enabled !== false,
       data.is_active !== false,
-    ]
+    ],
   );
   return result.rows[0];
 };
@@ -147,7 +153,7 @@ export const createEmployee = async (data) => {
       data.start_date || new Date().toISOString().slice(0, 10),
       data.notes || null,
       data.is_active !== false,
-    ]
+    ],
   );
   return result.rows[0];
 };
@@ -182,35 +188,49 @@ export const updateEmployee = async (id, data) => {
       data.hourly_rate === undefined ? null : roundMoney(data.hourly_rate),
       data.overtime_rate === undefined ? null : roundMoney(data.overtime_rate),
       data.daily_required_hours === undefined ? null : toNumber(data.daily_required_hours, 8),
-      data.work_days_per_month === undefined ? null : Math.max(1, Math.floor(toNumber(data.work_days_per_month, 26))),
+      data.work_days_per_month === undefined
+        ? null
+        : Math.max(1, Math.floor(toNumber(data.work_days_per_month, 26))),
       data.absence_deduction_type || null,
       data.shift_id || null,
       data.start_date || null,
       data.notes || null,
       data.is_active,
       id,
-    ]
+    ],
   );
   if (!result.rows[0]) throw new AppError('الموظف غير موجود', 404);
   return result.rows[0];
 };
 
 export const deleteEmployee = async (id) => {
-  await query(`UPDATE employees SET deleted_at = NOW(), is_active = FALSE WHERE id = $1 AND deleted_at IS NULL`, [id]);
+  await query(
+    `UPDATE employees SET deleted_at = NOW(), is_active = FALSE WHERE id = $1 AND deleted_at IS NULL`,
+    [id],
+  );
   return { deleted: true };
 };
 
 const calculateAttendanceFields = async (employeeId, workDate, checkIn, checkOut, status) => {
-  if (['absent', 'unpaid_leave', 'weekly_off'].includes(status)) return { regularHours: 0, overtimeHours: 0, lateMinutes: 0 };
-  const employee = (await query(`
+  if (['absent', 'unpaid_leave', 'weekly_off'].includes(status))
+    return { regularHours: 0, overtimeHours: 0, lateMinutes: 0 };
+  const employee = (
+    await query(
+      `
     SELECT e.daily_required_hours, s.start_time, s.required_hours, s.grace_minutes, s.overtime_enabled
     FROM employees e
     LEFT JOIN employee_shifts s ON s.id = e.shift_id
     WHERE e.id = $1 AND e.deleted_at IS NULL
-  `, [employeeId])).rows[0];
+  `,
+      [employeeId],
+    )
+  ).rows[0];
   if (!employee) throw new AppError('الموظف غير موجود', 404);
 
-  const requiredHours = toNumber(employee.required_hours, toNumber(employee.daily_required_hours, 8));
+  const requiredHours = toNumber(
+    employee.required_hours,
+    toNumber(employee.daily_required_hours, 8),
+  );
   let regularHours = 0;
   let overtimeHours = 0;
   let lateMinutes = 0;
@@ -235,7 +255,11 @@ const calculateAttendanceFields = async (employeeId, workDate, checkIn, checkOut
     lateMinutes = Math.max(0, Math.floor((actual.getTime() - expected.getTime()) / 60000) - grace);
   }
 
-  return { regularHours: roundMoney(regularHours), overtimeHours: roundMoney(overtimeHours), lateMinutes };
+  return {
+    regularHours: roundMoney(regularHours),
+    overtimeHours: roundMoney(overtimeHours),
+    lateMinutes,
+  };
 };
 
 export const listAttendance = async (filters = {}) => {
@@ -246,9 +270,18 @@ export const listAttendance = async (filters = {}) => {
     JOIN employees e ON e.id = a.employee_id
     WHERE a.deleted_at IS NULL
   `;
-  if (filters.from_date) { params.push(filters.from_date); sql += ` AND a.work_date >= $${params.length}::date`; }
-  if (filters.to_date) { params.push(filters.to_date); sql += ` AND a.work_date <= $${params.length}::date`; }
-  if (filters.employee_id) { params.push(filters.employee_id); sql += ` AND a.employee_id = $${params.length}`; }
+  if (filters.from_date) {
+    params.push(filters.from_date);
+    sql += ` AND a.work_date >= $${params.length}::date`;
+  }
+  if (filters.to_date) {
+    params.push(filters.to_date);
+    sql += ` AND a.work_date <= $${params.length}::date`;
+  }
+  if (filters.employee_id) {
+    params.push(filters.employee_id);
+    sql += ` AND a.employee_id = $${params.length}`;
+  }
   sql += ` ORDER BY a.work_date DESC, e.full_name LIMIT 300`;
   return (await query(sql, params)).rows;
 };
@@ -278,7 +311,18 @@ export const saveAttendance = async (data, userId) => {
        user_id = EXCLUDED.user_id,
        deleted_at = NULL
      RETURNING *`,
-    [employeeId, workDate, checkIn, checkOut, status, calc.regularHours, calc.overtimeHours, calc.lateMinutes, data.notes || null, userId]
+    [
+      employeeId,
+      workDate,
+      checkIn,
+      checkOut,
+      status,
+      calc.regularHours,
+      calc.overtimeHours,
+      calc.lateMinutes,
+      data.notes || null,
+      userId,
+    ],
   );
   return result.rows[0];
 };
@@ -287,18 +331,29 @@ export const saveAttendanceRange = async (data, userId) => {
   const employeeId = Number(data.employee_id);
   if (!employeeId) throw new AppError('يرجى اختيار الموظف أولاً من القائمة', 400);
 
-  const dates = datesBetween(data.from_date || data.work_date, data.to_date || data.from_date || data.work_date);
+  const dates = datesBetween(
+    data.from_date || data.work_date,
+    data.to_date || data.from_date || data.work_date,
+  );
   if (!dates.length) return { count: 0, rows: [] };
 
-  const employee = (await query(`
+  const employee = (
+    await query(
+      `
     SELECT e.daily_required_hours, s.start_time, s.required_hours, s.grace_minutes, s.overtime_enabled
     FROM employees e
     LEFT JOIN employee_shifts s ON s.id = e.shift_id
     WHERE e.id = $1 AND e.deleted_at IS NULL
-  `, [employeeId])).rows[0];
+  `,
+      [employeeId],
+    )
+  ).rows[0];
   if (!employee) throw new AppError('الموظف غير موجود', 404);
 
-  const requiredHours = toNumber(employee.required_hours, toNumber(employee.daily_required_hours, 8));
+  const requiredHours = toNumber(
+    employee.required_hours,
+    toNumber(employee.daily_required_hours, 8),
+  );
   const saved = [];
 
   for (const workDate of dates) {
@@ -328,7 +383,10 @@ export const saveAttendanceRange = async (data, userId) => {
         const expected = new Date(`${workDate}T${employee.start_time}`);
         const actual = new Date(checkIn);
         const grace = Math.max(0, Number(employee.grace_minutes || 0));
-        lateMinutes = Math.max(0, Math.floor((actual.getTime() - expected.getTime()) / 60000) - grace);
+        lateMinutes = Math.max(
+          0,
+          Math.floor((actual.getTime() - expected.getTime()) / 60000) - grace,
+        );
       }
     }
 
@@ -348,7 +406,18 @@ export const saveAttendanceRange = async (data, userId) => {
          user_id = EXCLUDED.user_id,
          deleted_at = NULL
        RETURNING *`,
-      [data.employee_id, workDate, checkIn, checkOut, status, roundMoney(regularHours), roundMoney(overtimeHours), lateMinutes, data.notes || null, userId]
+      [
+        data.employee_id,
+        workDate,
+        checkIn,
+        checkOut,
+        status,
+        roundMoney(regularHours),
+        roundMoney(overtimeHours),
+        lateMinutes,
+        data.notes || null,
+        userId,
+      ],
     );
     saved.push(result.rows[0]);
   }
@@ -364,8 +433,14 @@ export const listAdvances = async (filters = {}) => {
     JOIN employees e ON e.id = a.employee_id
     WHERE a.deleted_at IS NULL
   `;
-  if (filters.employee_id) { params.push(filters.employee_id); sql += ` AND a.employee_id = $${params.length}`; }
-  if (filters.status) { params.push(filters.status); sql += ` AND a.status = $${params.length}`; }
+  if (filters.employee_id) {
+    params.push(filters.employee_id);
+    sql += ` AND a.employee_id = $${params.length}`;
+  }
+  if (filters.status) {
+    params.push(filters.status);
+    sql += ` AND a.status = $${params.length}`;
+  }
   sql += ` ORDER BY a.advance_date DESC, a.id DESC LIMIT 300`;
   return (await query(sql, params)).rows;
 };
@@ -382,13 +457,31 @@ export const createAdvance = async (data, userId) => {
     const expense = await client.query(
       `INSERT INTO expenses (expense_number, category_id, title, amount, expense_date, payment_method, recurring, notes, user_id)
        VALUES ($1,$2,$3,$4,$5,$6,FALSE,$7,$8) RETURNING id`,
-      [`EXP-ADV-${Date.now()}`, categoryId, `سلفة موظف`, amount, data.advance_date || new Date(), data.payment_method || 'cash', data.notes || '', userId]
+      [
+        `EXP-ADV-${Date.now()}`,
+        categoryId,
+        `سلفة موظف`,
+        amount,
+        data.advance_date || new Date(),
+        data.payment_method || 'cash',
+        data.notes || '',
+        userId,
+      ],
     );
     const result = await client.query(
       `INSERT INTO employee_advances
         (employee_id, advance_date, amount, installment_amount, installments_count, status, expense_id, notes, user_id)
        VALUES ($1,$2,$3,$4,$5,'active',$6,$7,$8) RETURNING *`,
-      [data.employee_id, data.advance_date || new Date(), amount, installmentAmount, installments, expense.rows[0].id, data.notes || null, userId]
+      [
+        data.employee_id,
+        data.advance_date || new Date(),
+        amount,
+        installmentAmount,
+        installments,
+        expense.rows[0].id,
+        data.notes || null,
+        userId,
+      ],
     );
     await client.query('COMMIT');
     invalidateDashboardCache();
@@ -403,7 +496,8 @@ export const createAdvance = async (data, userId) => {
 
 const calculatePayrollItems = async (periodMonth) => {
   const { month } = getMonthBounds(periodMonth);
-  const result = await query(`
+  const result = await query(
+    `
     WITH bounds AS (
       SELECT $1::date AS start_date, ($1::date + INTERVAL '1 month - 1 day')::date AS end_date
     ),
@@ -446,7 +540,9 @@ const calculatePayrollItems = async (periodMonth) => {
     LEFT JOIN advances adv ON adv.employee_id = e.id
     WHERE e.deleted_at IS NULL AND e.is_active = TRUE
     ORDER BY e.full_name
-  `, [month]);
+  `,
+    [month],
+  );
 
   return result.rows.map((row) => {
     const baseSalary = roundMoney(row.base_salary);
@@ -454,16 +550,19 @@ const calculatePayrollItems = async (periodMonth) => {
     const workedDays = Math.min(toNumber(row.worked_days), workDaysPerMonth);
     const monthlyDailyRate = baseSalary / workDaysPerMonth;
     const dailyRate = row.salary_type === 'daily' ? baseSalary : monthlyDailyRate;
-    const hourlyRate = row.salary_type === 'hourly'
-      ? toNumber(row.hourly_rate)
-      : dailyRate / Math.max(1, toNumber(row.daily_required_hours, 8));
-    const overtimeAmount = roundMoney(toNumber(row.overtime_hours) * (toNumber(row.overtime_rate) || hourlyRate));
-    const absenceDeduction = row.salary_type === 'monthly'
-      ? roundMoney(Math.max(0, workDaysPerMonth - workedDays) * monthlyDailyRate)
-      : 0;
-    const lateDeduction = row.salary_type === 'hourly'
-      ? 0
-      : roundMoney((toNumber(row.late_minutes) / 60) * hourlyRate);
+    const hourlyRate =
+      row.salary_type === 'hourly'
+        ? toNumber(row.hourly_rate)
+        : dailyRate / Math.max(1, toNumber(row.daily_required_hours, 8));
+    const overtimeAmount = roundMoney(
+      toNumber(row.overtime_hours) * (toNumber(row.overtime_rate) || hourlyRate),
+    );
+    const absenceDeduction =
+      row.salary_type === 'monthly'
+        ? roundMoney(Math.max(0, workDaysPerMonth - workedDays) * monthlyDailyRate)
+        : 0;
+    const lateDeduction =
+      row.salary_type === 'hourly' ? 0 : roundMoney((toNumber(row.late_minutes) / 60) * hourlyRate);
     let grossSalary;
     if (row.salary_type === 'hourly') {
       grossSalary = roundMoney(toNumber(row.regular_hours) * hourlyRate + overtimeAmount);
@@ -497,7 +596,9 @@ export const previewPayroll = async (periodMonth) => {
     items,
     totals: {
       gross: roundMoney(items.reduce((sum, item) => sum + item.gross_salary, 0)),
-      deductions: roundMoney(items.reduce((sum, item) => sum + item.absence_deduction + item.late_deduction, 0)),
+      deductions: roundMoney(
+        items.reduce((sum, item) => sum + item.absence_deduction + item.late_deduction, 0),
+      ),
       advances: roundMoney(items.reduce((sum, item) => sum + item.advance_deduction, 0)),
       net: roundMoney(items.reduce((sum, item) => sum + item.net_salary, 0)),
     },
@@ -511,9 +612,10 @@ export const createOrRecalculatePayroll = async (periodMonth, userId) => {
     await client.query('BEGIN');
     const existing = await client.query(
       `SELECT * FROM payroll_runs WHERE period_month = $1::date AND deleted_at IS NULL LIMIT 1`,
-      [preview.period_month]
+      [preview.period_month],
     );
-    if (existing.rows[0]?.status === 'paid') throw new AppError('لا يمكن إعادة حساب شهر تم صرفه بالفعل', 400);
+    if (existing.rows[0]?.status === 'paid')
+      throw new AppError('لا يمكن إعادة حساب شهر تم صرفه بالفعل', 400);
     const run = await client.query(
       `INSERT INTO payroll_runs (period_month, status, total_gross, total_deductions, total_advances, total_net, user_id)
        VALUES ($1::date,'draft',$2,$3,$4,$5,$6)
@@ -521,7 +623,14 @@ export const createOrRecalculatePayroll = async (periodMonth, userId) => {
        DO UPDATE SET status = 'draft', total_gross = EXCLUDED.total_gross, total_deductions = EXCLUDED.total_deductions,
          total_advances = EXCLUDED.total_advances, total_net = EXCLUDED.total_net, user_id = EXCLUDED.user_id
        RETURNING *`,
-      [preview.period_month, preview.totals.gross, preview.totals.deductions, preview.totals.advances, preview.totals.net, userId]
+      [
+        preview.period_month,
+        preview.totals.gross,
+        preview.totals.deductions,
+        preview.totals.advances,
+        preview.totals.net,
+        userId,
+      ],
     );
     await client.query(`DELETE FROM payroll_items WHERE payroll_run_id = $1`, [run.rows[0].id]);
     for (const item of preview.items) {
@@ -531,10 +640,21 @@ export const createOrRecalculatePayroll = async (periodMonth, userId) => {
            late_minutes, overtime_amount, absence_deduction, late_deduction, advance_deduction, gross_salary, net_salary)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
         [
-          run.rows[0].id, item.employee_id, item.base_salary, item.worked_days, item.absent_days,
-          item.regular_hours, item.overtime_hours, item.late_minutes, item.overtime_amount,
-          item.absence_deduction, item.late_deduction, item.advance_deduction, item.gross_salary, item.net_salary,
-        ]
+          run.rows[0].id,
+          item.employee_id,
+          item.base_salary,
+          item.worked_days,
+          item.absent_days,
+          item.regular_hours,
+          item.overtime_hours,
+          item.late_minutes,
+          item.overtime_amount,
+          item.absence_deduction,
+          item.late_deduction,
+          item.advance_deduction,
+          item.gross_salary,
+          item.net_salary,
+        ],
       );
     }
     await client.query('COMMIT');
@@ -547,44 +667,57 @@ export const createOrRecalculatePayroll = async (periodMonth, userId) => {
   }
 };
 
-export const listPayrollRuns = async () => (
-  await query(`SELECT * FROM payroll_runs WHERE deleted_at IS NULL ORDER BY period_month DESC LIMIT 36`)
-).rows;
+export const listPayrollRuns = async () =>
+  (
+    await query(
+      `SELECT * FROM payroll_runs WHERE deleted_at IS NULL ORDER BY period_month DESC LIMIT 36`,
+    )
+  ).rows;
 
 export const getPayrollRun = async (id) => {
-  const run = (await query(`SELECT * FROM payroll_runs WHERE id = $1 AND deleted_at IS NULL`, [id])).rows[0];
+  const run = (await query(`SELECT * FROM payroll_runs WHERE id = $1 AND deleted_at IS NULL`, [id]))
+    .rows[0];
   if (!run) throw new AppError('مسير المرتبات غير موجود', 404);
-  const items = (await query(`
+  const items = (
+    await query(
+      `
     SELECT pi.*, e.full_name AS employee_name, e.job_title
     FROM payroll_items pi
     JOIN employees e ON e.id = pi.employee_id
     WHERE pi.payroll_run_id = $1
     ORDER BY e.full_name
-  `, [id])).rows;
+  `,
+      [id],
+    )
+  ).rows;
   return { ...run, items };
 };
 
 const applyAdvanceDeductions = async (client, employeeId, amount) => {
   let remaining = roundMoney(amount);
   if (remaining <= 0) return;
-  const advances = await client.query(`
+  const advances = await client.query(
+    `
     SELECT id, amount, installment_amount, paid_installments
     FROM employee_advances
     WHERE employee_id = $1 AND deleted_at IS NULL AND status = 'active'
     ORDER BY advance_date, id
-  `, [employeeId]);
+  `,
+    [employeeId],
+  );
   for (const advance of advances.rows) {
     if (remaining <= 0) break;
     const installment = roundMoney(advance.installment_amount || advance.amount);
     const balance = roundMoney(advance.amount - installment * Number(advance.paid_installments));
     const deduction = Math.min(remaining, balance, installment);
-    const newPaidInstallments = Math.round((Number(advance.paid_installments) + (deduction / installment)) * 10000) / 10000;
+    const newPaidInstallments =
+      Math.round((Number(advance.paid_installments) + deduction / installment) * 10000) / 10000;
     const newBalance = roundMoney(balance - deduction);
     await client.query(
       `UPDATE employee_advances
        SET paid_installments = $1, status = CASE WHEN $2 <= 0.01 THEN 'closed' ELSE status END
        WHERE id = $3`,
-      [newPaidInstallments, newBalance, advance.id]
+      [newPaidInstallments, newBalance, advance.id],
     );
     remaining = roundMoney(remaining - deduction);
   }
@@ -594,20 +727,39 @@ export const payPayrollRun = async (id, userId, paymentMethod = 'cash') => {
   const client = await getClient();
   try {
     await client.query('BEGIN');
-    const run = (await client.query(`SELECT * FROM payroll_runs WHERE id = $1 AND deleted_at IS NULL FOR UPDATE`, [id])).rows[0];
+    const run = (
+      await client.query(
+        `SELECT * FROM payroll_runs WHERE id = $1 AND deleted_at IS NULL FOR UPDATE`,
+        [id],
+      )
+    ).rows[0];
     if (!run) throw new AppError('مسير المرتبات غير موجود', 404);
     if (run.status === 'paid') throw new AppError('تم صرف هذا المسير بالفعل', 400);
     const categoryId = await ensureExpenseCategory(client, 'salaries', 'مرتبات');
     const expense = await client.query(
       `INSERT INTO expenses (expense_number, category_id, title, amount, expense_date, payment_method, recurring, notes, user_id)
        VALUES ($1,$2,$3,$4,CURRENT_DATE,$5,FALSE,$6,$7) RETURNING id`,
-      [`EXP-PAY-${Date.now()}`, categoryId, `صرف مرتبات ${String(run.period_month).slice(0, 7)}`, run.total_net, paymentMethod, 'مصروف صافى المرتبات بعد خصم السلف', userId]
+      [
+        `EXP-PAY-${Date.now()}`,
+        categoryId,
+        `صرف مرتبات ${String(run.period_month).slice(0, 7)}`,
+        run.total_net,
+        paymentMethod,
+        'مصروف صافى المرتبات بعد خصم السلف',
+        userId,
+      ],
     );
-    const items = (await client.query(`SELECT employee_id, advance_deduction FROM payroll_items WHERE payroll_run_id = $1`, [id])).rows;
-    for (const item of items) await applyAdvanceDeductions(client, item.employee_id, item.advance_deduction);
+    const items = (
+      await client.query(
+        `SELECT employee_id, advance_deduction FROM payroll_items WHERE payroll_run_id = $1`,
+        [id],
+      )
+    ).rows;
+    for (const item of items)
+      await applyAdvanceDeductions(client, item.employee_id, item.advance_deduction);
     const updated = await client.query(
       `UPDATE payroll_runs SET status = 'paid', paid_at = NOW(), expense_id = $1, user_id = $2 WHERE id = $3 RETURNING *`,
-      [expense.rows[0].id, userId, id]
+      [expense.rows[0].id, userId, id],
     );
     await client.query('COMMIT');
     invalidateDashboardCache();
@@ -629,7 +781,8 @@ export const deleteAdvance = async (id) => {
   const client = await getClient();
   try {
     await client.query('BEGIN');
-    const adv = (await client.query(`SELECT expense_id FROM employee_advances WHERE id = $1`, [id])).rows[0];
+    const adv = (await client.query(`SELECT expense_id FROM employee_advances WHERE id = $1`, [id]))
+      .rows[0];
     if (adv?.expense_id) {
       await client.query(`UPDATE expenses SET deleted_at = NOW() WHERE id = $1`, [adv.expense_id]);
     }
@@ -649,7 +802,12 @@ export const deletePayrollRun = async (id) => {
   const client = await getClient();
   try {
     await client.query('BEGIN');
-    const run = (await client.query(`SELECT status, expense_id FROM payroll_runs WHERE id = $1 AND deleted_at IS NULL`, [id])).rows[0];
+    const run = (
+      await client.query(
+        `SELECT status, expense_id FROM payroll_runs WHERE id = $1 AND deleted_at IS NULL`,
+        [id],
+      )
+    ).rows[0];
     if (!run) throw new AppError('مسير المرتبات غير موجود', 404);
     if (run.status === 'paid') throw new AppError('لا يمكن حذف مسير مرتبات تم صرفه بالفعل', 400);
     await client.query(`UPDATE payroll_runs SET deleted_at = NOW() WHERE id = $1`, [id]);
@@ -677,7 +835,7 @@ export const getAttendanceSummary = async (filters = {}) => {
     FROM employees e
     LEFT JOIN employee_attendance a ON a.employee_id = e.id AND a.deleted_at IS NULL
   `;
-  
+
   const joinConditions = [];
   if (filters.from_date) {
     params.push(filters.from_date);
@@ -690,12 +848,12 @@ export const getAttendanceSummary = async (filters = {}) => {
   if (joinConditions.length) {
     sql += ` AND ${joinConditions.join(' AND ')}`;
   }
-  
+
   sql += `
     WHERE e.deleted_at IS NULL AND e.is_active = TRUE
     GROUP BY e.id, e.full_name, e.job_title, e.base_salary
     ORDER BY e.full_name
   `;
-  
+
   return (await query(sql, params)).rows;
 };

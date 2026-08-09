@@ -5,16 +5,21 @@
   "main": "src/index.js",
   "type": "module",
   "scripts": {
-    "start": "node src/index.js",
-    "dev": "node --watch-path=src src/index.js",
-    "test": "node scripts/run-tests.js",
+    "start": "node --import tsx src/index.js",
+    "dev": "node --import tsx --watch-path=src src/index.js",
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
     "setup-db": "node src/database/setup.js",
     "reset-admin": "node src/database/reset-admin.js",
     "factory-reset": "node src/database/factoryReset.js",
     "migrate-supabase": "node scripts/migrate-supabase.js"
   },
   "dependencies": {
+    "@sentry/node": "^10.69.0",
+    "@sentry/profiling-node": "^10.69.0",
     "bcryptjs": "^2.4.3",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.21.0",
@@ -32,5 +37,22 @@
     "ws": "^8.21.0",
     "xlsx": "^0.18.5",
     "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/cookie-parser": "^1.4.10",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/morgan": "^1.9.10",
+    "@types/multer": "^2.2.0",
+    "@types/node": "^26.2.0",
+    "@types/pg": "^8.21.0",
+    "@types/uuid": "^10.0.0",
+    "@types/ws": "^8.18.1",
+    "@vitest/coverage-v8": "^4.1.10",
+    "tsx": "^4.23.11",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.10"
   }
 }

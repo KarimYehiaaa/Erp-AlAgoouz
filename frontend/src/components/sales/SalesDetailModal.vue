@@ -21,7 +21,9 @@
         </div>
         <div class="info-item">
           <span class="label">حالة الدفع:</span>
-          <span class="value badge" :class="sale.payment_status">{{ paymentStatusLabel(sale.payment_status) }}</span>
+          <span class="value badge" :class="sale.payment_status">{{
+            paymentStatusLabel(sale.payment_status)
+          }}</span>
         </div>
       </div>
 
@@ -107,8 +109,15 @@ const paymentStatusLabel = (status) => {
   border-bottom: 1px solid var(--border);
   padding-bottom: 12px;
 
-  h3 { margin: 0; }
-  .btn-close { border: none; background: transparent; font-size: 1.2rem; cursor: pointer; }
+  h3 {
+    margin: 0;
+  }
+  .btn-close {
+    border: none;
+    background: transparent;
+    font-size: 1.2rem;
+    cursor: pointer;
+  }
 }
 
 .sale-info-grid {
@@ -123,8 +132,13 @@ const paymentStatusLabel = (status) => {
 
 .info-item {
   font-size: 0.88rem;
-  .label { color: var(--text-muted); margin-left: 6px; }
-  .value { font-weight: 600; }
+  .label {
+    color: var(--text-muted);
+    margin-left: 6px;
+  }
+  .value {
+    font-weight: 600;
+  }
 }
 
 .sale-totals {

@@ -5,9 +5,7 @@
       <span class="sessions-count">{{ sessions.length }} جلسة</span>
     </div>
 
-    <div v-if="!sessions.length" class="sessions-empty">
-      لا توجد جلسات نشطة
-    </div>
+    <div v-if="!sessions.length" class="sessions-empty">لا توجد جلسات نشطة</div>
 
     <div v-else class="sessions-list">
       <div v-for="session in sessions" :key="session.id" class="session-card">
@@ -69,7 +67,12 @@ const formatTime = (ts) => {
   if (diff < 60) return 'الآن';
   if (diff < 3600) return `منذ ${Math.floor(diff / 60)} د`;
   if (diff < 86400) return `منذ ${Math.floor(diff / 3600)} س`;
-  return d.toLocaleDateString('ar-EG', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  return d.toLocaleDateString('ar-EG', {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 };
 
 const shortenAgent = (ua) => {
@@ -86,8 +89,8 @@ const shortenAgent = (ua) => {
 <style scoped>
 .sessions-panel {
   border-radius: 16px;
-  background: var(--card-bg, rgba(255,255,255,0.04));
-  border: 1px solid var(--border, rgba(255,255,255,0.08));
+  background: var(--card-bg, rgba(255, 255, 255, 0.04));
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
   overflow: hidden;
 }
 
@@ -96,7 +99,7 @@ const shortenAgent = (ua) => {
   justify-content: space-between;
   align-items: center;
   padding: 16px 20px;
-  border-bottom: 1px solid var(--border, rgba(255,255,255,0.06));
+  border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.06));
 }
 
 .sessions-title {
@@ -111,7 +114,7 @@ const shortenAgent = (ua) => {
   font-weight: 700;
   padding: 3px 10px;
   border-radius: 8px;
-  background: rgba(59,130,246,0.12);
+  background: rgba(59, 130, 246, 0.12);
   color: #3b82f6;
 }
 
@@ -132,12 +135,12 @@ const shortenAgent = (ua) => {
   align-items: center;
   gap: 12px;
   padding: 12px 20px;
-  border-bottom: 1px solid var(--border, rgba(255,255,255,0.04));
+  border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.04));
   transition: background 0.2s;
 }
 
 .session-card:hover {
-  background: rgba(255,255,255,0.02);
+  background: rgba(255, 255, 255, 0.02);
 }
 
 .session-avatar {
@@ -171,7 +174,8 @@ const shortenAgent = (ua) => {
   margin-top: 2px;
 }
 
-.session-ip, .session-time {
+.session-ip,
+.session-time {
   font-size: 0.7rem;
   color: var(--text-muted, #888);
 }
@@ -186,8 +190,8 @@ const shortenAgent = (ua) => {
   width: 30px;
   height: 30px;
   border-radius: 8px;
-  border: 1px solid rgba(239,68,68,0.2);
-  background: rgba(239,68,68,0.08);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  background: rgba(239, 68, 68, 0.08);
   color: #ef4444;
   font-size: 0.9rem;
   cursor: pointer;
@@ -198,8 +202,8 @@ const shortenAgent = (ua) => {
 }
 
 .btn-revoke:hover:not(:disabled) {
-  background: rgba(239,68,68,0.2);
-  border-color: rgba(239,68,68,0.4);
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.4);
 }
 
 .btn-revoke:disabled {
@@ -209,7 +213,7 @@ const shortenAgent = (ua) => {
 
 /* Failed Logins */
 .failed-section {
-  border-top: 2px solid rgba(239,68,68,0.15);
+  border-top: 2px solid rgba(239, 68, 68, 0.15);
 }
 
 .failed-title {
@@ -232,7 +236,7 @@ const shortenAgent = (ua) => {
   padding: 8px 20px;
   font-size: 0.76rem;
   color: var(--text-muted, #888);
-  border-bottom: 1px solid var(--border, rgba(255,255,255,0.03));
+  border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.03));
 }
 
 .failed-icon {

@@ -1,5 +1,5 @@
 import { getClient, query } from '../database/pool.js';
-import { AppError } from '../middleware/errorHandler.js';
+import { AppError } from '../types/errors.js';
 import { lockInventoryRow } from './inventoryService.js';
 import { invalidateDashboardCache } from './dashboardService.js';
 
@@ -16,7 +16,7 @@ export const createStocktake = async (warehouseId, userId, notes = '') => {
     // 1. التحقق من وجود المخزن وصلاحيته
     const whRes = await client.query(
       `SELECT id, name_ar FROM warehouses WHERE id = $1 AND deleted_at IS NULL AND is_active = TRUE`,
-      [warehouseId]
+      [warehouseId],
     );
     if (!whRes.rows[0]) {
       throw new AppError('المخزن المحدد غير موجود أو غير نشط', 404);
@@ -25,10 +25,13 @@ export const createStocktake = async (warehouseId, userId, notes = '') => {
     // 2. التحقق من عدم وجود جرد معلق (مسودة) لنفس المخزن لتفادي التعارض
     const pendingRes = await client.query(
       `SELECT id FROM stocktakes WHERE warehouse_id = $1 AND status = 'draft' LIMIT 1`,
-      [warehouseId]
+      [warehouseId],
     );
     if (pendingRes.rows[0]) {
-      throw new AppError('يوجد عملية جرد مسودة معلقة بالفعل لهذا المخزن. يرجى اعتمادها أو حذفها أولاً.', 400);
+      throw new AppError(
+        'يوجد عملية جرد مسودة معلقة بالفعل لهذا المخزن. يرجى اعتمادها أو حذفها أولاً.',
+        400,
+      );
     }
 
     // 3. إنشاء الجرد الرئيسي
@@ -36,7 +39,7 @@ export const createStocktake = async (warehouseId, userId, notes = '') => {
       `INSERT INTO stocktakes (warehouse_id, status, notes, created_by)
        VALUES ($1, 'draft', $2, $3)
        RETURNING *`,
-      [warehouseId, notes, userId]
+      [warehouseId, notes, userId],
     );
     const stocktake = stocktakeRes.rows[0];
 
@@ -57,7 +60,7 @@ export const createStocktake = async (warehouseId, userId, notes = '') => {
              AND r.deleted_at IS NULL 
              AND r.is_active = TRUE
          )`,
-      [warehouseId]
+      [warehouseId],
     );
 
     const items = productsRes.rows;
@@ -68,7 +71,7 @@ export const createStocktake = async (warehouseId, userId, notes = '') => {
         await client.query(
           `INSERT INTO stocktake_items (stocktake_id, product_id, system_quantity, unit_cost)
            VALUES ($1, $2, $3, $4)`,
-          [stocktake.id, item.product_id, item.system_quantity, item.unit_cost]
+          [stocktake.id, item.product_id, item.system_quantity, item.unit_cost],
         );
       }
     }
@@ -104,7 +107,7 @@ export const getStocktakeList = async () => {
      FROM stocktakes s
      JOIN warehouses w ON s.warehouse_id = w.id
      JOIN users u ON s.created_by = u.id
-     ORDER BY s.created_at DESC`
+     ORDER BY s.created_at DESC`,
   );
   return res.rows;
 };
@@ -130,7 +133,7 @@ export const getStocktakeDetails = async (stocktakeId) => {
      JOIN warehouses w ON s.warehouse_id = w.id
      JOIN users u ON s.created_by = u.id
      WHERE s.id = $1`,
-    [stocktakeId]
+    [stocktakeId],
   );
 
   if (!stocktakeRes.rows[0]) {
@@ -153,7 +156,7 @@ export const getStocktakeDetails = async (stocktakeId) => {
      JOIN products p ON si.product_id = p.id
      WHERE si.stocktake_id = $1
      ORDER BY p.name_ar`,
-    [stocktakeId]
+    [stocktakeId],
   );
 
   return {
@@ -175,7 +178,7 @@ export const updateStocktakeItems = async (stocktakeId, data) => {
     // التحقق من حالة الجرد
     const stocktakeRes = await client.query(
       `SELECT status FROM stocktakes WHERE id = $1 FOR UPDATE`,
-      [stocktakeId]
+      [stocktakeId],
     );
     if (!stocktakeRes.rows[0]) throw new AppError('عملية الجرد غير موجودة', 404);
     if (stocktakeRes.rows[0].status !== 'draft') {
@@ -184,18 +187,16 @@ export const updateStocktakeItems = async (stocktakeId, data) => {
 
     // تحديث الملاحظات إن وجدت
     if (notes !== undefined) {
-      await client.query(
-        `UPDATE stocktakes SET notes = $1 WHERE id = $2`,
-        [notes, stocktakeId]
-      );
+      await client.query(`UPDATE stocktakes SET notes = $1 WHERE id = $2`, [notes, stocktakeId]);
     }
 
     // تحديث البنود
     for (const item of items) {
       const productId = Number(item.product_id);
-      const actualQty = item.actual_quantity === null || item.actual_quantity === undefined 
-        ? null 
-        : Number(item.actual_quantity);
+      const actualQty =
+        item.actual_quantity === null || item.actual_quantity === undefined
+          ? null
+          : Number(item.actual_quantity);
 
       if (!productId) continue;
       if (actualQty !== null && (isNaN(actualQty) || actualQty < 0)) {
@@ -205,18 +206,18 @@ export const updateStocktakeItems = async (stocktakeId, data) => {
       // جلب الكمية الدفترية لحساب الفرق
       const currentItemRes = await client.query(
         `SELECT system_quantity FROM stocktake_items WHERE stocktake_id = $1 AND product_id = $2`,
-        [stocktakeId, productId]
+        [stocktakeId, productId],
       );
 
       if (currentItemRes.rows[0]) {
         const sysQty = Number(currentItemRes.rows[0].system_quantity);
-        const difference = actualQty === null ? null : (actualQty - sysQty);
+        const difference = actualQty === null ? null : actualQty - sysQty;
 
         await client.query(
           `UPDATE stocktake_items 
            SET actual_quantity = $1, difference = $2 
            WHERE stocktake_id = $3 AND product_id = $4`,
-          [actualQty, difference, stocktakeId, productId]
+          [actualQty, difference, stocktakeId, productId],
         );
       }
     }
@@ -240,12 +241,11 @@ export const completeStocktake = async (stocktakeId, userId) => {
     await client.query('BEGIN');
 
     // 1. قفل وسحب بيانات الجرد الرئيسي
-    const stocktakeRes = await client.query(
-      `SELECT * FROM stocktakes WHERE id = $1 FOR UPDATE`,
-      [stocktakeId]
-    );
+    const stocktakeRes = await client.query(`SELECT * FROM stocktakes WHERE id = $1 FOR UPDATE`, [
+      stocktakeId,
+    ]);
     if (!stocktakeRes.rows[0]) throw new AppError('عملية الجرد غير موجودة', 404);
-    
+
     const stocktake = stocktakeRes.rows[0];
     if (stocktake.status !== 'draft') {
       throw new AppError('عملية الجرد معتمدة ومسواة بالفعل', 400);
@@ -257,7 +257,7 @@ export const completeStocktake = async (stocktakeId, userId) => {
        FROM stocktake_items si 
        JOIN products p ON si.product_id = p.id
        WHERE si.stocktake_id = $1`,
-      [stocktakeId]
+      [stocktakeId],
     );
     const items = itemsRes.rows;
 
@@ -294,7 +294,7 @@ export const completeStocktake = async (stocktakeId, userId) => {
            VALUES ($1, $2, $3)
            ON CONFLICT (product_id, warehouse_id, COALESCE(batch_number, ''))
            DO UPDATE SET quantity = EXCLUDED.quantity, updated_at = NOW()`,
-          [item.product_id, stocktake.warehouse_id, actQty]
+          [item.product_id, stocktake.warehouse_id, actQty],
         );
 
         // تسجيل الحركة المخزنية من نوع adjustment
@@ -307,16 +307,7 @@ export const completeStocktake = async (stocktakeId, userId) => {
              product_id, from_warehouse_id, to_warehouse_id, movement_type, 
              quantity, user_id, notes, unit_cost, total_cost
            ) VALUES ($1, $2, $3, 'adjustment', $4, $5, $6, $7, $8)`,
-          [
-            item.product_id, 
-            fromWh, 
-            toWh, 
-            movementQty, 
-            userId, 
-            note, 
-            cost, 
-            (movementQty * cost)
-          ]
+          [item.product_id, fromWh, toWh, movementQty, userId, note, cost, movementQty * cost],
         );
       }
     }
@@ -329,17 +320,17 @@ export const completeStocktake = async (stocktakeId, userId) => {
            total_deficit_value = $1,
            total_surplus_value = $2
        WHERE id = $3`,
-      [totalDeficit, totalSurplus, stocktakeId]
+      [totalDeficit, totalSurplus, stocktakeId],
     );
 
     await client.query('COMMIT');
     invalidateDashboardCache();
 
-    return { 
-      success: true, 
+    return {
+      success: true,
       message: 'تم اعتماد الجرد وتسوية الفروقات بنجاح',
       total_deficit_value: totalDeficit,
-      total_surplus_value: totalSurplus
+      total_surplus_value: totalSurplus,
     };
   } catch (err) {
     await client.query('ROLLBACK');
@@ -353,10 +344,7 @@ export const completeStocktake = async (stocktakeId, userId) => {
  * حذف مسودة الجرد (المسودة فقط)
  */
 export const deleteStocktake = async (stocktakeId) => {
-  const stocktakeRes = await query(
-    `SELECT status FROM stocktakes WHERE id = $1`,
-    [stocktakeId]
-  );
+  const stocktakeRes = await query(`SELECT status FROM stocktakes WHERE id = $1`, [stocktakeId]);
 
   if (!stocktakeRes.rows[0]) {
     throw new AppError('عملية الجرد غير موجودة', 404);

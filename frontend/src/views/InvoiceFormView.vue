@@ -12,7 +12,9 @@
           <label>العميل</label>
           <select v-model="form.customer_id">
             <option :value="null">عميل نقدي (بدون تسجيل)</option>
-            <option v-for="c in customers" :key="c.id" :value="c.id">{{ c.name_ar }} — {{ c.code }}</option>
+            <option v-for="c in customers" :key="c.id" :value="c.id">
+              {{ c.name_ar }} — {{ c.code }}
+            </option>
           </select>
         </div>
         <div class="grid grid-2">
@@ -53,21 +55,46 @@
         </div>
         <div class="form-group">
           <label>ملاحظات</label>
-          <textarea v-model="form.notes" rows="2" placeholder="شروط الدفع، تفاصيل إضافية..."></textarea>
+          <textarea
+            v-model="form.notes"
+            rows="2"
+            placeholder="شروط الدفع، تفاصيل إضافية..."
+          ></textarea>
         </div>
       </div>
 
       <div class="card totals-panel">
         <h3>ملخص المبالغ</h3>
-        <div class="summary-line"><span>المجموع الفرعي</span><strong>{{ formatMoney(subtotal) }}</strong></div>
-        <div class="summary-line"><span>الخصم</span><strong>{{ formatMoney(discountTotal) }}</strong></div>
-        <div class="summary-line"><span>ض.ق.م</span><strong>{{ formatMoney(taxAmount) }}</strong></div>
-        <div class="summary-line grand"><span>الإجمالي</span><strong>{{ formatMoney(grandTotal) }}</strong></div>
-        <button type="button" class="btn btn-outline btn-block" style="margin-bottom: 8px;" @click="showPreview = true">
+        <div class="summary-line">
+          <span>المجموع الفرعي</span><strong>{{ formatMoney(subtotal) }}</strong>
+        </div>
+        <div class="summary-line">
+          <span>الخصم</span><strong>{{ formatMoney(discountTotal) }}</strong>
+        </div>
+        <div class="summary-line">
+          <span>ض.ق.م</span><strong>{{ formatMoney(taxAmount) }}</strong>
+        </div>
+        <div class="summary-line grand">
+          <span>الإجمالي</span><strong>{{ formatMoney(grandTotal) }}</strong>
+        </div>
+        <button
+          type="button"
+          class="btn btn-outline btn-block"
+          style="margin-bottom: 8px"
+          @click="showPreview = true"
+        >
           👁️ معاينة الفاتورة قبل الإصدار
         </button>
         <button type="submit" class="btn btn-primary btn-block" :disabled="saving">
-          {{ saving ? (isEdit ? 'جاري الحفظ...' : 'جاري الإصدار...') : (isEdit ? 'حفظ التعديلات' : 'إصدار الفاتورة') }}
+          {{
+            saving
+              ? isEdit
+                ? 'جاري الحفظ...'
+                : 'جاري الإصدار...'
+              : isEdit
+                ? 'حفظ التعديلات'
+                : 'إصدار الفاتورة'
+          }}
         </button>
       </div>
 
@@ -90,24 +117,56 @@
           <tbody>
             <tr v-for="(line, i) in form.items" :key="i">
               <td>
-                <select 
-                  v-model="line.product_id" 
-                  class="desc-input" 
-                  @change="onProductSelect(line)" 
+                <select
+                  v-model="line.product_id"
+                  class="desc-input"
+                  @change="onProductSelect(line)"
                   required
                 >
                   <option :value="null" disabled>اختر منتج من القائمة *</option>
                   <option v-for="p in products" :key="p.id" :value="p.id">
-                    {{ p.name_ar }} (المخزون المتاح: {{ p.total_quantity !== undefined ? p.total_quantity : (p.quantity || '—') }}) — {{ formatMoney(p.sale_price) }}
+                    {{ p.name_ar }} (المخزون المتاح:
+                    {{ p.total_quantity !== undefined ? p.total_quantity : p.quantity || '—' }}) —
+                    {{ formatMoney(p.sale_price) }}
                   </option>
                 </select>
               </td>
-              <td><input v-model="line.quantity" type="text" inputmode="decimal" placeholder="الكمية" required /></td>
-              <td><input v-model="line.unit_price" type="text" inputmode="decimal" placeholder="السعر" required /></td>
-              <td><input v-model="line.discount_amount" type="text" inputmode="decimal" placeholder="خصم" /></td>
+              <td>
+                <input
+                  v-model="line.quantity"
+                  type="text"
+                  inputmode="decimal"
+                  placeholder="الكمية"
+                  required
+                />
+              </td>
+              <td>
+                <input
+                  v-model="line.unit_price"
+                  type="text"
+                  inputmode="decimal"
+                  placeholder="السعر"
+                  required
+                />
+              </td>
+              <td>
+                <input
+                  v-model="line.discount_amount"
+                  type="text"
+                  inputmode="decimal"
+                  placeholder="خصم"
+                />
+              </td>
               <td class="line-total">{{ formatMoney(lineTotal(line)) }}</td>
               <td>
-                <button v-if="form.items.length > 1" type="button" class="btn btn-sm btn-danger" @click="removeLine(i)">×</button>
+                <button
+                  v-if="form.items.length > 1"
+                  type="button"
+                  class="btn btn-sm btn-danger"
+                  @click="removeLine(i)"
+                >
+                  ×
+                </button>
               </td>
             </tr>
           </tbody>
@@ -117,75 +176,255 @@
 
     <!-- Invoice Preview Modal -->
     <div v-if="showPreview" class="modal-backdrop fade-in" @click.self="showPreview = false">
-      <div class="modal-card card glassmorphic animate-zoom-in" style="max-width: 700px; width: 90%; margin: 40px auto; padding: 24px;">
-        <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 16px;">
-          <h3 style="margin: 0; font-size: 1.15rem; font-weight: 800; color: var(--primary);">👁️ معاينة الفاتورة قبل الإصدار</h3>
-          <button type="button" class="btn-close" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-muted);" @click="showPreview = false">×</button>
+      <div
+        class="modal-card card glassmorphic animate-zoom-in"
+        style="max-width: 700px; width: 90%; margin: 40px auto; padding: 24px"
+      >
+        <div
+          class="modal-header"
+          style="
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 12px;
+            margin-bottom: 16px;
+          "
+        >
+          <h3 style="margin: 0; font-size: 1.15rem; font-weight: 800; color: var(--primary)">
+            👁️ معاينة الفاتورة قبل الإصدار
+          </h3>
+          <button
+            type="button"
+            class="btn-close"
+            style="
+              background: none;
+              border: none;
+              font-size: 1.5rem;
+              cursor: pointer;
+              color: var(--text-muted);
+            "
+            @click="showPreview = false"
+          >
+            ×
+          </button>
         </div>
-        <div class="modal-body" style="direction: rtl; text-align: right;">
+        <div class="modal-body" style="direction: rtl; text-align: right">
           <!-- Elegant Invoice Preview Sheet -->
-          <div class="invoice-sheet" style="background: var(--bg-soft); border-radius: 8px; padding: 24px; border: 1px solid var(--border);">
-            <div class="invoice-sheet-header" style="display: flex; justify-content: space-between; border-bottom: 2px solid var(--border); padding-bottom: 16px; margin-bottom: 20px;">
+          <div
+            class="invoice-sheet"
+            style="
+              background: var(--bg-soft);
+              border-radius: 8px;
+              padding: 24px;
+              border: 1px solid var(--border);
+            "
+          >
+            <div
+              class="invoice-sheet-header"
+              style="
+                display: flex;
+                justify-content: space-between;
+                border-bottom: 2px solid var(--border);
+                padding-bottom: 16px;
+                margin-bottom: 20px;
+              "
+            >
               <div>
-                <h4 style="margin: 0; font-size: 1.25rem; font-weight: 800; color: var(--primary);">بن العجوز ERP</h4>
-                <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: var(--text-muted);">فاتورة مبيعات</p>
+                <h4 style="margin: 0; font-size: 1.25rem; font-weight: 800; color: var(--primary)">
+                  بن العجوز ERP
+                </h4>
+                <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: var(--text-muted)">
+                  فاتورة مبيعات
+                </p>
               </div>
-              <div style="text-align: left;">
-                <p style="margin: 0; font-size: 0.85rem; font-weight: 700;">التاريخ: {{ form.issued_at }}</p>
-                <p v-if="form.due_date" style="margin: 4px 0 0 0; font-size: 0.85rem; color: var(--danger);">الاستحقاق: {{ form.due_date }}</p>
+              <div style="text-align: left">
+                <p style="margin: 0; font-size: 0.85rem; font-weight: 700">
+                  التاريخ: {{ form.issued_at }}
+                </p>
+                <p
+                  v-if="form.due_date"
+                  style="margin: 4px 0 0 0; font-size: 0.85rem; color: var(--danger)"
+                >
+                  الاستحقاق: {{ form.due_date }}
+                </p>
               </div>
             </div>
-            
-            <div class="invoice-sheet-meta" style="margin-bottom: 20px;">
-              <p style="margin: 0 0 6px 0; font-size: 0.9rem;"><strong>العميل:</strong> {{ getCustomerName() }}</p>
-              <p style="margin: 0; font-size: 0.9rem;"><strong>حالة الدفع:</strong> 
-                <span class="badge" :class="form.payment_status" style="padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 700;">
-                  {{ form.payment_status === 'paid' ? 'مدفوعة' : form.payment_status === 'unpaid' ? 'غير مدفوعة' : 'مدفوعة جزئياً' }}
+
+            <div class="invoice-sheet-meta" style="margin-bottom: 20px">
+              <p style="margin: 0 0 6px 0; font-size: 0.9rem">
+                <strong>العميل:</strong> {{ getCustomerName() }}
+              </p>
+              <p style="margin: 0; font-size: 0.9rem">
+                <strong>حالة الدفع:</strong>
+                <span
+                  class="badge"
+                  :class="form.payment_status"
+                  style="padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 700"
+                >
+                  {{
+                    form.payment_status === 'paid'
+                      ? 'مدفوعة'
+                      : form.payment_status === 'unpaid'
+                        ? 'غير مدفوعة'
+                        : 'مدفوعة جزئياً'
+                  }}
                 </span>
               </p>
             </div>
-            
-            <table class="preview-table" style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+
+            <table
+              class="preview-table"
+              style="width: 100%; border-collapse: collapse; margin-bottom: 20px"
+            >
               <thead>
-                <tr style="border-bottom: 1.5px solid var(--border-strong); text-align: right;">
-                  <th style="padding: 8px 4px; font-size: 0.85rem; color: var(--text-muted);">البند / المنتج</th>
-                  <th style="padding: 8px 4px; font-size: 0.85rem; color: var(--text-muted); text-align: center;">الكمية</th>
-                  <th style="padding: 8px 4px; font-size: 0.85rem; color: var(--text-muted); text-align: left;">سعر الوحدة</th>
-                  <th style="padding: 8px 4px; font-size: 0.85rem; color: var(--text-muted); text-align: left;">الإجمالي</th>
+                <tr style="border-bottom: 1.5px solid var(--border-strong); text-align: right">
+                  <th style="padding: 8px 4px; font-size: 0.85rem; color: var(--text-muted)">
+                    البند / المنتج
+                  </th>
+                  <th
+                    style="
+                      padding: 8px 4px;
+                      font-size: 0.85rem;
+                      color: var(--text-muted);
+                      text-align: center;
+                    "
+                  >
+                    الكمية
+                  </th>
+                  <th
+                    style="
+                      padding: 8px 4px;
+                      font-size: 0.85rem;
+                      color: var(--text-muted);
+                      text-align: left;
+                    "
+                  >
+                    سعر الوحدة
+                  </th>
+                  <th
+                    style="
+                      padding: 8px 4px;
+                      font-size: 0.85rem;
+                      color: var(--text-muted);
+                      text-align: left;
+                    "
+                  >
+                    الإجمالي
+                  </th>
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="(line, idx) in form.items.filter(l => l.description?.trim())" :key="idx" style="border-bottom: 1px solid var(--border);">
-                  <td style="padding: 8px 4px; font-size: 0.85rem;">{{ line.description }}</td>
-                  <td style="padding: 8px 4px; font-size: 0.85rem; text-align: center;">{{ line.quantity }}</td>
-                  <td style="padding: 8px 4px; font-size: 0.85rem; text-align: left;">{{ formatMoney(Number(line.unit_price)) }}</td>
-                  <td style="padding: 8px 4px; font-size: 0.85rem; text-align: left; font-weight: 700;">{{ formatMoney(lineTotal(line)) }}</td>
+                <tr
+                  v-for="(line, idx) in form.items.filter((l) => l.description?.trim())"
+                  :key="idx"
+                  style="border-bottom: 1px solid var(--border)"
+                >
+                  <td style="padding: 8px 4px; font-size: 0.85rem">{{ line.description }}</td>
+                  <td style="padding: 8px 4px; font-size: 0.85rem; text-align: center">
+                    {{ line.quantity }}
+                  </td>
+                  <td style="padding: 8px 4px; font-size: 0.85rem; text-align: left">
+                    {{ formatMoney(Number(line.unit_price)) }}
+                  </td>
+                  <td
+                    style="padding: 8px 4px; font-size: 0.85rem; text-align: left; font-weight: 700"
+                  >
+                    {{ formatMoney(lineTotal(line)) }}
+                  </td>
                 </tr>
               </tbody>
             </table>
-            
-            <div class="invoice-sheet-totals" style="display: flex; flex-direction: column; align-items: flex-start; width: 100%; max-width: 250px; margin-right: auto; gap: 8px;">
-              <div style="display: flex; justify-content: space-between; width: 100%; font-size: 0.85rem;">
+
+            <div
+              class="invoice-sheet-totals"
+              style="
+                display: flex;
+                flex-direction: column;
+                align-items: flex-start;
+                width: 100%;
+                max-width: 250px;
+                margin-right: auto;
+                gap: 8px;
+              "
+            >
+              <div
+                style="
+                  display: flex;
+                  justify-content: space-between;
+                  width: 100%;
+                  font-size: 0.85rem;
+                "
+              >
                 <span>المجموع الفرعي:</span> <strong>{{ formatMoney(subtotal) }}</strong>
               </div>
-              <div v-if="discountTotal > 0" style="display: flex; justify-content: space-between; width: 100%; font-size: 0.85rem; color: var(--danger);">
+              <div
+                v-if="discountTotal > 0"
+                style="
+                  display: flex;
+                  justify-content: space-between;
+                  width: 100%;
+                  font-size: 0.85rem;
+                  color: var(--danger);
+                "
+              >
                 <span>الخصم:</span> <strong>-{{ formatMoney(discountTotal) }}</strong>
               </div>
-              <div v-if="form.tax_enabled" style="display: flex; justify-content: space-between; width: 100%; font-size: 0.85rem;">
+              <div
+                v-if="form.tax_enabled"
+                style="
+                  display: flex;
+                  justify-content: space-between;
+                  width: 100%;
+                  font-size: 0.85rem;
+                "
+              >
                 <span>ضريبة القيمة المضافة:</span> <strong>{{ formatMoney(taxAmount) }}</strong>
               </div>
-              <div style="border-top: 1.5px solid var(--border-strong); width: 100%; margin-top: 4px; padding-top: 8px; display: flex; justify-content: space-between; font-size: 1.05rem; color: var(--primary);">
+              <div
+                style="
+                  border-top: 1.5px solid var(--border-strong);
+                  width: 100%;
+                  margin-top: 4px;
+                  padding-top: 8px;
+                  display: flex;
+                  justify-content: space-between;
+                  font-size: 1.05rem;
+                  color: var(--primary);
+                "
+              >
                 <span>الإجمالي النهائي:</span> <strong>{{ formatMoney(grandTotal) }}</strong>
               </div>
             </div>
-            
-            <div v-if="form.notes" style="margin-top: 20px; padding-top: 12px; border-top: 1px dashed var(--border); font-size: 0.8rem; color: var(--text-muted);">
+
+            <div
+              v-if="form.notes"
+              style="
+                margin-top: 20px;
+                padding-top: 12px;
+                border-top: 1px dashed var(--border);
+                font-size: 0.8rem;
+                color: var(--text-muted);
+              "
+            >
               <strong>ملاحظات الشروط:</strong> {{ form.notes }}
             </div>
           </div>
         </div>
-        <div class="modal-footer" style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 16px; border-top: 1px solid var(--border); padding-top: 12px;">
-          <button type="button" class="btn btn-outline" @click="showPreview = false">إغلاق المعاينة</button>
+        <div
+          class="modal-footer"
+          style="
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            margin-top: 16px;
+            border-top: 1px solid var(--border);
+            padding-top: 12px;
+          "
+        >
+          <button type="button" class="btn btn-outline" @click="showPreview = false">
+            إغلاق المعاينة
+          </button>
           <button type="button" class="btn btn-primary" @click="triggerSubmitFromPreview">
             {{ isEdit ? 'تأكيد وحفظ الفاتورة' : 'إصدار الفاتورة الآن' }}
           </button>
@@ -261,7 +500,9 @@ const discountTotal = computed(() => {
   return pct + amt;
 });
 const afterDiscount = computed(() => Math.max(0, subtotal.value - discountTotal.value));
-const taxAmount = computed(() => (form.value.tax_enabled ? (afterDiscount.value * TAX_RATE) / 100 : 0));
+const taxAmount = computed(() =>
+  form.value.tax_enabled ? (afterDiscount.value * TAX_RATE) / 100 : 0,
+);
 const grandTotal = computed(() => afterDiscount.value + taxAmount.value);
 
 const onProductSelect = (line) => {
@@ -290,13 +531,16 @@ const loadInvoice = async () => {
       discount_percent: Number(inv.discount_percent) || 0,
       discount_amount: Number(inv.discount_amount) || 0,
       notes: inv.notes || '',
-      items: inv.items && inv.items.length ? inv.items.map(item => ({
-        product_id: item.product_id,
-        description: item.description,
-        quantity: Number(item.quantity) || 1,
-        unit_price: Number(item.unit_price) || 0,
-        discount_amount: Number(item.discount_amount) || 0,
-      })) : [emptyLine()],
+      items:
+        inv.items && inv.items.length
+          ? inv.items.map((item) => ({
+              product_id: item.product_id,
+              description: item.description,
+              quantity: Number(item.quantity) || 1,
+              unit_price: Number(item.unit_price) || 0,
+              discount_amount: Number(item.discount_amount) || 0,
+            }))
+          : [emptyLine()],
     };
   } catch (e) {
     error.value = e.message || 'فشل تحميل الفاتورة';
@@ -327,7 +571,7 @@ const submit = async () => {
         const p = products.value.find((x) => Number(x.id) === Number(l.product_id));
         return {
           product_id: Number(l.product_id),
-          description: p ? p.name_ar : (l.description || 'منتج مسجل'),
+          description: p ? p.name_ar : l.description || 'منتج مسجل',
           quantity: parseLocalizedNumber(l.quantity),
           unit_price: parseLocalizedNumber(l.unit_price),
           discount_amount: parseLocalizedNumber(l.discount_amount || 0),
@@ -363,36 +607,64 @@ onMounted(async () => {
 </script>
 
 <style lang="scss" scoped>
-.invoice-form-page { max-width: 1100px; margin: 0 auto; }
+.invoice-form-page {
+  max-width: 1100px;
+  margin: 0 auto;
+}
 .page-header {
   display: flex;
   align-items: center;
   gap: 16px;
   margin-bottom: 20px;
-  h2 { margin: 0; font-size: 1.2rem; color: var(--primary); }
+  h2 {
+    margin: 0;
+    font-size: 1.2rem;
+    color: var(--primary);
+  }
 }
-.form-layout { align-items: start; }
-.span-2 { grid-column: 1 / -1; }
+.form-layout {
+  align-items: start;
+}
+.span-2 {
+  grid-column: 1 / -1;
+}
 .items-head {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 16px;
-  h3 { margin: 0; }
+  h3 {
+    margin: 0;
+  }
 }
 .items-table {
   width: 100%;
-  th { text-align: right; padding: 10px; font-size: 0.85rem; color: var(--text-muted); }
-  td { padding: 8px; vertical-align: top; }
-  input, select {
+  th {
+    text-align: right;
+    padding: 10px;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+  }
+  td {
+    padding: 8px;
+    vertical-align: top;
+  }
+  input,
+  select {
     width: 100%;
     padding: 8px;
     border: 2px solid var(--border);
     border-radius: var(--radius);
     background: var(--bg);
   }
-  .product-select { margin-bottom: 6px; }
-  .line-total { font-weight: 700; white-space: nowrap; color: var(--primary); }
+  .product-select {
+    margin-bottom: 6px;
+  }
+  .line-total {
+    font-weight: 700;
+    white-space: nowrap;
+    color: var(--primary);
+  }
 }
 .totals-panel {
   .summary-line {
@@ -407,7 +679,10 @@ onMounted(async () => {
       margin-top: 8px;
     }
   }
-  .btn-block { width: 100%; margin-top: 20px; }
+  .btn-block {
+    width: 100%;
+    margin-top: 20px;
+  }
 }
 .checkbox-label {
   display: flex;

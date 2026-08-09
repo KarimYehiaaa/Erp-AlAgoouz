@@ -20,10 +20,15 @@
           </button>
         </div>
         <button class="btn btn-outline btn-sm" type="button" @click="showWidgetSettings = true">
-          <AppIcon name="theme" style="margin-left: 6px; font-size: 0.9rem;" />
+          <AppIcon name="theme" style="margin-left: 6px; font-size: 0.9rem" />
           تخصيص الودجت
         </button>
-        <button class="btn btn-outline btn-sm" type="button" :disabled="loading" @click="loadDashboard">
+        <button
+          class="btn btn-outline btn-sm"
+          type="button"
+          :disabled="loading"
+          @click="loadDashboard"
+        >
           تحديث
         </button>
       </div>
@@ -51,7 +56,9 @@
     <div v-else-if="error" class="state-panel panel is-error">
       <AppIcon name="warning" />
       <span>{{ error }}</span>
-      <button class="btn btn-primary btn-sm" type="button" @click="loadDashboard">إعادة المحاولة</button>
+      <button class="btn btn-primary btn-sm" type="button" @click="loadDashboard">
+        إعادة المحاولة
+      </button>
     </div>
 
     <template v-else-if="stats">
@@ -60,15 +67,30 @@
       <DashboardPriorityAlerts v-if="widgetVisibility.alertsTables" :stats="stats" />
 
       <section class="overview-grid">
-        <article v-if="authStore.hasPermission('reports.view') && widgetVisibility.financialChart" class="panel chart-panel wide">
+        <article
+          v-if="authStore.hasPermission('reports.view') && widgetVisibility.financialChart"
+          class="panel chart-panel wide"
+        >
           <div class="panel-head">
             <div>
               <h2>الأداء المالي</h2>
               <p>{{ periodLabel }}</p>
             </div>
             <div class="mini-tabs">
-              <button type="button" :class="{ active: performanceMode === 'full' }" @click="setPerformanceMode('full')">كامل</button>
-              <button type="button" :class="{ active: performanceMode === 'sales' }" @click="setPerformanceMode('sales')">مبيعات</button>
+              <button
+                type="button"
+                :class="{ active: performanceMode === 'full' }"
+                @click="setPerformanceMode('full')"
+              >
+                كامل
+              </button>
+              <button
+                type="button"
+                :class="{ active: performanceMode === 'sales' }"
+                @click="setPerformanceMode('sales')"
+              >
+                مبيعات
+              </button>
             </div>
           </div>
           <div class="chart-wrap"><canvas ref="performanceChartRef"></canvas></div>
@@ -84,50 +106,77 @@
       <DashboardMenuMatrix v-if="widgetVisibility.aiInsights" />
 
       <!-- Demand Forecasting Section -->
-      <section v-if="stats && widgetVisibility.forecastingChart" class="overview-grid" style="margin-top: var(--space-5);">
+      <section
+        v-if="stats && widgetVisibility.forecastingChart"
+        class="overview-grid"
+        style="margin-top: var(--space-5)"
+      >
         <article class="panel chart-panel wide">
           <div class="panel-head">
             <div>
               <h2>
-                <AppIcon name="trendingUp" style="margin-left: 8px; color: var(--primary);" />
+                <AppIcon name="trendingUp" style="margin-left: 8px; color: var(--primary)" />
                 التنبؤ الذكي بالطلب (AI Demand Forecast)
               </h2>
               <p>مقارنة المبيعات الفعلية للأسبوع الماضي مع التوقعات الذكية للأيام السبعة القادمة</p>
             </div>
-            <span class="badge badge-info" style="background: var(--accent); color: var(--bg-elevated); font-weight: 800;">رادار الذكاء الاصطناعي</span>
+            <span
+              class="badge badge-info"
+              style="background: var(--accent); color: var(--bg-elevated); font-weight: 800"
+              >رادار الذكاء الاصطناعي</span
+            >
           </div>
-          <div class="chart-wrap" style="height: 300px;"><canvas ref="forecastingChartRef"></canvas></div>
+          <div class="chart-wrap" style="height: 300px">
+            <canvas ref="forecastingChartRef"></canvas>
+          </div>
         </article>
       </section>
 
       <!-- Branch Liquidity Battery Indicators -->
-      <section v-if="stats && widgetVisibility.branchLiquidity" class="overview-grid" style="margin-top: var(--space-5);">
+      <section
+        v-if="stats && widgetVisibility.branchLiquidity"
+        class="overview-grid"
+        style="margin-top: var(--space-5)"
+      >
         <article class="panel chart-panel wide">
           <div class="panel-head">
             <div>
               <h2>
-                <AppIcon name="gauge" style="margin-left: 8px; color: var(--primary);" />
+                <AppIcon name="gauge" style="margin-left: 8px; color: var(--primary)" />
                 مؤشر سيولة واحتياطي الصندوق للفروع (Branch Liquidity)
               </h2>
-              <p>تقييم المخزون المالي الاحتياطي لتغطية المصاريف التشغيلية (المعيار: تغطية 15 يوماً)</p>
+              <p>
+                تقييم المخزون المالي الاحتياطي لتغطية المصاريف التشغيلية (المعيار: تغطية 15 يوماً)
+              </p>
             </div>
             <span class="badge badge-success">مؤشر نشط</span>
           </div>
           <div class="branch-liquidity-grid">
-            <div v-for="branch in branchLiquidityList" :key="branch.name" class="branch-liquidity-card">
+            <div
+              v-for="branch in branchLiquidityList"
+              :key="branch.name"
+              class="branch-liquidity-card"
+            >
               <div class="branch-info">
                 <h3>{{ branch.name }}</h3>
                 <span class="cash-value">{{ formatMoney(branch.cash) }}</span>
               </div>
               <div class="battery-wrapper">
                 <div class="battery-body">
-                  <div class="battery-level" :style="{ width: branch.percent + '%', backgroundColor: branch.color }"></div>
+                  <div
+                    class="battery-level"
+                    :style="{ width: branch.percent + '%', backgroundColor: branch.color }"
+                  ></div>
                 </div>
                 <div class="battery-tip"></div>
               </div>
               <div class="branch-meta">
-                <span class="days-label">يغطي: <strong>{{ branch.days }} يوم</strong></span>
-                <span class="status-badge" :style="{ color: branch.color }">{{ branch.status }}</span>
+                <span class="days-label"
+                  >يغطي: <strong>{{ branch.days }} يوم</strong></span
+                >
+                <span class="status-badge" :style="{ color: branch.color }">{{
+                  branch.status
+                }}</span>
               </div>
             </div>
           </div>
@@ -207,14 +256,21 @@
             <div v-for="row in lowStockRows" :key="row.id" class="stock-alert-card">
               <div class="stock-info">
                 <span class="stock-name">{{ row.name_ar }}</span>
-                <span class="stock-level" :class="Number(row.total_qty) <= 0 ? 'text-danger-bold' : 'text-warning-bold'">
+                <span
+                  class="stock-level"
+                  :class="Number(row.total_qty) <= 0 ? 'text-danger-bold' : 'text-warning-bold'"
+                >
                   {{ number(row.total_qty) }} / {{ row.min_stock }} وحدة
                 </span>
               </div>
               <div class="progress-bar-container">
-                <div 
-                  class="progress-bar" 
-                  :style="{ width: Math.min((Number(row.total_qty) / (Number(row.min_stock) || 1)) * 100, 100) + '%' }"
+                <div
+                  class="progress-bar"
+                  :style="{
+                    width:
+                      Math.min((Number(row.total_qty) / (Number(row.min_stock) || 1)) * 100, 100) +
+                      '%',
+                  }"
                   :class="Number(row.total_qty) <= 0 ? 'empty' : 'depleted'"
                 ></div>
               </div>
@@ -230,7 +286,12 @@
             <RouterLink to="/inventory">المتابعة</RouterLink>
           </div>
           <div class="alert-modern-stack">
-            <div v-for="alert in alertItems" :key="alert.key" class="alert-modern-item" :class="alert.tone">
+            <div
+              v-for="alert in alertItems"
+              :key="alert.key"
+              class="alert-modern-item"
+              :class="alert.tone"
+            >
               <div class="alert-icon-box">
                 <AppIcon :name="alert.tone === 'danger' ? 'warning' : 'info'" />
               </div>
@@ -249,12 +310,18 @@
             <RouterLink to="/operations">مركز التشغيل</RouterLink>
           </div>
           <div class="timeline-feed">
-            <div v-for="activity in recentActivityRows" :key="activity.created_at + activity.action_ar" class="timeline-row">
+            <div
+              v-for="activity in recentActivityRows"
+              :key="activity.created_at + activity.action_ar"
+              class="timeline-row"
+            >
               <div class="timeline-marker" :class="activity.module"></div>
               <div class="timeline-content">
                 <div class="timeline-header">
                   <span class="user-badge">{{ activity.full_name || 'النظام' }}</span>
-                  <span class="module-badge" :class="activity.module">{{ moduleLabel(activity.module) }}</span>
+                  <span class="module-badge" :class="activity.module">{{
+                    moduleLabel(activity.module)
+                  }}</span>
                 </div>
                 <p class="activity-text">{{ activity.action_ar }}</p>
                 <div class="timeline-meta">
@@ -276,8 +343,10 @@
             <button class="drawer-close" @click="showWidgetSettings = false">×</button>
           </div>
           <div class="drawer-body">
-            <p class="drawer-desc">اختر العناصر والودجت التي ترغب في إظهارها في لوحة التحكم الرئيسية:</p>
-            
+            <p class="drawer-desc">
+              اختر العناصر والودجت التي ترغب في إظهارها في لوحة التحكم الرئيسية:
+            </p>
+
             <div class="toggle-group">
               <label class="toggle-control">
                 <input type="checkbox" v-model="widgetVisibility.metrics" />
@@ -297,7 +366,9 @@
               </label>
               <label class="toggle-control">
                 <input type="checkbox" v-model="widgetVisibility.distributionCharts" />
-                <span class="control-label">رسوم التوزيعات (البيع، التحصيل، المصاريف، ربحية الفئات)</span>
+                <span class="control-label"
+                  >رسوم التوزيعات (البيع، التحصيل، المصاريف، ربحية الفئات)</span
+                >
               </label>
               <label class="toggle-control">
                 <input type="checkbox" v-model="widgetVisibility.indicatorCharts" />
@@ -323,7 +394,8 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
+// @ts-nocheck
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import AppIcon from '@/components/AppIcon.vue';
@@ -360,7 +432,7 @@ const widgetVisibility = ref({
   indicatorCharts: true,
   alertsTables: true,
   forecastingChart: true,
-  branchLiquidity: true
+  branchLiquidity: true,
 });
 
 const savedWidgets = localStorage.getItem('dashboard_widgets');
@@ -370,12 +442,16 @@ if (savedWidgets) {
   } catch (e) {}
 }
 
-watch(widgetVisibility, () => {
-  localStorage.setItem('dashboard_widgets', JSON.stringify(widgetVisibility.value));
-  nextTick(() => {
-    renderCharts();
-  });
-}, { deep: true });
+watch(
+  widgetVisibility,
+  () => {
+    localStorage.setItem('dashboard_widgets', JSON.stringify(widgetVisibility.value));
+    nextTick(() => {
+      renderCharts();
+    });
+  },
+  { deep: true },
+);
 
 const warehousesList = ref([]);
 const loadWarehouses = async () => {
@@ -412,25 +488,34 @@ const rangeOptions = [
 
 const money = (value) => formatMoney(value, { compact: true });
 const number = (value) => Number(value || 0).toLocaleString('en-GB', { maximumFractionDigits: 2 });
-const percent = (value) => `${Number(value || 0).toLocaleString('en-GB', { maximumFractionDigits: 1 })}%`;
-const saleTypeLabel = (type) => ({ branch: 'فرع', wholesale: 'جملة', pos: 'نقطة بيع' }[type] || type || 'بيع');
+const percent = (value) =>
+  `${Number(value || 0).toLocaleString('en-GB', { maximumFractionDigits: 1 })}%`;
+const saleTypeLabel = (type) =>
+  ({ branch: 'فرع', wholesale: 'جملة', pos: 'نقطة بيع' })[type] || type || 'بيع';
 
-const moduleLabel = (mod) => ({
-  auth: 'الأمان',
-  users: 'المستخدمين',
-  products: 'المنتجات',
-  sales: 'المبيعات',
-  inventory: 'المخزون',
-  expenses: 'المصروفات',
-  purchases: 'المشتريات',
-  hr: 'الرواتب والموظفين',
-  settings: 'الإعدادات',
-}[mod] || mod || 'عام');
+const moduleLabel = (mod) =>
+  ({
+    auth: 'الأمان',
+    users: 'المستخدمين',
+    products: 'المنتجات',
+    sales: 'المبيعات',
+    inventory: 'المخزون',
+    expenses: 'المصروفات',
+    purchases: 'المشتريات',
+    hr: 'الرواتب والموظفين',
+    settings: 'الإعدادات',
+  })[mod] ||
+  mod ||
+  'عام';
 
 const formatTime = (value) => {
   if (!value) return '';
   const date = new Date(value);
-  return date.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }) + ' - ' + date.toLocaleDateString('ar-EG', { day: 'numeric', month: 'short' });
+  return (
+    date.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }) +
+    ' - ' +
+    date.toLocaleDateString('ar-EG', { day: 'numeric', month: 'short' })
+  );
 };
 
 const formatDate = (value) => {
@@ -453,7 +538,8 @@ const shortDate = (value) => {
   return new Date(value).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
 };
 
-const isoDate = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const isoDate = (d) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
 const dashboardParams = computed(() => {
   const params = { range: selectedRange.value };
@@ -479,18 +565,32 @@ const periodLabel = computed(() => {
 
 const authStore = useAuthStore();
 
-
-
-
-
 const alertItems = computed(() => [
-  { key: 'stock', label: 'منتجات أقل من الحد الأدنى', value: number(stats.value?.stockAlerts), tone: Number(stats.value?.stockAlerts || 0) ? 'danger' : 'success' },
-  { key: 'unpaid', label: 'فواتير غير محصلة', value: `${number(stats.value?.unpaidInvoices?.count)} / ${money(stats.value?.unpaidInvoices?.amount)}`, tone: Number(stats.value?.unpaidInvoices?.amount || 0) ? 'warning' : 'success' },
-  { key: 'recipes', label: 'وصفات بها مكونات ناقصة', value: number(stats.value?.recipeSummary?.shortageRecipes), tone: Number(stats.value?.recipeSummary?.shortageRecipes || 0) ? 'warning' : 'success' },
-  { key: 'customers', label: 'عدد العملاء النشطين', value: number(stats.value?.customersCount), tone: 'info' },
+  {
+    key: 'stock',
+    label: 'منتجات أقل من الحد الأدنى',
+    value: number(stats.value?.stockAlerts),
+    tone: Number(stats.value?.stockAlerts || 0) ? 'danger' : 'success',
+  },
+  {
+    key: 'unpaid',
+    label: 'فواتير غير محصلة',
+    value: `${number(stats.value?.unpaidInvoices?.count)} / ${money(stats.value?.unpaidInvoices?.amount)}`,
+    tone: Number(stats.value?.unpaidInvoices?.amount || 0) ? 'warning' : 'success',
+  },
+  {
+    key: 'recipes',
+    label: 'وصفات بها مكونات ناقصة',
+    value: number(stats.value?.recipeSummary?.shortageRecipes),
+    tone: Number(stats.value?.recipeSummary?.shortageRecipes || 0) ? 'warning' : 'success',
+  },
+  {
+    key: 'customers',
+    label: 'عدد العملاء النشطين',
+    value: number(stats.value?.customersCount),
+    tone: 'info',
+  },
 ]);
-
-
 
 const topProductsRows = computed(() => stats.value?.topProducts || []);
 const topCustomersRows = computed(() => stats.value?.topCustomers || []);
@@ -523,10 +623,14 @@ const destroyCharts = () => {
 };
 
 const chartColors = () => ({
-  primary: getComputedStyle(document.documentElement).getPropertyValue('--primary').trim() || '#2563eb',
-  accent: getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#0f766e',
-  danger: getComputedStyle(document.documentElement).getPropertyValue('--danger').trim() || '#dc2626',
-  warning: getComputedStyle(document.documentElement).getPropertyValue('--warning').trim() || '#b45309',
+  primary:
+    getComputedStyle(document.documentElement).getPropertyValue('--primary').trim() || '#2563eb',
+  accent:
+    getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#0f766e',
+  danger:
+    getComputedStyle(document.documentElement).getPropertyValue('--danger').trim() || '#dc2626',
+  warning:
+    getComputedStyle(document.documentElement).getPropertyValue('--warning').trim() || '#b45309',
   grid: 'rgba(102,112,133,0.18)',
 });
 
@@ -535,7 +639,11 @@ const baseOptions = (moneyTooltip = true) => ({
   maintainAspectRatio: false,
   interaction: { mode: 'index', intersect: false },
   plugins: {
-    legend: { display: true, position: 'bottom', labels: { boxWidth: 10, usePointStyle: true, color: '#78716C', font: { family: 'Cairo' } } },
+    legend: {
+      display: true,
+      position: 'bottom',
+      labels: { boxWidth: 10, usePointStyle: true, color: '#78716C', font: { family: 'Cairo' } },
+    },
     tooltip: {
       rtl: true,
       textDirection: 'rtl',
@@ -549,13 +657,25 @@ const baseOptions = (moneyTooltip = true) => ({
       titleFont: { family: 'Cairo', size: 13, weight: 'bold' },
       bodyFont: { family: 'Cairo', size: 12 },
       callbacks: {
-        label: (ctx) => `  ${ctx.dataset.label || ctx.label}: ${moneyTooltip ? money(ctx.parsed.y ?? ctx.parsed ?? 0) : number(ctx.parsed.y ?? ctx.parsed ?? 0)}`,
+        label: (ctx) =>
+          `  ${ctx.dataset.label || ctx.label}: ${moneyTooltip ? money(ctx.parsed.y ?? ctx.parsed ?? 0) : number(ctx.parsed.y ?? ctx.parsed ?? 0)}`,
       },
     },
   },
   scales: {
-    x: { grid: { display: false }, ticks: { color: '#78716C', font: { family: 'Cairo', size: 11 } } },
-    y: { beginAtZero: true, grid: { color: chartColors().grid }, ticks: { color: '#78716C', font: { family: 'Cairo', size: 11 }, callback: (value) => (moneyTooltip ? money(value) : number(value)) } },
+    x: {
+      grid: { display: false },
+      ticks: { color: '#78716C', font: { family: 'Cairo', size: 11 } },
+    },
+    y: {
+      beginAtZero: true,
+      grid: { color: chartColors().grid },
+      ticks: {
+        color: '#78716C',
+        font: { family: 'Cairo', size: 11 },
+        callback: (value) => (moneyTooltip ? money(value) : number(value)),
+      },
+    },
   },
 });
 
@@ -582,7 +702,9 @@ const renderCharts = async () => {
     return shortDate(value);
   };
   const labels = trend.map((row) => formatTrendLabel(row.date));
-  const expensesByDate = new Map(expenseTrend.map((row) => [formatTrendLabel(row.date), Number(row.expenses || 0)]));
+  const expensesByDate = new Map(
+    expenseTrend.map((row) => [formatTrendLabel(row.date), Number(row.expenses || 0)]),
+  );
 
   // Helper to construct canvas gradients
   const makeGradient = (canvas, color, opacityStart = 0.4, opacityEnd = 0.02) => {
@@ -595,19 +717,21 @@ const renderCharts = async () => {
     return grad;
   };
 
-  const performanceDatasets = [{
-    label: 'المبيعات',
-    data: trend.map((row) => Number(row.sales || 0)),
-    type: 'bar',
-    backgroundColor: makeGradient(performanceChartRef.value, colors.primary, 0.4, 0.1),
-    borderColor: colors.primary,
-    borderRadius: 6,
-    borderSkipped: false,
-    maxBarThickness: 24,
-    hoverBackgroundColor: colorMix(colors.primary, 0.7),
-    hoverBorderColor: colors.primary,
-    hoverBorderWidth: 1,
-  }];
+  const performanceDatasets = [
+    {
+      label: 'المبيعات',
+      data: trend.map((row) => Number(row.sales || 0)),
+      type: 'bar',
+      backgroundColor: makeGradient(performanceChartRef.value, colors.primary, 0.4, 0.1),
+      borderColor: colors.primary,
+      borderRadius: 6,
+      borderSkipped: false,
+      maxBarThickness: 24,
+      hoverBackgroundColor: colorMix(colors.primary, 0.7),
+      hoverBorderColor: colors.primary,
+      hoverBorderWidth: 1,
+    },
+  ];
 
   if (performanceMode.value === 'full') {
     performanceDatasets.push(
@@ -634,7 +758,7 @@ const renderCharts = async () => {
         tension: 0.35,
         pointRadius: 2,
         borderWidth: 2,
-      }
+      },
     );
   }
 
@@ -648,21 +772,23 @@ const renderCharts = async () => {
     type: 'bar',
     data: {
       labels: (stats.value.salesByType || []).map((row) => saleTypeLabel(row.sale_type)),
-      datasets: [{ 
-        label: 'المبيعات', 
-        data: (stats.value.salesByType || []).map((row) => Number(row.total || 0)), 
-        backgroundColor: [
-          makeGradient(salesTypeChartRef.value, colors.primary, 0.7, 0.3),
-          makeGradient(salesTypeChartRef.value, colors.accent, 0.7, 0.3),
-          makeGradient(salesTypeChartRef.value, colors.warning, 0.7, 0.3)
-        ], 
-        borderRadius: 7,
-        hoverBackgroundColor: [
-          colorMix(colors.primary, 0.9),
-          colorMix(colors.accent, 0.9),
-          colorMix(colors.warning, 0.9)
-        ]
-      }],
+      datasets: [
+        {
+          label: 'المبيعات',
+          data: (stats.value.salesByType || []).map((row) => Number(row.total || 0)),
+          backgroundColor: [
+            makeGradient(salesTypeChartRef.value, colors.primary, 0.7, 0.3),
+            makeGradient(salesTypeChartRef.value, colors.accent, 0.7, 0.3),
+            makeGradient(salesTypeChartRef.value, colors.warning, 0.7, 0.3),
+          ],
+          borderRadius: 7,
+          hoverBackgroundColor: [
+            colorMix(colors.primary, 0.9),
+            colorMix(colors.accent, 0.9),
+            colorMix(colors.warning, 0.9),
+          ],
+        },
+      ],
     },
     options: baseOptions(true),
   });
@@ -670,20 +796,24 @@ const renderCharts = async () => {
   createChart(ChartLib, paymentChartRef, {
     type: 'doughnut',
     data: {
-      labels: (stats.value.paymentSummary || []).map((row) => paymentStatusLabel(row.payment_status)),
-      datasets: [{ 
-        label: 'التحصيل', 
-        data: (stats.value.paymentSummary || []).map((row) => Number(row.total || 0)), 
-        backgroundColor: [colors.accent, colors.warning, colors.danger, colors.primary], 
-        borderWidth: 0,
-        hoverBackgroundColor: [
-          colorMix(colors.accent, 0.85),
-          colorMix(colors.warning, 0.85),
-          colorMix(colors.danger, 0.85),
-          colorMix(colors.primary, 0.85)
-        ],
-        hoverOffset: 4
-      }],
+      labels: (stats.value.paymentSummary || []).map((row) =>
+        paymentStatusLabel(row.payment_status),
+      ),
+      datasets: [
+        {
+          label: 'التحصيل',
+          data: (stats.value.paymentSummary || []).map((row) => Number(row.total || 0)),
+          backgroundColor: [colors.accent, colors.warning, colors.danger, colors.primary],
+          borderWidth: 0,
+          hoverBackgroundColor: [
+            colorMix(colors.accent, 0.85),
+            colorMix(colors.warning, 0.85),
+            colorMix(colors.danger, 0.85),
+            colorMix(colors.primary, 0.85),
+          ],
+          hoverOffset: 4,
+        },
+      ],
     },
     options: { ...baseOptions(true), cutout: '62%', scales: {} },
   });
@@ -692,19 +822,21 @@ const renderCharts = async () => {
     type: 'doughnut',
     data: {
       labels: (stats.value.expenseByCategory || []).map((row) => row.name_ar),
-      datasets: [{ 
-        label: 'المصروفات', 
-        data: (stats.value.expenseByCategory || []).map((row) => Number(row.total || 0)), 
-        backgroundColor: [colors.warning, colors.danger, colors.primary, colors.accent], 
-        borderWidth: 0,
-        hoverBackgroundColor: [
-          colorMix(colors.warning, 0.85),
-          colorMix(colors.danger, 0.85),
-          colorMix(colors.primary, 0.85),
-          colorMix(colors.accent, 0.85)
-        ],
-        hoverOffset: 4
-      }],
+      datasets: [
+        {
+          label: 'المصروفات',
+          data: (stats.value.expenseByCategory || []).map((row) => Number(row.total || 0)),
+          backgroundColor: [colors.warning, colors.danger, colors.primary, colors.accent],
+          borderWidth: 0,
+          hoverBackgroundColor: [
+            colorMix(colors.warning, 0.85),
+            colorMix(colors.danger, 0.85),
+            colorMix(colors.primary, 0.85),
+            colorMix(colors.accent, 0.85),
+          ],
+          hoverOffset: 4,
+        },
+      ],
     },
     options: { ...baseOptions(true), cutout: '58%', scales: {} },
   });
@@ -713,32 +845,34 @@ const renderCharts = async () => {
     type: 'doughnut',
     data: {
       labels: (stats.value.categoryProfitability || []).map((row) => row.name_ar),
-      datasets: [{ 
-        label: 'أرباح الفئات', 
-        data: (stats.value.categoryProfitability || []).map((row) => Number(row.profit || 0)), 
-        backgroundColor: [
-          colors.accent,
-          colors.primary,
-          colors.warning,
-          colors.danger,
-          '#6366f1',
-          '#ec4899',
-          '#14b8a6',
-          '#f59e0b'
-        ], 
-        borderWidth: 0,
-        hoverBackgroundColor: [
-          colorMix(colors.accent, 0.85),
-          colorMix(colors.primary, 0.85),
-          colorMix(colors.warning, 0.85),
-          colorMix(colors.danger, 0.85),
-          'rgba(99, 102, 241, 0.85)',
-          'rgba(236, 72, 153, 0.85)',
-          'rgba(20, 184, 166, 0.85)',
-          'rgba(245, 158, 11, 0.85)'
-        ],
-        hoverOffset: 4
-      }],
+      datasets: [
+        {
+          label: 'أرباح الفئات',
+          data: (stats.value.categoryProfitability || []).map((row) => Number(row.profit || 0)),
+          backgroundColor: [
+            colors.accent,
+            colors.primary,
+            colors.warning,
+            colors.danger,
+            '#6366f1',
+            '#ec4899',
+            '#14b8a6',
+            '#f59e0b',
+          ],
+          borderWidth: 0,
+          hoverBackgroundColor: [
+            colorMix(colors.accent, 0.85),
+            colorMix(colors.primary, 0.85),
+            colorMix(colors.warning, 0.85),
+            colorMix(colors.danger, 0.85),
+            'rgba(99, 102, 241, 0.85)',
+            'rgba(236, 72, 153, 0.85)',
+            'rgba(20, 184, 166, 0.85)',
+            'rgba(245, 158, 11, 0.85)',
+          ],
+          hoverOffset: 4,
+        },
+      ],
     },
     options: { ...baseOptions(true), cutout: '58%', scales: {} },
   });
@@ -747,20 +881,26 @@ const renderCharts = async () => {
     type: 'bar',
     data: {
       labels: (stats.value.topProducts || []).map((row) => row.name_ar),
-      datasets: [{
-        label: 'المبيعات',
-        data: (stats.value.topProducts || []).map((row) => Number(row.revenue || 0)),
-        backgroundColor: makeGradient(topProductsChartRef.value, colors.primary, 0.75, 0.25),
-        borderRadius: 4,
-        maxBarThickness: 16,
-        hoverBackgroundColor: colorMix(colors.primary, 0.95),
-      }],
+      datasets: [
+        {
+          label: 'المبيعات',
+          data: (stats.value.topProducts || []).map((row) => Number(row.revenue || 0)),
+          backgroundColor: makeGradient(topProductsChartRef.value, colors.primary, 0.75, 0.25),
+          borderRadius: 4,
+          maxBarThickness: 16,
+          hoverBackgroundColor: colorMix(colors.primary, 0.95),
+        },
+      ],
     },
     options: {
       ...baseOptions(true),
       indexAxis: 'y',
       scales: {
-        x: { beginAtZero: true, grid: { color: colors.grid }, ticks: { callback: (value) => money(value) } },
+        x: {
+          beginAtZero: true,
+          grid: { color: colors.grid },
+          ticks: { callback: (value) => money(value) },
+        },
         y: { grid: { display: false } },
       },
     },
@@ -770,20 +910,26 @@ const renderCharts = async () => {
     type: 'bar',
     data: {
       labels: (stats.value.topCustomers || []).map((row) => row.name_ar || 'عميل غير مسجل'),
-      datasets: [{
-        label: 'إجمالي الشراء',
-        data: (stats.value.topCustomers || []).map((row) => Number(row.total_spent || 0)),
-        backgroundColor: makeGradient(topCustomersChartRef.value, colors.accent, 0.75, 0.25),
-        borderRadius: 4,
-        maxBarThickness: 16,
-        hoverBackgroundColor: colorMix(colors.accent, 0.95),
-      }],
+      datasets: [
+        {
+          label: 'إجمالي الشراء',
+          data: (stats.value.topCustomers || []).map((row) => Number(row.total_spent || 0)),
+          backgroundColor: makeGradient(topCustomersChartRef.value, colors.accent, 0.75, 0.25),
+          borderRadius: 4,
+          maxBarThickness: 16,
+          hoverBackgroundColor: colorMix(colors.accent, 0.95),
+        },
+      ],
     },
     options: {
       ...baseOptions(true),
       indexAxis: 'y',
       scales: {
-        x: { beginAtZero: true, grid: { color: colors.grid }, ticks: { callback: (value) => money(value) } },
+        x: {
+          beginAtZero: true,
+          grid: { color: colors.grid },
+          ticks: { callback: (value) => money(value) },
+        },
         y: { grid: { display: false } },
       },
     },
@@ -819,7 +965,7 @@ const renderCharts = async () => {
           pointRadius: 2,
           hoverBackgroundColor: colors.warning,
           hoverBorderWidth: 3,
-        }
+        },
       ],
     },
     options: {
@@ -853,49 +999,49 @@ const renderCharts = async () => {
               } else {
                 return `الطلبات: ${number(ctx.parsed.y)} طلب`;
               }
-            }
-          }
-        }
-      }
+            },
+          },
+        },
+      },
     },
   });
 
   // ─── Demand Forecasting Chart ───
   if (forecastingChartRef.value) {
     const last7 = trend.slice(-7);
-    const actualSales = last7.map(r => Number(r.sales || 0));
+    const actualSales = last7.map((r) => Number(r.sales || 0));
     const chartLabels = [];
     const actualDataset = [];
     const forecastDataset = [];
-    
+
     last7.forEach((r) => {
       chartLabels.push(formatTrendLabel(r.date));
       actualDataset.push(Number(r.sales || 0));
       forecastDataset.push(null);
     });
-    
+
     if (actualSales.length > 0) {
       forecastDataset[forecastDataset.length - 1] = actualSales[actualSales.length - 1];
     }
-    
+
     const baseDate = last7.length > 0 ? new Date(last7[last7.length - 1].date) : new Date();
     let lastVal = actualSales[actualSales.length - 1] || 1500;
-    
+
     for (let i = 1; i <= 7; i++) {
       const nextDate = new Date(baseDate);
       nextDate.setDate(baseDate.getDate() + i);
       chartLabels.push(shortDate(nextDate));
-      
+
       const dayOfWeek = nextDate.getDay();
       let factor = 1.0;
       if (dayOfWeek === 4 || dayOfWeek === 5) factor = 1.22;
       else if (dayOfWeek === 0 || dayOfWeek === 1) factor = 0.92;
-      
+
       const projection = Math.round(lastVal * (1.004 + (Math.random() * 0.02 - 0.01)) * factor);
       forecastDataset.push(projection);
       actualDataset.push(null);
     }
-    
+
     createChart(ChartLib, forecastingChartRef, {
       type: 'line',
       data: {
@@ -909,7 +1055,7 @@ const renderCharts = async () => {
             fill: true,
             tension: 0.3,
             pointRadius: 4,
-            borderWidth: 2.5
+            borderWidth: 2.5,
           },
           {
             label: 'توقعات الطلب (AI Forecast للأسبوع القادم)',
@@ -919,17 +1065,17 @@ const renderCharts = async () => {
             backgroundColor: 'transparent',
             tension: 0.3,
             pointRadius: 4,
-            borderWidth: 2.5
-          }
-        ]
+            borderWidth: 2.5,
+          },
+        ],
       },
       options: {
         ...baseOptions(true),
         scales: {
           x: { grid: { display: false } },
-          y: { grid: { color: colors.grid }, ticks: { callback: (value) => money(value) } }
-        }
-      }
+          y: { grid: { color: colors.grid }, ticks: { callback: (value) => money(value) } },
+        },
+      },
     });
   }
 };
@@ -943,12 +1089,15 @@ const colorMix = (hex, opacity) => {
   return `rgba(${r}, ${g}, ${b}, ${opacity})`;
 };
 
-const paymentStatusLabel = (status) => ({
-  paid: 'مدفوع',
-  partial: 'جزئي',
-  unpaid: 'غير مدفوع',
-  refunded: 'مسترد',
-}[status] || status || 'غير محدد');
+const paymentStatusLabel = (status) =>
+  ({
+    paid: 'مدفوع',
+    partial: 'جزئي',
+    unpaid: 'غير مدفوع',
+    refunded: 'مسترد',
+  })[status] ||
+  status ||
+  'غير محدد';
 
 const loadDashboard = async () => {
   loading.value = true;
@@ -1115,28 +1264,43 @@ onBeforeUnmount(() => {
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   box-shadow: var(--shadow-xs);
-  transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.3s ease, border-color 0.3s ease;
-  animation: dashboardRise 560ms cubic-bezier(.2,.8,.2,1) both;
+  transition:
+    transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1),
+    box-shadow 0.3s ease,
+    border-color 0.3s ease;
+  animation: dashboardRise 560ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
   overflow: hidden;
   box-sizing: border-box;
 }
 
 .metric-card.circular-card::after {
-  content: "";
+  content: '';
   position: absolute;
   inset: -35% -20%;
   z-index: -1;
   opacity: 0;
-  background: linear-gradient(115deg, transparent 35%, rgba(255,255,255,.15), transparent 64%);
+  background: linear-gradient(115deg, transparent 35%, rgba(255, 255, 255, 0.15), transparent 64%);
   transform: translateX(42%) rotate(7deg);
-  transition: opacity 260ms ease, transform 760ms cubic-bezier(.2,.8,.2,1);
+  transition:
+    opacity 260ms ease,
+    transform 760ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
-.circular-draggable:nth-child(1) { animation-delay: 40ms; }
-.circular-draggable:nth-child(2) { animation-delay: 90ms; }
-.circular-draggable:nth-child(3) { animation-delay: 140ms; }
-.circular-draggable:nth-child(4) { animation-delay: 190ms; }
-.circular-draggable:nth-child(5) { animation-delay: 240ms; }
+.circular-draggable:nth-child(1) {
+  animation-delay: 40ms;
+}
+.circular-draggable:nth-child(2) {
+  animation-delay: 90ms;
+}
+.circular-draggable:nth-child(3) {
+  animation-delay: 140ms;
+}
+.circular-draggable:nth-child(4) {
+  animation-delay: 190ms;
+}
+.circular-draggable:nth-child(5) {
+  animation-delay: 240ms;
+}
 
 .metric-card.circular-card:hover {
   transform: scale(1.05) translateY(-4px);
@@ -1199,8 +1363,14 @@ onBeforeUnmount(() => {
   text-overflow: ellipsis;
 }
 
-.metric-card.circular-card.danger .metric-icon { color: var(--danger); background: color-mix(in srgb, var(--danger) 10%, transparent); }
-.metric-card.circular-card.success .metric-icon { color: var(--success); background: color-mix(in srgb, var(--success) 10%, transparent); }
+.metric-card.circular-card.danger .metric-icon {
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+}
+.metric-card.circular-card.success .metric-icon {
+  color: var(--success);
+  background: color-mix(in srgb, var(--success) 10%, transparent);
+}
 
 @media (max-width: 768px) {
   .circular-grid {
@@ -1214,7 +1384,6 @@ onBeforeUnmount(() => {
   }
 }
 
-
 .command-strip {
   display: grid;
   grid-template-columns: minmax(230px, 1.2fr) repeat(4, minmax(130px, 1fr));
@@ -1223,7 +1392,7 @@ onBeforeUnmount(() => {
   background:
     linear-gradient(135deg, color-mix(in srgb, var(--primary) 8%, transparent), transparent 55%),
     var(--bg-elevated);
-  animation: dashboardRise 620ms 220ms cubic-bezier(.2,.8,.2,1) both;
+  animation: dashboardRise 620ms 220ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
 .command-copy {
@@ -1267,11 +1436,14 @@ onBeforeUnmount(() => {
   border-radius: var(--radius-md);
   background: var(--bg-elevated);
   overflow: hidden;
-  transition: transform var(--transition), border-color var(--transition), box-shadow var(--transition);
+  transition:
+    transform var(--transition),
+    border-color var(--transition),
+    box-shadow var(--transition);
 }
 
 .command-item::before {
-  content: "";
+  content: '';
   position: absolute;
   inset-block: 12px;
   inset-inline-start: 0;
@@ -1296,9 +1468,15 @@ onBeforeUnmount(() => {
   font-size: 0.75rem;
 }
 
-.command-item.warning::before { background: var(--warning); }
-.command-item.danger::before { background: var(--danger); }
-.command-item.success::before { background: var(--success); }
+.command-item.warning::before {
+  background: var(--warning);
+}
+.command-item.danger::before {
+  background: var(--danger);
+}
+.command-item.success::before {
+  background: var(--success);
+}
 
 .overview-grid {
   display: grid;
@@ -1317,7 +1495,6 @@ onBeforeUnmount(() => {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
 }
-
 
 .panel {
   padding: 15px;
@@ -1398,10 +1575,18 @@ onBeforeUnmount(() => {
   font-weight: 900;
 }
 
-.success { color: var(--success) !important; }
-.warning { color: var(--warning) !important; }
-.danger { color: var(--danger) !important; }
-.info { color: var(--info) !important; }
+.success {
+  color: var(--success) !important;
+}
+.warning {
+  color: var(--warning) !important;
+}
+.danger {
+  color: var(--danger) !important;
+}
+.info {
+  color: var(--info) !important;
+}
 
 .mini-table,
 .alert-stack,
@@ -1470,10 +1655,18 @@ onBeforeUnmount(() => {
 }
 
 @media (max-width: 1300px) {
-  .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .command-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .command-copy { grid-column: 1 / -1; }
-  .tables-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .metric-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .command-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .command-copy {
+    grid-column: 1 / -1;
+  }
+  .tables-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 980px) {
@@ -1493,11 +1686,21 @@ onBeforeUnmount(() => {
 }
 
 @media (max-width: 640px) {
-  .metric-grid { grid-template-columns: 1fr; }
-  .command-strip { grid-template-columns: 1fr; }
-  .header-actions { align-items: stretch; }
-  .range-controls { width: 100%; }
-  .range-btn { flex: 1; }
+  .metric-grid {
+    grid-template-columns: 1fr;
+  }
+  .command-strip {
+    grid-template-columns: 1fr;
+  }
+  .header-actions {
+    align-items: stretch;
+  }
+  .range-controls {
+    width: 100%;
+  }
+  .range-btn {
+    flex: 1;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1587,7 +1790,11 @@ onBeforeUnmount(() => {
 
 .alert-modern-item.danger {
   border-color: color-mix(in srgb, var(--danger) 25%, var(--border));
-  background: linear-gradient(135deg, color-mix(in srgb, var(--danger) 4%, transparent), transparent);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--danger) 4%, transparent),
+    transparent
+  );
 }
 
 .alert-modern-item.danger .alert-icon-box {
@@ -1597,7 +1804,11 @@ onBeforeUnmount(() => {
 
 .alert-modern-item.warning {
   border-color: color-mix(in srgb, var(--warning) 25%, var(--border));
-  background: linear-gradient(135deg, color-mix(in srgb, var(--warning) 4%, transparent), transparent);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--warning) 4%, transparent),
+    transparent
+  );
 }
 
 .alert-modern-item.warning .alert-icon-box {
@@ -1650,7 +1861,7 @@ onBeforeUnmount(() => {
 }
 
 .timeline-feed::before {
-  content: "";
+  content: '';
   position: absolute;
   right: 4px;
   top: 6px;
@@ -1821,14 +2032,28 @@ onBeforeUnmount(() => {
 }
 
 /* Module Marker Colors */
-.timeline-marker.sales { background: var(--primary); }
-.timeline-marker.inventory { background: var(--accent); }
-.timeline-marker.expenses { background: var(--danger); }
-.timeline-marker.purchases { background: var(--warning); }
+.timeline-marker.sales {
+  background: var(--primary);
+}
+.timeline-marker.inventory {
+  background: var(--accent);
+}
+.timeline-marker.expenses {
+  background: var(--danger);
+}
+.timeline-marker.purchases {
+  background: var(--warning);
+}
 .timeline-marker.users,
-.timeline-marker.auth { background: #7c3aed; }
-.timeline-marker.hr { background: #059669; }
-.timeline-marker.settings { background: #4b5563; }
+.timeline-marker.auth {
+  background: #7c3aed;
+}
+.timeline-marker.hr {
+  background: #059669;
+}
+.timeline-marker.settings {
+  background: #4b5563;
+}
 
 /* Draggable Metrics & AI Insights styling */
 .metric-card-draggable {
@@ -1915,11 +2140,11 @@ onBeforeUnmount(() => {
 
   &.open {
     visibility: visible;
-    
+
     .drawer-overlay {
       opacity: 0.6;
     }
-    
+
     .drawer-content {
       transform: translateX(0);
     }
@@ -1945,14 +2170,14 @@ onBeforeUnmount(() => {
     height: 100%;
     background: var(--bg-card);
     border-left: 1px solid var(--border);
-    box-shadow: -5px 0 25px rgba(0,0,0,0.15);
+    box-shadow: -5px 0 25px rgba(0, 0, 0, 0.15);
     transform: translateX(100%);
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     display: flex;
     flex-direction: column;
     padding: 24px;
   }
-  
+
   .drawer-header {
     display: flex;
     justify-content: space-between;
@@ -1960,14 +2185,14 @@ onBeforeUnmount(() => {
     border-bottom: 1px solid var(--border);
     padding-bottom: 16px;
     margin-bottom: 16px;
-    
+
     h3 {
       font-size: 1.15rem;
       font-weight: 700;
       color: var(--text-strong);
       margin: 0;
     }
-    
+
     .drawer-close {
       background: none;
       border: none;
@@ -1977,26 +2202,26 @@ onBeforeUnmount(() => {
       line-height: 1;
       padding: 0 4px;
       transition: color 0.2s;
-      
+
       &:hover {
         color: var(--danger);
       }
     }
   }
-  
+
   .drawer-desc {
     color: var(--text-muted);
     font-size: 0.85rem;
     line-height: 1.5;
     margin-bottom: 24px;
   }
-  
+
   .toggle-group {
     display: flex;
     flex-direction: column;
     gap: 16px;
   }
-  
+
   .toggle-control {
     display: flex;
     align-items: center;
@@ -2007,19 +2232,19 @@ onBeforeUnmount(() => {
     border-radius: var(--radius-md, 10px);
     cursor: pointer;
     transition: all 0.2s ease;
-    
+
     &:hover {
       border-color: var(--primary);
       background: color-mix(in srgb, var(--primary) 4%, var(--bg-elevated));
     }
-    
-    input[type="checkbox"] {
+
+    input[type='checkbox'] {
       width: 18px;
       height: 18px;
       accent-color: var(--primary);
       cursor: pointer;
     }
-    
+
     .control-label {
       font-size: 0.9rem;
       font-weight: 600;
@@ -2054,45 +2279,53 @@ onBeforeUnmount(() => {
     transition: all 0.3s ease;
     position: relative;
     overflow: hidden;
-    
+
     &:hover {
       transform: translateY(-2px);
     }
-    
+
     &.star {
       border-color: rgba(202, 138, 4, 0.3);
       &:hover {
         box-shadow: 0 8px 24px rgba(202, 138, 4, 0.12);
         border-color: var(--accent);
       }
-      .quadrant-badge { color: var(--accent); }
+      .quadrant-badge {
+        color: var(--accent);
+      }
     }
-    
+
     &.plowhorse {
       border-color: rgba(120, 53, 15, 0.3);
       &:hover {
         box-shadow: 0 8px 24px rgba(120, 53, 15, 0.12);
         border-color: #78350f;
       }
-      .quadrant-badge { color: #78350f; }
+      .quadrant-badge {
+        color: #78350f;
+      }
     }
-    
+
     &.puzzle {
       border-color: rgba(147, 51, 234, 0.3);
       &:hover {
         box-shadow: 0 8px 24px rgba(147, 51, 234, 0.12);
         border-color: #a855f7;
       }
-      .quadrant-badge { color: #a855f7; }
+      .quadrant-badge {
+        color: #a855f7;
+      }
     }
-    
+
     &.dog {
       border-color: rgba(220, 38, 38, 0.3);
       &:hover {
         box-shadow: 0 8px 24px rgba(220, 38, 38, 0.12);
         border-color: var(--danger);
       }
-      .quadrant-badge { color: var(--danger); }
+      .quadrant-badge {
+        color: var(--danger);
+      }
     }
   }
 
@@ -2122,7 +2355,7 @@ onBeforeUnmount(() => {
     flex-direction: column;
     gap: 6px;
     padding: 0;
-    
+
     li {
       font-size: 0.86rem;
       font-weight: 700;
@@ -2130,9 +2363,9 @@ onBeforeUnmount(() => {
       display: flex;
       align-items: center;
       gap: 6px;
-      
+
       &::before {
-        content: "•";
+        content: '•';
         color: var(--text-muted);
       }
     }
@@ -2145,10 +2378,14 @@ onBeforeUnmount(() => {
     margin-top: 16px;
   }
   @media (max-width: 1024px) {
-    .branch-liquidity-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .branch-liquidity-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
   }
   @media (max-width: 640px) {
-    .branch-liquidity-grid { grid-template-columns: 1fr; }
+    .branch-liquidity-grid {
+      grid-template-columns: 1fr;
+    }
   }
 
   .branch-liquidity-card {
@@ -2160,7 +2397,7 @@ onBeforeUnmount(() => {
     flex-direction: column;
     gap: 12px;
     transition: all 0.3s ease;
-    
+
     &:hover {
       transform: translateY(-2px);
       box-shadow: var(--shadow-sm);
@@ -2171,8 +2408,16 @@ onBeforeUnmount(() => {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    h3 { font-size: 0.9rem; font-weight: 700; color: var(--text-strong); }
-    .cash-value { font-size: 0.95rem; font-weight: 800; color: var(--primary); }
+    h3 {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--text-strong);
+    }
+    .cash-value {
+      font-size: 0.95rem;
+      font-weight: 800;
+      color: var(--primary);
+    }
   }
 
   .battery-wrapper {
@@ -2214,9 +2459,13 @@ onBeforeUnmount(() => {
     font-size: 0.76rem;
     color: var(--text-muted);
     font-weight: 700;
-    
-    strong { color: var(--text-strong); }
-    .status-badge { font-weight: 800; }
+
+    strong {
+      color: var(--text-strong);
+    }
+    .status-badge {
+      font-weight: 800;
+    }
   }
 }
 </style>

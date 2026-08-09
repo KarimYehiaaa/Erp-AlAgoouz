@@ -42,10 +42,15 @@
         </div>
         <p>{{ alert.message }}</p>
         <ul v-if="alert.items?.length">
-          <li v-for="item in alert.items.slice(0, 4)" :key="item.id || item.product_id || item.name_ar">
+          <li
+            v-for="item in alert.items.slice(0, 4)"
+            :key="item.id || item.product_id || item.name_ar"
+          >
             {{ item.name_ar || item.sku || item.title || 'عنصر' }}
             <small v-if="item.balance"> · {{ formatMoney(item.balance) }}</small>
-            <small v-else-if="item.total_quantity !== undefined"> · {{ Number(item.total_quantity).toFixed(2) }}</small>
+            <small v-else-if="item.total_quantity !== undefined">
+              · {{ Number(item.total_quantity).toFixed(2) }}</small
+            >
           </li>
         </ul>
         <router-link class="alert-link" :to="alert.action_to">فتح القسم المرتبط</router-link>
@@ -64,8 +69,16 @@
           <p>آخر العمليات الحساسة مرتبة من الأحدث للأقدم.</p>
         </div>
         <div class="filters">
-          <input v-model.trim="filters.entity_type" placeholder="نوع الكيان مثل users" @keyup.enter="loadAudit" />
-          <input v-model.trim="filters.action" placeholder="العملية مثل user_update" @keyup.enter="loadAudit" />
+          <input
+            v-model.trim="filters.entity_type"
+            placeholder="نوع الكيان مثل users"
+            @keyup.enter="loadAudit"
+          />
+          <input
+            v-model.trim="filters.action"
+            placeholder="العملية مثل user_update"
+            @keyup.enter="loadAudit"
+          />
           <button class="btn btn-outline" type="button" @click="loadAudit">تصفية</button>
         </div>
       </div>
@@ -86,7 +99,9 @@
             <tr v-for="log in auditLogs" :key="log.id">
               <td>{{ formatDateTime(log.created_at) }}</td>
               <td>{{ log.full_name || log.username || 'النظام' }}</td>
-              <td><span class="pill">{{ actionLabel(log.action) }}</span></td>
+              <td>
+                <span class="pill">{{ actionLabel(log.action) }}</span>
+              </td>
               <td>{{ entityLabel(log.entity_type) }}</td>
               <td>{{ log.entity_id || '-' }}</td>
               <td>{{ logSummary(log) }}</td>
@@ -113,30 +128,35 @@ const filters = ref({ entity_type: '', action: '' });
 
 const alerts = computed(() => alertsSummary.value.alerts || []);
 
-const severityLabel = (severity) => ({
-  danger: 'حرج',
-  warning: 'تحذير',
-  info: 'متابعة',
-}[severity] || 'تنبيه');
+const severityLabel = (severity) =>
+  ({
+    danger: 'حرج',
+    warning: 'تحذير',
+    info: 'متابعة',
+  })[severity] || 'تنبيه';
 
-const actionLabel = (action) => ({
-  user_create: 'إنشاء مستخدم',
-  user_update: 'تعديل مستخدم',
-  user_delete: 'حذف مستخدم',
-  sales_delete_type: 'حذف مبيعات نوع',
-  products_delete_all: 'حذف كل المنتجات',
-  inventory_clear_all: 'تصفير المخزون',
-  backup_create: 'إنشاء نسخة احتياطية',
-  backup_restore: 'استرجاع نسخة',
-}[action] || action);
+const actionLabel = (action) =>
+  ({
+    user_create: 'إنشاء مستخدم',
+    user_update: 'تعديل مستخدم',
+    user_delete: 'حذف مستخدم',
+    sales_delete_type: 'حذف مبيعات نوع',
+    products_delete_all: 'حذف كل المنتجات',
+    inventory_clear_all: 'تصفير المخزون',
+    backup_create: 'إنشاء نسخة احتياطية',
+    backup_restore: 'استرجاع نسخة',
+  })[action] || action;
 
-const entityLabel = (entity) => ({
-  users: 'المستخدمين',
-  sales: 'المبيعات',
-  products: 'المنتجات',
-  inventory: 'المخزون',
-  backup: 'النسخ الاحتياطي',
-}[entity] || entity || '-');
+const entityLabel = (entity) =>
+  ({
+    users: 'المستخدمين',
+    sales: 'المبيعات',
+    products: 'المنتجات',
+    inventory: 'المخزون',
+    backup: 'النسخ الاحتياطي',
+  })[entity] ||
+  entity ||
+  '-';
 
 const formatDateTime = (value) => {
   if (!value) return '-';
@@ -190,7 +210,11 @@ onMounted(loadAll);
   gap: 16px;
   padding: 24px;
   background:
-    radial-gradient(circle at 8% 12%, color-mix(in srgb, var(--accent) 24%, transparent), transparent 34%),
+    radial-gradient(
+      circle at 8% 12%,
+      color-mix(in srgb, var(--accent) 24%, transparent),
+      transparent 34%
+    ),
     linear-gradient(135deg, color-mix(in srgb, var(--primary) 12%, var(--surface)), var(--surface));
 
   h2 {
@@ -241,9 +265,15 @@ onMounted(loadAll);
   overflow: hidden;
   border-inline-start: 5px solid var(--primary);
 
-  &.danger { border-inline-start-color: var(--danger); }
-  &.warning { border-inline-start-color: var(--warning); }
-  &.info { border-inline-start-color: var(--info); }
+  &.danger {
+    border-inline-start-color: var(--danger);
+  }
+  &.warning {
+    border-inline-start-color: var(--warning);
+  }
+  &.info {
+    border-inline-start-color: var(--info);
+  }
 
   p {
     color: var(--text-muted);

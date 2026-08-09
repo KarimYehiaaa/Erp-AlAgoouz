@@ -1,5 +1,5 @@
 import * as plService from '../services/plService.js';
-import { AppError } from '../middleware/errorHandler.js';
+import { AppError } from '../types/errors.js';
 import { ok } from './helper.js';
 
 export const pl = {
@@ -14,7 +14,9 @@ export const pl = {
         throw new AppError('from_date و to_date مطلوبان', 400);
       }
       ok(res, await plService.getProfitAndLoss(from_date, to_date));
-    } catch (e) { next(e); }
+    } catch (e) {
+      next(e);
+    }
   },
 
   /**
@@ -25,6 +27,8 @@ export const pl = {
     try {
       const months = Math.min(Number(req.query.months) || 6, 24);
       ok(res, await plService.getMonthlyPLSummary(months));
-    } catch (e) { next(e); }
+    } catch (e) {
+      next(e);
+    }
   },
 };

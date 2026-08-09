@@ -1,7 +1,7 @@
-﻿import XLSX from 'xlsx';
+import XLSX from 'xlsx';
 import { query } from '../database/pool.js';
 import { createProduct, updateProduct } from './productService.js';
-import { AppError } from '../middleware/errorHandler.js';
+import { AppError } from '../types/errors.js';
 import { getWarehouseIdByCode } from './warehouseService.js';
 import { readSafeWorkbook } from './excelSecurity.js';
 
@@ -22,44 +22,46 @@ const HEADERS = [
 ];
 
 const HEADER_ALIASES = {
-  sku: ['sku', 'كود', 'كود المنتج'],
-  barcode: ['barcode', 'باركود', 'الباركود'],
-  name_ar: ['name_ar', 'اسم المنتج', 'الاسم'],
-  category: ['category', 'التصنيف'],
-  unit: ['unit', 'الوحدة'],
-  purchase_price: ['purchase_price', 'سعر الشراء'],
-  sale_price: ['sale_price', 'سعر البيع'],
-  wholesale_price: ['wholesale_price', 'سعر الجملة'],
-  min_stock: ['min_stock', 'الحد الأدنى'],
-  is_active: ['is_active', 'active', 'نشط'],
-  main_stock: ['main_stock', 'مخزون المخزن الرئيسي'],
-  store_stock: ['store_stock', 'مخزون المحل'],
-  description: ['description', 'الوصف'],
+  sku: ['sku', '???', '??? ??????'],
+  barcode: ['barcode', '??????', '????????'],
+  name_ar: ['name_ar', '??? ??????', '?????'],
+  category: ['category', '???????'],
+  unit: ['unit', '??????'],
+  purchase_price: ['purchase_price', '??? ??????'],
+  sale_price: ['sale_price', '??? ?????'],
+  wholesale_price: ['wholesale_price', '??? ??????'],
+  min_stock: ['min_stock', '???? ??????'],
+  is_active: ['is_active', 'active', '???'],
+  main_stock: ['main_stock', '????? ?????? ???????'],
+  store_stock: ['store_stock', '????? ?????'],
+  description: ['description', '?????'],
 };
 
 const INSTRUCTIONS = [
-  ['تعليمات استيراد المنتجات'],
-  ['املأ الصفوف ثم أعد رفع الملف.'],
-  ['الأعمدة الأساسية: sku, name_ar, category, unit, sale_price.'],
-  ['is_active: 1 أو 0.'],
-  ['main_stock و store_stock اختياريان لبدء المخزون.'],
-  ['يمكن ترك barcode و wholesale_price و description فارغة.'],
+  ['??????? ??????? ????????'],
+  ['???? ?????? ?? ??? ??? ?????.'],
+  ['??????? ????????: sku, name_ar, category, unit, sale_price.'],
+  ['is_active: 1 ?? 0.'],
+  ['main_stock ? store_stock ????????? ???? ???????.'],
+  ['???? ??? barcode ? wholesale_price ? description ?????.'],
 ];
 
-const normalizeText = (value) => String(value ?? '')
-  .trim()
-  .toLowerCase()
-  .replace(/[\s_\-]+/g, '');
+const normalizeText = (value) =>
+  String(value ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_\-]+/g, '');
 
-const normalizeDigits = (value) => String(value ?? '')
-  .replace(/[٠-٩]/g, (d) => '0123456789'['٠١٢٣٤٥٦٧٨٩'.indexOf(d)])
-  .replace(/[\u200f\u200e]/g, '')
-  .trim();
+const normalizeDigits = (value) =>
+  String(value ?? '')
+    .replace(/[?-?]/g, (d) => '0123456789'['??????????'.indexOf(d)])
+    .replace(/[\u200f\u200e]/g, '')
+    .trim();
 
 const parseBool = (value) => {
   if (value === undefined || value === null || String(value).trim() === '') return true;
   const text = normalizeText(value);
-  return ['1', 'true', 'yes', 'y', 'نعم', 'مفعل'].includes(text);
+  return ['1', 'true', 'yes', 'y', '???', '????'].includes(text);
 };
 
 const toNumber = (value, fallback = 0) => {
@@ -78,18 +80,25 @@ const slugify = (text) =>
     .replace(/^-+|-+$/g, '')
     .slice(0, 80);
 
-const normalizeHeaders = (headers) => headers.map((header) => {
-  const text = normalizeText(header);
-  for (const [canonical, aliases] of Object.entries(HEADER_ALIASES)) {
-    if (aliases.some((alias) => text === normalizeText(alias) || text.includes(normalizeText(alias)))) {
-      return canonical;
+const normalizeHeaders = (headers) =>
+  headers.map((header) => {
+    const text = normalizeText(header);
+    for (const [canonical, aliases] of Object.entries(HEADER_ALIASES)) {
+      if (
+        aliases.some(
+          (alias) => text === normalizeText(alias) || text.includes(normalizeText(alias)),
+        )
+      ) {
+        return canonical;
+      }
     }
-  }
-  return text;
-});
+    return text;
+  });
 
 const loadLookups = async () => {
-  const categories = (await query(`SELECT id, slug, name_ar FROM product_categories WHERE deleted_at IS NULL`)).rows;
+  const categories = (
+    await query(`SELECT id, slug, name_ar FROM product_categories WHERE deleted_at IS NULL`)
+  ).rows;
   const categoryMap = {};
   for (const category of categories) {
     if (category.slug) categoryMap[normalizeText(category.slug)] = category.id;
@@ -119,7 +128,7 @@ const ensureCategoryId = async (rawName, categoryMap) => {
      WHERE deleted_at IS NULL
        AND (LOWER(slug) = LOWER($1) OR LOWER(name_ar) = LOWER($2))
      LIMIT 1`,
-    [candidateSlug, name]
+    [candidateSlug, name],
   );
 
   if (existing.rows[0]) {
@@ -134,7 +143,7 @@ const ensureCategoryId = async (rawName, categoryMap) => {
     `INSERT INTO product_categories (name_ar, slug, sort_order)
      VALUES ($1, $2, 0)
      RETURNING id`,
-    [name, candidateSlug]
+    [name, candidateSlug],
   );
 
   const id = inserted.rows[0].id;
@@ -148,13 +157,13 @@ const getIndex = (headers, key) => headers.findIndex((header) => header === key)
 const parseRow = async (row, headers, categoryMap, warehouseMap) => {
   const sku = String(row[getIndex(headers, 'sku')] || '').trim();
   const nameAr = String(row[getIndex(headers, 'name_ar')] || '').trim();
-  if (!sku) throw new Error('sku فارغ');
-  if (!nameAr) throw new Error('name_ar فارغ');
+  if (!sku) throw new Error('sku ????');
+  if (!nameAr) throw new Error('name_ar ????');
 
   const salePrice = toNumber(row[getIndex(headers, 'sale_price')], 0);
-  if (salePrice <= 0) throw new Error('sale_price غير صالح');
+  if (salePrice <= 0) throw new Error('sale_price ??? ????');
 
-  const categoryRaw = String(row[getIndex(headers, 'category')] || '').trim() || 'عام';
+  const categoryRaw = String(row[getIndex(headers, 'category')] || '').trim() || '???';
   let categoryId = categoryMap[normalizeText(categoryRaw)] || null;
   if (!categoryId) categoryId = await ensureCategoryId(categoryRaw, categoryMap);
 
@@ -171,12 +180,14 @@ const parseRow = async (row, headers, categoryMap, warehouseMap) => {
     description: String(row[getIndex(headers, 'description')] || '').trim() || null,
     category_id: categoryId || null,
     category_raw: categoryRaw,
-    unit: String(row[getIndex(headers, 'unit')] || '').trim() || 'قطعة',
+    unit: String(row[getIndex(headers, 'unit')] || '').trim() || '????',
     purchase_price: toNumber(row[getIndex(headers, 'purchase_price')], 0),
     sale_price: salePrice,
-    wholesale_price: row[getIndex(headers, 'wholesale_price')] === '' || row[getIndex(headers, 'wholesale_price')] == null
-      ? null
-      : toNumber(row[getIndex(headers, 'wholesale_price')], 0),
+    wholesale_price:
+      row[getIndex(headers, 'wholesale_price')] === '' ||
+      row[getIndex(headers, 'wholesale_price')] == null
+        ? null
+        : toNumber(row[getIndex(headers, 'wholesale_price')], 0),
     min_stock: Math.max(0, Math.floor(toNumber(row[getIndex(headers, 'min_stock')], 5))),
     is_active: parseBool(row[getIndex(headers, 'is_active')]),
     initial_stock: Object.keys(initialStock).length ? initialStock : undefined,
@@ -187,9 +198,23 @@ export const buildProductsTemplate = () => {
   const wb = XLSX.utils.book_new();
   const dataSheet = [
     HEADERS,
-    ['TC-100', '6281001000100', 'قهوة تركي - 250 جرام', 'turkish-coffee', 'قطعة', 45, 65, 58, 10, 1, 50, 15, ''],
-    ['FC-100', '', 'قهوة فرنسي - 250 جرام', 'french-coffee', 'قطعة', 40, 58, 52, 10, 1, 40, 12, ''],
-    ['CD-100', '', 'مشروب بارد', 'cold-drinks', 'زجاجة', 1.5, 3, 2.5, 50, 1, 100, 30, ''],
+    [
+      'TC-100',
+      '6281001000100',
+      '???? ???? - 250 ????',
+      'turkish-coffee',
+      '????',
+      45,
+      65,
+      58,
+      10,
+      1,
+      50,
+      15,
+      '',
+    ],
+    ['FC-100', '', '???? ????? - 250 ????', 'french-coffee', '????', 40, 58, 52, 10, 1, 40, 12, ''],
+    ['CD-100', '', '????? ????', 'cold-drinks', '?????', 1.5, 3, 2.5, 50, 1, 100, 30, ''],
   ];
 
   const ws = XLSX.utils.aoa_to_sheet(dataSheet);
@@ -203,7 +228,7 @@ export const parseProductsExcel = async (buffer) => {
   const wb = readSafeWorkbook(buffer);
   const sheet = wb.Sheets[wb.SheetNames[0]];
   const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
-  if (rows.length < 2) throw new AppError('ملف المنتجات فارغ', 400);
+  if (rows.length < 2) throw new AppError('??? ???????? ????', 400);
 
   const headers = normalizeHeaders(rows[0].map((header) => String(header).trim()));
   const { categoryMap, warehouseMap } = await loadLookups();
@@ -221,7 +246,7 @@ export const parseProductsExcel = async (buffer) => {
   }
 
   if (!parsed.length && errors.length) {
-    throw new AppError(errors.map((e) => `الصف ${e.row}: ${e.message}`).join(' | '), 400);
+    throw new AppError(errors.map((e) => `???? ${e.row}: ${e.message}`).join(' | '), 400);
   }
 
   return { rows: parsed, errors };
@@ -229,20 +254,32 @@ export const parseProductsExcel = async (buffer) => {
 
 export const importProductsFromExcel = async (buffer) => {
   const { rows, errors } = await parseProductsExcel(buffer);
-  const results = { success: 0, updated: 0, created: 0, failed: [], total: rows.length, parseErrors: errors };
+  const results = {
+    success: 0,
+    updated: 0,
+    created: 0,
+    failed: [],
+    total: rows.length,
+    parseErrors: errors,
+  };
   const { categoryMap, warehouseMap } = await loadLookups();
 
   for (const data of rows) {
     try {
       if (!data.category_id) {
-        data.category_id = await ensureCategoryId(data.category_raw || 'عام', categoryMap);
+        data.category_id = await ensureCategoryId(data.category_raw || '???', categoryMap);
       }
-      if (!data.category_id) throw new Error('التصنيف غير صالح');
+      if (!data.category_id) throw new Error('??????? ??? ????');
 
-      const existing = await query(`SELECT id, deleted_at FROM products WHERE sku = $1`, [data.sku]);
+      const existing = await query(`SELECT id, deleted_at FROM products WHERE sku = $1`, [
+        data.sku,
+      ]);
       if (existing.rows[0]) {
         if (existing.rows[0].deleted_at) {
-          await query(`UPDATE products SET deleted_at = NULL, is_active = TRUE, updated_at = NOW() WHERE id = $1`, [existing.rows[0].id]);
+          await query(
+            `UPDATE products SET deleted_at = NULL, is_active = TRUE, updated_at = NOW() WHERE id = $1`,
+            [existing.rows[0].id],
+          );
         }
         const { initial_stock, category_raw, ...updateData } = data;
         await updateProduct(existing.rows[0].id, updateData);
@@ -253,7 +290,7 @@ export const importProductsFromExcel = async (buffer) => {
                VALUES ($1, $2, $3)
                ON CONFLICT (product_id, warehouse_id, COALESCE(batch_number, ''))
                DO UPDATE SET quantity = EXCLUDED.quantity, updated_at = NOW()`,
-              [existing.rows[0].id, warehouseId, qty]
+              [existing.rows[0].id, warehouseId, qty],
             );
           }
         }
@@ -268,7 +305,7 @@ export const importProductsFromExcel = async (buffer) => {
                VALUES ($1, $2, $3)
                ON CONFLICT (product_id, warehouse_id, COALESCE(batch_number, ''))
                DO UPDATE SET quantity = EXCLUDED.quantity, updated_at = NOW()`,
-              [created.id, warehouseId, qty]
+              [created.id, warehouseId, qty],
             );
           }
         }
@@ -286,8 +323,9 @@ export const importProductsFromExcel = async (buffer) => {
 export const exportProductsToExcel = async () => {
   const mainWarehouseId = await getWarehouseIdByCode('MAIN');
   const storeWarehouseId = await getWarehouseIdByCode('STORE');
-  const products = (await query(
-    `SELECT 
+  const products = (
+    await query(
+      `SELECT 
       p.sku,
       p.barcode,
       p.name_ar,
@@ -305,8 +343,9 @@ export const exportProductsToExcel = async () => {
      LEFT JOIN product_categories c ON p.category_id = c.id
      WHERE p.deleted_at IS NULL
      ORDER BY p.name_ar`,
-    [mainWarehouseId, storeWarehouseId]
-  )).rows;
+      [mainWarehouseId, storeWarehouseId],
+    )
+  ).rows;
 
   const dataSheet = [HEADERS];
   for (const p of products) {
@@ -315,7 +354,7 @@ export const exportProductsToExcel = async () => {
       p.barcode || '',
       p.name_ar,
       p.category_name,
-      p.unit || 'قطعة',
+      p.unit || '????',
       Number(p.purchase_price) || 0,
       Number(p.sale_price) || 0,
       p.wholesale_price !== null ? Number(p.wholesale_price) : '',

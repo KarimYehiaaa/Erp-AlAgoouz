@@ -1,4 +1,4 @@
-import { AppError } from '../middleware/errorHandler.js';
+import { AppError } from '../types/errors.js';
 import { getClient, query } from '../database/pool.js';
 import {
   calculateRecipeCost,
@@ -12,7 +12,8 @@ import { invalidateDashboardCache } from './dashboardService.js';
 
 const WEIGHT_UNITS = new Set(['g', 'kg']);
 const VOLUME_UNITS = new Set(['ml', 'l']);
-const unitGroup = (u) => (WEIGHT_UNITS.has(u) ? 'weight' : VOLUME_UNITS.has(u) ? 'volume' : u === 'count' ? 'count' : null);
+const unitGroup = (u) =>
+  WEIGHT_UNITS.has(u) ? 'weight' : VOLUME_UNITS.has(u) ? 'volume' : u === 'count' ? 'count' : null;
 
 const enrichRecipeCost = (recipe, effectiveIngredientCostsMap) => {
   const items = Array.isArray(recipe.items) ? recipe.items : [];
@@ -21,9 +22,10 @@ const enrichRecipeCost = (recipe, effectiveIngredientCostsMap) => {
 
     const effective = effectiveIngredientCostsMap?.get?.(Number(it.ingredient_product_id));
     const ingredientCost = Number(it.ingredient_purchase_price || 0);
-    const effectiveCost = Number.isFinite(Number(effective?.cost)) && Number(effective?.cost) > 0
-      ? Number(effective.cost)
-      : ingredientCost;
+    const effectiveCost =
+      Number.isFinite(Number(effective?.cost)) && Number(effective?.cost) > 0
+        ? Number(effective.cost)
+        : ingredientCost;
 
     const unitPrice = unitPriceFor(effectiveCost, it.ingredient_unit, it.unit_code);
     const itemCost = unitPrice == null ? 0 : qty * unitPrice;
@@ -48,7 +50,8 @@ const normalizeRecipeItems = (items = []) => {
     const quantity = Number(item.quantity);
     const unit_code = normalizeUnit(item.unit_code);
     if (!ingredient_product_id) throw new AppError(`السطر ${idx + 1}: يجب اختيار منتج مكوّن`);
-    if (!quantity || quantity <= 0) throw new AppError(`السطر ${idx + 1}: الكمية يجب أن تكون أكبر من صفر`);
+    if (!quantity || quantity <= 0)
+      throw new AppError(`السطر ${idx + 1}: الكمية يجب أن تكون أكبر من صفر`);
     if (!unit_code) throw new AppError(`السطر ${idx + 1}: يجب تحديد وحدة صحيحة`);
     return {
       ingredient_product_id,
@@ -93,7 +96,7 @@ export const getRecipes = async () => {
   // Build effective costs map for all ingredients referenced in all recipes
   const ingredientIds = new Set();
   for (const r of rows) {
-    for (const it of (r.items || [])) {
+    for (const it of r.items || []) {
       if (it?.ingredient_product_id) ingredientIds.add(Number(it.ingredient_product_id));
     }
   }
@@ -103,10 +106,9 @@ export const getRecipes = async () => {
   const costClient = await getClient();
   try {
     const { getProductsEffectiveCosts } = await import('./productCostService.js');
-    const effectiveIngredientCostsMap = await getProductsEffectiveCosts(
-      costClient,
-      [...ingredientIds]
-    );
+    const effectiveIngredientCostsMap = await getProductsEffectiveCosts(costClient, [
+      ...ingredientIds,
+    ]);
     return rows.map((r) => enrichRecipeCost(r, effectiveIngredientCostsMap));
   } finally {
     costClient.release();
@@ -141,7 +143,9 @@ export const getRecipeById = async (id) => {
   if (!row) throw new AppError('الوصفة غير موجودة', 404);
 
   // حساب التكاليف الفعلية لهذه الوصفة فقط (costClient + enrichRecipeCost)
-  const ingredientIds = (row.items || []).map(it => Number(it.ingredient_product_id)).filter(Boolean);
+  const ingredientIds = (row.items || [])
+    .map((it) => Number(it.ingredient_product_id))
+    .filter(Boolean);
   const costClient = await getClient();
   try {
     const { getProductsEffectiveCosts } = await import('./productCostService.js');
@@ -164,7 +168,7 @@ const updateProductPriceFromLatestPurchaseInvoice = async (client, productId) =>
      ), purchase_price),
      updated_at = NOW()
      WHERE id = $1`,
-    [productId]
+    [productId],
   );
 };
 
@@ -177,14 +181,21 @@ export const createRecipe = async (data, userId) => {
     await client.query('BEGIN');
     const exists = await client.query(
       `SELECT id FROM product_recipes WHERE product_id = $1 AND deleted_at IS NULL`,
-      [product_id]
+      [product_id],
     );
-    if (exists.rows[0]) throw new AppError('هذه الوصفة موجودة بالفعل لهذا المنتج. استخدم تعديل الوصفة الموجودة.');
+    if (exists.rows[0])
+      throw new AppError('هذه الوصفة موجودة بالفعل لهذا المنتج. استخدم تعديل الوصفة الموجودة.');
 
     const ins = await client.query(
       `INSERT INTO product_recipes (product_id, name_ar, is_active, notes, created_by)
        VALUES ($1,$2,$3,$4,$5) RETURNING *`,
-      [product_id, data.name_ar || `وصفة المنتج ${product_id}`, data.is_active !== false, data.notes || null, userId]
+      [
+        product_id,
+        data.name_ar || `وصفة المنتج ${product_id}`,
+        data.is_active !== false,
+        data.notes || null,
+        userId,
+      ],
     );
     const recipe = ins.rows[0];
 
@@ -192,7 +203,14 @@ export const createRecipe = async (data, userId) => {
       await client.query(
         `INSERT INTO product_recipe_items (recipe_id, ingredient_product_id, quantity, unit_code, notes, sort_order)
          VALUES ($1,$2,$3,$4,$5,$6)`,
-        [recipe.id, item.ingredient_product_id, item.quantity, item.unit_code, item.notes, item.sort_order]
+        [
+          recipe.id,
+          item.ingredient_product_id,
+          item.quantity,
+          item.unit_code,
+          item.notes,
+          item.sort_order,
+        ],
       );
     }
 
@@ -212,19 +230,29 @@ export const updateRecipe = async (id, data) => {
   const client = await getClient();
   try {
     await client.query('BEGIN');
-    const current = await client.query(`SELECT * FROM product_recipes WHERE id = $1 AND deleted_at IS NULL`, [id]);
+    const current = await client.query(
+      `SELECT * FROM product_recipes WHERE id = $1 AND deleted_at IS NULL`,
+      [id],
+    );
     if (!current.rows[0]) throw new AppError('الوصفة غير موجودة', 404);
 
     await client.query(
       `UPDATE product_recipes SET name_ar = $1, is_active = $2, notes = $3, updated_at = NOW() WHERE id = $4`,
-      [data.name_ar || current.rows[0].name_ar, data.is_active !== false, data.notes || null, id]
+      [data.name_ar || current.rows[0].name_ar, data.is_active !== false, data.notes || null, id],
     );
     await client.query(`DELETE FROM product_recipe_items WHERE recipe_id = $1`, [id]);
     for (const item of items) {
       await client.query(
         `INSERT INTO product_recipe_items (recipe_id, ingredient_product_id, quantity, unit_code, notes, sort_order)
          VALUES ($1,$2,$3,$4,$5,$6)`,
-        [id, item.ingredient_product_id, item.quantity, item.unit_code, item.notes, item.sort_order]
+        [
+          id,
+          item.ingredient_product_id,
+          item.quantity,
+          item.unit_code,
+          item.notes,
+          item.sort_order,
+        ],
       );
     }
 
@@ -245,11 +273,14 @@ export const deleteRecipe = async (id) => {
     await client.query('BEGIN');
     const current = await client.query(
       `SELECT id, product_id FROM product_recipes WHERE id = $1 AND deleted_at IS NULL FOR UPDATE`,
-      [id]
+      [id],
     );
     if (!current.rows[0]) throw new AppError('الوصفة غير موجودة', 404);
 
-    await client.query(`UPDATE product_recipes SET deleted_at = NOW(), updated_at = NOW() WHERE id = $1`, [id]);
+    await client.query(
+      `UPDATE product_recipes SET deleted_at = NOW(), updated_at = NOW() WHERE id = $1`,
+      [id],
+    );
     await updateProductPriceFromLatestPurchaseInvoice(client, current.rows[0].product_id);
 
     await client.query('COMMIT');
@@ -263,7 +294,10 @@ export const deleteRecipe = async (id) => {
 };
 
 // استهلاك الوصفة عند البيع يتم عبر recipesService (الكمية النهائية)
-export const consumeRecipeForSale = async (client, { productId, soldQty, warehouseId, invoiceId, userId }) =>
+export const consumeRecipeForSale = async (
+  client,
+  { productId, soldQty, warehouseId, invoiceId, userId },
+) =>
   _consumeRecipe(client, {
     productId,
     soldQty,

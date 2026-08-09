@@ -1,5 +1,5 @@
 import { getClient, query } from '../database/pool.js';
-import { AppError } from '../middleware/errorHandler.js';
+import { AppError } from '../types/errors.js';
 import { recalculateCustomerBalance } from './customerBalanceService.js';
 import { sanitizeLimit } from '../utils/money.js';
 
@@ -10,7 +10,7 @@ const generateCustomerCode = async () => {
        THEN CAST(SUBSTRING(code FROM 3) AS INT)
        ELSE 0 END
      ), 0) + 1 AS next_num
-     FROM customers`
+     FROM customers`,
   );
   const nextNum = Number(res.rows[0]?.next_num || 1);
   return `C-${String(nextNum).padStart(3, '0')}`;
@@ -22,7 +22,7 @@ export const getCustomers = async (filters = {}) => {
       c.*,
       COALESCE(cs.total_purchased, 0) AS total_purchased,
       COALESCE(cs.total_paid, 0) AS total_paid,
-      COALESCE(cs.total_purchased, 0) - COALESCE(cs.total_paid, 0) AS total_balance
+      COALESCE(c.opening_balance, 0) + COALESCE(cs.total_purchased, 0) - COALESCE(cs.total_paid, 0) AS total_balance
     FROM customers c
     LEFT JOIN (
       SELECT customer_id,
@@ -64,8 +64,15 @@ export const getCustomers = async (filters = {}) => {
     WHERE c.deleted_at IS NULL`;
   const params = [];
   let i = 1;
-  if (filters.customer_type) { sql += ` AND c.customer_type = $${i++}`; params.push(filters.customer_type); }
-  if (filters.search) { sql += ` AND (c.name_ar ILIKE $${i} OR c.phone ILIKE $${i} OR c.code ILIKE $${i})`; params.push(`%${filters.search}%`); i++; }
+  if (filters.customer_type) {
+    sql += ` AND c.customer_type = $${i++}`;
+    params.push(filters.customer_type);
+  }
+  if (filters.search) {
+    sql += ` AND (c.name_ar ILIKE $${i} OR c.phone ILIKE $${i} OR c.code ILIKE $${i})`;
+    params.push(`%${filters.search}%`);
+    i++;
+  }
   sql += ` ORDER BY c.name_ar LIMIT ${sanitizeLimit(filters.limit)}`;
   const rows = (await query(sql, params)).rows;
   return rows.map((c) => ({
@@ -77,7 +84,9 @@ export const getCustomers = async (filters = {}) => {
 };
 
 export const getCustomerById = async (id) => {
-  const customer = (await query(`SELECT * FROM customers WHERE id = $1 AND deleted_at IS NULL`, [id])).rows[0];
+  const customer = (
+    await query(`SELECT * FROM customers WHERE id = $1 AND deleted_at IS NULL`, [id])
+  ).rows[0];
   if (!customer) throw new AppError('العميل غير موجود', 404);
   const transactions = await query(
     `SELECT
@@ -108,21 +117,36 @@ export const getCustomerById = async (id) => {
        AND i.deleted_at IS NULL
      ORDER BY created_at DESC
      LIMIT 20`,
-    [id]
+    [id],
   );
   return { ...customer, sales: transactions.rows, transactions: transactions.rows };
 };
 
 export const createCustomer = async (data) => {
-  const customerCode = String(data.code || '').trim() || await generateCustomerCode();
-  const openingBalance = data.opening_balance !== undefined && data.opening_balance !== null
-    ? parseFloat(data.opening_balance) || 0
-    : (data.current_balance !== undefined && data.current_balance !== null ? parseFloat(data.current_balance) || 0 : 0);
+  const customerCode = String(data.code || '').trim() || (await generateCustomerCode());
+  const openingBalance =
+    data.opening_balance !== undefined && data.opening_balance !== null
+      ? parseFloat(data.opening_balance) || 0
+      : data.current_balance !== undefined && data.current_balance !== null
+        ? parseFloat(data.current_balance) || 0
+        : 0;
 
   const result = await query(
     `INSERT INTO customers (code, name_ar, phone, email, address, customer_type, credit_limit, opening_balance, balance, current_balance, notes)
      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
-    [customerCode, data.name_ar, data.phone, data.email, data.address, data.customer_type || 'retail', data.credit_limit || 0, openingBalance, openingBalance, openingBalance, data.notes]
+    [
+      customerCode,
+      data.name_ar,
+      data.phone,
+      data.email,
+      data.address,
+      data.customer_type || 'retail',
+      data.credit_limit || 0,
+      openingBalance,
+      openingBalance,
+      openingBalance,
+      data.notes,
+    ],
   );
   const created = result.rows[0];
   await recalculateCustomerBalance(query, created.id);
@@ -130,9 +154,15 @@ export const createCustomer = async (data) => {
 };
 
 export const updateCustomer = async (id, data) => {
-  const hasOpening = (data.opening_balance !== undefined && data.opening_balance !== null) || (data.current_balance !== undefined && data.current_balance !== null);
+  const hasOpening =
+    (data.opening_balance !== undefined && data.opening_balance !== null) ||
+    (data.current_balance !== undefined && data.current_balance !== null);
   const openingBalance = hasOpening
-    ? parseFloat(data.opening_balance !== undefined && data.opening_balance !== null ? data.opening_balance : data.current_balance) || 0
+    ? parseFloat(
+        data.opening_balance !== undefined && data.opening_balance !== null
+          ? data.opening_balance
+          : data.current_balance,
+      ) || 0
     : null;
 
   const result = await query(
@@ -150,10 +180,18 @@ export const updateCustomer = async (id, data) => {
        updated_at = NOW()
      WHERE id = $11 AND deleted_at IS NULL RETURNING *`,
     [
-      data.name_ar, data.phone, data.email, data.address,
-      data.customer_type, data.credit_limit, data.loyalty_points,
-      data.notes, data.is_active, openingBalance, id
-    ]
+      data.name_ar,
+      data.phone,
+      data.email,
+      data.address,
+      data.customer_type,
+      data.credit_limit,
+      data.loyalty_points,
+      data.notes,
+      data.is_active,
+      openingBalance,
+      id,
+    ],
   );
   if (!result.rows[0]) throw new AppError('العميل غير موجود', 404);
 
@@ -173,14 +211,17 @@ export const recordPayment = async (customerId, data) => {
   try {
     await client.query('BEGIN');
 
-    const customer = (await client.query(
-      `SELECT id, name_ar, balance FROM customers WHERE id = $1 AND deleted_at IS NULL FOR UPDATE`,
-      [customerId]
-    )).rows[0];
+    const customer = (
+      await client.query(
+        `SELECT id, name_ar, balance FROM customers WHERE id = $1 AND deleted_at IS NULL FOR UPDATE`,
+        [customerId],
+      )
+    ).rows[0];
     if (!customer) throw new AppError('العميل غير موجود', 404);
 
-    const debts = (await client.query(
-      `SELECT
+    const debts = (
+      await client.query(
+        `SELECT
          'sale' AS entry_type,
          s.id,
          s.sale_number AS entry_number,
@@ -210,8 +251,9 @@ export const recordPayment = async (customerId, data) => {
 
        ORDER BY entry_date, created_at, id
        FOR UPDATE`,
-      [customerId]
-    )).rows;
+        [customerId],
+      )
+    ).rows;
 
     const openDebts = debts
       .map((debt) => ({
@@ -225,7 +267,9 @@ export const recordPayment = async (customerId, data) => {
       throw new AppError('لا توجد مبيعات أو فواتير مستحقة لهذا العميل');
     }
     if (amount > totalRemaining + 0.01) {
-      throw new AppError(`المبلغ (${amount}) أكبر من إجمالي المستحق (${totalRemaining.toFixed(2)})`);
+      throw new AppError(
+        `المبلغ (${amount}) أكبر من إجمالي المستحق (${totalRemaining.toFixed(2)})`,
+      );
     }
 
     let remainingPayment = amount;
@@ -244,18 +288,41 @@ export const recordPayment = async (customerId, data) => {
         await client.query(
           `INSERT INTO payments (payment_number, reference_type, reference_id, amount, payment_method, notes, user_id)
            VALUES ($1, 'sale', $2, $3, $4, $5, $6)`,
-          [payNum, debt.id, paidForDebt, data.payment_method || 'cash', data.notes || null, data.user_id || null]
+          [
+            payNum,
+            debt.id,
+            paidForDebt,
+            data.payment_method || 'cash',
+            data.notes || null,
+            data.user_id || null,
+          ],
         );
-        await client.query(`UPDATE sales SET payment_status = $1 WHERE id = $2`, [newStatus, debt.id]);
-        await client.query(`UPDATE invoices SET payment_status = $1 WHERE sale_id = $2`, [newStatus, debt.id]);
+        await client.query(`UPDATE sales SET payment_status = $1 WHERE id = $2`, [
+          newStatus,
+          debt.id,
+        ]);
+        await client.query(`UPDATE invoices SET payment_status = $1 WHERE sale_id = $2`, [
+          newStatus,
+          debt.id,
+        ]);
       } else {
         const payNum = `PAY-INV${debt.id}-${stamp}-${allocations.length + 1}`;
         await client.query(
           `INSERT INTO payments (payment_number, reference_type, reference_id, amount, payment_method, notes, user_id)
            VALUES ($1, 'invoice', $2, $3, $4, $5, $6)`,
-          [payNum, debt.id, paidForDebt, data.payment_method || 'cash', data.notes || null, data.user_id || null]
+          [
+            payNum,
+            debt.id,
+            paidForDebt,
+            data.payment_method || 'cash',
+            data.notes || null,
+            data.user_id || null,
+          ],
         );
-        await client.query(`UPDATE invoices SET payment_status = $1 WHERE id = $2`, [newStatus, debt.id]);
+        await client.query(`UPDATE invoices SET payment_status = $1 WHERE id = $2`, [
+          newStatus,
+          debt.id,
+        ]);
       }
 
       allocations.push({
@@ -273,7 +340,11 @@ export const recordPayment = async (customerId, data) => {
     await client.query(
       `INSERT INTO activity_logs (user_id, module, action_ar, details)
        VALUES ($1, 'customers', $2, $3)`,
-      [data.user_id || null, `تسجيل دفعة من العميل ${customer.name_ar}: ${amount} ج.م`, JSON.stringify({ customer_id: customerId, amount, allocations })]
+      [
+        data.user_id || null,
+        `تسجيل دفعة من العميل ${customer.name_ar}: ${amount} ج.م`,
+        JSON.stringify({ customer_id: customerId, amount, allocations }),
+      ],
     );
 
     await client.query('COMMIT');
@@ -287,19 +358,25 @@ export const recordPayment = async (customerId, data) => {
 };
 
 export const recordSalePayment = async (saleId, data) => {
-  const sale = (await query(
-    `SELECT s.*, c.name_ar as customer_name
+  const sale = (
+    await query(
+      `SELECT s.*, c.name_ar as customer_name
      FROM sales s LEFT JOIN customers c ON c.id = s.customer_id
-     WHERE s.id = $1 AND s.deleted_at IS NULL`, [saleId]
-  )).rows[0];
+     WHERE s.id = $1 AND s.deleted_at IS NULL`,
+      [saleId],
+    )
+  ).rows[0];
   if (!sale) throw new AppError('العملية غير موجودة', 404);
 
   const amount = parseFloat(data.amount);
   if (!amount || amount <= 0) throw new AppError('المبلغ يجب أن يكون أكبر من صفر');
 
-  const paidSoFar = (await query(
-    `SELECT COALESCE(SUM(amount),0) as total FROM payments WHERE reference_type='sale' AND reference_id=$1`, [saleId]
-  )).rows[0].total;
+  const paidSoFar = (
+    await query(
+      `SELECT COALESCE(SUM(amount),0) as total FROM payments WHERE reference_type='sale' AND reference_id=$1`,
+      [saleId],
+    )
+  ).rows[0].total;
 
   const remaining = Number(sale.total_amount) - Number(paidSoFar);
   if (amount > remaining + 0.01) {
@@ -310,7 +387,14 @@ export const recordSalePayment = async (saleId, data) => {
   await query(
     `INSERT INTO payments (payment_number, reference_type, reference_id, amount, payment_method, notes, user_id)
      VALUES ($1,'sale',$2,$3,$4,$5,$6)`,
-    [payNum, saleId, amount, data.payment_method || 'cash', data.notes || null, data.user_id || null]
+    [
+      payNum,
+      saleId,
+      amount,
+      data.payment_method || 'cash',
+      data.notes || null,
+      data.user_id || null,
+    ],
   );
 
   const newPaid = Number(paidSoFar) + amount;
@@ -324,17 +408,29 @@ export const recordSalePayment = async (saleId, data) => {
 
   await query(
     `INSERT INTO activity_logs (user_id, module, action_ar, details) VALUES ($1,'sales',$2,$3)`,
-    [data.user_id || null, `تسجيل دفعة على المبيعات ${sale.sale_number}: ${amount} ج.م`, JSON.stringify({ sale_id: saleId, amount })]
+    [
+      data.user_id || null,
+      `تسجيل دفعة على المبيعات ${sale.sale_number}: ${amount} ج.م`,
+      JSON.stringify({ sale_id: saleId, amount }),
+    ],
   );
 
-  return { success: true, amount, new_status: newStatus, remaining: Math.max(0, remaining - amount) };
+  return {
+    success: true,
+    amount,
+    new_status: newStatus,
+    remaining: Math.max(0, remaining - amount),
+  };
 };
 
 export const getCustomerStatement = async (id) => {
-  const customer = (await query(
-    `SELECT id, code, name_ar, phone, balance, credit_limit, customer_type
-     FROM customers WHERE id = $1 AND deleted_at IS NULL`, [id]
-  )).rows[0];
+  const customer = (
+    await query(
+      `SELECT id, code, name_ar, phone, balance, credit_limit, customer_type, opening_balance, created_at
+     FROM customers WHERE id = $1 AND deleted_at IS NULL`,
+      [id],
+    )
+  ).rows[0];
   if (!customer) throw new AppError('العميل غير موجود', 404);
 
   const sales = await query(
@@ -362,7 +458,7 @@ export const getCustomerStatement = async (id) => {
         AND s.deleted_at IS NULL
         AND s.sale_type = 'wholesale'
         AND s.status = 'completed'`,
-    [id]
+    [id],
   );
 
   const invoices = await query(
@@ -389,10 +485,31 @@ export const getCustomerStatement = async (id) => {
       WHERE i.customer_id = $1
         AND i.sale_id IS NULL
         AND i.deleted_at IS NULL`,
-    [id]
+    [id],
   );
 
-  const rows = [...sales.rows, ...invoices.rows].sort((a, b) => {
+  let rows = [...sales.rows, ...invoices.rows];
+
+  const openingBalance = Number(customer.opening_balance || 0);
+  if (openingBalance > 0) {
+    rows.push({
+      entry_type: 'opening_balance',
+      id: 'opening',
+      sale_number: null,
+      invoice_number: null,
+      entry_number: 'رصيد افتتاحي',
+      entry_date: customer.created_at,
+      total_amount: openingBalance,
+      payment_status: 'unpaid',
+      status: 'completed',
+      notes: 'رصيد بداية المدة / مديونية سابقة',
+      created_at: customer.created_at,
+      paid_amount: 0,
+      payment_method: null,
+    });
+  }
+
+  rows = rows.sort((a, b) => {
     const dateA = new Date(a.entry_date || a.created_at || 0).getTime();
     const dateB = new Date(b.entry_date || b.created_at || 0).getTime();
     return dateB - dateA;
@@ -415,4 +532,3 @@ export const getCustomerStatement = async (id) => {
     transactions: rows,
   };
 };
-

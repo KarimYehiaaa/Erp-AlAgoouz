@@ -11,10 +11,26 @@ export const purchases = {
     }
   },
   create: async (req, res, next) => {
-    try { ok(res, await purchaseService.createPurchaseInvoice(req.body, req.user.id), 'تم إنشاء فاتورة المشتريات'); } catch (e) { next(e); }
+    try {
+      ok(
+        res,
+        await purchaseService.createPurchaseInvoice(req.body, req.user.id),
+        'تم إنشاء فاتورة المشتريات',
+      );
+    } catch (e) {
+      next(e);
+    }
   },
   update: async (req, res, next) => {
-    try { ok(res, await purchaseService.updatePurchaseInvoice(req.params.id, req.body, req.user.id), 'تم تعديل فاتورة المشتريات بنجاح'); } catch (e) { next(e); }
+    try {
+      ok(
+        res,
+        await purchaseService.updatePurchaseInvoice(req.params.id, req.body, req.user.id),
+        'تم تعديل فاتورة المشتريات بنجاح',
+      );
+    } catch (e) {
+      next(e);
+    }
   },
   delete: async (req, res, next) => {
     try {

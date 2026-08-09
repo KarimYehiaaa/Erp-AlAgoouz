@@ -76,7 +76,12 @@ const rawMenuGroups = [
     items: [
       { to: '/products', label: 'المنتجات', icon: 'products', perm: 'products.manage' },
       { to: '/inventory', label: 'المخزون', icon: 'inventory', perm: 'inventory.manage' },
-      { to: '/stocktakes', label: 'جرد المخازن والتسويات', icon: 'stocktake', perm: 'inventory.manage' },
+      {
+        to: '/stocktakes',
+        label: 'جرد المخازن والتسويات',
+        icon: 'stocktake',
+        perm: 'inventory.manage',
+      },
       { to: '/recipes', label: 'الوصفات', icon: 'recipes', perm: 'products.manage' },
       { to: '/costs', label: 'التكاليف', icon: 'costs', perm: 'products.manage' },
     ],
@@ -84,7 +89,12 @@ const rawMenuGroups = [
   {
     label: 'المالية والموردين',
     items: [
-      { to: '/purchases', label: 'المشتريات والمصروفات', icon: 'purchases', perm: ['inventory.manage', 'expenses.manage'] },
+      {
+        to: '/purchases',
+        label: 'المشتريات والمصروفات',
+        icon: 'purchases',
+        perm: ['inventory.manage', 'expenses.manage'],
+      },
       { to: '/suppliers', label: 'الموردين', icon: 'suppliers', perm: 'suppliers.manage' },
     ],
   },
@@ -131,15 +141,27 @@ const menuGroups = computed(() => {
   background: var(--sidebar-bg);
   border-left: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: -8px 0 28px rgba(15, 23, 42, 0.16);
-  transition: width var(--transition), transform var(--transition);
+  transition:
+    width var(--transition),
+    transform var(--transition);
 
   &.is-collapsed {
     width: var(--sidebar-collapsed);
 
-    .sidebar-brand { justify-content: center; padding-inline: 10px; }
-    .nav-group { padding-inline: 8px; }
-    .nav-item { justify-content: center; padding-inline: 0; }
-    .collapse-btn { justify-content: center; }
+    .sidebar-brand {
+      justify-content: center;
+      padding-inline: 10px;
+    }
+    .nav-group {
+      padding-inline: 8px;
+    }
+    .nav-item {
+      justify-content: center;
+      padding-inline: 0;
+    }
+    .collapse-btn {
+      justify-content: center;
+    }
   }
 }
 
@@ -207,17 +229,27 @@ const menuGroups = computed(() => {
   overflow: hidden;
   white-space: nowrap;
   isolation: isolate;
-  transition: background var(--transition), color var(--transition), transform var(--transition), box-shadow var(--transition);
+  transition:
+    background var(--transition),
+    color var(--transition),
+    transform var(--transition),
+    box-shadow var(--transition);
 
   &::after {
-    content: "";
+    content: '';
     position: absolute;
     inset: 0;
     opacity: 0;
     z-index: -1;
-    background: radial-gradient(circle at center, color-mix(in srgb, var(--accent) 30%, transparent), transparent 75%);
+    background: radial-gradient(
+      circle at center,
+      color-mix(in srgb, var(--accent) 30%, transparent),
+      transparent 75%
+    );
     transform: scale(0.6);
-    transition: opacity 280ms cubic-bezier(0.4, 0, 0.2, 1), transform 280ms cubic-bezier(0.4, 0, 0.2, 1);
+    transition:
+      opacity 280ms cubic-bezier(0.4, 0, 0.2, 1),
+      transform 280ms cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   &:hover {
@@ -232,16 +264,20 @@ const menuGroups = computed(() => {
   }
 
   &.active {
-    background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 7%, transparent) 0%, var(--sidebar-surface) 100%);
+    background: linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--accent) 7%, transparent) 0%,
+      var(--sidebar-surface) 100%
+    );
     color: #fff;
     box-shadow:
       inset -3.5px 0 0 var(--accent),
-      0 8px 24px rgba(0, 0, 0, .25),
+      0 8px 24px rgba(0, 0, 0, 0.25),
       0 0 12px color-mix(in srgb, var(--accent) 15%, transparent);
 
     .nav-icon {
       color: #fff;
-      background: linear-gradient(145deg, var(--accent), rgba(255,255,255,.15));
+      background: linear-gradient(145deg, var(--accent), rgba(255, 255, 255, 0.15));
       box-shadow: 0 0 18px color-mix(in srgb, var(--accent) 42%, transparent);
     }
   }
@@ -290,7 +326,9 @@ const menuGroups = computed(() => {
 .brand-fade-leave-active,
 .label-fade-enter-active,
 .label-fade-leave-active {
-  transition: opacity 150ms ease, transform 150ms ease;
+  transition:
+    opacity 150ms ease,
+    transform 150ms ease;
 }
 
 .brand-fade-enter-from,
@@ -302,15 +340,26 @@ const menuGroups = computed(() => {
 }
 
 @keyframes logoBreath {
-  0%, 100% { transform: translateY(0) rotateZ(0deg); }
-  50% { transform: translateY(-2px) rotateZ(-1deg); }
+  0%,
+  100% {
+    transform: translateY(0) rotateZ(0deg);
+  }
+  50% {
+    transform: translateY(-2px) rotateZ(-1deg);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .brand-logo { animation: none; }
+  .brand-logo {
+    animation: none;
+  }
   .nav-item,
-  .nav-item::after { transition: none; }
-  .nav-item:hover { transform: none; }
+  .nav-item::after {
+    transition: none;
+  }
+  .nav-item:hover {
+    transform: none;
+  }
 }
 
 @media (max-width: 992px) {

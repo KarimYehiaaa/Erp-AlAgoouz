@@ -24,7 +24,6 @@ import { getOpeningBalanceForDate } from './openingBalanceService.js';
 import { appCache } from '../utils/cache.js';
 import { roundMoney } from '../utils/money.js';
 
-
 const toNum = (v) => Number(v || 0);
 
 /**
@@ -46,7 +45,6 @@ export const getProfitAndLoss = async (fromDate, toDate) => {
     salesByType,
     returnsData,
   ] = await Promise.all([
-
     // ── 1. إجمالي الإيرادات ──
     query(
       `SELECT
@@ -59,7 +57,7 @@ export const getProfitAndLoss = async (fromDate, toDate) => {
        WHERE deleted_at IS NULL
          AND status = 'completed'
          AND sale_date BETWEEN $1::date AND $2::date`,
-      [fromDate, toDate]
+      [fromDate, toDate],
     ),
 
     // ── 2. تكلفة البضاعة من sale_items (للمبيعات POS التي تحتوي items) ──
@@ -70,7 +68,7 @@ export const getProfitAndLoss = async (fromDate, toDate) => {
        WHERE s.deleted_at IS NULL
          AND s.status = 'completed'
          AND s.sale_date BETWEEN $1::date AND $2::date`,
-      [fromDate, toDate]
+      [fromDate, toDate],
     ),
 
     // ── 3. إجمالي المشتريات في الفترة ──
@@ -81,7 +79,7 @@ export const getProfitAndLoss = async (fromDate, toDate) => {
        FROM purchase_invoices
        WHERE deleted_at IS NULL
          AND invoice_date BETWEEN $1::date AND $2::date`,
-      [fromDate, toDate]
+      [fromDate, toDate],
     ),
 
     // ── 4. إجمالي المصاريف (مواصفة المصاريف الثابتة والمتغيرة) ──
@@ -95,7 +93,7 @@ export const getProfitAndLoss = async (fromDate, toDate) => {
        LEFT JOIN expense_categories ec ON ec.id = e.category_id
        WHERE e.deleted_at IS NULL
          AND e.expense_date BETWEEN $1::date AND $2::date`,
-      [fromDate, toDate]
+      [fromDate, toDate],
     ),
 
     // ── 5. المصاريف مُجمَّعة بالتصنيف ودرجة الثبات ──
@@ -111,7 +109,7 @@ export const getProfitAndLoss = async (fromDate, toDate) => {
          AND e.expense_date BETWEEN $1::date AND $2::date
        GROUP BY ec.id, ec.name_ar, COALESCE(e.is_fixed, ec.is_fixed, FALSE)
        ORDER BY total DESC`,
-      [fromDate, toDate]
+      [fromDate, toDate],
     ),
 
     // ── 6. المبيعات مُجمَّعة بالنوع ──
@@ -127,7 +125,7 @@ export const getProfitAndLoss = async (fromDate, toDate) => {
          AND status = 'completed'
          AND sale_date BETWEEN $1::date AND $2::date
        GROUP BY sale_type`,
-      [fromDate, toDate]
+      [fromDate, toDate],
     ),
 
     // ── 7. المرتجعات في الفترة ──
@@ -137,7 +135,7 @@ export const getProfitAndLoss = async (fromDate, toDate) => {
        WHERE deleted_at IS NULL
          AND status = 'returned'
          AND sale_date BETWEEN $1::date AND $2::date`,
-      [fromDate, toDate]
+      [fromDate, toDate],
     ),
   ]);
 
@@ -145,20 +143,20 @@ export const getProfitAndLoss = async (fromDate, toDate) => {
   // الخوارزمية:
   // 1. نبحث عن opening balance لنفس الشهر أو أقرب شهر سابق
   // 2. لو مش موجود، نرجع صفر
-  const fromDateObj     = new Date(fromDate + 'T00:00:00');
-  const openingRow      = await getOpeningBalanceForDate(fromDateObj);
-  let   openingBalance  = toNum(openingRow.amount);
+  const fromDateObj = new Date(fromDate + 'T00:00:00');
+  const openingRow = await getOpeningBalanceForDate(fromDateObj);
+  let openingBalance = toNum(openingRow.amount);
 
   // لو رجع صفر، حاول تبحث في الشهر نفسه بكل الـ keys الممكنة
   if (openingBalance === 0) {
-    const yr  = fromDateObj.getFullYear();
-    const mo  = String(fromDateObj.getMonth() + 1).padStart(2, '0');
+    const yr = fromDateObj.getFullYear();
+    const mo = String(fromDateObj.getMonth() + 1).padStart(2, '0');
     const altRow = await query(
       `SELECT value FROM settings
        WHERE key LIKE $1
        ORDER BY updated_at DESC
        LIMIT 1`,
-      [`sales_opening_balance:${yr}-${mo}%`]
+      [`sales_opening_balance:${yr}-${mo}%`],
     );
     if (altRow.rows[0]?.value) {
       openingBalance = toNum(altRow.rows[0].value?.amount || 0);
@@ -166,14 +164,14 @@ export const getProfitAndLoss = async (fromDate, toDate) => {
   }
 
   // ── بناء القيم ──
-  const revenue          = roundMoney(toNum(salesData.rows[0]?.revenue));
-  const cogsFromItems_   = roundMoney(toNum(cogsFromItems.rows[0]?.cogs_items));
-  const cogsStored       = roundMoney(toNum(salesData.rows[0]?.cogs_stored));
-  const purchases        = roundMoney(toNum(purchasesData.rows[0]?.purchases_total));
-  const expensesTotal     = roundMoney(toNum(expensesData.rows[0]?.expenses_total));
-  const fixedExpenses     = roundMoney(toNum(expensesData.rows[0]?.fixed_expenses_total));
-  const variableExpenses  = roundMoney(toNum(expensesData.rows[0]?.variable_expenses_total));
-  const returns           = roundMoney(toNum(returnsData.rows[0]?.returns_total));
+  const revenue = roundMoney(toNum(salesData.rows[0]?.revenue));
+  const cogsFromItems_ = roundMoney(toNum(cogsFromItems.rows[0]?.cogs_items));
+  const cogsStored = roundMoney(toNum(salesData.rows[0]?.cogs_stored));
+  const purchases = roundMoney(toNum(purchasesData.rows[0]?.purchases_total));
+  const expensesTotal = roundMoney(toNum(expensesData.rows[0]?.expenses_total));
+  const fixedExpenses = roundMoney(toNum(expensesData.rows[0]?.fixed_expenses_total));
+  const variableExpenses = roundMoney(toNum(expensesData.rows[0]?.variable_expenses_total));
+  const returns = roundMoney(toNum(returnsData.rows[0]?.returns_total));
 
   // BUG-12 FIX: خوارزمية تحديد COGS الموثوقة
   let cogsUsed;
@@ -190,56 +188,58 @@ export const getProfitAndLoss = async (fromDate, toDate) => {
     cogsBasis = 'purchases';
   }
 
-  const netRevenue            = revenue; // المبيعات المكتملة هي صافي الإيرادات
-  const grossRevenue          = roundMoney(revenue + returns); // المبيعات الإجمالية
-  const grossProfit           = roundMoney(netRevenue - cogsUsed);
-  const grossProfitMargin     = netRevenue > 0 ? roundMoney((grossProfit / netRevenue) * 100) : 0;
-  const operatingProfit       = roundMoney(grossProfit - variableExpenses);
-  const operatingProfitMargin = netRevenue > 0 ? roundMoney((operatingProfit / netRevenue) * 100) : 0;
-  const netProfit             = roundMoney(grossProfit - expensesTotal);
-  const netProfitMargin       = netRevenue > 0 ? roundMoney((netProfit / netRevenue) * 100) : 0;
-  const breakEvenRevenue      = grossProfitMargin > 0 ? roundMoney(fixedExpenses / (grossProfitMargin / 100)) : 0;
+  const netRevenue = revenue; // المبيعات المكتملة هي صافي الإيرادات
+  const grossRevenue = roundMoney(revenue + returns); // المبيعات الإجمالية
+  const grossProfit = roundMoney(netRevenue - cogsUsed);
+  const grossProfitMargin = netRevenue > 0 ? roundMoney((grossProfit / netRevenue) * 100) : 0;
+  const operatingProfit = roundMoney(grossProfit - variableExpenses);
+  const operatingProfitMargin =
+    netRevenue > 0 ? roundMoney((operatingProfit / netRevenue) * 100) : 0;
+  const netProfit = roundMoney(grossProfit - expensesTotal);
+  const netProfitMargin = netRevenue > 0 ? roundMoney((netProfit / netRevenue) * 100) : 0;
+  const breakEvenRevenue =
+    grossProfitMargin > 0 ? roundMoney(fixedExpenses / (grossProfitMargin / 100)) : 0;
 
   /**
    * التدفق النقدي:
    * رصيد أول المدة + إيرادات - مشتريات فعلية - مصاريف
    * (هنا نستخدم المشتريات دائماً لأنها الفلوس اللي خرجت فعلاً)
    */
-  const cashFlow          = roundMoney(openingBalance + revenue - purchases - expensesTotal);
-  const cashFlowBefore    = openingBalance;
-  const cashOut           = roundMoney(purchases + expensesTotal);
+  const cashFlow = roundMoney(openingBalance + revenue - purchases - expensesTotal);
+  const cashFlowBefore = openingBalance;
+  const cashOut = roundMoney(purchases + expensesTotal);
 
   // ── تفاصيل المبيعات بالنوع ──
   const byType = {};
   for (const row of salesByType.rows) {
     byType[row.sale_type] = {
-      revenue:      roundMoney(toNum(row.revenue)),
-      cogs:         roundMoney(toNum(row.cogs)),
+      revenue: roundMoney(toNum(row.revenue)),
+      cogs: roundMoney(toNum(row.cogs)),
       gross_profit: roundMoney(toNum(row.gross_profit)),
-      count:        row.count,
+      count: row.count,
     };
   }
 
   const result = {
-    period:   { from: fromDate, to: toDate },
+    period: { from: fromDate, to: toDate },
     cogs_basis: cogsBasis,
-    opening_balance: openingBalance,  // رصيد أول المدة للشفافية
+    opening_balance: openingBalance, // رصيد أول المدة للشفافية
 
     // ── قسم الإيرادات ──
     revenue: {
-      gross:    grossRevenue,
-      returns:  returns,
-      net:      netRevenue,
-      count:    toNum(salesData.rows[0]?.sales_count) + toNum(returnsData.rows[0]?.returns_count),
+      gross: grossRevenue,
+      returns: returns,
+      net: netRevenue,
+      count: toNum(salesData.rows[0]?.sales_count) + toNum(returnsData.rows[0]?.returns_count),
       discounts: roundMoney(toNum(salesData.rows[0]?.discounts)),
-      by_type:  byType,
+      by_type: byType,
     },
 
     // ── قسم التكلفة ──
     cogs: {
-      total:    cogsUsed,
-      from_items:    cogsFromItems_,
-      from_stored:   cogsStored,
+      total: cogsUsed,
+      from_items: cogsFromItems_,
+      from_stored: cogsStored,
       from_purchases: purchases,
     },
 
@@ -251,12 +251,12 @@ export const getProfitAndLoss = async (fromDate, toDate) => {
 
     // ── المصاريف التشغيلية ──
     operating_expenses: {
-      total:      expensesTotal,
-      count:      toNum(expensesData.rows[0]?.expenses_count),
-      breakdown:  expensesByCategory.rows.map(r => ({
+      total: expensesTotal,
+      count: toNum(expensesData.rows[0]?.expenses_count),
+      breakdown: expensesByCategory.rows.map((r) => ({
         category: r.category,
-        total:    roundMoney(toNum(r.total)),
-        count:    r.count,
+        total: roundMoney(toNum(r.total)),
+        count: r.count,
       })),
     },
 
@@ -274,12 +274,12 @@ export const getProfitAndLoss = async (fromDate, toDate) => {
 
     // ── التدفق النقدي ──
     cash_flow: {
-      opening:  cashFlowBefore,
-      revenue:  revenue,
+      opening: cashFlowBefore,
+      revenue: revenue,
       cash_out: cashOut,
-      closing:  cashFlow,
+      closing: cashFlow,
       purchases: purchases,
-      expenses:  expensesTotal,
+      expenses: expensesTotal,
     },
   };
 
@@ -301,7 +301,7 @@ export const getMonthlyPLSummary = async (months = 6) => {
      GROUP BY 1
      ORDER BY 1 DESC
      LIMIT $1`,
-    [months]
+    [months],
   );
 
   const purchasesRows = await query(
@@ -313,7 +313,7 @@ export const getMonthlyPLSummary = async (months = 6) => {
      GROUP BY 1
      ORDER BY 1 DESC
      LIMIT $1`,
-    [months]
+    [months],
   );
 
   const expensesRows = await query(
@@ -325,27 +325,31 @@ export const getMonthlyPLSummary = async (months = 6) => {
      GROUP BY 1
      ORDER BY 1 DESC
      LIMIT $1`,
-    [months]
+    [months],
   );
 
-  const purchasesMap = new Map(purchasesRows.rows.map(r => [String(r.month), toNum(r.purchases)]));
-  const expensesMap  = new Map(expensesRows.rows.map(r => [String(r.month), toNum(r.expenses)]));
+  const purchasesMap = new Map(
+    purchasesRows.rows.map((r) => [String(r.month), toNum(r.purchases)]),
+  );
+  const expensesMap = new Map(expensesRows.rows.map((r) => [String(r.month), toNum(r.expenses)]));
 
-  return rows.rows.map(r => {
-    const month     = String(r.month);
-    const revenue   = toNum(r.revenue);
-    const cogs      = toNum(r.cogs_stored) || purchasesMap.get(month) || 0;
-    const expenses  = expensesMap.get(month) || 0;
-    const gross     = roundMoney(revenue - cogs);
-    const net       = roundMoney(gross - expenses);
-    return {
-      month,
-      revenue:   roundMoney(revenue),
-      cogs:      roundMoney(cogs),
-      expenses:  roundMoney(expenses),
-      gross_profit: gross,
-      net_profit:   net,
-      net_margin: revenue > 0 ? roundMoney((net / revenue) * 100) : 0,
-    };
-  }).reverse(); // من الأقدم للأحدث للرسم البياني
+  return rows.rows
+    .map((r) => {
+      const month = String(r.month);
+      const revenue = toNum(r.revenue);
+      const cogs = toNum(r.cogs_stored) || purchasesMap.get(month) || 0;
+      const expenses = expensesMap.get(month) || 0;
+      const gross = roundMoney(revenue - cogs);
+      const net = roundMoney(gross - expenses);
+      return {
+        month,
+        revenue: roundMoney(revenue),
+        cogs: roundMoney(cogs),
+        expenses: roundMoney(expenses),
+        gross_profit: gross,
+        net_profit: net,
+        net_margin: revenue > 0 ? roundMoney((net / revenue) * 100) : 0,
+      };
+    })
+    .reverse(); // من الأقدم للأحدث للرسم البياني
 };

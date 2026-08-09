@@ -19,7 +19,10 @@ export const generateInvoicePdf = async (invoiceId) => {
     const light = '#F5E6D3';
 
     doc.rect(0, 0, doc.page.width, 90).fill(brown);
-    doc.fillColor('#fff').fontSize(22).text(company.name_ar || 'Bin Al-Ajouz', 50, 35, { align: 'left' });
+    doc
+      .fillColor('#fff')
+      .fontSize(22)
+      .text(company.name_ar || 'Bin Al-Ajouz', 50, 35, { align: 'left' });
     doc.fontSize(10).text('Turkish Coffee', 50, 52);
     doc.text(`Address: ${company.address || 'Egypt'}`, 50, 66);
     doc.text(`Tel: ${company.phone || '01000000000'}`, 50, 80);
@@ -44,7 +47,10 @@ export const generateInvoicePdf = async (invoiceId) => {
 
     doc.fillColor('#000').fontSize(9);
     (invoice.items || []).forEach((item, i) => {
-      if (y > 700) { doc.addPage(); y = 50; }
+      if (y > 700) {
+        doc.addPage();
+        y = 50;
+      }
       const desc = item.description || item.product_name || '-';
       doc.text(String(i + 1), 55, y, { width: 25 });
       doc.text(desc.substring(0, 45), 85, y, { width: 200 });
@@ -60,14 +66,20 @@ export const generateInvoicePdf = async (invoiceId) => {
     y += 15;
     doc.text(`Tax: ${fmt(invoice.tax_amount)}`, 350, y);
     y += 20;
-    doc.fontSize(12).fillColor(brown).text(`TOTAL: ${fmt(invoice.total_amount)}`, 350, y);
+    doc
+      .fontSize(12)
+      .fillColor(brown)
+      .text(`TOTAL: ${fmt(invoice.total_amount)}`, 350, y);
 
     if (invoice.notes) {
       y += 40;
       doc.fillColor('#666').fontSize(9).text(`Notes: ${invoice.notes}`, 50, y, { width: 480 });
     }
 
-    doc.fontSize(8).fillColor('#999').text('Thank you - Bin Al-Ajouz', 50, doc.page.height - 40, { align: 'center', width: 495 });
+    doc
+      .fontSize(8)
+      .fillColor('#999')
+      .text('Thank you - Bin Al-Ajouz', 50, doc.page.height - 40, { align: 'center', width: 495 });
 
     doc.end();
   });

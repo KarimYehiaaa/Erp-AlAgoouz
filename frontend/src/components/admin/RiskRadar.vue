@@ -61,8 +61,12 @@
         </div>
         <ul v-if="data.staleInvoices?.length" class="radar-list">
           <li v-for="inv in data.staleInvoices" :key="inv.id">
-            <span class="item-name">{{ inv.invoice_number }} - {{ inv.customer_name || 'عميل' }}</span>
-            <span class="item-val warning">{{ formatMoney(inv.total_amount - inv.paid_amount) }}</span>
+            <span class="item-name"
+              >{{ inv.invoice_number }} - {{ inv.customer_name || 'عميل' }}</span
+            >
+            <span class="item-val warning">{{
+              formatMoney(inv.total_amount - inv.paid_amount)
+            }}</span>
           </li>
         </ul>
         <div v-else class="radar-empty">لا توجد فواتير متأخرة</div>
@@ -77,17 +81,22 @@ import { formatMoney } from '@/utils/currency';
 defineProps({
   data: {
     type: Object,
-    default: () => ({ overdueCustomers: [], lowMarginProducts: [], outOfStockProducts: [], staleInvoices: [] })
+    default: () => ({
+      overdueCustomers: [],
+      lowMarginProducts: [],
+      outOfStockProducts: [],
+      staleInvoices: [],
+    }),
   },
-  loading: Boolean
+  loading: Boolean,
 });
 </script>
 
 <style scoped>
 .risk-radar {
   border-radius: 16px;
-  background: var(--card-bg, rgba(255,255,255,0.04));
-  border: 1px solid var(--border, rgba(255,255,255,0.08));
+  background: var(--card-bg, rgba(255, 255, 255, 0.04));
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
   padding: 20px;
 }
 
@@ -106,7 +115,7 @@ defineProps({
 }
 
 .radar-badge {
-  background: rgba(239,68,68,0.15);
+  background: rgba(239, 68, 68, 0.15);
   color: #ef4444;
   padding: 4px 10px;
   border-radius: 12px;
@@ -123,8 +132,8 @@ defineProps({
 .radar-card {
   padding: 14px 16px;
   border-radius: 14px;
-  background: rgba(255,255,255,0.02);
-  border: 1px solid rgba(255,255,255,0.06);
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .card-head {
@@ -155,7 +164,7 @@ defineProps({
   align-items: center;
   font-size: 0.82rem;
   padding: 4px 0;
-  border-bottom: 1px dashed rgba(255,255,255,0.05);
+  border-bottom: 1px dashed rgba(255, 255, 255, 0.05);
 }
 
 .radar-list li:last-child {
@@ -174,9 +183,15 @@ defineProps({
   font-weight: 800;
 }
 
-.item-val.danger { color: #ef4444; }
-.item-val.warning { color: #f59e0b; }
-.item-val.muted { color: #94a3b8; }
+.item-val.danger {
+  color: #ef4444;
+}
+.item-val.warning {
+  color: #f59e0b;
+}
+.item-val.muted {
+  color: #94a3b8;
+}
 
 .radar-empty {
   font-size: 0.8rem;

@@ -1,5 +1,9 @@
 <template>
-  <div class="layout" :class="{ 'sidebar-collapsed': !appStore.sidebarOpen }" :data-route="route.name">
+  <div
+    class="layout"
+    :class="{ 'sidebar-collapsed': !appStore.sidebarOpen }"
+    :data-route="route.name"
+  >
     <AppSidebar />
     <div v-if="appStore.sidebarOpen" class="sidebar-overlay" @click="appStore.toggleSidebar"></div>
     <div class="layout-main">
@@ -21,30 +25,277 @@
     <ToastContainer />
 
     <!-- Floating Shortcuts HUD Overlay -->
-    <div v-if="showShortcutsHUD" class="modal" @click.self="showShortcutsHUD = false" style="z-index: 99999;">
-      <div class="modal-content shortcuts-hud" style="padding: 24px; direction: rtl; text-align: right;">
-        <div class="hud-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--border); padding-bottom: 12px; margin-bottom: 18px;">
-          <h3 style="margin: 0; color: var(--text-strong); font-size: 1.15rem; font-weight: 850;">⌨️ لوحة اختصارات النظام السريعة</h3>
-          <button @click="showShortcutsHUD = false" style="border: none; background: transparent; font-size: 1.2rem; cursor: pointer; color: var(--text-muted);">✕</button>
+    <div
+      v-if="showShortcutsHUD"
+      class="modal"
+      @click.self="showShortcutsHUD = false"
+      style="z-index: 99999"
+    >
+      <div
+        class="modal-content shortcuts-hud"
+        style="padding: 24px; direction: rtl; text-align: right"
+      >
+        <div
+          class="hud-header"
+          style="
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid var(--border);
+            padding-bottom: 12px;
+            margin-bottom: 18px;
+          "
+        >
+          <h3 style="margin: 0; color: var(--text-strong); font-size: 1.15rem; font-weight: 850">
+            ⌨️ لوحة اختصارات النظام السريعة
+          </h3>
+          <button
+            @click="showShortcutsHUD = false"
+            style="
+              border: none;
+              background: transparent;
+              font-size: 1.2rem;
+              cursor: pointer;
+              color: var(--text-muted);
+            "
+          >
+            ✕
+          </button>
         </div>
-        <div class="hud-body" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+        <div class="hud-body" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px">
           <div class="hud-group">
-            <h4 style="margin-top: 0; color: var(--accent); font-weight: 800; font-size: 0.92rem; border-bottom: 1px solid var(--border); padding-bottom: 6px; margin-bottom: 10px;">🗺️ التنقل السريع (Alt + مفتاح)</h4>
-            <ul style="list-style: none; padding: 0; margin: 0; display: grid; gap: 8px;">
-              <li style="display: flex; justify-content: space-between; font-size: 0.84rem; color: var(--text);"><span style="background: var(--primary-soft); color: var(--primary-strong); padding: 2px 6px; border-radius: 4px; font-weight: 800; font-family: monospace;">Alt + D</span> لوحة التحكم الرئيسية</li>
-              <li style="display: flex; justify-content: space-between; font-size: 0.84rem; color: var(--text);"><span style="background: var(--primary-soft); color: var(--primary-strong); padding: 2px 6px; border-radius: 4px; font-weight: 800; font-family: monospace;">Alt + P</span> الكاشير المباشر (POS)</li>
-              <li style="display: flex; justify-content: space-between; font-size: 0.84rem; color: var(--text);"><span style="background: var(--primary-soft); color: var(--primary-strong); padding: 2px 6px; border-radius: 4px; font-weight: 800; font-family: monospace;">Alt + S</span> إعدادات النظام</li>
-              <li style="display: flex; justify-content: space-between; font-size: 0.84rem; color: var(--text);"><span style="background: var(--primary-soft); color: var(--primary-strong); padding: 2px 6px; border-radius: 4px; font-weight: 800; font-family: monospace;">Alt + I</span> إدارة الفواتير</li>
-              <li style="display: flex; justify-content: space-between; font-size: 0.84rem; color: var(--text);"><span style="background: var(--primary-soft); color: var(--primary-strong); padding: 2px 6px; border-radius: 4px; font-weight: 800; font-family: monospace;">Alt + M</span> الجرد والمخزن</li>
-              <li style="display: flex; justify-content: space-between; font-size: 0.84rem; color: var(--text);"><span style="background: var(--primary-soft); color: var(--primary-strong); padding: 2px 6px; border-radius: 4px; font-weight: 800; font-family: monospace;">Alt + R</span> إدارة الوصفات</li>
+            <h4
+              style="
+                margin-top: 0;
+                color: var(--accent);
+                font-weight: 800;
+                font-size: 0.92rem;
+                border-bottom: 1px solid var(--border);
+                padding-bottom: 6px;
+                margin-bottom: 10px;
+              "
+            >
+              🗺️ التنقل السريع (Alt + مفتاح)
+            </h4>
+            <ul style="list-style: none; padding: 0; margin: 0; display: grid; gap: 8px">
+              <li
+                style="
+                  display: flex;
+                  justify-content: space-between;
+                  font-size: 0.84rem;
+                  color: var(--text);
+                "
+              >
+                <span
+                  style="
+                    background: var(--primary-soft);
+                    color: var(--primary-strong);
+                    padding: 2px 6px;
+                    border-radius: 4px;
+                    font-weight: 800;
+                    font-family: monospace;
+                  "
+                  >Alt + D</span
+                >
+                لوحة التحكم الرئيسية
+              </li>
+              <li
+                style="
+                  display: flex;
+                  justify-content: space-between;
+                  font-size: 0.84rem;
+                  color: var(--text);
+                "
+              >
+                <span
+                  style="
+                    background: var(--primary-soft);
+                    color: var(--primary-strong);
+                    padding: 2px 6px;
+                    border-radius: 4px;
+                    font-weight: 800;
+                    font-family: monospace;
+                  "
+                  >Alt + P</span
+                >
+                الكاشير المباشر (POS)
+              </li>
+              <li
+                style="
+                  display: flex;
+                  justify-content: space-between;
+                  font-size: 0.84rem;
+                  color: var(--text);
+                "
+              >
+                <span
+                  style="
+                    background: var(--primary-soft);
+                    color: var(--primary-strong);
+                    padding: 2px 6px;
+                    border-radius: 4px;
+                    font-weight: 800;
+                    font-family: monospace;
+                  "
+                  >Alt + S</span
+                >
+                إعدادات النظام
+              </li>
+              <li
+                style="
+                  display: flex;
+                  justify-content: space-between;
+                  font-size: 0.84rem;
+                  color: var(--text);
+                "
+              >
+                <span
+                  style="
+                    background: var(--primary-soft);
+                    color: var(--primary-strong);
+                    padding: 2px 6px;
+                    border-radius: 4px;
+                    font-weight: 800;
+                    font-family: monospace;
+                  "
+                  >Alt + I</span
+                >
+                إدارة الفواتير
+              </li>
+              <li
+                style="
+                  display: flex;
+                  justify-content: space-between;
+                  font-size: 0.84rem;
+                  color: var(--text);
+                "
+              >
+                <span
+                  style="
+                    background: var(--primary-soft);
+                    color: var(--primary-strong);
+                    padding: 2px 6px;
+                    border-radius: 4px;
+                    font-weight: 800;
+                    font-family: monospace;
+                  "
+                  >Alt + M</span
+                >
+                الجرد والمخزن
+              </li>
+              <li
+                style="
+                  display: flex;
+                  justify-content: space-between;
+                  font-size: 0.84rem;
+                  color: var(--text);
+                "
+              >
+                <span
+                  style="
+                    background: var(--primary-soft);
+                    color: var(--primary-strong);
+                    padding: 2px 6px;
+                    border-radius: 4px;
+                    font-weight: 800;
+                    font-family: monospace;
+                  "
+                  >Alt + R</span
+                >
+                إدارة الوصفات
+              </li>
             </ul>
           </div>
           <div class="hud-group">
-            <h4 style="margin-top: 0; color: var(--accent); font-weight: 800; font-size: 0.92rem; border-bottom: 1px solid var(--border); padding-bottom: 6px; margin-bottom: 10px;">💡 مفاتيح عامة ومساعدة</h4>
-            <ul style="list-style: none; padding: 0; margin: 0; display: grid; gap: 8px;">
-              <li style="display: flex; justify-content: space-between; font-size: 0.84rem; color: var(--text);"><span style="background: var(--primary-soft); color: var(--primary-strong); padding: 2px 6px; border-radius: 4px; font-weight: 800; font-family: monospace;">؟</span> أو <span style="background: var(--primary-soft); color: var(--primary-strong); padding: 2px 6px; border-radius: 4px; font-weight: 800; font-family: monospace;">?</span> فتح/إغلاق هذه المساعدة</li>
-              <li style="display: flex; justify-content: space-between; font-size: 0.84rem; color: var(--text);"><span style="background: var(--primary-soft); color: var(--primary-strong); padding: 2px 6px; border-radius: 4px; font-weight: 800; font-family: monospace;">F11</span> ملء الشاشة</li>
-              <li style="display: flex; justify-content: space-between; font-size: 0.84rem; color: var(--text);"><span style="background: var(--primary-soft); color: var(--primary-strong); padding: 2px 6px; border-radius: 4px; font-weight: 800; font-family: monospace;">Ctrl + P</span> طباعة الفاتورة الفورية</li>
+            <h4
+              style="
+                margin-top: 0;
+                color: var(--accent);
+                font-weight: 800;
+                font-size: 0.92rem;
+                border-bottom: 1px solid var(--border);
+                padding-bottom: 6px;
+                margin-bottom: 10px;
+              "
+            >
+              💡 مفاتيح عامة ومساعدة
+            </h4>
+            <ul style="list-style: none; padding: 0; margin: 0; display: grid; gap: 8px">
+              <li
+                style="
+                  display: flex;
+                  justify-content: space-between;
+                  font-size: 0.84rem;
+                  color: var(--text);
+                "
+              >
+                <span
+                  style="
+                    background: var(--primary-soft);
+                    color: var(--primary-strong);
+                    padding: 2px 6px;
+                    border-radius: 4px;
+                    font-weight: 800;
+                    font-family: monospace;
+                  "
+                  >؟</span
+                >
+                أو
+                <span
+                  style="
+                    background: var(--primary-soft);
+                    color: var(--primary-strong);
+                    padding: 2px 6px;
+                    border-radius: 4px;
+                    font-weight: 800;
+                    font-family: monospace;
+                  "
+                  >?</span
+                >
+                فتح/إغلاق هذه المساعدة
+              </li>
+              <li
+                style="
+                  display: flex;
+                  justify-content: space-between;
+                  font-size: 0.84rem;
+                  color: var(--text);
+                "
+              >
+                <span
+                  style="
+                    background: var(--primary-soft);
+                    color: var(--primary-strong);
+                    padding: 2px 6px;
+                    border-radius: 4px;
+                    font-weight: 800;
+                    font-family: monospace;
+                  "
+                  >F11</span
+                >
+                ملء الشاشة
+              </li>
+              <li
+                style="
+                  display: flex;
+                  justify-content: space-between;
+                  font-size: 0.84rem;
+                  color: var(--text);
+                "
+              >
+                <span
+                  style="
+                    background: var(--primary-soft);
+                    color: var(--primary-strong);
+                    padding: 2px 6px;
+                    border-radius: 4px;
+                    font-weight: 800;
+                    font-family: monospace;
+                  "
+                  >Ctrl + P</span
+                >
+                طباعة الفاتورة الفورية
+              </li>
             </ul>
           </div>
         </div>
@@ -108,11 +359,14 @@ const handleGlobalShortcuts = (e) => {
   }
 };
 
-watch(() => route.path, () => {
-  if (window.innerWidth <= 992 && appStore.sidebarOpen) {
-    appStore.toggleSidebar();
-  }
-});
+watch(
+  () => route.path,
+  () => {
+    if (window.innerWidth <= 992 && appStore.sidebarOpen) {
+      appStore.toggleSidebar();
+    }
+  },
+);
 
 onMounted(() => {
   window.addEventListener('keydown', handleGlobalShortcuts);
@@ -137,7 +391,9 @@ onBeforeUnmount(() => {
   min-width: 0;
 }
 
-.sidebar-collapsed .layout-main { margin-right: var(--sidebar-collapsed); }
+.sidebar-collapsed .layout-main {
+  margin-right: var(--sidebar-collapsed);
+}
 
 .layout-content {
   padding: clamp(16px, 2vw, 28px);
@@ -146,7 +402,9 @@ onBeforeUnmount(() => {
 }
 
 @media (max-width: 992px) {
-  .layout-main { margin-right: 0; }
+  .layout-main {
+    margin-right: 0;
+  }
 }
 
 /* ── Global Toasts ── */
@@ -177,19 +435,19 @@ onBeforeUnmount(() => {
   font-weight: 700;
   font-size: 0.88rem;
   direction: rtl;
-  
+
   &.success {
     background: #15803d !important;
     color: #ffffff !important;
     border-color: #166534 !important;
   }
-  
+
   &.error {
     background: #dc2626 !important;
     color: #ffffff !important;
     border-color: #991b1b !important;
   }
-  
+
   &.warning {
     background: #d97706 !important;
     color: #ffffff !important;
@@ -211,7 +469,7 @@ onBeforeUnmount(() => {
   font-weight: 800;
   font-size: 0.78rem;
   transition: background 0.2s;
-  
+
   &:hover {
     background: rgba(255, 255, 255, 0.35);
   }
@@ -225,7 +483,7 @@ onBeforeUnmount(() => {
   opacity: 0.6;
   font-size: 0.85rem;
   padding: 2px;
-  
+
   &:hover {
     opacity: 1;
   }
@@ -261,7 +519,11 @@ onBeforeUnmount(() => {
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 </style>

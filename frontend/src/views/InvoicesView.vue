@@ -42,10 +42,16 @@
             <td colspan="6" class="empty">لا توجد فواتير يدويّة حتى الآن.</td>
           </tr>
           <tr v-for="inv in invoices" :key="inv.id">
-            <td><strong>{{ inv.invoice_number }}</strong></td>
+            <td>
+              <strong>{{ inv.invoice_number }}</strong>
+            </td>
             <td>{{ inv.customer_name || 'عميل نقدي' }}</td>
             <td>{{ formatMoney(inv.total_amount) }}</td>
-            <td><span :class="statusClass(inv.payment_status)">{{ statusLabel(inv.payment_status) }}</span></td>
+            <td>
+              <span :class="statusClass(inv.payment_status)">{{
+                statusLabel(inv.payment_status)
+              }}</span>
+            </td>
             <td>{{ formatDate(inv.issued_at || inv.created_at) }}</td>
             <td class="actions">
               <router-link :to="`/invoices/${inv.id}`" class="icon-btn" title="عرض">
@@ -54,7 +60,12 @@
               <router-link :to="`/invoices/${inv.id}/edit`" class="icon-btn" title="تعديل">
                 <AppIcon name="edit" :size="16" />
               </router-link>
-              <button type="button" class="icon-btn danger" @click="deleteInvoice(inv.id)" title="حذف">
+              <button
+                type="button"
+                class="icon-btn danger"
+                @click="deleteInvoice(inv.id)"
+                title="حذف"
+              >
                 <AppIcon name="delete" :size="16" />
               </button>
             </td>
@@ -74,14 +85,18 @@ import { formatMoney } from '@/utils/currency';
 const invoices = ref([]);
 const filterStatus = ref('');
 
-const statusLabel = (s) => ({
-  paid: 'مدفوعة',
-  partial: 'جزئية',
-  unpaid: 'غير مدفوعة',
-  refunded: 'مستردة',
-}[s] || s);
+const statusLabel = (s) =>
+  ({
+    paid: 'مدفوعة',
+    partial: 'جزئية',
+    unpaid: 'غير مدفوعة',
+    refunded: 'مستردة',
+  })[s] || s;
 
-const statusClass = (s) => ['badge', s === 'paid' ? 'badge-success' : s === 'unpaid' ? 'badge-danger' : 'badge-warning'];
+const statusClass = (s) => [
+  'badge',
+  s === 'paid' ? 'badge-success' : s === 'unpaid' ? 'badge-danger' : 'badge-warning',
+];
 const formatDate = (d) => (d ? new Date(d).toLocaleDateString('en-GB') : '—');
 
 const load = async () => {
@@ -111,8 +126,14 @@ onMounted(load);
   justify-content: space-between;
   gap: 14px;
   margin-bottom: 16px;
-  h3 { margin: 0 0 6px; color: var(--primary-strong); }
-  p { margin: 0; color: var(--text-muted); }
+  h3 {
+    margin: 0 0 6px;
+    color: var(--primary-strong);
+  }
+  p {
+    margin: 0;
+    color: var(--text-muted);
+  }
 }
 .create-actions {
   display: flex;
@@ -126,25 +147,54 @@ onMounted(load);
   gap: 8px;
 }
 .page-header {
-  display: flex; gap: 12px; margin-bottom: 20px;
-  align-items: center; justify-content: space-between;
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+  align-items: center;
+  justify-content: space-between;
   select {
-    padding: 10px 14px; border: 2px solid var(--border);
-    border-radius: var(--radius-sm); background: var(--bg-elevated);
+    padding: 10px 14px;
+    border: 2px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-elevated);
     transition: var(--transition);
-    &:focus { outline: none; border-color: var(--primary); }
+    &:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
   }
 }
-.empty { text-align: center; color: var(--text-muted); padding: 24px !important; }
-.actions { white-space: nowrap; }
+.empty {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 24px !important;
+}
+.actions {
+  white-space: nowrap;
+}
 .actions .icon-btn {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 32px; height: 32px; border: 1px solid var(--border);
-  background: var(--bg-elevated); cursor: pointer; margin-left: 4px;
-  font-size: 0.9rem; border-radius: var(--radius-xs); transition: var(--transition);
-  &:hover { background: var(--bg); border-color: var(--primary-soft); }
-  &.danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 25%, transparent);
-    &:hover { background: color-mix(in srgb, var(--danger) 8%, transparent); }
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  cursor: pointer;
+  margin-left: 4px;
+  font-size: 0.9rem;
+  border-radius: var(--radius-xs);
+  transition: var(--transition);
+  &:hover {
+    background: var(--bg);
+    border-color: var(--primary-soft);
+  }
+  &.danger {
+    color: var(--danger);
+    border-color: color-mix(in srgb, var(--danger) 25%, transparent);
+    &:hover {
+      background: color-mix(in srgb, var(--danger) 8%, transparent);
+    }
   }
 }
 </style>

@@ -1,21 +1,28 @@
 <template>
   <div class="forecasting-page">
-    
     <!-- Header -->
     <div class="page-header card">
       <div class="header-title">
         <span class="header-icon">🧠</span>
         <div>
           <h2>التنبؤ الذكي وتحليل الطلب</h2>
-          <p>توقعات المبيعات المدعومة بالذكاء الاصطناعي الإحصائي، واستهلاك المواد الخام وجدول التزود بالمخزون</p>
+          <p>
+            توقعات المبيعات المدعومة بالذكاء الاصطناعي الإحصائي، واستهلاك المواد الخام وجدول التزود
+            بالمخزون
+          </p>
         </div>
       </div>
-      
+
       <!-- Filters (Warehouse) -->
       <div class="header-filters">
         <div class="form-group">
           <label>المخزن المستهدف للتحليل</label>
-          <select v-model="selectedWarehouse" @change="loadForecast" class="warehouse-select" :disabled="loading">
+          <select
+            v-model="selectedWarehouse"
+            @change="loadForecast"
+            class="warehouse-select"
+            :disabled="loading"
+          >
             <option v-for="w in warehouseList" :key="w.id" :value="w.id">{{ w.name_ar }}</option>
           </select>
         </div>
@@ -27,10 +34,14 @@
       <div class="alert-banner-icon">⚠️</div>
       <div class="alert-banner-body">
         <h4>تنبيه مخزون حرج! أصناف تقترب من النفاد</h4>
-        <p>التحليل يتوقع نفاد مخزون الأصناف التالية خلال أقل من 7 أيام بناءً على معدلات الطلب الحالية:</p>
+        <p>
+          التحليل يتوقع نفاد مخزون الأصناف التالية خلال أقل من 7 أيام بناءً على معدلات الطلب
+          الحالية:
+        </p>
         <div class="alert-badges">
           <span v-for="item in criticalAlerts" :key="item.product_id" class="critical-badge">
-            {{ item.name_ar }} (ينفد خلال {{ item.runway_days }} {{ item.runway_days === 1 ? 'يوم' : 'أيام' }})
+            {{ item.name_ar }} (ينفد خلال {{ item.runway_days }}
+            {{ item.runway_days === 1 ? 'يوم' : 'أيام' }})
           </span>
         </div>
       </div>
@@ -70,44 +81,56 @@
     <!-- Tabs Layout -->
     <div class="tabs-wrap">
       <div class="tabs">
-        <button 
-          type="button" 
+        <button
+          type="button"
           :class="{ active: activeTab === 'runway' }"
           @click="activeTab = 'runway'"
-        >🎛️ مؤشر نفاد المخزون (Runway)</button>
-        <button 
-          type="button" 
+        >
+          🎛️ مؤشر نفاد المخزون (Runway)
+        </button>
+        <button
+          type="button"
           :class="{ active: activeTab === 'sales' }"
           @click="activeTab = 'sales'"
-        >📈 توقع طلب المنتجات (7 أيام)</button>
-        <button 
-          type="button" 
+        >
+          📈 توقع طلب المنتجات (7 أيام)
+        </button>
+        <button
+          type="button"
           :class="{ active: activeTab === 'ingredients' }"
           @click="activeTab = 'ingredients'"
-        >📦 توقع استهلاك المكونات (7 أيام)</button>
-        <button 
-          type="button" 
+        >
+          📦 توقع استهلاك المكونات (7 أيام)
+        </button>
+        <button
+          type="button"
           :class="{ active: activeTab === 'staffing' }"
           @click="activeTab = 'staffing'"
-        >⏳ أوقات الذروة والشيفتات</button>
-        <button 
-          type="button" 
+        >
+          ⏳ أوقات الذروة والشيفتات
+        </button>
+        <button
+          type="button"
           :class="{ active: activeTab === 'pricing' }"
           @click="activeTab = 'pricing'"
-        >💰 هوامش الربح والتسعير الذكي</button>
-        <button 
-          type="button" 
+        >
+          💰 هوامش الربح والتسعير الذكي
+        </button>
+        <button
+          type="button"
           :class="{ active: activeTab === 'cashflow' }"
           @click="activeTab = 'cashflow'"
-        >💵 توقع التدفقات النقدية</button>
+        >
+          💵 توقع التدفقات النقدية
+        </button>
       </div>
 
       <!-- General Search filter -->
       <div class="search-bar">
-        <input 
-          v-model="searchTerm" 
-          type="text" 
-          placeholder="البحث بالاسم أو الكود في الجدول الحالي..." 
+        <input
+          v-model="searchTerm"
+          type="text"
+          placeholder="البحث بالاسم أو الكود في الجدول الحالي..."
           class="search-input"
         />
       </div>
@@ -121,12 +144,14 @@
 
     <!-- Tabs Content -->
     <div v-else class="tab-content">
-      
       <!-- TAB 1: RUNWAY -->
       <div v-if="activeTab === 'runway'" class="card table-card">
         <h3>🔋 مدى كفاية المخزون الحالي (Inventory Runway)</h3>
-        <p class="section-desc">يحسب المدة الزمنية بالأيام المتبقية قبل نفاد رصيد المخزن الحالي لكل صنف بناءً على استهلاكه اليومي المتوقع.</p>
-        
+        <p class="section-desc">
+          يحسب المدة الزمنية بالأيام المتبقية قبل نفاد رصيد المخزن الحالي لكل صنف بناءً على استهلاكه
+          اليومي المتوقع.
+        </p>
+
         <div class="table-wrap">
           <table class="forecast-table">
             <thead>
@@ -136,13 +161,19 @@
                 <th>التصنيف</th>
                 <th>الرصيد الحالي</th>
                 <th>متوسط السحب اليومي المتوقع</th>
-                <th style="width: 250px;">مؤشر البقاء (Runway)</th>
+                <th style="width: 250px">مؤشر البقاء (Runway)</th>
                 <th>تاريخ النفاد المتوقع</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="item in filteredRunway" :key="item.product_id" :class="getRowClass(item.runway_days)">
-                <td><code>{{ item.sku }}</code></td>
+              <tr
+                v-for="item in filteredRunway"
+                :key="item.product_id"
+                :class="getRowClass(item.runway_days)"
+              >
+                <td>
+                  <code>{{ item.sku }}</code>
+                </td>
                 <td class="font-bold">{{ item.name_ar }}</td>
                 <td class="muted">{{ item.category_name || '—' }}</td>
                 <td>{{ item.current_stock }} {{ item.unit }}</td>
@@ -150,7 +181,7 @@
                 <td>
                   <div class="runway-progress-wrap">
                     <div class="progress-bar-bg">
-                      <div 
+                      <div
                         class="progress-bar-fill"
                         :style="{ width: getProgressWidth(item.runway_days) + '%' }"
                         :class="getProgressBarClass(item.runway_days)"
@@ -178,8 +209,11 @@
       <!-- TAB 2: SALES FORECAST -->
       <div v-if="activeTab === 'sales'" class="card table-card">
         <h3>📈 توقع طلب مبيعات المنتجات (الـ 7 أيام القادمة)</h3>
-        <p class="section-desc">تقدير الكميات المطلوبة لكل منتج نهائي مباع خلال الأسبوع القادم، مع مراعاة العوامل الموسمية لكل يوم من أيام الأسبوع.</p>
-        
+        <p class="section-desc">
+          تقدير الكميات المطلوبة لكل منتج نهائي مباع خلال الأسبوع القادم، مع مراعاة العوامل الموسمية
+          لكل يوم من أيام الأسبوع.
+        </p>
+
         <div class="table-wrap">
           <table class="forecast-table">
             <thead>
@@ -188,7 +222,7 @@
                 <th>المنتج</th>
                 <th>التصنيف</th>
                 <th v-for="(day, idx) in nextDaysLabels" :key="idx" class="center-col">
-                  {{ day.weekday }} <br><span class="muted">{{ day.date }}</span>
+                  {{ day.weekday }} <br /><span class="muted">{{ day.date }}</span>
                 </th>
                 <th class="total-col">إجمالي 7 أيام</th>
                 <th class="total-col">إجمالي 30 يوم</th>
@@ -196,17 +230,25 @@
             </thead>
             <tbody>
               <tr v-for="item in filteredSales" :key="item.product_id">
-                <td><code>{{ item.sku }}</code></td>
+                <td>
+                  <code>{{ item.sku }}</code>
+                </td>
                 <td class="font-bold">{{ item.name_ar }}</td>
                 <td class="muted">{{ item.category_name || '—' }}</td>
-                <td v-for="(val, idx) in item.daily_forecast" :key="idx" class="center-col font-bold">
+                <td
+                  v-for="(val, idx) in item.daily_forecast"
+                  :key="idx"
+                  class="center-col font-bold"
+                >
                   {{ val }}
                 </td>
                 <td class="total-col font-bold primary-color">{{ item.forecast_7d }}</td>
                 <td class="total-col font-bold secondary-color">{{ item.forecast_30d }}</td>
               </tr>
               <tr v-if="!filteredSales.length">
-                <td colspan="10" class="empty">لا توجد أصناف مطابقة للبحث أو لا توجد توقعات مبيعات نشطة حالياً</td>
+                <td colspan="10" class="empty">
+                  لا توجد أصناف مطابقة للبحث أو لا توجد توقعات مبيعات نشطة حالياً
+                </td>
               </tr>
             </tbody>
           </table>
@@ -216,8 +258,11 @@
       <!-- TAB 3: INGREDIENTS FORECAST -->
       <div v-if="activeTab === 'ingredients'" class="card table-card">
         <h3>📦 توقع استهلاك المكونات والمواد الخام (الـ 7 أيام القادمة)</h3>
-        <p class="section-desc">يحسب كمية المكونات والمواد الخام (مثل البن، الحليب، الأكواب، السكر) المطلوبة لتلبية الفواتير المتوقعة للأسبوع القادم.</p>
-        
+        <p class="section-desc">
+          يحسب كمية المكونات والمواد الخام (مثل البن، الحليب، الأكواب، السكر) المطلوبة لتلبية
+          الفواتير المتوقعة للأسبوع القادم.
+        </p>
+
         <div class="table-wrap">
           <table class="forecast-table">
             <thead>
@@ -226,7 +271,7 @@
                 <th>المكون / المادة الخام</th>
                 <th>التصنيف</th>
                 <th v-for="(day, idx) in nextDaysLabels" :key="idx" class="center-col">
-                  {{ day.weekday }} <br><span class="muted">{{ day.date }}</span>
+                  {{ day.weekday }} <br /><span class="muted">{{ day.date }}</span>
                 </th>
                 <th class="total-col">مجموع 7 أيام</th>
                 <th class="total-col">مجموع 30 يوم</th>
@@ -234,17 +279,29 @@
             </thead>
             <tbody>
               <tr v-for="item in filteredIngredients" :key="item.product_id">
-                <td><code>{{ item.sku }}</code></td>
+                <td>
+                  <code>{{ item.sku }}</code>
+                </td>
                 <td class="font-bold">{{ item.name_ar }}</td>
                 <td class="muted">{{ item.category_name || '—' }}</td>
-                <td v-for="(val, idx) in item.daily_forecast" :key="idx" class="center-col font-bold">
+                <td
+                  v-for="(val, idx) in item.daily_forecast"
+                  :key="idx"
+                  class="center-col font-bold"
+                >
                   {{ val }}
                 </td>
-                <td class="total-col font-bold primary-color">{{ item.forecast_7d }} {{ item.unit }}</td>
-                <td class="total-col font-bold secondary-color">{{ item.forecast_30d }} {{ item.unit }}</td>
+                <td class="total-col font-bold primary-color">
+                  {{ item.forecast_7d }} {{ item.unit }}
+                </td>
+                <td class="total-col font-bold secondary-color">
+                  {{ item.forecast_30d }} {{ item.unit }}
+                </td>
               </tr>
               <tr v-if="!filteredIngredients.length">
-                <td colspan="10" class="empty">لا توجد أصناف مطابقة للبحث أو لا توجد وصفات نشطة تستهلك مكونات حالياً</td>
+                <td colspan="10" class="empty">
+                  لا توجد أصناف مطابقة للبحث أو لا توجد وصفات نشطة تستهلك مكونات حالياً
+                </td>
               </tr>
             </tbody>
           </table>
@@ -254,18 +311,34 @@
       <!-- TAB 4: STAFFING FORECAST (PEAK HOURS) -->
       <div v-if="activeTab === 'staffing'" class="card table-card">
         <h3>⏳ تحليل فترات الازدحام وتوقعات العمالة (Peak Hours & Staffing)</h3>
-        <p class="section-desc">تحليل الكثافة التشغيلية ساعة بساعة بناءً على معاملات الـ 90 يوماً الماضية، لتحديد ساعات الذروة وتوزيع الموظفين الأنسب.</p>
-        
+        <p class="section-desc">
+          تحليل الكثافة التشغيلية ساعة بساعة بناءً على معاملات الـ 90 يوماً الماضية، لتحديد ساعات
+          الذروة وتوزيع الموظفين الأنسب.
+        </p>
+
         <div class="peak-hours-grid">
           <div class="peak-header-sub">🔥 أعلى 5 ساعات ذروة مبيعاً وازدحاماً:</div>
           <div class="grid grid-5">
-            <div v-for="(peak, idx) in peakHours" :key="idx" class="card peak-card" :class="'traffic-' + peak.traffic_level">
+            <div
+              v-for="(peak, idx) in peakHours"
+              :key="idx"
+              class="card peak-card"
+              :class="'traffic-' + peak.traffic_level"
+            >
               <div class="peak-badge">الترتيب #{{ idx + 1 }}</div>
               <div class="peak-day">{{ peak.day_name }}</div>
               <div class="peak-time">الساعة {{ peak.hour_formatted }}</div>
               <div class="peak-meta">
-                <span>متوسط الطلبات: <strong>{{ peak.avg_transactions }}</strong></span>
-                <span>العمالة المقترحة: <strong>{{ peak.recommended_staff }} {{ peak.recommended_staff > 2 ? 'موظفين' : 'موظف' }}</strong></span>
+                <span
+                  >متوسط الطلبات: <strong>{{ peak.avg_transactions }}</strong></span
+                >
+                <span
+                  >العمالة المقترحة:
+                  <strong
+                    >{{ peak.recommended_staff }}
+                    {{ peak.recommended_staff > 2 ? 'موظفين' : 'موظف' }}</strong
+                  ></span
+                >
               </div>
             </div>
           </div>
@@ -274,8 +347,16 @@
         <div class="day-selector-row">
           <label>عرض الكثافة التفصيلية ليوم:</label>
           <div class="day-buttons">
-            <button 
-              v-for="(dayName, idx) in ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت']" 
+            <button
+              v-for="(dayName, idx) in [
+                'الأحد',
+                'الإثنين',
+                'الثلاثاء',
+                'الأربعاء',
+                'الخميس',
+                'الجمعة',
+                'السبت',
+              ]"
               :key="idx"
               type="button"
               class="day-btn"
@@ -287,7 +368,7 @@
           </div>
         </div>
 
-        <div class="table-wrap" style="margin-top: 16px;">
+        <div class="table-wrap" style="margin-top: 16px">
           <table class="forecast-table">
             <thead>
               <tr>
@@ -309,7 +390,8 @@
                   </span>
                 </td>
                 <td class="font-bold">
-                  {{ hourItem.recommended_staff }} {{ hourItem.recommended_staff > 2 ? 'موظفين' : 'موظف' }}
+                  {{ hourItem.recommended_staff }}
+                  {{ hourItem.recommended_staff > 2 ? 'موظفين' : 'موظف' }}
                 </td>
               </tr>
               <tr v-if="!getStaffDayData(selectedStaffDay).length">
@@ -323,8 +405,11 @@
       <!-- TAB 5: SMART PRICING -->
       <div v-if="activeTab === 'pricing'" class="card table-card">
         <h3>💰 هوامش الأرباح والتسعير الذكي (Margin Analyzer)</h3>
-        <p class="section-desc">تحليل تكلفة المواد الخام المكونة لكل صنف ومقارنتها بسعر البيع الحالي لتحديد الأصناف ذات الهامش المنخفض واقتراح سعر بيع يحقق هامش الربح المستهدف (60%).</p>
-        
+        <p class="section-desc">
+          تحليل تكلفة المواد الخام المكونة لكل صنف ومقارنتها بسعر البيع الحالي لتحديد الأصناف ذات
+          الهامش المنخفض واقتراح سعر بيع يحقق هامش الربح المستهدف (60%).
+        </p>
+
         <div class="table-wrap">
           <table class="forecast-table">
             <thead>
@@ -341,15 +426,19 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="alert in filteredPricingAlerts" :key="alert.product_id" :class="'pricing-row-' + alert.status">
-                <td><code>{{ alert.sku }}</code></td>
+              <tr
+                v-for="alert in filteredPricingAlerts"
+                :key="alert.product_id"
+                :class="'pricing-row-' + alert.status"
+              >
+                <td>
+                  <code>{{ alert.sku }}</code>
+                </td>
                 <td class="font-bold">{{ alert.name_ar }}</td>
                 <td class="muted">{{ alert.category_name || '—' }}</td>
                 <td class="amount">{{ formatMoney(alert.cost) }}</td>
                 <td class="font-bold">{{ formatMoney(alert.current_price) }}</td>
-                <td class="font-bold" :class="getMarginClass(alert.status)">
-                  {{ alert.margin }}%
-                </td>
+                <td class="font-bold" :class="getMarginClass(alert.status)">{{ alert.margin }}%</td>
                 <td>
                   <span class="badge" :class="getPricingBadgeClass(alert.status)">
                     {{ alert.status_ar }}
@@ -371,7 +460,10 @@
       <!-- TAB 6: CASH FLOW RUNWAY PROJECTION -->
       <div v-if="activeTab === 'cashflow'" class="card table-card">
         <h3>💵 توقع التدفقات النقدية والسيولة (Cash Flow Runway)</h3>
-        <p class="section-desc">تقدير السيولة النقدية المتوفرة للـ 30 يوماً القادمة بناءً على متوسطات المبيعات اليومية التاريخية، مقارنةً بمتوسط المصاريف والمشتريات اليومية.</p>
+        <p class="section-desc">
+          تقدير السيولة النقدية المتوفرة للـ 30 يوماً القادمة بناءً على متوسطات المبيعات اليومية
+          التاريخية، مقارنةً بمتوسط المصاريف والمشتريات اليومية.
+        </p>
 
         <div v-if="cashflowData" class="cashflow-dashboard">
           <!-- Mini stats inside cashflow tab -->
@@ -387,7 +479,10 @@
               <span class="mini-icon">📊</span>
               <div class="mini-meta">
                 <h4>الرصيد المتوقع (30 يوم)</h4>
-                <p class="font-bold" :class="cashflowData.projectedBalance30d < 0 ? 'text-danger' : 'text-success'">
+                <p
+                  class="font-bold"
+                  :class="cashflowData.projectedBalance30d < 0 ? 'text-danger' : 'text-success'"
+                >
                   {{ formatMoney(cashflowData.projectedBalance30d) }}
                 </p>
               </div>
@@ -396,8 +491,12 @@
               <span class="mini-icon">🔄</span>
               <div class="mini-meta">
                 <h4>صافي التغيير المتوقع</h4>
-                <p class="font-bold" :class="cashflowData.netChange < 0 ? 'text-danger' : 'text-success'">
-                  {{ cashflowData.netChange > 0 ? '+' : '' }}{{ formatMoney(cashflowData.netChange) }}
+                <p
+                  class="font-bold"
+                  :class="cashflowData.netChange < 0 ? 'text-danger' : 'text-success'"
+                >
+                  {{ cashflowData.netChange > 0 ? '+' : ''
+                  }}{{ formatMoney(cashflowData.netChange) }}
                 </p>
               </div>
             </div>
@@ -405,8 +504,17 @@
               <span class="mini-icon">⏳</span>
               <div class="mini-meta">
                 <h4>أيام البقاء الآمن (Runway)</h4>
-                <p class="font-bold" :class="cashflowData.runwayDays !== null ? 'text-danger animate-pulse' : 'text-success'">
-                  {{ cashflowData.runwayDays !== null ? `${cashflowData.runwayDays} يوم` : 'مستقر (30+ يوم)' }}
+                <p
+                  class="font-bold"
+                  :class="
+                    cashflowData.runwayDays !== null ? 'text-danger animate-pulse' : 'text-success'
+                  "
+                >
+                  {{
+                    cashflowData.runwayDays !== null
+                      ? `${cashflowData.runwayDays} يوم`
+                      : 'مستقر (30+ يوم)'
+                  }}
                 </p>
               </div>
             </div>
@@ -415,13 +523,22 @@
           <!-- Alert banner inside cashflow tab -->
           <div class="cashflow-alert-bar" :class="'status-' + cashflowData.status">
             <span class="alert-icon">
-              {{ cashflowData.status === 'healthy' ? '✅' : (cashflowData.status === 'warning' ? '⚠️' : '🚨') }}
+              {{
+                cashflowData.status === 'healthy'
+                  ? '✅'
+                  : cashflowData.status === 'warning'
+                    ? '⚠️'
+                    : '🚨'
+              }}
             </span>
             <p class="alert-text">{{ cashflowData.warningMsg }}</p>
           </div>
 
           <!-- Chart container -->
-          <div class="chart-container" style="position: relative; height: 320px; margin-bottom: 24px; width: 100%;">
+          <div
+            class="chart-container"
+            style="position: relative; height: 320px; margin-bottom: 24px; width: 100%"
+          >
             <canvas id="cashFlowChart" ref="cashFlowChartCanvas"></canvas>
           </div>
 
@@ -439,13 +556,23 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="point in filteredCashflowPoints" :key="point.date" :class="point.balance < 0 ? 'row-critical' : ''">
+                <tr
+                  v-for="point in filteredCashflowPoints"
+                  :key="point.date"
+                  :class="point.balance < 0 ? 'row-critical' : ''"
+                >
                   <td class="font-bold">{{ point.day_name }}</td>
                   <td class="muted">{{ formatDate(point.date) }}</td>
                   <td class="text-success font-bold">+{{ formatMoney(point.projected_in) }}</td>
                   <td class="text-danger font-bold">-{{ formatMoney(point.projected_out) }}</td>
-                  <td class="font-bold" :class="(point.projected_in - point.projected_out) < 0 ? 'text-danger' : 'text-success'">
-                    {{ (point.projected_in - point.projected_out) > 0 ? '+' : '' }}{{ formatMoney(point.projected_in - point.projected_out) }}
+                  <td
+                    class="font-bold"
+                    :class="
+                      point.projected_in - point.projected_out < 0 ? 'text-danger' : 'text-success'
+                    "
+                  >
+                    {{ point.projected_in - point.projected_out > 0 ? '+' : ''
+                    }}{{ formatMoney(point.projected_in - point.projected_out) }}
                   </td>
                   <td class="font-bold amount">{{ formatMoney(point.balance) }}</td>
                 </tr>
@@ -454,11 +581,8 @@
           </div>
         </div>
 
-        <div v-else class="empty">
-          لا تتوفر بيانات توقعات التدفق المالي حالياً.
-        </div>
+        <div v-else class="empty">لا تتوفر بيانات توقعات التدفق المالي حالياً.</div>
       </div>
-
     </div>
   </div>
 </template>
@@ -478,7 +602,7 @@ const getNext7DaysLabels = () => {
     d.setDate(today.getDate() + i);
     labels.push({
       weekday: weekdays[d.getDay()],
-      date: `${d.getDate()}/${d.getMonth() + 1}`
+      date: `${d.getDate()}/${d.getMonth() + 1}`,
     });
   }
   return labels;
@@ -510,56 +634,60 @@ let cashFlowChartInstance = null;
 let ChartLib = null;
 
 // --- computed stats ---
-const criticalAlerts = computed(() => 
-  inventoryRunway.value.filter(item => item.runway_days <= 7)
+const criticalAlerts = computed(() =>
+  inventoryRunway.value.filter((item) => item.runway_days <= 7),
 );
 
-const warningAlerts = computed(() => 
-  inventoryRunway.value.filter(item => item.runway_days > 7 && item.runway_days <= 15)
+const warningAlerts = computed(() =>
+  inventoryRunway.value.filter((item) => item.runway_days > 7 && item.runway_days <= 15),
 );
 
-const safeCount = computed(() => 
-  inventoryRunway.value.filter(item => item.runway_days > 15).length
+const safeCount = computed(
+  () => inventoryRunway.value.filter((item) => item.runway_days > 15).length,
 );
 
 // --- search filters ---
 const filteredRunway = computed(() => {
   const q = searchTerm.value.trim().toLowerCase();
   if (!q) return inventoryRunway.value;
-  return inventoryRunway.value.filter(item => 
-    item.name_ar.toLowerCase().includes(q) || 
-    (item.sku || '').toLowerCase().includes(q) ||
-    (item.category_name || '').toLowerCase().includes(q)
+  return inventoryRunway.value.filter(
+    (item) =>
+      item.name_ar.toLowerCase().includes(q) ||
+      (item.sku || '').toLowerCase().includes(q) ||
+      (item.category_name || '').toLowerCase().includes(q),
   );
 });
 
 const filteredSales = computed(() => {
   const q = searchTerm.value.trim().toLowerCase();
   if (!q) return salesForecast.value;
-  return salesForecast.value.filter(item => 
-    item.name_ar.toLowerCase().includes(q) || 
-    (item.sku || '').toLowerCase().includes(q) ||
-    (item.category_name || '').toLowerCase().includes(q)
+  return salesForecast.value.filter(
+    (item) =>
+      item.name_ar.toLowerCase().includes(q) ||
+      (item.sku || '').toLowerCase().includes(q) ||
+      (item.category_name || '').toLowerCase().includes(q),
   );
 });
 
 const filteredIngredients = computed(() => {
   const q = searchTerm.value.trim().toLowerCase();
   if (!q) return ingredientsForecast.value;
-  return ingredientsForecast.value.filter(item => 
-    item.name_ar.toLowerCase().includes(q) || 
-    (item.sku || '').toLowerCase().includes(q) ||
-    (item.category_name || '').toLowerCase().includes(q)
+  return ingredientsForecast.value.filter(
+    (item) =>
+      item.name_ar.toLowerCase().includes(q) ||
+      (item.sku || '').toLowerCase().includes(q) ||
+      (item.category_name || '').toLowerCase().includes(q),
   );
 });
 
 const filteredPricingAlerts = computed(() => {
   const q = searchTerm.value.trim().toLowerCase();
   if (!q) return pricingAlerts.value;
-  return pricingAlerts.value.filter(item => 
-    item.name_ar.toLowerCase().includes(q) || 
-    (item.sku || '').toLowerCase().includes(q) ||
-    (item.category_name || '').toLowerCase().includes(q)
+  return pricingAlerts.value.filter(
+    (item) =>
+      item.name_ar.toLowerCase().includes(q) ||
+      (item.sku || '').toLowerCase().includes(q) ||
+      (item.category_name || '').toLowerCase().includes(q),
   );
 });
 
@@ -567,9 +695,8 @@ const filteredCashflowPoints = computed(() => {
   const points = cashflowData.value?.dailyPoints || [];
   const q = searchTerm.value.trim().toLowerCase();
   if (!q) return points;
-  return points.filter(p => 
-    p.day_name.toLowerCase().includes(q) || 
-    p.date.toLowerCase().includes(q)
+  return points.filter(
+    (p) => p.day_name.toLowerCase().includes(q) || p.date.toLowerCase().includes(q),
   );
 });
 
@@ -620,7 +747,7 @@ const getStaffDayData = (dayIdx) => {
   const data = [];
   const dayDensity = weeklyDensity.value[dayIdx];
   if (!dayDensity) return [];
-  
+
   for (let h = 8; h <= 23; h++) {
     const hourData = dayDensity[h];
     if (hourData) {
@@ -630,7 +757,7 @@ const getStaffDayData = (dayIdx) => {
         avg_transactions: hourData.avg_transactions,
         avg_revenue: hourData.avg_revenue,
         traffic_level: hourData.traffic_level,
-        recommended_staff: hourData.recommended_staff
+        recommended_staff: hourData.recommended_staff,
       });
     }
   }
@@ -677,7 +804,9 @@ const loadForecast = async () => {
 
     // Load staffing density
     try {
-      const staffingRes = await forecastingApi.getStaffingForecast({ warehouse_id: selectedWarehouse.value });
+      const staffingRes = await forecastingApi.getStaffingForecast({
+        warehouse_id: selectedWarehouse.value,
+      });
       weeklyDensity.value = staffingRes.data?.weeklyDensity || {};
       peakHours.value = staffingRes.data?.peakHours || [];
     } catch (err) {
@@ -694,7 +823,9 @@ const loadForecast = async () => {
 
     // Load cashflow projection
     try {
-      const cashflowRes = await forecastingApi.getCashFlowProjection({ warehouse_id: selectedWarehouse.value });
+      const cashflowRes = await forecastingApi.getCashFlowProjection({
+        warehouse_id: selectedWarehouse.value,
+      });
       cashflowData.value = cashflowRes.data || null;
       if (activeTab.value === 'cashflow') {
         nextTick(() => {
@@ -718,7 +849,9 @@ const loadWarehouses = async () => {
     warehouseList.value = res.data || [];
     if (warehouseList.value.length > 0) {
       // Find default warehouse STORE or choose the first one
-      const storeWh = warehouseList.value.find(w => w.code === 'STORE' || w.name_ar.includes('فرع') || w.name_ar.includes('محل'));
+      const storeWh = warehouseList.value.find(
+        (w) => w.code === 'STORE' || w.name_ar.includes('فرع') || w.name_ar.includes('محل'),
+      );
       selectedWarehouse.value = storeWh ? storeWh.id : warehouseList.value[0].id;
     }
   } catch (err) {
@@ -757,13 +890,14 @@ const renderCashFlowChart = async () => {
 
   const Chart = await loadChartLib();
   const ctx = cashFlowChartCanvas.value.getContext('2d');
-  
+
   const points = cashflowData.value.dailyPoints || [];
-  const labels = points.map(p => formatDate(p.date));
-  const balances = points.map(p => p.balance);
+  const labels = points.map((p) => formatDate(p.date));
+  const balances = points.map((p) => p.balance);
 
   const colors = {
-    primary: getComputedStyle(document.documentElement).getPropertyValue('--primary').trim() || '#176b5b',
+    primary:
+      getComputedStyle(document.documentElement).getPropertyValue('--primary').trim() || '#176b5b',
     grid: 'rgba(102,112,133,0.18)',
   };
 
@@ -803,15 +937,15 @@ const renderCashFlowChart = async () => {
           borderWidth: 2.5,
           hoverBackgroundColor: colors.primary,
           hoverBorderWidth: 3,
-        }
-      ]
+        },
+      ],
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
       interaction: {
         mode: 'index',
-        intersect: false
+        intersect: false,
       },
       plugins: {
         legend: {
@@ -821,43 +955,43 @@ const renderCashFlowChart = async () => {
             boxWidth: 10,
             usePointStyle: true,
             font: {
-              family: 'Outfit, Cairo, sans-serif'
-            }
-          }
+              family: 'Outfit, Cairo, sans-serif',
+            },
+          },
         },
         tooltip: {
           rtl: true,
           textDirection: 'rtl',
           callbacks: {
-            label: (context) => `${context.dataset.label}: ${formatMoney(context.parsed.y)}`
-          }
-        }
+            label: (context) => `${context.dataset.label}: ${formatMoney(context.parsed.y)}`,
+          },
+        },
       },
       scales: {
         x: {
           grid: {
-            display: false
+            display: false,
           },
           ticks: {
             font: {
-              family: 'Outfit, Cairo, sans-serif'
-            }
-          }
+              family: 'Outfit, Cairo, sans-serif',
+            },
+          },
         },
         y: {
           beginAtZero: false,
           grid: {
-            color: colors.grid
+            color: colors.grid,
           },
           ticks: {
             font: {
-              family: 'Outfit, Cairo, sans-serif'
+              family: 'Outfit, Cairo, sans-serif',
             },
-            callback: (val) => formatMoney(val)
-          }
-        }
-      }
-    }
+            callback: (val) => formatMoney(val),
+          },
+        },
+      },
+    },
   });
 };
 
@@ -889,16 +1023,26 @@ onMounted(async () => {
   align-items: center;
   flex-wrap: wrap;
   gap: 16px;
-  
+
   .header-title {
     display: flex;
     align-items: center;
     gap: 14px;
-    .header-icon { font-size: 2.2rem; }
-    h2 { margin: 0; font-size: 1.35rem; color: var(--primary-dark); }
-    p { margin: 4px 0 0; font-size: 0.85rem; color: var(--text-muted); }
+    .header-icon {
+      font-size: 2.2rem;
+    }
+    h2 {
+      margin: 0;
+      font-size: 1.35rem;
+      color: var(--primary-dark);
+    }
+    p {
+      margin: 4px 0 0;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
   }
-  
+
   .header-filters {
     display: flex;
     align-items: center;
@@ -922,28 +1066,37 @@ onMounted(async () => {
   align-items: flex-start;
   padding: 16px;
   border-right: 4px solid var(--danger);
-  
+
   &.danger {
     background: rgba(180, 35, 24, 0.06);
     border-color: var(--danger);
   }
-  
+
   .alert-banner-icon {
     font-size: 1.8rem;
     line-height: 1;
   }
-  
+
   .alert-banner-body {
-    h4 { margin: 0 0 6px; color: var(--danger); font-size: 0.95rem; font-weight: 900; }
-    p { margin: 0 0 10px; font-size: 0.84rem; color: var(--text); }
+    h4 {
+      margin: 0 0 6px;
+      color: var(--danger);
+      font-size: 0.95rem;
+      font-weight: 900;
+    }
+    p {
+      margin: 0 0 10px;
+      font-size: 0.84rem;
+      color: var(--text);
+    }
   }
-  
+
   .alert-badges {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
   }
-  
+
   .critical-badge {
     background: var(--danger);
     color: #fff;
@@ -961,33 +1114,47 @@ onMounted(async () => {
     padding: 16px;
     display: flex;
     align-items: center;
-    
+
     .summary-card-body {
       display: flex;
       align-items: center;
       gap: 14px;
     }
-    
+
     .stat-icon {
       font-size: 2.2rem;
     }
-    
+
     .stat-meta {
-      h3 { margin: 0; font-size: 1.25rem; font-weight: 900; }
-      p { margin: 2px 0 0; font-size: 0.78rem; color: var(--text-muted); }
+      h3 {
+        margin: 0;
+        font-size: 1.25rem;
+        font-weight: 900;
+      }
+      p {
+        margin: 2px 0 0;
+        font-size: 0.78rem;
+        color: var(--text-muted);
+      }
     }
-    
+
     &.danger-stat {
       border-right: 3px solid var(--danger);
-      h3 { color: var(--danger); }
+      h3 {
+        color: var(--danger);
+      }
     }
     &.warning-stat {
       border-right: 3px solid var(--warning);
-      h3 { color: var(--warning); }
+      h3 {
+        color: var(--warning);
+      }
     }
     &.success-stat {
       border-right: 3px solid var(--success);
-      h3 { color: var(--success); }
+      h3 {
+        color: var(--success);
+      }
     }
   }
 }
@@ -1001,11 +1168,11 @@ onMounted(async () => {
   gap: 16px;
   border-bottom: 2px solid var(--border);
   padding-bottom: 2px;
-  
+
   .tabs {
     display: flex;
     gap: 4px;
-    
+
     button {
       padding: 10px 16px;
       border: 0;
@@ -1016,18 +1183,18 @@ onMounted(async () => {
       font-weight: 700;
       font-size: 0.88rem;
       transition: all 0.2s ease;
-      
+
       &:hover {
         color: var(--primary);
       }
-      
+
       &.active {
         color: var(--primary-dark);
         border-color: var(--primary);
       }
     }
   }
-  
+
   .search-bar {
     .search-input {
       padding: 8px 16px;
@@ -1037,7 +1204,7 @@ onMounted(async () => {
       font-size: 0.85rem;
       background: var(--bg-card);
       color: var(--text);
-      
+
       &:focus {
         outline: none;
         border-color: var(--primary);
@@ -1049,22 +1216,31 @@ onMounted(async () => {
 /* Tables styling */
 .table-card {
   padding: 20px;
-  
-  h3 { margin: 0 0 6px; color: var(--primary-dark); font-size: 1.1rem; }
-  .section-desc { margin: 0 0 16px; font-size: 0.82rem; color: var(--text-muted); }
+
+  h3 {
+    margin: 0 0 6px;
+    color: var(--primary-dark);
+    font-size: 1.1rem;
+  }
+  .section-desc {
+    margin: 0 0 16px;
+    font-size: 0.82rem;
+    color: var(--text-muted);
+  }
 }
 
 .forecast-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 0.86rem;
-  
-  th, td {
+
+  th,
+  td {
     padding: 12px 14px;
     text-align: right;
     border-bottom: 1px solid var(--border);
   }
-  
+
   th {
     background: var(--bg);
     font-weight: 700;
@@ -1072,26 +1248,47 @@ onMounted(async () => {
     font-size: 0.8rem;
     white-space: nowrap;
   }
-  
-  td.font-bold { font-weight: 700; color: var(--text-strong); }
-  td.muted { color: var(--text-muted); }
-  td.amount { color: var(--primary-dark); }
-  
-  .center-col { text-align: center; }
-  .total-col { text-align: center; background: color-mix(in srgb, var(--primary) 3%, transparent); }
-  
-  .primary-color { color: var(--primary-dark); }
-  .secondary-color { color: var(--accent); }
-  
+
+  td.font-bold {
+    font-weight: 700;
+    color: var(--text-strong);
+  }
+  td.muted {
+    color: var(--text-muted);
+  }
+  td.amount {
+    color: var(--primary-dark);
+  }
+
+  .center-col {
+    text-align: center;
+  }
+  .total-col {
+    text-align: center;
+    background: color-mix(in srgb, var(--primary) 3%, transparent);
+  }
+
+  .primary-color {
+    color: var(--primary-dark);
+  }
+  .secondary-color {
+    color: var(--accent);
+  }
+
   tr.row-critical {
     background: rgba(180, 35, 24, 0.02);
-    td { color: var(--danger); }
-    code { background: rgba(180, 35, 24, 0.08); color: var(--danger); }
+    td {
+      color: var(--danger);
+    }
+    code {
+      background: rgba(180, 35, 24, 0.08);
+      color: var(--danger);
+    }
   }
   tr.row-warning {
     background: rgba(217, 119, 6, 0.02);
   }
-  
+
   code {
     font-family: monospace;
     font-size: 0.78rem;
@@ -1100,7 +1297,7 @@ onMounted(async () => {
     background: var(--bg);
     color: var(--text-muted);
   }
-  
+
   .empty {
     text-align: center;
     color: var(--text-muted);
@@ -1114,7 +1311,7 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   gap: 10px;
-  
+
   .progress-bar-bg {
     flex: 1;
     height: 8px;
@@ -1123,18 +1320,26 @@ onMounted(async () => {
     overflow: hidden;
     min-width: 80px;
   }
-  
+
   .progress-bar-fill {
     height: 100%;
     border-radius: 10px;
     transition: width 0.3s ease;
   }
-  
-  .progress-danger { background: var(--danger); }
-  .progress-warning { background: var(--warning); }
-  .progress-info { background: var(--primary); }
-  .progress-success { background: var(--success); }
-  
+
+  .progress-danger {
+    background: var(--danger);
+  }
+  .progress-warning {
+    background: var(--warning);
+  }
+  .progress-info {
+    background: var(--primary);
+  }
+  .progress-success {
+    background: var(--success);
+  }
+
   .runway-days-text {
     font-size: 0.78rem;
     white-space: nowrap;
@@ -1151,7 +1356,7 @@ onMounted(async () => {
   padding: 60px 20px;
   text-align: center;
   gap: 16px;
-  
+
   .spinner {
     width: 40px;
     height: 40px;
@@ -1160,7 +1365,7 @@ onMounted(async () => {
     border-radius: 50%;
     animation: spin 1s linear infinite;
   }
-  
+
   p {
     color: var(--text-muted);
     font-size: 0.9rem;
@@ -1193,7 +1398,7 @@ onMounted(async () => {
   position: relative;
   overflow: hidden;
   transition: all var(--transition);
-  
+
   &:hover {
     transform: translateY(-2px);
     box-shadow: var(--shadow-sm);
@@ -1240,17 +1445,23 @@ onMounted(async () => {
 
   &.traffic-مرتفع {
     border-top: 4px solid var(--danger);
-    .peak-badge { background: var(--danger); }
+    .peak-badge {
+      background: var(--danger);
+    }
   }
 
   &.traffic-متوسط {
     border-top: 4px solid var(--warning);
-    .peak-badge { background: var(--warning); }
+    .peak-badge {
+      background: var(--warning);
+    }
   }
 
   &.traffic-منخفض {
     border-top: 4px solid var(--success);
-    .peak-badge { background: var(--success); }
+    .peak-badge {
+      background: var(--success);
+    }
   }
 }
 
@@ -1266,12 +1477,12 @@ onMounted(async () => {
     font-size: 0.9rem;
     color: var(--text-strong);
   }
-  
+
   .day-buttons {
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
-    
+
     .day-btn {
       padding: 6px 14px;
       border: 1px solid var(--border);
@@ -1282,12 +1493,12 @@ onMounted(async () => {
       color: var(--text-muted);
       cursor: pointer;
       transition: all var(--transition);
-      
+
       &:hover {
         background: var(--surface-3);
         color: var(--primary);
       }
-      
+
       &.active {
         background: var(--primary);
         border-color: var(--primary-strong);
@@ -1311,27 +1522,43 @@ tr.pricing-row-warning {
   }
 }
 
-.text-danger { color: var(--danger) !important; }
-.text-warning { color: var(--warning) !important; }
-.text-success { color: var(--success) !important; }
-.text-muted { color: var(--text-muted) !important; }
+.text-danger {
+  color: var(--danger) !important;
+}
+.text-warning {
+  color: var(--warning) !important;
+}
+.text-success {
+  color: var(--success) !important;
+}
+.text-muted {
+  color: var(--text-muted) !important;
+}
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 @media (max-width: 768px) {
   .tabs-wrap {
     flex-direction: column;
     align-items: stretch;
-    .search-bar .search-input { min-width: 100%; }
+    .search-bar .search-input {
+      min-width: 100%;
+    }
   }
-  
+
   .page-header {
     flex-direction: column;
     align-items: stretch;
-    .header-filters { margin-top: 8px; }
+    .header-filters {
+      margin-top: 8px;
+    }
   }
 }
 
@@ -1424,11 +1651,12 @@ tr.pricing-row-warning {
 }
 
 @keyframes pulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
   }
   50% {
-    opacity: .5;
+    opacity: 0.5;
   }
 }
 </style>

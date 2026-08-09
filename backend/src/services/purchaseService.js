@@ -1,5 +1,5 @@
 import { getClient, query } from '../database/pool.js';
-import { AppError } from '../middleware/errorHandler.js';
+import { AppError } from '../types/errors.js';
 import { getDefaultWarehouseId } from './warehouseService.js';
 import { parseLocalizedNumber } from '../utils/numberParsing.js';
 import { invalidateDashboardCache } from './dashboardService.js';
@@ -35,7 +35,7 @@ const normalizePurchasePayload = async (client, payload) => {
               ) AS has_active_recipe
        FROM products p
        WHERE p.id = ANY($1::int[]) AND p.deleted_at IS NULL`,
-      [productIds]
+      [productIds],
     );
     for (const p of productsRes.rows) {
       productMap.set(Number(p.id), p);
@@ -48,14 +48,18 @@ const normalizePurchasePayload = async (client, payload) => {
     const unitPrice = parseFloat(item.unit_price);
 
     if (!productId) throw new AppError('المنتج مطلوب', 400);
-    if (!isFinite(quantity) || quantity <= 0) throw new AppError('الكمية يجب أن تكون أكبر من صفر', 400);
+    if (!isFinite(quantity) || quantity <= 0)
+      throw new AppError('الكمية يجب أن تكون أكبر من صفر', 400);
     if (!isFinite(unitPrice) || unitPrice < 0) throw new AppError('سعر الوحدة غير صحيح', 400);
 
     const product = productMap.get(productId);
     if (!product) throw new AppError('المنتج غير موجود', 404);
 
     if (product.has_active_recipe) {
-      throw new AppError(`لا يمكن شراء المنتج "${product.name_ar}" لأنه مرتبط بوصفة نشطة. عدّل الوصفة أولًا.`, 400);
+      throw new AppError(
+        `لا يمكن شراء المنتج "${product.name_ar}" لأنه مرتبط بوصفة نشطة. عدّل الوصفة أولًا.`,
+        400,
+      );
     }
 
     let warehouseId = Number(product.primary_warehouse_id || 0);
@@ -94,7 +98,15 @@ const applyPurchaseItems = async (client, invoice, items, userId, notePrefix = '
     await client.query(
       `INSERT INTO purchase_invoice_items (purchase_invoice_id, product_id, warehouse_id, unit, quantity, unit_price, total_amount)
        VALUES ($1,$2,$3,$4,$5,$6,$7)`,
-      [invoice.id, item.product_id, item.warehouse_id, item.unit, item.quantity, item.unit_price, item.total_amount]
+      [
+        invoice.id,
+        item.product_id,
+        item.warehouse_id,
+        item.unit,
+        item.quantity,
+        item.unit_price,
+        item.total_amount,
+      ],
     );
 
     await client.query(
@@ -102,18 +114,28 @@ const applyPurchaseItems = async (client, invoice, items, userId, notePrefix = '
        VALUES ($1,$2,$3)
        ON CONFLICT (product_id, warehouse_id, COALESCE(batch_number, ''))
        DO UPDATE SET quantity = inventory.quantity + EXCLUDED.quantity, updated_at = NOW()`,
-      [item.product_id, item.warehouse_id, item.quantity]
+      [item.product_id, item.warehouse_id, item.quantity],
     );
 
     await client.query(
       `INSERT INTO stock_movements (
         product_id, to_warehouse_id, movement_type, quantity, reference_type, reference_id, user_id, notes
       ) VALUES ($1,$2,'purchase',$3,'purchase_invoice',$4,$5,$6)`,
-      [item.product_id, item.warehouse_id, item.quantity, invoice.id, userId, `${notePrefix} - ${invoice.invoice_number}`]
+      [
+        item.product_id,
+        item.warehouse_id,
+        item.quantity,
+        invoice.id,
+        userId,
+        `${notePrefix} - ${invoice.invoice_number}`,
+      ],
     );
   }
 
-  await refreshPurchasePrices(client, items.map((item) => item.product_id));
+  await refreshPurchasePrices(
+    client,
+    items.map((item) => item.product_id),
+  );
 };
 
 const reversePurchaseItems = async (client, invoice, items, userId, notePrefix = 'إلغاء شراء') => {
@@ -131,7 +153,7 @@ const reversePurchaseItems = async (client, invoice, items, userId, notePrefix =
        FROM inventory
        WHERE product_id = $1 AND warehouse_id = $2
        FOR UPDATE`,
-      [productId, warehouseId]
+      [productId, warehouseId],
     );
 
     const currentQty = Number(lock.rows[0]?.quantity || 0);
@@ -143,7 +165,7 @@ const reversePurchaseItems = async (client, invoice, items, userId, notePrefix =
         `UPDATE inventory
          SET quantity = quantity - $1, updated_at = NOW()
          WHERE product_id = $2 AND warehouse_id = $3`,
-        [toRevert, productId, warehouseId]
+        [toRevert, productId, warehouseId],
       );
 
       await client.query(
@@ -151,12 +173,26 @@ const reversePurchaseItems = async (client, invoice, items, userId, notePrefix =
           product_id, from_warehouse_id, movement_type, quantity,
           reference_type, reference_id, user_id, notes
         ) VALUES ($1,$2,'purchase_reversal',$3,$4,$5,$6,$7)`,
-        [productId, warehouseId, toRevert, 'purchase_invoice', invoice.id, userId, `${notePrefix} - ${invoice.invoice_number}`]
+        [
+          productId,
+          warehouseId,
+          toRevert,
+          'purchase_invoice',
+          invoice.id,
+          userId,
+          `${notePrefix} - ${invoice.invoice_number}`,
+        ],
       );
     }
 
     if (notReverted > 0) {
-      shortages.push({ product_id: productId, warehouse_id: warehouseId, requested: qty, reverted: toRevert, remaining: notReverted });
+      shortages.push({
+        product_id: productId,
+        warehouse_id: warehouseId,
+        requested: qty,
+        reverted: toRevert,
+        remaining: notReverted,
+      });
     }
   }
 
@@ -167,7 +203,8 @@ const refreshPurchasePrices = async (client, productIds) => {
   const uniqueIds = [...new Set(productIds.map(Number).filter(Boolean))];
   if (!uniqueIds.length) return;
 
-  await client.query(`
+  await client.query(
+    `
     UPDATE products p
     SET purchase_price = COALESCE(agg.avg_price, p.purchase_price),
         updated_at = NOW()
@@ -181,7 +218,9 @@ const refreshPurchasePrices = async (client, productIds) => {
       GROUP BY pii.product_id
     ) agg
     WHERE p.id = agg.product_id
-  `, [uniqueIds]);
+  `,
+    [uniqueIds],
+  );
 };
 
 export const listPurchaseInvoices = async (filters = {}) => {
@@ -269,7 +308,7 @@ export const createPurchaseInvoice = async (payload, userId) => {
                 ) AS has_active_recipe
          FROM products p
          WHERE p.id = ANY($1::int[]) AND p.deleted_at IS NULL`,
-        [productIds]
+        [productIds],
       );
       for (const p of productsRes.rows) {
         productMap.set(Number(p.id), p);
@@ -278,21 +317,23 @@ export const createPurchaseInvoice = async (payload, userId) => {
 
     const normalized = [];
     for (const item of items) {
-      const productId  = Number(item.product_id);
+      const productId = Number(item.product_id);
       // إصلاح الأرقام العشرية: parseFloat بدل Number عشان يقبل 0.5 و1.25 إلخ
-      const quantity   = parseFloat(item.quantity);
-      const unitPrice  = parseFloat(item.unit_price);
+      const quantity = parseFloat(item.quantity);
+      const unitPrice = parseFloat(item.unit_price);
 
-      if (!productId)                        throw new AppError('المنتج مطلوب', 400);
+      if (!productId) throw new AppError('المنتج مطلوب', 400);
       if (!isFinite(quantity) || quantity <= 0)
-                                             throw new AppError('الكمية يجب أن تكون أكبر من صفر', 400);
-      if (!isFinite(unitPrice) || unitPrice < 0)
-                                             throw new AppError('سعر الوحدة غير صحيح', 400);
+        throw new AppError('الكمية يجب أن تكون أكبر من صفر', 400);
+      if (!isFinite(unitPrice) || unitPrice < 0) throw new AppError('سعر الوحدة غير صحيح', 400);
 
       const product = productMap.get(productId);
       if (!product) throw new AppError('المنتج غير موجود', 404);
       if (product.has_active_recipe) {
-        throw new AppError(`لا يمكن شراء المنتج "${product.name_ar}" لأنه مرتبط بوصفة نشطة. عدّل الوصفة أولًا.`, 400);
+        throw new AppError(
+          `لا يمكن شراء المنتج "${product.name_ar}" لأنه مرتبط بوصفة نشطة. عدّل الوصفة أولًا.`,
+          400,
+        );
       }
 
       // كل منتج يروح لمخزنه الأساسي — إصلاح: لا يوجد تقييد بمخزن واحد للفاتورة
@@ -300,16 +341,17 @@ export const createPurchaseInvoice = async (payload, userId) => {
       if (!warehouseId) {
         warehouseId = await getDefaultWarehouseId((text, params) => client.query(text, params));
       }
-      if (!warehouseId) throw new AppError(`المنتج "${product.name_ar}" لا يملك مخزنًا محددًا`, 400);
+      if (!warehouseId)
+        throw new AppError(`المنتج "${product.name_ar}" لا يملك مخزنًا محددًا`, 400);
 
       const lineTotal = Math.round(quantity * unitPrice * 100) / 100;
       subtotal += lineTotal;
       normalized.push({
-        product_id:   productId,
+        product_id: productId,
         warehouse_id: warehouseId,
-        unit:         item.unit || product.unit || 'count',
+        unit: item.unit || product.unit || 'count',
         quantity,
-        unit_price:   unitPrice,
+        unit_price: unitPrice,
         total_amount: lineTotal,
       });
     }
@@ -321,7 +363,7 @@ export const createPurchaseInvoice = async (payload, userId) => {
       warehouseCounts[r.warehouse_id] = (warehouseCounts[r.warehouse_id] || 0) + 1;
     }
     const invoiceWarehouseId = Number(
-      Object.entries(warehouseCounts).sort((a, b) => b[1] - a[1])[0][0]
+      Object.entries(warehouseCounts).sort((a, b) => b[1] - a[1])[0][0],
     );
 
     const supplierId = payload.supplier_id ? Number(payload.supplier_id) : null;
@@ -330,7 +372,16 @@ export const createPurchaseInvoice = async (payload, userId) => {
       `INSERT INTO purchase_invoices (invoice_number, invoice_date, warehouse_id, supplier_id, notes, subtotal, total_amount, created_by)
        VALUES ($1, COALESCE($2::date, CURRENT_DATE), $3, $4, $5, $6, $7, $8)
        RETURNING *`,
-      [invoiceNumber, payload.invoice_date || null, invoiceWarehouseId, supplierId, payload.notes || null, subtotal, subtotal, userId]
+      [
+        invoiceNumber,
+        payload.invoice_date || null,
+        invoiceWarehouseId,
+        supplierId,
+        payload.notes || null,
+        subtotal,
+        subtotal,
+        userId,
+      ],
     );
     const invoice = inv.rows[0];
 
@@ -338,7 +389,15 @@ export const createPurchaseInvoice = async (payload, userId) => {
       await client.query(
         `INSERT INTO purchase_invoice_items (purchase_invoice_id, product_id, warehouse_id, unit, quantity, unit_price, total_amount)
          VALUES ($1,$2,$3,$4,$5,$6,$7)`,
-        [invoice.id, item.product_id, item.warehouse_id, item.unit, item.quantity, item.unit_price, item.total_amount]
+        [
+          invoice.id,
+          item.product_id,
+          item.warehouse_id,
+          item.unit,
+          item.quantity,
+          item.unit_price,
+          item.total_amount,
+        ],
       );
 
       await client.query(
@@ -346,18 +405,28 @@ export const createPurchaseInvoice = async (payload, userId) => {
          VALUES ($1,$2,$3)
          ON CONFLICT (product_id, warehouse_id, COALESCE(batch_number, ''))
          DO UPDATE SET quantity = inventory.quantity + EXCLUDED.quantity, updated_at = NOW()`,
-        [item.product_id, item.warehouse_id, item.quantity]
+        [item.product_id, item.warehouse_id, item.quantity],
       );
 
       await client.query(
         `INSERT INTO stock_movements (
           product_id, to_warehouse_id, movement_type, quantity, reference_type, reference_id, user_id, notes
         ) VALUES ($1,$2,'purchase',$3,'purchase_invoice',$4,$5,$6)`,
-        [item.product_id, item.warehouse_id, item.quantity, invoice.id, userId, `شراء - ${invoice.invoice_number}`]
+        [
+          item.product_id,
+          item.warehouse_id,
+          item.quantity,
+          invoice.id,
+          userId,
+          `شراء - ${invoice.invoice_number}`,
+        ],
       );
     }
 
-    await refreshPurchasePrices(client, normalized.map((item) => item.product_id));
+    await refreshPurchasePrices(
+      client,
+      normalized.map((item) => item.product_id),
+    );
 
     await client.query('COMMIT');
     invalidateDashboardCache();
@@ -378,29 +447,42 @@ export const updatePurchaseInvoice = async (invoiceId, payload, userId) => {
   try {
     await client.query('BEGIN');
 
-    const inv = (await client.query(
-      `SELECT * FROM purchase_invoices
+    const inv = (
+      await client.query(
+        `SELECT * FROM purchase_invoices
        WHERE id = $1 AND deleted_at IS NULL
        FOR UPDATE`,
-      [id]
-    )).rows[0];
+        [id],
+      )
+    ).rows[0];
 
     if (!inv) throw new AppError('فاتورة الشراء غير موجودة', 404);
 
-    const oldItems = (await client.query(
-      `SELECT * FROM purchase_invoice_items WHERE purchase_invoice_id = $1`,
-      [id]
-    )).rows;
+    const oldItems = (
+      await client.query(`SELECT * FROM purchase_invoice_items WHERE purchase_invoice_id = $1`, [
+        id,
+      ])
+    ).rows;
 
     const oldProductIds = oldItems.map((item) => item.product_id);
-    const shortages = await reversePurchaseItems(client, inv, oldItems, userId, 'تعديل شراء - عكس القديم');
+    const shortages = await reversePurchaseItems(
+      client,
+      inv,
+      oldItems,
+      userId,
+      'تعديل شراء - عكس القديم',
+    );
 
     await client.query(`DELETE FROM purchase_invoice_items WHERE purchase_invoice_id = $1`, [id]);
 
-    const { normalized, subtotal, invoiceWarehouseId, supplierId } = await normalizePurchasePayload(client, payload);
+    const { normalized, subtotal, invoiceWarehouseId, supplierId } = await normalizePurchasePayload(
+      client,
+      payload,
+    );
 
-    const updated = (await client.query(
-      `UPDATE purchase_invoices
+    const updated = (
+      await client.query(
+        `UPDATE purchase_invoices
        SET invoice_date = COALESCE($2::date, invoice_date),
            warehouse_id = $3,
            supplier_id = $4,
@@ -409,11 +491,23 @@ export const updatePurchaseInvoice = async (invoiceId, payload, userId) => {
            total_amount = $7
        WHERE id = $1
        RETURNING *`,
-      [id, payload.invoice_date || null, invoiceWarehouseId, supplierId, payload.notes || null, subtotal, subtotal]
-    )).rows[0];
+        [
+          id,
+          payload.invoice_date || null,
+          invoiceWarehouseId,
+          supplierId,
+          payload.notes || null,
+          subtotal,
+          subtotal,
+        ],
+      )
+    ).rows[0];
 
     await applyPurchaseItems(client, updated, normalized, userId, 'تعديل شراء');
-    await refreshPurchasePrices(client, [...oldProductIds, ...normalized.map((item) => item.product_id)]);
+    await refreshPurchasePrices(client, [
+      ...oldProductIds,
+      ...normalized.map((item) => item.product_id),
+    ]);
 
     await client.query('COMMIT');
     invalidateDashboardCache();
@@ -439,19 +533,22 @@ export const deletePurchaseInvoice = async (invoiceId, userId) => {
   try {
     await client.query('BEGIN');
 
-    const inv = (await client.query(
-      `SELECT * FROM purchase_invoices
+    const inv = (
+      await client.query(
+        `SELECT * FROM purchase_invoices
        WHERE id = $1 AND deleted_at IS NULL
        FOR UPDATE`,
-      [id]
-    )).rows[0];
+        [id],
+      )
+    ).rows[0];
 
     if (!inv) throw new AppError('فاتورة الشراء غير موجودة', 404);
 
-    const items = (await client.query(
-      `SELECT * FROM purchase_invoice_items WHERE purchase_invoice_id = $1`,
-      [id]
-    )).rows;
+    const items = (
+      await client.query(`SELECT * FROM purchase_invoice_items WHERE purchase_invoice_id = $1`, [
+        id,
+      ])
+    ).rows;
 
     const shortages = [];
     for (const it of items) {
@@ -467,7 +564,7 @@ export const deletePurchaseInvoice = async (invoiceId, userId) => {
          FROM inventory
          WHERE product_id = $1 AND warehouse_id = $2
          FOR UPDATE`,
-        [productId, warehouseId]
+        [productId, warehouseId],
       );
 
       const currentQty = Number(lock.rows[0]?.quantity || 0);
@@ -479,7 +576,7 @@ export const deletePurchaseInvoice = async (invoiceId, userId) => {
           `UPDATE inventory
            SET quantity = quantity - $1, updated_at = NOW()
            WHERE product_id = $2 AND warehouse_id = $3`,
-          [toRevert, productId, warehouseId]
+          [toRevert, productId, warehouseId],
         );
 
         await client.query(
@@ -487,23 +584,36 @@ export const deletePurchaseInvoice = async (invoiceId, userId) => {
             product_id, from_warehouse_id, movement_type, quantity,
             reference_type, reference_id, user_id, notes
           ) VALUES ($1,$2,'purchase_reversal',$3,$4,$5,$6,$7)`,
-          [productId, warehouseId, toRevert, 'purchase_invoice', id, userId, `إلغاء شراء - ${inv.invoice_number}`]
+          [
+            productId,
+            warehouseId,
+            toRevert,
+            'purchase_invoice',
+            id,
+            userId,
+            `إلغاء شراء - ${inv.invoice_number}`,
+          ],
         );
       }
 
       if (notReverted > 0) {
-        shortages.push({ product_id: productId, warehouse_id: warehouseId, requested: qty, reverted: toRevert, remaining: notReverted });
+        shortages.push({
+          product_id: productId,
+          warehouse_id: warehouseId,
+          requested: qty,
+          reverted: toRevert,
+          remaining: notReverted,
+        });
       }
     }
 
-    await client.query(
-      `UPDATE purchase_invoices SET deleted_at = NOW() WHERE id = $1`,
-      [id]
-    );
+    await client.query(`UPDATE purchase_invoices SET deleted_at = NOW() WHERE id = $1`, [id]);
 
     // BUG-06 FIX: إعادة سعر الشراء لكل منتج بالمتوسط المرجح من الفواتير المتبقية
     // حتى تظل حسابات التكلفة (COGS) صحيحة بعد الحذف
-    const affectedProductIds = [...new Set(items.map(it => Number(it.product_id)).filter(Boolean))];
+    const affectedProductIds = [
+      ...new Set(items.map((it) => Number(it.product_id)).filter(Boolean)),
+    ];
     await refreshPurchasePrices(client, affectedProductIds);
 
     await client.query('COMMIT');

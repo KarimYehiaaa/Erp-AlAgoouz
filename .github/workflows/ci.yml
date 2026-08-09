@@ -1,52 +1,58 @@
-name: CI Workflow
+name: CI/CD Pipeline
 
 on:
   push:
-    branches: [main, master]
+    branches: [ "main" ]
   pull_request:
-    branches: [main, master]
+    branches: [ "main" ]
 
 jobs:
-  backend-tests:
-    name: Backend Tests & Quality Audit
+  backend-ci:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./backend
+
     steps:
-      - uses: actions/checkout@v4
+    - uses: actions/checkout@v4
+    
+    - name: Use Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        cache: 'npm'
+        cache-dependency-path: './backend/package-lock.json'
+        
+    - name: Install dependencies
+      run: npm ci
 
-      - name: Use Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: "npm"
+    - name: Type Check
+      run: npm run typecheck
 
-      - name: Install backend dependencies
-        working-directory: backend
-        run: |
-          npm ci
+    - name: Run Tests
+      run: npm test
 
-      - name: Run backend unit tests
-        working-directory: backend
-        run: |
-          npm test
-
-  frontend-build:
-    name: Frontend Build & Compilation Audit
+  frontend-ci:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./frontend
+
     steps:
-      - uses: actions/checkout@v4
+    - uses: actions/checkout@v4
+    
+    - name: Use Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        cache: 'npm'
+        cache-dependency-path: './frontend/package-lock.json'
+        
+    - name: Install dependencies
+      run: npm install --legacy-peer-deps
 
-      - name: Use Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: "npm"
+    - name: Type Check
+      run: npm run typecheck
 
-      - name: Install frontend dependencies
-        working-directory: frontend
-        run: |
-          npm ci
-
-      - name: Build frontend production bundle
-        working-directory: frontend
-        run: |
-          npm run build
+    - name: Build
+      run: npm run build

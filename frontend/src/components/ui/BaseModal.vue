@@ -52,10 +52,7 @@
           </div>
 
           <!-- Default Footer with confirm/cancel -->
-          <div
-            v-else-if="showDefaultFooter"
-            class="modal-footer"
-          >
+          <div v-else-if="showDefaultFooter" class="modal-footer">
             <button
               v-if="cancelText"
               class="btn btn-ghost"
@@ -134,26 +131,35 @@ const handleKeydown = (e) => {
 const trapFocus = (e) => {
   if (!boxRef.value) return;
   const focusable = boxRef.value.querySelectorAll(
-    'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
   );
   const first = focusable[0];
   const last = focusable[focusable.length - 1];
   if (e.shiftKey) {
-    if (document.activeElement === first) { e.preventDefault(); last?.focus(); }
+    if (document.activeElement === first) {
+      e.preventDefault();
+      last?.focus();
+    }
   } else {
-    if (document.activeElement === last) { e.preventDefault(); first?.focus(); }
+    if (document.activeElement === last) {
+      e.preventDefault();
+      first?.focus();
+    }
   }
 };
 
-watch(() => props.modelValue, async (val) => {
-  if (val) {
-    document.body.style.overflow = 'hidden';
-    await nextTick();
-    boxRef.value?.focus();
-  } else {
-    document.body.style.overflow = '';
-  }
-});
+watch(
+  () => props.modelValue,
+  async (val) => {
+    if (val) {
+      document.body.style.overflow = 'hidden';
+      await nextTick();
+      boxRef.value?.focus();
+    } else {
+      document.body.style.overflow = '';
+    }
+  },
+);
 
 onMounted(() => document.addEventListener('keydown', handleKeydown));
 onBeforeUnmount(() => {
@@ -188,21 +194,36 @@ onBeforeUnmount(() => {
   background: var(--bg-elevated);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-xl, 18px);
-  box-shadow: var(--shadow-xl, 0 24px 60px rgba(0,0,0,.25));
+  box-shadow: var(--shadow-xl, 0 24px 60px rgba(0, 0, 0, 0.25));
   display: flex;
   flex-direction: column;
   outline: none;
 
-  &.modal-centered { margin: auto; }
+  &.modal-centered {
+    margin: auto;
+  }
 }
 
 /* Sizes */
-.modal-size-xs { max-width: 380px; }
-.modal-size-sm { max-width: 500px; }
-.modal-size-md { max-width: 660px; }
-.modal-size-lg { max-width: 860px; }
-.modal-size-xl { max-width: 1100px; }
-.modal-size-full { max-width: calc(100vw - 32px); min-height: calc(100vh - 80px); }
+.modal-size-xs {
+  max-width: 380px;
+}
+.modal-size-sm {
+  max-width: 500px;
+}
+.modal-size-md {
+  max-width: 660px;
+}
+.modal-size-lg {
+  max-width: 860px;
+}
+.modal-size-xl {
+  max-width: 1100px;
+}
+.modal-size-full {
+  max-width: calc(100vw - 32px);
+  min-height: calc(100vh - 80px);
+}
 
 /* ── Header ───────────────────────────────────────────────────── */
 .modal-header {
@@ -230,9 +251,18 @@ onBeforeUnmount(() => {
   color: var(--primary);
   flex-shrink: 0;
 
-  &.tone-danger { background: color-mix(in srgb, var(--danger) 10%, transparent); color: var(--danger); }
-  &.tone-success { background: color-mix(in srgb, var(--success) 10%, transparent); color: var(--success); }
-  &.tone-warning { background: color-mix(in srgb, var(--warning) 10%, transparent); color: var(--warning); }
+  &.tone-danger {
+    background: color-mix(in srgb, var(--danger) 10%, transparent);
+    color: var(--danger);
+  }
+  &.tone-success {
+    background: color-mix(in srgb, var(--success) 10%, transparent);
+    color: var(--success);
+  }
+  &.tone-warning {
+    background: color-mix(in srgb, var(--warning) 10%, transparent);
+    color: var(--warning);
+  }
 }
 
 .modal-title {
@@ -269,8 +299,13 @@ onBeforeUnmount(() => {
 }
 
 /* ── Body ─────────────────────────────────────────────────────── */
-.modal-body { flex: 1; overflow-y: auto; }
-.modal-body-padded { padding: 22px; }
+.modal-body {
+  flex: 1;
+  overflow-y: auto;
+}
+.modal-body-padded {
+  padding: 22px;
+}
 
 /* ── Footer ───────────────────────────────────────────────────── */
 .modal-footer {
@@ -288,13 +323,17 @@ onBeforeUnmount(() => {
   display: inline-block;
   width: 14px;
   height: 14px;
-  border: 2px solid rgba(255,255,255,.4);
+  border: 2px solid rgba(255, 255, 255, 0.4);
   border-top-color: #fff;
   border-radius: 50%;
-  animation: spin .6s linear infinite;
+  animation: spin 0.6s linear infinite;
   margin-left: 6px;
 }
-@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
 
 /* ── Transition ───────────────────────────────────────────────── */
 .modal-fade-enter-active {
@@ -306,6 +345,8 @@ onBeforeUnmount(() => {
 .modal-fade-enter-from,
 .modal-fade-leave-to {
   opacity: 0;
-  .modal-box { transform: translateY(-16px) scale(0.97); }
+  .modal-box {
+    transform: translateY(-16px) scale(0.97);
+  }
 }
 </style>

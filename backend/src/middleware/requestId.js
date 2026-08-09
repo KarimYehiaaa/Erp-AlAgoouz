@@ -4,7 +4,7 @@ import { randomUUID } from 'crypto';
  * Middleware: Request ID
  * ─────────────────────────────────────────────────────────────
  * يُضيف معرّفاً فريداً لكل طلب HTTP لتسهيل تتبع الأخطاء في الـ Logs
- * 
+ *
  * الاستخدام: يتوفر عبر req.requestId في جميع controllers/services
  * يُضاف تلقائياً لرأس الاستجابة: X-Request-ID
  */

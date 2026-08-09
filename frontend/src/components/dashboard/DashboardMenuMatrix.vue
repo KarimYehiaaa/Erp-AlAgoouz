@@ -1,15 +1,19 @@
 <template>
-  <section class="overview-grid" style="margin-top: var(--space-5);">
+  <section class="overview-grid" style="margin-top: var(--space-5)">
     <article class="panel chart-panel wide">
       <div class="panel-head">
         <div>
           <h2>
-            <AppIcon name="reports" style="margin-left: 8px; color: var(--primary);" />
+            <AppIcon name="reports" style="margin-left: 8px; color: var(--primary)" />
             مصفوفة كفاءة وهندسة الأصناف (Menu Matrix)
           </h2>
           <p>تصنيف ذكي لأصناف المشروبات بناءً على كفاءة المبيعات وهامش الربحية بالفروع</p>
         </div>
-        <span class="badge badge-warning" style="background: var(--accent); color: var(--bg-elevated); font-weight: 800;">تحليل نشط</span>
+        <span
+          class="badge badge-warning"
+          style="background: var(--accent); color: var(--bg-elevated); font-weight: 800"
+          >تحليل نشط</span
+        >
       </div>
       <div class="menu-engineering-grid">
         <div class="menu-matrix-quadrant star">
@@ -90,10 +94,19 @@
     box-shadow: var(--shadow-sm);
   }
 
-  &.star { border-top: 3px solid var(--success); }
-  &.plowhorse { border-top: 3px solid var(--primary); }
-  &.puzzle { border-top: 3px solid var(--warning); }
-  &.dog { border-top: 3px solid var(--danger); opacity: 0.8; }
+  &.star {
+    border-top: 3px solid var(--success);
+  }
+  &.plowhorse {
+    border-top: 3px solid var(--primary);
+  }
+  &.puzzle {
+    border-top: 3px solid var(--warning);
+  }
+  &.dog {
+    border-top: 3px solid var(--danger);
+    opacity: 0.8;
+  }
 }
 
 .quadrant-header {

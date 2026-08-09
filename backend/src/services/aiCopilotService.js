@@ -31,9 +31,10 @@ const getErpContext = async () => {
       LIMIT 5
     `;
     const topProducts = (await query(topProdSql)).rows;
-    const topProductsText = topProducts.length > 0 
-      ? topProducts.map(p => `${p.name_ar} (${Number(p.qty)} ${p.unit})`).join('، ')
-      : 'لا توجد مبيعات مسجلة في آخر 30 يوماً';
+    const topProductsText =
+      topProducts.length > 0
+        ? topProducts.map((p) => `${p.name_ar} (${Number(p.qty)} ${p.unit})`).join('، ')
+        : 'لا توجد مبيعات مسجلة في آخر 30 يوماً';
 
     // 3. المنتجات منخفضة المخزون
     const lowStockSql = `
@@ -47,9 +48,10 @@ const getErpContext = async () => {
       LIMIT 5
     `;
     const lowStock = (await query(lowStockSql)).rows;
-    const lowStockText = lowStock.length > 0
-      ? lowStock.map(p => `${p.name_ar} (الرصيد: ${Number(p.stock)} ${p.unit})`).join('، ')
-      : 'جميع السلع مخزونها مستقر وآمن';
+    const lowStockText =
+      lowStock.length > 0
+        ? lowStock.map((p) => `${p.name_ar} (الرصيد: ${Number(p.stock)} ${p.unit})`).join('، ')
+        : 'جميع السلع مخزونها مستقر وآمن';
 
     // 4. مصروفات آخر 30 يوم
     const expSql = `
@@ -72,7 +74,7 @@ const getErpContext = async () => {
       topProducts: topProductsText,
       lowStock: lowStockText,
       expenses: expenseStats,
-      customers: customerStats
+      customers: customerStats,
     };
   } catch (err) {
     console.error('⚠️ فشل جلب سياق الـ ERP للـ Copilot:', err.message);
@@ -85,14 +87,14 @@ const getErpContext = async () => {
  */
 export const askCopilot = async (userPrompt, chatHistory = []) => {
   const apiKey = process.env.GEMINI_API_KEY;
-  
+
   if (!apiKey || apiKey.trim() === '' || apiKey === 'YOUR_GEMINI_API_KEY') {
     return 'عذراً، لم يتم العثور على مفتاح الربط للذكاء الاصطناعي (GEMINI_API_KEY) في إعدادات ملف `.env`. يرجى إضافة المفتاح المناسب لتفعيل المساعد الذكي والدردشة التفاعلية.';
   }
 
   // 1. جلب مؤشرات النظام اللحظية
   const erp = await getErpContext();
-  
+
   // 2. صياغة التوجيه البرمجي للـ LLM (System Instruction)
   const systemInstruction = `
 أنت المساعد الذكي والمالي لنظام إدارة ERP "بن العجوز" (AlAgoouz ERP).
@@ -113,14 +115,17 @@ export const askCopilot = async (userPrompt, chatHistory = []) => {
 `;
 
   // 3. بناء هيكلية طلب Gemini API
-  const formattedHistory = chatHistory.map(h => ({
+  const formattedHistory = chatHistory.map((h) => ({
     role: h.role === 'user' ? 'user' : 'model',
-    parts: [{ text: h.content || h.text || '' }]
+    parts: [{ text: h.content || h.text || '' }],
   }));
 
   const contents = [
     ...formattedHistory,
-    { role: 'user', parts: [{ text: `${systemInstruction}\n\nالسؤال الحالي للمستخدم: ${userPrompt}` }] }
+    {
+      role: 'user',
+      parts: [{ text: `${systemInstruction}\n\nالسؤال الحالي للمستخدم: ${userPrompt}` }],
+    },
   ];
 
   try {
@@ -129,12 +134,12 @@ export const askCopilot = async (userPrompt, chatHistory = []) => {
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents })
-      }
+        body: JSON.stringify({ contents }),
+      },
     );
 
     const resData = await response.json();
-    
+
     if (resData.error) {
       console.error('Gemini API error:', resData.error);
       return `حدث خطأ أثناء التواصل مع سيرفر الذكاء الاصطناعي: ${resData.error.message}`;

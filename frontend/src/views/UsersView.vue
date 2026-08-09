@@ -45,10 +45,17 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="u in filteredUsers" :key="u.id" :class="{ active: selectedUser?.id === u.id }">
+              <tr
+                v-for="u in filteredUsers"
+                :key="u.id"
+                :class="{ active: selectedUser?.id === u.id }"
+              >
                 <td>
                   <div class="user-info-cell">
-                    <div class="user-avatar" :style="{ backgroundColor: getAvatarColor(u.full_name) }">
+                    <div
+                      class="user-avatar"
+                      :style="{ backgroundColor: getAvatarColor(u.full_name) }"
+                    >
                       {{ getInitials(u.full_name) }}
                     </div>
                     <div class="user-names">
@@ -67,9 +74,9 @@
                   <span class="role-badge">{{ roleLabel(u.role_id) }}</span>
                 </td>
                 <td>
-                  <span style="display: inline-flex; align-items: center; gap: 8px;">
+                  <span style="display: inline-flex; align-items: center; gap: 8px">
                     <span :class="['status-dot-pulse', u.is_active ? 'success' : 'danger']"></span>
-                    <span style="font-size: 0.82rem; font-weight: 800; color: var(--text-strong);">
+                    <span style="font-size: 0.82rem; font-weight: 800; color: var(--text-strong)">
                       {{ u.is_active ? 'نشط' : 'معطل' }}
                     </span>
                   </span>
@@ -107,30 +114,46 @@
               isCreateMode
                 ? 'إنشاء مستخدم جديد'
                 : form.id
-                ? `تعديل: ${form.full_name || form.username}`
-                : 'إدارة المستخدمين'
+                  ? `تعديل: ${form.full_name || form.username}`
+                  : 'إدارة المستخدمين'
             }}
           </h3>
           <span v-if="form.id && !isCreateMode">ID: {{ form.id }}</span>
         </div>
 
         <p v-if="!form.id && !isCreateMode" class="hint-state">
-          💡 اضغط على زر "تعديل" بجانب أي مستخدم لفتح وتعديل بياناته، أو انقر على "+ إضافة مستخدم جديد" لإنشاء مستخدم.
+          💡 اضغط على زر "تعديل" بجانب أي مستخدم لفتح وتعديل بياناته، أو انقر على "+ إضافة مستخدم
+          جديد" لإنشاء مستخدم.
         </p>
 
         <form v-else class="user-form" @submit.prevent="saveUser">
           <div class="grid grid-2">
             <div class="form-group">
               <label>اسم الدخول *</label>
-              <input 
-                v-model="form.username" 
-                type="text" 
-                required 
-                placeholder="مثال: karim" 
+              <input
+                v-model="form.username"
+                type="text"
+                required
+                placeholder="مثال: karim"
                 @blur="validateUsername"
-                :style="validations.username.valid === false ? 'border-color: var(--danger);' : validations.username.valid === true ? 'border-color: #16a34a;' : ''"
+                :style="
+                  validations.username.valid === false
+                    ? 'border-color: var(--danger);'
+                    : validations.username.valid === true
+                      ? 'border-color: #16a34a;'
+                      : ''
+                "
               />
-              <span v-if="validations.username.msg" :style="{ color: validations.username.valid ? '#16a34a' : 'var(--danger)', fontSize: '0.74rem', fontWeight: '800', marginTop: '4px', display: 'block' }">
+              <span
+                v-if="validations.username.msg"
+                :style="{
+                  color: validations.username.valid ? '#16a34a' : 'var(--danger)',
+                  fontSize: '0.74rem',
+                  fontWeight: '800',
+                  marginTop: '4px',
+                  display: 'block',
+                }"
+              >
                 {{ validations.username.msg }}
               </span>
             </div>
@@ -141,27 +164,66 @@
           </div>
 
           <!-- Progressive Disclosure Toggle -->
-          <button 
-            type="button" 
-            @click="showAdvancedOptions = !showAdvancedOptions" 
-            style="border: none; background: transparent; color: var(--accent); cursor: pointer; font-size: 0.84rem; font-weight: 800; display: flex; align-items: center; gap: 4px; margin: 12px 0; padding: 0;"
+          <button
+            type="button"
+            @click="showAdvancedOptions = !showAdvancedOptions"
+            style="
+              border: none;
+              background: transparent;
+              color: var(--accent);
+              cursor: pointer;
+              font-size: 0.84rem;
+              font-weight: 800;
+              display: flex;
+              align-items: center;
+              gap: 4px;
+              margin: 12px 0;
+              padding: 0;
+            "
           >
-            <span>{{ showAdvancedOptions ? '⚙️ إخفاء الخيارات الإضافية' : '⚙️ إظهار الخيارات الإضافية' }}</span>
+            <span>{{
+              showAdvancedOptions ? '⚙️ إخفاء الخيارات الإضافية' : '⚙️ إظهار الخيارات الإضافية'
+            }}</span>
           </button>
 
           <!-- Advanced/Secondary Fields (Progressive Disclosure) -->
-          <div v-show="showAdvancedOptions" style="display: grid; gap: 14px; margin-bottom: 14px; border: 1px dashed var(--border); padding: 12px; border-radius: var(--radius-md);">
+          <div
+            v-show="showAdvancedOptions"
+            style="
+              display: grid;
+              gap: 14px;
+              margin-bottom: 14px;
+              border: 1px dashed var(--border);
+              padding: 12px;
+              border-radius: var(--radius-md);
+            "
+          >
             <div class="grid grid-2">
               <div class="form-group">
                 <label>البريد الإلكتروني</label>
-                <input 
-                  v-model="form.email" 
-                  type="email" 
-                  placeholder="example@domain.com" 
+                <input
+                  v-model="form.email"
+                  type="email"
+                  placeholder="example@domain.com"
                   @blur="validateEmail"
-                  :style="validations.email.valid === false ? 'border-color: var(--danger);' : validations.email.valid === true ? 'border-color: #16a34a;' : ''"
+                  :style="
+                    validations.email.valid === false
+                      ? 'border-color: var(--danger);'
+                      : validations.email.valid === true
+                        ? 'border-color: #16a34a;'
+                        : ''
+                  "
                 />
-                <span v-if="validations.email.msg" :style="{ color: validations.email.valid ? '#16a34a' : 'var(--danger)', fontSize: '0.74rem', fontWeight: '800', marginTop: '4px', display: 'block' }">
+                <span
+                  v-if="validations.email.msg"
+                  :style="{
+                    color: validations.email.valid ? '#16a34a' : 'var(--danger)',
+                    fontSize: '0.74rem',
+                    fontWeight: '800',
+                    marginTop: '4px',
+                    display: 'block',
+                  }"
+                >
                   {{ validations.email.msg }}
                 </span>
               </div>
@@ -191,31 +253,73 @@
 
           <div class="form-group">
             <label>{{ isCreateMode ? 'كلمة المرور *' : 'كلمة المرور الجديدة' }}</label>
-            <div class="password-input-wrapper" style="position: relative;">
+            <div class="password-input-wrapper" style="position: relative">
               <input
                 v-model="form.password"
                 :type="showPassword ? 'text' : 'password'"
                 :required="isCreateMode"
-                :placeholder="isCreateMode ? 'ادخل كلمة المرور' : 'اتركها فارغة إذا لا تريد التغيير'"
-                style="padding-left: 42px;"
+                :placeholder="
+                  isCreateMode ? 'ادخل كلمة المرور' : 'اتركها فارغة إذا لا تريد التغيير'
+                "
+                style="padding-left: 42px"
                 @input="evaluatePasswordStrength"
               />
-              <button 
-                type="button" 
-                class="password-toggle-btn" 
+              <button
+                type="button"
+                class="password-toggle-btn"
                 @click="showPassword = !showPassword"
                 tabindex="-1"
-                style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); border: none; background: transparent; color: var(--text-muted); cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; z-index: 5;"
+                style="
+                  position: absolute;
+                  left: 10px;
+                  top: 50%;
+                  transform: translateY(-50%);
+                  border: none;
+                  background: transparent;
+                  color: var(--text-muted);
+                  cursor: pointer;
+                  padding: 4px;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  z-index: 5;
+                "
               >
                 <AppIcon :name="showPassword ? 'eyeOff' : 'eye'" :size="16" />
               </button>
             </div>
             <!-- Password Strength Bar Indicator -->
-            <div v-if="form.password" class="password-strength-bar-container" style="margin-top: 8px;">
-              <div style="background: var(--border); height: 4px; border-radius: 2px; overflow: hidden; width: 100%;">
-                <div class="password-strength-bar" :style="{ width: strengthPercent + '%', backgroundColor: strengthColor }" style="height: 100%; transition: all 0.3s ease;"></div>
+            <div
+              v-if="form.password"
+              class="password-strength-bar-container"
+              style="margin-top: 8px"
+            >
+              <div
+                style="
+                  background: var(--border);
+                  height: 4px;
+                  border-radius: 2px;
+                  overflow: hidden;
+                  width: 100%;
+                "
+              >
+                <div
+                  class="password-strength-bar"
+                  :style="{ width: strengthPercent + '%', backgroundColor: strengthColor }"
+                  style="height: 100%; transition: all 0.3s ease"
+                ></div>
               </div>
-              <span style="font-size: 0.72rem; font-weight: 700; color: var(--text-muted); margin-top: 4px; display: block;">قوة كلمة المرور: <span :style="{ color: strengthColor }">{{ strengthText }}</span></span>
+              <span
+                style="
+                  font-size: 0.72rem;
+                  font-weight: 700;
+                  color: var(--text-muted);
+                  margin-top: 4px;
+                  display: block;
+                "
+                >قوة كلمة المرور:
+                <span :style="{ color: strengthColor }">{{ strengthText }}</span></span
+              >
             </div>
           </div>
 
@@ -225,7 +329,12 @@
             <button type="button" class="btn btn-outline" @click="resetForm" :disabled="saving">
               إلغاء
             </button>
-            <button type="submit" class="btn btn-save" :class="{ 'btn-loading': saving }" :disabled="saving">
+            <button
+              type="submit"
+              class="btn btn-save"
+              :class="{ 'btn-loading': saving }"
+              :disabled="saving"
+            >
               <AppIcon v-if="!saving" name="save" :size="16" />
               {{ saving ? 'جاري الحفظ...' : isCreateMode ? 'إنشاء حساب جديد' : 'حفظ التعديلات' }}
             </button>
@@ -235,87 +344,270 @@
     </section>
 
     <!-- Roles Management Section -->
-    <section class="card" style="margin-top: 24px;">
-      <div class="card-head" style="border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 18px; display: flex; align-items: center; justify-content: space-between;">
+    <section class="card" style="margin-top: 24px">
+      <div
+        class="card-head"
+        style="
+          border-bottom: 1px solid var(--border);
+          padding-bottom: 12px;
+          margin-bottom: 18px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+        "
+      >
         <div class="title-info">
-          <h3 style="margin: 0; font-size: 1.1rem; font-weight: 850; color: var(--text-strong);">🏷️ إدارة المناصب والأدوار</h3>
-          <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: var(--text-muted);">أنشئ وعدّل وحذف المناصب في النظام</p>
+          <h3 style="margin: 0; font-size: 1.1rem; font-weight: 850; color: var(--text-strong)">
+            🏷️ إدارة المناصب والأدوار
+          </h3>
+          <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: var(--text-muted)">
+            أنشئ وعدّل وحذف المناصب في النظام
+          </p>
         </div>
         <button
           v-if="!showRoleForm"
           type="button"
           class="btn btn-add"
           @click="startCreateRole"
-          style="min-width: 140px; display: inline-flex; align-items: center; gap: 6px; font-size: 0.85rem;"
+          style="
+            min-width: 140px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.85rem;
+          "
         >
           <AppIcon name="add" :size="15" /> إضافة منصب جديد
         </button>
       </div>
 
       <!-- Role Form (create / edit) -->
-      <div v-if="showRoleForm" class="role-form-card" style="background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px; margin-bottom: 18px;">
-        <h4 style="margin: 0 0 16px 0; font-size: 0.95rem; font-weight: 800; color: var(--primary-dark);">
+      <div
+        v-if="showRoleForm"
+        class="role-form-card"
+        style="
+          background: var(--bg-elevated);
+          border: 1px solid var(--border);
+          border-radius: var(--radius-lg);
+          padding: 20px;
+          margin-bottom: 18px;
+        "
+      >
+        <h4
+          style="
+            margin: 0 0 16px 0;
+            font-size: 0.95rem;
+            font-weight: 800;
+            color: var(--primary-dark);
+          "
+        >
           {{ editingRole ? '✏️ تعديل منصب: ' + editingRole.name_ar : '➕ إنشاء منصب جديد' }}
         </h4>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px">
           <div class="form-group" v-if="!editingRole">
-            <label class="form-label">الاسم الإنجليزي <span style="color:var(--danger)">*</span></label>
-            <input v-model="roleForm.name" type="text" class="form-input" placeholder="مثال: supervisor" style="direction: ltr; font-family: monospace;" />
-            <small style="color: var(--text-muted); font-size: 0.72rem;">حروف إنجليزية وأرقام وشرطة سفلية فقط</small>
+            <label class="form-label"
+              >الاسم الإنجليزي <span style="color: var(--danger)">*</span></label
+            >
+            <input
+              v-model="roleForm.name"
+              type="text"
+              class="form-input"
+              placeholder="مثال: supervisor"
+              style="direction: ltr; font-family: monospace"
+            />
+            <small style="color: var(--text-muted); font-size: 0.72rem"
+              >حروف إنجليزية وأرقام وشرطة سفلية فقط</small
+            >
           </div>
           <div class="form-group">
-            <label class="form-label">الاسم العربي <span style="color:var(--danger)">*</span></label>
-            <input v-model="roleForm.name_ar" type="text" class="form-input" placeholder="مثال: مشرف" />
+            <label class="form-label"
+              >الاسم العربي <span style="color: var(--danger)">*</span></label
+            >
+            <input
+              v-model="roleForm.name_ar"
+              type="text"
+              class="form-input"
+              placeholder="مثال: مشرف"
+            />
           </div>
           <div class="form-group" :style="editingRole ? 'grid-column: span 2' : ''">
             <label class="form-label">الوصف (اختياري)</label>
-            <input v-model="roleForm.description" type="text" class="form-input" placeholder="وصف مختصر لصلاحيات هذا المنصب" />
+            <input
+              v-model="roleForm.description"
+              type="text"
+              class="form-input"
+              placeholder="وصف مختصر لصلاحيات هذا المنصب"
+            />
           </div>
         </div>
-        <div class="form-actions" style="margin-top: 14px; display: flex; justify-content: flex-end; gap: 10px;">
-          <button type="button" class="btn btn-outline" @click="cancelRoleForm" :disabled="savingRole">إلغاء</button>
-          <button type="button" class="btn btn-save" @click="saveRole" :disabled="savingRole" style="min-width: 130px; display: inline-flex; align-items: center; justify-content: center; gap: 6px;">
+        <div
+          class="form-actions"
+          style="margin-top: 14px; display: flex; justify-content: flex-end; gap: 10px"
+        >
+          <button
+            type="button"
+            class="btn btn-outline"
+            @click="cancelRoleForm"
+            :disabled="savingRole"
+          >
+            إلغاء
+          </button>
+          <button
+            type="button"
+            class="btn btn-save"
+            @click="saveRole"
+            :disabled="savingRole"
+            style="
+              min-width: 130px;
+              display: inline-flex;
+              align-items: center;
+              justify-content: center;
+              gap: 6px;
+            "
+          >
             <AppIcon v-if="!savingRole" name="save" :size="15" />
-            {{ savingRole ? 'جاري الحفظ...' : (editingRole ? 'حفظ التعديلات' : 'إنشاء المنصب') }}
+            {{ savingRole ? 'جاري الحفظ...' : editingRole ? 'حفظ التعديلات' : 'إنشاء المنصب' }}
           </button>
         </div>
       </div>
 
       <!-- Roles Table -->
-      <div style="overflow-x: auto;">
-        <table class="data-table" style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+      <div style="overflow-x: auto">
+        <table
+          class="data-table"
+          style="width: 100%; border-collapse: collapse; font-size: 0.85rem"
+        >
           <thead>
-            <tr style="background: var(--bg-elevated); color: var(--text-muted); font-size: 0.78rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em;">
-              <th style="padding: 10px 14px; text-align: right; border-bottom: 2px solid var(--border);">#</th>
-              <th style="padding: 10px 14px; text-align: right; border-bottom: 2px solid var(--border);">المنصب</th>
-              <th style="padding: 10px 14px; text-align: right; border-bottom: 2px solid var(--border);">الاسم الإنجليزي</th>
-              <th style="padding: 10px 14px; text-align: right; border-bottom: 2px solid var(--border);">الوصف</th>
-              <th style="padding: 10px 14px; text-align: right; border-bottom: 2px solid var(--border);">عدد المستخدمين</th>
-              <th style="padding: 10px 14px; text-align: center; border-bottom: 2px solid var(--border);">الإجراءات</th>
+            <tr
+              style="
+                background: var(--bg-elevated);
+                color: var(--text-muted);
+                font-size: 0.78rem;
+                font-weight: 800;
+                text-transform: uppercase;
+                letter-spacing: 0.04em;
+              "
+            >
+              <th
+                style="
+                  padding: 10px 14px;
+                  text-align: right;
+                  border-bottom: 2px solid var(--border);
+                "
+              >
+                #
+              </th>
+              <th
+                style="
+                  padding: 10px 14px;
+                  text-align: right;
+                  border-bottom: 2px solid var(--border);
+                "
+              >
+                المنصب
+              </th>
+              <th
+                style="
+                  padding: 10px 14px;
+                  text-align: right;
+                  border-bottom: 2px solid var(--border);
+                "
+              >
+                الاسم الإنجليزي
+              </th>
+              <th
+                style="
+                  padding: 10px 14px;
+                  text-align: right;
+                  border-bottom: 2px solid var(--border);
+                "
+              >
+                الوصف
+              </th>
+              <th
+                style="
+                  padding: 10px 14px;
+                  text-align: right;
+                  border-bottom: 2px solid var(--border);
+                "
+              >
+                عدد المستخدمين
+              </th>
+              <th
+                style="
+                  padding: 10px 14px;
+                  text-align: center;
+                  border-bottom: 2px solid var(--border);
+                "
+              >
+                الإجراءات
+              </th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="role in roles" :key="role.id" style="border-bottom: 1px solid var(--border); transition: background 0.15s;" @mouseover="$event.currentTarget.style.background='var(--bg-elevated)'" @mouseleave="$event.currentTarget.style.background='transparent'">
-              <td style="padding: 12px 14px; color: var(--text-muted); font-size: 0.78rem;">{{ role.id }}</td>
-              <td style="padding: 12px 14px;">
-                <span style="font-weight: 850; color: var(--text-strong);">{{ role.name_ar }}</span>
-                <span v-if="role.name === 'admin'" style="display: inline-block; background: var(--danger); color: #fff; font-size: 0.65rem; padding: 1px 6px; border-radius: 20px; font-weight: 800; margin-right: 6px;">محمي</span>
+            <tr
+              v-for="role in roles"
+              :key="role.id"
+              style="border-bottom: 1px solid var(--border); transition: background 0.15s"
+              @mouseover="$event.currentTarget.style.background = 'var(--bg-elevated)'"
+              @mouseleave="$event.currentTarget.style.background = 'transparent'"
+            >
+              <td style="padding: 12px 14px; color: var(--text-muted); font-size: 0.78rem">
+                {{ role.id }}
               </td>
-              <td style="padding: 12px 14px; direction: ltr; font-family: monospace; color: var(--text-muted); font-size: 0.8rem;">{{ role.name }}</td>
-              <td style="padding: 12px 14px; color: var(--text-muted); font-size: 0.82rem;">{{ role.description || '—' }}</td>
-              <td style="padding: 12px 14px; text-align: center;">
-                <span style="background: var(--primary-soft); color: var(--primary-dark); padding: 2px 10px; border-radius: 20px; font-weight: 800; font-size: 0.8rem;">
-                  {{ users.filter(u => u.role_id === role.id).length }}
+              <td style="padding: 12px 14px">
+                <span style="font-weight: 850; color: var(--text-strong)">{{ role.name_ar }}</span>
+                <span
+                  v-if="role.name === 'admin'"
+                  style="
+                    display: inline-block;
+                    background: var(--danger);
+                    color: #fff;
+                    font-size: 0.65rem;
+                    padding: 1px 6px;
+                    border-radius: 20px;
+                    font-weight: 800;
+                    margin-right: 6px;
+                  "
+                  >محمي</span
+                >
+              </td>
+              <td
+                style="
+                  padding: 12px 14px;
+                  direction: ltr;
+                  font-family: monospace;
+                  color: var(--text-muted);
+                  font-size: 0.8rem;
+                "
+              >
+                {{ role.name }}
+              </td>
+              <td style="padding: 12px 14px; color: var(--text-muted); font-size: 0.82rem">
+                {{ role.description || '—' }}
+              </td>
+              <td style="padding: 12px 14px; text-align: center">
+                <span
+                  style="
+                    background: var(--primary-soft);
+                    color: var(--primary-dark);
+                    padding: 2px 10px;
+                    border-radius: 20px;
+                    font-weight: 800;
+                    font-size: 0.8rem;
+                  "
+                >
+                  {{ users.filter((u) => u.role_id === role.id).length }}
                 </span>
               </td>
-              <td style="padding: 12px 14px; text-align: center;">
-                <div style="display: inline-flex; gap: 8px;">
+              <td style="padding: 12px 14px; text-align: center">
+                <div style="display: inline-flex; gap: 8px">
                   <button
                     type="button"
                     class="btn btn-outline"
                     @click="startEditRole(role)"
                     :disabled="role.name === 'admin'"
-                    style="padding: 4px 10px; font-size: 0.78rem; border-radius: var(--radius-sm);"
+                    style="padding: 4px 10px; font-size: 0.78rem; border-radius: var(--radius-sm)"
                     :style="role.name === 'admin' ? 'opacity: 0.4; cursor: not-allowed;' : ''"
                     title="تعديل المنصب"
                   >
@@ -325,10 +617,20 @@
                     type="button"
                     class="btn btn-danger"
                     @click="confirmDeleteRole(role)"
-                    :disabled="role.name === 'admin' || users.filter(u => u.role_id === role.id).length > 0"
-                    style="padding: 4px 10px; font-size: 0.78rem; border-radius: var(--radius-sm);"
-                    :style="(role.name === 'admin' || users.filter(u => u.role_id === role.id).length > 0) ? 'opacity: 0.4; cursor: not-allowed;' : ''"
-                    :title="users.filter(u => u.role_id === role.id).length > 0 ? 'لا يمكن حذف منصب مرتبط بمستخدمين' : 'حذف المنصب'"
+                    :disabled="
+                      role.name === 'admin' || users.filter((u) => u.role_id === role.id).length > 0
+                    "
+                    style="padding: 4px 10px; font-size: 0.78rem; border-radius: var(--radius-sm)"
+                    :style="
+                      role.name === 'admin' || users.filter((u) => u.role_id === role.id).length > 0
+                        ? 'opacity: 0.4; cursor: not-allowed;'
+                        : ''
+                    "
+                    :title="
+                      users.filter((u) => u.role_id === role.id).length > 0
+                        ? 'لا يمكن حذف منصب مرتبط بمستخدمين'
+                        : 'حذف المنصب'
+                    "
                   >
                     🗑️ حذف
                   </button>
@@ -336,7 +638,9 @@
               </td>
             </tr>
             <tr v-if="!roles.length">
-              <td colspan="6" style="text-align: center; padding: 32px; color: var(--text-muted);">لا توجد مناصب</td>
+              <td colspan="6" style="text-align: center; padding: 32px; color: var(--text-muted)">
+                لا توجد مناصب
+              </td>
             </tr>
           </tbody>
         </table>
@@ -344,61 +648,154 @@
     </section>
 
     <!-- Roles & Permissions Matrix Section -->
-    <section class="permissions-section card card-premium-flow" style="margin-top: 24px;">
-      <div class="card-head" style="border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 18px;">
+    <section class="permissions-section card card-premium-flow" style="margin-top: 24px">
+      <div
+        class="card-head"
+        style="border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 18px"
+      >
         <div class="title-info">
-          <h3 style="margin: 0; font-size: 1.15rem; font-weight: 850; color: var(--text-strong);">🔑 إدارة صلاحيات المناصب والأدوار</h3>
-          <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: var(--text-muted);">حدد الصلاحيات والصفحات المتاحة لكل منصب في النظام</p>
+          <h3 style="margin: 0; font-size: 1.15rem; font-weight: 850; color: var(--text-strong)">
+            🔑 إدارة صلاحيات المناصب والأدوار
+          </h3>
+          <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: var(--text-muted)">
+            حدد الصلاحيات والصفحات المتاحة لكل منصب في النظام
+          </p>
         </div>
       </div>
-      <div class="permissions-settings-wrap" style="display: grid; gap: 20px;">
-        <div class="role-selector-wrap" style="display: flex; align-items: center; gap: 12px; max-width: 400px;">
-          <label style="font-weight: 800; min-width: 100px; font-size: 0.88rem; color: var(--text-strong);">اختر المنصب:</label>
-          <select v-model="selectedPermissionRole" @change="handleRolePermissionChange" class="form-select" style="flex: 1; min-height: 38px; padding: 6px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--bg-elevated); color: var(--text); font-weight: 700;">
+      <div class="permissions-settings-wrap" style="display: grid; gap: 20px">
+        <div
+          class="role-selector-wrap"
+          style="display: flex; align-items: center; gap: 12px; max-width: 400px"
+        >
+          <label
+            style="
+              font-weight: 800;
+              min-width: 100px;
+              font-size: 0.88rem;
+              color: var(--text-strong);
+            "
+            >اختر المنصب:</label
+          >
+          <select
+            v-model="selectedPermissionRole"
+            @change="handleRolePermissionChange"
+            class="form-select"
+            style="
+              flex: 1;
+              min-height: 38px;
+              padding: 6px 12px;
+              border-radius: var(--radius-sm);
+              border: 1px solid var(--border);
+              background: var(--bg-elevated);
+              color: var(--text);
+              font-weight: 700;
+            "
+          >
             <option v-for="role in roles" :key="role.id" :value="role.id">
               {{ role.name_ar }} {{ role.name === 'admin' ? '(كامل الصلاحيات)' : '' }}
             </option>
           </select>
         </div>
 
-        <div v-if="selectedPermissionRole" class="permissions-grid-container" style="display: grid; gap: 24px;">
-          <div v-if="selectedPermissionRoleName === 'admin'" class="alert alert-info" style="background: var(--primary-soft); border: 1px solid var(--primary-strong); color: var(--primary-dark); padding: 12px; border-radius: var(--radius-md); font-weight: 800; font-size: 0.88rem;">
-            ℹ️ منصب "مدير النظام" يملك كافة صلاحيات النظام بشكل افتراضي وكامل ولا يمكن تعديل صلاحياته برمجياً لضمان عدم إغلاق النظام.
+        <div
+          v-if="selectedPermissionRole"
+          class="permissions-grid-container"
+          style="display: grid; gap: 24px"
+        >
+          <div
+            v-if="selectedPermissionRoleName === 'admin'"
+            class="alert alert-info"
+            style="
+              background: var(--primary-soft);
+              border: 1px solid var(--primary-strong);
+              color: var(--primary-dark);
+              padding: 12px;
+              border-radius: var(--radius-md);
+              font-weight: 800;
+              font-size: 0.88rem;
+            "
+          >
+            ℹ️ منصب "مدير النظام" يملك كافة صلاحيات النظام بشكل افتراضي وكامل ولا يمكن تعديل
+            صلاحياته برمجياً لضمان عدم إغلاق النظام.
           </div>
-          <div v-else style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px;">
-            <div 
-              v-for="(perms, moduleName) in groupedPermissions" 
-              :key="moduleName" 
+          <div
+            v-else
+            style="
+              display: grid;
+              grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+              gap: 20px;
+            "
+          >
+            <div
+              v-for="(perms, moduleName) in groupedPermissions"
+              :key="moduleName"
               class="module-group"
             >
-              <h4 style="margin-top: 0; color: var(--primary-dark); font-weight: 850; font-size: 0.92rem; border-bottom: 2px solid var(--border); padding-bottom: 8px; margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
+              <h4
+                style="
+                  margin-top: 0;
+                  color: var(--primary-dark);
+                  font-weight: 850;
+                  font-size: 0.92rem;
+                  border-bottom: 2px solid var(--border);
+                  padding-bottom: 8px;
+                  margin-bottom: 12px;
+                  display: flex;
+                  align-items: center;
+                  gap: 6px;
+                "
+              >
                 📂 {{ getModuleLabel(moduleName) }}
               </h4>
-              <div style="display: grid; gap: 10px; position: relative; z-index: 5;">
-                <label 
-                  v-for="p in perms" 
-                  :key="p.id" 
-                  style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 0.84rem; color: var(--text-strong); font-weight: 750;"
+              <div style="display: grid; gap: 10px; position: relative; z-index: 5">
+                <label
+                  v-for="p in perms"
+                  :key="p.id"
+                  style="
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                    cursor: pointer;
+                    font-size: 0.84rem;
+                    color: var(--text-strong);
+                    font-weight: 750;
+                  "
                 >
-                  <input 
-                    type="checkbox" 
-                    :value="p.id" 
-                    v-model="selectedPermissionIds" 
-                    style="width: 16px; height: 16px; accent-color: var(--accent);"
+                  <input
+                    type="checkbox"
+                    :value="p.id"
+                    v-model="selectedPermissionIds"
+                    style="width: 16px; height: 16px; accent-color: var(--accent)"
                   />
                   <span>{{ p.name_ar }}</span>
                 </label>
               </div>
             </div>
           </div>
-          
-          <div v-if="selectedPermissionRoleName !== 'admin'" class="form-actions" style="margin-top: 12px; display: flex; justify-content: flex-end; border-top: 1px solid var(--border); padding-top: 14px;">
-            <button 
-              type="button" 
-              class="btn btn-save" 
-              :disabled="savingPermissions" 
+
+          <div
+            v-if="selectedPermissionRoleName !== 'admin'"
+            class="form-actions"
+            style="
+              margin-top: 12px;
+              display: flex;
+              justify-content: flex-end;
+              border-top: 1px solid var(--border);
+              padding-top: 14px;
+            "
+          >
+            <button
+              type="button"
+              class="btn btn-save"
+              :disabled="savingPermissions"
               @click="saveRolePermissions"
-              style="min-width: 160px; display: inline-flex; align-items: center; justify-content: center; gap: 8px;"
+              style="
+                min-width: 160px;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                gap: 8px;
+              "
             >
               <AppIcon v-if="!savingPermissions" name="save" :size="16" />
               {{ savingPermissions ? 'جاري الحفظ...' : 'حفظ صلاحيات المنصب' }}
@@ -442,10 +839,9 @@ const editingRole = ref(null);
 const savingRole = ref(false);
 const roleForm = ref({ name: '', name_ar: '', description: '' });
 
-
 const validations = ref({
   username: { valid: null, msg: '' },
-  email: { valid: null, msg: '' }
+  email: { valid: null, msg: '' },
 });
 
 const validateUsername = () => {
@@ -487,7 +883,7 @@ const evaluatePasswordStrength = () => {
   if (/[A-Z]/.test(pwd)) score += 20;
   if (/[0-9]/.test(pwd)) score += 20;
   if (/[^A-Za-z0-9]/.test(pwd)) score += 20;
-  
+
   strengthPercent.value = score;
   if (score <= 40) {
     strengthText.value = 'ضعيفة ⚠️';
@@ -525,7 +921,7 @@ const filteredUsers = computed(() => {
     (u) =>
       u.username?.toLowerCase().includes(query) ||
       u.full_name?.toLowerCase().includes(query) ||
-      u.email?.toLowerCase().includes(query)
+      u.email?.toLowerCase().includes(query),
   );
 });
 
@@ -550,7 +946,9 @@ const getAvatarColor = (name) => {
   return `hsl(${h}, 60%, 42%)`;
 };
 
-const selectedPermissionRoleName = computed(() => roles.value.find(r => r.id === selectedPermissionRole.value)?.name);
+const selectedPermissionRoleName = computed(
+  () => roles.value.find((r) => r.id === selectedPermissionRole.value)?.name,
+);
 
 const groupedPermissions = computed(() => {
   const groups = {};
@@ -581,9 +979,9 @@ const getModuleLabel = (mod) => {
 
 const handleRolePermissionChange = async () => {
   if (!selectedPermissionRole.value) return;
-  const role = roles.value.find(r => r.id === selectedPermissionRole.value);
+  const role = roles.value.find((r) => r.id === selectedPermissionRole.value);
   if (role?.name === 'admin') {
-    selectedPermissionIds.value = permissions.value.map(p => p.id);
+    selectedPermissionIds.value = permissions.value.map((p) => p.id);
     return;
   }
   try {
@@ -602,7 +1000,10 @@ const saveRolePermissions = async () => {
     await api.updateRolePermissions(selectedPermissionRole.value, selectedPermissionIds.value);
     appStore.addToast('تم حفظ صلاحيات الدور بنجاح', 'success');
     if (authStore.user?.role_id === selectedPermissionRole.value) {
-      appStore.addToast('تم تحديث صلاحيات دورك الحالي، يرجى تحديث الصفحة لتفعيل التغييرات.', 'warning');
+      appStore.addToast(
+        'تم تحديث صلاحيات دورك الحالي، يرجى تحديث الصفحة لتفعيل التغييرات.',
+        'warning',
+      );
     }
   } catch (e) {
     console.error('Failed to save permissions:', e);
@@ -666,7 +1067,8 @@ const saveRole = async () => {
 };
 
 const confirmDeleteRole = async (role) => {
-  if (!confirm(`هل أنت متأكد من حذف منصب "${role.name_ar}"؟\nلا يمكن التراجع عن هذا الإجراء.`)) return;
+  if (!confirm(`هل أنت متأكد من حذف منصب "${role.name_ar}"؟\nلا يمكن التراجع عن هذا الإجراء.`))
+    return;
   try {
     await api.deleteRole(role.id);
     appStore.addToast('تم حذف المنصب بنجاح', 'success');
@@ -678,20 +1080,19 @@ const confirmDeleteRole = async (role) => {
 // =================== End Roles Management ===================
 
 const refreshUsers = async () => {
-
   loading.value = true;
   try {
     const [usersRes, rolesRes, permsRes] = await Promise.all([
-      api.list(), 
+      api.list(),
       api.roles(),
-      api.permissions()
+      api.permissions(),
     ]);
     users.value = usersRes.data || [];
     roles.value = rolesRes.data || [];
     permissions.value = permsRes.data || [];
-    
+
     if (!selectedPermissionRole.value && roles.value.length) {
-      const firstNonAdmin = roles.value.find(r => r.name !== 'admin') || roles.value[0];
+      const firstNonAdmin = roles.value.find((r) => r.name !== 'admin') || roles.value[0];
       selectedPermissionRole.value = firstNonAdmin.id;
       handleRolePermissionChange();
     }
@@ -734,7 +1135,7 @@ const selectUser = (user) => {
   };
   validations.value = {
     username: { valid: null, msg: '' },
-    email: { valid: null, msg: '' }
+    email: { valid: null, msg: '' },
   };
   strengthPercent.value = 0;
   message.value = '';
@@ -756,7 +1157,7 @@ const resetForm = () => {
   };
   validations.value = {
     username: { valid: null, msg: '' },
-    email: { valid: null, msg: '' }
+    email: { valid: null, msg: '' },
   };
   strengthPercent.value = 0;
   message.value = '';
@@ -792,7 +1193,7 @@ const saveUser = async () => {
     }
 
     await refreshUsers();
-    
+
     if (!isCreateMode.value) {
       const updated = users.value.find((u) => u.id === form.value.id);
       if (updated) selectUser(updated);
@@ -812,7 +1213,9 @@ const deleteUser = async (user) => {
     appStore.addToast('لا يمكنك حذف الحساب الحالي الذي تسجل به الدخول.', 'error');
     return;
   }
-  const ok = confirm(`هل أنت متأكد من حذف المستخدم "${user.full_name || user.username}" نهائياً من النظام؟`);
+  const ok = confirm(
+    `هل أنت متأكد من حذف المستخدم "${user.full_name || user.username}" نهائياً من النظام؟`,
+  );
   if (!ok) return;
 
   saving.value = true;
@@ -823,13 +1226,15 @@ const deleteUser = async (user) => {
       resetForm();
     }
     await refreshUsers();
-    
+
     appStore.addToast(
-      `تم حذف المستخدم "${userBackup.username}" بنجاح`, 
-      'success', 
-      10000, 
+      `تم حذف المستخدم "${userBackup.username}" بنجاح`,
+      'success',
+      10000,
       async () => {
         try {
+          const randomPassword =
+            Math.random().toString(36).slice(-8) + '!Aa' + Math.floor(Math.random() * 10);
           const payload = {
             username: userBackup.username,
             full_name: userBackup.full_name,
@@ -837,15 +1242,19 @@ const deleteUser = async (user) => {
             phone: userBackup.phone,
             role_id: userBackup.role_id,
             is_active: userBackup.is_active,
-            password: 'RestoredUser@123'
+            password: randomPassword,
           };
           await api.create(payload);
-          appStore.addToast(`تم استعادة المستخدم "${userBackup.username}" بنجاح! كلمة المرور: RestoredUser@123`, 'success', 8000);
+          appStore.addToast(
+            `تم استعادة المستخدم "${userBackup.username}" بنجاح! كلمة المرور: ${randomPassword}`,
+            'success',
+            8000,
+          );
           await refreshUsers();
         } catch (err) {
           appStore.addToast('فشل استعادة المستخدم: ' + err.message, 'error');
         }
-      }
+      },
     );
   } catch (e) {
     appStore.addToast(e.message || 'فشل حذف المستخدم', 'error');
@@ -868,8 +1277,15 @@ onMounted(refreshUsers);
   justify-content: space-between;
   align-items: center;
   gap: 16px;
-  h2 { margin: 0; color: var(--primary-strong); }
-  p { margin: 6px 0 0; color: var(--text-muted); font-size: 0.94rem; }
+  h2 {
+    margin: 0;
+    color: var(--primary-strong);
+  }
+  p {
+    margin: 6px 0 0;
+    color: var(--text-muted);
+    font-size: 0.94rem;
+  }
 }
 .header-actions {
   display: flex;
@@ -887,8 +1303,16 @@ onMounted(refreshUsers);
   align-items: center;
   gap: 14px;
   margin-bottom: 18px;
-  h3 { margin: 0; font-size: 1.15rem; color: var(--primary); }
-  span { color: var(--text-muted); font-size: 0.85rem; font-weight: 700; }
+  h3 {
+    margin: 0;
+    font-size: 1.15rem;
+    color: var(--primary);
+  }
+  span {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    font-weight: 700;
+  }
 }
 .search-head {
   flex-wrap: wrap;
@@ -922,7 +1346,8 @@ onMounted(refreshUsers);
   table {
     width: 100%;
     border-collapse: collapse;
-    th, td {
+    th,
+    td {
       padding: 14px 12px;
       border-bottom: 1px solid var(--border);
       text-align: right;
@@ -936,7 +1361,9 @@ onMounted(refreshUsers);
     }
     tr.active {
       background: color-mix(in srgb, var(--primary) 7%, transparent);
-      td { border-bottom-color: var(--primary-soft); }
+      td {
+        border-bottom-color: var(--primary-soft);
+      }
     }
   }
 }
@@ -953,13 +1380,21 @@ onMounted(refreshUsers);
     color: #fff;
     font-size: 0.9rem;
     font-weight: 900;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.12);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
   }
   .user-names {
     display: flex;
     flex-direction: column;
-    strong { color: var(--text-strong); font-size: 0.92rem; }
-    small { color: var(--text-muted); font-size: 0.78rem; font-weight: 700; margin-top: 2px; }
+    strong {
+      color: var(--text-strong);
+      font-size: 0.92rem;
+    }
+    small {
+      color: var(--text-muted);
+      font-size: 0.78rem;
+      font-weight: 700;
+      margin-top: 2px;
+    }
   }
 }
 .contact-info-cell {
@@ -967,7 +1402,12 @@ onMounted(refreshUsers);
   flex-direction: column;
   font-size: 0.86rem;
   color: var(--text);
-  small { color: var(--text-muted); font-size: 0.76rem; font-weight: 700; margin-top: 2px; }
+  small {
+    color: var(--text-muted);
+    font-size: 0.76rem;
+    font-weight: 700;
+    margin-top: 2px;
+  }
 }
 .role-badge {
   display: inline-flex;
@@ -1063,7 +1503,10 @@ onMounted(refreshUsers);
   background: var(--card-bg) !important;
   backdrop-filter: blur(12px) saturate(1.08);
   box-shadow: var(--shadow-xs);
-  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.28s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.28s ease;
+  transition:
+    transform 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+    border-color 0.28s ease;
   position: relative;
   overflow: hidden;
 
@@ -1071,7 +1514,11 @@ onMounted(refreshUsers);
     content: '';
     position: absolute;
     inset: 0;
-    background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 7%, transparent) 0%, transparent 45%);
+    background: linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--accent) 7%, transparent) 0%,
+      transparent 45%
+    );
     opacity: 0;
     transition: opacity 0.35s ease;
     pointer-events: none;

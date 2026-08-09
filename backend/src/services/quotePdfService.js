@@ -12,8 +12,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const execFileAsync = promisify(execFile);
 
-
-
 const toDate = (value) => {
   if (!value) return new Date();
   const d = new Date(value);
@@ -49,7 +47,11 @@ const escapeHtml = (value) =>
 
 const generateQuoteNumber = (issuedAt = new Date()) => {
   const d = toDate(issuedAt);
-  const stamp = [d.getFullYear(), String(d.getMonth() + 1).padStart(2, '0'), String(d.getDate()).padStart(2, '0')].join('');
+  const stamp = [
+    d.getFullYear(),
+    String(d.getMonth() + 1).padStart(2, '0'),
+    String(d.getDate()).padStart(2, '0'),
+  ].join('');
   const suffix = String(Math.floor(Math.random() * 9000) + 1000);
   return `QUO-${stamp}-${suffix}`;
 };
@@ -90,13 +92,25 @@ const normalizeItems = (items = []) =>
   items
     .map((item, idx) => ({
       no: idx + 1,
-      product_name: String(item.product_name || item.description || item.name || `بند ${idx + 1}`).trim(),
+      product_name: String(
+        item.product_name || item.description || item.name || `بند ${idx + 1}`,
+      ).trim(),
       unit: String(item.unit || '').trim(),
       unit_price: Math.max(0, toNumber(item.unit_price ?? item.price, 0)),
     }))
     .filter((item) => item.product_name);
 
-const buildQuoteHtml = ({ company, quoteNumber, customerName, issuedAt, validUntil, notes, items, logoDataUri, overflowCount }) => {
+const buildQuoteHtml = ({
+  company,
+  quoteNumber,
+  customerName,
+  issuedAt,
+  validUntil,
+  notes,
+  items,
+  logoDataUri,
+  overflowCount,
+}) => {
   const rows = items
     .map(
       (item, idx) => `
@@ -407,4 +421,3 @@ export const generateQuotePdf = async (payload = {}) => {
   const buffer = await renderHtmlToPdf(html);
   return { buffer, quoteNumber };
 };
-

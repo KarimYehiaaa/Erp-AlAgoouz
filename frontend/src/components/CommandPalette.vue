@@ -35,9 +35,7 @@
           <span v-if="idx === activeIndex" class="enter-badge">↵ Enter</span>
         </div>
       </div>
-      <div v-else class="empty-results">
-        لا توجد نتائج مطابقة لـ "{{ query }}"
-      </div>
+      <div v-else class="empty-results">لا توجد نتائج مطابقة لـ "{{ query }}"</div>
 
       <div class="palette-footer">
         <span>استخدم الأسهم ⇅ للتنقل، و Enter للتنفيذ.</span>
@@ -61,28 +59,97 @@ const activeIndex = ref(0);
 const searchInput = ref(null);
 
 const allItems = [
-  { id: 'dash', title: 'لوحة التحكم', desc: 'الذهاب إلى الرئيسية والتقارير العامة', icon: 'dashboard', action: () => router.push('/') },
-  { id: 'prod', title: 'المنتجات والأسعار', desc: 'الذهاب إلى إدارة المنتجات والباركود', icon: 'products', action: () => router.push('/products') },
-  { id: 'sales', title: 'فواتير المبيعات', desc: 'الذهاب إلى قسم المبيعات والمبيعات اليومية', icon: 'sales', action: () => router.push('/sales') },
-  { id: 'cust', title: 'العملاء والديون', desc: 'الذهاب إلى إدارة العملاء وسجل المعاملات والديون', icon: 'customers', action: () => router.push('/customers') },
-  { id: 'inv', title: 'الفواتير والمبيعات المبسطة', desc: 'استعراض فواتير العملاء وسدادها', icon: 'invoices', action: () => router.push('/invoices') },
-  { id: 'recipes', title: 'الوصفات وخطوط الإنتاج', desc: 'إدارة مكونات المنتجات والإنتاج الفعلي للمحمص', icon: 'recipes', action: () => router.push('/recipes') },
-  { id: 'inv_stock', title: 'المخزون والتحويلات', desc: 'استعراض حالة المخزن والتحويلات والهوالك', icon: 'inventory', action: () => router.push('/inventory') },
-  { id: 'costs', title: 'حساب التكاليف والربحية', desc: 'تحليل تكاليف المنتجات ومحاكاة الربح للوصفات', icon: 'costs', action: () => router.push('/costs') },
-  { id: 'exp', title: 'المصروفات', desc: 'تسجيل المصاريف النثرية والتشغيلية للمحل', icon: 'expenses', action: () => router.push('/expenses') },
-  { id: 'hr', title: 'الموظفين والمرتبات', desc: 'تسجيل حضور الموظفين والسلف والمسيرات', icon: 'users', action: () => router.push('/hr') },
-  { id: 'settings', title: 'الإعدادات العامة', desc: 'تعديل بيانات الشركة، الثيمات، والنسخ الاحتياطي', icon: 'settings', action: () => router.push('/settings') },
-  { id: 'theme_toggle', title: 'تبديل المظهر الداكن/المضيء', desc: 'تغيير وضع ألوان الشاشة فوراً', icon: 'moon', action: () => appStore.toggleColorMode() },
-  { id: 'backup_create', title: 'نسخة احتياطية سريعة', desc: 'الذهاب لقسم النسخ الاحتياطي بالإعدادات للنسخ', icon: 'save', action: () => router.push('/settings?tab=backup') },
+  {
+    id: 'dash',
+    title: 'لوحة التحكم',
+    desc: 'الذهاب إلى الرئيسية والتقارير العامة',
+    icon: 'dashboard',
+    action: () => router.push('/'),
+  },
+  {
+    id: 'prod',
+    title: 'المنتجات والأسعار',
+    desc: 'الذهاب إلى إدارة المنتجات والباركود',
+    icon: 'products',
+    action: () => router.push('/products'),
+  },
+  {
+    id: 'sales',
+    title: 'فواتير المبيعات',
+    desc: 'الذهاب إلى قسم المبيعات والمبيعات اليومية',
+    icon: 'sales',
+    action: () => router.push('/sales'),
+  },
+  {
+    id: 'cust',
+    title: 'العملاء والديون',
+    desc: 'الذهاب إلى إدارة العملاء وسجل المعاملات والديون',
+    icon: 'customers',
+    action: () => router.push('/customers'),
+  },
+  {
+    id: 'inv',
+    title: 'الفواتير والمبيعات المبسطة',
+    desc: 'استعراض فواتير العملاء وسدادها',
+    icon: 'invoices',
+    action: () => router.push('/invoices'),
+  },
+  {
+    id: 'recipes',
+    title: 'الوصفات وخطوط الإنتاج',
+    desc: 'إدارة مكونات المنتجات والإنتاج الفعلي للمحمص',
+    icon: 'recipes',
+    action: () => router.push('/recipes'),
+  },
+  {
+    id: 'inv_stock',
+    title: 'المخزون والتحويلات',
+    desc: 'استعراض حالة المخزن والتحويلات والهوالك',
+    icon: 'inventory',
+    action: () => router.push('/inventory'),
+  },
+  {
+    id: 'costs',
+    title: 'حساب التكاليف والربحية',
+    desc: 'تحليل تكاليف المنتجات ومحاكاة الربح للوصفات',
+    icon: 'costs',
+    action: () => router.push('/costs'),
+  },
+  {
+    id: 'exp',
+    title: 'المصروفات',
+    desc: 'تسجيل المصاريف النثرية والتشغيلية للمحل',
+    icon: 'expenses',
+    action: () => router.push('/expenses'),
+  },
+  {
+    id: 'hr',
+    title: 'الموظفين والمرتبات',
+    desc: 'تسجيل حضور الموظفين والسلف والمسيرات',
+    icon: 'users',
+    action: () => router.push('/hr'),
+  },
+  {
+    id: 'settings',
+    title: 'الإعدادات العامة',
+    desc: 'تعديل بيانات الشركة، إعدادات الطباعة، والنسخ الاحتياطي',
+    icon: 'settings',
+    action: () => router.push('/settings'),
+  },
+  {
+    id: 'backup_create',
+    title: 'نسخة احتياطية سريعة',
+    desc: 'الذهاب لقسم النسخ الاحتياطي بالإعدادات للنسخ',
+    icon: 'save',
+    action: () => router.push('/settings?tab=backup'),
+  },
 ];
 
 const filteredItems = computed(() => {
   const q = query.value.trim().toLowerCase();
   if (!q) return allItems;
   return allItems.filter(
-    item =>
-      item.title.toLowerCase().includes(q) ||
-      item.desc.toLowerCase().includes(q)
+    (item) => item.title.toLowerCase().includes(q) || item.desc.toLowerCase().includes(q),
   );
 });
 
@@ -173,8 +240,14 @@ onBeforeUnmount(() => {
 }
 
 @keyframes slideDown {
-  from { transform: translateY(-16px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
+  from {
+    transform: translateY(-16px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
 .search-section {

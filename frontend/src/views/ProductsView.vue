@@ -2,8 +2,19 @@
   <div class="products-page">
     <div class="page-header">
       <div class="tabs inline-tabs">
-        <button type="button" :class="{ active: tab === 'list' }" @click="tab = 'list'">📋 المنتجات</button>
-        <button type="button" :class="{ active: tab === 'return' }" @click="tab = 'return'; loadReturns()">↩️ استرداد منتجات</button>
+        <button type="button" :class="{ active: tab === 'list' }" @click="tab = 'list'">
+          📋 المنتجات
+        </button>
+        <button
+          type="button"
+          :class="{ active: tab === 'return' }"
+          @click="
+            tab = 'return';
+            loadReturns();
+          "
+        >
+          ↩️ استرداد منتجات
+        </button>
       </div>
       <div v-if="tab === 'list'" class="header-actions">
         <button type="button" class="btn btn-outline" @click="downloadTemplate">
@@ -13,7 +24,8 @@
           <AppIcon name="download" :size="16" /> تصدير المنتجات (Excel)
         </button>
         <label class="btn btn-outline import-btn">
-          <AppIcon name="download" :size="16" style="transform: rotate(180deg);" /> استيراد وتعديل (Excel)
+          <AppIcon name="download" :size="16" style="transform: rotate(180deg)" /> استيراد وتعديل
+          (Excel)
           <input type="file" accept=".xlsx,.xls" hidden @change="onImport" />
         </label>
         <button type="button" class="btn btn-add" :disabled="loading" @click="openForm()">
@@ -67,8 +79,8 @@
             {{ formatMoney(item.sale_price) }}
           </template>
           <template #cell-total_quantity="{ item }">
-            <span class="warehouse-cell" style="font-weight: 800; color: var(--accent, #c77a2f);">
-              📦 {{ item.total_quantity !== undefined ? item.total_quantity : (item.quantity || 0) }}
+            <span class="warehouse-cell" style="font-weight: 800; color: var(--accent, #c77a2f)">
+              📦 {{ item.total_quantity !== undefined ? item.total_quantity : item.quantity || 0 }}
             </span>
           </template>
           <template #cell-status="{ item }">
@@ -84,12 +96,21 @@
                 class="icon-btn"
                 :class="{ disabled: item.has_active_recipe }"
                 :disabled="item.has_active_recipe"
-                :title="item.has_active_recipe ? 'منتج وصفة نشطة: لا يتم استرداد مخزونه مباشرة' : 'استرداد'"
+                :title="
+                  item.has_active_recipe
+                    ? 'منتج وصفة نشطة: لا يتم استرداد مخزونه مباشرة'
+                    : 'استرداد'
+                "
                 @click="openReturn(item)"
               >
                 <AppIcon name="arrowLeft" :size="16" />
               </button>
-              <button type="button" class="icon-btn danger" title="حذف المنتج" @click="deleteOneProduct(item)">
+              <button
+                type="button"
+                class="icon-btn danger"
+                title="حذف المنتج"
+                @click="deleteOneProduct(item)"
+              >
                 <AppIcon name="delete" :size="16" />
               </button>
             </div>
@@ -126,7 +147,13 @@
             </div>
             <div class="form-group">
               <label>الكمية *</label>
-              <input v-model.number="returnForm.quantity" type="number" min="0.001" step="0.001" required />
+              <input
+                v-model.number="returnForm.quantity"
+                type="number"
+                min="0.001"
+                step="0.001"
+                required
+              />
             </div>
             <div class="form-group">
               <label>السبب</label>
@@ -153,18 +180,29 @@
           <h3>سجل الاستردادات</h3>
           <table>
             <thead>
-              <tr><th>التاريخ</th><th>المنتج</th><th>المخزن</th><th>الكمية</th><th>بواسطة</th><th>ملاحظات</th></tr>
+              <tr>
+                <th>التاريخ</th>
+                <th>المنتج</th>
+                <th>المخزن</th>
+                <th>الكمية</th>
+                <th>بواسطة</th>
+                <th>ملاحظات</th>
+              </tr>
             </thead>
             <tbody>
               <tr v-for="r in returns" :key="r.id">
                 <td>{{ formatDateTime(r.created_at) }}</td>
                 <td>{{ r.product_name }}</td>
                 <td>{{ r.warehouse_name || '—' }}</td>
-                <td><span class="badge badge-success">+{{ r.quantity }}</span></td>
+                <td>
+                  <span class="badge badge-success">+{{ r.quantity }}</span>
+                </td>
                 <td>{{ r.user_name || '—' }}</td>
                 <td>{{ r.notes || '—' }}</td>
               </tr>
-              <tr v-if="!returns.length"><td colspan="6" class="empty">لا توجد استردادات</td></tr>
+              <tr v-if="!returns.length">
+                <td colspan="6" class="empty">لا توجد استردادات</td>
+              </tr>
             </tbody>
           </table>
         </div>
@@ -178,39 +216,113 @@
           <div class="grid grid-2">
             <div class="form-group">
               <label>كود المنتج</label>
-              <input v-model="form.sku" :placeholder="form.id ? '' : nextSkuPreview || 'سيتم توليده تلقائيًا عند الحفظ'" :readonly="!form.id" />
-              <small v-if="!form.id" class="field-hint">الكود التالي: <strong class="mono">{{ nextSkuPreview || '...' }}</strong></small>
+              <input
+                v-model="form.sku"
+                :placeholder="form.id ? '' : nextSkuPreview || 'سيتم توليده تلقائيًا عند الحفظ'"
+                :readonly="!form.id"
+              />
+              <small v-if="!form.id" class="field-hint"
+                >الكود التالي: <strong class="mono">{{ nextSkuPreview || '...' }}</strong></small
+              >
             </div>
             <div class="form-group"><label>الباركود</label><input v-model="form.barcode" /></div>
-            <div class="form-group"><label>اسم المنتج</label><input v-model="form.name_ar" required /></div>
-            <div class="form-group"><label>التصنيف</label>
+            <div class="form-group">
+              <label>اسم المنتج</label><input v-model="form.name_ar" required />
+            </div>
+            <div class="form-group">
+              <label>التصنيف</label>
               <select v-model="form.category_id">
                 <option :value="null">بدون تصنيف</option>
                 <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name_ar }}</option>
               </select>
             </div>
-            <div class="form-group"><label>سعر الشراء</label><input v-model.number="form.purchase_price" type="number" step="0.01" /></div>
-            <div class="form-group"><label>سعر البيع</label><input v-model.number="form.sale_price" type="number" step="0.01" required /></div>
-            <div class="form-group"><label>الوحدة</label>
+            <div class="form-group">
+              <label>سعر الشراء</label
+              ><input v-model.number="form.purchase_price" type="number" step="0.01" />
+            </div>
+            <div class="form-group">
+              <label>سعر البيع</label
+              ><input v-model.number="form.sale_price" type="number" step="0.01" required />
+            </div>
+            <div class="form-group">
+              <label>الوحدة</label>
               <select v-model="form.unit" required>
-                <option v-for="unit in availableUnits" :key="unit" :value="unit">{{ unitLabel(unit) }}</option>
+                <option v-for="unit in availableUnits" :key="unit" :value="unit">
+                  {{ unitLabel(unit) }}
+                </option>
               </select>
             </div>
-            
-            <div class="form-group span-2" v-if="warehouses.length" style="margin-top: 6px;">
-              <div style="background: var(--bg-elevated, rgba(255,255,255,0.03)); border: 1px solid var(--border, rgba(255,255,255,0.08)); padding: 14px; border-radius: 12px;">
-                <label style="font-weight: 800; font-size: 0.92rem; color: var(--accent, #c77a2f); margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
+
+            <div class="form-group span-2" v-if="warehouses.length" style="margin-top: 6px">
+              <div
+                style="
+                  background: var(--bg-elevated, rgba(255, 255, 255, 0.03));
+                  border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+                  padding: 14px;
+                  border-radius: 12px;
+                "
+              >
+                <label
+                  style="
+                    font-weight: 800;
+                    font-size: 0.92rem;
+                    color: var(--accent, #c77a2f);
+                    margin-bottom: 4px;
+                    display: flex;
+                    align-items: center;
+                    gap: 6px;
+                  "
+                >
                   📦 توزيع كميات المخزون بالمنشأة
                 </label>
-                <small style="display: block; color: var(--text-muted, #888); font-size: 0.78rem; margin-bottom: 12px;">
-                  حدد الرصيد المتاح في التخزين الخلفي (المخزن الرئيسي) والرصيد المعروض في صالة البيع (الفرع):
+                <small
+                  style="
+                    display: block;
+                    color: var(--text-muted, #888);
+                    font-size: 0.78rem;
+                    margin-bottom: 12px;
+                  "
+                >
+                  حدد الرصيد المتاح في التخزين الخلفي (المخزن الرئيسي) والرصيد المعروض في صالة البيع
+                  (الفرع):
                 </small>
-                <div class="grid grid-2" style="gap: 12px;">
-                  <div v-for="w in warehouses" :key="w.id" class="form-group" style="margin: 0;">
-                    <label style="font-size: 0.82rem; font-weight: 700; display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+                <div class="grid grid-2" style="gap: 12px">
+                  <div v-for="w in warehouses" :key="w.id" class="form-group" style="margin: 0">
+                    <label
+                      style="
+                        font-size: 0.82rem;
+                        font-weight: 700;
+                        display: flex;
+                        align-items: center;
+                        justify-content: space-between;
+                        margin-bottom: 4px;
+                      "
+                    >
                       <span>{{ w.name_ar }}</span>
-                      <span v-if="w.type === 'main' || w.code === 'MAIN'" style="font-size: 0.72rem; color: #3b82f6; font-weight: 800; background: rgba(59,130,246,0.1); padding: 2px 6px; border-radius: 4px;">🏢 مخزن رئيسي</span>
-                      <span v-else style="font-size: 0.72rem; color: #10b981; font-weight: 800; background: rgba(16,185,129,0.1); padding: 2px 6px; border-radius: 4px;">🏪 محل البيع / الفرع</span>
+                      <span
+                        v-if="w.type === 'main' || w.code === 'MAIN'"
+                        style="
+                          font-size: 0.72rem;
+                          color: #3b82f6;
+                          font-weight: 800;
+                          background: rgba(59, 130, 246, 0.1);
+                          padding: 2px 6px;
+                          border-radius: 4px;
+                        "
+                        >🏢 مخزن رئيسي</span
+                      >
+                      <span
+                        v-else
+                        style="
+                          font-size: 0.72rem;
+                          color: #10b981;
+                          font-weight: 800;
+                          background: rgba(16, 185, 129, 0.1);
+                          padding: 2px 6px;
+                          border-radius: 4px;
+                        "
+                        >🏪 محل البيع / الفرع</span
+                      >
                     </label>
                     <input
                       v-model.number="form.warehouse_stocks[w.id]"
@@ -218,7 +330,7 @@
                       min="0"
                       step="0.001"
                       placeholder="أدخل الكمية..."
-                      style="font-weight: 700; font-size: 1rem;"
+                      style="font-weight: 700; font-size: 1rem"
                     />
                   </div>
                 </div>
@@ -227,7 +339,14 @@
           </div>
           <p v-if="formMsg" class="form-msg" :class="{ err: formErr }">{{ formMsg }}</p>
           <div class="modal-actions">
-            <button type="button" class="btn btn-outline" :disabled="savingProduct" @click="showForm = false">إلغاء</button>
+            <button
+              type="button"
+              class="btn btn-outline"
+              :disabled="savingProduct"
+              @click="showForm = false"
+            >
+              إلغاء
+            </button>
             <button type="submit" class="btn btn-save" :disabled="savingProduct">
               <AppIcon name="save" :size="16" />
               {{ savingProduct ? 'جاري الحفظ...' : 'حفظ' }}
@@ -249,14 +368,22 @@
           </div>
           <div class="form-group">
             <label>الكمية</label>
-            <input v-model.number="returnForm.quantity" type="number" min="0.001" step="0.001" required />
+            <input
+              v-model.number="returnForm.quantity"
+              type="number"
+              min="0.001"
+              step="0.001"
+              required
+            />
           </div>
           <div class="form-group">
             <label>ملاحظات</label>
             <input v-model="returnForm.notes" />
           </div>
           <div class="modal-actions">
-            <button type="button" class="btn btn-outline" @click="showReturnModal = false">إلغاء</button>
+            <button type="button" class="btn btn-outline" @click="showReturnModal = false">
+              إلغاء
+            </button>
             <button type="submit" class="btn btn-primary">
               <AppIcon name="arrowLeft" :size="16" /> استرداد
             </button>
@@ -359,7 +486,9 @@ const availableUnits = computed(() => unitNames(form.value.unit));
 
 const formatDateTime = (d) => new Date(d).toLocaleString('en-GB');
 const activeProductsCount = computed(() => products.value.filter((p) => p.is_active).length);
-const lowStockCount = computed(() => products.value.filter((p) => Number(p.total_stock || 0) <= Number(p.min_stock || 0)).length);
+const lowStockCount = computed(
+  () => products.value.filter((p) => Number(p.total_stock || 0) <= Number(p.min_stock || 0)).length,
+);
 
 const load = async () => {
   loading.value = true;
@@ -369,7 +498,8 @@ const load = async () => {
     products.value = p.data;
     warehouses.value = w.data;
     nextSkuPreview.value = buildNextSku(products.value);
-    if (!returnForm.value.warehouse_id && w.data?.length) returnForm.value.warehouse_id = w.data[0].id;
+    if (!returnForm.value.warehouse_id && w.data?.length)
+      returnForm.value.warehouse_id = w.data[0].id;
   } catch (e) {
     console.error('فشل تحميل المنتجات:', e);
   } finally {
@@ -401,23 +531,23 @@ const openForm = (p = null) => {
 
   form.value = p
     ? {
-      ...p,
-      primary_warehouse_id: p.primary_warehouse_id || warehouses.value[0]?.id || null,
-      _original_primary_warehouse_id: p.primary_warehouse_id || warehouses.value[0]?.id || null,
-      warehouse_stocks: stocksObj,
-    }
+        ...p,
+        primary_warehouse_id: p.primary_warehouse_id || warehouses.value[0]?.id || null,
+        _original_primary_warehouse_id: p.primary_warehouse_id || warehouses.value[0]?.id || null,
+        warehouse_stocks: stocksObj,
+      }
     : {
-      sku: buildNextSku(products.value),
-      barcode: '',
-      name_ar: '',
-      category_id: categories.value[0]?.id || null,
-      purchase_price: 0,
-      sale_price: 0,
-      unit: unitNames()[0] || 'قطعة',
-      primary_warehouse_id: warehouses.value[0]?.id || null,
-      _original_primary_warehouse_id: null,
-      warehouse_stocks: stocksObj,
-    };
+        sku: buildNextSku(products.value),
+        barcode: '',
+        name_ar: '',
+        category_id: categories.value[0]?.id || null,
+        purchase_price: 0,
+        sale_price: 0,
+        unit: unitNames()[0] || 'قطعة',
+        primary_warehouse_id: warehouses.value[0]?.id || null,
+        _original_primary_warehouse_id: null,
+        warehouse_stocks: stocksObj,
+      };
   showForm.value = true;
   if (!p) {
     nextSkuPreview.value = form.value.sku;
@@ -432,7 +562,8 @@ const saveProduct = async () => {
   formMsg.value = '';
   formErr.value = false;
 
-  const primaryWarehouseId = Number(form.value.primary_warehouse_id) || warehouses.value[0]?.id || 1;
+  const primaryWarehouseId =
+    Number(form.value.primary_warehouse_id) || warehouses.value[0]?.id || 1;
 
   savingProduct.value = true;
   try {
@@ -540,7 +671,8 @@ const onImport = async (e) => {
     const failCount = d.failed?.length || 0;
     const parseCount = d.parseErrors?.length || 0;
 
-    importMsg.value = `تم استيراد ${d.success} منتج (${d.created} جديد، ${d.updated} تحديث)` +
+    importMsg.value =
+      `تم استيراد ${d.success} منتج (${d.created} جديد، ${d.updated} تحديث)` +
       (failCount ? ` — فشل ${failCount}` : '') +
       (parseCount ? ` — أخطاء قراءة ${parseCount}` : '');
 
@@ -605,16 +737,40 @@ onBeforeUnmount(() => {
 </script>
 
 <style lang="scss" scoped>
-.products-page { display: flex; flex-direction: column; gap: 16px; }
-.page-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
-.header-actions { display: flex; gap: 8px; flex-wrap: wrap; }
-.import-btn { cursor: pointer; margin: 0; }
+.products-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.header-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.import-btn {
+  cursor: pointer;
+  margin: 0;
+}
 
 .import-msg {
-  padding: 12px 16px; border-radius: var(--radius-sm);
-  background: rgba(46,125,79,0.1); color: var(--success);
-  border: 1px solid rgba(46,125,79,0.2); font-size: 0.9rem;
-  &.err { background: rgba(180,35,24,0.08); color: var(--danger); border-color: rgba(180,35,24,0.2); }
+  padding: 12px 16px;
+  border-radius: var(--radius-sm);
+  background: rgba(46, 125, 79, 0.1);
+  color: var(--success);
+  border: 1px solid rgba(46, 125, 79, 0.2);
+  font-size: 0.9rem;
+  &.err {
+    background: rgba(180, 35, 24, 0.08);
+    color: var(--danger);
+    border-color: rgba(180, 35, 24, 0.2);
+  }
 }
 
 /* Stats bar */
@@ -629,14 +785,26 @@ onBeforeUnmount(() => {
   padding: 14px 16px;
   background: linear-gradient(160deg, var(--surface-1), var(--surface-2));
   transition: var(--transition);
-  &:hover { box-shadow: var(--shadow-sm); }
+  &:hover {
+    box-shadow: var(--shadow-sm);
+  }
 }
-.stat-label { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 4px; font-weight: 600; }
-.stat-value { font-size: 1.2rem; font-weight: 800; color: var(--text-strong); }
+.stat-label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+  font-weight: 600;
+}
+.stat-value {
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: var(--text-strong);
+}
 
 /* Tabs */
 .inline-tabs {
-  display: flex; gap: 6px;
+  display: flex;
+  gap: 6px;
   button {
     padding: 9px 18px;
     border: 2px solid var(--border);
@@ -646,33 +814,77 @@ onBeforeUnmount(() => {
     font-weight: 700;
     font-size: 0.9rem;
     transition: var(--transition);
-    &:hover { border-color: var(--primary-soft); }
-    &.active { background: linear-gradient(135deg, var(--primary), var(--primary-strong)); color: #fff; border-color: transparent; box-shadow: 0 4px 12px color-mix(in srgb, var(--primary) 35%, transparent); }
+    &:hover {
+      border-color: var(--primary-soft);
+    }
+    &.active {
+      background: linear-gradient(135deg, var(--primary), var(--primary-strong));
+      color: #fff;
+      border-color: transparent;
+      box-shadow: 0 4px 12px color-mix(in srgb, var(--primary) 35%, transparent);
+    }
   }
 }
 
 /* Table */
-.actions-cell { display: flex; gap: 6px; flex-wrap: nowrap; white-space: nowrap; }
-
-.products-table {
-  th { font-weight: 800; color: var(--text-muted); font-size: 0.8rem; }
-  td { font-weight: 600; color: var(--text); }
-  tbody tr:hover td { background: color-mix(in srgb, var(--primary) 5%, var(--bg-elevated)); }
+.actions-cell {
+  display: flex;
+  gap: 6px;
+  flex-wrap: nowrap;
+  white-space: nowrap;
 }
 
-.warehouse-cell { font-size: 0.84rem; font-weight: 600; white-space: nowrap; }
+.products-table {
+  th {
+    font-weight: 800;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+  }
+  td {
+    font-weight: 600;
+    color: var(--text);
+  }
+  tbody tr:hover td {
+    background: color-mix(in srgb, var(--primary) 5%, var(--bg-elevated));
+  }
+}
 
-.product-name-cell { display: flex; align-items: center; gap: 8px; }
-.product-title { display: flex; flex-direction: column; gap: 2px; }
-.product-name { font-size: 0.95rem; font-weight: 800; }
-.product-sku { font-size: 0.75rem; color: var(--text-muted); font-family: monospace; direction: ltr; text-align: right; }
+.warehouse-cell {
+  font-size: 0.84rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.product-name-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.product-title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.product-name {
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+.product-sku {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-family: monospace;
+  direction: ltr;
+  text-align: right;
+}
 
 .product-unit-badge {
-  font-size: 0.75rem; font-weight: 700;
+  font-size: 0.75rem;
+  font-weight: 700;
   color: var(--info);
   background: color-mix(in srgb, var(--info) 12%, transparent);
   border: 1px solid color-mix(in srgb, var(--info) 25%, transparent);
-  border-radius: 999px; padding: 2px 8px;
+  border-radius: 999px;
+  padding: 2px 8px;
 }
 
 .field-hint {
@@ -682,38 +894,73 @@ onBeforeUnmount(() => {
   font-size: 0.78rem;
 }
 
-
-
 .danger-mini {
-  display: flex; align-items: center; justify-content: space-between; gap: 10px;
-  padding: 12px 16px; font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 16px;
+  font-size: 0.9rem;
   border: 1px solid color-mix(in srgb, var(--danger) 25%, transparent);
   border-radius: var(--radius-sm);
   background: color-mix(in srgb, var(--danger) 4%, transparent);
 }
 
-.form-card h3 { margin-bottom: 8px; }
-.hint { color: var(--text-muted); font-size: 0.88rem; margin-bottom: 16px; }
-.empty { text-align: center; padding: 32px; color: var(--text-muted); }
+.form-card h3 {
+  margin-bottom: 8px;
+}
+.hint {
+  color: var(--text-muted);
+  font-size: 0.88rem;
+  margin-bottom: 16px;
+}
+.empty {
+  text-align: center;
+  padding: 32px;
+  color: var(--text-muted);
+}
 
-.modal { position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); z-index: 100; display: flex; align-items: center; justify-content: center; }
-.modal-content { width: 90%; max-width: 600px; max-height: 90vh; overflow-y: auto; }
-.modal-actions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 20px; }
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.modal-content {
+  width: 90%;
+  max-width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+.modal-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
 .form-msg {
   margin-top: 14px;
   padding: 10px 12px;
   border-radius: var(--radius-sm);
-  background: rgba(46,125,79,0.1);
+  background: rgba(46, 125, 79, 0.1);
   color: var(--success);
-  border: 1px solid rgba(46,125,79,0.2);
+  border: 1px solid rgba(46, 125, 79, 0.2);
   font-weight: 700;
   font-size: 0.86rem;
 }
 .form-msg.err {
-  background: rgba(180,35,24,0.08);
+  background: rgba(180, 35, 24, 0.08);
   color: var(--danger);
-  border-color: rgba(180,35,24,0.2);
+  border-color: rgba(180, 35, 24, 0.2);
 }
 
-@media (max-width: 900px) { .products-stats { grid-template-columns: 1fr; } }
+@media (max-width: 900px) {
+  .products-stats {
+    grid-template-columns: 1fr;
+  }
+}
 </style>

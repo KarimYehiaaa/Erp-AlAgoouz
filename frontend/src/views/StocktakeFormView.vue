@@ -9,9 +9,15 @@
         <h1>📋 جرد مخزن: {{ stocktake.warehouse_name }}</h1>
         <div class="metadata">
           <span class="meta-item"><strong>بواسطة:</strong> {{ stocktake.creator_name }}</span>
-          <span class="meta-item"><strong>تاريخ البدء:</strong> {{ fmtDateTime(stocktake.created_at) }}</span>
-          <span v-if="stocktake.status === 'completed'" class="meta-item"><strong>تاريخ الاعتماد:</strong> {{ fmtDateTime(stocktake.completed_at) }}</span>
-          <span :class="['badge', stocktake.status === 'completed' ? 'badge-success' : 'badge-warning']">
+          <span class="meta-item"
+            ><strong>تاريخ البدء:</strong> {{ fmtDateTime(stocktake.created_at) }}</span
+          >
+          <span v-if="stocktake.status === 'completed'" class="meta-item"
+            ><strong>تاريخ الاعتماد:</strong> {{ fmtDateTime(stocktake.completed_at) }}</span
+          >
+          <span
+            :class="['badge', stocktake.status === 'completed' ? 'badge-success' : 'badge-warning']"
+          >
             {{ stocktake.status === 'completed' ? '✅ معتمد ومسوى' : '📝 مسودة معلقة' }}
           </span>
         </div>
@@ -40,7 +46,7 @@
           <span class="card-value">{{ stocktake.items.length }}</span>
         </div>
       </div>
-      
+
       <div class="summary-card" :class="{ 'warning-border': countedCount > 0 }">
         <div class="card-icon">✏️</div>
         <div class="card-body">
@@ -70,10 +76,10 @@
     <div class="card filter-bar" v-if="stocktake">
       <div class="search-input-wrap">
         <span class="search-icon">🔍</span>
-        <input 
-          type="text" 
-          v-model="searchQuery" 
-          placeholder="ابحث باسم المنتج أو الـ SKU..." 
+        <input
+          type="text"
+          v-model="searchQuery"
+          placeholder="ابحث باسم المنتج أو الـ SKU..."
           class="search-input"
         />
       </div>
@@ -105,16 +111,22 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="item in filteredItems" :key="item.id" :class="{ 'row-variance': item.actual_quantity !== null && Math.abs(item.difference) > 0.0001 }">
+          <tr
+            v-for="item in filteredItems"
+            :key="item.id"
+            :class="{
+              'row-variance': item.actual_quantity !== null && Math.abs(item.difference) > 0.0001,
+            }"
+          >
             <td class="mono font-sm">{{ item.sku }}</td>
             <td class="product-name">{{ item.product_name }}</td>
             <td class="unit-cell">{{ item.unit }}</td>
             <td class="num-col font-bold">{{ fmtQty(item.system_quantity) }}</td>
             <td class="num-col input-col">
-              <input 
-                type="number" 
+              <input
+                type="number"
                 step="0.001"
-                v-model="item.actual_quantity" 
+                v-model="item.actual_quantity"
                 @input="calculateDiff(item)"
                 placeholder="أدخل الكمية..."
                 class="qty-input"
@@ -126,7 +138,9 @@
             </td>
             <td class="num-col">{{ fmtCost(item.unit_cost) }}</td>
             <td class="num-col font-bold" :class="getDiffClass(item.difference)">
-              {{ fmtCurrency(item.actual_quantity === null ? null : (item.difference * item.unit_cost)) }}
+              {{
+                fmtCurrency(item.actual_quantity === null ? null : item.difference * item.unit_cost)
+              }}
             </td>
           </tr>
           <tr v-if="!filteredItems.length">
@@ -146,7 +160,10 @@
         <div class="modal-body">
           <p>أنت على وشك اعتماد عملية جرد المخزن بشكل نهائي. هذا الإجراء سيقوم بما يلي:</p>
           <ul class="modal-list">
-            <li>تحديث كميات المنتجات في مخزن <strong>{{ stocktake.warehouse_name }}</strong> لتطابق الكمية الفعلية المجرودة.</li>
+            <li>
+              تحديث كميات المنتجات في مخزن <strong>{{ stocktake.warehouse_name }}</strong> لتطابق
+              الكمية الفعلية المجرودة.
+            </li>
             <li>تسجيل حركات تسوية مخزنية (Adjustment) تلقائياً لكل منتج به فرق.</li>
             <li>إغلاق هذا الجرد وحفظ قيمه المالية تاريخياً.</li>
           </ul>
@@ -163,16 +180,25 @@
             </div>
             <div class="reconcile-row final-row">
               <span>صافي التسوية المالية:</span>
-              <span :class="[ (liveSurplusValue - liveDeficitValue) >= 0 ? 'success-text' : 'danger-text', 'font-bold' ]">
+              <span
+                :class="[
+                  liveSurplusValue - liveDeficitValue >= 0 ? 'success-text' : 'danger-text',
+                  'font-bold',
+                ]"
+              >
                 {{ fmtCurrency(liveSurplusValue - liveDeficitValue) }}
               </span>
             </div>
           </div>
 
-          <p class="caution-alert">⚠️ تحذير: بعد الاعتماد، لن تتمكن من تعديل كميات هذا الجرد مرة أخرى نهائياً.</p>
+          <p class="caution-alert">
+            ⚠️ تحذير: بعد الاعتماد، لن تتمكن من تعديل كميات هذا الجرد مرة أخرى نهائياً.
+          </p>
         </div>
         <div class="modal-actions">
-          <button type="button" class="btn btn-outline" @click="showConfirmModal = false">إلغاء</button>
+          <button type="button" class="btn btn-outline" @click="showConfirmModal = false">
+            إلغاء
+          </button>
           <button type="button" class="btn btn-primary" @click="handleComplete" :disabled="saving">
             {{ saving ? 'جاري التسوية والاعتماد...' : 'نعم، اعتمد وسوّي الفروقات' }}
           </button>
@@ -216,10 +242,10 @@ const loadDetails = async () => {
     const res = await stocktakeApi.get(stocktakeId);
     // معالجة الكميات الفارغة (null) لتمثيلها بشكل صحيح في المدخلات
     if (res.data && res.data.items) {
-      res.data.items = res.data.items.map(item => {
+      res.data.items = res.data.items.map((item) => {
         return {
           ...item,
-          actual_quantity: item.actual_quantity === null ? null : Number(item.actual_quantity)
+          actual_quantity: item.actual_quantity === null ? null : Number(item.actual_quantity),
         };
       });
     }
@@ -243,14 +269,14 @@ const calculateDiff = (item) => {
 // الحسابات المباشرة (Live Calculations) للفروقات والملخص المالي
 const countedCount = computed(() => {
   if (!stocktake.value) return 0;
-  return stocktake.value.items.filter(item => item.actual_quantity !== null).length;
+  return stocktake.value.items.filter((item) => item.actual_quantity !== null).length;
 });
 
 const liveDeficitValue = computed(() => {
   if (!stocktake.value) return 0;
   return stocktake.value.items.reduce((total, item) => {
     if (item.actual_quantity !== null && item.difference < 0) {
-      return total + (Math.abs(item.difference) * item.unit_cost);
+      return total + Math.abs(item.difference) * item.unit_cost;
     }
     return total;
   }, 0);
@@ -260,7 +286,7 @@ const liveSurplusValue = computed(() => {
   if (!stocktake.value) return 0;
   return stocktake.value.items.reduce((total, item) => {
     if (item.actual_quantity !== null && item.difference > 0) {
-      return total + (item.difference * item.unit_cost);
+      return total + item.difference * item.unit_cost;
     }
     return total;
   }, 0);
@@ -269,9 +295,9 @@ const liveSurplusValue = computed(() => {
 // تصفية وعرض البنود طبقاً للبحث والخيارات المحددة
 const filteredItems = computed(() => {
   if (!stocktake.value) return [];
-  return stocktake.value.items.filter(item => {
+  return stocktake.value.items.filter((item) => {
     // 1. تصفية البحث بالاسم أو الرمز SKU
-    const matchQuery = 
+    const matchQuery =
       item.product_name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
       item.sku.toLowerCase().includes(searchQuery.value.toLowerCase());
 
@@ -297,16 +323,16 @@ const handleSave = async (silent = false) => {
   saving.value = true;
   try {
     // إرسال فقط المعرفات والكميات الفعلية المحدثة
-    const payloadItems = stocktake.value.items.map(item => ({
+    const payloadItems = stocktake.value.items.map((item) => ({
       product_id: item.product_id,
-      actual_quantity: item.actual_quantity
+      actual_quantity: item.actual_quantity,
     }));
 
     await stocktakeApi.updateItems(stocktakeId, {
       items: payloadItems,
-      notes: stocktake.value.notes
+      notes: stocktake.value.notes,
     });
-    
+
     if (!silent) flashMsg('تم حفظ مسودة الجرد بنجاح.');
     return true;
   } catch (e) {
@@ -360,20 +386,30 @@ const fmtDiff = (diff) => {
 
 const fmtCost = (val) => {
   if (val === undefined || val === null) return '-';
-  return Number(val).toLocaleString('ar-EG', { minimumFractionDigits: 2, maximumFractionDigits: 3 }) + ' ج.م';
+  return (
+    Number(val).toLocaleString('ar-EG', { minimumFractionDigits: 2, maximumFractionDigits: 3 }) +
+    ' ج.م'
+  );
 };
 
 const fmtCurrency = (val) => {
   if (val === undefined || val === null) return '-';
-  return Number(val).toLocaleString('ar-EG', { style: 'currency', currency: 'EGP', minimumFractionDigits: 2 });
+  return Number(val).toLocaleString('ar-EG', {
+    style: 'currency',
+    currency: 'EGP',
+    minimumFractionDigits: 2,
+  });
 };
 
 const fmtDateTime = (isoStr) => {
   if (!isoStr) return '-';
   const d = new Date(isoStr);
   return d.toLocaleDateString('ar-EG', {
-    year: 'numeric', month: 'short', day: 'numeric',
-    hour: '2-digit', minute: '2-digit'
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
   });
 };
 
@@ -401,7 +437,7 @@ onMounted(loadDetails);
       color: var(--text-strong);
       margin-bottom: 6px;
     }
-    
+
     .back-link-wrap {
       margin-bottom: 4px;
       .back-link {
@@ -443,7 +479,7 @@ onMounted(loadDetails);
     display: flex;
     align-items: center;
     gap: 16px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 
     .card-icon {
       font-size: 2rem;
@@ -477,11 +513,11 @@ onMounted(loadDetails);
     &.warning-border {
       border-right: 4px solid var(--warning);
     }
-    
+
     &.danger-border {
       border-right: 4px solid var(--danger);
     }
-    
+
     &.success-border {
       border-right: 4px solid var(--success);
     }
@@ -608,7 +644,7 @@ onMounted(loadDetails);
       border-color: var(--primary);
       box-shadow: 0 0 0 2px rgba(var(--primary-rgb, 80, 70, 229), 0.15);
     }
-    
+
     &:disabled {
       background: var(--bg-card-header, var(--bg));
       border-color: transparent;
@@ -664,7 +700,9 @@ onMounted(loadDetails);
   width: 100%;
   padding: 24px;
   border-radius: var(--radius-lg);
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  box-shadow:
+    0 20px 25px -5px rgba(0, 0, 0, 0.1),
+    0 10px 10px -5px rgba(0, 0, 0, 0.04);
   background: var(--bg-card);
   animation: modalScale 200ms cubic-bezier(0.16, 1, 0.3, 1);
 
@@ -780,13 +818,13 @@ onMounted(loadDetails);
   border-radius: var(--radius-sm);
   font-size: 0.9rem;
   animation: slideDown 250ms ease;
-  
+
   &.ok {
     color: var(--success);
     background: color-mix(in srgb, var(--success) 8%, transparent);
     border: 1px solid color-mix(in srgb, var(--success) 20%, transparent);
   }
-  
+
   &.err {
     color: var(--danger);
     background: color-mix(in srgb, var(--danger) 8%, transparent);
@@ -795,13 +833,25 @@ onMounted(loadDetails);
 }
 
 @keyframes modalScale {
-  from { opacity: 0; transform: scale(0.95); }
-  to { opacity: 1; transform: scale(1); }
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 @keyframes slideDown {
-  from { transform: translateY(-10px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
+  from {
+    transform: translateY(-10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
 @media (max-width: 768px) {

@@ -26,7 +26,9 @@
       <!-- Breadcrumbs -->
       <nav v-if="breadcrumbs?.length" class="ph-breadcrumbs" aria-label="مسار التنقل">
         <template v-for="(crumb, i) in breadcrumbs" :key="i">
-          <router-link v-if="crumb.to" :to="crumb.to" class="ph-crumb">{{ crumb.label }}</router-link>
+          <router-link v-if="crumb.to" :to="crumb.to" class="ph-crumb">{{
+            crumb.label
+          }}</router-link>
           <span v-else class="ph-crumb ph-crumb-current">{{ crumb.label }}</span>
           <span v-if="i < breadcrumbs.length - 1" class="ph-crumb-sep">/</span>
         </template>
@@ -42,11 +44,11 @@
 
 <script setup>
 defineProps({
-  title:       { type: String, required: true },
-  subtitle:    { type: String, default: '' },
-  icon:        { type: String, default: '' },
-  showBack:    { type: Boolean, default: false },
-  border:      { type: Boolean, default: true },
+  title: { type: String, required: true },
+  subtitle: { type: String, default: '' },
+  icon: { type: String, default: '' },
+  showBack: { type: Boolean, default: false },
+  border: { type: Boolean, default: true },
   breadcrumbs: {
     type: Array,
     default: null,
@@ -142,11 +144,18 @@ defineProps({
   text-decoration: none;
   transition: color 0.15s;
 
-  &:hover { color: var(--primary); }
-  &.ph-crumb-current { color: var(--text-strong); font-weight: 600; }
+  &:hover {
+    color: var(--primary);
+  }
+  &.ph-crumb-current {
+    color: var(--text-strong);
+    font-weight: 600;
+  }
 }
 
-.ph-crumb-sep { opacity: 0.5; }
+.ph-crumb-sep {
+  opacity: 0.5;
+}
 
 .ph-actions {
   display: flex;

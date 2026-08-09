@@ -1,13 +1,27 @@
 <template>
   <div class="hr-page">
-    <div class="page-header" style="margin-bottom: 24px;">
+    <div class="page-header" style="margin-bottom: 24px">
       <div class="header-right">
-        <p class="eyebrow" style="color: var(--primary); font-weight: 700; margin-bottom: 4px; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px;">إدارة الموارد البشرية</p>
-        <h1 style="font-size: 1.8rem; font-weight: 800; color: var(--text-strong);">الموظفين والحضور والمرتبات</h1>
+        <p
+          class="eyebrow"
+          style="
+            color: var(--primary);
+            font-weight: 700;
+            margin-bottom: 4px;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+          "
+        >
+          إدارة الموارد البشرية
+        </p>
+        <h1 style="font-size: 1.8rem; font-weight: 800; color: var(--text-strong)">
+          الموظفين والحضور والمرتبات
+        </h1>
       </div>
     </div>
 
-    <div class="grid grid-4" style="margin-bottom: 24px;">
+    <div class="grid grid-4" style="margin-bottom: 24px">
       <StatCard
         v-for="card in statCards"
         :key="card.label"
@@ -18,17 +32,22 @@
       />
     </div>
 
-    <div v-if="error" class="alert error" style="margin-bottom: 16px;">{{ error }}</div>
-    <div v-if="success" class="alert success" style="margin-bottom: 16px;">{{ success }}</div>
+    <div v-if="error" class="alert error" style="margin-bottom: 16px">{{ error }}</div>
+    <div v-if="success" class="alert success" style="margin-bottom: 16px">{{ success }}</div>
 
-    <div style="margin-bottom: 24px;">
-      <nav class="hr-tabs" style="position: relative;">
-        <div 
-          class="tab-slider" 
+    <div style="margin-bottom: 24px">
+      <nav class="hr-tabs" style="position: relative">
+        <div
+          class="tab-slider"
           :style="{
-            transform: activeTab === 'employees' ? 'translateX(0)' : 
-                       (activeTab === 'attendance' ? 'translateX(calc(-100% - 4px))' : 
-                       (activeTab === 'advances' ? 'translateX(calc(-200% - 8px))' : 'translateX(calc(-300% - 12px))'))
+            transform:
+              activeTab === 'employees'
+                ? 'translateX(0)'
+                : activeTab === 'attendance'
+                  ? 'translateX(calc(-100% - 4px))'
+                  : activeTab === 'advances'
+                    ? 'translateX(calc(-200% - 8px))'
+                    : 'translateX(calc(-300% - 12px))',
           }"
         ></div>
         <button
@@ -46,8 +65,8 @@
     </div>
 
     <div v-if="activeTab === 'employees'" class="tab-panel">
-      <div class="card form-card" style="margin-bottom: 24px;">
-        <h3 style="margin-bottom: 16px; font-weight: 700;">
+      <div class="card form-card" style="margin-bottom: 24px">
+        <h3 style="margin-bottom: 16px; font-weight: 700">
           {{ editingEmployeeId ? '📝 تعديل بيانات الموظف' : '👤 تسجيل موظف جديد' }}
         </h3>
         <form @submit.prevent="saveEmployee">
@@ -74,29 +93,55 @@
             </div>
             <div class="form-group">
               <label>الراتب الأساسي / الأجر اليومي</label>
-              <input v-model.number="employeeForm.base_salary" type="number" min="0" step="0.01" placeholder="0.00" />
+              <input
+                v-model.number="employeeForm.base_salary"
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="0.00"
+              />
             </div>
             <div class="form-group">
               <label>قيمة ساعة الإضافي</label>
-              <input v-model.number="employeeForm.overtime_rate" type="number" min="0" step="0.01" placeholder="0.00" />
+              <input
+                v-model.number="employeeForm.overtime_rate"
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="0.00"
+              />
             </div>
             <div class="form-group">
               <label>أيام العمل المطلوبة شهرياً</label>
-              <input v-model.number="employeeForm.work_days_per_month" type="number" min="1" placeholder="26" />
+              <input
+                v-model.number="employeeForm.work_days_per_month"
+                type="number"
+                min="1"
+                placeholder="26"
+              />
             </div>
             <div class="form-group">
               <label>الشيفت المخصص</label>
               <select v-model="employeeForm.shift_id">
                 <option :value="null">بدون شيفت</option>
-                <option v-for="shift in shifts" :key="shift.id" :value="shift.id">{{ shift.name_ar }}</option>
+                <option v-for="shift in shifts" :key="shift.id" :value="shift.id">
+                  {{ shift.name_ar }}
+                </option>
               </select>
             </div>
           </div>
-          <div style="margin-top: 16px; display: flex; gap: 8px;">
+          <div style="margin-top: 16px; display: flex; gap: 8px">
             <button class="btn btn-primary" type="submit" :disabled="loading">
               {{ editingEmployeeId ? 'تحديث البيانات' : 'إضافة الموظف' }}
             </button>
-            <button v-if="editingEmployeeId" class="btn btn-outline" type="button" @click="resetEmployeeForm">إلغاء التعديل</button>
+            <button
+              v-if="editingEmployeeId"
+              class="btn btn-outline"
+              type="button"
+              @click="resetEmployeeForm"
+            >
+              إلغاء التعديل
+            </button>
           </div>
         </form>
       </div>
@@ -115,15 +160,17 @@
           </thead>
           <tbody>
             <tr v-if="loading" v-for="i in 3" :key="'emp-sk-' + i">
-              <td><div class="skeleton-shimmer" style="height: 18px; width: 140px;"></div></td>
-              <td><div class="skeleton-shimmer" style="height: 18px; width: 100px;"></div></td>
-              <td><div class="skeleton-shimmer" style="height: 18px; width: 80px;"></div></td>
-              <td><div class="skeleton-shimmer" style="height: 18px; width: 90px;"></div></td>
-              <td><div class="skeleton-shimmer" style="height: 18px; width: 50px;"></div></td>
-              <td><div class="skeleton-shimmer" style="height: 18px; width: 110px;"></div></td>
+              <td><div class="skeleton-shimmer" style="height: 18px; width: 140px"></div></td>
+              <td><div class="skeleton-shimmer" style="height: 18px; width: 100px"></div></td>
+              <td><div class="skeleton-shimmer" style="height: 18px; width: 80px"></div></td>
+              <td><div class="skeleton-shimmer" style="height: 18px; width: 90px"></div></td>
+              <td><div class="skeleton-shimmer" style="height: 18px; width: 50px"></div></td>
+              <td><div class="skeleton-shimmer" style="height: 18px; width: 110px"></div></td>
             </tr>
             <tr v-else v-for="employee in employees" :key="employee.id">
-              <td><strong>{{ employee.full_name }}</strong></td>
+              <td>
+                <strong>{{ employee.full_name }}</strong>
+              </td>
               <td>{{ employee.job_title || '-' }}</td>
               <td>{{ formatMoney(employee.base_salary) }}</td>
               <td>{{ employee.shift_name || '-' }}</td>
@@ -134,27 +181,44 @@
               </td>
               <td>
                 <div class="row-actions">
-                  <button type="button" class="btn btn-sm btn-outline" @click="editEmployee(employee)">تعديل</button>
-                  <button type="button" class="btn btn-sm btn-danger" @click="deleteEmployee(employee)" :disabled="loading">حذف</button>
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-outline"
+                    @click="editEmployee(employee)"
+                  >
+                    تعديل
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-danger"
+                    @click="deleteEmployee(employee)"
+                    :disabled="loading"
+                  >
+                    حذف
+                  </button>
                 </div>
               </td>
             </tr>
-            <tr v-if="!loading && !employees.length"><td colspan="6" class="empty">لا يوجد موظفين بعد</td></tr>
+            <tr v-if="!loading && !employees.length">
+              <td colspan="6" class="empty">لا يوجد موظفين بعد</td>
+            </tr>
           </tbody>
         </table>
       </div>
     </div>
 
     <div v-if="activeTab === 'attendance'" class="tab-panel">
-      <div class="card form-card" style="margin-bottom: 24px;">
-        <h3 style="margin-bottom: 16px; font-weight: 700;">📅 تسجيل حضور وانصراف الموظفين</h3>
+      <div class="card form-card" style="margin-bottom: 24px">
+        <h3 style="margin-bottom: 16px; font-weight: 700">📅 تسجيل حضور وانصراف الموظفين</h3>
         <form @submit.prevent="saveAttendance">
           <div class="fields-grid">
             <div class="form-group">
               <label>الموظف *</label>
               <select v-model="attendanceForm.employee_id" required>
                 <option disabled value="">اختر الموظف</option>
-                <option v-for="employee in employees" :key="employee.id" :value="employee.id">{{ employee.full_name }}</option>
+                <option v-for="employee in employees" :key="employee.id" :value="employee.id">
+                  {{ employee.full_name }}
+                </option>
               </select>
             </div>
             <div class="form-group">
@@ -189,8 +253,10 @@
               <input v-model="attendanceForm.notes" placeholder="ملاحظات حول الحضور" />
             </div>
           </div>
-          <div style="margin-top: 16px;">
-            <button class="btn btn-primary" type="submit" :disabled="loading">حفظ الحضور للأيام المحددة</button>
+          <div style="margin-top: 16px">
+            <button class="btn btn-primary" type="submit" :disabled="loading">
+              حفظ الحضور للأيام المحددة
+            </button>
           </div>
         </form>
       </div>
@@ -211,45 +277,62 @@
           </thead>
           <tbody>
             <tr v-if="loading" v-for="i in 3" :key="'att-sk-' + i">
-              <td><div class="skeleton-shimmer" style="height: 18px; width: 80px;"></div></td>
-              <td><div class="skeleton-shimmer" style="height: 18px; width: 120px;"></div></td>
-              <td><div class="skeleton-shimmer" style="height: 18px; width: 60px;"></div></td>
-              <td><div class="skeleton-shimmer" style="height: 18px; width: 90px;"></div></td>
-              <td><div class="skeleton-shimmer" style="height: 18px; width: 90px;"></div></td>
-              <td><div class="skeleton-shimmer" style="height: 18px; width: 80px;"></div></td>
-              <td><div class="skeleton-shimmer" style="height: 18px; width: 100px;"></div></td>
-              <td><div class="skeleton-shimmer" style="height: 18px; width: 40px;"></div></td>
+              <td><div class="skeleton-shimmer" style="height: 18px; width: 80px"></div></td>
+              <td><div class="skeleton-shimmer" style="height: 18px; width: 120px"></div></td>
+              <td><div class="skeleton-shimmer" style="height: 18px; width: 60px"></div></td>
+              <td><div class="skeleton-shimmer" style="height: 18px; width: 90px"></div></td>
+              <td><div class="skeleton-shimmer" style="height: 18px; width: 90px"></div></td>
+              <td><div class="skeleton-shimmer" style="height: 18px; width: 80px"></div></td>
+              <td><div class="skeleton-shimmer" style="height: 18px; width: 100px"></div></td>
+              <td><div class="skeleton-shimmer" style="height: 18px; width: 40px"></div></td>
             </tr>
             <tr v-else v-for="row in attendance" :key="row.id">
-              <td style="font-weight: 700;">{{ row.work_date }}</td>
-              <td><strong>{{ row.employee_name }}</strong></td>
-              <td><span class="pill" :class="row.status === 'present' ? 'success' : 'warning'">{{ attendanceLabel(row.status) }}</span></td>
-              <td style="font-weight: 800; color: var(--accent);">{{ formatNumber(row.regular_hours) }} ساعة</td>
+              <td style="font-weight: 700">{{ row.work_date }}</td>
+              <td>
+                <strong>{{ row.employee_name }}</strong>
+              </td>
+              <td>
+                <span class="pill" :class="row.status === 'present' ? 'success' : 'warning'">{{
+                  attendanceLabel(row.status)
+                }}</span>
+              </td>
+              <td style="font-weight: 800; color: var(--accent)">
+                {{ formatNumber(row.regular_hours) }} ساعة
+              </td>
               <td>{{ formatNumber(row.overtime_hours) }} ساعة</td>
               <td>{{ row.late_minutes }} دقيقة</td>
-              <td style="font-size: 0.85rem; color: var(--text-muted);">{{ row.notes || '—' }}</td>
+              <td style="font-size: 0.85rem; color: var(--text-muted)">{{ row.notes || '—' }}</td>
               <td>
-                <button type="button" class="icon-btn danger" @click="deleteAttendance(row)" title="حذف الحضور">
+                <button
+                  type="button"
+                  class="icon-btn danger"
+                  @click="deleteAttendance(row)"
+                  title="حذف الحضور"
+                >
                   <AppIcon name="delete" :size="16" />
                 </button>
               </td>
             </tr>
-            <tr v-if="!loading && !attendance.length"><td colspan="8" class="empty">لا يوجد حضور مسجل لهذا الشهر</td></tr>
+            <tr v-if="!loading && !attendance.length">
+              <td colspan="8" class="empty">لا يوجد حضور مسجل لهذا الشهر</td>
+            </tr>
           </tbody>
         </table>
       </div>
     </div>
 
     <div v-if="activeTab === 'advances'" class="tab-panel">
-      <div class="card form-card" style="margin-bottom: 24px;">
-        <h3 style="margin-bottom: 16px; font-weight: 700;">💰 صرف سلفة جديدة</h3>
+      <div class="card form-card" style="margin-bottom: 24px">
+        <h3 style="margin-bottom: 16px; font-weight: 700">💰 صرف سلفة جديدة</h3>
         <form @submit.prevent="createAdvance">
           <div class="fields-grid">
             <div class="form-group">
               <label>الموظف *</label>
               <select v-model="advanceForm.employee_id" required>
                 <option disabled value="">اختر الموظف</option>
-                <option v-for="employee in employees" :key="employee.id" :value="employee.id">{{ employee.full_name }}</option>
+                <option v-for="employee in employees" :key="employee.id" :value="employee.id">
+                  {{ employee.full_name }}
+                </option>
               </select>
             </div>
             <div class="form-group">
@@ -258,19 +341,33 @@
             </div>
             <div class="form-group">
               <label>قيمة السلفة (جنيه) *</label>
-              <input v-model.number="advanceForm.amount" type="number" min="1" step="0.01" required placeholder="0.00" />
+              <input
+                v-model.number="advanceForm.amount"
+                type="number"
+                min="1"
+                step="0.01"
+                required
+                placeholder="0.00"
+              />
             </div>
             <div class="form-group">
               <label>عدد الأقساط الشهرية</label>
-              <input v-model.number="advanceForm.installments_count" type="number" min="1" placeholder="1" />
+              <input
+                v-model.number="advanceForm.installments_count"
+                type="number"
+                min="1"
+                placeholder="1"
+              />
             </div>
             <div class="form-group full-width">
               <label>ملاحظات</label>
               <input v-model="advanceForm.notes" placeholder="ملاحظات وتفاصيل الدفع" />
             </div>
           </div>
-          <div style="margin-top: 16px;">
-            <button class="btn btn-primary" type="submit" :disabled="loading">صرف السلفة وتسجيل مصروف</button>
+          <div style="margin-top: 16px">
+            <button class="btn btn-primary" type="submit" :disabled="loading">
+              صرف السلفة وتسجيل مصروف
+            </button>
           </div>
         </form>
       </div>
@@ -290,74 +387,185 @@
           </thead>
           <tbody>
             <tr v-if="loading" v-for="i in 3" :key="'adv-sk-' + i">
-              <td><div class="skeleton-shimmer" style="height: 18px; width: 80px;"></div></td>
-              <td><div class="skeleton-shimmer" style="height: 18px; width: 120px;"></div></td>
-              <td><div class="skeleton-shimmer" style="height: 18px; width: 80px;"></div></td>
-              <td><div class="skeleton-shimmer" style="height: 18px; width: 80px;"></div></td>
-              <td><div class="skeleton-shimmer" style="height: 18px; width: 80px;"></div></td>
-              <td><div class="skeleton-shimmer" style="height: 18px; width: 60px;"></div></td>
-              <td><div class="skeleton-shimmer" style="height: 18px; width: 40px;"></div></td>
+              <td><div class="skeleton-shimmer" style="height: 18px; width: 80px"></div></td>
+              <td><div class="skeleton-shimmer" style="height: 18px; width: 120px"></div></td>
+              <td><div class="skeleton-shimmer" style="height: 18px; width: 80px"></div></td>
+              <td><div class="skeleton-shimmer" style="height: 18px; width: 80px"></div></td>
+              <td><div class="skeleton-shimmer" style="height: 18px; width: 80px"></div></td>
+              <td><div class="skeleton-shimmer" style="height: 18px; width: 60px"></div></td>
+              <td><div class="skeleton-shimmer" style="height: 18px; width: 40px"></div></td>
             </tr>
             <tr v-else v-for="advance in advances" :key="advance.id">
               <td>{{ advance.advance_date }}</td>
-              <td><strong>{{ advance.employee_name }}</strong></td>
+              <td>
+                <strong>{{ advance.employee_name }}</strong>
+              </td>
               <td>{{ formatMoney(advance.amount) }}</td>
               <td>{{ formatMoney(advance.installment_amount) }}</td>
-              <td><strong>{{ formatMoney(advance.remaining_amount) }}</strong></td>
+              <td>
+                <strong>{{ formatMoney(advance.remaining_amount) }}</strong>
+              </td>
               <td>
                 <span class="pill" :class="advance.status === 'closed' ? 'muted' : 'warning'">
                   {{ advance.status === 'closed' ? 'منتهية' : 'نشطة' }}
                 </span>
               </td>
               <td>
-                <button type="button" class="icon-btn danger" @click="deleteAdvance(advance)" title="حذف السلفة">
+                <button
+                  type="button"
+                  class="icon-btn danger"
+                  @click="deleteAdvance(advance)"
+                  title="حذف السلفة"
+                >
                   <AppIcon name="delete" :size="16" />
                 </button>
               </td>
             </tr>
-            <tr v-if="!loading && !advances.length"><td colspan="7" class="empty">لا توجد سلف نشطة</td></tr>
+            <tr v-if="!loading && !advances.length">
+              <td colspan="7" class="empty">لا توجد سلف نشطة</td>
+            </tr>
           </tbody>
         </table>
       </div>
     </div>
 
     <div v-if="activeTab === 'payroll'" class="tab-panel">
-      <div class="card payroll-controls-card" style="margin-bottom: 24px; padding: 20px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
-          <div class="form-group" style="min-width: 200px; margin-bottom: 0;">
-            <label style="margin-bottom: 4px; font-weight: 700;">شهر حساب المرتبات</label>
-            <input v-model="periodMonth" type="month" @change="refreshAll" style="padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg-elevated); color: var(--text-strong);" />
+      <div class="card payroll-controls-card" style="margin-bottom: 24px; padding: 20px">
+        <div
+          style="
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+          "
+        >
+          <div class="form-group" style="min-width: 200px; margin-bottom: 0">
+            <label style="margin-bottom: 4px; font-weight: 700">شهر حساب المرتبات</label>
+            <input
+              v-model="periodMonth"
+              type="month"
+              @change="refreshAll"
+              style="
+                padding: 8px 12px;
+                border: 1px solid var(--border);
+                border-radius: var(--radius-md);
+                background: var(--bg-elevated);
+                color: var(--text-strong);
+              "
+            />
           </div>
-          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-            <button type="button" class="btn btn-outline" @click="loadPayrollPreview" :disabled="loading">🔍 معاينة الحساب</button>
-            <button type="button" class="btn btn-primary" @click="createPayroll" :disabled="loading">⚡ إنشاء / إعادة حساب المسير</button>
-            <button v-if="selectedRun && selectedRun.status !== 'paid'" type="button" class="btn btn-danger" @click="payPayroll" :disabled="loading">
+          <div style="display: flex; gap: 8px; flex-wrap: wrap">
+            <button
+              type="button"
+              class="btn btn-outline"
+              @click="loadPayrollPreview"
+              :disabled="loading"
+            >
+              🔍 معاينة الحساب
+            </button>
+            <button
+              type="button"
+              class="btn btn-primary"
+              @click="createPayroll"
+              :disabled="loading"
+            >
+              ⚡ إنشاء / إعادة حساب المسير
+            </button>
+            <button
+              v-if="selectedRun && selectedRun.status !== 'paid'"
+              type="button"
+              class="btn btn-danger"
+              @click="payPayroll"
+              :disabled="loading"
+            >
               💵 صرف المرتبات وتسجيل المصروف
             </button>
           </div>
         </div>
       </div>
 
-      <section class="payroll-summary" style="margin-bottom: 24px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;">
-        <div class="kpi-card" style="display:flex; flex-direction:column; align-items:start; padding: 16px; background:var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-md);">
-          <span style="font-size:0.8rem; color:var(--text-muted);">إجمالي الرواتب</span>
-          <strong style="font-size:1.4rem; font-weight:800; color:var(--text-strong); margin-top:4px;">{{ formatMoney(payrollTotals.gross) }}</strong>
+      <section
+        class="payroll-summary"
+        style="margin-bottom: 24px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px"
+      >
+        <div
+          class="kpi-card"
+          style="
+            display: flex;
+            flex-direction: column;
+            align-items: start;
+            padding: 16px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+          "
+        >
+          <span style="font-size: 0.8rem; color: var(--text-muted)">إجمالي الرواتب</span>
+          <strong
+            style="font-size: 1.4rem; font-weight: 800; color: var(--text-strong); margin-top: 4px"
+            >{{ formatMoney(payrollTotals.gross) }}</strong
+          >
         </div>
-        <div class="kpi-card" style="display:flex; flex-direction:column; align-items:start; padding: 16px; background:var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-md); border-color: color-mix(in srgb, #c0392b 20%, var(--border));">
-          <span style="font-size:0.8rem; color:var(--text-muted);">الخصومات والتأخير</span>
-          <strong style="font-size:1.4rem; font-weight:800; color:#c0392b; margin-top:4px;">{{ formatMoney(payrollTotals.deductions) }}</strong>
+        <div
+          class="kpi-card"
+          style="
+            display: flex;
+            flex-direction: column;
+            align-items: start;
+            padding: 16px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            border-color: color-mix(in srgb, #c0392b 20%, var(--border));
+          "
+        >
+          <span style="font-size: 0.8rem; color: var(--text-muted)">الخصومات والتأخير</span>
+          <strong style="font-size: 1.4rem; font-weight: 800; color: #c0392b; margin-top: 4px">{{
+            formatMoney(payrollTotals.deductions)
+          }}</strong>
         </div>
-        <div class="kpi-card" style="display:flex; flex-direction:column; align-items:start; padding: 16px; background:var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-md); border-color: color-mix(in srgb, #d35400 20%, var(--border));">
-          <span style="font-size:0.8rem; color:var(--text-muted);">السلف المستقطعة</span>
-          <strong style="font-size:1.4rem; font-weight:800; color:#d35400; margin-top:4px;">{{ formatMoney(payrollTotals.advances) }}</strong>
+        <div
+          class="kpi-card"
+          style="
+            display: flex;
+            flex-direction: column;
+            align-items: start;
+            padding: 16px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            border-color: color-mix(in srgb, #d35400 20%, var(--border));
+          "
+        >
+          <span style="font-size: 0.8rem; color: var(--text-muted)">السلف المستقطعة</span>
+          <strong style="font-size: 1.4rem; font-weight: 800; color: #d35400; margin-top: 4px">{{
+            formatMoney(payrollTotals.advances)
+          }}</strong>
         </div>
-        <div class="kpi-card" style="display:flex; flex-direction:column; align-items:start; padding: 16px; background:var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-md); border-color: color-mix(in srgb, #27ae60 20%, var(--border));">
-          <span style="font-size:0.8rem; color:var(--text-muted);">صافي المبالغ المستحقة للدفع</span>
-          <strong style="font-size:1.4rem; font-weight:800; color:#27ae60; margin-top:4px;">{{ formatMoney(payrollTotals.net) }}</strong>
+        <div
+          class="kpi-card"
+          style="
+            display: flex;
+            flex-direction: column;
+            align-items: start;
+            padding: 16px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            border-color: color-mix(in srgb, #27ae60 20%, var(--border));
+          "
+        >
+          <span style="font-size: 0.8rem; color: var(--text-muted)"
+            >صافي المبالغ المستحقة للدفع</span
+          >
+          <strong style="font-size: 1.4rem; font-weight: 800; color: #27ae60; margin-top: 4px">{{
+            formatMoney(payrollTotals.net)
+          }}</strong>
         </div>
       </section>
 
-      <div class="card table-wrap" style="margin-bottom: 24px;">
+      <div class="card table-wrap" style="margin-bottom: 24px">
         <table>
           <thead>
             <tr>
@@ -372,31 +580,37 @@
           </thead>
           <tbody>
             <tr v-if="loading" v-for="i in 3" :key="'w-sk-' + i">
-              <td><div class="skeleton-shimmer" style="height: 18px; width: 140px;"></div></td>
-              <td><div class="skeleton-shimmer" style="height: 18px; width: 60px;"></div></td>
-              <td><div class="skeleton-shimmer" style="height: 18px; width: 60px;"></div></td>
-              <td><div class="skeleton-shimmer" style="height: 18px; width: 80px;"></div></td>
-              <td><div class="skeleton-shimmer" style="height: 18px; width: 80px;"></div></td>
-              <td><div class="skeleton-shimmer" style="height: 18px; width: 80px;"></div></td>
-              <td><div class="skeleton-shimmer" style="height: 18px; width: 90px;"></div></td>
+              <td><div class="skeleton-shimmer" style="height: 18px; width: 140px"></div></td>
+              <td><div class="skeleton-shimmer" style="height: 18px; width: 60px"></div></td>
+              <td><div class="skeleton-shimmer" style="height: 18px; width: 60px"></div></td>
+              <td><div class="skeleton-shimmer" style="height: 18px; width: 80px"></div></td>
+              <td><div class="skeleton-shimmer" style="height: 18px; width: 80px"></div></td>
+              <td><div class="skeleton-shimmer" style="height: 18px; width: 80px"></div></td>
+              <td><div class="skeleton-shimmer" style="height: 18px; width: 90px"></div></td>
             </tr>
             <tr v-else v-for="item in payrollItems" :key="item.employee_id || item.id">
-              <td><strong>{{ item.full_name || item.employee_name }}</strong></td>
+              <td>
+                <strong>{{ item.full_name || item.employee_name }}</strong>
+              </td>
               <td>{{ item.worked_days }} يوم</td>
               <td>{{ item.absent_days }} يوم</td>
               <td>{{ formatMoney(item.overtime_amount) }}</td>
               <td>{{ formatMoney(item.late_deduction) }}</td>
               <td>{{ formatMoney(item.advance_deduction) }}</td>
-              <td><strong>{{ formatMoney(item.net_salary) }}</strong></td>
+              <td>
+                <strong>{{ formatMoney(item.net_salary) }}</strong>
+              </td>
             </tr>
-            <tr v-if="!loading && !payrollItems.length"><td colspan="7" class="empty">اضغط معاينة الحساب لعرض تفاصيل المرتبات</td></tr>
+            <tr v-if="!loading && !payrollItems.length">
+              <td colspan="7" class="empty">اضغط معاينة الحساب لعرض تفاصيل المرتبات</td>
+            </tr>
           </tbody>
         </table>
       </div>
 
-      <div class="runs-list-container" style="margin-top: 32px;">
-        <h4 style="margin-bottom: 12px; font-weight: 700;">المسيرات السابقة والمحفوظة:</h4>
-        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+      <div class="runs-list-container" style="margin-top: 32px">
+        <h4 style="margin-bottom: 12px; font-weight: 700">المسيرات السابقة والمحفوظة:</h4>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap">
           <button
             v-for="run in payrollRuns"
             :key="run.id"
@@ -404,13 +618,17 @@
             class="btn btn-sm"
             :class="selectedRun?.id === run.id ? 'btn-primary' : 'btn-outline'"
             @click="openRun(run.id)"
-            style="display: flex; gap: 6px; align-items: center;"
+            style="display: flex; gap: 6px; align-items: center"
           >
             <span>📅 {{ String(run.period_month).slice(0, 7) }}</span>
-            <span class="pill" :class="run.status === 'paid' ? 'success' : 'warning'" style="font-size: 0.75rem; padding: 2px 6px;">
+            <span
+              class="pill"
+              :class="run.status === 'paid' ? 'success' : 'warning'"
+              style="font-size: 0.75rem; padding: 2px 6px"
+            >
               {{ run.status === 'paid' ? 'مصروف' : 'مسودة' }}
             </span>
-            <strong style="margin-right: 4px;">{{ formatMoney(run.total_net) }}</strong>
+            <strong style="margin-right: 4px">{{ formatMoney(run.total_net) }}</strong>
           </button>
         </div>
       </div>
@@ -491,10 +709,30 @@ const tabs = [
 ];
 
 const statCards = computed(() => [
-  { label: 'موظفين نشطين', value: summary.value.activeEmployees || 0, hint: 'داخل كشوف المرتبات', icon: 'customers' },
-  { label: 'حضور اليوم', value: summary.value.todayPresent || 0, hint: `${summary.value.todayAbsent || 0} غياب`, icon: 'calendar' },
-  { label: 'سلف مفتوحة', value: formatMoney(summary.value.openAdvances), hint: 'تخصم عند صرف المرتب', icon: 'coins' },
-  { label: 'مسير الشهر', value: summary.value.payroll ? formatMoney(summary.value.payroll.total_net) : 'غير محسوب', hint: summary.value.payroll?.status === 'paid' ? 'مصروف' : 'مسودة', icon: 'receipt' },
+  {
+    label: 'موظفين نشطين',
+    value: summary.value.activeEmployees || 0,
+    hint: 'داخل كشوف المرتبات',
+    icon: 'customers',
+  },
+  {
+    label: 'حضور اليوم',
+    value: summary.value.todayPresent || 0,
+    hint: `${summary.value.todayAbsent || 0} غياب`,
+    icon: 'calendar',
+  },
+  {
+    label: 'سلف مفتوحة',
+    value: formatMoney(summary.value.openAdvances),
+    hint: 'تخصم عند صرف المرتب',
+    icon: 'coins',
+  },
+  {
+    label: 'مسير الشهر',
+    value: summary.value.payroll ? formatMoney(summary.value.payroll.total_net) : 'غير محسوب',
+    hint: summary.value.payroll?.status === 'paid' ? 'مصروف' : 'مسودة',
+    icon: 'receipt',
+  },
 ]);
 
 const runTask = async (task, message) => {
@@ -515,14 +753,18 @@ const runTask = async (task, message) => {
 
 const refreshAll = async () => {
   await runTask(async () => {
-    const [summaryRes, shiftsRes, employeesRes, attendanceRes, advancesRes, runsRes] = await Promise.all([
-      hr.summary({ period_month: periodMonth.value }),
-      hr.shifts(),
-      hr.employees({ active: true }),
-      hr.attendance({ from_date: `${periodMonth.value}-01`, to_date: getMonthEnd(periodMonth.value) }),
-      hr.advances({}),
-      hr.payrollRuns(),
-    ]);
+    const [summaryRes, shiftsRes, employeesRes, attendanceRes, advancesRes, runsRes] =
+      await Promise.all([
+        hr.summary({ period_month: periodMonth.value }),
+        hr.shifts(),
+        hr.employees({ active: true }),
+        hr.attendance({
+          from_date: `${periodMonth.value}-01`,
+          to_date: getMonthEnd(periodMonth.value),
+        }),
+        hr.advances({}),
+        hr.payrollRuns(),
+      ]);
     summary.value = summaryRes.data || {};
     shifts.value = shiftsRes.data || [];
     employees.value = employeesRes.data || [];
@@ -533,15 +775,18 @@ const refreshAll = async () => {
 };
 
 const saveEmployee = async () => {
-  await runTask(async () => {
-    if (editingEmployeeId.value) {
-      await hr.updateEmployee(editingEmployeeId.value, employeeForm.value);
-    } else {
-      await hr.createEmployee(employeeForm.value);
-    }
-    resetEmployeeForm();
-    await refreshAll();
-  }, editingEmployeeId.value ? 'تم تحديث الموظف بنجاح' : 'تم حفظ الموظف بنجاح');
+  await runTask(
+    async () => {
+      if (editingEmployeeId.value) {
+        await hr.updateEmployee(editingEmployeeId.value, employeeForm.value);
+      } else {
+        await hr.createEmployee(employeeForm.value);
+      }
+      resetEmployeeForm();
+      await refreshAll();
+    },
+    editingEmployeeId.value ? 'تم تحديث الموظف بنجاح' : 'تم حفظ الموظف بنجاح',
+  );
 };
 
 const editEmployee = (employee) => {
@@ -565,7 +810,9 @@ const resetEmployeeForm = () => {
 };
 
 const deleteEmployee = async (employee) => {
-  const ok = window.confirm(`هل تريد حذف/إيقاف الموظف "${employee.full_name}"؟ سيظل تاريخ الحضور والمرتبات محفوظًا للمراجعة.`);
+  const ok = window.confirm(
+    `هل تريد حذف/إيقاف الموظف "${employee.full_name}"؟ سيظل تاريخ الحضور والمرتبات محفوظًا للمراجعة.`,
+  );
   if (!ok) return;
   await runTask(async () => {
     await hr.deleteEmployee(employee.id);
@@ -587,7 +834,7 @@ const saveAttendance = async () => {
       notes: attendanceForm.value.notes || null,
     };
     await hr.saveAttendance(payload);
-    
+
     // Automatically switch month filter if saved attendance date is in another month
     if (payload.from_date && payload.from_date.slice(0, 7) !== periodMonth.value) {
       periodMonth.value = payload.from_date.slice(0, 7);
@@ -599,7 +846,9 @@ const saveAttendance = async () => {
 };
 
 const deleteAttendance = async (row) => {
-  const ok = window.confirm(`هل أنت تأكد من حذف سجل حضور الموظف "${row.employee_name}" بتاريخ ${row.work_date}؟`);
+  const ok = window.confirm(
+    `هل أنت تأكد من حذف سجل حضور الموظف "${row.employee_name}" بتاريخ ${row.work_date}؟`,
+  );
   if (!ok) return;
   await runTask(async () => {
     await hr.deleteAttendance(row.id);
@@ -610,13 +859,21 @@ const deleteAttendance = async (row) => {
 const createAdvance = async () => {
   await runTask(async () => {
     await hr.createAdvance(advanceForm.value);
-    advanceForm.value = { employee_id: '', advance_date: today, amount: null, installments_count: 1, notes: '' };
+    advanceForm.value = {
+      employee_id: '',
+      advance_date: today,
+      amount: null,
+      installments_count: 1,
+      notes: '',
+    };
     await refreshAll();
   }, 'تم صرف السلفة وتسجيلها كمصروف');
 };
 
 const deleteAdvance = async (advance) => {
-  const ok = window.confirm(`هل أنت تأكد من حذف سلفة الموظف "${advance.employee_name}" بمبلغ ${advance.amount} جنيه؟`);
+  const ok = window.confirm(
+    `هل أنت تأكد من حذف سلفة الموظف "${advance.employee_name}" بمبلغ ${advance.amount} جنيه؟`,
+  );
   if (!ok) return;
   await runTask(async () => {
     await hr.deleteAdvance(advance.id);
@@ -672,14 +929,15 @@ const payPayroll = async () => {
   }, 'تم صرف المرتبات وتسجيل مصروف الصافي');
 };
 
-const attendanceLabel = (status) => ({
-  present: 'حاضر',
-  absent: 'غائب',
-  paid_leave: 'إجازة مدفوعة',
-  unpaid_leave: 'إجازة غير مدفوعة',
-  half_day: 'نصف يوم',
-  weekly_off: 'عطلة أسبوعية',
-}[status] || status);
+const attendanceLabel = (status) =>
+  ({
+    present: 'حاضر',
+    absent: 'غائب',
+    paid_leave: 'إجازة مدفوعة',
+    unpaid_leave: 'إجازة غير مدفوعة',
+    half_day: 'نصف يوم',
+    weekly_off: 'عطلة أسبوعية',
+  })[status] || status;
 
 onMounted(refreshAll);
 </script>
@@ -760,7 +1018,8 @@ onMounted(refreshAll);
     color: var(--text-strong);
   }
 
-  input, select {
+  input,
+  select {
     padding: 10px 12px;
     border: 1px solid var(--border);
     border-radius: var(--radius-md, 10px);
@@ -780,11 +1039,11 @@ onMounted(refreshAll);
 /* Table styles overrides to match the premium style */
 .table-wrap {
   overflow-x: auto;
-  
+
   table {
     width: 100%;
     border-collapse: collapse;
-    
+
     th {
       font-weight: 700;
       color: var(--text-muted);
@@ -792,13 +1051,13 @@ onMounted(refreshAll);
       padding: 12px;
       text-align: right;
     }
-    
+
     td {
       padding: 12px;
       border-bottom: 1px solid var(--border);
       color: var(--text-strong);
     }
-    
+
     tr:hover td {
       background: color-mix(in srgb, var(--primary) 3%, transparent);
     }
@@ -817,17 +1076,17 @@ onMounted(refreshAll);
   background: var(--primary-soft);
   color: var(--primary);
   font-weight: 700;
-  
+
   &.muted {
     background: var(--border);
     color: var(--text-muted);
   }
-  
+
   &.success {
     background: color-mix(in srgb, #27ae60 15%, transparent);
     color: #27ae60;
   }
-  
+
   &.warning {
     background: color-mix(in srgb, #f39c12 15%, transparent);
     color: #f39c12;

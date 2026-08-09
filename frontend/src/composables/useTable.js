@@ -18,12 +18,7 @@ import { ref, computed, watch } from 'vue';
  * @param {Function} options.customFilter  - فلتر إضافي (row) => boolean
  */
 export function useTable(options = {}) {
-  const {
-    rows,
-    defaultPerPage = 25,
-    searchFields = [],
-    customFilter = null,
-  } = options;
+  const { rows, defaultPerPage = 25, searchFields = [], customFilter = null } = options;
 
   // ─── State ─────────────────────────────────────────────────────
   const page = ref(1);
@@ -34,7 +29,9 @@ export function useTable(options = {}) {
   const selectedIds = ref(new Set());
 
   // ─── Reset page when search/filter changes ──────────────────────
-  watch([search], () => { page.value = 1; });
+  watch([search], () => {
+    page.value = 1;
+  });
 
   // ─── Filtered Rows ──────────────────────────────────────────────
   const filteredRows = computed(() => {
@@ -47,7 +44,9 @@ export function useTable(options = {}) {
       result = result.filter((row) =>
         searchFields.some((field) => {
           const val = field.split('.').reduce((obj, k) => obj?.[k], row);
-          return String(val ?? '').toLowerCase().includes(q);
+          return String(val ?? '')
+            .toLowerCase()
+            .includes(q);
         }),
       );
     }
@@ -114,9 +113,10 @@ export function useTable(options = {}) {
     selectedIds.value = s;
   };
 
-  const allSelected = computed(() =>
-    paginatedRows.value.length > 0 &&
-    paginatedRows.value.every((r) => selectedIds.value.has(r.id)),
+  const allSelected = computed(
+    () =>
+      paginatedRows.value.length > 0 &&
+      paginatedRows.value.every((r) => selectedIds.value.has(r.id)),
   );
 
   const toggleAll = () => {
@@ -129,7 +129,9 @@ export function useTable(options = {}) {
     selectedIds.value = s;
   };
 
-  const clearSelection = () => { selectedIds.value = new Set(); };
+  const clearSelection = () => {
+    selectedIds.value = new Set();
+  };
   const selectedCount = computed(() => selectedIds.value.size);
   const selectedItems = computed(() =>
     (rows?.value ?? []).filter((r) => selectedIds.value.has(r.id)),
@@ -146,14 +148,30 @@ export function useTable(options = {}) {
 
   return {
     // state
-    page, perPage, search, sortKey, sortDir, selectedIds,
+    page,
+    perPage,
+    search,
+    sortKey,
+    sortDir,
+    selectedIds,
     // computed
-    filteredRows, paginatedRows, totalRows, totalPages,
-    allSelected, selectedCount, selectedItems,
+    filteredRows,
+    paginatedRows,
+    totalRows,
+    totalPages,
+    allSelected,
+    selectedCount,
+    selectedItems,
     // methods
-    goToPage, nextPage, prevPage,
-    toggleSort, sortIcon,
-    isSelected, toggleRow, toggleAll, clearSelection,
+    goToPage,
+    nextPage,
+    prevPage,
+    toggleSort,
+    sortIcon,
+    isSelected,
+    toggleRow,
+    toggleAll,
+    clearSelection,
     resetTable,
   };
 }

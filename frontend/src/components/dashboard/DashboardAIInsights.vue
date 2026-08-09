@@ -1,10 +1,10 @@
 <template>
-  <section class="overview-grid" style="margin-top: var(--space-5);">
+  <section class="overview-grid" style="margin-top: var(--space-5)">
     <article class="panel chart-panel wide">
       <div class="panel-head">
         <div>
           <h2>
-            <AppIcon name="copilot" style="margin-left: 8px; color: var(--primary);" />
+            <AppIcon name="copilot" style="margin-left: 8px; color: var(--primary)" />
             رادار تحليلات التشغيل (AI Insights)
           </h2>
           <p>مؤشرات تلقائية تم توليدها بالاعتماد على مبيعات ومخازن النظام</p>
@@ -28,7 +28,7 @@
 import { computed } from 'vue';
 
 const props = defineProps({
-  stats: { type: Object, required: true }
+  stats: { type: Object, required: true },
 });
 
 const aiInsights = computed(() => {
@@ -41,14 +41,14 @@ const aiInsights = computed(() => {
       title: 'مراجعة طلبات التوريد',
       text: `يوجد ${stockAlerts} منتجات تقل كميتها عن حد الطلب. نقترح مراجعة صفحة المخزون وإعداد طلبات التوريد لتفادي النقص.`,
       icon: '⚠️',
-      tone: 'danger'
+      tone: 'danger',
     });
   } else {
     insights.push({
       title: 'استقرار المخزون',
       text: 'جميع المنتجات الأساسية أعلى من حد الأمان حالياً. لا يوجد خطر نقص وشيك.',
       icon: '✅',
-      tone: 'success'
+      tone: 'success',
     });
   }
 
@@ -56,16 +56,16 @@ const aiInsights = computed(() => {
   if (collectionRate < 80) {
     insights.push({
       title: 'تنبيه التدفقات النقدية (آجل مرتفع)',
-      text: `نسبة تحصيل المبيعات الآجلة للشهر الحالي منخفضة (${(collectionRate).toFixed(1)}%). نوصي بالتواصل مع العملاء الذين لديهم مديونيات متأخرة لزيادة التدفقات النقدية.`,
+      text: `نسبة تحصيل المبيعات الآجلة للشهر الحالي منخفضة (${collectionRate.toFixed(1)}%). نوصي بالتواصل مع العملاء الذين لديهم مديونيات متأخرة لزيادة التدفقات النقدية.`,
       icon: '💳',
-      tone: 'warning'
+      tone: 'warning',
     });
   } else {
     insights.push({
       title: 'كفاءة التحصيل المالي',
-      text: `معدل تحصيل ممتاز للمبيعات الآجلة للشهر الحالي يبلغ ${(collectionRate).toFixed(1)}%. استمر على هذا الأداء.`,
+      text: `معدل تحصيل ممتاز للمبيعات الآجلة للشهر الحالي يبلغ ${collectionRate.toFixed(1)}%. استمر على هذا الأداء.`,
       icon: '💰',
-      tone: 'success'
+      tone: 'success',
     });
   }
 
@@ -75,7 +75,7 @@ const aiInsights = computed(() => {
       title: 'عائق تصنيعي محتمل',
       text: `يوجد ${shortageRecipes} وصفة تحتوي على مواد أولية قاربت على النفاد، مما قد يعطل إنتاج هذه الدفعات.`,
       icon: '🥣',
-      tone: 'warning'
+      tone: 'warning',
     });
   }
 
@@ -85,7 +85,7 @@ const aiInsights = computed(() => {
       title: 'معدل نشاط مرتفع',
       text: `سجل النظام ${salesCount} عملية بيع خلال هذه الفترة. نقترح مراقبة ساعات الذروة (بين 4 و 7 مساءً) لتنظيم العمالة بشكل أفضل.`,
       icon: '🔥',
-      tone: 'info'
+      tone: 'info',
     });
   }
 
@@ -116,10 +116,22 @@ const aiInsights = computed(() => {
     box-shadow: var(--shadow-sm);
   }
 
-  &.success { border-color: color-mix(in srgb, var(--success) 30%, transparent); background: color-mix(in srgb, var(--success) 3%, transparent); }
-  &.warning { border-color: color-mix(in srgb, var(--warning) 30%, transparent); background: color-mix(in srgb, var(--warning) 3%, transparent); }
-  &.danger { border-color: color-mix(in srgb, var(--danger) 30%, transparent); background: color-mix(in srgb, var(--danger) 3%, transparent); }
-  &.info { border-color: color-mix(in srgb, var(--primary) 30%, transparent); background: color-mix(in srgb, var(--primary) 3%, transparent); }
+  &.success {
+    border-color: color-mix(in srgb, var(--success) 30%, transparent);
+    background: color-mix(in srgb, var(--success) 3%, transparent);
+  }
+  &.warning {
+    border-color: color-mix(in srgb, var(--warning) 30%, transparent);
+    background: color-mix(in srgb, var(--warning) 3%, transparent);
+  }
+  &.danger {
+    border-color: color-mix(in srgb, var(--danger) 30%, transparent);
+    background: color-mix(in srgb, var(--danger) 3%, transparent);
+  }
+  &.info {
+    border-color: color-mix(in srgb, var(--primary) 30%, transparent);
+    background: color-mix(in srgb, var(--primary) 3%, transparent);
+  }
 }
 
 .insight-icon {
@@ -130,7 +142,7 @@ const aiInsights = computed(() => {
   height: 40px;
   border-radius: var(--radius-sm);
   background: var(--bg-elevated);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
 .insight-body {
@@ -142,7 +154,7 @@ const aiInsights = computed(() => {
     font-size: 1rem;
     color: var(--text-strong);
   }
-  
+
   p {
     font-size: 0.88rem;
     color: var(--text-muted);

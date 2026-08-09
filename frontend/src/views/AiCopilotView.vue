@@ -6,13 +6,19 @@
         <span class="header-icon sparkles-anim">✨</span>
         <div>
           <h2>المساعد المالي والتشغيلي الذكي</h2>
-          <p>استشر الذكاء الاصطناعي حول المبيعات والمصاريف وإدارة المقهى بناءً على بياناتك الحقيقية</p>
+          <p>
+            استشر الذكاء الاصطناعي حول المبيعات والمصاريف وإدارة المقهى بناءً على بياناتك الحقيقية
+          </p>
         </div>
       </div>
       <div class="header-status">
         <span class="status-indicator online"></span>
         <span class="status-text">متصل ومستعد</span>
-        <button @click="clearChat" class="btn btn-outline btn-sm clear-btn" title="مسح محادثة اليوم">
+        <button
+          @click="clearChat"
+          class="btn btn-outline btn-sm clear-btn"
+          title="مسح محادثة اليوم"
+        >
           <span>🗑️</span> مسح المحادثة
         </button>
       </div>
@@ -24,11 +30,14 @@
       <div v-if="history.length === 0" class="welcome-screen">
         <div class="welcome-icon">🔮</div>
         <h3>أهلاً بك في المساعد الذكي لـ "بن العجوز"</h3>
-        <p>يمكنني مساعدتك في تحليل أداء المبيعات، ومراقبة المصاريف، وتوقع نسب الازدحام، وتقديم استشارات لنمو المقهى.</p>
-        
+        <p>
+          يمكنني مساعدتك في تحليل أداء المبيعات، ومراقبة المصاريف، وتوقع نسب الازدحام، وتقديم
+          استشارات لنمو المقهى.
+        </p>
+
         <div class="suggested-prompts-grid">
-          <div 
-            v-for="(prompt, idx) in suggestedPrompts" 
+          <div
+            v-for="(prompt, idx) in suggestedPrompts"
             :key="idx"
             class="prompt-card"
             @click="sendSuggestedPrompt(prompt.text)"
@@ -44,8 +53,8 @@
 
       <!-- Messages Area -->
       <div v-else class="messages-area" ref="messagesArea">
-        <div 
-          v-for="(msg, index) in history" 
+        <div
+          v-for="(msg, index) in history"
           :key="index"
           class="message-row"
           :class="msg.role === 'user' ? 'user-row' : 'assistant-row'"
@@ -76,9 +85,9 @@
       <div class="chat-footer">
         <!-- Floating chips for quick follow ups -->
         <div v-if="history.length > 0 && !loading" class="follow-up-chips">
-          <button 
-            v-for="(chip, idx) in quickChips" 
-            :key="idx" 
+          <button
+            v-for="(chip, idx) in quickChips"
+            :key="idx"
             @click="sendSuggestedPrompt(chip)"
             class="chip-btn"
           >
@@ -97,7 +106,11 @@
             :disabled="loading"
             @input="adjustTextareaHeight"
           ></textarea>
-          <button type="submit" class="btn btn-primary send-btn" :disabled="!inputText.trim() || loading">
+          <button
+            type="submit"
+            class="btn btn-primary send-btn"
+            :disabled="!inputText.trim() || loading"
+          >
             <span v-if="loading">جاري التفكير...</span>
             <span v-else>إرسال 🚀</span>
           </button>
@@ -121,30 +134,30 @@ const suggestedPrompts = [
   {
     icon: '📊',
     title: 'أداء المبيعات والمصاريف',
-    text: 'أعطني ملخصاً شاملاً للمبيعات والمصاريف وصافي الربح في آخر 30 يوماً.'
+    text: 'أعطني ملخصاً شاملاً للمبيعات والمصاريف وصافي الربح في آخر 30 يوماً.',
   },
   {
     icon: '⏳',
     title: 'توقع أوقات الذروة',
-    text: 'ما هي أكثر الساعات والمستويات ازدحاماً خلال الأسبوع وما هي توصيتك للشيفتات؟'
+    text: 'ما هي أكثر الساعات والمستويات ازدحاماً خلال الأسبوع وما هي توصيتك للشيفتات؟',
   },
   {
     icon: '💰',
     title: 'التسعير وهامش الربح',
-    text: 'هل هناك مشروبات أو منتجات تباع بهامش ربح منخفض بناءً على أسعار التكلفة؟'
+    text: 'هل هناك مشروبات أو منتجات تباع بهامش ربح منخفض بناءً على أسعار التكلفة؟',
   },
   {
     icon: '☕',
     title: 'توصيات لزيادة الأرباح',
-    text: 'كيف يمكنني تقليل الفاقد في الحليب والبن وزيادة متوسط قيمة سلة الشراء للمقهى؟'
-  }
+    text: 'كيف يمكنني تقليل الفاقد في الحليب والبن وزيادة متوسط قيمة سلة الشراء للمقهى؟',
+  },
 ];
 
 const quickChips = ref([
   'ما هي المنتجات الأكثر مبيعاً؟',
   'أريد تفاصيل المصاريف هذا الشهر',
   'ما توصيتك لأسعار المشروبات منخفضة الهامش؟',
-  'كيف أوزع العمالة في أوقات الذروة؟'
+  'كيف أوزع العمالة في أوقات الذروة؟',
 ]);
 
 onMounted(() => {
@@ -168,15 +181,12 @@ const formatTime = (ts) => {
 
 const formatMessage = (text) => {
   if (!text) return '';
-  
+
   // Basic markdown parsing
   let html = text;
-  
+
   // Escape HTML entities to prevent XSS
-  html = html
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+  html = html.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
   // Restore line breaks
   html = html.replace(/\n/g, '<br>');
@@ -194,7 +204,10 @@ const formatMessage = (text) => {
   html = html.replace(/##\s+(.*?)(?=<br>|$)/g, '<h3 class="chat-h3">$1</h3>');
 
   // Highlight numbers, percentages and currencies for premium finance look
-  html = html.replace(/(\b\d+(?:\.\d+)?\s*(?:%|ج\.م|جنيه|ريال|دولار|طلب|كوب|ساعة|شيفت)?\b)/g, '<span class="finance-metric">$1</span>');
+  html = html.replace(
+    /(\b\d+(?:\.\d+)?\s*(?:%|ج\.م|جنيه|ريال|دولار|طلب|كوب|ساعة|شيفت)?\b)/g,
+    '<span class="finance-metric">$1</span>',
+  );
 
   return html;
 };
@@ -212,12 +225,12 @@ const submitMessage = async () => {
   const userMsg = {
     role: 'user',
     content: text,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   };
   history.value.push(userMsg);
   inputText.value = '';
   loading.value = true;
-  
+
   if (inputArea.value) {
     inputArea.value.style.height = 'auto';
   }
@@ -227,22 +240,22 @@ const submitMessage = async () => {
   try {
     // Call the API endpoint
     // Prepare history payload for API (role & content)
-    const apiHistory = history.value.slice(0, -1).map(h => ({
+    const apiHistory = history.value.slice(0, -1).map((h) => ({
       role: h.role,
-      content: h.content
+      content: h.content,
     }));
 
     const response = await forecasting.askCopilot({
       prompt: text,
-      history: apiHistory
+      history: apiHistory,
     });
 
     const assistantMsg = {
       role: 'model',
       content: response.data?.reply || 'لم أتمكن من الحصول على رد.',
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
-    
+
     history.value.push(assistantMsg);
     // Save to local storage
     localStorage.setItem('alagoouz_copilot_history', JSON.stringify(history.value));
@@ -250,9 +263,10 @@ const submitMessage = async () => {
     console.error(error);
     history.value.push({
       role: 'model',
-      content: 'عذراً، واجهت مشكلة في الاتصال بالخادم الذكي. يرجى التحقق من اتصال قاعدة البيانات ومفتاح Gemini API بالخلفية.',
+      content:
+        'عذراً، واجهت مشكلة في الاتصال بالخادم الذكي. يرجى التحقق من اتصال قاعدة البيانات ومفتاح Gemini API بالخلفية.',
       timestamp: new Date().toISOString(),
-      isError: true
+      isError: true,
     });
   } finally {
     loading.value = false;
@@ -283,7 +297,7 @@ const adjustTextareaHeight = () => {
   const el = inputArea.value;
   if (!el) return;
   el.style.height = 'auto';
-  el.style.height = (el.scrollHeight) + 'px';
+  el.style.height = el.scrollHeight + 'px';
 };
 </script>
 
@@ -334,7 +348,7 @@ const adjustTextareaHeight = () => {
   background: rgba(220, 38, 38, 0.08);
   border-color: rgba(220, 38, 38, 0.2);
   color: var(--danger);
-  
+
   &:hover {
     background: var(--danger);
     color: #fff;
@@ -470,7 +484,7 @@ const adjustTextareaHeight = () => {
   &.user-row {
     align-self: flex-start;
     flex-direction: row-reverse;
-    
+
     .message-bubble {
       background: var(--primary);
       color: #fff;
@@ -481,7 +495,7 @@ const adjustTextareaHeight = () => {
 
   &.assistant-row {
     align-self: flex-end;
-    
+
     .message-bubble {
       background: var(--surface-2);
       border: 1px solid var(--border);
@@ -515,7 +529,7 @@ const adjustTextareaHeight = () => {
 .typing-indicator {
   display: flex;
   gap: 6px;
-  
+
   span {
     width: 8px;
     height: 8px;
@@ -523,8 +537,12 @@ const adjustTextareaHeight = () => {
     border-radius: 50%;
     animation: typing 1.4s infinite ease-in-out both;
 
-    &:nth-child(2) { animation-delay: 0.2s; }
-    &:nth-child(3) { animation-delay: 0.4s; }
+    &:nth-child(2) {
+      animation-delay: 0.2s;
+    }
+    &:nth-child(3) {
+      animation-delay: 0.4s;
+    }
   }
 }
 
@@ -542,7 +560,7 @@ const adjustTextareaHeight = () => {
   padding-bottom: 12px;
   margin-bottom: 4px;
   scrollbar-width: none;
-  
+
   &::-webkit-scrollbar {
     display: none;
   }
@@ -575,7 +593,9 @@ const adjustTextareaHeight = () => {
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
   padding: 8px 12px;
-  transition: border-color var(--transition), box-shadow var(--transition);
+  transition:
+    border-color var(--transition),
+    box-shadow var(--transition);
 
   &:focus-within {
     border-color: var(--primary-strong);
@@ -617,19 +637,38 @@ const adjustTextareaHeight = () => {
 }
 
 @keyframes rotateSparkle {
-  0% { transform: scale(1) rotate(0deg); }
-  50% { transform: scale(1.15) rotate(180deg); }
-  100% { transform: scale(1) rotate(360deg); }
+  0% {
+    transform: scale(1) rotate(0deg);
+  }
+  50% {
+    transform: scale(1.15) rotate(180deg);
+  }
+  100% {
+    transform: scale(1) rotate(360deg);
+  }
 }
 
 @keyframes typing {
-  0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
-  45% { transform: scale(1); opacity: 1; }
+  0%,
+  80%,
+  100% {
+    transform: scale(0.6);
+    opacity: 0.4;
+  }
+  45% {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 @keyframes bounce {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-8px); }
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
 }
 </style>
 
@@ -638,7 +677,7 @@ const adjustTextareaHeight = () => {
 .chat-list {
   padding-right: 20px;
   margin: 8px 0;
-  
+
   li {
     margin-bottom: 4px;
     list-style-type: square;

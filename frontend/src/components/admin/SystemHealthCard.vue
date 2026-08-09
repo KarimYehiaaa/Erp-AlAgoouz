@@ -3,7 +3,19 @@
     <!-- Server Uptime -->
     <div class="health-card">
       <div class="health-icon uptime">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <svg
+          width="22"
+          height="22"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <circle cx="12" cy="12" r="10" />
+          <polyline points="12 6 12 12 16 14" />
+        </svg>
       </div>
       <div class="health-info">
         <span class="health-label">وقت التشغيل</span>
@@ -14,13 +26,29 @@
     <!-- Memory Usage -->
     <div class="health-card">
       <div class="health-icon memory" :class="memoryStatus">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 12h.01M10 12h.01M14 12h.01M18 12h.01"/></svg>
+        <svg
+          width="22"
+          height="22"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <rect x="2" y="6" width="20" height="12" rx="2" />
+          <path d="M6 12h.01M10 12h.01M14 12h.01M18 12h.01" />
+        </svg>
       </div>
       <div class="health-info">
         <span class="health-label">الذاكرة (RAM)</span>
         <span class="health-value">{{ memoryUsed }} MB</span>
         <div class="health-bar">
-          <div class="health-bar-fill" :class="memoryStatus" :style="{ width: memoryPercent + '%' }"></div>
+          <div
+            class="health-bar-fill"
+            :class="memoryStatus"
+            :style="{ width: memoryPercent + '%' }"
+          ></div>
         </div>
       </div>
     </div>
@@ -28,7 +56,20 @@
     <!-- DB Status -->
     <div class="health-card">
       <div class="health-icon db" :class="dbOk ? 'ok' : 'critical'">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/></svg>
+        <svg
+          width="22"
+          height="22"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <ellipse cx="12" cy="5" rx="9" ry="3" />
+          <path d="M3 5V19A9 3 0 0 0 21 19V5" />
+          <path d="M3 12A9 3 0 0 0 21 12" />
+        </svg>
       </div>
       <div class="health-info">
         <span class="health-label">قاعدة البيانات</span>
@@ -42,13 +83,30 @@
     <!-- DB Pool -->
     <div class="health-card">
       <div class="health-icon pool">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+        <svg
+          width="22"
+          height="22"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M12 2L2 7l10 5 10-5-10-5z" />
+          <path d="M2 17l10 5 10-5" />
+          <path d="M2 12l10 5 10-5" />
+        </svg>
       </div>
       <div class="health-info">
         <span class="health-label">اتصالات DB Pool</span>
         <span class="health-value">{{ poolActive }} / {{ poolMax }}</span>
         <div class="health-bar">
-          <div class="health-bar-fill" :class="poolStatus" :style="{ width: poolPercent + '%' }"></div>
+          <div
+            class="health-bar-fill"
+            :class="poolStatus"
+            :style="{ width: poolPercent + '%' }"
+          ></div>
         </div>
       </div>
     </div>
@@ -56,7 +114,18 @@
     <!-- Node Version -->
     <div class="health-card">
       <div class="health-icon node">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l10 5.5v11L12 24 2 18.5v-11z"/></svg>
+        <svg
+          width="22"
+          height="22"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M12 2l10 5.5v11L12 24 2 18.5v-11z" />
+        </svg>
       </div>
       <div class="health-info">
         <span class="health-label">Node.js</span>
@@ -67,7 +136,20 @@
     <!-- DB Info -->
     <div class="health-card">
       <div class="health-icon dbinfo">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+        <svg
+          width="22"
+          height="22"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <circle cx="12" cy="12" r="10" />
+          <path d="M12 16v-4" />
+          <path d="M12 8h.01" />
+        </svg>
       </div>
       <div class="health-info">
         <span class="health-label">حجم قاعدة البيانات</span>
@@ -135,7 +217,9 @@ const dbLatency = computed(() => db.value?.latencyMs || 0);
 
 const poolActive = computed(() => db.value?.poolStats?.total || 0);
 const poolMax = computed(() => db.value?.poolStats?.max || 60);
-const poolPercent = computed(() => Math.min(100, Math.round((poolActive.value / poolMax.value) * 100)));
+const poolPercent = computed(() =>
+  Math.min(100, Math.round((poolActive.value / poolMax.value) * 100)),
+);
 const poolStatus = computed(() => {
   if (poolPercent.value > 85) return 'critical';
   if (poolPercent.value > 60) return 'warning';
@@ -161,14 +245,16 @@ const tableCount = computed(() => db.value?.tableCount || 0);
   gap: 14px;
   padding: 16px 18px;
   border-radius: 14px;
-  background: var(--card-bg, rgba(255,255,255,0.04));
-  border: 1px solid var(--border, rgba(255,255,255,0.08));
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  background: var(--card-bg, rgba(255, 255, 255, 0.04));
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .health-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 24px rgba(0,0,0,0.12);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.12);
 }
 
 .health-icon {
@@ -181,15 +267,42 @@ const tableCount = computed(() => db.value?.tableCount || 0);
   flex-shrink: 0;
 }
 
-.health-icon.uptime { background: rgba(59,130,246,0.12); color: #3b82f6; }
-.health-icon.memory.ok { background: rgba(16,185,129,0.12); color: #10b981; }
-.health-icon.memory.warning { background: rgba(245,158,11,0.12); color: #f59e0b; }
-.health-icon.memory.critical { background: rgba(239,68,68,0.12); color: #ef4444; }
-.health-icon.db.ok { background: rgba(16,185,129,0.12); color: #10b981; }
-.health-icon.db.critical { background: rgba(239,68,68,0.12); color: #ef4444; }
-.health-icon.pool { background: rgba(139,92,246,0.12); color: #8b5cf6; }
-.health-icon.node { background: rgba(34,197,94,0.12); color: #22c55e; }
-.health-icon.dbinfo { background: rgba(14,165,233,0.12); color: #0ea5e9; }
+.health-icon.uptime {
+  background: rgba(59, 130, 246, 0.12);
+  color: #3b82f6;
+}
+.health-icon.memory.ok {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+}
+.health-icon.memory.warning {
+  background: rgba(245, 158, 11, 0.12);
+  color: #f59e0b;
+}
+.health-icon.memory.critical {
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+}
+.health-icon.db.ok {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+}
+.health-icon.db.critical {
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+}
+.health-icon.pool {
+  background: rgba(139, 92, 246, 0.12);
+  color: #8b5cf6;
+}
+.health-icon.node {
+  background: rgba(34, 197, 94, 0.12);
+  color: #22c55e;
+}
+.health-icon.dbinfo {
+  background: rgba(14, 165, 233, 0.12);
+  color: #0ea5e9;
+}
 
 .health-info {
   display: flex;
@@ -214,12 +327,16 @@ const tableCount = computed(() => db.value?.tableCount || 0);
   gap: 6px;
 }
 
-.text-ok { color: #10b981; }
-.text-critical { color: #ef4444; }
+.text-ok {
+  color: #10b981;
+}
+.text-critical {
+  color: #ef4444;
+}
 
 .latency-badge {
   font-size: 0.7rem;
-  background: rgba(16,185,129,0.15);
+  background: rgba(16, 185, 129, 0.15);
   color: #10b981;
   padding: 2px 7px;
   border-radius: 6px;
@@ -235,7 +352,7 @@ const tableCount = computed(() => db.value?.tableCount || 0);
 .health-bar {
   width: 100%;
   height: 5px;
-  background: var(--border, rgba(255,255,255,0.08));
+  background: var(--border, rgba(255, 255, 255, 0.08));
   border-radius: 3px;
   overflow: hidden;
   margin-top: 4px;
@@ -247,7 +364,13 @@ const tableCount = computed(() => db.value?.tableCount || 0);
   transition: width 0.6s ease;
 }
 
-.health-bar-fill.ok { background: linear-gradient(90deg, #10b981, #34d399); }
-.health-bar-fill.warning { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
-.health-bar-fill.critical { background: linear-gradient(90deg, #ef4444, #f87171); }
+.health-bar-fill.ok {
+  background: linear-gradient(90deg, #10b981, #34d399);
+}
+.health-bar-fill.warning {
+  background: linear-gradient(90deg, #f59e0b, #fbbf24);
+}
+.health-bar-fill.critical {
+  background: linear-gradient(90deg, #ef4444, #f87171);
+}
 </style>

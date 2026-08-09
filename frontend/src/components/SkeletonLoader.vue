@@ -1,26 +1,19 @@
 <template>
-  <div 
-    class="skeleton-loader-container" 
-    :class="{ 'animate-shimmer': animated }"
-  >
+  <div class="skeleton-loader-container" :class="{ 'animate-shimmer': animated }">
     <!-- Table Skeleton Layout -->
     <div v-if="type === 'table'" class="skeleton-table">
       <div class="skeleton-row skeleton-header">
-        <div 
-          v-for="c in cols" 
-          :key="'h-' + c" 
+        <div
+          v-for="c in cols"
+          :key="'h-' + c"
           class="skeleton-cell shimmer"
           :style="{ height: '24px' }"
         ></div>
       </div>
-      <div 
-        v-for="r in rows" 
-        :key="'r-' + r" 
-        class="skeleton-row"
-      >
-        <div 
-          v-for="c in cols" 
-          :key="'c-' + r + '-' + c" 
+      <div v-for="r in rows" :key="'r-' + r" class="skeleton-row">
+        <div
+          v-for="c in cols"
+          :key="'c-' + r + '-' + c"
           class="skeleton-cell shimmer"
           :style="{ height: '20px' }"
         ></div>
@@ -29,11 +22,7 @@
 
     <!-- List Skeleton Layout -->
     <div v-else-if="type === 'list'" class="skeleton-list">
-      <div 
-        v-for="i in count" 
-        :key="i" 
-        class="skeleton-list-item"
-      >
+      <div v-for="i in count" :key="i" class="skeleton-list-item">
         <div class="skeleton-circle shimmer"></div>
         <div class="skeleton-list-content">
           <div class="skeleton-line shimmer w-3/4"></div>
@@ -44,11 +33,7 @@
 
     <!-- Metric Card Skeleton Layout -->
     <div v-else-if="type === 'card'" class="skeleton-card-layout">
-      <div 
-        v-for="i in count" 
-        :key="i" 
-        class="skeleton-card-item shimmer"
-      >
+      <div v-for="i in count" :key="i" class="skeleton-card-item shimmer">
         <div class="card-icon-skeleton shimmer"></div>
         <div class="card-label-skeleton shimmer"></div>
         <div class="card-value-skeleton shimmer"></div>
@@ -58,10 +43,10 @@
 
     <!-- Default generic shape (line, circle, box, etc.) -->
     <div v-else class="skeleton-generic-group">
-      <div 
-        v-for="i in count" 
-        :key="i" 
-        class="skeleton-item shimmer" 
+      <div
+        v-for="i in count"
+        :key="i"
+        class="skeleton-item shimmer"
         :class="type"
         :style="customStyle"
       ></div>
@@ -76,36 +61,36 @@ const props = defineProps({
   type: {
     type: String,
     default: 'line', // 'line' | 'circle' | 'card' | 'table' | 'list' | 'box'
-    validator: (value) => ['line', 'circle', 'card', 'table', 'list', 'box'].includes(value)
+    validator: (value) => ['line', 'circle', 'card', 'table', 'list', 'box'].includes(value),
   },
   count: {
     type: Number,
-    default: 1
+    default: 1,
   },
   animated: {
     type: Boolean,
-    default: true
+    default: true,
   },
   rows: {
     type: Number,
-    default: 4
+    default: 4,
   },
   cols: {
     type: Number,
-    default: 4
+    default: 4,
   },
   width: {
     type: String,
-    default: null
+    default: null,
   },
   height: {
     type: String,
-    default: null
+    default: null,
   },
   radius: {
     type: String,
-    default: null
-  }
+    default: null,
+  },
 });
 
 const customStyle = computed(() => {
@@ -123,37 +108,36 @@ const customStyle = computed(() => {
 }
 
 .shimmer {
-  background: linear-gradient(
-    90deg,
-    var(--bg-soft) 25%,
-    var(--border) 37%,
-    var(--bg-soft) 63%
-  );
+  background: linear-gradient(90deg, var(--bg-soft) 25%, var(--border) 37%, var(--bg-soft) 63%);
   background-size: 400% 100%;
   animation: shimmer-load 1.4s ease infinite;
 }
 
 @keyframes shimmer-load {
-  0% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
 }
 
 .skeleton-item {
   background: var(--bg-soft);
-  
+
   &.line {
     height: 14px;
     width: 100%;
     margin-bottom: 8px;
     border-radius: var(--radius-xs);
   }
-  
+
   &.circle {
     width: 40px;
     height: 40px;
     border-radius: 50%;
   }
-  
+
   &.box {
     width: 100%;
     height: 150px;
@@ -193,9 +177,13 @@ const customStyle = computed(() => {
   height: 12px;
   background: var(--bg-soft);
   border-radius: var(--radius-xs);
-  
-  &.w-3\/4 { width: 75%; }
-  &.w-1\/2 { width: 50%; }
+
+  &.w-3\/4 {
+    width: 75%;
+  }
+  &.w-1\/2 {
+    width: 50%;
+  }
 }
 
 /* Card Style */
@@ -258,11 +246,11 @@ const customStyle = computed(() => {
   border-bottom: 1px solid var(--border);
   padding: 12px 16px;
   gap: 16px;
-  
+
   &:last-child {
     border-bottom: none;
   }
-  
+
   &.skeleton-header {
     background: var(--bg-soft);
   }

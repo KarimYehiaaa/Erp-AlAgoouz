@@ -1,41 +1,51 @@
 @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&family=Outfit:wght@300;400;500;600;700;800&display=swap');
 
 :root {
+  /* ── Typography ── */
   --font-ui: 'Cairo', 'Outfit', "Segoe UI", Tahoma, Arial, sans-serif;
 
-  --bg: #FAFAF9;
-  --bg-elevated: #ffffff;
-  --bg-card: #ffffff;
-  --bg-soft: #F5F5F4;
-  --surface-1: #ffffff;
-  --surface-2: #FAFAF9;
-  --surface-3: #F5F5F4;
+  /* ── Core Backgrounds ── */
+  --bg: #F7F3EE;
+  --bg-elevated: #FFFFFF;
+  --bg-card: #FFFFFF;
+  --bg-soft: #F0E8DE;
+  
+  /* ── Surfaces ── */
+  --surface-1: #FFFFFF;
+  --surface-2: #FAF7F2;
+  --surface-3: #F0E8DE;
 
-  --text: #44403C;
-  --text-strong: #1C1917;
-  --text-muted: #78716C;
+  /* ── Text Colors ── */
+  --text: #1C1410;
+  --text-strong: #110B08;
+  --text-muted: #7C6B5D;
 
-  --primary: #1C1917;
-  --primary-strong: #0C0A09;
-  --primary-dark: #0C0A09;
-  --primary-soft: #E7E5E4;
+  /* ── Primary & Accent Colors ── */
+  --primary: #8B5E3C;
+  --primary-strong: #7A4E30;
+  --primary-dark: #4A3F37;
+  --primary-soft: #D5C8BB;
   --accent: #B07D4F;
   --accent-soft: rgba(176, 125, 79, 0.12);
   --focus-ring: rgba(176, 125, 79, 0.25);
 
+  /* ── Semantic Colors ── */
   --success: #15803d;
   --warning: #b76511;
   --danger: #dc2626;
   --info: #0369a1;
 
-  --border: #E7E5E4;
-  --border-strong: #D6D3D1;
+  /* ── Borders ── */
+  --border: #E6D9CC;
+  --border-strong: #C5B8AA;
 
+  /* ── Layout Measurements ── */
   --sidebar-width: 280px;
   --sidebar-collapsed: 76px;
   --sidebar-current-width: 280px;
   --navbar-height: 72px;
 
+  /* ── Border Radii ── */
   --radius-xs: 6px;
   --radius-sm: 8px;
   --radius-md: 10px;
@@ -43,6 +53,7 @@
   --radius-xl: 14px;
   --radius: var(--radius-sm);
 
+  /* ── Spacing ── */
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -51,83 +62,40 @@
   --space-6: 24px;
   --space-7: 32px;
 
-  --shadow-xs: 0 1px 2px rgba(28, 25, 23, 0.05);
-  --shadow-sm: 0 8px 20px rgba(28, 25, 23, 0.08);
-  --shadow-md: 0 16px 34px rgba(28, 25, 23, 0.12);
-  --shadow-lg: 0 24px 54px rgba(28, 25, 23, 0.16);
+  /* ── Shadows ── */
+  --shadow-xs: 0 1px 2px rgba(44, 24, 16, 0.05);
+  --shadow-sm: 0 8px 20px rgba(44, 24, 16, 0.08);
+  --shadow-md: 0 16px 34px rgba(44, 24, 16, 0.12);
+  --shadow-lg: 0 24px 54px rgba(44, 24, 16, 0.16);
 
-  --sidebar-bg: #1C1917;
-  --sidebar-surface: #2E2A27;
-  --sidebar-text: #F5F5F4;
-  --sidebar-muted: #A8A29E;
+  /* ── Sidebar (Espresso Dark Palette) ── */
+  --sidebar-bg: #160B04;
+  --sidebar-surface: #2C1810;
+  --sidebar-text: #F7F3EE;
+  --sidebar-muted: #B07D4F;
 
-  --glass-bg: rgba(255, 255, 255, 0.9);
-  --glass-border: rgba(231, 229, 228, 0.9);
+  /* ── Glassmorphism & App Gradients ── */
+  --glass-bg: rgba(255, 255, 255, 0.92);
+  --glass-border: rgba(230, 217, 204, 0.75);
   --glass-blur: blur(16px);
+  
   --app-bg:
-    radial-gradient(circle at 12% 8%, color-mix(in srgb, var(--primary) 10%, transparent), transparent 28rem),
-    radial-gradient(circle at 86% 0%, color-mix(in srgb, var(--accent) 9%, transparent), transparent 24rem),
+    radial-gradient(circle at 12% 8%, color-mix(in srgb, var(--primary) 6%, transparent), transparent 28rem),
+    radial-gradient(circle at 86% 0%, color-mix(in srgb, var(--accent) 5%, transparent), transparent 24rem),
     var(--bg);
+    
   --card-bg: linear-gradient(180deg, color-mix(in srgb, #fff 74%, transparent), color-mix(in srgb, var(--surface-2) 82%, transparent));
   --card-border: color-mix(in srgb, var(--border) 82%, transparent);
+  
   --header-bg:
-    linear-gradient(135deg, color-mix(in srgb, var(--primary) 13%, transparent), transparent 52%),
-    linear-gradient(225deg, color-mix(in srgb, var(--accent) 10%, transparent), transparent 48%),
+    linear-gradient(135deg, color-mix(in srgb, var(--primary) 8%, transparent), transparent 52%),
+    linear-gradient(225deg, color-mix(in srgb, var(--accent) 6%, transparent), transparent 48%),
     var(--bg-elevated);
+    
   --metric-bg:
     linear-gradient(180deg, color-mix(in srgb, var(--surface-3) 55%, transparent), transparent 74%),
     var(--bg-elevated);
 
+  /* ── Transitions ── */
   --transition: 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-
-[data-theme='dark'] {
-  --bg: #0C0A09;
-  --bg-elevated: #1C1917;
-  --bg-card: #1C1917;
-  --bg-soft: #2E2A27;
-  --surface-1: #1C1917;
-  --surface-2: #2E2A27;
-
-  --text: #D6D3D1;
-  --text-strong: #FAFAF9;
-  --text-muted: #A8A29E;
-
-  --primary: #D6D3D1;
-  --primary-strong: #FAFAF9;
-  --primary-dark: #FAFAF9;
-  --primary-soft: #44403C;
-  --accent: #D4A373;
-  --accent-soft: rgba(212, 163, 115, 0.15);
-  --focus-ring: rgba(212, 163, 115, 0.25);
-
-  --border: #2E2A27;
-  --border-strong: #44403C;
-
-  --sidebar-bg: #0C0A09;
-  --sidebar-surface: #1C1917;
-  --sidebar-text: #D6D3D1;
-  --sidebar-muted: #A8A29E;
-
-  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.35);
-  --shadow-sm: 0 10px 26px rgba(0, 0, 0, 0.45);
-  --shadow-md: 0 18px 44px rgba(0, 0, 0, 0.55);
-  --shadow-lg: 0 28px 64px rgba(0, 0, 0, 0.65);
-
-  --glass-bg: rgba(28, 25, 23, 0.86);
-  --glass-border: rgba(68, 64, 60, 0.55);
-  --glass-blur: blur(20px);
-  --app-bg:
-    radial-gradient(circle at 12% 8%, color-mix(in srgb, var(--primary) 16%, transparent), transparent 28rem),
-    radial-gradient(circle at 86% 0%, color-mix(in srgb, var(--accent) 11%, transparent), transparent 24rem),
-    var(--bg);
-  --card-bg: linear-gradient(180deg, color-mix(in srgb, var(--bg-card) 88%, #fff 3%), color-mix(in srgb, var(--surface-2) 88%, transparent));
-  --card-border: color-mix(in srgb, var(--border) 84%, transparent);
-  --header-bg:
-    linear-gradient(135deg, color-mix(in srgb, var(--primary) 16%, transparent), transparent 50%),
-    linear-gradient(225deg, color-mix(in srgb, var(--accent) 11%, transparent), transparent 48%),
-    var(--bg-elevated);
-  --metric-bg:
-    linear-gradient(180deg, color-mix(in srgb, var(--primary) 8%, transparent), transparent 70%),
-    var(--bg-elevated);
 }

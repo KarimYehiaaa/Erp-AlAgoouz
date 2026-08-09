@@ -1,5 +1,5 @@
 import { query } from '../database/pool.js';
-import { AppError } from '../middleware/errorHandler.js';
+import { AppError } from '../types/errors.js';
 import { invalidateDashboardCache } from './dashboardService.js';
 import { broadcast } from './websocketService.js';
 import { sanitizeLimit } from '../utils/money.js';
@@ -10,9 +10,18 @@ export const getExpenses = async (filters = {}) => {
     LEFT JOIN users u ON e.user_id = u.id WHERE e.deleted_at IS NULL`;
   const params = [];
   let i = 1;
-  if (filters.from_date) { sql += ` AND e.expense_date >= $${i++}`; params.push(filters.from_date); }
-  if (filters.to_date) { sql += ` AND e.expense_date <= $${i++}`; params.push(filters.to_date); }
-  if (filters.category_id) { sql += ` AND e.category_id = $${i++}`; params.push(filters.category_id); }
+  if (filters.from_date) {
+    sql += ` AND e.expense_date >= $${i++}`;
+    params.push(filters.from_date);
+  }
+  if (filters.to_date) {
+    sql += ` AND e.expense_date <= $${i++}`;
+    params.push(filters.to_date);
+  }
+  if (filters.category_id) {
+    sql += ` AND e.category_id = $${i++}`;
+    params.push(filters.category_id);
+  }
   if (filters.is_fixed !== undefined && filters.is_fixed !== null && filters.is_fixed !== '') {
     sql += ` AND COALESCE(e.is_fixed, ec.is_fixed, FALSE) = $${i++}`;
     params.push(filters.is_fixed === 'true' || filters.is_fixed === true);
@@ -28,7 +37,18 @@ export const createExpense = async (data, userId) => {
   const result = await query(
     `INSERT INTO expenses (expense_number, category_id, title, amount, expense_date, payment_method, recurring, is_fixed, notes, user_id)
      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
-    [num, data.category_id, data.title, data.amount, data.expense_date || new Date(), data.payment_method || 'cash', data.recurring || false, isFixed, data.notes, userId]
+    [
+      num,
+      data.category_id,
+      data.title,
+      data.amount,
+      data.expense_date || new Date(),
+      data.payment_method || 'cash',
+      data.recurring || false,
+      isFixed,
+      data.notes,
+      userId,
+    ],
   );
   invalidateDashboardCache();
   broadcast('expenses_changed', result.rows[0]);
@@ -48,7 +68,17 @@ export const updateExpense = async (id, data) => {
          notes = COALESCE($8, notes)
      WHERE id = $9 AND deleted_at IS NULL
      RETURNING *`,
-    [data.category_id, data.title, data.amount, data.expense_date, data.payment_method, data.recurring, data.is_fixed, data.notes, id]
+    [
+      data.category_id,
+      data.title,
+      data.amount,
+      data.expense_date,
+      data.payment_method,
+      data.recurring,
+      data.is_fixed,
+      data.notes,
+      id,
+    ],
   );
   if (!result.rows[0]) throw new AppError('المصروف غير موجود', 404);
   invalidateDashboardCache();
@@ -56,19 +86,31 @@ export const updateExpense = async (id, data) => {
   return result.rows[0];
 };
 
-export const getCategories = async () => (await query(`SELECT id, name_ar, slug, is_fixed, is_active FROM expense_categories WHERE is_active = TRUE ORDER BY id ASC`)).rows;
+export const getCategories = async () =>
+  (
+    await query(
+      `SELECT id, name_ar, slug, is_fixed, is_active FROM expense_categories WHERE is_active = TRUE ORDER BY id ASC`,
+    )
+  ).rows;
 
 export const getExpenseReport = async (year, month) => {
+  let dateFilter = 'EXTRACT(YEAR FROM e.expense_date) = $1';
+  const params = [year];
+  if (month) {
+    dateFilter += ' AND EXTRACT(MONTH FROM e.expense_date) = $2';
+    params.push(month);
+  }
+  const byCategory = await query(
     `SELECT ec.name_ar, SUM(e.amount) as total, COUNT(*) as count
      FROM expenses e JOIN expense_categories ec ON e.category_id = ec.id
      WHERE ${dateFilter} AND e.deleted_at IS NULL GROUP BY ec.id, ec.name_ar ORDER BY total DESC`,
-    params
+    params,
   );
   const monthly = await query(
     `SELECT EXTRACT(MONTH FROM expense_date) as month, SUM(amount) as total
      FROM expenses WHERE EXTRACT(YEAR FROM expense_date) = $1 AND deleted_at IS NULL
      GROUP BY EXTRACT(MONTH FROM expense_date) ORDER BY month`,
-    [year]
+    [year],
   );
   return { byCategory: byCategory.rows, monthly: monthly.rows };
 };
@@ -91,7 +133,7 @@ export const suggestCategory = async (title = '') => {
      GROUP BY category_id
      ORDER BY cnt DESC
      LIMIT 1`,
-    [`%${cleanTitle}%`]
+    [`%${cleanTitle}%`],
   );
 
   if (dbMatch.rows.length > 0) {
@@ -106,14 +148,16 @@ export const suggestCategory = async (title = '') => {
     { keywords: ['صيانة', 'تصليح', 'ترميم', 'سباكة', 'أعطال'], slug: 'maintenance' },
     { keywords: ['بن', 'حبوب', 'كوب', 'أكواب', 'حليب', 'سكر', 'خامات'], slug: 'raw-materials' },
     { keywords: ['مياه', 'ماء', 'انترنت', 'نت', 'فاتورة', 'فواتير', 'غاز', 'هاتف'], slug: 'bills' },
-    { keywords: ['يومية', 'شاي', 'ضيافة', 'مناديل', 'صابون', 'نظافة', 'غداء'], slug: 'daily' }
+    { keywords: ['يومية', 'شاي', 'ضيافة', 'مناديل', 'صابون', 'نظافة', 'غداء'], slug: 'daily' },
   ];
 
   const words = cleanTitle.split(/\s+/);
   let matchedSlug = null;
-  
+
   for (const word of words) {
-    const match = KEYWORD_MAP.find(k => k.keywords.some(kw => word.includes(kw) || kw.includes(word)));
+    const match = KEYWORD_MAP.find((k) =>
+      k.keywords.some((kw) => word.includes(kw) || kw.includes(word)),
+    );
     if (match) {
       matchedSlug = match.slug;
       break;
@@ -121,7 +165,10 @@ export const suggestCategory = async (title = '') => {
   }
 
   if (matchedSlug) {
-    const catRes = await query("SELECT id FROM expense_categories WHERE slug = $1 AND is_active = TRUE", [matchedSlug]);
+    const catRes = await query(
+      'SELECT id FROM expense_categories WHERE slug = $1 AND is_active = TRUE',
+      [matchedSlug],
+    );
     if (catRes.rows.length > 0) {
       return { category_id: catRes.rows[0].id };
     }
@@ -131,5 +178,3 @@ export const suggestCategory = async (title = '') => {
   const otherRes = await query("SELECT id FROM expense_categories WHERE slug = 'other'");
   return otherRes.rows.length > 0 ? { category_id: otherRes.rows[0].id } : null;
 };
-
-

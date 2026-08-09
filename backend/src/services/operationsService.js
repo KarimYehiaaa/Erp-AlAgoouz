@@ -2,8 +2,6 @@ import { query } from '../database/pool.js';
 import { getProducts } from './productService.js';
 import { toNumber, sanitizeLimit } from '../utils/money.js';
 
-
-
 const normalizeFilter = (value) => {
   const text = String(value || '').trim();
   return text || null;
@@ -30,32 +28,27 @@ export const getAuditLogs = async (filters = {}) => {
        AND ($5::date IS NULL OR al.created_at::date <= $5)
      ORDER BY al.created_at DESC, al.id DESC
      LIMIT ${limit}`,
-    [userId, action, entityType, fromDate, toDate]
+    [userId, action, entityType, fromDate, toDate],
   );
 
   return result.rows;
 };
 
 export const getOperationAlerts = async () => {
-  const [
-    lowStockRes,
-    customerDebtRes,
-    supplierDebtRes,
-    openSalesRes,
-  ] = await Promise.all([
+  const [lowStockRes, customerDebtRes, supplierDebtRes, openSalesRes] = await Promise.all([
     query(
       `SELECT product_id, name_ar, sku, total_quantity, min_stock
        FROM v_product_stock
        WHERE is_low_stock = TRUE
        ORDER BY total_quantity ASC, name_ar
-       LIMIT 20`
+       LIMIT 20`,
     ),
     query(
       `SELECT id, name_ar, balance
        FROM customers
        WHERE deleted_at IS NULL AND is_active = TRUE AND COALESCE(balance, 0) > 0
        ORDER BY balance DESC
-       LIMIT 10`
+       LIMIT 10`,
     ),
     query(
       `SELECT s.id, s.name_ar,
@@ -72,7 +65,7 @@ export const getOperationAlerts = async () => {
        GROUP BY s.id, s.name_ar, paid.total_paid
        HAVING COALESCE(SUM(pi.total_amount), 0) - COALESCE(paid.total_paid, 0) > 0
        ORDER BY balance DESC
-       LIMIT 10`
+       LIMIT 10`,
     ),
     query(
       `WITH sale_balances AS (
@@ -91,7 +84,7 @@ export const getOperationAlerts = async () => {
        )
        SELECT COUNT(*) FILTER (WHERE balance > 0.01)::int AS count,
               COALESCE(SUM(balance) FILTER (WHERE balance > 0.01), 0) AS total
-       FROM sale_balances`
+       FROM sale_balances`,
     ),
   ]);
 

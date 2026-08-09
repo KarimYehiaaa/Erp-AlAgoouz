@@ -1,6 +1,5 @@
 <template>
   <div class="settings-page">
-
     <!-- ===== Sidebar Navigation ===== -->
     <nav class="settings-nav">
       <button
@@ -17,7 +16,6 @@
 
     <!-- ===== Main Content ===== -->
     <div class="settings-content">
-
       <!-- ── تاب: بيانات المحل ── -->
       <section v-if="activeTab === 'company'" class="settings-section">
         <div class="section-title">
@@ -25,8 +23,8 @@
           <p>هذه البيانات تظهر على الفواتير وعروض الأسعار</p>
         </div>
 
-        <div class="grid grid-2" style="gap: 24px; align-items: start;">
-          <div class="settings-card" style="margin-bottom: 0;">
+        <div class="grid grid-2" style="gap: 24px; align-items: start">
+          <div class="settings-card" style="margin-bottom: 0">
             <div class="card-header">
               <AppLogo size="lg" />
               <div>
@@ -38,26 +36,41 @@
             <div class="fields-grid">
               <div class="form-group">
                 <label>اسم المحل</label>
-                <input v-model="settings.company.name_ar" placeholder="بن العجوز" :disabled="!canEdit" />
+                <input
+                  v-model="settings.company.name_ar"
+                  placeholder="بن العجوز"
+                  :disabled="!canEdit"
+                />
               </div>
               <div class="form-group">
                 <label>رقم الهاتف</label>
-                <input v-model="settings.company.phone" placeholder="01xxxxxxxxx" dir="ltr" :disabled="!canEdit" />
+                <input
+                  v-model="settings.company.phone"
+                  placeholder="01xxxxxxxxx"
+                  dir="ltr"
+                  :disabled="!canEdit"
+                />
               </div>
               <div class="form-group full-width">
                 <label>العنوان (يظهر على الفاتورة)</label>
-                <input v-model="settings.company.address" placeholder="مثال: شارع التحرير — القاهرة" :disabled="!canEdit" />
+                <input
+                  v-model="settings.company.address"
+                  placeholder="مثال: شارع التحرير — القاهرة"
+                  :disabled="!canEdit"
+                />
               </div>
               <div class="form-group full-width">
                 <label>الشعار التجاري</label>
-                <input v-model="settings.company.tagline" placeholder="للبن التركي الأصيل" :disabled="!canEdit" />
+                <input
+                  v-model="settings.company.tagline"
+                  placeholder="للبن التركي الأصيل"
+                  :disabled="!canEdit"
+                />
               </div>
             </div>
 
             <div class="card-footer">
-              <div class="info-value">
-                📎 الشعار: استبدل الملف <code>public/logo.png</code>
-              </div>
+              <div class="info-value">📎 الشعار: استبدل الملف <code>public/logo.png</code></div>
               <button v-if="canEdit" class="btn btn-save" :disabled="saving" @click="saveCompany">
                 <AppIcon name="save" :size="16" />
                 {{ saving ? 'جاري الحفظ...' : 'حفظ البيانات' }}
@@ -68,24 +81,38 @@
 
           <!-- Live Thermal Receipt Mockup -->
           <div class="receipt-preview-card card">
-            <h4 style="margin-bottom: 12px; font-weight: 700; color: var(--text-muted);">📋 معاينة الفاتورة الحرارية المطبوعة</h4>
+            <h4 style="margin-bottom: 12px; font-weight: 700; color: var(--text-muted)">
+              📋 معاينة الفاتورة الحرارية المطبوعة
+            </h4>
             <div class="thermal-receipt">
               <div class="receipt-header">
                 <h3>{{ settings.company.name_ar || 'اسم المحل' }}</h3>
                 <p class="tagline">{{ settings.company.tagline || 'شعار المحل يظهر هنا' }}</p>
-                <p v-if="settings.company.address" class="meta-line">📍 {{ settings.company.address }}</p>
-                <p v-if="settings.company.phone" class="meta-line">📞 {{ settings.company.phone }}</p>
+                <p v-if="settings.company.address" class="meta-line">
+                  📍 {{ settings.company.address }}
+                </p>
+                <p v-if="settings.company.phone" class="meta-line">
+                  📞 {{ settings.company.phone }}
+                </p>
               </div>
               <div class="divider-dotted"></div>
               <div class="receipt-body">
                 <div class="meta-row"><span>رقم الفاتورة:</span> <span>#1024</span></div>
-                <div class="meta-row"><span>التاريخ:</span> <span>{{ new Date().toLocaleDateString('ar-EG') }}</span></div>
+                <div class="meta-row">
+                  <span>التاريخ:</span> <span>{{ new Date().toLocaleDateString('ar-EG') }}</span>
+                </div>
                 <div class="meta-row"><span>الكاشير:</span> <span>كاشير الفرع</span></div>
                 <div class="divider-dotted"></div>
                 <div class="items-list">
-                  <div class="item-row header"><span>الصنف</span> <span>الكمية</span> <span>الإجمالي</span></div>
-                  <div class="item-row"><span>بن محوج فاتح</span> <span>1.0</span> <span>220.00 ج.م</span></div>
-                  <div class="item-row"><span>قهوة تركي سادة</span> <span>2.0</span> <span>160.00 ج.م</span></div>
+                  <div class="item-row header">
+                    <span>الصنف</span> <span>الكمية</span> <span>الإجمالي</span>
+                  </div>
+                  <div class="item-row">
+                    <span>بن محوج فاتح</span> <span>1.0</span> <span>220.00 ج.م</span>
+                  </div>
+                  <div class="item-row">
+                    <span>قهوة تركي سادة</span> <span>2.0</span> <span>160.00 ج.م</span>
+                  </div>
                 </div>
                 <div class="divider-dotted"></div>
                 <div class="total-row"><span>الإجمالي:</span> <span>380.00 ج.م</span></div>
@@ -98,53 +125,6 @@
           </div>
         </div>
       </section>
-
-      <!-- ── تاب: المظهر ── -->
-      <section v-if="activeTab === 'appearance'" class="settings-section">
-        <div class="section-title">
-          <h2>🎨 المظهر والألوان</h2>
-          <p>اختر ستايل يناسب محلّك — يُطبَّق فوراً على كل الصفحات</p>
-        </div>
-
-        <div class="settings-card">
-          <h4 class="group-label">وضع العرض</h4>
-          <div class="mode-row">
-            <button
-              class="mode-btn"
-              :class="{ active: appStore.colorMode === 'light' }"
-              @click="setMode('light')"
-            >
-              <span>☀️</span> فاتح
-            </button>
-            <button
-              class="mode-btn"
-              :class="{ active: appStore.colorMode === 'dark' }"
-              @click="setMode('dark')"
-            >
-              <span>🌙</span> داكن
-            </button>
-          </div>
-        </div>
-
-        <div class="settings-card">
-          <h4 class="group-label">نمط الألوان</h4>
-          <div class="style-grid">
-            <button
-              v-for="s in STYLE_PRESETS"
-              :key="s.id"
-              class="style-card"
-              :class="{ active: appStore.stylePreset === s.id }"
-              :title="s.desc"
-              @click="appStore.setStylePreset(s.id)"
-            >
-              <span class="theme-swatch" :style="{ background: STYLE_SWATCHES[s.id] }"></span>
-              <span class="theme-name">{{ s.name }}</span>
-            </button>
-          </div>
-        </div>
-      </section>
-
-
 
       <!-- ── تاب: التصنيفات ── -->
       <section v-if="activeTab === 'categories'" class="settings-section">
@@ -162,7 +142,11 @@
               @keyup.enter="addCategory"
               :disabled="!canEdit"
             />
-            <button class="btn btn-add" :disabled="categorySaving || !newCategoryName.trim() || !canEdit" @click="addCategory">
+            <button
+              class="btn btn-add"
+              :disabled="categorySaving || !newCategoryName.trim() || !canEdit"
+              @click="addCategory"
+            >
               <AppIcon name="add" :size="16" /> إضافة
             </button>
           </div>
@@ -180,7 +164,12 @@
               <div class="cell-name">
                 <span class="dot primary"></span>
                 <template v-if="categoryEditing === cat.id">
-                  <input v-model="editCategoryName" class="inline-input" @keyup.enter="saveCategory(cat)" @keyup.escape="cancelEditCategory" />
+                  <input
+                    v-model="editCategoryName"
+                    class="inline-input"
+                    @keyup.enter="saveCategory(cat)"
+                    @keyup.escape="cancelEditCategory"
+                  />
                 </template>
                 <strong v-else>{{ cat.name_ar }}</strong>
               </div>
@@ -189,14 +178,24 @@
               </span>
               <div v-if="canEdit" class="col-actions row-actions">
                 <template v-if="categoryEditing === cat.id">
-                  <button class="action-btn save" :disabled="categorySaving" @click="saveCategory(cat)">حفظ</button>
+                  <button
+                    class="action-btn save"
+                    :disabled="categorySaving"
+                    @click="saveCategory(cat)"
+                  >
+                    حفظ
+                  </button>
                   <button class="action-btn" @click="cancelEditCategory">إلغاء</button>
                 </template>
                 <template v-else>
                   <button class="icon-btn edit" @click="startEditCategory(cat)">
                     <AppIcon name="edit" :size="14" />
                   </button>
-                  <button class="icon-btn danger" :disabled="categorySaving" @click="deleteCategory(cat.id)">
+                  <button
+                    class="icon-btn danger"
+                    :disabled="categorySaving"
+                    @click="deleteCategory(cat.id)"
+                  >
                     <AppIcon name="delete" :size="14" />
                   </button>
                 </template>
@@ -222,8 +221,12 @@
               @keyup.enter="addUnit"
               :disabled="!canEdit"
             />
-            <button class="btn btn-add" :disabled="unitSaving || !newUnit.trim() || !canEdit" @click="addUnit">
-                <AppIcon name="add" :size="16" /> إضافة
+            <button
+              class="btn btn-add"
+              :disabled="unitSaving || !newUnit.trim() || !canEdit"
+              @click="addUnit"
+            >
+              <AppIcon name="add" :size="16" /> إضافة
             </button>
           </div>
 
@@ -240,7 +243,12 @@
               <div class="cell-name">
                 <span class="dot accent"></span>
                 <template v-if="unitEditing === unit.id">
-                  <input v-model="editUnitName" class="inline-input" @keyup.enter="saveUnit(unit)" @keyup.escape="cancelEditUnit" />
+                  <input
+                    v-model="editUnitName"
+                    class="inline-input"
+                    @keyup.enter="saveUnit(unit)"
+                    @keyup.escape="cancelEditUnit"
+                  />
                 </template>
                 <strong v-else>{{ unit.name_ar }}</strong>
               </div>
@@ -249,7 +257,9 @@
               </span>
               <div v-if="canEdit" class="col-actions row-actions">
                 <template v-if="unitEditing === unit.id">
-                  <button class="action-btn save" :disabled="unitSaving" @click="saveUnit(unit)">حفظ</button>
+                  <button class="action-btn save" :disabled="unitSaving" @click="saveUnit(unit)">
+                    حفظ
+                  </button>
                   <button class="action-btn" @click="cancelEditUnit">إلغاء</button>
                 </template>
                 <template v-else>
@@ -263,7 +273,9 @@
               </div>
             </div>
           </div>
-          <p class="hint mt-12">💡 حذف وحدة لن يؤثر على المنتجات المرتبطة بها — فقط يزيلها من قائمة الاختيار.</p>
+          <p class="hint mt-12">
+            💡 حذف وحدة لن يؤثر على المنتجات المرتبطة بها — فقط يزيلها من قائمة الاختيار.
+          </p>
         </div>
       </section>
 
@@ -276,48 +288,64 @@
 
         <div class="settings-card">
           <div class="form-group full-width">
-            <label class="checkbox-label" style="display: flex; align-items: center; gap: 8px;">
+            <label class="checkbox-label" style="display: flex; align-items: center; gap: 8px">
               <input type="checkbox" v-model="soundEnabled" />
               <span>تفعيل الأصوات التفاعلية في الكاشير</span>
             </label>
           </div>
 
-          <div class="form-group" :class="{ disabled: !soundEnabled }" style="margin-top: 20px;">
-            <label style="display: flex; justify-content: space-between;">
+          <div class="form-group" :class="{ disabled: !soundEnabled }" style="margin-top: 20px">
+            <label style="display: flex; justify-content: space-between">
               <span>مستوى صوت التنبيهات</span>
               <strong>{{ Math.round(soundVolume * 100) }}%</strong>
             </label>
-            <input 
-              v-model.number="soundVolume" 
-              type="range" 
-              min="0.01" 
-              max="0.30" 
-              step="0.01" 
-              :disabled="!soundEnabled" 
-              style="width: 100%; cursor: pointer;"
+            <input
+              v-model.number="soundVolume"
+              type="range"
+              min="0.01"
+              max="0.30"
+              step="0.01"
+              :disabled="!soundEnabled"
+              style="width: 100%; cursor: pointer"
             />
             <span class="field-hint">مستوى الصوت الموصى به: 0.08 (80%)</span>
           </div>
 
-          <hr class="divider" style="margin: 20px 0;" />
+          <hr class="divider" style="margin: 20px 0" />
 
-          <h4 style="margin-bottom: 12px; font-weight: 800;">🔔 تجربة واختبار نغمات الصوت:</h4>
-          <div style="display: flex; gap: 12px;">
-            <button type="button" class="btn btn-outline" :disabled="!soundEnabled" @click="playTestBeep('success')">
+          <h4 style="margin-bottom: 12px; font-weight: 800">🔔 تجربة واختبار نغمات الصوت:</h4>
+          <div style="display: flex; gap: 12px">
+            <button
+              type="button"
+              class="btn btn-outline"
+              :disabled="!soundEnabled"
+              @click="playTestBeep('success')"
+            >
               🔊 نغمة نجاح العملية
             </button>
-            <button type="button" class="btn btn-outline" :disabled="!soundEnabled" @click="playTestBeep('warning')">
+            <button
+              type="button"
+              class="btn btn-outline"
+              :disabled="!soundEnabled"
+              @click="playTestBeep('warning')"
+            >
               ⚠️ نغمة التحذير
             </button>
-            <button type="button" class="btn btn-outline" :disabled="!soundEnabled" @click="playTestBeep('error')">
+            <button
+              type="button"
+              class="btn btn-outline"
+              :disabled="!soundEnabled"
+              @click="playTestBeep('error')"
+            >
               🚨 نغمة خطأ
             </button>
           </div>
 
-          <div class="card-footer" style="margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border);">
-            <button class="btn btn-save" @click="saveSettingsLocally">
-              حفظ إعدادات الصوت
-            </button>
+          <div
+            class="card-footer"
+            style="margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border)"
+          >
+            <button class="btn btn-save" @click="saveSettingsLocally">حفظ إعدادات الصوت</button>
           </div>
         </div>
       </section>
@@ -331,52 +359,201 @@
 
         <div class="settings-card">
           <div class="form-group full-width">
-            <label class="checkbox-label" style="display: flex; align-items: center; gap: 8px;">
+            <label class="checkbox-label" style="display: flex; align-items: center; gap: 8px">
               <input type="checkbox" v-model="shortcutsEnabled" />
               <span>تفعيل اختصارات لوحة المفاتيح العامة (Alt + key)</span>
             </label>
           </div>
 
-          <hr class="divider" style="margin: 20px 0;" />
+          <hr class="divider" style="margin: 20px 0" />
 
-          <h4 style="margin-bottom: 16px; font-weight: 800; color: var(--text-strong);">📋 دليل الاختصارات المفعلة بالنظام:</h4>
-          
-          <div style="display: grid; gap: 12px;">
-            <div style="display: flex; justify-content: space-between; padding: 10px; background: var(--bg-soft); border-radius: 8px; border: 1px solid var(--border);">
+          <h4 style="margin-bottom: 16px; font-weight: 800; color: var(--text-strong)">
+            📋 دليل الاختصارات المفعلة بالنظام:
+          </h4>
+
+          <div style="display: grid; gap: 12px">
+            <div
+              style="
+                display: flex;
+                justify-content: space-between;
+                padding: 10px;
+                background: var(--bg-soft);
+                border-radius: 8px;
+                border: 1px solid var(--border);
+              "
+            >
               <span>الكاشير والمبيعات السريعة (POS)</span>
-              <kbd style="background: var(--border-strong); padding: 2px 8px; border-radius: 4px; font-family: monospace; font-weight: bold;">Alt + P</kbd>
+              <kbd
+                style="
+                  background: var(--border-strong);
+                  padding: 2px 8px;
+                  border-radius: 4px;
+                  font-family: monospace;
+                  font-weight: bold;
+                "
+                >Alt + P</kbd
+              >
             </div>
-            <div style="display: flex; justify-content: space-between; padding: 10px; background: var(--bg-soft); border-radius: 8px; border: 1px solid var(--border);">
+            <div
+              style="
+                display: flex;
+                justify-content: space-between;
+                padding: 10px;
+                background: var(--bg-soft);
+                border-radius: 8px;
+                border: 1px solid var(--border);
+              "
+            >
               <span>الرجوع للشاشة الرئيسية (Dashboard)</span>
-              <kbd style="background: var(--border-strong); padding: 2px 8px; border-radius: 4px; font-family: monospace; font-weight: bold;">Alt + D</kbd>
+              <kbd
+                style="
+                  background: var(--border-strong);
+                  padding: 2px 8px;
+                  border-radius: 4px;
+                  font-family: monospace;
+                  font-weight: bold;
+                "
+                >Alt + D</kbd
+              >
             </div>
-            <div style="display: flex; justify-content: space-between; padding: 10px; background: var(--bg-soft); border-radius: 8px; border: 1px solid var(--border);">
+            <div
+              style="
+                display: flex;
+                justify-content: space-between;
+                padding: 10px;
+                background: var(--bg-soft);
+                border-radius: 8px;
+                border: 1px solid var(--border);
+              "
+            >
               <span>فتح الفواتير والمدفوعات (Invoices)</span>
-              <kbd style="background: var(--border-strong); padding: 2px 8px; border-radius: 4px; font-family: monospace; font-weight: bold;">Alt + I</kbd>
+              <kbd
+                style="
+                  background: var(--border-strong);
+                  padding: 2px 8px;
+                  border-radius: 4px;
+                  font-family: monospace;
+                  font-weight: bold;
+                "
+                >Alt + I</kbd
+              >
             </div>
-            <div style="display: flex; justify-content: space-between; padding: 10px; background: var(--bg-soft); border-radius: 8px; border: 1px solid var(--border);">
+            <div
+              style="
+                display: flex;
+                justify-content: space-between;
+                padding: 10px;
+                background: var(--bg-soft);
+                border-radius: 8px;
+                border: 1px solid var(--border);
+              "
+            >
               <span>فتح الإعدادات العامة للسيستم (Settings)</span>
-              <kbd style="background: var(--border-strong); padding: 2px 8px; border-radius: 4px; font-family: monospace; font-weight: bold;">Alt + S</kbd>
+              <kbd
+                style="
+                  background: var(--border-strong);
+                  padding: 2px 8px;
+                  border-radius: 4px;
+                  font-family: monospace;
+                  font-weight: bold;
+                "
+                >Alt + S</kbd
+              >
             </div>
-            <div style="display: flex; justify-content: space-between; padding: 10px; background: var(--bg-soft); border-radius: 8px; border: 1px solid var(--border);">
+            <div
+              style="
+                display: flex;
+                justify-content: space-between;
+                padding: 10px;
+                background: var(--bg-soft);
+                border-radius: 8px;
+                border: 1px solid var(--border);
+              "
+            >
               <span>فتح المخازن وحركة المخزون (Inventory)</span>
-              <kbd style="background: var(--border-strong); padding: 2px 8px; border-radius: 4px; font-family: monospace; font-weight: bold;">Alt + M</kbd>
+              <kbd
+                style="
+                  background: var(--border-strong);
+                  padding: 2px 8px;
+                  border-radius: 4px;
+                  font-family: monospace;
+                  font-weight: bold;
+                "
+                >Alt + M</kbd
+              >
             </div>
-            <div style="display: flex; justify-content: space-between; padding: 10px; background: var(--bg-soft); border-radius: 8px; border: 1px solid var(--border);">
+            <div
+              style="
+                display: flex;
+                justify-content: space-between;
+                padding: 10px;
+                background: var(--bg-soft);
+                border-radius: 8px;
+                border: 1px solid var(--border);
+              "
+            >
               <span>التركيز الفوري على حقل البحث بالكاشير</span>
-              <kbd style="background: var(--border-strong); padding: 2px 8px; border-radius: 4px; font-family: monospace; font-weight: bold;">F7</kbd>
+              <kbd
+                style="
+                  background: var(--border-strong);
+                  padding: 2px 8px;
+                  border-radius: 4px;
+                  font-family: monospace;
+                  font-weight: bold;
+                "
+                >F7</kbd
+              >
             </div>
-            <div style="display: flex; justify-content: space-between; padding: 10px; background: var(--bg-soft); border-radius: 8px; border: 1px solid var(--border);">
+            <div
+              style="
+                display: flex;
+                justify-content: space-between;
+                padding: 10px;
+                background: var(--bg-soft);
+                border-radius: 8px;
+                border: 1px solid var(--border);
+              "
+            >
               <span>حفظ الفاتورة الحالية بالكاشير مباشرة</span>
-              <kbd style="background: var(--border-strong); padding: 2px 8px; border-radius: 4px; font-family: monospace; font-weight: bold;">F2</kbd>
+              <kbd
+                style="
+                  background: var(--border-strong);
+                  padding: 2px 8px;
+                  border-radius: 4px;
+                  font-family: monospace;
+                  font-weight: bold;
+                "
+                >F2</kbd
+              >
             </div>
-            <div style="display: flex; justify-content: space-between; padding: 10px; background: var(--bg-soft); border-radius: 8px; border: 1px solid var(--border);">
+            <div
+              style="
+                display: flex;
+                justify-content: space-between;
+                padding: 10px;
+                background: var(--bg-soft);
+                border-radius: 8px;
+                border: 1px solid var(--border);
+              "
+            >
               <span>إلغاء وإفراغ سلة الكاشير بالكامل</span>
-              <kbd style="background: var(--border-strong); padding: 2px 8px; border-radius: 4px; font-family: monospace; font-weight: bold;">F4</kbd>
+              <kbd
+                style="
+                  background: var(--border-strong);
+                  padding: 2px 8px;
+                  border-radius: 4px;
+                  font-family: monospace;
+                  font-weight: bold;
+                "
+                >F4</kbd
+              >
             </div>
           </div>
 
-          <div class="card-footer" style="margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border);">
+          <div
+            class="card-footer"
+            style="margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border)"
+          >
             <button class="btn btn-save" @click="saveSettingsLocally">
               حفظ إعدادات الاختصارات
             </button>
@@ -398,7 +575,9 @@
             <span class="stat-label">نسخة محفوظة</span>
           </div>
           <div class="backup-stat-box">
-            <span class="stat-num">{{ latestBackup ? formatBackupDate(latestBackup.name) : '—' }}</span>
+            <span class="stat-num">{{
+              latestBackup ? formatBackupDate(latestBackup.name) : '—'
+            }}</span>
             <span class="stat-label">آخر نسخة</span>
           </div>
           <div class="backup-stat-box">
@@ -419,9 +598,18 @@
               </button>
             </div>
             <div class="view-switcher">
-              <button :class="{ active: backupView === 'cards' }" @click="backupView = 'cards'">بطاقات</button>
-              <button :class="{ active: backupView === 'timeline' }" @click="backupView = 'timeline'">زمني</button>
-              <button :class="{ active: backupView === 'compact' }" @click="backupView = 'compact'">مضغوط</button>
+              <button :class="{ active: backupView === 'cards' }" @click="backupView = 'cards'">
+                بطاقات
+              </button>
+              <button
+                :class="{ active: backupView === 'timeline' }"
+                @click="backupView = 'timeline'"
+              >
+                زمني
+              </button>
+              <button :class="{ active: backupView === 'compact' }" @click="backupView = 'compact'">
+                مضغوط
+              </button>
             </div>
           </div>
 
@@ -452,8 +640,11 @@
         <!-- إعدادات النسخ الاحتياطي السحابي التلقائي -->
         <div class="settings-card cloud-backup-card">
           <h4 class="group-label">🔒 النسخ الاحتياطي السحابي التلقائي</h4>
-          <p class="section-desc">قم بربط النظام بخدمة سحابية لرفع النسخة الاحتياطية تلقائياً عند إنشائها أو جدولتها دورياً.</p>
-          
+          <p class="section-desc">
+            قم بربط النظام بخدمة سحابية لرفع النسخة الاحتياطية تلقائياً عند إنشائها أو جدولتها
+            دورياً.
+          </p>
+
           <div class="fields-grid">
             <div class="form-group full-width">
               <label>المزود السحابي</label>
@@ -472,67 +663,85 @@
               <div class="form-group full-width">
                 <label>نوع الاتصال بـ Google Drive</label>
                 <select v-model="cloudBackupSettings.gdrive_auth_type" :disabled="!canEdit">
-                  <option value="service_account">حساب خدمة (Service Account) — مناسب للمؤسسات والمساحات المشتركة</option>
-                  <option value="oauth">حساب Google شخصي (OAuth2 / Refresh Token) — مناسب للحسابات الشخصية</option>
+                  <option value="service_account">
+                    حساب خدمة (Service Account) — مناسب للمؤسسات والمساحات المشتركة
+                  </option>
+                  <option value="oauth">
+                    حساب Google شخصي (OAuth2 / Refresh Token) — مناسب للحسابات الشخصية
+                  </option>
                 </select>
               </div>
 
               <!-- خيار 1: Service Account -->
-              <div v-if="cloudBackupSettings.gdrive_auth_type === 'service_account'" class="form-group full-width fade-in">
+              <div
+                v-if="cloudBackupSettings.gdrive_auth_type === 'service_account'"
+                class="form-group full-width fade-in"
+              >
                 <label>ملف مفتاح حساب الخدمة (Google Service Account JSON Key)</label>
-                <textarea 
-                  v-model="cloudBackupSettings.gdrive_key" 
+                <textarea
+                  v-model="cloudBackupSettings.gdrive_key"
                   placeholder='{"type": "service_account", "project_id": ...}'
                   rows="5"
-                  style="font-family: monospace; font-size: 0.82rem;"
+                  style="font-family: monospace; font-size: 0.82rem"
                   :disabled="!canEdit"
                 ></textarea>
-                <p class="hint mt-12">💡 أدخل محتوى ملف المفتاح JSON الخاص بـ Service Account من Google Cloud Console، وتأكد من مشاركة مجلد الـ Google Drive مع بريد حساب الخدمة.</p>
+                <p class="hint mt-12">
+                  💡 أدخل محتوى ملف المفتاح JSON الخاص بـ Service Account من Google Cloud Console،
+                  وتأكد من مشاركة مجلد الـ Google Drive مع بريد حساب الخدمة.
+                </p>
               </div>
 
               <!-- خيار 2: OAuth2 -->
-              <div v-if="cloudBackupSettings.gdrive_auth_type === 'oauth'" class="form-group full-width fade-in">
+              <div
+                v-if="cloudBackupSettings.gdrive_auth_type === 'oauth'"
+                class="form-group full-width fade-in"
+              >
                 <div class="fields-grid">
                   <div class="form-group">
                     <label>معرف العميل (Client ID)</label>
-                    <input 
-                      type="text" 
-                      v-model="cloudBackupSettings.gdrive_client_id" 
+                    <input
+                      type="text"
+                      v-model="cloudBackupSettings.gdrive_client_id"
                       placeholder="أدخل Google Client ID"
                       :disabled="!canEdit"
                     />
                   </div>
                   <div class="form-group">
                     <label>مفتاح العميل السري (Client Secret)</label>
-                    <input 
-                      type="password" 
-                      v-model="cloudBackupSettings.gdrive_client_secret" 
+                    <input
+                      type="password"
+                      v-model="cloudBackupSettings.gdrive_client_secret"
                       placeholder="أدخل Google Client Secret"
                       :disabled="!canEdit"
                     />
                   </div>
                   <div class="form-group full-width">
                     <label>رمز التجديد (Refresh Token)</label>
-                    <input 
-                      type="password" 
-                      v-model="cloudBackupSettings.gdrive_refresh_token" 
+                    <input
+                      type="password"
+                      v-model="cloudBackupSettings.gdrive_refresh_token"
                       placeholder="أدخل Google OAuth2 Refresh Token"
                       :disabled="!canEdit"
                     />
-                    <p class="hint mt-12">💡 يمكنك استخراج رمز التجديد (Refresh Token) بسهولة باستخدام أداة Google OAuth Playground.</p>
+                    <p class="hint mt-12">
+                      💡 يمكنك استخراج رمز التجديد (Refresh Token) بسهولة باستخدام أداة Google OAuth
+                      Playground.
+                    </p>
                   </div>
                 </div>
               </div>
 
               <div class="form-group full-width">
                 <label>معرف مجلد جوجل درايف (Google Drive Folder ID)</label>
-                <input 
-                  type="text" 
-                  v-model="cloudBackupSettings.gdrive_folder_id" 
+                <input
+                  type="text"
+                  v-model="cloudBackupSettings.gdrive_folder_id"
                   placeholder="أدخل Folder ID (اختياري)"
                   :disabled="!canEdit"
                 />
-                <p class="hint">💡 إذا تركته فارغاً سيتم رفع الملف في المجلد الرئيسي لحساب جوجل درايف الخاص بك.</p>
+                <p class="hint">
+                  💡 إذا تركته فارغاً سيتم رفع الملف في المجلد الرئيسي لحساب جوجل درايف الخاص بك.
+                </p>
               </div>
             </div>
           </div>
@@ -542,18 +751,18 @@
             <div class="fields-grid">
               <div class="form-group full-width">
                 <label>رمز الوصول (Access Token)</label>
-                <input 
-                  type="password" 
-                  v-model="cloudBackupSettings.dropbox_token" 
+                <input
+                  type="password"
+                  v-model="cloudBackupSettings.dropbox_token"
                   placeholder="أدخل Dropbox Access Token"
                   :disabled="!canEdit"
                 />
               </div>
               <div class="form-group full-width">
                 <label>مسار المجلد السحابي</label>
-                <input 
-                  type="text" 
-                  v-model="cloudBackupSettings.dropbox_path" 
+                <input
+                  type="text"
+                  v-model="cloudBackupSettings.dropbox_path"
                   placeholder="/AlAgoouz-ERP-Backups"
                   :disabled="!canEdit"
                 />
@@ -566,28 +775,37 @@
             <div class="fields-grid">
               <div class="form-group full-width">
                 <label>رابط الـ Webhook</label>
-                <input 
-                  type="text" 
-                  v-model="cloudBackupSettings.webhook_url" 
+                <input
+                  type="text"
+                  v-model="cloudBackupSettings.webhook_url"
                   placeholder="https://discord.com/api/webhooks/..."
                   :disabled="!canEdit"
                 />
-                <p class="hint mt-12">💡 يدعم روابط Webhooks الخاصة بـ Discord بشكل مباشر مع تفاصيل محسنة.</p>
+                <p class="hint mt-12">
+                  💡 يدعم روابط Webhooks الخاصة بـ Discord بشكل مباشر مع تفاصيل محسنة.
+                </p>
               </div>
             </div>
           </div>
 
           <div class="cloud-actions">
-            <button v-if="canEdit" class="btn btn-save" @click="saveCloudBackupSettings" :disabled="cloudSaving">
-              <AppIcon name="save" :size="16" /> {{ cloudSaving ? 'جاري الحفظ...' : 'حفظ الإعدادات السحابية' }}
+            <button
+              v-if="canEdit"
+              class="btn btn-save"
+              @click="saveCloudBackupSettings"
+              :disabled="cloudSaving"
+            >
+              <AppIcon name="save" :size="16" />
+              {{ cloudSaving ? 'جاري الحفظ...' : 'حفظ الإعدادات السحابية' }}
             </button>
-            <button 
-              v-if="cloudBackupSettings.provider !== 'none'" 
-              class="btn btn-outline" 
-              @click="testCloudBackup" 
+            <button
+              v-if="cloudBackupSettings.provider !== 'none'"
+              class="btn btn-outline"
+              @click="testCloudBackup"
               :disabled="cloudTesting || !canEdit"
             >
-              <AppIcon name="theme" :size="16" /> {{ cloudTesting ? 'جاري الفحص...' : 'فحص الرفع التجريبي' }}
+              <AppIcon name="theme" :size="16" />
+              {{ cloudTesting ? 'جاري الفحص...' : 'فحص الرفع التجريبي' }}
             </button>
           </div>
         </div>
@@ -598,11 +816,20 @@
           <p class="section-desc">رفع ملف JSON محفوظ مسبقاً لاستبدال بيانات النظام</p>
           <div class="restore-row">
             <label class="file-picker">
-              <input type="file" ref="restoreFileInput" @change="onFileChange" accept="application/json" />
+              <input
+                type="file"
+                ref="restoreFileInput"
+                @change="onFileChange"
+                accept="application/json"
+              />
               📂 {{ restoreFile ? restoreFile.name : 'اختر ملف JSON' }}
             </label>
-            <button class="btn btn-outline" @click="uploadRestore" :disabled="uploading || !restoreFile">
-              <AppIcon name="download" :size="16" style="transform: rotate(180deg);" />
+            <button
+              class="btn btn-outline"
+              @click="uploadRestore"
+              :disabled="uploading || !restoreFile"
+            >
+              <AppIcon name="download" :size="16" style="transform: rotate(180deg)" />
               {{ uploading ? 'جاري الاسترداد...' : 'رفع واسترداد' }}
             </button>
           </div>
@@ -611,14 +838,15 @@
         <!-- منطقة الخطر -->
         <div v-if="canEdit" class="settings-card danger-zone">
           <h4 class="group-label danger">⚠️ منطقة الخطر</h4>
-          <p class="section-desc">هذه الإجراءات لا يمكن التراجع عنها. تأكد من وجود نسخة احتياطية أولاً.</p>
+          <p class="section-desc">
+            هذه الإجراءات لا يمكن التراجع عنها. تأكد من وجود نسخة احتياطية أولاً.
+          </p>
           <button class="btn btn-delete" @click="clearSystem" :disabled="clearing">
             <AppIcon name="delete" :size="16" />
             {{ clearing ? 'جاري التصفير...' : 'تصفير بيانات النظام' }}
           </button>
         </div>
       </section>
-
     </div>
   </div>
 </template>
@@ -627,7 +855,7 @@
 import { computed, ref, onMounted } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
 import { users as userApi, products as productApi, backup as backupApi } from '@/api';
-import { useAppStore, STYLE_PRESETS, STYLE_SWATCHES } from '@/stores/app';
+import { useAppStore } from '@/stores/app';
 import { CURRENCY } from '@/utils/currency';
 import { useProductMeta } from '@/composables/useProductMeta';
 
@@ -640,13 +868,12 @@ const canEdit = computed(() => authStore.hasPermission('settings.manage'));
 
 // ───── Tabs ─────
 const tabs = [
-  { id: 'company',    icon: '🏪', label: 'بيانات المحل' },
-  { id: 'appearance', icon: '🎨', label: 'المظهر' },
+  { id: 'company', icon: '🏪', label: 'بيانات المحل' },
   { id: 'categories', icon: '🗂️', label: 'التصنيفات' },
-  { id: 'units',      icon: '📏', label: 'وحدات القياس' },
-  { id: 'sound',      icon: '🔊', label: 'الصوتيات والمنبهات' },
-  { id: 'shortcuts',  icon: '⌨️', label: 'الاختصارات السريعة' },
-  { id: 'backup',     icon: '💾', label: 'النسخ الاحتياطي' },
+  { id: 'units', icon: '📏', label: 'وحدات القياس' },
+  { id: 'sound', icon: '🔊', label: 'الصوتيات والمنبهات' },
+  { id: 'shortcuts', icon: '⌨️', label: 'الاختصارات السريعة' },
+  { id: 'backup', icon: '💾', label: 'النسخ الاحتياطي' },
 ];
 const activeTab = ref('company');
 
@@ -713,23 +940,26 @@ const playTestBeep = (type) => {
 };
 
 // ───── Company ─────
-const settings = ref({ company: { name_ar: '', phone: '', address: '', tagline: '' }, tax: { enabled: false, rate: 14 } });
+const settings = ref({
+  company: { name_ar: '', phone: '', address: '', tagline: '' },
+  tax: { enabled: false, rate: 14 },
+});
 const saving = ref(false);
 const saveMsg = ref('');
 
-const setMode = (mode) => { appStore.colorMode = mode; appStore.applyTheme(); };
-
 const saveCompany = async () => {
-  saving.value = true; saveMsg.value = '';
+  saving.value = true;
+  saveMsg.value = '';
   try {
     await userApi.updateSetting('company', settings.value.company);
     saveMsg.value = 'تم الحفظ — سيظهر على الفواتير';
-    setTimeout(() => saveMsg.value = '', 3000);
-  } catch (e) { saveMsg.value = e.message || 'فشل الحفظ'; }
-  finally { saving.value = false; }
+    setTimeout(() => (saveMsg.value = ''), 3000);
+  } catch (e) {
+    saveMsg.value = e.message || 'فشل الحفظ';
+  } finally {
+    saving.value = false;
+  }
 };
-
-
 
 // ───── Categories ─────
 const categories = ref([]);
@@ -739,33 +969,64 @@ const editCategoryName = ref('');
 const categorySaving = ref(false);
 
 const refreshCategories = async () => {
-  try { categories.value = (await productApi.categories())?.data || []; await refreshMetaCache(true); }
-  catch (_) { categories.value = []; }
+  try {
+    categories.value = (await productApi.categories())?.data || [];
+    await refreshMetaCache(true);
+  } catch (_) {
+    categories.value = [];
+  }
 };
 const addCategory = async () => {
   if (!newCategoryName.value.trim()) return;
   categorySaving.value = true;
-  try { await productApi.createCategory({ name_ar: newCategoryName.value.trim() }); newCategoryName.value = ''; await refreshCategories(); }
-  catch (e) { alert(e.message || 'فشل إضافة التصنيف'); }
-  finally { categorySaving.value = false; }
+  try {
+    await productApi.createCategory({ name_ar: newCategoryName.value.trim() });
+    newCategoryName.value = '';
+    await refreshCategories();
+  } catch (e) {
+    alert(e.message || 'فشل إضافة التصنيف');
+  } finally {
+    categorySaving.value = false;
+  }
 };
-const startEditCategory = (c) => { categoryEditing.value = c.id; editCategoryName.value = c.name_ar; };
-const cancelEditCategory = () => { categoryEditing.value = null; editCategoryName.value = ''; };
+const startEditCategory = (c) => {
+  categoryEditing.value = c.id;
+  editCategoryName.value = c.name_ar;
+};
+const cancelEditCategory = () => {
+  categoryEditing.value = null;
+  editCategoryName.value = '';
+};
 const saveCategory = async (c) => {
-  if (!editCategoryName.value.trim()) { cancelEditCategory(); return; }
+  if (!editCategoryName.value.trim()) {
+    cancelEditCategory();
+    return;
+  }
   categorySaving.value = true;
   try {
-    await productApi.updateCategory(c.id, { name_ar: editCategoryName.value.trim(), slug: editCategoryName.value.trim().replace(/\s+/g, '-') });
-    cancelEditCategory(); await refreshCategories();
-  } catch (e) { alert(e.message || 'فشل التعديل'); }
-  finally { categorySaving.value = false; }
+    await productApi.updateCategory(c.id, {
+      name_ar: editCategoryName.value.trim(),
+      slug: editCategoryName.value.trim().replace(/\s+/g, '-'),
+    });
+    cancelEditCategory();
+    await refreshCategories();
+  } catch (e) {
+    alert(e.message || 'فشل التعديل');
+  } finally {
+    categorySaving.value = false;
+  }
 };
 const deleteCategory = async (id) => {
   if (!confirm('هل تريد حذف هذا التصنيف؟')) return;
   categorySaving.value = true;
-  try { await productApi.deleteCategory(id); await refreshCategories(); }
-  catch (e) { alert(e.message || 'فشل الحذف'); }
-  finally { categorySaving.value = false; }
+  try {
+    await productApi.deleteCategory(id);
+    await refreshCategories();
+  } catch (e) {
+    alert(e.message || 'فشل الحذف');
+  } finally {
+    categorySaving.value = false;
+  }
 };
 
 // ───── Units ─────
@@ -776,31 +1037,61 @@ const unitEditing = ref(null);
 const editUnitName = ref('');
 
 const refreshProductUnits = async () => {
-  try { productUnits.value = (await productApi.units())?.data || []; await refreshMetaCache(true); }
-  catch (_) { productUnits.value = []; }
+  try {
+    productUnits.value = (await productApi.units())?.data || [];
+    await refreshMetaCache(true);
+  } catch (_) {
+    productUnits.value = [];
+  }
 };
 const addUnit = async () => {
   if (!newUnit.value.trim()) return;
   unitSaving.value = true;
-  try { await productApi.createUnit({ name_ar: newUnit.value.trim() }); newUnit.value = ''; await refreshProductUnits(); }
-  catch (e) { alert(e.message || 'فشل إضافة الوحدة'); }
-  finally { unitSaving.value = false; }
+  try {
+    await productApi.createUnit({ name_ar: newUnit.value.trim() });
+    newUnit.value = '';
+    await refreshProductUnits();
+  } catch (e) {
+    alert(e.message || 'فشل إضافة الوحدة');
+  } finally {
+    unitSaving.value = false;
+  }
 };
-const startEditUnit = (u) => { unitEditing.value = u.id; editUnitName.value = u.name_ar; };
-const cancelEditUnit = () => { unitEditing.value = null; editUnitName.value = ''; };
+const startEditUnit = (u) => {
+  unitEditing.value = u.id;
+  editUnitName.value = u.name_ar;
+};
+const cancelEditUnit = () => {
+  unitEditing.value = null;
+  editUnitName.value = '';
+};
 const saveUnit = async (u) => {
-  if (!editUnitName.value.trim() || editUnitName.value === u.name_ar) { cancelEditUnit(); return; }
+  if (!editUnitName.value.trim() || editUnitName.value === u.name_ar) {
+    cancelEditUnit();
+    return;
+  }
   unitSaving.value = true;
-  try { await productApi.updateUnit(u.id, { name_ar: editUnitName.value.trim() }); cancelEditUnit(); await refreshProductUnits(); }
-  catch (e) { alert(e.message || 'فشل التعديل'); }
-  finally { unitSaving.value = false; }
+  try {
+    await productApi.updateUnit(u.id, { name_ar: editUnitName.value.trim() });
+    cancelEditUnit();
+    await refreshProductUnits();
+  } catch (e) {
+    alert(e.message || 'فشل التعديل');
+  } finally {
+    unitSaving.value = false;
+  }
 };
 const removeUnit = async (u) => {
   if (!confirm(`هل تريد حذف وحدة "${u.name_ar}"؟`)) return;
   unitSaving.value = true;
-  try { await productApi.deleteUnit(u.id); await refreshProductUnits(); }
-  catch (e) { alert(e.message || 'فشل الحذف'); }
-  finally { unitSaving.value = false; }
+  try {
+    await productApi.deleteUnit(u.id);
+    await refreshProductUnits();
+  } catch (e) {
+    alert(e.message || 'فشل الحذف');
+  } finally {
+    unitSaving.value = false;
+  }
 };
 
 // ───── Backup ─────
@@ -822,7 +1113,7 @@ const cloudBackupSettings = ref({
   gdrive_refresh_token: '',
   dropbox_token: '',
   dropbox_path: '/AlAgoouz-ERP-Backups',
-  webhook_url: ''
+  webhook_url: '',
 });
 const cloudSaving = ref(false);
 const cloudTesting = ref(false);
@@ -855,7 +1146,9 @@ const testCloudBackup = async () => {
   }
 };
 
-const sortedBackups = computed(() => [...backups.value].sort((a, b) => String(b.name).localeCompare(String(a.name))));
+const sortedBackups = computed(() =>
+  [...backups.value].sort((a, b) => String(b.name).localeCompare(String(a.name))),
+);
 const latestBackup = computed(() => sortedBackups.value[0] || null);
 const totalBackupSize = computed(() => backups.value.reduce((s, b) => s + Number(b.size || 0), 0));
 
@@ -870,43 +1163,75 @@ const formatBackupDate = (name = '') => {
 };
 
 const refreshBackups = async () => {
-  try { backups.value = (await backupApi.list())?.data || []; } catch (_) { backups.value = []; }
+  try {
+    backups.value = (await backupApi.list())?.data || [];
+  } catch (_) {
+    backups.value = [];
+  }
 };
 const createBackup = async () => {
   backuping.value = true;
-  try { await backupApi.create(); await refreshBackups(); alert('تم إنشاء النسخة الاحتياطية'); }
-  catch (e) { alert(e.message || 'فشل إنشاء النسخة'); }
-  finally { backuping.value = false; }
+  try {
+    await backupApi.create();
+    await refreshBackups();
+    alert('تم إنشاء النسخة الاحتياطية');
+  } catch (e) {
+    alert(e.message || 'فشل إنشاء النسخة');
+  } finally {
+    backuping.value = false;
+  }
 };
 const download = async (name) => {
   try {
     const res = await backupApi.download(name);
     const url = URL.createObjectURL(res);
     const a = Object.assign(document.createElement('a'), { href: url, download: name });
-    document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-  } catch (e) { alert(e.message || 'فشل التحميل'); }
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  } catch (e) {
+    alert(e.message || 'فشل التحميل');
+  }
 };
 const restore = async (name) => {
   if (!confirm('استرداد نسخة سيستبدل بيانات النظام. استمر؟')) return;
-  try { await backupApi.restore(name); alert('تم الاسترداد بنجاح'); }
-  catch (e) { alert(e.message || 'فشل الاسترداد'); }
+  try {
+    await backupApi.restore(name);
+    alert('تم الاسترداد بنجاح');
+  } catch (e) {
+    alert(e.message || 'فشل الاسترداد');
+  }
 };
 const clearSystem = async () => {
   const token = prompt('اكتب CONFIRM_CLEAR للتأكيد — هذا الإجراء لا يمكن التراجع عنه');
   if (token !== 'CONFIRM_CLEAR') return;
   clearing.value = true;
-  try { await backupApi.clear({ confirm: 'CONFIRM_CLEAR' }); alert('تم تصفير النظام'); }
-  catch (e) { alert(e.message || 'فشل التصفير'); }
-  finally { clearing.value = false; }
+  try {
+    await backupApi.clear({ confirm: 'CONFIRM_CLEAR' });
+    alert('تم تصفير النظام');
+  } catch (e) {
+    alert(e.message || 'فشل التصفير');
+  } finally {
+    clearing.value = false;
+  }
 };
-const onFileChange = (e) => { restoreFile.value = e.target.files?.[0] || null; };
+const onFileChange = (e) => {
+  restoreFile.value = e.target.files?.[0] || null;
+};
 const uploadRestore = async () => {
   if (!restoreFile.value) return;
   if (!confirm('استرداد من ملف سيستبدل بيانات النظام. استمر؟')) return;
   uploading.value = true;
-  try { await backupApi.restoreFile(restoreFile.value); alert('تم الاسترداد من الملف'); await refreshBackups(); }
-  catch (e) { alert(e.message || 'فشل الاسترداد'); }
-  finally { uploading.value = false; }
+  try {
+    await backupApi.restoreFile(restoreFile.value);
+    alert('تم الاسترداد من الملف');
+    await refreshBackups();
+  } catch (e) {
+    alert(e.message || 'فشل الاسترداد');
+  } finally {
+    uploading.value = false;
+  }
 };
 
 // ───── Init ─────
@@ -914,7 +1239,12 @@ onMounted(async () => {
   try {
     const res = await userApi.settings();
     const data = res?.data || {};
-    settings.value.company = data.company || { name_ar: 'بن العجوز', phone: '', address: '', tagline: 'للبن التركي' };
+    settings.value.company = data.company || {
+      name_ar: 'بن العجوز',
+      phone: '',
+      address: '',
+      tagline: 'للبن التركي',
+    };
     settings.value.tax = data.tax || { enabled: false, rate: 14 };
     cloudBackupSettings.value = data.cloud_backup || {
       provider: 'none',
@@ -926,9 +1256,11 @@ onMounted(async () => {
       gdrive_refresh_token: '',
       dropbox_token: '',
       dropbox_path: '/AlAgoouz-ERP-Backups',
-      webhook_url: ''
+      webhook_url: '',
     };
-  } catch (_) { /* offline */ }
+  } catch (_) {
+    /* offline */
+  }
   await Promise.all([refreshCategories(), refreshProductUnits(), refreshBackups()]);
 });
 </script>
@@ -984,8 +1316,13 @@ onMounted(async () => {
     box-shadow: inset 3px 0 0 var(--primary);
   }
 
-  .nav-icon { font-size: 1.1rem; flex-shrink: 0; }
-  .nav-label { flex: 1; }
+  .nav-icon {
+    font-size: 1.1rem;
+    flex-shrink: 0;
+  }
+  .nav-label {
+    flex: 1;
+  }
 }
 
 /* ── Content ── */
@@ -1000,8 +1337,16 @@ onMounted(async () => {
 }
 
 .section-title {
-  h2 { margin: 0 0 4px; font-size: 1.3rem; color: var(--text-strong); }
-  p  { margin: 0; color: var(--text-muted); font-size: 0.9rem; }
+  h2 {
+    margin: 0 0 4px;
+    font-size: 1.3rem;
+    color: var(--text-strong);
+  }
+  p {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+  }
 }
 
 /* ── Settings Card ── */
@@ -1026,8 +1371,15 @@ onMounted(async () => {
   padding-bottom: 16px;
   border-bottom: 1px solid var(--border);
 
-  strong { display: block; font-size: 1rem; color: var(--text-strong); }
-  span   { font-size: 0.82rem; color: var(--text-muted); }
+  strong {
+    display: block;
+    font-size: 1rem;
+    color: var(--text-strong);
+  }
+  span {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+  }
 }
 
 .card-footer {
@@ -1047,7 +1399,9 @@ onMounted(async () => {
   grid-template-columns: 1fr 1fr;
   gap: 16px;
 
-  .full-width { grid-column: 1 / -1; }
+  .full-width {
+    grid-column: 1 / -1;
+  }
 }
 
 .form-group {
@@ -1055,12 +1409,34 @@ onMounted(async () => {
   flex-direction: column;
   gap: 6px;
 
-  label { font-size: 0.85rem; font-weight: 700; color: var(--text-strong); }
-  input { padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-md, 10px); background: var(--bg-elevated); color: var(--text-strong); font-size: 0.9rem; transition: var(--transition); }
-  input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 15%, transparent); }
+  label {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text-strong);
+  }
+  input {
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md, 10px);
+    background: var(--bg-elevated);
+    color: var(--text-strong);
+    font-size: 0.9rem;
+    transition: var(--transition);
+  }
+  input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 15%, transparent);
+  }
 
-  &.disabled input { opacity: 0.5; cursor: not-allowed; }
-  .field-hint { font-size: 0.78rem; color: var(--text-muted); }
+  &.disabled input {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .field-hint {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+  }
 }
 
 .checkbox-label {
@@ -1071,7 +1447,11 @@ onMounted(async () => {
   font-size: 0.9rem;
   font-weight: 600;
   color: var(--text-strong);
-  input[type='checkbox'] { width: 16px; height: 16px; accent-color: var(--primary); }
+  input[type='checkbox'] {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--primary);
+  }
 }
 
 /* ── Info rows ── */
@@ -1081,11 +1461,24 @@ onMounted(async () => {
   justify-content: space-between;
   padding: 12px 0;
   border-bottom: 1px solid var(--border);
-  &:last-of-type { border-bottom: none; }
+  &:last-of-type {
+    border-bottom: none;
+  }
 }
-.info-label { color: var(--text-muted); font-size: 0.88rem; }
-.info-value  { font-weight: 700; color: var(--text-strong); font-size: 0.9rem; }
-.divider { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+.info-label {
+  color: var(--text-muted);
+  font-size: 0.88rem;
+}
+.info-value {
+  font-weight: 700;
+  color: var(--text-strong);
+  font-size: 0.9rem;
+}
+.divider {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 16px 0;
+}
 
 /* ── Group label ── */
 .group-label {
@@ -1093,7 +1486,9 @@ onMounted(async () => {
   font-size: 0.95rem;
   font-weight: 800;
   color: var(--text-strong);
-  &.danger { color: var(--danger); }
+  &.danger {
+    color: var(--danger);
+  }
 }
 
 /* ── Appearance ── */
@@ -1116,7 +1511,9 @@ onMounted(async () => {
   border: none;
   border-radius: 20px;
   background: var(--bg-card);
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05), inset 0 0 0 1px var(--border);
+  box-shadow:
+    0 4px 15px rgba(0, 0, 0, 0.05),
+    inset 0 0 0 1px var(--border);
   cursor: pointer;
   font-weight: 800;
   font-size: 1.1rem;
@@ -1124,20 +1521,31 @@ onMounted(async () => {
   transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
   z-index: 1;
 
-  span { font-size: 2.2rem; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1)); transition: transform 0.3s ease; }
+  span {
+    font-size: 2.2rem;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+    transition: transform 0.3s ease;
+  }
 
   &:hover {
     transform: translateY(-4px);
-    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08), inset 0 0 0 1px color-mix(in srgb, var(--primary) 40%, var(--border));
+    box-shadow:
+      0 12px 24px rgba(0, 0, 0, 0.08),
+      inset 0 0 0 1px color-mix(in srgb, var(--primary) 40%, var(--border));
     color: var(--text-strong);
-    span { transform: scale(1.1); }
+    span {
+      transform: scale(1.1);
+    }
   }
 
   &.active {
     background: linear-gradient(135deg, var(--primary), var(--primary-dark));
     color: #fff;
     box-shadow: 0 8px 25px color-mix(in srgb, var(--primary) 40%, transparent);
-    span { transform: scale(1.15); filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3)); }
+    span {
+      transform: scale(1.15);
+      filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
+    }
   }
 }
 
@@ -1196,7 +1604,9 @@ onMounted(async () => {
 
     .theme-swatch {
       transform: scale(1.1);
-      box-shadow: 0 0 0 2px var(--bg-card), inset 0 0 0 1px rgba(0, 0, 0, 0.25);
+      box-shadow:
+        0 0 0 2px var(--bg-card),
+        inset 0 0 0 1px rgba(0, 0, 0, 0.25);
     }
 
     .theme-name {
@@ -1233,7 +1643,9 @@ onMounted(async () => {
   border-top: 1px solid var(--border);
   transition: background 0.15s;
 
-  &:hover { background: color-mix(in srgb, var(--primary) 3%, transparent); }
+  &:hover {
+    background: color-mix(in srgb, var(--primary) 3%, transparent);
+  }
 }
 
 .data-table-empty {
@@ -1248,23 +1660,49 @@ onMounted(async () => {
   align-items: center;
   gap: 10px;
   min-width: 0;
-  strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 }
 
 .dot {
-  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
-  &.primary { background: var(--primary); }
-  &.accent  { background: var(--accent, var(--primary)); border-radius: 3px; }
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  &.primary {
+    background: var(--primary);
+  }
+  &.accent {
+    background: var(--accent, var(--primary));
+    border-radius: 3px;
+  }
 }
 
-.col-num    { text-align: center; }
-.col-actions { text-align: end; }
-.row-actions { display: flex; gap: 6px; justify-content: flex-end; }
+.col-num {
+  text-align: center;
+}
+.col-actions {
+  text-align: end;
+}
+.row-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
 
 .badge {
-  display: inline-flex; align-items: center; justify-content: center;
-  min-width: 26px; height: 22px; padding: 0 7px;
-  border-radius: 20px; font-size: 0.75rem; font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  height: 22px;
+  padding: 0 7px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 800;
   background: color-mix(in srgb, var(--primary) 12%, var(--bg));
   color: var(--primary-dark);
 }
@@ -1291,10 +1729,25 @@ onMounted(async () => {
   font-weight: 700;
   transition: var(--transition);
 
-  &:hover { border-color: var(--primary); color: var(--primary-dark); }
-  &:disabled { opacity: 0.4; cursor: not-allowed; }
-  &.save   { color: var(--success, #22c55e); border-color: color-mix(in srgb, var(--success, #22c55e) 40%, var(--border)); }
-  &.danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 40%, var(--border)); &:hover { background: color-mix(in srgb, var(--danger) 8%, var(--bg-elevated)); } }
+  &:hover {
+    border-color: var(--primary);
+    color: var(--primary-dark);
+  }
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+  &.save {
+    color: var(--success, #22c55e);
+    border-color: color-mix(in srgb, var(--success, #22c55e) 40%, var(--border));
+  }
+  &.danger {
+    color: var(--danger);
+    border-color: color-mix(in srgb, var(--danger) 40%, var(--border));
+    &:hover {
+      background: color-mix(in srgb, var(--danger) 8%, var(--bg-elevated));
+    }
+  }
 }
 
 /* ── Add Row ── */
@@ -1302,8 +1755,19 @@ onMounted(async () => {
   display: flex;
   gap: 10px;
   margin-bottom: 16px;
-  .add-input { flex: 1; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-md, 10px); background: var(--bg-elevated); font-size: 0.9rem; }
-  .add-input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 15%, transparent); }
+  .add-input {
+    flex: 1;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md, 10px);
+    background: var(--bg-elevated);
+    font-size: 0.9rem;
+  }
+  .add-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 15%, transparent);
+  }
 }
 
 /* ── Backup ── */
@@ -1320,8 +1784,17 @@ onMounted(async () => {
   padding: 16px;
   text-align: center;
 
-  .stat-num   { display: block; font-size: 1.2rem; font-weight: 900; color: var(--text-strong); margin-bottom: 4px; }
-  .stat-label { font-size: 0.78rem; color: var(--text-muted); }
+  .stat-num {
+    display: block;
+    font-size: 1.2rem;
+    font-weight: 900;
+    color: var(--text-strong);
+    margin-bottom: 4px;
+  }
+  .stat-label {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+  }
 }
 
 .backup-toolbar {
@@ -1333,7 +1806,10 @@ onMounted(async () => {
   flex-wrap: wrap;
 }
 
-.toolbar-group { display: flex; gap: 8px; }
+.toolbar-group {
+  display: flex;
+  gap: 8px;
+}
 
 .view-switcher {
   display: inline-flex;
@@ -1354,7 +1830,11 @@ onMounted(async () => {
     font-size: 0.78rem;
     transition: var(--transition);
 
-    &.active { background: var(--bg-elevated); color: var(--primary-dark); box-shadow: var(--shadow-sm); }
+    &.active {
+      background: var(--bg-elevated);
+      color: var(--primary-dark);
+      box-shadow: var(--shadow-sm);
+    }
   }
 }
 
@@ -1362,10 +1842,16 @@ onMounted(async () => {
   display: grid;
   gap: 8px;
 
-  &[data-view='compact'] .backup-icon { display: none; }
+  &[data-view='compact'] .backup-icon {
+    display: none;
+  }
   &[data-view='timeline'] .backup-icon {
-    width: 14px; height: 14px; border-radius: 50%;
-    background: var(--bg-card); border: 2px solid var(--primary); font-size: 0;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--bg-card);
+    border: 2px solid var(--primary);
+    font-size: 0;
   }
 }
 
@@ -1379,25 +1865,44 @@ onMounted(async () => {
   border-radius: var(--radius-md, 10px);
   transition: var(--transition);
 
-  &:hover { border-color: color-mix(in srgb, var(--primary) 40%, var(--border)); background: color-mix(in srgb, var(--primary) 3%, var(--bg-card)); }
+  &:hover {
+    border-color: color-mix(in srgb, var(--primary) 40%, var(--border));
+    background: color-mix(in srgb, var(--primary) 3%, var(--bg-card));
+  }
 }
 
 .backup-icon {
-  width: 40px; height: 40px;
+  width: 40px;
+  height: 40px;
   border-radius: 12px;
-  display: grid; place-items: center;
+  display: grid;
+  place-items: center;
   background: color-mix(in srgb, var(--primary) 10%, var(--bg));
   color: var(--primary-dark);
-  font-size: 0.72rem; font-weight: 900;
+  font-size: 0.72rem;
+  font-weight: 900;
 }
 
 .backup-info {
   min-width: 0;
-  strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.88rem; color: var(--text-strong); }
-  small  { color: var(--text-muted); font-size: 0.75rem; }
+  strong {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.88rem;
+    color: var(--text-strong);
+  }
+  small {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+  }
 }
 
-.backup-item-actions { display: flex; gap: 6px; }
+.backup-item-actions {
+  display: flex;
+  gap: 6px;
+}
 
 .backup-empty {
   text-align: center;
@@ -1406,8 +1911,16 @@ onMounted(async () => {
   border-radius: var(--radius-md, 10px);
   background: color-mix(in srgb, var(--primary) 4%, transparent);
 
-  strong { display: block; color: var(--text-strong); margin-bottom: 6px; }
-  p { margin: 0; color: var(--text-muted); font-size: 0.85rem; }
+  strong {
+    display: block;
+    color: var(--text-strong);
+    margin-bottom: 6px;
+  }
+  p {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+  }
 }
 
 .restore-row {
@@ -1429,23 +1942,43 @@ onMounted(async () => {
   font-weight: 700;
   font-size: 0.82rem;
 
-  input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  input {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
 }
 
 /* ── Misc ── */
 .hint {
   font-size: 0.82rem;
   color: var(--text-muted);
-  code { background: var(--bg); padding: 2px 6px; border-radius: 4px; font-size: 0.8rem; }
+  code {
+    background: var(--bg);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+  }
 }
-.section-desc { color: var(--text-muted); font-size: 0.88rem; margin-bottom: 14px; }
-.save-msg { color: var(--success, #22c55e); font-size: 0.88rem; margin-top: 8px; }
-.mt-12 { margin-top: 12px; }
+.section-desc {
+  color: var(--text-muted);
+  font-size: 0.88rem;
+  margin-bottom: 14px;
+}
+.save-msg {
+  color: var(--success, #22c55e);
+  font-size: 0.88rem;
+  margin-top: 8px;
+}
+.mt-12 {
+  margin-top: 12px;
+}
 
 /* ── Cloud Backup ── */
 .cloud-backup-card {
   margin-top: 16px;
-  
+
   select {
     padding: 10px 12px;
     border: 1px solid var(--border);
@@ -1456,7 +1989,7 @@ onMounted(async () => {
     transition: var(--transition);
     cursor: pointer;
     width: 100%;
-    
+
     &:focus {
       outline: none;
       border-color: var(--primary);
@@ -1474,7 +2007,7 @@ onMounted(async () => {
     transition: var(--transition);
     width: 100%;
     resize: vertical;
-    
+
     &:focus {
       outline: none;
       border-color: var(--primary);
@@ -1487,7 +2020,7 @@ onMounted(async () => {
     gap: 12px;
     margin-top: 20px;
   }
-  
+
   .provider-fields {
     margin-top: 16px;
     padding-top: 16px;
@@ -1515,20 +2048,34 @@ onMounted(async () => {
   margin: 0 auto;
   box-sizing: border-box;
   text-align: right;
-  
+
   .receipt-header {
     text-align: center;
     margin-bottom: 12px;
-    h3 { font-size: 1.15rem; font-weight: 800; margin: 0 0 4px 0; color: #000; }
-    .tagline { font-size: 0.8rem; font-style: italic; color: #555; margin: 0 0 6px 0; }
-    .meta-line { font-size: 0.72rem; color: #666; margin: 2px 0; }
+    h3 {
+      font-size: 1.15rem;
+      font-weight: 800;
+      margin: 0 0 4px 0;
+      color: #000;
+    }
+    .tagline {
+      font-size: 0.8rem;
+      font-style: italic;
+      color: #555;
+      margin: 0 0 6px 0;
+    }
+    .meta-line {
+      font-size: 0.72rem;
+      color: #666;
+      margin: 2px 0;
+    }
   }
-  
+
   .divider-dotted {
     border-top: 1.5px dotted #333;
     margin: 8px 0;
   }
-  
+
   .meta-row {
     display: flex;
     justify-content: space-between;
@@ -1537,7 +2084,7 @@ onMounted(async () => {
     margin: 3px 0;
     direction: rtl;
   }
-  
+
   .items-list {
     margin: 8px 0;
     direction: rtl;
@@ -1554,7 +2101,7 @@ onMounted(async () => {
       }
     }
   }
-  
+
   .total-row {
     display: flex;
     justify-content: space-between;
@@ -1564,13 +2111,15 @@ onMounted(async () => {
     margin-top: 6px;
     direction: rtl;
   }
-  
+
   .receipt-footer {
     text-align: center;
     font-size: 0.72rem;
     color: #555;
     margin-top: 8px;
-    p { margin: 0; }
+    p {
+      margin: 0;
+    }
   }
 }
 
@@ -1587,7 +2136,9 @@ onMounted(async () => {
     gap: 2px;
     padding: 8px;
 
-    &::-webkit-scrollbar { display: none; }
+    &::-webkit-scrollbar {
+      display: none;
+    }
   }
 
   .settings-nav-item {
@@ -1598,12 +2149,23 @@ onMounted(async () => {
     text-align: center;
     font-size: 0.72rem;
 
-    &.active { box-shadow: inset 0 -3px 0 var(--primary); }
-    .nav-icon { font-size: 1.3rem; }
+    &.active {
+      box-shadow: inset 0 -3px 0 var(--primary);
+    }
+    .nav-icon {
+      font-size: 1.3rem;
+    }
   }
 
-  .fields-grid { grid-template-columns: 1fr; }
-  .backup-stats-row { grid-template-columns: repeat(3, 1fr); }
-  .card-footer { flex-direction: column; align-items: flex-start; }
+  .fields-grid {
+    grid-template-columns: 1fr;
+  }
+  .backup-stats-row {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .card-footer {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }
 </style>

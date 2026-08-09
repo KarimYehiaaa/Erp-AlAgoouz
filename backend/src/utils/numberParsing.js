@@ -17,9 +17,7 @@ export const normalizeLocalizedNumberText = (value) => {
   if (lastComma === -1) return text;
 
   if (lastDot === -1) {
-    return /^[-+]?\d{1,3}(,\d{3})+$/.test(text)
-      ? text.replace(/,/g, '')
-      : text.replace(/,/g, '.');
+    return /^[-+]?\d{1,3}(,\d{3})+$/.test(text) ? text.replace(/,/g, '') : text.replace(/,/g, '.');
   }
 
   if (lastComma > lastDot) {

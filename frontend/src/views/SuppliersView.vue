@@ -8,15 +8,29 @@
     <div class="grid grid-3">
       <template v-if="loading">
         <div v-for="i in 3" :key="'sup-sk-' + i" class="card supplier-card">
-          <div class="skeleton-shimmer" style="height: 24px; width: 140px; margin-bottom: 12px;"></div>
-          <div class="skeleton-shimmer" style="height: 18px; width: 100px; margin-bottom: 8px;"></div>
-          <div class="skeleton-shimmer" style="height: 18px; width: 80px; margin-bottom: 8px;"></div>
-          <div class="skeleton-shimmer" style="height: 18px; width: 120px; margin-bottom: 12px;"></div>
-          <div class="skeleton-shimmer" style="height: 20px; width: 60px;"></div>
+          <div
+            class="skeleton-shimmer"
+            style="height: 24px; width: 140px; margin-bottom: 12px"
+          ></div>
+          <div
+            class="skeleton-shimmer"
+            style="height: 18px; width: 100px; margin-bottom: 8px"
+          ></div>
+          <div class="skeleton-shimmer" style="height: 18px; width: 80px; margin-bottom: 8px"></div>
+          <div
+            class="skeleton-shimmer"
+            style="height: 18px; width: 120px; margin-bottom: 12px"
+          ></div>
+          <div class="skeleton-shimmer" style="height: 20px; width: 60px"></div>
         </div>
       </template>
       <template v-else>
-        <div v-for="s in suppliers" :key="s.id" class="card supplier-card clickable" @click="viewDetails(s)">
+        <div
+          v-for="s in suppliers"
+          :key="s.id"
+          class="card supplier-card clickable"
+          @click="viewDetails(s)"
+        >
           <div class="supplier-head">
             <h3>{{ s.name_ar }}</h3>
             <div class="actions" @click.stop>
@@ -31,9 +45,13 @@
           <p class="phone">{{ s.phone || 'بدون هاتف' }}</p>
           <div class="balance-row">
             <span>الرصيد المتبقي:</span>
-            <strong :class="s.balance > 0 ? 'text-danger' : 'text-success'">{{ formatMoney(s.balance) }}</strong>
+            <strong :class="s.balance > 0 ? 'text-danger' : 'text-success'">{{
+              formatMoney(s.balance)
+            }}</strong>
           </div>
-          <p class="meta">آخر تعديل: <strong>{{ s.last_updated_by || 'غير محدد' }}</strong></p>
+          <p class="meta">
+            آخر تعديل: <strong>{{ s.last_updated_by || 'غير محدد' }}</strong>
+          </p>
           <div class="card-footer">
             <span class="badge">{{ s.code || 'بدون كود' }}</span>
             <span class="view-details-link">عرض كشف الحساب ←</span>
@@ -83,7 +101,7 @@
           <h3>كشف حساب المورد: {{ selectedSupplier?.name_ar }}</h3>
           <button type="button" class="close-btn" @click="closeDetails">&times;</button>
         </div>
-        
+
         <div class="supplier-info-grid">
           <div class="info-item">
             <span>كود المورد:</span>
@@ -112,15 +130,13 @@
         <!-- كشف الحساب الشهري المجمع -->
         <div class="statement-months">
           <h4>المعاملات مجمعة بالشهور</h4>
-          
-          <div v-if="loadingDetails" class="loading-state">
-            جاري تحميل تفاصيل المعاملات...
-          </div>
-          
+
+          <div v-if="loadingDetails" class="loading-state">جاري تحميل تفاصيل المعاملات...</div>
+
           <div v-else-if="transactionsByMonth.length === 0" class="empty-state">
             لا توجد فواتير مشتريات أو سدادات مسجلة لهذا المورد.
           </div>
-          
+
           <div v-else class="months-accordion">
             <div v-for="group in transactionsByMonth" :key="group.key" class="month-group">
               <!-- رأس الشهر (أكورديون) -->
@@ -130,9 +146,19 @@
                   <strong>{{ group.label }}</strong>
                 </div>
                 <div class="month-totals">
-                  <span>المشتريات: <strong class="text-danger">{{ formatMoney(group.totalInvoices) }}</strong></span>
+                  <span
+                    >المشتريات:
+                    <strong class="text-danger">{{
+                      formatMoney(group.totalInvoices)
+                    }}</strong></span
+                  >
                   <span class="sep">|</span>
-                  <span>المدفوعات: <strong class="text-success">{{ formatMoney(group.totalPayments) }}</strong></span>
+                  <span
+                    >المدفوعات:
+                    <strong class="text-success">{{
+                      formatMoney(group.totalPayments)
+                    }}</strong></span
+                  >
                 </div>
               </div>
 
@@ -159,11 +185,18 @@
                           </span>
                         </span>
                       </td>
-                      <td><code>{{ t.refNumber }}</code></td>
-                      <td class="amount" :class="t.type === 'invoice' ? 'text-danger' : 'text-success'">
+                      <td>
+                        <code>{{ t.refNumber }}</code>
+                      </td>
+                      <td
+                        class="amount"
+                        :class="t.type === 'invoice' ? 'text-danger' : 'text-success'"
+                      >
                         {{ t.type === 'invoice' ? '+' : '-' }} {{ formatMoney(t.amount) }}
                       </td>
-                      <td><span class="notes-text" :title="t.notes">{{ t.notes || '—' }}</span></td>
+                      <td>
+                        <span class="notes-text" :title="t.notes">{{ t.notes || '—' }}</span>
+                      </td>
                     </tr>
                   </tbody>
                 </table>
@@ -184,7 +217,14 @@
         <form @submit.prevent="submitPayment">
           <div class="form-group">
             <label>المبلغ المدفوع (جنيه) *</label>
-            <input type="number" step="0.01" v-model.number="paymentForm.amount" required min="0.01" class="form-control" />
+            <input
+              type="number"
+              step="0.01"
+              v-model.number="paymentForm.amount"
+              required
+              min="0.01"
+              class="form-control"
+            />
           </div>
           <div class="form-group">
             <label>طريقة الدفع</label>
@@ -196,13 +236,20 @@
           </div>
           <div class="form-group">
             <label>ملاحظات السداد</label>
-            <textarea v-model="paymentForm.notes" placeholder="أدخل أي ملاحظات تفصيلية هنا..." rows="3" class="form-control"></textarea>
+            <textarea
+              v-model="paymentForm.notes"
+              placeholder="أدخل أي ملاحظات تفصيلية هنا..."
+              rows="3"
+              class="form-control"
+            ></textarea>
           </div>
           <div class="form-actions">
             <button type="submit" class="btn btn-primary" :disabled="submittingPayment">
               {{ submittingPayment ? 'جاري الحفظ...' : 'تسجيل السداد' }}
             </button>
-            <button type="button" class="btn btn-secondary" @click="showPaymentModal = false">إلغاء</button>
+            <button type="button" class="btn btn-secondary" @click="showPaymentModal = false">
+              إلغاء
+            </button>
           </div>
         </form>
       </div>
@@ -251,14 +298,14 @@ const openCreate = () => {
 };
 
 const openEdit = (row) => {
-  form.value = { 
-    id: row.id, 
+  form.value = {
+    id: row.id,
     code: row.code || '',
-    name_ar: row.name_ar, 
+    name_ar: row.name_ar,
     phone: row.phone || '',
     email: row.email || '',
     address: row.address || '',
-    notes: row.notes || ''
+    notes: row.notes || '',
   };
   showForm.value = true;
 };
@@ -296,7 +343,7 @@ const viewDetails = async (supplier) => {
   try {
     const [invoicesRes, paymentsRes] = await Promise.all([
       api.invoices(supplier.id),
-      api.payments(supplier.id)
+      api.payments(supplier.id),
     ]);
     supplierInvoices.value = invoicesRes.data || [];
     supplierPayments.value = paymentsRes.data || [];
@@ -327,7 +374,7 @@ const transactionsByMonth = computed(() => {
   const list = [];
 
   // فواتير المشتريات
-  supplierInvoices.value.forEach(inv => {
+  supplierInvoices.value.forEach((inv) => {
     const date = new Date(inv.created_at);
     list.push({
       id: 'inv-' + inv.id,
@@ -342,7 +389,7 @@ const transactionsByMonth = computed(() => {
   });
 
   // المدفوعات المسددة
-  supplierPayments.value.forEach(pay => {
+  supplierPayments.value.forEach((pay) => {
     const date = new Date(pay.created_at);
     list.push({
       id: 'pay-' + pay.id,
@@ -362,13 +409,23 @@ const transactionsByMonth = computed(() => {
 
   // التجميع حسب الشهر والسنة
   const groups = {};
-  list.forEach(t => {
+  list.forEach((t) => {
     const year = t.date.getFullYear();
     const monthIndex = t.date.getMonth();
-    
+
     const monthsAr = [
-      'يناير', 'فبراير', 'مارس', 'إبريل', 'مايو', 'يونيو',
-      'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'
+      'يناير',
+      'فبراير',
+      'مارس',
+      'إبريل',
+      'مايو',
+      'يونيو',
+      'يوليو',
+      'أغسطس',
+      'سبتمبر',
+      'أكتوبر',
+      'نوفمبر',
+      'ديسمبر',
     ];
     const monthName = monthsAr[monthIndex];
     const groupKey = `${year}-${String(monthIndex + 1).padStart(2, '0')}`;
@@ -406,22 +463,22 @@ const submitPayment = async () => {
     window.alert('برجاء إدخال مبلغ صحيح أكبر من الصفر');
     return;
   }
-  
+
   submittingPayment.value = true;
   try {
     await api.recordPayment(selectedSupplier.value.id, paymentForm.value);
     window.alert('تم تسجيل الدفعة المسددة للمورد بنجاح');
     showPaymentModal.value = false;
-    
+
     // إعادة تحميل قائمة الموردين لتحديث الأرصدة
     await load();
-    
+
     // تحديث المورد المحدد الحالي
-    const updated = suppliers.value.find(s => s.id === selectedSupplier.value.id);
+    const updated = suppliers.value.find((s) => s.id === selectedSupplier.value.id);
     if (updated) {
       selectedSupplier.value = updated;
     }
-    
+
     // إعادة تحميل المعاملات وكشف الحساب للعميل
     if (selectedSupplier.value) {
       await viewDetails(selectedSupplier.value);
@@ -453,78 +510,324 @@ onMounted(load);
 </script>
 
 <style scoped>
-.page-header { margin-bottom: 20px; }
-.supplier-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-.supplier-card { transition: transform 0.2s, box-shadow 0.2s; }
-.supplier-card.clickable { cursor: pointer; }
-.supplier-card.clickable:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
-.supplier-card h3 { margin-bottom: 8px; color: var(--primary); }
-.supplier-card .phone { color: var(--text-muted, #777); margin-bottom: 6px; }
-.balance-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.95rem; }
-.meta { color: var(--text-muted, #777); font-size: 0.85rem; margin-top: 6px; margin-bottom: 12px; }
-.actions { display: flex; gap: 8px; }
-.card-footer { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); padding-top: 10px; margin-top: 5px; }
-.view-details-link { font-size: 0.85rem; color: var(--primary); font-weight: bold; }
+.page-header {
+  margin-bottom: 20px;
+}
+.supplier-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.supplier-card {
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
+}
+.supplier-card.clickable {
+  cursor: pointer;
+}
+.supplier-card.clickable:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+.supplier-card h3 {
+  margin-bottom: 8px;
+  color: var(--primary);
+}
+.supplier-card .phone {
+  color: var(--text-muted, #777);
+  margin-bottom: 6px;
+}
+.balance-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 0.95rem;
+}
+.meta {
+  color: var(--text-muted, #777);
+  font-size: 0.85rem;
+  margin-top: 6px;
+  margin-bottom: 12px;
+}
+.actions {
+  display: flex;
+  gap: 8px;
+}
+.card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+  margin-top: 5px;
+}
+.view-details-link {
+  font-size: 0.85rem;
+  color: var(--primary);
+  font-weight: bold;
+}
 
 /* مودال التعديل والإضافة ومودال الدفع */
-.modal { position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); z-index: 100; display: flex; align-items: center; justify-content: center; }
-.modal-content { max-width: 480px; width: 90%; max-height: 90vh; overflow-y: auto; }
-.payment-form-modal { max-width: 400px; }
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.modal-content {
+  max-width: 480px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+.payment-form-modal {
+  max-width: 400px;
+}
 
 /* مودال التفاصيل الكبيرة */
-.details-modal { max-width: 800px; width: 95%; max-height: 85vh; display: flex; flex-direction: column; }
-.modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 15px; }
-.modal-header h3 { margin: 0; color: var(--primary); }
-.close-btn { background: none; border: none; font-size: 1.8rem; line-height: 1; cursor: pointer; color: var(--text-muted); }
-.close-btn:hover { color: var(--text); }
+.details-modal {
+  max-width: 800px;
+  width: 95%;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+}
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 12px;
+  margin-bottom: 15px;
+}
+.modal-header h3 {
+  margin: 0;
+  color: var(--primary);
+}
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 1.8rem;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--text-muted);
+}
+.close-btn:hover {
+  color: var(--text);
+}
 
 /* شبكة تفاصيل المورد */
-.supplier-info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; background: var(--bg-muted, #f8f9fa); padding: 12px; border-radius: 6px; margin-bottom: 15px; border: 1px solid var(--border); }
-.info-item { display: flex; flex-direction: column; gap: 4px; font-size: 0.9rem; }
-.info-item span { color: var(--text-muted); }
-.info-item strong { font-size: 1rem; color: var(--text); }
-.info-item.highlight strong { font-size: 1.1rem; }
+.supplier-info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  background: var(--bg-muted, #f8f9fa);
+  padding: 12px;
+  border-radius: 6px;
+  margin-bottom: 15px;
+  border: 1px solid var(--border);
+}
+.info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.9rem;
+}
+.info-item span {
+  color: var(--text-muted);
+}
+.info-item strong {
+  font-size: 1rem;
+  color: var(--text);
+}
+.info-item.highlight strong {
+  font-size: 1.1rem;
+}
 
-.modal-actions-bar { display: flex; justify-content: flex-end; margin-bottom: 10px; }
-.separator-line { border: 0; border-top: 1px solid var(--border); margin: 12px 0; }
+.modal-actions-bar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 10px;
+}
+.separator-line {
+  border: 0;
+  border-top: 1px solid var(--border);
+  margin: 12px 0;
+}
 
 /* كشف الحساب والأكورديون */
-.statement-months h4 { margin-top: 0; margin-bottom: 12px; color: var(--text); font-size: 1rem; }
-.loading-state, .empty-state { text-align: center; padding: 30px; color: var(--text-muted); font-size: 0.95rem; }
-.months-accordion { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+.statement-months h4 {
+  margin-top: 0;
+  margin-bottom: 12px;
+  color: var(--text);
+  font-size: 1rem;
+}
+.loading-state,
+.empty-state {
+  text-align: center;
+  padding: 30px;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
+.months-accordion {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 10px;
+}
 
-.month-group { border: 1px solid var(--border); border-radius: 6px; overflow: hidden; background: var(--bg-card); }
-.month-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: var(--bg-muted, #f8f9fa); cursor: pointer; user-select: none; transition: background 0.2s; }
-.month-header:hover { background: var(--border); }
-.month-title { display: flex; align-items: center; gap: 8px; font-size: 0.95rem; color: var(--text); }
-.arrow-indicator { font-size: 0.75rem; color: var(--text-muted); width: 14px; text-align: center; }
-.month-totals { display: flex; gap: 12px; font-size: 0.9rem; align-items: center; }
-.month-totals .sep { color: var(--border); }
+.month-group {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--bg-card);
+}
+.month-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: var(--bg-muted, #f8f9fa);
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.2s;
+}
+.month-header:hover {
+  background: var(--border);
+}
+.month-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.95rem;
+  color: var(--text);
+}
+.arrow-indicator {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  width: 14px;
+  text-align: center;
+}
+.month-totals {
+  display: flex;
+  gap: 12px;
+  font-size: 0.9rem;
+  align-items: center;
+}
+.month-totals .sep {
+  color: var(--border);
+}
 
-.month-details-container { padding: 12px; border-top: 1px solid var(--border); overflow-x: auto; background: var(--bg-card); }
+.month-details-container {
+  padding: 12px;
+  border-top: 1px solid var(--border);
+  overflow-x: auto;
+  background: var(--bg-card);
+}
 
 /* جدول تفاصيل الحساب */
-.details-table { width: 100%; border-collapse: collapse; text-align: right; font-size: 0.85rem; }
-.details-table th, .details-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); }
-.details-table th { background: var(--bg-muted, #f8f9fa); color: var(--text-muted); font-weight: bold; }
-.details-table tr:hover { background: rgba(0,0,0,0.01); }
+.details-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: right;
+  font-size: 0.85rem;
+}
+.details-table th,
+.details-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+}
+.details-table th {
+  background: var(--bg-muted, #f8f9fa);
+  color: var(--text-muted);
+  font-weight: bold;
+}
+.details-table tr:hover {
+  background: rgba(0, 0, 0, 0.01);
+}
 
-.type-badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; }
-.type-badge.invoice { background: rgba(220, 53, 69, 0.1); color: #dc3545; }
-.type-badge.payment { background: rgba(40, 167, 69, 0.1); color: #28a745; }
-.method-label { font-weight: normal; font-size: 0.7rem; opacity: 0.85; margin-right: 3px; }
+.type-badge {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: bold;
+}
+.type-badge.invoice {
+  background: rgba(220, 53, 69, 0.1);
+  color: #dc3545;
+}
+.type-badge.payment {
+  background: rgba(40, 167, 69, 0.1);
+  color: #28a745;
+}
+.method-label {
+  font-weight: normal;
+  font-size: 0.7rem;
+  opacity: 0.85;
+  margin-right: 3px;
+}
 
-.amount { font-family: monospace; font-size: 0.9rem; font-weight: bold; text-align: left; }
-.notes-text { display: inline-block; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; color: var(--text-muted); }
+.amount {
+  font-family: monospace;
+  font-size: 0.9rem;
+  font-weight: bold;
+  text-align: left;
+}
+.notes-text {
+  display: inline-block;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+  color: var(--text-muted);
+}
 
 /* ألوان المساعد */
-.text-danger { color: #dc3545 !important; }
-.text-success { color: #28a745 !important; }
+.text-danger {
+  color: #dc3545 !important;
+}
+.text-success {
+  color: #28a745 !important;
+}
 
 /* نموذج المدفوعات والمدخلات */
-.form-group { margin-bottom: 12px; display: flex; flex-direction: column; gap: 6px; }
-.form-group label { font-size: 0.9rem; font-weight: bold; color: var(--text); }
-.form-group input, .form-group select, .form-group textarea { padding: 8px 12px; border: 1px solid var(--border); border-radius: 4px; font-size: 0.9rem; width: 100%; box-sizing: border-box; }
-.form-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 15px; }
-.btn-sm { padding: 6px 12px; font-size: 0.85rem; }
+.form-group {
+  margin-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.form-group label {
+  font-size: 0.9rem;
+  font-weight: bold;
+  color: var(--text);
+}
+.form-group input,
+.form-group select,
+.form-group textarea {
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 0.9rem;
+  width: 100%;
+  box-sizing: border-box;
+}
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 15px;
+}
+.btn-sm {
+  padding: 6px 12px;
+  font-size: 0.85rem;
+}
 </style>

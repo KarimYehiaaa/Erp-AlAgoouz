@@ -1,5 +1,9 @@
 <template>
-  <div v-if="appStore.notificationDrawerOpen" class="drawer-overlay" @click.self="appStore.toggleNotificationDrawer">
+  <div
+    v-if="appStore.notificationDrawerOpen"
+    class="drawer-overlay"
+    @click.self="appStore.toggleNotificationDrawer"
+  >
     <div class="drawer-panel card">
       <div class="drawer-header">
         <div class="header-title">
@@ -7,7 +11,12 @@
           <h3>مركز تنبيهات التشغيل</h3>
         </div>
         <div class="header-actions">
-          <button class="icon-btn edit" @click="fetchAlerts" :disabled="loading" title="تحديث التنبيهات">
+          <button
+            class="icon-btn edit"
+            @click="fetchAlerts"
+            :disabled="loading"
+            title="تحديث التنبيهات"
+          >
             <span v-if="loading">⏳</span>
             <AppIcon v-else name="theme" :size="16" />
           </button>
@@ -46,9 +55,7 @@
         </div>
       </div>
 
-      <div class="drawer-footer">
-        آخر فحص: {{ lastChecked }}
-      </div>
+      <div class="drawer-footer">آخر فحص: {{ lastChecked }}</div>
     </div>
   </div>
 </template>
@@ -69,7 +76,10 @@ const fetchAlerts = async () => {
   try {
     const res = await operations.alerts();
     appStore.notifications = res.data?.alerts || res.alerts || [];
-    lastChecked.value = new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+    lastChecked.value = new Date().toLocaleTimeString('ar-EG', {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
   } catch (e) {
     console.error('❌ Error fetching alerts:', e);
   } finally {
@@ -85,11 +95,14 @@ const handleAction = (alert) => {
 };
 
 // Fetch alerts whenever drawer is opened
-watch(() => appStore.notificationDrawerOpen, (open) => {
-  if (open) {
-    fetchAlerts();
-  }
-});
+watch(
+  () => appStore.notificationDrawerOpen,
+  (open) => {
+    if (open) {
+      fetchAlerts();
+    }
+  },
+);
 
 onMounted(() => {
   if (appStore.notificationDrawerOpen) {
@@ -122,8 +135,12 @@ onMounted(() => {
 }
 
 @keyframes slideLeft {
-  from { transform: translateX(-100%); }
-  to { transform: translateX(0); }
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
 }
 
 .drawer-header {
@@ -222,17 +239,23 @@ onMounted(() => {
   /* Colors based on severity */
   &.danger {
     border-right-color: var(--danger);
-    .severity-indicator { background: var(--danger); }
+    .severity-indicator {
+      background: var(--danger);
+    }
   }
 
   &.warning {
     border-right-color: var(--warning);
-    .severity-indicator { background: var(--warning); }
+    .severity-indicator {
+      background: var(--warning);
+    }
   }
 
   &.info {
     border-right-color: var(--info);
-    .severity-indicator { background: var(--info); }
+    .severity-indicator {
+      background: var(--info);
+    }
   }
 
   &:hover {
@@ -263,7 +286,9 @@ onMounted(() => {
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .drawer-empty {
@@ -279,7 +304,7 @@ onMounted(() => {
     font-size: 2.5rem;
     margin-bottom: 12px;
     display: inline-block;
-    filter: drop-shadow(0 4px 6px rgba(0,0,0,0.05));
+    filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.05));
   }
 
   h4 {

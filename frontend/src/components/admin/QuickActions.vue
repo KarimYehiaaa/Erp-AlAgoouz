@@ -41,17 +41,23 @@ const handleAction = async (action) => {
     case 'backup':
       loading.value = 'backup';
       emit('backup');
-      setTimeout(() => { loading.value = null; }, 2000);
+      setTimeout(() => {
+        loading.value = null;
+      }, 2000);
       break;
     case 'repairSequences':
       loading.value = 'repairSequences';
       emit('repairSequences');
-      setTimeout(() => { loading.value = null; }, 2000);
+      setTimeout(() => {
+        loading.value = null;
+      }, 2000);
       break;
     case 'purgeLogs':
       loading.value = 'purgeLogs';
       emit('purgeLogs');
-      setTimeout(() => { loading.value = null; }, 2000);
+      setTimeout(() => {
+        loading.value = null;
+      }, 2000);
       break;
     case 'broadcast':
       emit('broadcast');
@@ -69,8 +75,8 @@ const handleAction = async (action) => {
 <style scoped>
 .quick-actions {
   border-radius: 16px;
-  background: var(--card-bg, rgba(255,255,255,0.04));
-  border: 1px solid var(--border, rgba(255,255,255,0.08));
+  background: var(--card-bg, rgba(255, 255, 255, 0.04));
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
   padding: 18px 20px;
 }
 
@@ -94,7 +100,7 @@ const handleAction = async (action) => {
   gap: 6px;
   padding: 16px 10px;
   border-radius: 14px;
-  border: 1px solid var(--border, rgba(255,255,255,0.08));
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
   background: transparent;
   cursor: pointer;
   transition: all 0.25s ease;
@@ -102,7 +108,7 @@ const handleAction = async (action) => {
 
 .qa-btn:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
 }
 
 .qa-btn:disabled {
@@ -120,12 +126,30 @@ const handleAction = async (action) => {
   color: var(--text, #ccc);
 }
 
-.action-blue:hover { background: rgba(59,130,246,0.1); border-color: rgba(59,130,246,0.3); }
-.action-purple:hover { background: rgba(139,92,246,0.1); border-color: rgba(139,92,246,0.3); }
-.action-green:hover { background: rgba(16,185,129,0.1); border-color: rgba(16,185,129,0.3); }
-.action-teal:hover { background: rgba(20,184,166,0.1); border-color: rgba(20,184,166,0.3); }
-.action-orange:hover { background: rgba(245,158,11,0.1); border-color: rgba(245,158,11,0.3); }
-.action-indigo:hover { background: rgba(99,102,241,0.1); border-color: rgba(99,102,241,0.3); }
+.action-blue:hover {
+  background: rgba(59, 130, 246, 0.1);
+  border-color: rgba(59, 130, 246, 0.3);
+}
+.action-purple:hover {
+  background: rgba(139, 92, 246, 0.1);
+  border-color: rgba(139, 92, 246, 0.3);
+}
+.action-green:hover {
+  background: rgba(16, 185, 129, 0.1);
+  border-color: rgba(16, 185, 129, 0.3);
+}
+.action-teal:hover {
+  background: rgba(20, 184, 166, 0.1);
+  border-color: rgba(20, 184, 166, 0.3);
+}
+.action-orange:hover {
+  background: rgba(245, 158, 11, 0.1);
+  border-color: rgba(245, 158, 11, 0.3);
+}
+.action-indigo:hover {
+  background: rgba(99, 102, 241, 0.1);
+  border-color: rgba(99, 102, 241, 0.3);
+}
 
 @media (max-width: 640px) {
   .qa-grid {

@@ -10,7 +10,7 @@ import pool from './pool.js';
 
 const rl = readline.createInterface({
   input: process.stdin,
-  output: process.stdout
+  output: process.stdout,
 });
 
 const executeFactoryReset = async () => {
@@ -31,7 +31,7 @@ const executeFactoryReset = async () => {
       'supplier_invoices',
       'activity_logs',
       'audit_logs',
-      'notifications'
+      'notifications',
     ];
 
     // Attempt to drop additional tables if they exist (added in later migrations)
@@ -44,7 +44,7 @@ const executeFactoryReset = async () => {
       'stocktake_items',
       'employee_attendance',
       'employee_advances',
-      'payroll_runs'
+      'payroll_runs',
     ];
 
     for (const table of optionalTables) {
@@ -101,7 +101,9 @@ const args = process.argv.slice(2);
 if (args.includes('--force')) {
   executeFactoryReset();
 } else {
-  console.log('⚠️ تحذير: هذا السكربت سيمسح جميع فواتير المبيعات، المشتريات، المخزون، والعمليات المالية.');
+  console.log(
+    '⚠️ تحذير: هذا السكربت سيمسح جميع فواتير المبيعات، المشتريات، المخزون، والعمليات المالية.',
+  );
   console.log('البيانات الأساسية (المنتجات، العملاء، المستخدمين) ستبقى كما هي.');
   rl.question('هل أنت متأكد من رغبتك في التنظيف؟ اكتب "YES" للتأكيد: ', (answer) => {
     if (answer === 'YES') {

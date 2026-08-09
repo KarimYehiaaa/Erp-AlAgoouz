@@ -19,15 +19,17 @@ const HEADER_ALIASES = {
   notes: ['notes', 'note', 'ملاحظات'],
 };
 
-const normalizeText = (value) => String(value ?? '')
-  .trim()
-  .toLowerCase()
-  .replace(/[\s_\-]+/g, '');
+const normalizeText = (value) =>
+  String(value ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_\-]+/g, '');
 
-const normalizeDigits = (value) => String(value ?? '')
-  .replace(/[٠-٩]/g, (d) => '0123456789'['٠١٢٣٤٥٦٧٨٩'.indexOf(d)])
-  .replace(/[\u200f\u200e]/g, '')
-  .trim();
+const normalizeDigits = (value) =>
+  String(value ?? '')
+    .replace(/[٠-٩]/g, (d) => '0123456789'['٠١٢٣٤٥٦٧٨٩'.indexOf(d)])
+    .replace(/[\u200f\u200e]/g, '')
+    .trim();
 
 const toNumber = (value, fallback = 0) => {
   if (typeof value === 'number') return Number.isFinite(value) ? value : fallback;
@@ -105,25 +107,36 @@ const resolveHeaderRow = (rows) => {
   for (let i = 0; i < rows.length; i++) {
     const firstRow = rows[i] || [];
     const normalized = firstRow.map((cell) => normalizeText(cell));
-    if (normalized.some((cell) => HEADER_ALIASES.sale_date.some((alias) => cell === normalizeText(alias) || cell.includes(normalizeText(alias))))) {
+    if (
+      normalized.some((cell) =>
+        HEADER_ALIASES.sale_date.some(
+          (alias) => cell === normalizeText(alias) || cell.includes(normalizeText(alias)),
+        ),
+      )
+    ) {
       return i;
     }
   }
   return -1;
 };
 
-const findIndex = (headers, aliases) => headers.findIndex((header) => aliases.some((alias) => header === normalizeText(alias) || header.includes(normalizeText(alias))));
+const findIndex = (headers, aliases) =>
+  headers.findIndex((header) =>
+    aliases.some(
+      (alias) => header === normalizeText(alias) || header.includes(normalizeText(alias)),
+    ),
+  );
 
 const getStoreWarehouseId = async () => {
   const res = await query(
-    `SELECT id FROM warehouses WHERE (type = 'store' OR code = 'STORE') AND deleted_at IS NULL AND is_active = TRUE ORDER BY id ASC LIMIT 1`
+    `SELECT id FROM warehouses WHERE (type = 'store' OR code = 'STORE') AND deleted_at IS NULL AND is_active = TRUE ORDER BY id ASC LIMIT 1`,
   );
   if (res.rows[0]) return Number(res.rows[0].id);
   return await getDefaultWarehouseId();
 };
 
 const fetchBranchProducts = async (warehouseId) => {
-  const resolvedWarehouseId = Number(warehouseId) || await getStoreWarehouseId();
+  const resolvedWarehouseId = Number(warehouseId) || (await getStoreWarehouseId());
   const res = await query(
     `SELECT p.id, p.sku, p.name_ar, p.sale_price, p.unit,
             pc.name_ar AS category_name,
@@ -147,12 +160,21 @@ const fetchBranchProducts = async (warehouseId) => {
          )
        )
      ORDER BY pc.sort_order NULLS LAST, p.name_ar`,
-    [resolvedWarehouseId]
+    [resolvedWarehouseId],
   );
   return res.rows;
 };
 
-const buildHeaders = () => ['sale_date', 'sku', 'product_name', 'category', 'unit_price', 'quantity', 'payment_method', 'notes'];
+const buildHeaders = () => [
+  'sale_date',
+  'sku',
+  'product_name',
+  'category',
+  'unit_price',
+  'quantity',
+  'payment_method',
+  'notes',
+];
 
 export const buildBranchTemplate = async (warehouseId) => {
   const products = await fetchBranchProducts(warehouseId);
@@ -163,16 +185,18 @@ export const buildBranchTemplate = async (warehouseId) => {
   const headers = buildHeaders();
   const rows = [
     headers,
-    ...products.slice(0, 50).map((product) => ([
-      todayStr,
-      product.sku,
-      product.name_ar,
-      product.category_name || '',
-      Number(product.sale_price || 0),
-      1,
-      'cash',
-      '',
-    ])),
+    ...products
+      .slice(0, 50)
+      .map((product) => [
+        todayStr,
+        product.sku,
+        product.name_ar,
+        product.category_name || '',
+        Number(product.sale_price || 0),
+        1,
+        'cash',
+        '',
+      ]),
   ];
 
   const ws = XLSX.utils.aoa_to_sheet(rows);
@@ -212,7 +236,9 @@ const parseRow = (row, indices) => {
     category: indices.category >= 0 ? String(row[indices.category] || '').trim() : '',
     unit_price: unitPrice,
     quantity: qty,
-    payment_method: normalizePaymentMethod(indices.payment_method >= 0 ? row[indices.payment_method] : null),
+    payment_method: normalizePaymentMethod(
+      indices.payment_method >= 0 ? row[indices.payment_method] : null,
+    ),
     notes: indices.notes >= 0 ? String(row[indices.notes] || '').trim() : '',
   };
 };
@@ -238,7 +264,12 @@ export const parseBranchSalesExcel = async (buffer, warehouseId) => {
     notes: findIndex(headers, HEADER_ALIASES.notes),
   };
 
-  if (indices.sale_date === -1 || indices.sku === -1 || indices.unit_price === -1 || indices.quantity === -1) {
+  if (
+    indices.sale_date === -1 ||
+    indices.sku === -1 ||
+    indices.unit_price === -1 ||
+    indices.quantity === -1
+  ) {
     throw new Error('الأعمدة الأساسية غير مكتملة');
   }
 
@@ -298,13 +329,16 @@ export const validateBranchExcel = async (buffer) => {
       sale_date: group.sale_date,
       payment_method: group.payment_method,
       items_count: group.items.length,
-      sample: group.items.slice(0, 2).map((item) => `${item.name_ar} x ${item.quantity}`).join(' | '),
+      sample: group.items
+        .slice(0, 2)
+        .map((item) => `${item.name_ar} x ${item.quantity}`)
+        .join(' | '),
     })),
   };
 };
 
 export const importBranchExcel = async (buffer, userId, warehouseId) => {
-  const resolvedWarehouseId = Number(warehouseId) || await getStoreWarehouseId();
+  const resolvedWarehouseId = Number(warehouseId) || (await getStoreWarehouseId());
   const { groups, errors } = await parseBranchSalesExcel(buffer, resolvedWarehouseId);
   const targetWarehouseId = resolvedWarehouseId;
   let success = 0;
@@ -312,15 +346,18 @@ export const importBranchExcel = async (buffer, userId, warehouseId) => {
 
   for (const group of groups) {
     try {
-      await createDailySale({
-        sale_type: 'branch',
-        sale_date: group.sale_date,
-        warehouse_id: targetWarehouseId,
-        payment_method: group.payment_method,
-        payment_status: 'paid',
-        notes: group.notes || null,
-        items: group.items,
-      }, userId);
+      await createDailySale(
+        {
+          sale_type: 'branch',
+          sale_date: group.sale_date,
+          warehouse_id: targetWarehouseId,
+          payment_method: group.payment_method,
+          payment_status: 'paid',
+          notes: group.notes || null,
+          items: group.items,
+        },
+        userId,
+      );
       success++;
     } catch (e) {
       failed.push({ sale_date: group.sale_date, message: e.message });

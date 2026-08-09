@@ -85,6 +85,6 @@ export const recalculateCustomerBalance = async (db = query, customerId) => {
     ), 0)
     WHERE c.id = $1
     `,
-    [customerId]
+    [customerId],
   );
 };

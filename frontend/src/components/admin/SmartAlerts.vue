@@ -17,7 +17,9 @@
           <span class="alert-group-count">{{ group.count }}</span>
         </div>
         <div v-for="(item, idx) in group.items.slice(0, 5)" :key="idx" class="alert-item">
-          <span class="alert-item-text">{{ item.text || item.name || item.product_name || JSON.stringify(item) }}</span>
+          <span class="alert-item-text">{{
+            item.text || item.name || item.product_name || JSON.stringify(item)
+          }}</span>
           <span v-if="item.value" class="alert-item-value">{{ item.value }}</span>
         </div>
         <div v-if="group.items.length > 5" class="alert-more">
@@ -47,7 +49,7 @@ const groups = computed(() => {
       label: 'منتجات تحت حد الطلب',
       severity: 'critical',
       count: a.lowStockProducts.length,
-      items: a.lowStockProducts.map(p => ({
+      items: a.lowStockProducts.map((p) => ({
         text: p.name || p.product_name,
         value: `${p.quantity ?? p.current_qty ?? '?'} / ${p.reorder_level ?? p.min_qty ?? '?'}`,
       })),
@@ -62,7 +64,7 @@ const groups = computed(() => {
       label: 'منتجات بدون سعر تكلفة',
       severity: 'warning',
       count: a.noCostProducts.length,
-      items: a.noCostProducts.map(p => ({ text: p.name || p.product_name })),
+      items: a.noCostProducts.map((p) => ({ text: p.name || p.product_name })),
     });
   }
 
@@ -74,7 +76,7 @@ const groups = computed(() => {
       label: 'مديونيات عملاء',
       severity: 'warning',
       count: a.customerDebts.length,
-      items: a.customerDebts.map(c => ({
+      items: a.customerDebts.map((c) => ({
         text: c.name || c.customer_name,
         value: `${new Intl.NumberFormat('ar-EG').format(c.balance || c.total_due || 0)} ج.م`,
       })),
@@ -89,7 +91,7 @@ const groups = computed(() => {
       label: 'أرصدة موردين مستحقة',
       severity: 'info',
       count: a.supplierBalances.length,
-      items: a.supplierBalances.map(s => ({
+      items: a.supplierBalances.map((s) => ({
         text: s.name || s.supplier_name,
         value: `${new Intl.NumberFormat('ar-EG').format(s.balance || s.total_due || 0)} ج.م`,
       })),
@@ -104,7 +106,7 @@ const groups = computed(() => {
       label: 'مبيعات آجلة مفتوحة',
       severity: 'info',
       count: a.pendingCreditSales.length,
-      items: a.pendingCreditSales.map(s => ({
+      items: a.pendingCreditSales.map((s) => ({
         text: s.customer_name || `فاتورة #${s.id}`,
         value: `${new Intl.NumberFormat('ar-EG').format(s.remaining || s.amount || 0)} ج.م`,
       })),
@@ -120,8 +122,8 @@ const totalAlerts = computed(() => groups.value.reduce((sum, g) => sum + g.count
 <style scoped>
 .alerts-panel {
   border-radius: 16px;
-  background: var(--card-bg, rgba(255,255,255,0.04));
-  border: 1px solid var(--border, rgba(255,255,255,0.08));
+  background: var(--card-bg, rgba(255, 255, 255, 0.04));
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
   overflow: hidden;
 }
 
@@ -130,7 +132,7 @@ const totalAlerts = computed(() => groups.value.reduce((sum, g) => sum + g.count
   justify-content: space-between;
   align-items: center;
   padding: 16px 20px;
-  border-bottom: 1px solid var(--border, rgba(255,255,255,0.06));
+  border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.06));
 }
 
 .alerts-title {
@@ -145,7 +147,7 @@ const totalAlerts = computed(() => groups.value.reduce((sum, g) => sum + g.count
   font-weight: 800;
   padding: 3px 10px;
   border-radius: 8px;
-  background: rgba(239,68,68,0.15);
+  background: rgba(239, 68, 68, 0.15);
   color: #ef4444;
 }
 
@@ -163,7 +165,7 @@ const totalAlerts = computed(() => groups.value.reduce((sum, g) => sum + g.count
 }
 
 .alert-group {
-  border-bottom: 1px solid var(--border, rgba(255,255,255,0.06));
+  border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.06));
 }
 
 .alert-group:last-child {
@@ -179,9 +181,18 @@ const totalAlerts = computed(() => groups.value.reduce((sum, g) => sum + g.count
   font-size: 0.85rem;
 }
 
-.alert-group-header.critical { color: #ef4444; background: rgba(239,68,68,0.06); }
-.alert-group-header.warning { color: #f59e0b; background: rgba(245,158,11,0.06); }
-.alert-group-header.info { color: #3b82f6; background: rgba(59,130,246,0.06); }
+.alert-group-header.critical {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.06);
+}
+.alert-group-header.warning {
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.06);
+}
+.alert-group-header.info {
+  color: #3b82f6;
+  background: rgba(59, 130, 246, 0.06);
+}
 
 .alert-group-icon {
   font-size: 1.1rem;
@@ -195,7 +206,7 @@ const totalAlerts = computed(() => groups.value.reduce((sum, g) => sum + g.count
   font-size: 0.72rem;
   padding: 2px 8px;
   border-radius: 6px;
-  background: rgba(255,255,255,0.1);
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .alert-item {
@@ -205,7 +216,7 @@ const totalAlerts = computed(() => groups.value.reduce((sum, g) => sum + g.count
   padding: 8px 20px 8px 36px;
   font-size: 0.8rem;
   color: var(--text, #ccc);
-  border-bottom: 1px solid var(--border, rgba(255,255,255,0.03));
+  border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.03));
 }
 
 .alert-item-text {

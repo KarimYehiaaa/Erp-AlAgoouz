@@ -40,7 +40,7 @@ export const localDb = {
     return new Promise((resolve, reject) => {
       const transaction = db.transaction('products', 'readwrite');
       const store = transaction.objectStore('products');
-      
+
       store.clear();
       products.forEach((p) => {
         if (p && p.id) {
@@ -71,7 +71,7 @@ export const localDb = {
     return new Promise((resolve, reject) => {
       const transaction = db.transaction('customers', 'readwrite');
       const store = transaction.objectStore('customers');
-      
+
       store.clear();
       customers.forEach((c) => {
         if (c && c.id) {
@@ -102,15 +102,15 @@ export const localDb = {
     return new Promise((resolve, reject) => {
       const transaction = db.transaction('offline_sales', 'readwrite');
       const store = transaction.objectStore('offline_sales');
-      
+
       const offline_id = 'off_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
       const record = {
         ...sale,
         offline_id,
         sale_number: 'PENDING-' + Date.now().toString().slice(-6),
-        created_at: new Date().toISOString()
+        created_at: new Date().toISOString(),
       };
-      
+
       const request = store.put(record);
 
       request.onsuccess = () => resolve(record);
@@ -152,5 +152,5 @@ export const localDb = {
       request.onsuccess = () => resolve(true);
       request.onerror = () => reject(request.error);
     });
-  }
+  },
 };

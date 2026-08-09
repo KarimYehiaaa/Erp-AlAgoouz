@@ -88,7 +88,10 @@ const downloadServerPdf = async () => {
 </script>
 
 <style lang="scss" scoped>
-.invoice-page { max-width: 860px; margin: 0 auto; }
+.invoice-page {
+  max-width: 860px;
+  margin: 0 auto;
+}
 .inv-actions {
   display: flex;
   flex-wrap: wrap;
@@ -111,9 +114,19 @@ const downloadServerPdf = async () => {
 }
 
 @media print {
-  .no-print { display: none !important; }
-  .invoice-page { max-width: none; margin: 0; }
-  .invoice-print-wrap { box-shadow: none; border-radius: 0; }
-  :deep(.invoice-doc) { padding: 16px; }
+  .no-print {
+    display: none !important;
+  }
+  .invoice-page {
+    max-width: none;
+    margin: 0;
+  }
+  .invoice-print-wrap {
+    box-shadow: none;
+    border-radius: 0;
+  }
+  :deep(.invoice-doc) {
+    padding: 16px;
+  }
 }
 </style>

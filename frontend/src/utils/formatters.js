@@ -48,8 +48,21 @@ export const formatPercent = (value, decimals = 1) => {
 };
 
 // ─── Dates ─────────────────────────────────────────────────────────────
-const AR_MONTHS = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
-const AR_DAYS   = ['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
+const AR_MONTHS = [
+  'يناير',
+  'فبراير',
+  'مارس',
+  'أبريل',
+  'مايو',
+  'يونيو',
+  'يوليو',
+  'أغسطس',
+  'سبتمبر',
+  'أكتوبر',
+  'نوفمبر',
+  'ديسمبر',
+];
+const AR_DAYS = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
 
 /**
  * تنسيق التاريخ بالعربي
@@ -60,9 +73,9 @@ export const formatDate = (value, options = {}) => {
   const d = new Date(value);
   if (isNaN(d.getTime())) return '—';
 
-  const day   = d.getDate();
+  const day = d.getDate();
   const month = AR_MONTHS[d.getMonth()];
-  const year  = d.getFullYear();
+  const year = d.getFullYear();
 
   if (options.short) return `${day}/${d.getMonth() + 1}/${year}`;
   if (options.monthYear) return `${month} ${year}`;
@@ -98,7 +111,7 @@ export const timeAgo = (value) => {
   const now = Date.now();
   const diff = Math.floor((now - d.getTime()) / 1000);
 
-  if (diff < 60)  return 'للتو';
+  if (diff < 60) return 'للتو';
   if (diff < 3600) return `منذ ${Math.floor(diff / 60)} دقيقة`;
   if (diff < 86400) return `منذ ${Math.floor(diff / 3600)} ساعة`;
   if (diff < 2592000) return `منذ ${Math.floor(diff / 86400)} يوم`;
@@ -118,24 +131,24 @@ export const truncate = (text, length = 50) => {
 // ─── Status Badges ─────────────────────────────────────────────────────
 const STATUS_MAP = {
   // Payment
-  paid:       { label: 'مدفوع',       class: 'badge-success' },
-  partial:    { label: 'جزئي',        class: 'badge-warning' },
-  unpaid:     { label: 'غير مدفوع',   class: 'badge-danger'  },
-  pending:    { label: 'معلق',        class: 'badge-warning' },
+  paid: { label: 'مدفوع', class: 'badge-success' },
+  partial: { label: 'جزئي', class: 'badge-warning' },
+  unpaid: { label: 'غير مدفوع', class: 'badge-danger' },
+  pending: { label: 'معلق', class: 'badge-warning' },
   // General
-  active:     { label: 'نشط',         class: 'badge-success' },
-  inactive:   { label: 'غير نشط',     class: 'badge-muted'   },
-  draft:      { label: 'مسودة',       class: 'badge-muted'   },
-  confirmed:  { label: 'مؤكد',        class: 'badge-success' },
-  cancelled:  { label: 'ملغي',        class: 'badge-danger'  },
+  active: { label: 'نشط', class: 'badge-success' },
+  inactive: { label: 'غير نشط', class: 'badge-muted' },
+  draft: { label: 'مسودة', class: 'badge-muted' },
+  confirmed: { label: 'مؤكد', class: 'badge-success' },
+  cancelled: { label: 'ملغي', class: 'badge-danger' },
   // Inventory
-  in_stock:   { label: 'متوفر',       class: 'badge-success' },
-  low_stock:  { label: 'منخفض',       class: 'badge-warning' },
-  out_of_stock:{ label: 'نفد',        class: 'badge-danger'  },
+  in_stock: { label: 'متوفر', class: 'badge-success' },
+  low_stock: { label: 'منخفض', class: 'badge-warning' },
+  out_of_stock: { label: 'نفد', class: 'badge-danger' },
   // HR
-  present:    { label: 'حاضر',        class: 'badge-success' },
-  absent:     { label: 'غائب',        class: 'badge-danger'  },
-  late:       { label: 'متأخر',       class: 'badge-warning' },
+  present: { label: 'حاضر', class: 'badge-success' },
+  absent: { label: 'غائب', class: 'badge-danger' },
+  late: { label: 'متأخر', class: 'badge-warning' },
 };
 
 /**

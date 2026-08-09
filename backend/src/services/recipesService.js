@@ -1,4 +1,4 @@
-import { AppError } from '../middleware/errorHandler.js';
+import { AppError } from '../types/errors.js';
 import { getClient, query } from '../database/pool.js';
 import { UNIT_ALIASES, normalizeUnit, convertQty } from './productCostService.js';
 import * as inventoryService from './inventoryService.js';
@@ -8,9 +8,8 @@ import { invalidateDashboardCache } from './dashboardService.js';
 const WEIGHT_UNITS = new Set(['g', 'kg']);
 const VOLUME_UNITS = new Set(['ml', 'l']);
 
-const unitGroup = (u) => (
-  WEIGHT_UNITS.has(u) ? 'weight' : VOLUME_UNITS.has(u) ? 'volume' : u === 'count' ? 'count' : null
-);
+const unitGroup = (u) =>
+  WEIGHT_UNITS.has(u) ? 'weight' : VOLUME_UNITS.has(u) ? 'volume' : u === 'count' ? 'count' : null;
 
 /**
  * تنفيذ استهلاك الوصفة عند البيع:
@@ -19,14 +18,14 @@ const unitGroup = (u) => (
  */
 export const consumeRecipeForSale = async (
   client,
-  { productId, soldQty, warehouseId, referenceType = 'sale', referenceId = null, userId }
+  { productId, soldQty, warehouseId, referenceType = 'sale', referenceId = null, userId },
 ) => {
   const recipeResult = await client.query(
     `SELECT r.id
      FROM product_recipes r
      WHERE r.product_id = $1 AND r.deleted_at IS NULL AND r.is_active = TRUE
      LIMIT 1`,
-    [productId]
+    [productId],
   );
 
   if (!recipeResult.rows[0]) return;
@@ -39,11 +38,11 @@ export const consumeRecipeForSale = async (
      JOIN products p ON p.id = ri.ingredient_product_id
      WHERE ri.recipe_id = $1
      ORDER BY ri.sort_order, ri.id`,
-    [recipeId]
+    [recipeId],
   );
 
   const warehousesRes = await client.query(
-    `SELECT id FROM warehouses WHERE deleted_at IS NULL AND is_active = TRUE ORDER BY id`
+    `SELECT id FROM warehouses WHERE deleted_at IS NULL AND is_active = TRUE ORDER BY id`,
   );
   const warehouseCandidates = [
     warehouseId,
@@ -56,9 +55,11 @@ export const consumeRecipeForSale = async (
      FROM inventory 
      WHERE product_id = ANY($1::int[]) 
      GROUP BY product_id`,
-    [ingredientIds]
+    [ingredientIds],
   );
-  const globalStockMap = new Map(globalStocks.rows.map((r) => [Number(r.product_id), Number(r.total)]));
+  const globalStockMap = new Map(
+    globalStocks.rows.map((r) => [Number(r.product_id), Number(r.total)]),
+  );
 
   for (const item of itemsRes.rows) {
     const recipeUnit = normalizeUnit(item.unit_code);
@@ -70,7 +71,7 @@ export const consumeRecipeForSale = async (
 
     if (unitGroup(recipeUnit) !== unitGroup(stockUnit)) {
       throw new AppError(
-        `عدم توافق وحدة المكون ${item.ingredient_name}: الوصفة ${recipeUnit} والمخزون ${stockUnit}`
+        `عدم توافق وحدة المكون ${item.ingredient_name}: الوصفة ${recipeUnit} والمخزون ${stockUnit}`,
       );
     }
 
@@ -79,13 +80,15 @@ export const consumeRecipeForSale = async (
 
     if (needed == null) {
       throw new AppError(
-        `تعذر تحويل وحدة المكون ${item.ingredient_name} من ${recipeUnit} إلى ${stockUnit}`
+        `تعذر تحويل وحدة المكون ${item.ingredient_name} من ${recipeUnit} إلى ${stockUnit}`,
       );
     }
 
     const globalTotal = globalStockMap.get(Number(item.ingredient_product_id)) || 0;
     if (globalTotal < needed) {
-       throw new AppError(`مخزون المكونات غير كافٍ عبر جميع المخازن للمكون: ${item.ingredient_name}. المطلوب: ${needed.toFixed(3)} ${stockUnit}`);
+      throw new AppError(
+        `مخزون المكونات غير كافٍ عبر جميع المخازن للمكون: ${item.ingredient_name}. المطلوب: ${needed.toFixed(3)} ${stockUnit}`,
+      );
     }
 
     let remainingNeeded = needed;
@@ -93,7 +96,11 @@ export const consumeRecipeForSale = async (
 
     for (const candidateWarehouseId of warehouseCandidates) {
       if (remainingNeeded <= 0) break;
-      const invRow = await inventoryService.lockInventoryRow(client, item.ingredient_product_id, candidateWarehouseId);
+      const invRow = await inventoryService.lockInventoryRow(
+        client,
+        item.ingredient_product_id,
+        candidateWarehouseId,
+      );
       const currentQty = Number(invRow?.quantity || 0);
       if (currentQty > 0) {
         const deductQty = Math.min(currentQty, remainingNeeded);
@@ -103,14 +110,14 @@ export const consumeRecipeForSale = async (
     }
 
     if (remainingNeeded > 0.0001) {
-       throw new AppError(`تعذر سحب الكمية من ${item.ingredient_name} بسبب تغير المخزون`);
+      throw new AppError(`تعذر سحب الكمية من ${item.ingredient_name} بسبب تغير المخزون`);
     }
 
     for (const deduction of resolvedDeductions) {
       await client.query(
         `UPDATE inventory SET quantity = quantity - $1, updated_at = NOW()
          WHERE product_id = $2 AND warehouse_id = $3`,
-        [deduction.quantity, item.ingredient_product_id, deduction.warehouse_id]
+        [deduction.quantity, item.ingredient_product_id, deduction.warehouse_id],
       );
 
       await client.query(
@@ -126,7 +133,7 @@ export const consumeRecipeForSale = async (
           referenceId,
           userId,
           `'3*GD'C H5A) 'DEF*, ${productId}`,
-        ]
+        ],
       );
     }
   }
@@ -134,11 +141,12 @@ export const consumeRecipeForSale = async (
 
 export const restoreRecipeForSale = async (
   client,
-  { productId, soldQty, warehouseId, referenceType = 'sale', referenceId = null, userId }
+  { productId, soldQty, warehouseId, referenceType = 'sale', referenceId = null, userId },
 ) => {
   const consumedRows = referenceId
-    ? (await client.query(
-      `SELECT product_id AS ingredient_product_id,
+    ? (
+        await client.query(
+          `SELECT product_id AS ingredient_product_id,
                 from_warehouse_id,
                 SUM(quantity) AS quantity
          FROM stock_movements
@@ -146,8 +154,9 @@ export const restoreRecipeForSale = async (
            AND reference_id = $2
            AND movement_type = 'consumption'
          GROUP BY product_id, from_warehouse_id`,
-      [referenceType, referenceId]
-    )).rows
+          [referenceType, referenceId],
+        )
+      ).rows
     : [];
 
   if (consumedRows.length) {
@@ -156,11 +165,15 @@ export const restoreRecipeForSale = async (
       if (qtyToRestore <= 0) continue;
 
       const restoreWarehouseId = item.from_warehouse_id || warehouseId;
-      await inventoryService.ensureInventoryRow(client, item.ingredient_product_id, restoreWarehouseId);
+      await inventoryService.ensureInventoryRow(
+        client,
+        item.ingredient_product_id,
+        restoreWarehouseId,
+      );
       await client.query(
         `UPDATE inventory SET quantity = quantity + $1, updated_at = NOW()
          WHERE product_id = $2 AND warehouse_id = $3`,
-        [qtyToRestore, item.ingredient_product_id, restoreWarehouseId]
+        [qtyToRestore, item.ingredient_product_id, restoreWarehouseId],
       );
 
       await client.query(
@@ -176,7 +189,7 @@ export const restoreRecipeForSale = async (
           referenceId,
           userId,
           `'3*1,'9 ECHF'* E1,9) EF -1C) 'DEF*, ${productId}`,
-        ]
+        ],
       );
     }
     return;
@@ -187,7 +200,7 @@ export const restoreRecipeForSale = async (
      FROM product_recipes r
      WHERE r.product_id = $1 AND r.deleted_at IS NULL AND r.is_active = TRUE
      LIMIT 1`,
-    [productId]
+    [productId],
   );
 
   if (!recipeResult.rows[0]) return;
@@ -200,7 +213,7 @@ export const restoreRecipeForSale = async (
      JOIN products p ON p.id = ri.ingredient_product_id
      WHERE ri.recipe_id = $1
      ORDER BY ri.sort_order, ri.id`,
-    [recipeId]
+    [recipeId],
   );
 
   for (const item of itemsRes.rows) {
@@ -213,7 +226,7 @@ export const restoreRecipeForSale = async (
 
     if (unitGroup(recipeUnit) !== unitGroup(stockUnit)) {
       throw new AppError(
-        `عدم توافق وحدة المكون ${item.ingredient_name}: الوصفة ${recipeUnit} والمخزون ${stockUnit}`
+        `عدم توافق وحدة المكون ${item.ingredient_name}: الوصفة ${recipeUnit} والمخزون ${stockUnit}`,
       );
     }
 
@@ -222,7 +235,7 @@ export const restoreRecipeForSale = async (
 
     if (qtyToRestore == null) {
       throw new AppError(
-        `تعذر تحويل وحدة المكون ${item.ingredient_name} من ${recipeUnit} إلى ${stockUnit}`
+        `تعذر تحويل وحدة المكون ${item.ingredient_name} من ${recipeUnit} إلى ${stockUnit}`,
       );
     }
 
@@ -230,7 +243,7 @@ export const restoreRecipeForSale = async (
     await client.query(
       `UPDATE inventory SET quantity = quantity + $1, updated_at = NOW()
        WHERE product_id = $2 AND warehouse_id = $3`,
-      [qtyToRestore, item.ingredient_product_id, warehouseId]
+      [qtyToRestore, item.ingredient_product_id, warehouseId],
     );
 
     await client.query(
@@ -246,19 +259,20 @@ export const restoreRecipeForSale = async (
         referenceId,
         userId,
         `'3*1,'9 ECHF'* DDH5A) EF -1C) ${referenceType} ${referenceId}`,
-      ]
+      ],
     );
   }
 };
 
 export const restoreRecipeConsumptionForReference = async (
   client,
-  { referenceType = 'sale', referenceId, warehouseId, userId }
+  { referenceType = 'sale', referenceId, warehouseId, userId },
 ) => {
   if (!referenceId) return false;
 
-  const consumedRows = (await client.query(
-    `SELECT product_id AS ingredient_product_id,
+  const consumedRows = (
+    await client.query(
+      `SELECT product_id AS ingredient_product_id,
             from_warehouse_id,
             SUM(quantity) AS quantity
      FROM stock_movements
@@ -266,8 +280,9 @@ export const restoreRecipeConsumptionForReference = async (
        AND reference_id = $2
        AND movement_type = 'consumption'
      GROUP BY product_id, from_warehouse_id`,
-    [referenceType, referenceId]
-  )).rows;
+      [referenceType, referenceId],
+    )
+  ).rows;
 
   if (!consumedRows.length) return false;
 
@@ -276,11 +291,15 @@ export const restoreRecipeConsumptionForReference = async (
     if (qtyToRestore <= 0) continue;
 
     const restoreWarehouseId = item.from_warehouse_id || warehouseId;
-    await inventoryService.ensureInventoryRow(client, item.ingredient_product_id, restoreWarehouseId);
+    await inventoryService.ensureInventoryRow(
+      client,
+      item.ingredient_product_id,
+      restoreWarehouseId,
+    );
     await client.query(
       `UPDATE inventory SET quantity = quantity + $1, updated_at = NOW()
        WHERE product_id = $2 AND warehouse_id = $3`,
-      [qtyToRestore, item.ingredient_product_id, restoreWarehouseId]
+      [qtyToRestore, item.ingredient_product_id, restoreWarehouseId],
     );
 
     await client.query(
@@ -296,7 +315,7 @@ export const restoreRecipeConsumptionForReference = async (
         referenceId,
         userId,
         `استرجاع مكونات مبيعة من حركة ${referenceType} ${referenceId}`,
-      ]
+      ],
     );
   }
 
@@ -314,11 +333,12 @@ export const restoreRecipeConsumptionForReference = async (
  */
 export const restoreRecipeConsumptionForProduct = async (
   client,
-  { productId, soldQty, saleId, warehouseId, userId }
+  { productId, soldQty, saleId, warehouseId, userId },
 ) => {
   // ابحث عن consumption movements لهذا المنتج في هذه العملية
-  const consumedRows = (await client.query(
-    `SELECT sm.product_id AS ingredient_product_id,
+  const consumedRows = (
+    await client.query(
+      `SELECT sm.product_id AS ingredient_product_id,
             sm.from_warehouse_id,
             SUM(sm.quantity) AS quantity
      FROM stock_movements sm
@@ -333,8 +353,9 @@ export const restoreRecipeConsumptionForProduct = async (
            AND pri.ingredient_product_id = sm.product_id
        )
      GROUP BY sm.product_id, sm.from_warehouse_id`,
-    [saleId, productId]
-  )).rows;
+      [saleId, productId],
+    )
+  ).rows;
 
   if (consumedRows.length) {
     // استعادة من سجلات الـ consumption الفعلية
@@ -343,11 +364,15 @@ export const restoreRecipeConsumptionForProduct = async (
       if (qtyToRestore <= 0) continue;
 
       const restoreWarehouse = item.from_warehouse_id || warehouseId;
-      await inventoryService.ensureInventoryRow(client, item.ingredient_product_id, restoreWarehouse);
+      await inventoryService.ensureInventoryRow(
+        client,
+        item.ingredient_product_id,
+        restoreWarehouse,
+      );
       await client.query(
         `UPDATE inventory SET quantity = quantity + $1, updated_at = NOW()
          WHERE product_id = $2 AND warehouse_id = $3`,
-        [qtyToRestore, item.ingredient_product_id, restoreWarehouse]
+        [qtyToRestore, item.ingredient_product_id, restoreWarehouse],
       );
       await client.query(
         `INSERT INTO stock_movements (
@@ -361,7 +386,7 @@ export const restoreRecipeConsumptionForProduct = async (
           saleId,
           userId,
           `استرداد مكونات وصفة المنتج ${productId} من بيع ${saleId}`,
-        ]
+        ],
       );
     }
     return;
@@ -371,7 +396,7 @@ export const restoreRecipeConsumptionForProduct = async (
   const recipeResult = await client.query(
     `SELECT r.id FROM product_recipes r
      WHERE r.product_id = $1 AND r.deleted_at IS NULL AND r.is_active = TRUE LIMIT 1`,
-    [productId]
+    [productId],
   );
   if (!recipeResult.rows[0]) return;
 
@@ -382,7 +407,7 @@ export const restoreRecipeConsumptionForProduct = async (
      JOIN products p ON p.id = ri.ingredient_product_id
      WHERE ri.recipe_id = $1
      ORDER BY ri.sort_order, ri.id`,
-    [recipeId]
+    [recipeId],
   );
 
   for (const item of itemsRes.rows) {
@@ -398,7 +423,7 @@ export const restoreRecipeConsumptionForProduct = async (
     await client.query(
       `UPDATE inventory SET quantity = quantity + $1, updated_at = NOW()
        WHERE product_id = $2 AND warehouse_id = $3`,
-      [qtyToRestore, item.ingredient_product_id, warehouseId]
+      [qtyToRestore, item.ingredient_product_id, warehouseId],
     );
     await client.query(
       `INSERT INTO stock_movements (
@@ -412,7 +437,7 @@ export const restoreRecipeConsumptionForProduct = async (
         saleId,
         userId,
         `استرداد مكونات وصفة (fallback) للمنتج ${productId}`,
-      ]
+      ],
     );
   }
 };
@@ -423,7 +448,10 @@ const resolveWarehouseId = async (client, warehouseId) => {
   return getDefaultWarehouseId((sql, params) => client.query(sql, params));
 };
 
-export const produceRecipeBatch = async ({ recipeId, quantity, warehouseId, notes = null, mode = 'production' }, userId) => {
+export const produceRecipeBatch = async (
+  { recipeId, quantity, warehouseId, notes = null, mode = 'production' },
+  userId,
+) => {
   const producedQty = Number(quantity);
   if (!Number.isFinite(producedQty) || producedQty <= 0) {
     throw new AppError('Production quantity must be greater than zero', 400);
@@ -443,33 +471,36 @@ export const produceRecipeBatch = async ({ recipeId, quantity, warehouseId, note
          AND r.is_active = TRUE
        LIMIT 1
        FOR UPDATE`,
-      [recipeId]
+      [recipeId],
     );
     const recipe = recipeRes.rows[0];
     if (!recipe) throw new AppError('Recipe not found or inactive', 404);
 
-    const storeWarehouseId = await getWarehouseIdByCode('STORE', (sql, params) => client.query(sql, params));
+    const storeWarehouseId = await getWarehouseIdByCode('STORE', (sql, params) =>
+      client.query(sql, params),
+    );
     const primaryWarehouseId = Number(recipe.primary_warehouse_id || 0);
     let targetWarehouseId = primaryWarehouseId || null;
     if (!targetWarehouseId && warehouseId) {
       targetWarehouseId = await resolveWarehouseId(client, warehouseId);
     } else if (!targetWarehouseId) {
-      targetWarehouseId = storeWarehouseId || await resolveWarehouseId(client, recipe.primary_warehouse_id);
+      targetWarehouseId =
+        storeWarehouseId || (await resolveWarehouseId(client, recipe.primary_warehouse_id));
     }
     if (!targetWarehouseId) throw new AppError('Warehouse is required', 400);
 
     const warehouseRes = await client.query(
       `SELECT id, name_ar FROM warehouses WHERE id = $1 AND deleted_at IS NULL AND is_active = TRUE`,
-      [targetWarehouseId]
+      [targetWarehouseId],
     );
     if (!warehouseRes.rows[0]) throw new AppError('Warehouse not found', 404);
-    let targetWarehouseName = warehouseRes.rows[0].name_ar;
+    const targetWarehouseName = warehouseRes.rows[0].name_ar;
 
     const warehousesRes = await client.query(
       `SELECT id, name_ar
        FROM warehouses
        WHERE deleted_at IS NULL AND is_active = TRUE
-       ORDER BY id`
+       ORDER BY id`,
     );
 
     const resolvedItems = [];
@@ -480,7 +511,7 @@ export const produceRecipeBatch = async ({ recipeId, quantity, warehouseId, note
          JOIN products p ON p.id = ri.ingredient_product_id
          WHERE ri.recipe_id = $1
          ORDER BY ri.sort_order, ri.id`,
-        [recipeId]
+        [recipeId],
       );
       if (!itemsRes.rows.length) throw new AppError('Recipe has no ingredients', 400);
 
@@ -509,7 +540,9 @@ export const produceRecipeBatch = async ({ recipeId, quantity, warehouseId, note
 
       const warehouseCandidates = [
         targetWarehouseId,
-        ...warehousesRes.rows.map((w) => Number(w.id)).filter((id) => id && id !== targetWarehouseId),
+        ...warehousesRes.rows
+          .map((w) => Number(w.id))
+          .filter((id) => id && id !== targetWarehouseId),
       ];
 
       // 1. Pre-check global stock for all ingredients
@@ -518,32 +551,46 @@ export const produceRecipeBatch = async ({ recipeId, quantity, warehouseId, note
          FROM inventory
          WHERE product_id = ANY($1::int[])
          GROUP BY product_id`,
-        [requirements.map((r) => r.ingredient_product_id)]
+        [requirements.map((r) => r.ingredient_product_id)],
       );
-      const globalStockMap = new Map(globalStockRows.rows.map((row) => [Number(row.product_id), Number(row.total_quantity || 0)]));
-      
+      const globalStockMap = new Map(
+        globalStockRows.rows.map((row) => [
+          Number(row.product_id),
+          Number(row.total_quantity || 0),
+        ]),
+      );
+
       for (const req of requirements) {
-        if (Number(globalStockMap.get(req.ingredient_product_id) || 0) < Number(req.quantity || 0)) {
-           throw new AppError(`مخزون المكونات غير كافٍ عبر جميع المخازن. المكون: ${req.ingredient_name}. المطلوب: ${req.quantity}`, 400);
+        if (
+          Number(globalStockMap.get(req.ingredient_product_id) || 0) < Number(req.quantity || 0)
+        ) {
+          throw new AppError(
+            `مخزون المكونات غير كافٍ عبر جميع المخازن. المكون: ${req.ingredient_name}. المطلوب: ${req.quantity}`,
+            400,
+          );
         }
       }
 
       // 2. Deduct incrementally from warehouses based on priority
       const resolvedDeductions = []; // { product_id, warehouse_id, quantity }
-      
+
       for (const req of requirements) {
         let remainingNeeded = Number(req.quantity);
-        
+
         for (const candidateWarehouseId of warehouseCandidates) {
           if (remainingNeeded <= 0) break;
-          
-          const invRow = await inventoryService.lockInventoryRow(client, req.ingredient_product_id, candidateWarehouseId);
+
+          const invRow = await inventoryService.lockInventoryRow(
+            client,
+            req.ingredient_product_id,
+            candidateWarehouseId,
+          );
           const currentQty = Number(invRow?.quantity || 0);
-          
+
           if (currentQty > 0) {
             const deductQty = Math.min(currentQty, remainingNeeded);
             remainingNeeded -= deductQty;
-            
+
             resolvedDeductions.push({
               ingredient_product_id: req.ingredient_product_id,
               ingredient_name: req.ingredient_name,
@@ -552,9 +599,12 @@ export const produceRecipeBatch = async ({ recipeId, quantity, warehouseId, note
             });
           }
         }
-        
+
         if (remainingNeeded > 0.0001) {
-           throw new AppError(`تعذر سحب الكمية المطلوبة بالكامل من المكون: ${req.ingredient_name} بسبب تغير المخزون بشكل متزامن.`, 400);
+          throw new AppError(
+            `تعذر سحب الكمية المطلوبة بالكامل من المكون: ${req.ingredient_name} بسبب تغير المخزون بشكل متزامن.`,
+            400,
+          );
         }
       }
     }
@@ -563,7 +613,7 @@ export const produceRecipeBatch = async ({ recipeId, quantity, warehouseId, note
     await client.query(
       `UPDATE inventory SET quantity = quantity + $1, updated_at = NOW()
        WHERE product_id = $2 AND warehouse_id = $3`,
-      [producedQty, recipe.product_id, targetWarehouseId]
+      [producedQty, recipe.product_id, targetWarehouseId],
     );
     const prodMv = await client.query(
       `INSERT INTO stock_movements (
@@ -578,10 +628,11 @@ export const produceRecipeBatch = async ({ recipeId, quantity, warehouseId, note
         operationMode,
         recipeId,
         userId,
-        notes || (operationMode === 'opening_production'
-          ? `Opening production balance for ${recipe.product_name}`
-          : `Production batch for ${recipe.product_name}`),
-      ]
+        notes ||
+          (operationMode === 'opening_production'
+            ? `Opening production balance for ${recipe.product_name}`
+            : `Production batch for ${recipe.product_name}`),
+      ],
     );
     const prodMovementId = prodMv.rows[0].id;
 
@@ -591,7 +642,7 @@ export const produceRecipeBatch = async ({ recipeId, quantity, warehouseId, note
         await client.query(
           `UPDATE inventory SET quantity = quantity - $1, updated_at = NOW()
            WHERE product_id = $2 AND warehouse_id = $3`,
-          [deduction.quantity, deduction.ingredient_product_id, deduction.warehouse_id]
+          [deduction.quantity, deduction.ingredient_product_id, deduction.warehouse_id],
         );
         await client.query(
           `INSERT INTO stock_movements (
@@ -606,7 +657,7 @@ export const produceRecipeBatch = async ({ recipeId, quantity, warehouseId, note
             prodMovementId,
             userId,
             `Production ingredient consumption for ${recipe.product_name}`,
-          ]
+          ],
         );
         resolvedItems.push(deduction);
       }
@@ -614,7 +665,7 @@ export const produceRecipeBatch = async ({ recipeId, quantity, warehouseId, note
 
     const stock = await client.query(
       `SELECT quantity FROM inventory WHERE product_id = $1 AND warehouse_id = $2`,
-      [recipe.product_id, targetWarehouseId]
+      [recipe.product_id, targetWarehouseId],
     );
 
     await client.query(
@@ -635,7 +686,7 @@ export const produceRecipeBatch = async ({ recipeId, quantity, warehouseId, note
           new_stock: stock.rows[0]?.quantity || 0,
           items: resolvedItems,
         }),
-      ]
+      ],
     );
 
     await client.query('COMMIT');
@@ -726,16 +777,19 @@ export const listProductionBatches = async (filters = {}) => {
  * @param {object} options
  * @param {number} [options.reverseQty]  - كمية جزئية للعكس (اختياري، الافتراضي: الكمية الكاملة)
  */
-export const reverseProductionBatch = async (movementId, userId, { reverseQty: rawReverseQty } = {}) => {
+export const reverseProductionBatch = async (
+  movementId,
+  userId,
+  { reverseQty: rawReverseQty } = {},
+) => {
   const client = await getClient();
   try {
     await client.query('BEGIN');
 
     // 1) جلب حركة الإنتاج مع lock
-    const mvRes = await client.query(
-      `SELECT * FROM stock_movements WHERE id = $1 FOR UPDATE`,
-      [movementId]
-    );
+    const mvRes = await client.query(`SELECT * FROM stock_movements WHERE id = $1 FOR UPDATE`, [
+      movementId,
+    ]);
     if (!mvRes.rowCount) throw new AppError('حركة الإنتاج غير موجودة', 404);
     const mv = mvRes.rows[0];
 
@@ -750,7 +804,7 @@ export const reverseProductionBatch = async (movementId, userId, { reverseQty: r
          AND reference_type = $1
          AND reference_id   = $2
        LIMIT 1`,
-      [mv.movement_type, mv.id]
+      [mv.movement_type, mv.id],
     );
     if (alreadyReversed.rowCount) {
       throw new AppError('هذه العملية تم عكسها مسبقاً', 400);
@@ -762,7 +816,7 @@ export const reverseProductionBatch = async (movementId, userId, { reverseQty: r
 
     const productId = mv.product_id;
     const warehouseId = mv.to_warehouse_id;
-    const refType = mv.movement_type;   // 'production' | 'opening_production'
+    const refType = mv.movement_type; // 'production' | 'opening_production'
     const recipeId = mv.reference_id;
 
     // 3) تحقق من توفر المنتج النهائي في المخزن
@@ -771,7 +825,7 @@ export const reverseProductionBatch = async (movementId, userId, { reverseQty: r
     if (currentStock < reverseQty) {
       throw new AppError(
         `مخزون المنتج النهائي غير كافٍ للعكس — متاح: ${currentStock}، مطلوب: ${reverseQty}`,
-        400
+        400,
       );
     }
 
@@ -784,7 +838,7 @@ export const reverseProductionBatch = async (movementId, userId, { reverseQty: r
          AND reference_type = 'production_batch'
          AND reference_id   = $1
        ORDER BY id`,
-      [mv.id]
+      [mv.id],
     );
 
     if (consRes.rowCount === 0) {
@@ -801,7 +855,7 @@ export const reverseProductionBatch = async (movementId, userId, { reverseQty: r
            AND reference_id   = $2
            AND created_at BETWEEN $3 AND $4
          ORDER BY id`,
-        [refType, recipeId, startTime, endTime]
+        [refType, recipeId, startTime, endTime],
       );
     }
 
@@ -809,7 +863,7 @@ export const reverseProductionBatch = async (movementId, userId, { reverseQty: r
     await client.query(
       `UPDATE inventory SET quantity = quantity - $1, updated_at = NOW()
        WHERE product_id = $2 AND warehouse_id = $3`,
-      [reverseQty, productId, warehouseId]
+      [reverseQty, productId, warehouseId],
     );
 
     // 6) تسجيل حركة عكس بـ adjustment (موجبة، from_warehouse = مخزن الإنتاج)
@@ -823,10 +877,10 @@ export const reverseProductionBatch = async (movementId, userId, { reverseQty: r
         warehouseId,
         reverseQty,
         refType,
-        mv.id,   // reference_id = id حركة الإنتاج الأصلية
+        mv.id, // reference_id = id حركة الإنتاج الأصلية
         userId,
         `عكس عملية إنتاج — الحركة id:${mv.id}`,
-      ]
+      ],
     );
 
     // 7) إعادة المكونات إلى المخزون
@@ -840,7 +894,7 @@ export const reverseProductionBatch = async (movementId, userId, { reverseQty: r
       await client.query(
         `UPDATE inventory SET quantity = quantity + $1, updated_at = NOW()
          WHERE product_id = $2 AND warehouse_id = $3`,
-        [restoreQty, cons.product_id, fromWh]
+        [restoreQty, cons.product_id, fromWh],
       );
       await client.query(
         `INSERT INTO stock_movements
@@ -855,9 +909,13 @@ export const reverseProductionBatch = async (movementId, userId, { reverseQty: r
           mv.id,
           userId,
           `إعادة مكون — عكس إنتاج id:${mv.id}`,
-        ]
+        ],
       );
-      restoredIngredients.push({ product_id: cons.product_id, warehouse_id: fromWh, qty: restoreQty });
+      restoredIngredients.push({
+        product_id: cons.product_id,
+        warehouse_id: fromWh,
+        qty: restoreQty,
+      });
     }
 
     // 8) تسجيل في activity_logs
@@ -875,7 +933,7 @@ export const reverseProductionBatch = async (movementId, userId, { reverseQty: r
           reversed_qty: reverseQty,
           restored_ingredients: restoredIngredients,
         }),
-      ]
+      ],
     );
 
     await client.query('COMMIT');
@@ -884,7 +942,7 @@ export const reverseProductionBatch = async (movementId, userId, { reverseQty: r
     // المخزون الجديد بعد العكس
     const newStock = await client.query(
       `SELECT quantity FROM inventory WHERE product_id = $1 AND warehouse_id = $2`,
-      [productId, warehouseId]
+      [productId, warehouseId],
     );
 
     return {

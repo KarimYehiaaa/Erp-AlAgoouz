@@ -4,7 +4,9 @@
     <div class="page-header">
       <div class="header-title">
         <h1>📊 جرد المخازن والتسويات</h1>
-        <p>إدارة ومطابقة كميات المخازن الفعلية بالكميات الدفترية وتسوية الفروقات مالياً ومخزنياً.</p>
+        <p>
+          إدارة ومطابقة كميات المخازن الفعلية بالكميات الدفترية وتسوية الفروقات مالياً ومخزنياً.
+        </p>
       </div>
       <div class="header-actions">
         <button class="btn btn-primary" @click="openCreateModal">
@@ -23,7 +25,7 @@
       <div class="table-header-filters">
         <h3>📋 سجل عمليات الجرد السابقة</h3>
       </div>
-      
+
       <table class="data-table">
         <thead>
           <tr>
@@ -39,7 +41,11 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="s in stocktakesList" :key="s.id" :class="{ 'row-draft': s.status === 'draft' }">
+          <tr
+            v-for="s in stocktakesList"
+            :key="s.id"
+            :class="{ 'row-draft': s.status === 'draft' }"
+          >
             <td class="wh-name">{{ s.warehouse_name }}</td>
             <td class="date-col">{{ fmtDateTime(s.created_at) }}</td>
             <td>{{ s.creator_name }}</td>
@@ -51,30 +57,28 @@
               {{ s.status === 'completed' ? fmtCurrency(s.total_surplus_value) : '-' }}
             </td>
             <td>
-              <span :class="['badge', s.status === 'completed' ? 'badge-success' : 'badge-warning']">
+              <span
+                :class="['badge', s.status === 'completed' ? 'badge-success' : 'badge-warning']"
+              >
                 {{ s.status === 'completed' ? '✅ معتمد ومسوى' : '📝 مسودة معلقة' }}
               </span>
             </td>
             <td class="date-col">{{ s.completed_at ? fmtDateTime(s.completed_at) : '-' }}</td>
             <td class="actions-col">
-              <button 
-                v-if="s.status === 'draft'" 
+              <button
+                v-if="s.status === 'draft'"
                 class="btn btn-xs btn-primary"
                 @click="goToDetails(s.id)"
               >
                 ✏️ استكمال الجرد
               </button>
-              <button 
-                v-else 
-                class="btn btn-xs btn-outline"
-                @click="goToDetails(s.id)"
-              >
+              <button v-else class="btn btn-xs btn-outline" @click="goToDetails(s.id)">
                 👁️ عرض التفاصيل
               </button>
-              
-              <button 
-                v-if="s.status === 'draft'" 
-                class="btn btn-xs btn-danger-link" 
+
+              <button
+                v-if="s.status === 'draft'"
+                class="btn btn-xs btn-danger-link"
                 title="حذف المسودة"
                 @click="confirmDelete(s)"
               >
@@ -111,16 +115,18 @@
           </div>
           <div class="form-group">
             <label for="notes">ملاحظات الجرد</label>
-            <textarea 
-              id="notes" 
-              v-model="form.notes" 
-              placeholder="مثال: جرد نهاية شهر يونيو 2026" 
+            <textarea
+              id="notes"
+              v-model="form.notes"
+              placeholder="مثال: جرد نهاية شهر يونيو 2026"
               class="form-control"
               rows="3"
             ></textarea>
           </div>
           <div class="modal-actions">
-            <button type="button" class="btn btn-outline" @click="showCreateModal = false">إلغاء</button>
+            <button type="button" class="btn btn-outline" @click="showCreateModal = false">
+              إلغاء
+            </button>
             <button type="submit" class="btn btn-primary" :disabled="submitting">
               {{ submitting ? 'جاري التحضير...' : 'بدء الجرد الفعلي' }}
             </button>
@@ -137,11 +143,19 @@
           <button class="close-btn" @click="stocktakeToDelete = null">×</button>
         </div>
         <div class="modal-body">
-          <p>هل أنت متأكد من رغبتك في حذف مسودة الجرد الخاصة بمستودع <strong>{{ stocktakeToDelete.warehouse_name }}</strong>؟</p>
-          <p class="warning-alert">تنبيه: سيتم حذف كافة الكميات المدخلة حالياً من قبل الموظفين ولا يمكن استرجاعها.</p>
+          <p>
+            هل أنت متأكد من رغبتك في حذف مسودة الجرد الخاصة بمستودع
+            <strong>{{ stocktakeToDelete.warehouse_name }}</strong
+            >؟
+          </p>
+          <p class="warning-alert">
+            تنبيه: سيتم حذف كافة الكميات المدخلة حالياً من قبل الموظفين ولا يمكن استرجاعها.
+          </p>
         </div>
         <div class="modal-actions">
-          <button type="button" class="btn btn-outline" @click="stocktakeToDelete = null">إلغاء</button>
+          <button type="button" class="btn btn-outline" @click="stocktakeToDelete = null">
+            إلغاء
+          </button>
           <button type="button" class="btn btn-danger" @click="handleDelete" :disabled="submitting">
             نعم، احذف المسودة
           </button>
@@ -170,7 +184,7 @@ const err = ref(false);
 
 const form = ref({
   warehouse_id: '',
-  notes: ''
+  notes: '',
 });
 
 const flashMsg = (text, isErr = false) => {
@@ -184,12 +198,9 @@ const flashMsg = (text, isErr = false) => {
 const loadData = async () => {
   loading.value = true;
   try {
-    const [stRes, whRes] = await Promise.all([
-      stocktakeApi.list(),
-      warehousesApi()
-    ]);
+    const [stRes, whRes] = await Promise.all([stocktakeApi.list(), warehousesApi()]);
     stocktakesList.value = stRes.data || [];
-    warehousesList.value = (whRes.data || []).filter(w => w.is_active);
+    warehousesList.value = (whRes.data || []).filter((w) => w.is_active);
   } catch (e) {
     flashMsg(e.message || 'فشل في تحميل بيانات الجرد والمستودعات', true);
   } finally {
@@ -208,7 +219,7 @@ const handleCreate = async () => {
   try {
     const res = await stocktakeApi.create({
       warehouse_id: form.value.warehouse_id,
-      notes: form.value.notes
+      notes: form.value.notes,
     });
     showCreateModal.value = false;
     flashMsg('تم بدء مسودة جرد جديدة بنجاح.');
@@ -248,14 +259,21 @@ const fmtDateTime = (isoStr) => {
   if (!isoStr) return '-';
   const d = new Date(isoStr);
   return d.toLocaleDateString('ar-EG', {
-    year: 'numeric', month: 'short', day: 'numeric',
-    hour: '2-digit', minute: '2-digit'
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
   });
 };
 
 const fmtCurrency = (val) => {
   if (val === undefined || val === null) return '-';
-  return Number(val).toLocaleString('ar-EG', { style: 'currency', currency: 'EGP', minimumFractionDigits: 2 });
+  return Number(val).toLocaleString('ar-EG', {
+    style: 'currency',
+    currency: 'EGP',
+    minimumFractionDigits: 2,
+  });
 };
 
 onMounted(loadData);
@@ -295,7 +313,7 @@ onMounted(loadData);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  
+
   h3 {
     margin: 0;
     font-size: 1.1rem;
@@ -396,7 +414,9 @@ onMounted(loadData);
   width: 100%;
   padding: 24px;
   border-radius: var(--radius-lg);
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  box-shadow:
+    0 20px 25px -5px rgba(0, 0, 0, 0.1),
+    0 10px 10px -5px rgba(0, 0, 0, 0.04);
   animation: modalScale 200ms cubic-bezier(0.16, 1, 0.3, 1);
   background: var(--bg-card);
 
@@ -502,13 +522,13 @@ onMounted(loadData);
   border-radius: var(--radius-sm);
   font-size: 0.9rem;
   animation: slideDown 250ms ease;
-  
+
   &.ok {
     color: var(--success);
     background: color-mix(in srgb, var(--success) 8%, transparent);
     border: 1px solid color-mix(in srgb, var(--success) 20%, transparent);
   }
-  
+
   &.err {
     color: var(--danger);
     background: color-mix(in srgb, var(--danger) 8%, transparent);
@@ -517,12 +537,24 @@ onMounted(loadData);
 }
 
 @keyframes modalScale {
-  from { opacity: 0; transform: scale(0.95); }
-  to { opacity: 1; transform: scale(1); }
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 @keyframes slideDown {
-  from { transform: translateY(-10px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
+  from {
+    transform: translateY(-10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 </style>

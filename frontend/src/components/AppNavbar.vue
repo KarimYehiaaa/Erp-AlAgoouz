@@ -17,20 +17,20 @@
     </div>
 
     <div class="navbar-end">
-      <div class="search-wrap" @click.prevent="triggerCommandPalette" style="cursor: pointer;">
+      <div class="search-wrap" @click.prevent="triggerCommandPalette" style="cursor: pointer">
         <AppIcon class="search-icon" name="search" />
         <input
           type="text"
           placeholder="بحث سريع أو تنقل... (Ctrl+K)"
           class="search-input"
           readonly
-          style="cursor: pointer;"
+          style="cursor: pointer"
         />
       </div>
 
-      <button 
-        class="icon-btn mobile-actions-toggle" 
-        type="button" 
+      <button
+        class="icon-btn mobile-actions-toggle"
+        type="button"
         @click.stop="mobileActionsOpen = !mobileActionsOpen"
         :class="{ active: mobileActionsOpen }"
         title="أدوات إضافية"
@@ -39,49 +39,16 @@
       </button>
 
       <div class="navbar-actions-group" :class="{ 'mobile-open': mobileActionsOpen }">
-        <div class="theme-switcher" ref="themeMenuRoot">
-          <button
-            class="icon-btn"
-            type="button"
-            @click.stop="themeMenuOpen = !themeMenuOpen"
-            :title="`نمط الواجهة: ${currentPreset?.name || appStore.stylePreset}`"
-          >
-            <AppIcon :name="currentPreset?.icon || 'theme'" />
-          </button>
-          <transition name="fade">
-            <div v-if="themeMenuOpen" class="theme-menu">
-              <div class="theme-menu-head">
-                <strong>نمط الواجهة</strong>
-                <button type="button" class="theme-mode-toggle" @click="appStore.toggleColorMode($event)">
-                  <AppIcon :name="appStore.colorMode === 'light' ? 'moon' : 'sun'" />
-                  <span>{{ appStore.colorMode === 'light' ? 'داكن' : 'فاتح' }}</span>
-                </button>
-              </div>
-              <button
-                v-for="item in STYLE_PRESETS"
-                :key="item.id"
-                type="button"
-                class="theme-option"
-                :class="{ active: appStore.stylePreset === item.id }"
-                @click="selectPreset(item.id)"
-              >
-                <span class="theme-swatch" :style="{ background: presetSwatch(item.id) }"></span>
-                <span class="theme-meta">
-                  <strong>{{ item.name }}</strong>
-                  <small>{{ item.desc }}</small>
-                </span>
-                <AppIcon v-if="appStore.stylePreset === item.id" name="check" class="theme-check" />
-              </button>
-            </div>
-          </transition>
-        </div>
-
         <!-- Privacy Toggle (Eye icon) -->
         <button
           class="icon-btn"
           type="button"
           @click="appStore.togglePrivacyMode"
-          :title="appStore.privacyMode ? 'إظهار المبالغ (وضع الخصوصية مفعل)' : 'طمس المبالغ (تفعيل وضع الخصوصية)'"
+          :title="
+            appStore.privacyMode
+              ? 'إظهار المبالغ (وضع الخصوصية مفعل)'
+              : 'طمس المبالغ (تفعيل وضع الخصوصية)'
+          "
           :class="{ active: appStore.privacyMode }"
         >
           <AppIcon :name="appStore.privacyMode ? 'eyeOff' : 'eye'" />
@@ -92,7 +59,11 @@
           class="icon-btn"
           type="button"
           @click="appStore.toggleDataDensity"
-          :title="appStore.dataDensity === 'compact' ? 'كثافة البيانات: كثيفة (تبديل للمريح)' : 'كثافة البيانات: مريحة (تبديل للمكثف)'"
+          :title="
+            appStore.dataDensity === 'compact'
+              ? 'كثافة البيانات: كثيفة (تبديل للمريح)'
+              : 'كثافة البيانات: مريحة (تبديل للمكثف)'
+          "
           :class="{ active: appStore.dataDensity === 'compact' }"
         >
           <AppIcon :name="appStore.dataDensity === 'compact' ? 'maximize' : 'minimize'" />
@@ -100,14 +71,18 @@
       </div>
 
       <!-- مؤشر حالة الاتصال بالإنترنت والمزامنة الخلفية -->
-      <div 
-        class="network-status" 
+      <div
+        class="network-status"
         :class="{ online: appStore.isOnline, offline: !appStore.isOnline }"
         :title="appStore.isOnline ? 'النظام متصل بالإنترنت' : 'النظام يعمل دون اتصال (أوفلاين)'"
       >
         <span class="pulse-indicator"></span>
         <span class="status-text">{{ appStore.isOnline ? 'متصل' : 'أوفلاين' }}</span>
-        <span v-if="appStore.pendingSyncCount > 0" class="sync-badge" title="مبيعات معلقة بانتظار المزامنة">
+        <span
+          v-if="appStore.pendingSyncCount > 0"
+          class="sync-badge"
+          title="مبيعات معلقة بانتظار المزامنة"
+        >
           {{ appStore.pendingSyncCount }} معلقة
         </span>
       </div>
@@ -117,10 +92,12 @@
         type="button"
         @click="appStore.toggleNotificationDrawer"
         title="تنبيهات التشغيل"
-        style="position: relative;"
+        style="position: relative"
       >
         <AppIcon name="warning" />
-        <span v-if="appStore.notifications.length" class="notification-badge">{{ appStore.notifications.length }}</span>
+        <span v-if="appStore.notifications.length" class="notification-badge">{{
+          appStore.notifications.length
+        }}</span>
       </button>
 
       <div class="user-chip">
@@ -141,9 +118,14 @@
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import AppIcon from '@/components/AppIcon.vue';
-import { useAppStore, STYLE_PRESETS, STYLE_SWATCHES } from '@/stores/app';
+import { useAppStore } from '@/stores/app';
 import { useAuthStore } from '@/stores/auth';
-import { products as productsApi, customers as customersApi, sales as salesApi, operations as operationsApi } from '@/api';
+import {
+  products as productsApi,
+  customers as customersApi,
+  sales as salesApi,
+  operations as operationsApi,
+} from '@/api';
 import { localDb } from '@/services/localDb';
 
 const route = useRoute();
@@ -154,15 +136,11 @@ const search = ref('');
 const searchFocused = ref(false);
 const searchLoading = ref(false);
 const remoteResults = ref([]);
-const themeMenuOpen = ref(false);
-const themeMenuRoot = ref(null);
 const mobileActionsOpen = ref(false);
 let searchTimer = null;
 const triggerCommandPalette = () => {
   window.dispatchEvent(new CustomEvent('open-command-palette'));
 };
-
-const presetSwatches = STYLE_SWATCHES;
 
 const titles = {
   Dashboard: ['لوحة التحكم', 'مؤشرات التشغيل والتحصيل والمخزون'],
@@ -187,15 +165,51 @@ const titles = {
 
 const pageResults = [
   { type: 'page', badge: 'صفحة', title: 'لوحة التحكم', subtitle: 'مؤشرات التشغيل', to: '/' },
-  { type: 'page', badge: 'صفحة', title: 'شاشة المبيعات', subtitle: 'إدخال مبيعات الفرع', to: '/branch-sales' },
+  {
+    type: 'page',
+    badge: 'صفحة',
+    title: 'شاشة المبيعات',
+    subtitle: 'إدخال مبيعات الفرع',
+    to: '/branch-sales',
+  },
   { type: 'page', badge: 'صفحة', title: 'المبيعات', subtitle: 'سجل المبيعات', to: '/sales' },
   { type: 'page', badge: 'صفحة', title: 'المنتجات', subtitle: 'إدارة المنتجات', to: '/products' },
-  { type: 'page', badge: 'صفحة', title: 'المشتريات', subtitle: 'فواتير الموردين', to: '/purchases' },
-  { type: 'page', badge: 'صفحة', title: 'المخزون', subtitle: 'أرصدة وحركة المخزون', to: '/inventory' },
-  { type: 'page', badge: 'صفحة', title: 'التكاليف', subtitle: 'تحليل الأسعار والأرباح', to: '/costs' },
+  {
+    type: 'page',
+    badge: 'صفحة',
+    title: 'المشتريات',
+    subtitle: 'فواتير الموردين',
+    to: '/purchases',
+  },
+  {
+    type: 'page',
+    badge: 'صفحة',
+    title: 'المخزون',
+    subtitle: 'أرصدة وحركة المخزون',
+    to: '/inventory',
+  },
+  {
+    type: 'page',
+    badge: 'صفحة',
+    title: 'التكاليف',
+    subtitle: 'تحليل الأسعار والأرباح',
+    to: '/costs',
+  },
   { type: 'page', badge: 'صفحة', title: 'الوصفات', subtitle: 'مكونات المنتجات', to: '/recipes' },
-  { type: 'page', badge: 'صفحة', title: 'العملاء', subtitle: 'بيانات ومديونيات العملاء', to: '/customers' },
-  { type: 'page', badge: 'صفحة', title: 'الفواتير', subtitle: 'الفواتير والمدفوعات', to: '/invoices' },
+  {
+    type: 'page',
+    badge: 'صفحة',
+    title: 'العملاء',
+    subtitle: 'بيانات ومديونيات العملاء',
+    to: '/customers',
+  },
+  {
+    type: 'page',
+    badge: 'صفحة',
+    title: 'الفواتير',
+    subtitle: 'الفواتير والمدفوعات',
+    to: '/invoices',
+  },
   { type: 'page', badge: 'صفحة', title: 'المصروفات', subtitle: 'تتبع المصروفات', to: '/expenses' },
   { type: 'page', badge: 'صفحة', title: 'الموردين', subtitle: 'إدارة الموردين', to: '/suppliers' },
   { type: 'page', badge: 'صفحة', title: 'التقارير', subtitle: 'تحليلات النظام', to: '/reports' },
@@ -204,23 +218,20 @@ const pageResults = [
 
 const pageTitle = computed(() => titles[route.name]?.[0] || 'بن العجوز');
 const pageSub = computed(() => titles[route.name]?.[1] || 'نظام إدارة متكامل');
-const displayUserName = computed(() => authStore.user?.full_name || authStore.user?.username || 'مستخدم');
+const displayUserName = computed(
+  () => authStore.user?.full_name || authStore.user?.username || 'مستخدم',
+);
 const normalizedSearch = computed(() => search.value.trim().toLowerCase());
 const localResults = computed(() => {
   const q = normalizedSearch.value;
   if (!q) return [];
-  return pageResults.filter((item) => `${item.title} ${item.subtitle}`.toLowerCase().includes(q)).slice(0, 5);
+  return pageResults
+    .filter((item) => `${item.title} ${item.subtitle}`.toLowerCase().includes(q))
+    .slice(0, 5);
 });
 const searchResults = computed(() => [...localResults.value, ...remoteResults.value].slice(0, 8));
 const showSearchResults = computed(() => searchFocused.value && normalizedSearch.value.length >= 2);
 const userInitial = computed(() => (displayUserName.value || 'م').charAt(0));
-const currentPreset = computed(() => STYLE_PRESETS.find((item) => item.id === appStore.stylePreset) || STYLE_PRESETS[0]);
-
-const presetSwatch = (id) => presetSwatches[id] || 'linear-gradient(135deg, var(--primary), var(--accent))';
-const selectPreset = (id) => {
-  appStore.setStylePreset(id);
-  themeMenuOpen.value = false;
-};
 
 const handleLogout = () => {
   authStore.logout();
@@ -259,8 +270,8 @@ watch(search, (value) => {
         customersApi.list({ search: q, limit: 4 }),
       ]);
 
-      const products = productsRes.status === 'fulfilled' ? (productsRes.value.data || []) : [];
-      const customers = customersRes.status === 'fulfilled' ? (customersRes.value.data || []) : [];
+      const products = productsRes.status === 'fulfilled' ? productsRes.value.data || [] : [];
+      const customers = customersRes.status === 'fulfilled' ? customersRes.value.data || [] : [];
       remoteResults.value = [
         ...products.map((p) => ({
           type: 'product',
@@ -286,12 +297,14 @@ watch(search, (value) => {
 });
 
 const handleDocumentClick = (event) => {
-  if (themeMenuRoot.value && !themeMenuRoot.value.contains(event.target)) {
-    themeMenuOpen.value = false;
-  }
   const actionsToggle = document.querySelector('.mobile-actions-toggle');
   const actionsGroup = document.querySelector('.navbar-actions-group');
-  if (actionsToggle && !actionsToggle.contains(event.target) && actionsGroup && !actionsGroup.contains(event.target)) {
+  if (
+    actionsToggle &&
+    !actionsToggle.contains(event.target) &&
+    actionsGroup &&
+    !actionsGroup.contains(event.target)
+  ) {
     mobileActionsOpen.value = false;
   }
 };
@@ -318,7 +331,7 @@ const syncOfflineSales = async () => {
 
     const remaining = await localDb.getOfflineSales();
     appStore.pendingSyncCount = remaining.length;
-    
+
     appStore.triggerDataRefresh();
   } catch (err) {
     console.error('Error during background sync:', err);
@@ -347,11 +360,11 @@ let syncInterval = null;
 
 onMounted(() => {
   document.addEventListener('click', handleDocumentClick);
-  
+
   // Listen to network changes
   window.addEventListener('online', updateOnlineStatus);
   window.addEventListener('offline', updateOnlineStatus);
-  
+
   // Initial check and sync
   updateOnlineStatus();
   localDb.getOfflineSales().then((sales) => {
@@ -416,7 +429,10 @@ onBeforeUnmount(() => {
   min-width: 0;
 }
 
-.page-info { min-width: 0; line-height: 1.2; }
+.page-info {
+  min-width: 0;
+  line-height: 1.2;
+}
 
 .page-title {
   color: var(--text-strong);
@@ -454,7 +470,7 @@ onBeforeUnmount(() => {
 
 .notification-btn {
   position: relative;
-  
+
   .notification-badge {
     position: absolute;
     top: -2px;
@@ -474,7 +490,6 @@ onBeforeUnmount(() => {
     justify-content: center;
   }
 }
-
 
 .search-wrap {
   position: relative;
@@ -505,8 +520,7 @@ onBeforeUnmount(() => {
   }
 }
 
-.search-results,
-.theme-menu {
+.search-results {
   position: absolute;
   top: calc(100% + 10px);
   border: 1px solid var(--border);
@@ -514,9 +528,6 @@ onBeforeUnmount(() => {
   background: var(--bg-elevated);
   box-shadow: var(--shadow-lg);
   z-index: 150;
-}
-
-.search-results {
   right: 0;
   width: min(390px, 76vw);
   max-height: 340px;
@@ -570,7 +581,9 @@ onBeforeUnmount(() => {
   text-align: center;
 }
 
-.theme-switcher { position: relative; }
+.theme-switcher {
+  position: relative;
+}
 
 .theme-menu {
   left: 0;
@@ -630,11 +643,19 @@ onBeforeUnmount(() => {
   flex-direction: column;
   gap: 2px;
 
-  strong { color: var(--text-strong); font-size: 0.84rem; }
-  small { color: var(--text-muted); font-size: 0.72rem; }
+  strong {
+    color: var(--text-strong);
+    font-size: 0.84rem;
+  }
+  small {
+    color: var(--text-muted);
+    font-size: 0.72rem;
+  }
 }
 
-.theme-check { color: var(--success); }
+.theme-check {
+  color: var(--success);
+}
 
 .user-chip {
   display: flex;
@@ -663,8 +684,14 @@ onBeforeUnmount(() => {
   flex-direction: column;
   line-height: 1.15;
 
-  strong { color: var(--text-strong); font-size: 0.78rem; }
-  span { color: var(--text-muted); font-size: 0.68rem; }
+  strong {
+    color: var(--text-strong);
+    font-size: 0.78rem;
+  }
+  span {
+    color: var(--text-muted);
+    font-size: 0.68rem;
+  }
 }
 
 .logout-btn {
@@ -685,13 +712,19 @@ onBeforeUnmount(() => {
 }
 
 @media (max-width: 992px) {
-  .navbar { right: 16px; }
+  .navbar {
+    right: 16px;
+  }
 }
 
 @media (max-width: 760px) {
   .page-sub,
-  .user-meta { display: none; }
-  .network-status .status-text { display: none; }
+  .user-meta {
+    display: none;
+  }
+  .network-status .status-text {
+    display: none;
+  }
   .search-wrap {
     width: 34px;
     height: 34px;
@@ -701,7 +734,7 @@ onBeforeUnmount(() => {
     justify-content: center;
     box-shadow: var(--shadow-xs);
     cursor: pointer;
-    
+
     &:hover {
       background: color-mix(in srgb, var(--primary) 8%, var(--bg-elevated));
       border-color: var(--primary-soft);
@@ -760,7 +793,10 @@ onBeforeUnmount(() => {
   &::after {
     content: '';
     position: absolute;
-    top: 0; left: 0; right: 0; bottom: 0;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
     border-radius: 50%;
     background: inherit;
     animation: status-pulse 1.8s infinite ease-in-out;
@@ -768,8 +804,14 @@ onBeforeUnmount(() => {
 }
 
 @keyframes status-pulse {
-  0% { transform: scale(1); opacity: 0.8; }
-  100% { transform: scale(2.5); opacity: 0; }
+  0% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(2.5);
+    opacity: 0;
+  }
 }
 
 .sync-badge {
@@ -784,8 +826,12 @@ onBeforeUnmount(() => {
 }
 
 @keyframes sync-badge-pulse {
-  0% { transform: scale(1); }
-  100% { transform: scale(1.05); }
+  0% {
+    transform: scale(1);
+  }
+  100% {
+    transform: scale(1.05);
+  }
 }
 .mobile-actions-toggle {
   display: none;
@@ -801,7 +847,7 @@ onBeforeUnmount(() => {
   .mobile-actions-toggle {
     display: inline-flex;
   }
-  
+
   .navbar-actions-group {
     display: none;
     position: absolute;
@@ -815,7 +861,7 @@ onBeforeUnmount(() => {
     z-index: 150;
     flex-direction: column;
     gap: 8px;
-    
+
     &.mobile-open {
       display: flex;
     }

@@ -1,6 +1,5 @@
 <template>
   <div class="costs-page">
-
     <!-- Header -->
     <div class="page-header card">
       <div class="header-title">
@@ -24,30 +23,30 @@
 
     <!-- Navigation Tabs -->
     <div class="costs-tabs card">
-      <button 
-        class="tab-btn" 
-        :class="{ active: activeTab === 'analysis' }" 
+      <button
+        class="tab-btn"
+        :class="{ active: activeTab === 'analysis' }"
         @click="activeTab = 'analysis'"
       >
         📊 تحليل هوامش الربح
       </button>
-      <button 
-        class="tab-btn" 
-        :class="{ active: activeTab === 'simulator' }" 
+      <button
+        class="tab-btn"
+        :class="{ active: activeTab === 'simulator' }"
         @click="activeTab = 'simulator'"
       >
         🔮 محاكي التضخم (What-If)
       </button>
-      <button 
-        class="tab-btn" 
-        :class="{ active: activeTab === 'bulk_adjust' }" 
+      <button
+        class="tab-btn"
+        :class="{ active: activeTab === 'bulk_adjust' }"
         @click="activeTab = 'bulk_adjust'"
       >
         ⚙️ تعديل الأسعار جماعياً
       </button>
-      <button 
-        class="tab-btn" 
-        :class="{ active: activeTab === 'wastage' }" 
+      <button
+        class="tab-btn"
+        :class="{ active: activeTab === 'wastage' }"
         @click="activeTab = 'wastage'"
       >
         ⚠️ تقرير الهدر والفواقد
@@ -59,12 +58,19 @@
       <!-- Filters -->
       <div class="filters-bar card">
         <div class="filter-group search-group">
-          <input v-model="search" type="text" placeholder="🔍 بحث باسم المنتج أو الكود..." class="search-input" />
+          <input
+            v-model="search"
+            type="text"
+            placeholder="🔍 بحث باسم المنتج أو الكود..."
+            class="search-input"
+          />
         </div>
         <div class="filter-group">
           <select v-model="selectedCategory">
             <option value="">كل التصنيفات</option>
-            <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.name_ar }}</option>
+            <option v-for="cat in categories" :key="cat.id" :value="cat.id">
+              {{ cat.name_ar }}
+            </option>
           </select>
         </div>
         <div class="filter-group">
@@ -120,7 +126,8 @@
       <div class="card table-card">
         <div v-if="loading" class="loading-state">⏳ جاري تحميل البيانات...</div>
         <div v-else-if="!filteredProducts.length" class="empty-state">
-          <span>🔍</span><p>لا توجد منتجات مطابقة</p>
+          <span>🔍</span>
+          <p>لا توجد منتجات مطابقة</p>
         </div>
         <div v-else class="table-wrap">
           <table class="costs-table">
@@ -141,10 +148,19 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="p in filteredProducts" :key="p.id" :class="[rowClass(p), { 'row-alert': marginPct(p) < 25 }]">
+              <tr
+                v-for="p in filteredProducts"
+                :key="p.id"
+                :class="[rowClass(p), { 'row-alert': marginPct(p) < 25 }]"
+              >
                 <td class="product-name-cell">
                   <div class="product-name-wrap">
-                    <span v-if="marginPct(p) < 25" class="alert-indicator" title="هامش ربح منخفض أقل من 25%">⚠️</span>
+                    <span
+                      v-if="marginPct(p) < 25"
+                      class="alert-indicator"
+                      title="هامش ربح منخفض أقل من 25%"
+                      >⚠️</span
+                    >
                     <div>
                       <div class="product-name">{{ p.name_ar }}</div>
                       <div class="product-sku">{{ p.sku }}</div>
@@ -157,23 +173,38 @@
                 <td>{{ unitLabel(p.unit) }}</td>
                 <td class="price-cell">
                   {{ formatMoney(p.purchase_price) }}
-                  <span class="cost-source-badge" :class="p.cost_source">{{ p.cost_source === 'recipe' ? 'وصفة' : 'شراء' }}</span>
+                  <span class="cost-source-badge" :class="p.cost_source">{{
+                    p.cost_source === 'recipe' ? 'وصفة' : 'شراء'
+                  }}</span>
                 </td>
                 <td class="price-cell">{{ formatMoney(p.sale_price) }}</td>
                 <td>
                   <div class="margin-bar-wrap">
-                    <div class="margin-bar" :style="{ width: Math.max(0, Math.min(marginPct(p), 100)) + '%' }" :class="marginClass(p)"></div>
-                    <span class="margin-label" :class="marginClass(p)">{{ marginPct(p).toFixed(1) }}%</span>
+                    <div
+                      class="margin-bar"
+                      :style="{ width: Math.max(0, Math.min(marginPct(p), 100)) + '%' }"
+                      :class="marginClass(p)"
+                    ></div>
+                    <span class="margin-label" :class="marginClass(p)"
+                      >{{ marginPct(p).toFixed(1) }}%</span
+                    >
                   </div>
                 </td>
                 <td class="number-cell">{{ formatQty(p.total_qty_sold) }}</td>
                 <td class="price-cell">{{ formatMoney(p.total_revenue) }}</td>
                 <td class="price-cell muted">{{ formatMoney(p.total_cost_sold) }}</td>
-                <td class="price-cell" :class="p.net_profit >= 0 ? 'profit-positive' : 'profit-negative'">
+                <td
+                  class="price-cell"
+                  :class="p.net_profit >= 0 ? 'profit-positive' : 'profit-negative'"
+                >
                   {{ formatMoney(p.net_profit) }}
                 </td>
                 <td>
-                  <button v-if="p.has_recipe" class="recipe-btn has-recipe" @click="openRecipeBreakdown(p.recipe_id)">
+                  <button
+                    v-if="p.has_recipe"
+                    class="recipe-btn has-recipe"
+                    @click="openRecipeBreakdown(p.recipe_id)"
+                  >
                     🧾 {{ p.recipe_items_count }} مكونات
                   </button>
                   <span v-else class="recipe-badge no-recipe">شراء مباشر</span>
@@ -186,10 +217,18 @@
             <tfoot>
               <tr class="totals-row">
                 <td colspan="6"><strong>الإجمالي</strong></td>
-                <td class="number-cell"><strong>{{ totalUnitsSold.toLocaleString('en-GB') }}</strong></td>
-                <td class="price-cell"><strong>{{ formatMoney(totalSales) }}</strong></td>
-                <td class="price-cell muted"><strong>{{ formatMoney(totalCost) }}</strong></td>
-                <td class="price-cell profit-positive"><strong>{{ formatMoney(totalProfit) }}</strong></td>
+                <td class="number-cell">
+                  <strong>{{ totalUnitsSold.toLocaleString('en-GB') }}</strong>
+                </td>
+                <td class="price-cell">
+                  <strong>{{ formatMoney(totalSales) }}</strong>
+                </td>
+                <td class="price-cell muted">
+                  <strong>{{ formatMoney(totalCost) }}</strong>
+                </td>
+                <td class="price-cell profit-positive">
+                  <strong>{{ formatMoney(totalProfit) }}</strong>
+                </td>
                 <td colspan="2"></td>
               </tr>
             </tfoot>
@@ -203,8 +242,11 @@
       <div class="simulator-panel card">
         <div class="simulator-controls">
           <h3>🔮 محاكي تضخم أسعار المواد الخام (What-If)</h3>
-          <p>قم بمحاكاة أثر ارتفاع أسعار المواد الخام على تكلفة منتجاتك وهامش الربح فورياً دون حفظ في قاعدة البيانات.</p>
-          
+          <p>
+            قم بمحاكاة أثر ارتفاع أسعار المواد الخام على تكلفة منتجاتك وهامش الربح فورياً دون حفظ في
+            قاعدة البيانات.
+          </p>
+
           <div class="simulator-form">
             <div class="form-group">
               <label>تطبيق المحاكاة</label>
@@ -217,17 +259,22 @@
               <label>فئة الخامات المراد تعديلها</label>
               <select v-model="simulatorCategory" :disabled="!isSimulatorActive">
                 <option value="">كل الفئات</option>
-                <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.name_ar }}</option>
+                <option v-for="cat in categories" :key="cat.id" :value="cat.id">
+                  {{ cat.name_ar }}
+                </option>
               </select>
             </div>
             <div class="form-group">
-              <label>نسبة الارتفاع المتوقعة: <strong class="percent-val">{{ inflationPercent }}%</strong></label>
-              <input 
-                type="range" 
-                min="-50" 
-                max="100" 
-                step="5" 
-                v-model.number="inflationPercent" 
+              <label
+                >نسبة الارتفاع المتوقعة:
+                <strong class="percent-val">{{ inflationPercent }}%</strong></label
+              >
+              <input
+                type="range"
+                min="-50"
+                max="100"
+                step="5"
+                v-model.number="inflationPercent"
                 :disabled="!isSimulatorActive"
                 class="range-slider"
               />
@@ -274,9 +321,9 @@
               </tr>
             </thead>
             <tbody>
-              <tr 
-                v-for="p in simulatedProducts" 
-                :key="p.id" 
+              <tr
+                v-for="p in simulatedProducts"
+                :key="p.id"
                 :class="{ 'row-alert': p.simulated_margin < 25, 'row-simulated': p.is_inflated }"
               >
                 <td class="product-name-cell">
@@ -284,21 +331,31 @@
                   <span class="product-sku">{{ p.sku }}</span>
                 </td>
                 <td class="price-cell">{{ formatMoney(p.purchase_price) }}</td>
-                <td class="price-cell text-bold" :class="{ 'price-up': p.simulated_cost > p.purchase_price }">
+                <td
+                  class="price-cell text-bold"
+                  :class="{ 'price-up': p.simulated_cost > p.purchase_price }"
+                >
                   {{ formatMoney(p.simulated_cost) }}
                 </td>
                 <td class="price-cell" :class="{ 'price-up': p.simulated_cost > p.purchase_price }">
-                  {{ p.simulated_cost > p.purchase_price ? '+' : '' }}{{ formatMoney(p.simulated_cost - p.purchase_price) }}
+                  {{ p.simulated_cost > p.purchase_price ? '+' : ''
+                  }}{{ formatMoney(p.simulated_cost - p.purchase_price) }}
                 </td>
                 <td class="price-cell">{{ marginPct(p).toFixed(1) }}%</td>
-                <td class="price-cell text-bold" :class="simulatedProductMarginClass(p.simulated_margin)">
+                <td
+                  class="price-cell text-bold"
+                  :class="simulatedProductMarginClass(p.simulated_margin)"
+                >
                   {{ p.simulated_margin.toFixed(1) }}%
                 </td>
-                <td 
-                  class="price-cell text-bold" 
-                  :class="p.simulated_margin - marginPct(p) >= 0 ? 'profit-positive' : 'profit-negative'"
+                <td
+                  class="price-cell text-bold"
+                  :class="
+                    p.simulated_margin - marginPct(p) >= 0 ? 'profit-positive' : 'profit-negative'
+                  "
                 >
-                  {{ p.simulated_margin - marginPct(p) >= 0 ? '+' : '' }}{{ (p.simulated_margin - marginPct(p)).toFixed(1) }}%
+                  {{ p.simulated_margin - marginPct(p) >= 0 ? '+' : ''
+                  }}{{ (p.simulated_margin - marginPct(p)).toFixed(1) }}%
                 </td>
                 <td>
                   <span v-if="p.has_recipe" class="badge-recipe">🧾 وصفة</span>
@@ -324,7 +381,9 @@
         </div>
 
         <div class="adjuster-warning alert alert-warning">
-          <strong>⚠️ تنبيه هام:</strong> التعديلات التي تقوم بها هنا هي تعديلات فعلية ونهائية وسيتم كتابتها مباشرة في قاعدة البيانات. يرجى مراجعة الحقول وتأكيد القرار قبل الضغط على زر التطبيق.
+          <strong>⚠️ تنبيه هام:</strong> التعديلات التي تقوم بها هنا هي تعديلات فعلية ونهائية وسيتم
+          كتابتها مباشرة في قاعدة البيانات. يرجى مراجعة الحقول وتأكيد القرار قبل الضغط على زر
+          التطبيق.
         </div>
 
         <div class="adjuster-form-wrap">
@@ -333,7 +392,9 @@
               <label>التصنيف المستهدف</label>
               <select v-model="adjustCategory">
                 <option value="">كل المنتجات (النظام بالكامل)</option>
-                <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.name_ar }}</option>
+                <option v-for="cat in categories" :key="cat.id" :value="cat.id">
+                  {{ cat.name_ar }}
+                </option>
               </select>
             </div>
             <div class="form-group">
@@ -352,17 +413,24 @@
             </div>
             <div class="form-group">
               <label>قيمة التعديل (يمكن أن تكون سالبة للخصم)</label>
-              <input type="number" step="0.01" v-model.number="adjustValue" placeholder="مثال: 10 أو -5" />
+              <input
+                type="number"
+                step="0.01"
+                v-model.number="adjustValue"
+                placeholder="مثال: 10 أو -5"
+              />
             </div>
           </div>
 
           <div class="adjuster-actions">
-            <button 
-              class="btn btn-primary btn-large" 
-              :disabled="adjustingPrices || adjustValue === 0" 
+            <button
+              class="btn btn-primary btn-large"
+              :disabled="adjustingPrices || adjustValue === 0"
               @click="applyBulkAdjustment"
             >
-              {{ adjustingPrices ? 'جاري تطبيق التعديل الجماعي...' : 'تطبيق التعديل الجماعي فوراً' }}
+              {{
+                adjustingPrices ? 'جاري تطبيق التعديل الجماعي...' : 'تطبيق التعديل الجماعي فوراً'
+              }}
             </button>
           </div>
 
@@ -388,7 +456,15 @@
           <input type="date" v-model="wastageToDate" class="date-input" />
         </div>
         <div class="filter-group reset-group">
-          <button class="btn btn-outline" @click="wastageFromDate = ''; wastageToDate = ''">تفريغ الفلتر</button>
+          <button
+            class="btn btn-outline"
+            @click="
+              wastageFromDate = '';
+              wastageToDate = '';
+            "
+          >
+            تفريغ الفلتر
+          </button>
         </div>
       </div>
 
@@ -397,7 +473,8 @@
         <strong>⚠️ تنبيه هدر مرتفع:</strong> هناك منتجات تجاوزت نسبة الفاقد بها 15% خلال هذه الفترة:
         <ul>
           <li v-for="item in highWastageItems" :key="item.id">
-            {{ item.name }} (نسبة الفاقد: {{ computeWastePct(item).toFixed(1) }}%) - الهدر الفعلي: {{ item.actual_waste }} {{ item.unit }}
+            {{ item.name }} (نسبة الفاقد: {{ computeWastePct(item).toFixed(1) }}%) - الهدر الفعلي:
+            {{ item.actual_waste }} {{ item.unit }}
           </li>
         </ul>
       </div>
@@ -425,15 +502,19 @@
             </thead>
             <tbody>
               <tr v-for="row in wastageReport" :key="row.id">
-                <td><strong>{{ row.name }}</strong></td>
-                <td><span class="category-badge">{{ row.category || '—' }}</span></td>
+                <td>
+                  <strong>{{ row.name }}</strong>
+                </td>
+                <td>
+                  <span class="category-badge">{{ row.category || '—' }}</span>
+                </td>
                 <td>{{ unitLabel(row.unit) }}</td>
                 <td class="number-cell">{{ formatQty(row.theoretical_consumption) }}</td>
                 <td class="number-cell text-danger">{{ formatQty(row.actual_waste) }}</td>
-                <td class="number-cell">{{ formatQty(row.theoretical_consumption + row.actual_waste) }}</td>
-                <td class="price-cell text-bold">
-                  {{ computeWastePct(row).toFixed(1) }}%
+                <td class="number-cell">
+                  {{ formatQty(row.theoretical_consumption + row.actual_waste) }}
                 </td>
+                <td class="price-cell text-bold">{{ computeWastePct(row).toFixed(1) }}%</td>
                 <td>
                   <span :class="['waste-badge', wasteStatusClass(row)]">
                     {{ wasteStatusLabel(row) }}
@@ -473,7 +554,11 @@
     </div>
 
     <!-- Recipe Breakdown Modal (Cost Breakdown Analyzer) -->
-    <div v-if="selectedRecipe || loadingRecipe" class="modal-overlay" @click.self="selectedRecipe = null">
+    <div
+      v-if="selectedRecipe || loadingRecipe"
+      class="modal-overlay"
+      @click.self="selectedRecipe = null"
+    >
       <div class="modal-card recipe-breakdown-card">
         <div v-if="loadingRecipe" class="loading-state">⏳ جاري تحميل تفاصيل الوصفة...</div>
         <div v-else-if="recipeError" class="error-state">
@@ -494,34 +579,61 @@
             </div>
             <div class="summary-item">
               <span class="label">سعر البيع الحالي</span>
-              <strong class="val">{{ formatMoney(getProductSalePrice(selectedRecipe.product_id)) }}</strong>
+              <strong class="val">{{
+                formatMoney(getProductSalePrice(selectedRecipe.product_id))
+              }}</strong>
             </div>
             <div class="summary-item">
               <span class="label">هامش الربح للوصفة</span>
-              <strong class="val profit-positive">{{ getRecipeMargin(selectedRecipe).toFixed(1) }}%</strong>
+              <strong class="val profit-positive"
+                >{{ getRecipeMargin(selectedRecipe).toFixed(1) }}%</strong
+              >
             </div>
           </div>
 
           <h4>مساهمة كل مكون في التكلفة الإجمالية:</h4>
           <div class="ingredient-analysis-list">
-            <div 
-              v-for="item in selectedRecipe.items" 
-              :key="item.id" 
+            <div
+              v-for="item in selectedRecipe.items"
+              :key="item.id"
               class="ingredient-analysis-row"
             >
               <div class="ing-info">
                 <span class="ing-name">{{ item.ingredient_name }}</span>
-                <span class="ing-qty">{{ item.quantity }} {{ unitLabel(item.unit_code) }} × {{ formatMoney(item.ingredient_unit_price) }}</span>
+                <span class="ing-qty"
+                  >{{ item.quantity }} {{ unitLabel(item.unit_code) }} ×
+                  {{ formatMoney(item.ingredient_unit_price) }}</span
+                >
               </div>
               <div class="ing-cost-wrap">
                 <span class="ing-cost">{{ formatMoney(item.estimated_cost) }}</span>
-                <span class="ing-pct">{{ computeContributionPct(item.estimated_cost, selectedRecipe.estimated_total_cost) }}%</span>
+                <span class="ing-pct"
+                  >{{
+                    computeContributionPct(
+                      item.estimated_cost,
+                      selectedRecipe.estimated_total_cost,
+                    )
+                  }}%</span
+                >
               </div>
               <div class="progress-bar-container">
-                <div 
-                  class="progress-bar" 
-                  :style="{ width: computeContributionPct(item.estimated_cost, selectedRecipe.estimated_total_cost) + '%' }"
-                  :class="contributionClass(computeContributionPct(item.estimated_cost, selectedRecipe.estimated_total_cost))"
+                <div
+                  class="progress-bar"
+                  :style="{
+                    width:
+                      computeContributionPct(
+                        item.estimated_cost,
+                        selectedRecipe.estimated_total_cost,
+                      ) + '%',
+                  }"
+                  :class="
+                    contributionClass(
+                      computeContributionPct(
+                        item.estimated_cost,
+                        selectedRecipe.estimated_total_cost,
+                      ),
+                    )
+                  "
                 ></div>
               </div>
             </div>
@@ -533,7 +645,6 @@
         </div>
       </div>
     </div>
-
   </div>
 </template>
 
@@ -593,14 +704,34 @@ const wastageToDate = ref('');
 
 // ─── Unit Helpers for Simulator ──────────────────────────────────────────────
 const UNIT_ALIASES = {
-  kg: 'kg', kilo: 'kg', 'كيلو': 'kg', 'كجم': 'kg',
-  g: 'g', gram: 'g', 'جرام': 'g',
-  l: 'l', liter: 'l', litre: 'l', 'لتر': 'l',
-  ml: 'ml', milli: 'ml', 'مل': 'ml',
-  count: 'count', unit: 'count', piece: 'count', pieces: 'count', 'عدد': 'count', 'قطعة': 'count'
+  kg: 'kg',
+  kilo: 'kg',
+  كيلو: 'kg',
+  كجم: 'kg',
+  g: 'g',
+  gram: 'g',
+  جرام: 'g',
+  l: 'l',
+  liter: 'l',
+  litre: 'l',
+  لتر: 'l',
+  ml: 'ml',
+  milli: 'ml',
+  مل: 'ml',
+  count: 'count',
+  unit: 'count',
+  piece: 'count',
+  pieces: 'count',
+  عدد: 'count',
+  قطعة: 'count',
 };
 
-const normalizeUnitLocal = (u) => UNIT_ALIASES[String(u || '').trim().toLowerCase()] || null;
+const normalizeUnitLocal = (u) =>
+  UNIT_ALIASES[
+    String(u || '')
+      .trim()
+      .toLowerCase()
+  ] || null;
 
 const convertQtyLocal = (qty, fromUnit, toUnit) => {
   if (fromUnit === toUnit) return qty;
@@ -651,7 +782,9 @@ const filteredProducts = computed(() => {
   if (selectedCategory.value) list = list.filter((p) => p.category_id == selectedCategory.value);
   if (search.value.trim()) {
     const q = search.value.trim().toLowerCase();
-    list = list.filter((p) => p.name_ar.toLowerCase().includes(q) || (p.sku || '').toLowerCase().includes(q));
+    list = list.filter(
+      (p) => p.name_ar.toLowerCase().includes(q) || (p.sku || '').toLowerCase().includes(q),
+    );
   }
   if (showLowMarginOnly.value) {
     list = list.filter((p) => marginPct(p) < 25);
@@ -659,16 +792,26 @@ const filteredProducts = computed(() => {
   return [...list].sort((a, b) => {
     if (sortBy.value === 'margin_desc') return marginPct(b) - marginPct(a);
     if (sortBy.value === 'margin_asc') return marginPct(a) - marginPct(b);
-    if (sortBy.value === 'sales_desc') return Number(b.total_qty_sold || 0) - Number(a.total_qty_sold || 0);
-    if (sortBy.value === 'profit_desc') return Number(b.net_profit || 0) - Number(a.net_profit || 0);
+    if (sortBy.value === 'sales_desc')
+      return Number(b.total_qty_sold || 0) - Number(a.total_qty_sold || 0);
+    if (sortBy.value === 'profit_desc')
+      return Number(b.net_profit || 0) - Number(a.net_profit || 0);
     return (a.name_ar || '').localeCompare(b.name_ar || '', 'ar');
   });
 });
 
-const totalSales = computed(() => filteredProducts.value.reduce((s, p) => s + Number(p.total_revenue || 0), 0));
-const totalCost = computed(() => filteredProducts.value.reduce((s, p) => s + Number(p.total_cost_sold || 0), 0));
-const totalProfit = computed(() => filteredProducts.value.reduce((s, p) => s + Number(p.net_profit || 0), 0));
-const totalUnitsSold = computed(() => filteredProducts.value.reduce((s, p) => s + Number(p.total_qty_sold || 0), 0));
+const totalSales = computed(() =>
+  filteredProducts.value.reduce((s, p) => s + Number(p.total_revenue || 0), 0),
+);
+const totalCost = computed(() =>
+  filteredProducts.value.reduce((s, p) => s + Number(p.total_cost_sold || 0), 0),
+);
+const totalProfit = computed(() =>
+  filteredProducts.value.reduce((s, p) => s + Number(p.net_profit || 0), 0),
+);
+const totalUnitsSold = computed(() =>
+  filteredProducts.value.reduce((s, p) => s + Number(p.total_qty_sold || 0), 0),
+);
 const avgMargin = computed(() => {
   if (!filteredProducts.value.length) return '0.0';
   const sum = filteredProducts.value.reduce((s, p) => s + marginPct(p), 0);
@@ -695,40 +838,46 @@ const simulatedProducts = computed(() => {
 
   // Build a map of simulated purchase prices for raw materials (non-recipes)
   const simulatedPriceMap = new Map();
-  products.value.forEach(p => {
+  products.value.forEach((p) => {
     let price = Number(p.purchase_price || 0);
     let isInflated = false;
-    
+
     // Check if product matches category filter
     const matchesCategory = !simulatorCategory.value || p.category_id == simulatorCategory.value;
-    
+
     if (matchesCategory) {
       price = price * (1 + Number(inflationPercent.value) / 100);
       isInflated = true;
     }
-    
+
     simulatedPriceMap.set(p.id, { price, isInflated });
   });
 
   // Now, calculate simulated costs for all products (dynamic recipes)
-  return products.value.map(p => {
+  return products.value.map((p) => {
     let simulatedCost = Number(p.purchase_price || 0);
     let isInflated = false;
 
     if (p.has_recipe && p.recipe_id) {
       // Find the recipe
-      const recipe = recipesList.value.find(r => r.id === p.recipe_id);
+      const recipe = recipesList.value.find((r) => r.id === p.recipe_id);
       if (recipe && recipe.items) {
         let totalRecipeCost = 0;
-        recipe.items.forEach(item => {
+        recipe.items.forEach((item) => {
           const ingredientId = Number(item.ingredient_product_id);
           const ingredientSim = simulatedPriceMap.get(ingredientId);
-          const ingredientPrice = ingredientSim ? ingredientSim.price : Number(item.ingredient_purchase_price || 0);
+          const ingredientPrice = ingredientSim
+            ? ingredientSim.price
+            : Number(item.ingredient_purchase_price || 0);
           if (ingredientSim?.is_inflated) {
             isInflated = true;
           }
-          
-          const unitPrice = unitPriceForLocal(ingredientPrice, item.ingredient_unit, item.unit_code);
+
+          const unitPrice = unitPriceForLocal(
+            ingredientPrice,
+            item.ingredient_unit,
+            item.unit_code,
+          );
           totalRecipeCost += Number(item.quantity || 0) * unitPrice;
         });
         simulatedCost = Math.round(totalRecipeCost * 100) / 100;
@@ -749,7 +898,7 @@ const simulatedProducts = computed(() => {
       ...p,
       simulated_cost: simulatedCost,
       simulated_margin: simulatedMargin,
-      is_inflated: isInflated && Math.abs(simulatedCost - Number(p.purchase_price || 0)) > 0.01
+      is_inflated: isInflated && Math.abs(simulatedCost - Number(p.purchase_price || 0)) > 0.01,
     };
   });
 });
@@ -779,7 +928,7 @@ const simulatedProductMarginClass = (m) => {
 
 // ─── Cost Breakdown Analyzer Modal Helpers ────────────────────────────────────
 const getProductSalePrice = (productId) => {
-  const p = products.value.find(prod => prod.id === productId);
+  const p = products.value.find((prod) => prod.id === productId);
   return p ? Number(p.sale_price || 0) : 0;
 };
 
@@ -826,7 +975,7 @@ const wasteStatusClass = (row) => {
 };
 
 const highWastageItems = computed(() => {
-  return wastageReport.value.filter(row => computeWastePct(row) >= 15);
+  return wastageReport.value.filter((row) => computeWastePct(row) >= 15);
 });
 
 // ─── Data Loading ─────────────────────────────────────────────────────────────
@@ -835,7 +984,7 @@ const load = async () => {
   try {
     const [prodRes, recRes] = await Promise.all([
       productsApi.costsReport(),
-      recipesApi.listRecipes().catch(() => ({ data: [] }))
+      recipesApi.listRecipes().catch(() => ({ data: [] })),
     ]);
     products.value = prodRes.data || [];
     recipesList.value = recRes.data || [];
@@ -922,7 +1071,7 @@ const openRecipeBreakdown = async (recipeId) => {
 const applyBulkAdjustment = async () => {
   adjustSuccess.value = '';
   adjustError.value = '';
-  
+
   if (adjustValue.value === 0) {
     adjustError.value = 'يرجى إدخال قيمة تعديل غير صفرية';
     return;
@@ -937,7 +1086,7 @@ const applyBulkAdjustment = async () => {
       category_id: adjustCategory.value || null,
       type: adjustType.value,
       adjust_type: adjustMode.value,
-      value: adjustValue.value
+      value: adjustValue.value,
     });
     adjustSuccess.value = `تم تعديل أسعار ${res.data?.updatedCount || 0} منتجات بنجاح.`;
     adjustValue.value = 0;
@@ -953,19 +1102,53 @@ onMounted(load);
 </script>
 
 <style lang="scss" scoped>
-.costs-page { display: flex; flex-direction: column; gap: 20px; }
+.costs-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
 
 .page-header {
-  display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;
-  .header-title { display: flex; align-items: center; gap: 14px;
-    .header-icon { font-size: 2rem; }
-    h2 { margin: 0; font-size: 1.3rem; color: var(--primary-dark); }
-    p { margin: 4px 0 0; font-size: 0.85rem; color: var(--text-muted); }
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  .header-title {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    .header-icon {
+      font-size: 2rem;
+    }
+    h2 {
+      margin: 0;
+      font-size: 1.3rem;
+      color: var(--primary-dark);
+    }
+    p {
+      margin: 4px 0 0;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
   }
-  .header-meta { display: flex; gap: 24px; }
-  .meta-item { text-align: center;
-    .meta-label { display: block; font-size: 0.78rem; color: var(--text-muted); }
-    .meta-value { display: block; font-size: 1.4rem; font-weight: 800; color: var(--primary-dark); }
+  .header-meta {
+    display: flex;
+    gap: 24px;
+  }
+  .meta-item {
+    text-align: center;
+    .meta-label {
+      display: block;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
+    .meta-value {
+      display: block;
+      font-size: 1.4rem;
+      font-weight: 800;
+      color: var(--primary-dark);
+    }
   }
 }
 
@@ -978,7 +1161,7 @@ onMounted(load);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   overflow-x: auto;
-  
+
   .tab-btn {
     padding: 10px 20px;
     border: none;
@@ -1015,59 +1198,186 @@ onMounted(load);
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .filters-bar {
-  display: flex; gap: 12px; flex-wrap: wrap; align-items: center;
-  .filter-group { flex: 1; min-width: 160px; }
-  .search-input, select { width: 100%; padding: 9px 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg); font-size: 0.9rem; }
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+  .filter-group {
+    flex: 1;
+    min-width: 160px;
+  }
+  .search-input,
+  select {
+    width: 100%;
+    padding: 9px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg);
+    font-size: 0.9rem;
+  }
 }
 
 /* Summary Cards */
-.summary-row { gap: 14px; }
+.summary-row {
+  gap: 14px;
+}
 .summary-card {
-  display: flex; align-items: center; gap: 14px; padding: 16px 20px;
-  background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 20px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
   box-shadow: var(--shadow-sm);
-  &.profit { border-color: rgba(46,125,79,0.3); background: rgba(46,125,79,0.04); }
-  .summary-icon { font-size: 1.8rem; }
-  .summary-label { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 4px; }
-  .summary-value { font-size: 1.15rem; font-weight: 800; color: var(--primary-dark); }
+  &.profit {
+    border-color: rgba(46, 125, 79, 0.3);
+    background: rgba(46, 125, 79, 0.04);
+  }
+  .summary-icon {
+    font-size: 1.8rem;
+  }
+  .summary-label {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+  }
+  .summary-value {
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: var(--primary-dark);
+  }
 }
 
 /* Table */
-.table-card { overflow: hidden; }
-.table-wrap { overflow-x: auto; }
+.table-card {
+  overflow: hidden;
+}
+.table-wrap {
+  overflow-x: auto;
+}
 .costs-table {
-  width: 100%; border-collapse: collapse; font-size: 0.88rem;
-  th { background: var(--bg); padding: 11px 12px; text-align: right; font-weight: 700; color: var(--text-muted); font-size: 0.8rem; border-bottom: 2px solid var(--border); white-space: nowrap; }
-  td { padding: 11px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
-  tr:hover td { background: rgba(0,0,0,0.01); }
-  .product-name-cell { .product-name { font-weight: 600; } .product-sku { font-size: 0.75rem; color: var(--text-muted); font-family: monospace; } }
-  .price-cell { font-weight: 600; white-space: nowrap; }
-  .number-cell { text-align: center; }
-  .muted { color: var(--text-muted); font-weight: 400; }
-  .profit-positive { color: #2e7d4f; }
-  .profit-negative { color: #b42318; }
-  .row-no-recipe td { background: rgba(241,196,15,0.03); }
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+  th {
+    background: var(--bg);
+    padding: 11px 12px;
+    text-align: right;
+    font-weight: 700;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    border-bottom: 2px solid var(--border);
+    white-space: nowrap;
+  }
+  td {
+    padding: 11px 12px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+  }
+  tr:hover td {
+    background: rgba(0, 0, 0, 0.01);
+  }
+  .product-name-cell {
+    .product-name {
+      font-weight: 600;
+    }
+    .product-sku {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-family: monospace;
+    }
+  }
+  .price-cell {
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .number-cell {
+    text-align: center;
+  }
+  .muted {
+    color: var(--text-muted);
+    font-weight: 400;
+  }
+  .profit-positive {
+    color: #2e7d4f;
+  }
+  .profit-negative {
+    color: #b42318;
+  }
+  .row-no-recipe td {
+    background: rgba(241, 196, 15, 0.03);
+  }
 }
 
-.category-badge { background: var(--bg); padding: 2px 8px; border-radius: 20px; font-size: 0.78rem; border: 1px solid var(--border); white-space: nowrap; }
+.category-badge {
+  background: var(--bg);
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-size: 0.78rem;
+  border: 1px solid var(--border);
+  white-space: nowrap;
+}
 
 /* Margin bar */
-.margin-bar-wrap { display: flex; align-items: center; gap: 8px; min-width: 100px; }
-.margin-bar { height: 6px; border-radius: 3px; transition: width 0.3s; min-width: 4px; }
-.margin-label { font-size: 0.82rem; font-weight: 700; white-space: nowrap; }
-.margin-high { background: #2e7d4f; color: #2e7d4f; }
-.margin-mid { background: #f59e0b; color: #b45309; }
-.margin-low { background: #b42318; color: #b42318; }
+.margin-bar-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 100px;
+}
+.margin-bar {
+  height: 6px;
+  border-radius: 3px;
+  transition: width 0.3s;
+  min-width: 4px;
+}
+.margin-label {
+  font-size: 0.82rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.margin-high {
+  background: #2e7d4f;
+  color: #2e7d4f;
+}
+.margin-mid {
+  background: #f59e0b;
+  color: #b45309;
+}
+.margin-low {
+  background: #b42318;
+  color: #b42318;
+}
 
 /* Recipe badge & buttons */
-.recipe-badge { padding: 3px 8px; border-radius: 20px; font-size: 0.78rem; white-space: nowrap; }
-.has-recipe { background: rgba(46,125,79,0.1); color: #2e7d4f; border: 1px solid rgba(46,125,79,0.2); }
-.no-recipe { background: var(--bg); color: var(--text-muted); border: 1px solid var(--border); }
+.recipe-badge {
+  padding: 3px 8px;
+  border-radius: 20px;
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+.has-recipe {
+  background: rgba(46, 125, 79, 0.1);
+  color: #2e7d4f;
+  border: 1px solid rgba(46, 125, 79, 0.2);
+}
+.no-recipe {
+  background: var(--bg);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+}
 
 .recipe-btn {
   padding: 4px 10px;
@@ -1077,12 +1387,12 @@ onMounted(load);
   cursor: pointer;
   border: 1px solid transparent;
   transition: all 0.2s;
-  
+
   &.has-recipe {
     background: rgba(46, 125, 79, 0.08);
     color: #2e7d4f;
     border-color: rgba(46, 125, 79, 0.2);
-    
+
     &:hover {
       background: rgba(46, 125, 79, 0.15);
     }
@@ -1114,7 +1424,7 @@ onMounted(load);
   font-weight: 600;
   color: var(--primary-dark);
   transition: all 0.2s;
-  
+
   &:hover {
     background: var(--border);
   }
@@ -1128,40 +1438,71 @@ onMounted(load);
   border-radius: 3px;
   margin-right: 4px;
   font-weight: 600;
-  
+
   &.recipe {
     background: rgba(46, 125, 79, 0.1);
     color: #2e7d4f;
   }
-  
-  &.purchase_price, &.purchase {
+
+  &.purchase_price,
+  &.purchase {
     background: rgba(30, 41, 59, 0.08);
     color: var(--text-muted);
   }
 }
 
 /* Totals row */
-.totals-row td { background: var(--bg); border-top: 2px solid var(--border); }
+.totals-row td {
+  background: var(--bg);
+  border-top: 2px solid var(--border);
+}
 
 /* Modal */
 .modal-overlay {
-  position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 200;
-  display: flex; align-items: center; justify-content: center;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .modal-card {
-  background: var(--bg-card); border-radius: var(--radius); padding: 28px; width: min(420px, 92vw);
+  background: var(--bg-card);
+  border-radius: var(--radius);
+  padding: 28px;
+  width: min(420px, 92vw);
   box-shadow: var(--shadow-lg);
-  h3 { margin: 0 0 20px; color: var(--primary-dark); }
-  .modal-preview { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: var(--bg); border-radius: var(--radius); margin: 12px 0 20px; font-size: 0.9rem; }
-  .modal-actions { display: flex; gap: 10px; }
-  .error-msg { color: #b42318; margin-top: 10px; font-size: 0.88rem; }
+  h3 {
+    margin: 0 0 20px;
+    color: var(--primary-dark);
+  }
+  .modal-preview {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 14px;
+    background: var(--bg);
+    border-radius: var(--radius);
+    margin: 12px 0 20px;
+    font-size: 0.9rem;
+  }
+  .modal-actions {
+    display: flex;
+    gap: 10px;
+  }
+  .error-msg {
+    color: #b42318;
+    margin-top: 10px;
+    font-size: 0.88rem;
+  }
 }
 
 .recipe-breakdown-card {
   width: min(540px, 95vw) !important;
   max-height: 90vh;
   overflow-y: auto;
-  
+
   .modal-header {
     display: flex;
     justify-content: space-between;
@@ -1169,10 +1510,12 @@ onMounted(load);
     border-bottom: 1px solid var(--border);
     padding-bottom: 12px;
     margin-bottom: 16px;
-    
-    h3 { margin: 0; }
+
+    h3 {
+      margin: 0;
+    }
   }
-  
+
   .recipe-sku-badge {
     background: var(--bg);
     border: 1px solid var(--border);
@@ -1193,19 +1536,19 @@ onMounted(load);
   border-radius: var(--radius);
   border: 1px solid var(--border);
   margin-bottom: 20px;
-  
+
   .summary-item {
     display: flex;
     flex-direction: column;
     align-items: center;
     text-align: center;
-    
+
     .label {
       font-size: 0.75rem;
       color: var(--text-muted);
       margin-bottom: 4px;
     }
-    
+
     .val {
       font-size: 1.05rem;
       font-weight: 700;
@@ -1229,50 +1572,56 @@ onMounted(load);
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  
+
   .ing-info {
     display: flex;
     justify-content: space-between;
-    
+
     .ing-name {
       font-weight: 600;
       color: var(--primary-dark);
     }
-    
+
     .ing-qty {
       font-size: 0.78rem;
       color: var(--text-muted);
     }
   }
-  
+
   .ing-cost-wrap {
     display: flex;
     justify-content: space-between;
     font-size: 0.85rem;
-    
+
     .ing-cost {
       font-weight: 600;
     }
-    
+
     .ing-pct {
       color: var(--text-muted);
       font-weight: 700;
     }
   }
-  
+
   .progress-bar-container {
     height: 6px;
     background: var(--border);
     border-radius: 3px;
     overflow: hidden;
-    
+
     .progress-bar {
       height: 100%;
       border-radius: 3px;
-      
-      &.contrib-low { background: #2e7d4f; }
-      &.contrib-mid { background: #f59e0b; }
-      &.contrib-high { background: #b42318; }
+
+      &.contrib-low {
+        background: #2e7d4f;
+      }
+      &.contrib-mid {
+        background: #f59e0b;
+      }
+      &.contrib-high {
+        background: #b42318;
+      }
     }
   }
 }
@@ -1286,32 +1635,46 @@ onMounted(load);
   flex-wrap: wrap;
   padding: 24px;
   margin-bottom: 20px;
-  
+
   .simulator-controls {
     flex: 1;
     min-width: 300px;
-    
-    h3 { margin: 0 0 8px 0; color: var(--primary-dark); }
-    p { margin: 0 0 20px 0; font-size: 0.88rem; color: var(--text-muted); }
+
+    h3 {
+      margin: 0 0 8px 0;
+      color: var(--primary-dark);
+    }
+    p {
+      margin: 0 0 20px 0;
+      font-size: 0.88rem;
+      color: var(--text-muted);
+    }
   }
-  
+
   .simulator-form {
     display: flex;
     gap: 20px;
     flex-wrap: wrap;
     align-items: center;
-    
+
     .form-group {
       display: flex;
       flex-direction: column;
       gap: 6px;
       min-width: 180px;
-      
-      label { font-size: 0.82rem; font-weight: 600; color: var(--text-muted); }
-      .percent-val { color: #b42318; font-size: 0.95rem; }
+
+      label {
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: var(--text-muted);
+      }
+      .percent-val {
+        color: #b42318;
+        font-size: 0.95rem;
+      }
     }
   }
-  
+
   .simulator-summary {
     display: flex;
     gap: 20px;
@@ -1319,23 +1682,37 @@ onMounted(load);
     padding: 16px 24px;
     border-radius: var(--radius);
     border: 1px solid var(--border);
-    
+
     .metric {
       display: flex;
       flex-direction: column;
       align-items: center;
-      
-      .label { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 4px; }
+
+      .label {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        margin-bottom: 4px;
+      }
       .value {
         font-size: 1.3rem;
         font-weight: 800;
-        
-        &.margin-high { color: #2e7d4f; }
-        &.margin-mid { color: #f59e0b; }
-        &.margin-low { color: #b42318; }
-        
-        &.diff-up { color: #2e7d4f; }
-        &.diff-down { color: #b42318; }
+
+        &.margin-high {
+          color: #2e7d4f;
+        }
+        &.margin-mid {
+          color: #f59e0b;
+        }
+        &.margin-low {
+          color: #b42318;
+        }
+
+        &.diff-up {
+          color: #2e7d4f;
+        }
+        &.diff-down {
+          color: #b42318;
+        }
       }
     }
   }
@@ -1347,44 +1724,110 @@ onMounted(load);
   align-items: center;
   padding: 16px 20px;
   border-bottom: 1px solid var(--border);
-  
-  h4 { margin: 0; color: var(--primary-dark); }
+
+  h4 {
+    margin: 0;
+    color: var(--primary-dark);
+  }
 }
 
 .row-simulated {
   background: rgba(245, 158, 11, 0.02) !important;
 }
 
-.price-up { color: #b42318; font-weight: 700; }
-.text-bold { font-weight: 700; }
+.price-up {
+  color: #b42318;
+  font-weight: 700;
+}
+.text-bold {
+  font-weight: 700;
+}
 
-.badge-recipe, .badge-raw {
+.badge-recipe,
+.badge-raw {
   display: inline-block;
   padding: 2px 6px;
   font-size: 0.72rem;
   border-radius: 4px;
   font-weight: 600;
 }
-.badge-recipe { background: rgba(46, 125, 79, 0.1); color: #2e7d4f; }
-.badge-raw { background: rgba(30, 41, 59, 0.08); color: var(--text-muted); }
+.badge-recipe {
+  background: rgba(46, 125, 79, 0.1);
+  color: #2e7d4f;
+}
+.badge-raw {
+  background: rgba(30, 41, 59, 0.08);
+  color: var(--text-muted);
+}
 
 /* Switch styling */
-.switch { position: relative; display: inline-block; width: 50px; height: 24px; }
-.switch input { opacity: 0; width: 0; height: 0; }
-.slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; }
-.slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 4px; bottom: 4px; background-color: white; transition: .4s; }
-input:checked + .slider { background-color: #2e7d4f; }
-input:focus + .slider { box-shadow: 0 0 1px #2e7d4f; }
-input:checked + .slider:before { transform: translateX(26px); }
-.slider.round { border-radius: 34px; }
-.slider.round:before { border-radius: 50%; }
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 50px;
+  height: 24px;
+}
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  transition: 0.4s;
+}
+.slider:before {
+  position: absolute;
+  content: '';
+  height: 16px;
+  width: 16px;
+  left: 4px;
+  bottom: 4px;
+  background-color: white;
+  transition: 0.4s;
+}
+input:checked + .slider {
+  background-color: #2e7d4f;
+}
+input:focus + .slider {
+  box-shadow: 0 0 1px #2e7d4f;
+}
+input:checked + .slider:before {
+  transform: translateX(26px);
+}
+.slider.round {
+  border-radius: 34px;
+}
+.slider.round:before {
+  border-radius: 50%;
+}
 
 /* Range Slider */
 .range-slider {
-  -webkit-appearance: none; width: 100%; height: 6px; border-radius: 3px; background: var(--border); outline: none;
+  -webkit-appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--border);
+  outline: none;
   &::-webkit-slider-thumb {
-    -webkit-appearance: none; appearance: none; width: 16px; height: 16px; border-radius: 50%; background: #2e7d4f; cursor: pointer; transition: transform 0.1s;
-    &:hover { transform: scale(1.2); }
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #2e7d4f;
+    cursor: pointer;
+    transition: transform 0.1s;
+    &:hover {
+      transform: scale(1.2);
+    }
   }
 }
 
@@ -1393,50 +1836,150 @@ input:checked + .slider:before { transform: translateX(26px); }
   padding: 24px;
   .adjuster-header {
     margin-bottom: 20px;
-    h3 { margin: 0 0 6px 0; color: var(--primary-dark); }
-    p { margin: 0; font-size: 0.88rem; color: var(--text-muted); }
+    h3 {
+      margin: 0 0 6px 0;
+      color: var(--primary-dark);
+    }
+    p {
+      margin: 0;
+      font-size: 0.88rem;
+      color: var(--text-muted);
+    }
   }
 }
 
 .alert {
-  padding: 12px 16px; border-radius: var(--radius); font-size: 0.88rem; line-height: 1.5; margin-bottom: 20px;
-  &.alert-warning { background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.3); color: #b45309; }
-  &.alert-danger { background: rgba(180, 35, 24, 0.06); border: 1px solid rgba(180, 35, 24, 0.2); color: #b42318; }
-  &.alert-success { background: rgba(46, 125, 79, 0.08); border: 1px solid rgba(46, 125, 79, 0.3); color: #2e7d4f; }
+  padding: 12px 16px;
+  border-radius: var(--radius);
+  font-size: 0.88rem;
+  line-height: 1.5;
+  margin-bottom: 20px;
+  &.alert-warning {
+    background: rgba(245, 158, 11, 0.08);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    color: #b45309;
+  }
+  &.alert-danger {
+    background: rgba(180, 35, 24, 0.06);
+    border: 1px solid rgba(180, 35, 24, 0.2);
+    color: #b42318;
+  }
+  &.alert-success {
+    background: rgba(46, 125, 79, 0.08);
+    border: 1px solid rgba(46, 125, 79, 0.3);
+    color: #2e7d4f;
+  }
 }
 
-.form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px; }
-.adjuster-actions { display: flex; justify-content: flex-end; }
-.btn-large { padding: 12px 28px; font-size: 1rem; }
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.adjuster-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+.btn-large {
+  padding: 12px 28px;
+  font-size: 1rem;
+}
 
 /* Wastage view styling */
-.inline-label { font-size: 0.82rem; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; display: block; }
-.date-input { padding: 9px 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg); width: 100%; }
-.reset-group { display: flex; align-items: flex-end; }
+.inline-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+  display: block;
+}
+.date-input {
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  width: 100%;
+}
+.reset-group {
+  display: flex;
+  align-items: flex-end;
+}
 
 .waste-badge {
-  display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 0.78rem; font-weight: 700;
-  &.waste-safe { background: rgba(46, 125, 79, 0.1); color: #2e7d4f; }
-  &.waste-warning { background: rgba(245, 158, 11, 0.1); color: #b45309; }
-  &.waste-danger { background: rgba(180, 35, 24, 0.1); color: #b42318; }
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  &.waste-safe {
+    background: rgba(46, 125, 79, 0.1);
+    color: #2e7d4f;
+  }
+  &.waste-warning {
+    background: rgba(245, 158, 11, 0.1);
+    color: #b45309;
+  }
+  &.waste-danger {
+    background: rgba(180, 35, 24, 0.1);
+    color: #b42318;
+  }
 }
 
 .checkbox-label {
-  display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.88rem; font-weight: 600; color: var(--primary-dark); user-select: none;
-  input { width: 16px; height: 16px; cursor: pointer; }
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--primary-dark);
+  user-select: none;
+  input {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+  }
 }
-.toggle-group { display: flex; align-items: center; height: 100%; padding-top: 15px; }
-.search-group { flex: 1.5 !important; }
-.mt-15 { margin-top: 15px; }
-.mt-20 { margin-top: 20px; }
+.toggle-group {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  padding-top: 15px;
+}
+.search-group {
+  flex: 1.5 !important;
+}
+.mt-15 {
+  margin-top: 15px;
+}
+.mt-20 {
+  margin-top: 20px;
+}
 
-.loading-state, .empty-state, .error-state { text-align: center; padding: 48px; color: var(--text-muted);
-  span { font-size: 2rem; display: block; margin-bottom: 8px; }
+.loading-state,
+.empty-state,
+.error-state {
+  text-align: center;
+  padding: 48px;
+  color: var(--text-muted);
+  span {
+    font-size: 2rem;
+    display: block;
+    margin-bottom: 8px;
+  }
 }
 
 @media (max-width: 768px) {
-  .summary-row { grid-template-columns: 1fr 1fr; }
-  .simulator-panel { flex-direction: column; align-items: stretch; }
-  .recipe-summary-box { grid-template-columns: 1fr; }
+  .summary-row {
+    grid-template-columns: 1fr 1fr;
+  }
+  .simulator-panel {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .recipe-summary-box {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

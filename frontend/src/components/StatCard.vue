@@ -44,7 +44,10 @@ const iconName = computed(() => props.icon || 'dashboard');
   border-radius: var(--radius-lg);
   background: var(--bg-elevated);
   box-shadow: var(--shadow-xs);
-  transition: transform var(--transition), box-shadow var(--transition), border-color var(--transition);
+  transition:
+    transform var(--transition),
+    box-shadow var(--transition),
+    border-color var(--transition);
 
   &:hover {
     transform: translateY(-2px);

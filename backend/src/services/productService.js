@@ -1,5 +1,5 @@
 import { getClient, query } from '../database/pool.js';
-import { AppError } from '../middleware/errorHandler.js';
+import { AppError } from '../types/errors.js';
 import { getProductsEffectiveCosts } from './productCostService.js';
 import { getDefaultWarehouseId, getWarehouseIdByCode } from './warehouseService.js';
 import { sanitizeLimit } from '../utils/money.js';
@@ -40,10 +40,22 @@ export const getProducts = async (filters = {}) => {
     WHERE p.deleted_at IS NULL`;
   const params = [];
   let i = 1;
-  if (filters.category_id) { sql += ` AND p.category_id = $${i++}`; params.push(filters.category_id); }
-  if (filters.search) { sql += ` AND (p.name_ar ILIKE $${i} OR p.sku ILIKE $${i} OR p.barcode ILIKE $${i})`; params.push(`%${filters.search}%`); i++; }
-  if (filters.primary_warehouse_only) { sql += ` AND p.primary_warehouse_id IS NOT NULL`; }
-  if (filters.primary_warehouse_id) { sql += ` AND p.primary_warehouse_id = $${i++}`; params.push(filters.primary_warehouse_id); }
+  if (filters.category_id) {
+    sql += ` AND p.category_id = $${i++}`;
+    params.push(filters.category_id);
+  }
+  if (filters.search) {
+    sql += ` AND (p.name_ar ILIKE $${i} OR p.sku ILIKE $${i} OR p.barcode ILIKE $${i})`;
+    params.push(`%${filters.search}%`);
+    i++;
+  }
+  if (filters.primary_warehouse_only) {
+    sql += ` AND p.primary_warehouse_id IS NOT NULL`;
+  }
+  if (filters.primary_warehouse_id) {
+    sql += ` AND p.primary_warehouse_id = $${i++}`;
+    params.push(filters.primary_warehouse_id);
+  }
   if (filters.warehouse_id) {
     sql += ` AND (
       p.primary_warehouse_id = $${i}
@@ -54,12 +66,18 @@ export const getProducts = async (filters = {}) => {
     params.push(Number(filters.warehouse_id));
     i++;
   }
-  if (filters.is_active !== undefined) { sql += ` AND p.is_active = $${i++}`; params.push(filters.is_active); }
+  if (filters.is_active !== undefined) {
+    sql += ` AND p.is_active = $${i++}`;
+    params.push(filters.is_active);
+  }
   sql += ` ORDER BY p.name_ar LIMIT $${i++}`;
   params.push(sanitizeLimit(filters.limit));
   const rows = (await query(sql, params)).rows;
 
-  const costs = await getProductsEffectiveCosts({ query }, rows.map((r) => r.id));
+  const costs = await getProductsEffectiveCosts(
+    { query },
+    rows.map((r) => r.id),
+  );
   for (const r of rows) {
     if (r.has_active_recipe) {
       const effective = costs.get(Number(r.id));
@@ -88,7 +106,7 @@ export const getProductById = async (id) => {
       ) as stock
      FROM products p LEFT JOIN product_categories pc ON p.category_id = pc.id
      WHERE p.id = $1 AND p.deleted_at IS NULL`,
-    [id]
+    [id],
   );
   if (!result.rows[0]) throw new AppError('المنتج غير موجود', 404);
   const product = result.rows[0];
@@ -111,7 +129,7 @@ const generateProductSku = async (client) => {
   const result = await client.query(
     `SELECT COALESCE(MAX((substring(sku FROM '^AGoouz-([0-9]+)$'))::int), 0) + 1 AS next_number
      FROM products
-     WHERE sku ~ '^AGoouz-[0-9]+$'`
+     WHERE sku ~ '^AGoouz-[0-9]+$'`,
   );
   return `${PRODUCT_SKU_PREFIX}${String(result.rows[0].next_number).padStart(3, '0')}`;
 };
@@ -136,13 +154,27 @@ export const createProduct = async (data) => {
   try {
     await client.query('BEGIN');
 
-    const sku = String(data.sku || '').trim() || await generateProductSku(client);
+    const sku = String(data.sku || '').trim() || (await generateProductSku(client));
     const barcode = String(data.barcode || '').trim() || null;
     const result = await client.query(
       `INSERT INTO products (sku, barcode, name_ar, description, category_id, unit, purchase_price, sale_price, wholesale_price, min_stock, image_url, is_active, track_expiry, primary_warehouse_id)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,
-      [sku, barcode, data.name_ar, data.description, data.category_id, data.unit || 'count',
-        data.purchase_price || 0, data.sale_price, data.wholesale_price, data.min_stock || 5, data.image_url, data.is_active ?? true, data.track_expiry ?? false, data.primary_warehouse_id || null]
+      [
+        sku,
+        barcode,
+        data.name_ar,
+        data.description,
+        data.category_id,
+        data.unit || 'count',
+        data.purchase_price || 0,
+        data.sale_price,
+        data.wholesale_price,
+        data.min_stock || 5,
+        data.image_url,
+        data.is_active ?? true,
+        data.track_expiry ?? false,
+        data.primary_warehouse_id || null,
+      ],
     );
     if (data.warehouse_stocks && typeof data.warehouse_stocks === 'object') {
       for (const [wId, qty] of Object.entries(data.warehouse_stocks)) {
@@ -151,7 +183,7 @@ export const createProduct = async (data) => {
           `INSERT INTO inventory (product_id, warehouse_id, quantity) VALUES ($1,$2,$3)
            ON CONFLICT (product_id, warehouse_id, COALESCE(batch_number, ''))
            DO UPDATE SET quantity = EXCLUDED.quantity, updated_at = NOW()`,
-          [result.rows[0].id, wId, val]
+          [result.rows[0].id, wId, val],
         );
       }
     } else if (data.initial_stock) {
@@ -160,7 +192,7 @@ export const createProduct = async (data) => {
           `INSERT INTO inventory (product_id, warehouse_id, quantity) VALUES ($1,$2,$3)
            ON CONFLICT (product_id, warehouse_id, COALESCE(batch_number, ''))
            DO UPDATE SET quantity = inventory.quantity + $3, updated_at = NOW()`,
-          [result.rows[0].id, warehouseId, qty]
+          [result.rows[0].id, warehouseId, qty],
         );
       }
     }
@@ -182,14 +214,18 @@ export const updateProduct = async (id, data) => {
 
     const existingRes = await client.query(
       'SELECT p.id, p.primary_warehouse_id, EXISTS (SELECT 1 FROM product_recipes r WHERE r.product_id = p.id AND r.deleted_at IS NULL AND r.is_active = TRUE) AS has_active_recipe FROM products p WHERE p.id = $1 AND p.deleted_at IS NULL FOR UPDATE',
-      [id]
+      [id],
     );
     const existing = existingRes.rows[0];
     if (!existing) throw new AppError('المنتج غير موجود', 404);
 
     const warehouseProvided = data.primary_warehouse_id !== undefined;
-    const nextWarehouseId = warehouseProvided ? Number(data.primary_warehouse_id) || null : existing.primary_warehouse_id || null;
-    const warehouseChanged = warehouseProvided && Number(nextWarehouseId || 0) !== Number(existing.primary_warehouse_id || 0);
+    const nextWarehouseId = warehouseProvided
+      ? Number(data.primary_warehouse_id) || null
+      : existing.primary_warehouse_id || null;
+    const warehouseChanged =
+      warehouseProvided &&
+      Number(nextWarehouseId || 0) !== Number(existing.primary_warehouse_id || 0);
 
     if (warehouseChanged) {
       if (existing.has_active_recipe) {
@@ -197,23 +233,37 @@ export const updateProduct = async (id, data) => {
       }
       const warehouseRes = await client.query(
         'SELECT id FROM warehouses WHERE id = $1 AND deleted_at IS NULL AND is_active = TRUE',
-        [nextWarehouseId]
+        [nextWarehouseId],
       );
       if (!warehouseRes.rows[0]) throw new AppError('المخزن غير موجود', 404);
     }
 
-    const fields = ['sku', 'barcode', 'name_ar', 'description', 'category_id', 'unit', 'purchase_price', 'sale_price', 'wholesale_price', 'min_stock', 'image_url', 'is_active', 'track_expiry'];
+    const fields = [
+      'sku',
+      'barcode',
+      'name_ar',
+      'description',
+      'category_id',
+      'unit',
+      'purchase_price',
+      'sale_price',
+      'wholesale_price',
+      'min_stock',
+      'image_url',
+      'is_active',
+      'track_expiry',
+    ];
     const sets = [];
     const values = [];
     let i = 1;
     for (const f of fields) {
       if (data[f] !== undefined) {
-        sets.push(f + ' = $' + (i++));
+        sets.push(f + ' = $' + i++);
         values.push(data[f]);
       }
     }
     if (warehouseProvided && !warehouseChanged) {
-      sets.push('primary_warehouse_id = $' + (i++));
+      sets.push('primary_warehouse_id = $' + i++);
       values.push(nextWarehouseId);
     }
     if (sets.length) {
@@ -223,7 +273,7 @@ export const updateProduct = async (id, data) => {
         'UPDATE products SET __SETS__ WHERE id = $__ID__ AND deleted_at IS NULL RETURNING id'
           .replace('__SETS__', sets.join(', '))
           .replace('__ID__', String(i)),
-        values
+        values,
       );
       if (!result.rows[0]) throw new AppError('المنتج غير موجود', 404);
     }
@@ -231,18 +281,18 @@ export const updateProduct = async (id, data) => {
     if (warehouseChanged) {
       const totalRes = await client.query(
         'SELECT COALESCE(SUM(quantity),0) as total_qty FROM inventory WHERE product_id = $1',
-        [id]
+        [id],
       );
       const totalQty = Number(totalRes.rows[0]?.total_qty || 0);
 
       await client.query('DELETE FROM inventory WHERE product_id = $1', [id]);
       await client.query(
         'INSERT INTO inventory (product_id, warehouse_id, quantity) VALUES ($1, $2, $3)',
-        [id, nextWarehouseId, totalQty]
+        [id, nextWarehouseId, totalQty],
       );
       await client.query(
         'UPDATE products SET primary_warehouse_id = $1, updated_at = NOW() WHERE id = $2',
-        [nextWarehouseId, id]
+        [nextWarehouseId, id],
       );
     }
 
@@ -253,7 +303,7 @@ export const updateProduct = async (id, data) => {
           `INSERT INTO inventory (product_id, warehouse_id, quantity) VALUES ($1,$2,$3)
            ON CONFLICT (product_id, warehouse_id, COALESCE(batch_number, ''))
            DO UPDATE SET quantity = EXCLUDED.quantity, updated_at = NOW()`,
-          [id, wId, val]
+          [id, wId, val],
         );
       }
     }
@@ -278,7 +328,7 @@ export const deleteProduct = async (id) => {
        SET deleted_at = NOW(), is_active = FALSE, updated_at = NOW()
        WHERE id = $1 AND deleted_at IS NULL
        RETURNING id`,
-      [id]
+      [id],
     );
     if (!productRes.rows[0]) throw new AppError('المنتج غير موجود', 404);
 
@@ -294,7 +344,7 @@ export const deleteProduct = async (id) => {
              SELECT recipe_id FROM product_recipe_items WHERE ingredient_product_id = $1
            )
          )`,
-      [id]
+      [id],
     );
 
     await client.query('COMMIT');
@@ -325,7 +375,7 @@ export const deleteAllProducts = async () => {
       `UPDATE products
        SET deleted_at = NOW(), is_active = FALSE, updated_at = NOW()
        WHERE deleted_at IS NULL
-       RETURNING id`
+       RETURNING id`,
     );
 
     const deletedIds = result.rows.map((r) => r.id);
@@ -341,7 +391,7 @@ export const deleteAllProducts = async () => {
                SELECT recipe_id FROM product_recipe_items WHERE ingredient_product_id = ANY($1::int[])
              )
            )`,
-        [deletedIds]
+        [deletedIds],
       );
     }
 
@@ -362,7 +412,7 @@ export const getCategories = async () => {
      LEFT JOIN products p ON p.category_id = pc.id AND p.deleted_at IS NULL
      WHERE pc.deleted_at IS NULL
      GROUP BY pc.id
-     ORDER BY pc.sort_order`
+     ORDER BY pc.sort_order`,
   );
   return result.rows;
 };
@@ -371,7 +421,10 @@ export const getCategories = async () => {
  * *B1J1 'D*C'DJA: CD EF*,'* 'DE-D E9 391 'D41'!/'D(J9/'D1(- H'DE(J9'* 'DA9DJ)
  */
 export const getCostsReport = async (filters = {}) => {
-  const warehouseId = Number(filters.warehouse_id) || await getWarehouseIdByCode('STORE') || await getDefaultWarehouseId();
+  const warehouseId =
+    Number(filters.warehouse_id) ||
+    (await getWarehouseIdByCode('STORE')) ||
+    (await getDefaultWarehouseId());
   const sql = `
     SELECT
       p.id, p.sku, p.name_ar, p.unit, p.purchase_price, p.sale_price,
@@ -406,10 +459,16 @@ export const getCostsReport = async (filters = {}) => {
     ORDER BY pc.sort_order, p.name_ar
   `;
   const rows = (await query(sql, [warehouseId])).rows;
-  const costs = await getProductsEffectiveCosts({ query }, rows.map((row) => row.id));
+  const costs = await getProductsEffectiveCosts(
+    { query },
+    rows.map((row) => row.id),
+  );
 
   return rows.map((row) => {
-    const effective = costs.get(Number(row.id)) || { cost: Number(row.purchase_price || 0), source: 'purchase_price' };
+    const effective = costs.get(Number(row.id)) || {
+      cost: Number(row.purchase_price || 0),
+      source: 'purchase_price',
+    };
     const totalQtySold = Number(row.total_qty_sold || 0);
     const totalRevenue = Number(row.total_revenue || 0);
     const unitCost = Number(effective.cost || 0);
@@ -429,7 +488,10 @@ export const getCostsReport = async (filters = {}) => {
  * EF*,'* 'DA19: 'DEF*,'* 'D*J DG' E.2HF AJ E.2F 'DA19 E9 (J'F'* 'DH5A) H'DE.2HF 'D-'DJ DCD ECHF
  */
 export const getBranchProducts = async (filters = {}) => {
-  const warehouseId = Number(filters.warehouse_id) || await getWarehouseIdByCode('STORE') || await getDefaultWarehouseId();
+  const warehouseId =
+    Number(filters.warehouse_id) ||
+    (await getWarehouseIdByCode('STORE')) ||
+    (await getDefaultWarehouseId());
   let sql = `
     SELECT
       p.id, p.sku, p.name_ar, p.unit, p.sale_price, p.purchase_price,
@@ -481,16 +543,21 @@ export const getBranchProducts = async (filters = {}) => {
     ...r,
     recipe_items: Array.isArray(r.recipe_items)
       ? r.recipe_items
-      : (typeof r.recipe_items === 'string' && r.recipe_items.trim()
+      : typeof r.recipe_items === 'string' && r.recipe_items.trim()
         ? JSON.parse(r.recipe_items)
-        : []),
+        : [],
   }));
 };
 
 export const createCategory = async (data) => {
   const result = await query(
     `INSERT INTO product_categories (name_ar, slug, parent_id, sort_order) VALUES ($1,$2,$3,$4) RETURNING *`,
-    [data.name_ar, data.slug || data.name_ar.replace(/\s/g, '-'), data.parent_id, data.sort_order || 0]
+    [
+      data.name_ar,
+      data.slug || data.name_ar.replace(/\s/g, '-'),
+      data.parent_id,
+      data.sort_order || 0,
+    ],
   );
   return result.rows[0];
 };
@@ -504,7 +571,7 @@ export const updateCategory = async (id, data) => {
          sort_order = COALESCE($4, sort_order)
      WHERE id = $5 AND deleted_at IS NULL
      RETURNING *`,
-    [data.name_ar, data.slug, data.parent_id, data.sort_order, id]
+    [data.name_ar, data.slug, data.parent_id, data.sort_order, id],
   );
   if (!result.rows[0]) throw new AppError('التصنيف غير موجود', 404);
   return result.rows[0];
@@ -514,7 +581,10 @@ export const deleteCategory = async (id) => {
   const client = await getClient();
   try {
     await client.query('BEGIN');
-    const category = await client.query(`SELECT id FROM product_categories WHERE id = $1 AND deleted_at IS NULL`, [id]);
+    const category = await client.query(
+      `SELECT id FROM product_categories WHERE id = $1 AND deleted_at IS NULL`,
+      [id],
+    );
     if (!category.rows[0]) throw new AppError('التصنيف غير موجود', 404);
 
     await client.query(`UPDATE products SET category_id = NULL WHERE category_id = $1`, [id]);
@@ -530,21 +600,23 @@ export const deleteCategory = async (id) => {
 };
 
 export const getUnits = async () => {
-  return (await query(
-    `SELECT pu.id, pu.name_ar, pu.sort_order,
+  return (
+    await query(
+      `SELECT pu.id, pu.name_ar, pu.sort_order,
             COUNT(p.id)::int AS products_count
      FROM product_units pu
      LEFT JOIN products p ON p.unit = pu.name_ar AND p.deleted_at IS NULL
      WHERE pu.deleted_at IS NULL
      GROUP BY pu.id
-     ORDER BY pu.sort_order, pu.name_ar`
-  )).rows;
+     ORDER BY pu.sort_order, pu.name_ar`,
+    )
+  ).rows;
 };
 
 export const createUnit = async (data) => {
   const result = await query(
     `INSERT INTO product_units (name_ar, sort_order) VALUES ($1, $2) RETURNING *`,
-    [data.name_ar, data.sort_order ?? 0]
+    [data.name_ar, data.sort_order ?? 0],
   );
   return result.rows[0];
 };
@@ -557,7 +629,7 @@ export const updateUnit = async (id, data) => {
          updated_at = NOW()
      WHERE id = $3 AND deleted_at IS NULL
      RETURNING *`,
-    [data.name_ar, data.sort_order, id]
+    [data.name_ar, data.sort_order, id],
   );
   if (!result.rows[0]) throw new AppError('الوحدة غير موجودة', 404);
   return result.rows[0];
@@ -565,7 +637,8 @@ export const updateUnit = async (id, data) => {
 
 export const deleteUnit = async (id) => {
   const unit = await query(
-    `SELECT name_ar FROM product_units WHERE id = $1 AND deleted_at IS NULL`, [id]
+    `SELECT name_ar FROM product_units WHERE id = $1 AND deleted_at IS NULL`,
+    [id],
   );
   if (!unit.rows[0]) throw new AppError('الوحدة غير موجودة', 404);
   await query(`UPDATE product_units SET deleted_at = NOW() WHERE id = $1`, [id]);
@@ -579,7 +652,7 @@ export const bulkAdjustPrices = async (data, userId) => {
 
   let sql = `UPDATE products SET `;
   const params = [];
-  
+
   if (type === 'sale') {
     if (adjust_type === 'percent') {
       sql += `sale_price = ROUND(sale_price * (1 + $1::numeric / 100), 2)`;
@@ -595,16 +668,15 @@ export const bulkAdjustPrices = async (data, userId) => {
   } else {
     throw new AppError('نوع السعر المراد تعديله غير صالح', 400);
   }
-  
+
   params.push(val);
   sql += `, updated_at = NOW() WHERE deleted_at IS NULL`;
-  
+
   if (category_id) {
     sql += ` AND category_id = $2`;
     params.push(category_id);
   }
-  
+
   const result = await query(sql, params);
   return { updatedCount: result.rowCount };
 };
-

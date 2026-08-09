@@ -2,7 +2,14 @@
   <div class="sales-page">
     <div class="page-toolbar card">
       <div v-if="activeTab !== 'monthly'" class="toolbar-actions">
-        <button type="button" class="icon-btn" title="تحميل قالب الاستيراد" @click="downloadTemplate">📥</button>
+        <button
+          type="button"
+          class="icon-btn"
+          title="تحميل قالب الاستيراد"
+          @click="downloadTemplate"
+        >
+          📥
+        </button>
         <label class="icon-btn import-btn" title="فحص ملف Excel">
           🔍
           <input type="file" accept=".xlsx,.xls" hidden @change="onValidate" />
@@ -31,7 +38,10 @@
       </div>
     </div>
 
-    <section class="opening-balance opening-ledger" :class="{ editing: openingBalanceEditing, saving: openingBalanceSaving }">
+    <section
+      class="opening-balance opening-ledger"
+      :class="{ editing: openingBalanceEditing, saving: openingBalanceSaving }"
+    >
       <div class="ledger-glow" aria-hidden="true"></div>
       <div class="opening-balance-head">
         <div class="ledger-title">
@@ -46,10 +56,20 @@
           <strong>{{ formatMoney(openingBalanceForm.amount || 0) }}</strong>
         </div>
         <div class="opening-balance-actions">
-          <button type="button" class="ledger-action secondary" :disabled="openingBalanceLoading || openingBalanceSaving" @click="startOpeningBalanceEdit">
+          <button
+            type="button"
+            class="ledger-action secondary"
+            :disabled="openingBalanceLoading || openingBalanceSaving"
+            @click="startOpeningBalanceEdit"
+          >
             تعديل
           </button>
-          <button type="button" class="ledger-action primary" :disabled="openingBalanceSaving || !openingBalanceEditing" @click="saveOpeningBalance">
+          <button
+            type="button"
+            class="ledger-action primary"
+            :disabled="openingBalanceSaving || !openingBalanceEditing"
+            @click="saveOpeningBalance"
+          >
             {{ openingBalanceSaving ? 'جارٍ الحفظ...' : 'حفظ' }}
           </button>
         </div>
@@ -57,15 +77,30 @@
       <div class="opening-balance-grid">
         <div class="ledger-field">
           <span>من تاريخ</span>
-          <input v-model="openingBalanceForm.from_date" type="date" :disabled="!openingBalanceEditing" />
+          <input
+            v-model="openingBalanceForm.from_date"
+            type="date"
+            :disabled="!openingBalanceEditing"
+          />
         </div>
         <div class="ledger-field">
           <span>إلى تاريخ</span>
-          <input v-model="openingBalanceForm.to_date" type="date" :disabled="!openingBalanceEditing" />
+          <input
+            v-model="openingBalanceForm.to_date"
+            type="date"
+            :disabled="!openingBalanceEditing"
+          />
         </div>
         <div class="ledger-field amount-field">
           <span>المبلغ المرحل</span>
-          <input v-model.number="openingBalanceForm.amount" type="number" min="0" step="0.01" :disabled="!openingBalanceEditing" placeholder="0.00" />
+          <input
+            v-model.number="openingBalanceForm.amount"
+            type="number"
+            min="0"
+            step="0.01"
+            :disabled="!openingBalanceEditing"
+            placeholder="0.00"
+          />
         </div>
       </div>
       <div v-if="openingBalanceMsg" class="opening-balance-msg" :class="{ err: openingBalanceErr }">
@@ -73,28 +108,39 @@
       </div>
     </section>
 
-    <div class="tabs" style="position: relative;">
-      <div 
-        class="tab-slider" 
+    <div class="tabs" style="position: relative">
+      <div
+        class="tab-slider"
         :style="{
-          transform: activeTab === 'branch' ? 'translateX(0)' : (activeTab === 'wholesale' ? 'translateX(calc(-100% - 7px))' : 'translateX(calc(-200% - 14px))')
+          transform:
+            activeTab === 'branch'
+              ? 'translateX(0)'
+              : activeTab === 'wholesale'
+                ? 'translateX(calc(-100% - 7px))'
+                : 'translateX(calc(-200% - 14px))',
         }"
       ></div>
       <button
         type="button"
         :class="{ active: activeTab === 'branch' }"
         @click="switchTab('branch')"
-      >🏪 مبيعات المحل</button>
+      >
+        🏪 مبيعات المحل
+      </button>
       <button
         type="button"
         :class="{ active: activeTab === 'wholesale' }"
         @click="switchTab('wholesale')"
-      >📦 مبيعات الجملة</button>
+      >
+        📦 مبيعات الجملة
+      </button>
       <button
         type="button"
         :class="{ active: activeTab === 'monthly' }"
         @click="switchTab('monthly')"
-      >📊 مبيعات شهرية</button>
+      >
+        📊 مبيعات شهرية
+      </button>
     </div>
 
     <section class="sales-insight card" :class="salesHealth.tone">
@@ -134,19 +180,42 @@
         <span class="monthly-kicker">Excel فقط</span>
         <h3>استيراد المبيعات الشهرية للمحل</h3>
         <p class="monthly-copy">
-          ارفع ملف المبيعات الشهرية هنا، وسيتم تسجيلها كمبيعات محل مرتبطة بمخزون المحل مباشرة. المنتج العادي يخصم من رصيده، والمنتج صاحب الوصفة يخصم بمكونات الوصفة حسب إعداد المنتج الحالي.
+          ارفع ملف المبيعات الشهرية هنا، وسيتم تسجيلها كمبيعات محل مرتبطة بمخزون المحل مباشرة.
+          المنتج العادي يخصم من رصيده، والمنتج صاحب الوصفة يخصم بمكونات الوصفة حسب إعداد المنتج
+          الحالي.
         </p>
         <div class="monthly-actions">
-          <button type="button" class="btn btn-primary" :disabled="monthlyImporting" @click="downloadMonthlyTemplate">
+          <button
+            type="button"
+            class="btn btn-primary"
+            :disabled="monthlyImporting"
+            @click="downloadMonthlyTemplate"
+          >
             تحميل قالب مبيعات شهرية
           </button>
           <label class="btn btn-outline import-btn" :class="{ disabled: monthlyValidating }">
             {{ monthlyValidating ? 'جاري الفحص...' : 'فحص ملف Excel' }}
-            <input type="file" accept=".xlsx,.xls" hidden :disabled="monthlyValidating" @change="onValidateMonthly" />
+            <input
+              type="file"
+              accept=".xlsx,.xls"
+              hidden
+              :disabled="monthlyValidating"
+              @change="onValidateMonthly"
+            />
           </label>
-          <label class="btn btn-success monthly-import-btn import-btn" :class="{ disabled: monthlyImporting }" role="button">
+          <label
+            class="btn btn-success monthly-import-btn import-btn"
+            :class="{ disabled: monthlyImporting }"
+            role="button"
+          >
             {{ monthlyImporting ? 'جاري الاستيراد...' : 'استيراد ذكي وخصم المخزون' }}
-            <input type="file" accept=".xlsx,.xls" hidden :disabled="monthlyImporting" @change="onImportMonthly" />
+            <input
+              type="file"
+              accept=".xlsx,.xls"
+              hidden
+              :disabled="monthlyImporting"
+              @change="onImportMonthly"
+            />
           </label>
         </div>
         <div class="monthly-rules">
@@ -154,7 +223,11 @@
           <span>نوع البيع: مبيعات محل</span>
           <span>الدفع الافتراضي: مدفوع</span>
         </div>
-        <div v-if="monthlyImportMsg || monthlyImportDetails.length" class="import-result inline" :class="{ err: monthlyImportErr }">
+        <div
+          v-if="monthlyImportMsg || monthlyImportDetails.length"
+          class="import-result inline"
+          :class="{ err: monthlyImportErr }"
+        >
           <p class="import-msg" :class="{ err: monthlyImportErr }">{{ monthlyImportMsg }}</p>
           <ul v-if="monthlyImportDetails.length" class="import-details">
             <li v-for="(d, i) in monthlyImportDetails" :key="i">{{ d }}</li>
@@ -163,87 +236,114 @@
       </div>
 
       <Teleport v-else to="body" :disabled="!editingSaleId">
-        <div :class="{ 'modal-overlay': editingSaleId }" @click.self="editingSaleId ? cancelEdit() : null">
+        <div
+          :class="{ 'modal-overlay': editingSaleId }"
+          @click.self="editingSaleId ? cancelEdit() : null"
+        >
           <div class="card form-card" :class="{ 'modal-card': editingSaleId }">
-            <h3>{{ editingSaleId ? 'تعديل فاتورة بيع' : (activeTab === 'branch' ? 'تسجيل مبيعات فرع' : 'تسجيل مبيعات جملة') }}</h3>
+            <h3>
+              {{
+                editingSaleId
+                  ? 'تعديل فاتورة بيع'
+                  : activeTab === 'branch'
+                    ? 'تسجيل مبيعات فرع'
+                    : 'تسجيل مبيعات جملة'
+              }}
+            </h3>
             <form @submit.prevent="submitSale">
-          <div v-if="editingSaleId" class="edit-banner">
-            <span>وضع التعديل مفعل للفاتورة {{ editingSaleNumber }}</span>
-            <button type="button" class="btn btn-outline btn-sm" @click="cancelEdit">إلغاء التعديل</button>
-          </div>
-          <div class="form-group">
-            <label>تاريخ المبيعات *</label>
-            <input v-model="form.sale_date" type="date" required />
-          </div>
-          <div class="form-group">
-            <label>المبلغ (ج.م) *</label>
-            <input v-model.number="form.total_amount" type="number" min="0.01" step="0.01" required placeholder="0.00" />
-          </div>
-          <div v-if="activeTab === 'wholesale'" class="form-group">
-            <label>اسم العميل *</label>
-            <select v-model="form.customer_id" required>
-              <option :value="null" disabled>-- اختر اسم العميل (مطلوب) --</option>
-              <option v-for="c in wholesaleCustomers" :key="c.id" :value="c.id">👤 {{ c.name_ar }} ({{ c.code }})</option>
-            </select>
-          </div>
-          <div class="grid grid-2">
-            <div class="form-group">
-              <label>طريقة الدفع</label>
-              <select v-model="form.payment_method">
-                <option value="cash">نقدي</option>
-                <option value="card">بطاقة</option>
-                <option value="transfer">تحويل</option>
-                <option value="credit">آجل</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label>حالة الدفع</label>
-              <select v-model="form.payment_status">
-                <option value="paid">مدفوع بالكامل</option>
-                <option value="partial">دفع جزئي</option>
-                <option value="unpaid">غير مدفوع (آجل)</option>
-              </select>
-            </div>
-          </div>
-
-          <!-- حقل الدفع الجزئي — يظهر فقط عند اختيار "جزئي" -->
-          <div v-if="form.payment_status === 'partial'" class="partial-payment-box">
-            <div class="partial-header">
-              <span class="partial-icon">💳</span>
-              <span>تفاصيل الدفع الجزئي</span>
-            </div>
-            <div class="grid grid-2">
+              <div v-if="editingSaleId" class="edit-banner">
+                <span>وضع التعديل مفعل للفاتورة {{ editingSaleNumber }}</span>
+                <button type="button" class="btn btn-outline btn-sm" @click="cancelEdit">
+                  إلغاء التعديل
+                </button>
+              </div>
               <div class="form-group">
-                <label>المبلغ المدفوع (ج.م) *</label>
+                <label>تاريخ المبيعات *</label>
+                <input v-model="form.sale_date" type="date" required />
+              </div>
+              <div class="form-group">
+                <label>المبلغ (ج.م) *</label>
                 <input
-                  v-model.number="form.paid_amount"
+                  v-model.number="form.total_amount"
                   type="number"
-                  min="0"
+                  min="0.01"
                   step="0.01"
-                  :max="form.total_amount"
+                  required
                   placeholder="0.00"
-                  @input="calcRemaining"
                 />
               </div>
-              <div class="form-group">
-                <label>المبلغ المتبقي (ج.م)</label>
-                <div class="remaining-display" :class="remainingAmount > 0 ? 'has-remaining' : 'no-remaining'">
-                  {{ formatMoney(remainingAmount) }}
+              <div v-if="activeTab === 'wholesale'" class="form-group">
+                <label>اسم العميل *</label>
+                <select v-model="form.customer_id" required>
+                  <option :value="null" disabled>-- اختر اسم العميل (مطلوب) --</option>
+                  <option v-for="c in wholesaleCustomers" :key="c.id" :value="c.id">
+                    👤 {{ c.name_ar }} ({{ c.code }})
+                  </option>
+                </select>
+              </div>
+              <div class="grid grid-2">
+                <div class="form-group">
+                  <label>طريقة الدفع</label>
+                  <select v-model="form.payment_method">
+                    <option value="cash">نقدي</option>
+                    <option value="card">بطاقة</option>
+                    <option value="transfer">تحويل</option>
+                    <option value="credit">آجل</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>حالة الدفع</label>
+                  <select v-model="form.payment_status">
+                    <option value="paid">مدفوع بالكامل</option>
+                    <option value="partial">دفع جزئي</option>
+                    <option value="unpaid">غير مدفوع (آجل)</option>
+                  </select>
                 </div>
               </div>
-            </div>
-            <div v-if="remainingAmount > 0" class="remaining-note">
-              ⚠️ سيُضاف {{ formatMoney(remainingAmount) }} لرصيد العميل المستحق
-            </div>
-          </div>
-          <div class="form-group">
-            <label>ملاحظات</label>
-            <textarea v-model="form.notes" rows="2"></textarea>
-          </div>
-          <button type="submit" class="btn btn-primary" :disabled="saving">
-            {{ saving ? 'جاري الحفظ...' : (editingSaleId ? 'حفظ تعديل الفاتورة' : 'حفظ المبيعات') }}
-          </button>
-        </form>
+
+              <!-- حقل الدفع الجزئي — يظهر فقط عند اختيار "جزئي" -->
+              <div v-if="form.payment_status === 'partial'" class="partial-payment-box">
+                <div class="partial-header">
+                  <span class="partial-icon">💳</span>
+                  <span>تفاصيل الدفع الجزئي</span>
+                </div>
+                <div class="grid grid-2">
+                  <div class="form-group">
+                    <label>المبلغ المدفوع (ج.م) *</label>
+                    <input
+                      v-model.number="form.paid_amount"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      :max="form.total_amount"
+                      placeholder="0.00"
+                      @input="calcRemaining"
+                    />
+                  </div>
+                  <div class="form-group">
+                    <label>المبلغ المتبقي (ج.م)</label>
+                    <div
+                      class="remaining-display"
+                      :class="remainingAmount > 0 ? 'has-remaining' : 'no-remaining'"
+                    >
+                      {{ formatMoney(remainingAmount) }}
+                    </div>
+                  </div>
+                </div>
+                <div v-if="remainingAmount > 0" class="remaining-note">
+                  ⚠️ سيُضاف {{ formatMoney(remainingAmount) }} لرصيد العميل المستحق
+                </div>
+              </div>
+              <div class="form-group">
+                <label>ملاحظات</label>
+                <textarea v-model="form.notes" rows="2"></textarea>
+              </div>
+              <button type="submit" class="btn btn-primary" :disabled="saving">
+                {{
+                  saving ? 'جاري الحفظ...' : editingSaleId ? 'حفظ تعديل الفاتورة' : 'حفظ المبيعات'
+                }}
+              </button>
+            </form>
           </div>
         </div>
       </Teleport>
@@ -266,10 +366,12 @@
             <span class="history-date">{{ formatDate(item.sale_date || item.created_at) }}</span>
           </template>
           <template #cell-sale_number="{ item }">
-            <span class="mono" style="font-weight: 700;">{{ item.sale_number || item.invoice_number || '—' }}</span>
+            <span class="mono" style="font-weight: 700">{{
+              item.sale_number || item.invoice_number || '—'
+            }}</span>
           </template>
           <template #cell-customer_name="{ item }">
-            <span class="customer-chip" style="font-weight: 800; color: var(--accent, #c77a2f);">
+            <span class="customer-chip" style="font-weight: 800; color: var(--accent, #c77a2f)">
               👤 {{ item.customer_name || item.customer_name_ar || 'عميل جملة' }}
             </span>
           </template>
@@ -282,10 +384,10 @@
             </span>
           </template>
           <template #cell-actions="{ item }">
-            <button 
-              type="button" 
-              class="history-edit-btn" 
-              :disabled="activeTab === 'monthly' || saving || item.status !== 'completed'" 
+            <button
+              type="button"
+              class="history-edit-btn"
+              :disabled="activeTab === 'monthly' || saving || item.status !== 'completed'"
               @click="startEdit(item)"
             >
               تعديل
@@ -297,7 +399,9 @@
 
     <details class="excel-guide card" open>
       <summary>📋 شكل الملف الصحيح (ورقة «مبيعات» فقط)</summary>
-      <p class="guide-note">السطر 1 = عناوين ثابتة. من السطر 2 = بياناتك. لا تعدّل أسماء الأعمدة.</p>
+      <p class="guide-note">
+        السطر 1 = عناوين ثابتة. من السطر 2 = بياناتك. لا تعدّل أسماء الأعمدة.
+      </p>
       <div class="guide-table-wrap">
         <table class="guide-table">
           <thead>
@@ -344,26 +448,39 @@
               <td>delete_all</td>
             </tr>
             <tr class="bad-row">
-              <td colspan="8">❌ خطأ شائع: كتابة «مبيعات فرع» في نوع_البيع — الصحيح: branch أو wholesale فقط</td>
+              <td colspan="8">
+                ❌ خطأ شائع: كتابة «مبيعات فرع» في نوع_البيع — الصحيح: branch أو wholesale فقط
+              </td>
             </tr>
           </tbody>
         </table>
       </div>
       <ul class="guide-list">
         <li><strong>فرع:</strong> نوع_البيع = <code>branch</code> — اترك كود_العميل فارغاً</li>
-        <li><strong>جملة:</strong> نوع_البيع = <code>wholesale</code> — كود عميل مثل <code>C-002</code></li>
-        <li><strong>حذف كل المبيعات:</strong> اكتب <code>delete_all</code> في عمود <code>الإجراء</code> بأي صف</li>
+        <li>
+          <strong>جملة:</strong> نوع_البيع = <code>wholesale</code> — كود عميل مثل
+          <code>C-002</code>
+        </li>
+        <li>
+          <strong>حذف كل المبيعات:</strong> اكتب <code>delete_all</code> في عمود
+          <code>الإجراء</code> بأي صف
+        </li>
         <li>أكواد العملاء المتاحة: {{ customerCodesHint }}</li>
       </ul>
     </details>
 
-    <div v-if="importMsg || importDetails.length" class="import-result card" :class="{ err: importErr }">
+    <div
+      v-if="importMsg || importDetails.length"
+      class="import-result card"
+      :class="{ err: importErr }"
+    >
       <p class="import-msg" :class="{ err: importErr }">{{ importMsg }}</p>
       <ul v-if="importDetails.length" class="import-details">
         <li v-for="(d, i) in importDetails" :key="i">{{ d }}</li>
       </ul>
       <p v-if="importDetails.length" class="import-hint">
-        التحذيرات = صفوف لم تُستورد (بيانات ناقصة أو غير صحيحة). احذف صفوف الأمثلة/التعليمات من ورقة «مبيعات» قبل الرفع.
+        التحذيرات = صفوف لم تُستورد (بيانات ناقصة أو غير صحيحة). احذف صفوف الأمثلة/التعليمات من ورقة
+        «مبيعات» قبل الرفع.
       </p>
     </div>
 
@@ -426,11 +543,11 @@
         </button>
       </div>
     </div>
-
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
+// @ts-nocheck
 import { ref, computed, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import StatCard from '@/components/StatCard.vue';
@@ -457,7 +574,7 @@ const salesColumns = [
   { key: 'sale_date', label: 'التاريخ' },
   { key: 'total_amount', label: 'المبلغ' },
   { key: 'payment_status', label: 'الدفع' },
-  { key: 'actions', label: 'إجراء', align: 'center' }
+  { key: 'actions', label: 'إجراء', align: 'center' },
 ];
 
 const activeColumns = computed(() => {
@@ -468,7 +585,7 @@ const activeColumns = computed(() => {
       { key: 'customer_name', label: 'اسم العميل' },
       { key: 'total_amount', label: 'المبلغ' },
       { key: 'payment_status', label: 'حالة الدفع' },
-      { key: 'actions', label: 'إجراء', align: 'center' }
+      { key: 'actions', label: 'إجراء', align: 'center' },
     ];
   }
   return [
@@ -476,7 +593,7 @@ const activeColumns = computed(() => {
     { key: 'sale_number', label: 'رقم العملية' },
     { key: 'total_amount', label: 'المبلغ' },
     { key: 'payment_status', label: 'حالة الدفع' },
-    { key: 'actions', label: 'إجراء', align: 'center' }
+    { key: 'actions', label: 'إجراء', align: 'center' },
   ];
 });
 const wholesaleCustomers = ref([]);
@@ -534,20 +651,30 @@ const calcRemaining = () => {
 };
 
 const periodTotal = computed(() =>
-  sales.value.filter((s) => s.status === 'completed').reduce((sum, s) => sum + parseFloat(s.total_amount || 0), 0)
+  sales.value
+    .filter((s) => s.status === 'completed')
+    .reduce((sum, s) => sum + parseFloat(s.total_amount || 0), 0),
 );
 const completedSales = computed(() => sales.value.filter((s) => s.status === 'completed'));
 const isOpenPayment = (sale) => ['partial', 'unpaid'].includes(sale?.payment_status);
-const collectedTotal = computed(() => completedSales.value.reduce((sum, sale) => {
-  if (sale.payment_status === 'paid') return sum + Number(sale.total_amount || 0);
-  return sum;
-}, 0));
-const openCreditTotal = computed(() => completedSales.value.reduce((sum, sale) => {
-  if (isOpenPayment(sale)) return sum + Number(sale.total_amount || 0);
-  return sum;
-}, 0));
-const openPaymentCount = computed(() => completedSales.value.filter((sale) => isOpenPayment(sale)).length);
-const periodCashTotal = computed(() => Number(openingBalanceForm.value.amount || 0) + collectedTotal.value);
+const collectedTotal = computed(() =>
+  completedSales.value.reduce((sum, sale) => {
+    if (sale.payment_status === 'paid') return sum + Number(sale.total_amount || 0);
+    return sum;
+  }, 0),
+);
+const openCreditTotal = computed(() =>
+  completedSales.value.reduce((sum, sale) => {
+    if (isOpenPayment(sale)) return sum + Number(sale.total_amount || 0);
+    return sum;
+  }, 0),
+);
+const openPaymentCount = computed(
+  () => completedSales.value.filter((sale) => isOpenPayment(sale)).length,
+);
+const periodCashTotal = computed(
+  () => Number(openingBalanceForm.value.amount || 0) + collectedTotal.value,
+);
 const salesListQuery = computed(() => ({
   sale_type: activeTab.value === 'monthly' ? 'branch' : activeTab.value,
   entry_mode: activeTab.value === 'monthly' ? 'pos' : undefined,
@@ -587,8 +714,18 @@ const formatDate = (d) => {
   return new Date(val).toLocaleDateString('en-GB');
 };
 
-const paymentStatusLabel = (s) => ({ paid: 'مدفوع', partial: 'جزئي', unpaid: 'آجل', refunded: 'مسترد' }[s] || s || '—');
-const paymentBadge = (s) => ['badge', s === 'paid' ? 'badge-success' : s === 'unpaid' ? 'badge-danger' : s === 'partial' ? 'badge-warning' : 'badge-danger'];
+const paymentStatusLabel = (s) =>
+  ({ paid: 'مدفوع', partial: 'جزئي', unpaid: 'آجل', refunded: 'مسترد' })[s] || s || '—';
+const paymentBadge = (s) => [
+  'badge',
+  s === 'paid'
+    ? 'badge-success'
+    : s === 'unpaid'
+      ? 'badge-danger'
+      : s === 'partial'
+        ? 'badge-warning'
+        : 'badge-danger',
+];
 
 const switchTab = (tab) => {
   activeTab.value = tab;
@@ -694,7 +831,7 @@ const selectMonth = (event) => {
   const fromDate = `${year}-${String(month).padStart(2, '0')}-01`;
   const lastDay = new Date(year, month, 0).getDate();
   const toDate = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
-  
+
   filters.value.from_date = fromDate;
   filters.value.to_date = toDate;
   load();
@@ -705,10 +842,12 @@ const load = async () => {
   try {
     const [salesRes, openingRes] = await Promise.all([
       salesApi.list(salesListQuery.value),
-      salesApi.openingBalance({
-        from_date: filters.value.from_date,
-        to_date: filters.value.to_date,
-      }).catch(() => null),
+      salesApi
+        .openingBalance({
+          from_date: filters.value.from_date,
+          to_date: filters.value.to_date,
+        })
+        .catch(() => null),
     ]);
     sales.value = salesRes.data;
     if (openingRes?.data) {
@@ -763,7 +902,9 @@ const submitSale = async () => {
 };
 
 const deleteAllSales = async () => {
-  const confirmed = window.confirm('تأكيد نهائي: سيتم حذف كل بيانات قسم المبيعات الحالية. هل تريد المتابعة؟');
+  const confirmed = window.confirm(
+    'تأكيد نهائي: سيتم حذف كل بيانات قسم المبيعات الحالية. هل تريد المتابعة؟',
+  );
   if (!confirmed) return;
   saving.value = true;
   try {
@@ -802,7 +943,9 @@ const deleteSalesByType = async (saleType) => {
 };
 
 const deleteSalesForOneDay = async () => {
-  const confirmed = window.confirm(`تأكيد: سيتم حذف كل مبيعات يوم ${deleteDate.value} فقط. هل تريد المتابعة؟`);
+  const confirmed = window.confirm(
+    `تأكيد: سيتم حذف كل مبيعات يوم ${deleteDate.value} فقط. هل تريد المتابعة؟`,
+  );
   if (!confirmed) return;
   saving.value = true;
   try {
@@ -843,12 +986,15 @@ const showImportResult = (d, isValidate = false) => {
     importDetails.value = (d.parseErrors || []).map((e) => `سطر ${e.row}: ${e.message}`);
     if (d.ok && d.preview?.length) {
       importDetails.value.unshift(
-        ...d.preview.map((r, i) => `✓ مثال سطر ${i + 2}: ${r.sale_date} | ${r.sale_type} | ${r.total_amount} ج.م`)
+        ...d.preview.map(
+          (r, i) => `✓ مثال سطر ${i + 2}: ${r.sale_date} | ${r.sale_type} | ${r.total_amount} ج.م`,
+        ),
       );
     }
     return;
   }
-  importMsg.value = `تم استيراد ${d.success} من ${d.total} سجل` +
+  importMsg.value =
+    `تم استيراد ${d.success} من ${d.total} سجل` +
     (d.hasDeleteAll ? ` — تم حذف ${d.deletedCount || 0} مبيعة حالية` : '') +
     (d.failed?.length ? ` — فشل ${d.failed.length}` : '') +
     (d.parseErrors?.length ? ` — تحذيرات: ${d.parseErrors.length}` : '');
@@ -868,14 +1014,18 @@ const showMonthlyImportResult = (d, isValidate = false) => {
     monthlyImportDetails.value = (d.parseErrors || []).map((e) => `سطر ${e.row}: ${e.message}`);
     if (d.ok && d.preview?.length) {
       monthlyImportDetails.value.unshift(
-        ...d.preview.map((r) => `✓ ${r.sale_date} | ${r.payment_method} | ${r.items_count} صنف | ${r.sample}`)
+        ...d.preview.map(
+          (r) => `✓ ${r.sale_date} | ${r.payment_method} | ${r.items_count} صنف | ${r.sample}`,
+        ),
       );
     }
     return;
   }
 
   monthlyImportMsg.value = `تم استيراد ${d.success || 0} من ${d.total || 0} عملية شهرية وخصم ${d.itemsImported || 0} صنف من مخزون المحل`;
-  monthlyImportErr.value = Boolean((d.failed || []).length) || ((d.success || 0) === 0 && Boolean((d.parseErrors || []).length));
+  monthlyImportErr.value =
+    Boolean((d.failed || []).length) ||
+    ((d.success || 0) === 0 && Boolean((d.parseErrors || []).length));
   monthlyImportDetails.value = [
     ...(d.parseErrors || []).map((e) => `تحذير سطر ${e.row}: ${e.message}`),
     ...(d.failed || []).map((e) => `فشل ${e.sale_date || ''}: ${e.message}`),
@@ -910,7 +1060,10 @@ const onValidateMonthly = async (e) => {
   } catch (err) {
     monthlyImportErr.value = true;
     monthlyImportMsg.value = err.message || 'فشل فحص ملف المبيعات الشهرية';
-    monthlyImportDetails.value = String(err.message || '').split('|').map((s) => s.trim()).filter(Boolean);
+    monthlyImportDetails.value = String(err.message || '')
+      .split('|')
+      .map((s) => s.trim())
+      .filter(Boolean);
   } finally {
     monthlyValidating.value = false;
     e.target.value = '';
@@ -954,7 +1107,10 @@ const onValidate = async (e) => {
   } catch (err) {
     importErr.value = true;
     importMsg.value = err.message || 'فشل فحص الملف';
-    importDetails.value = String(err.message || '').split('|').map((s) => s.trim()).filter(Boolean);
+    importDetails.value = String(err.message || '')
+      .split('|')
+      .map((s) => s.trim())
+      .filter(Boolean);
   }
   e.target.value = '';
 };
@@ -968,7 +1124,9 @@ const onImport = async (e) => {
   try {
     const validation = await salesApi.validateExcel(file);
     const confirmDeleteAll = validation?.data?.hasDeleteAll
-      ? window.confirm('ملف الاستيراد يحتوي أمر delete_all وسيحذف كل المبيعات قبل الاستيراد. هل تريد المتابعة؟')
+      ? window.confirm(
+          'ملف الاستيراد يحتوي أمر delete_all وسيحذف كل المبيعات قبل الاستيراد. هل تريد المتابعة؟',
+        )
       : false;
     if (validation?.data?.hasDeleteAll && !confirmDeleteAll) return;
 
@@ -1023,7 +1181,11 @@ onMounted(async () => {
   gap: 14px;
   padding: 18px;
   border: 1px solid color-mix(in srgb, var(--warning) 22%, var(--border));
-  background: linear-gradient(135deg, color-mix(in srgb, var(--warning) 9%, var(--bg-elevated)), var(--bg-elevated));
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--warning) 9%, var(--bg-elevated)),
+    var(--bg-elevated)
+  );
 }
 .opening-ledger {
   position: relative;
@@ -1033,9 +1195,19 @@ onMounted(async () => {
   border-radius: calc(var(--radius-lg) + 4px);
   background:
     linear-gradient(135deg, color-mix(in srgb, var(--primary) 12%, transparent), transparent 42%),
-    radial-gradient(circle at 10% 20%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 28%),
-    linear-gradient(145deg, color-mix(in srgb, var(--card-bg) 92%, var(--primary) 8%), var(--bg-elevated));
-  box-shadow: 0 22px 55px color-mix(in srgb, var(--primary) 14%, transparent), var(--shadow-sm);
+    radial-gradient(
+      circle at 10% 20%,
+      color-mix(in srgb, var(--accent) 16%, transparent),
+      transparent 28%
+    ),
+    linear-gradient(
+      145deg,
+      color-mix(in srgb, var(--card-bg) 92%, var(--primary) 8%),
+      var(--bg-elevated)
+    );
+  box-shadow:
+    0 22px 55px color-mix(in srgb, var(--primary) 14%, transparent),
+    var(--shadow-sm);
 }
 .opening-ledger::before {
   content: '';
@@ -1056,8 +1228,11 @@ onMounted(async () => {
   width: 270px;
   height: 270px;
   border-radius: 999px;
-  background:
-    radial-gradient(circle, color-mix(in srgb, var(--accent) 30%, transparent), transparent 62%);
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--accent) 30%, transparent),
+    transparent 62%
+  );
   filter: blur(2px);
   pointer-events: none;
 }
@@ -1085,11 +1260,9 @@ onMounted(async () => {
   font-size: 0.78rem;
   font-weight: 950;
   letter-spacing: -0.01em;
-  background:
-    linear-gradient(145deg, var(--primary), var(--primary-strong)),
-    var(--primary);
+  background: linear-gradient(145deg, var(--primary), var(--primary-strong)), var(--primary);
   box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
     0 14px 32px color-mix(in srgb, var(--primary) 32%, transparent);
   transform: rotate(-2deg);
 }
@@ -1113,7 +1286,9 @@ onMounted(async () => {
   border-radius: var(--radius-md);
   border: 1px solid color-mix(in srgb, var(--primary) 18%, var(--border));
   background: color-mix(in srgb, var(--bg-elevated) 78%, transparent);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.28), var(--shadow-xs);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    var(--shadow-xs);
 }
 .ledger-amount span {
   display: block;
@@ -1145,7 +1320,10 @@ onMounted(async () => {
   font-size: 0.84rem;
   font-weight: 900;
   cursor: pointer;
-  transition: transform var(--transition), box-shadow var(--transition), opacity var(--transition);
+  transition:
+    transform var(--transition),
+    box-shadow var(--transition),
+    opacity var(--transition);
 }
 .ledger-action:hover:not(:disabled) {
   transform: translateY(-2px);
@@ -1183,7 +1361,7 @@ onMounted(async () => {
   border-radius: var(--radius-md);
   border: 1px solid color-mix(in srgb, var(--border) 74%, transparent);
   background: color-mix(in srgb, var(--bg-elevated) 78%, transparent);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.24);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.24);
 }
 .ledger-field span {
   display: block;
@@ -1201,7 +1379,10 @@ onMounted(async () => {
   background: color-mix(in srgb, var(--card-bg) 86%, transparent);
   color: var(--text-strong);
   font-weight: 850;
-  transition: border-color var(--transition), box-shadow var(--transition), background var(--transition);
+  transition:
+    border-color var(--transition),
+    box-shadow var(--transition),
+    background var(--transition);
 }
 .ledger-field input:disabled {
   opacity: 1;
@@ -1244,24 +1425,46 @@ onMounted(async () => {
   background: color-mix(in srgb, var(--bg-elevated) 72%, transparent);
   border: 1px solid color-mix(in srgb, var(--primary) 10%, var(--border));
 }
-.import-btn { cursor: pointer; margin: 0; }
+.import-btn {
+  cursor: pointer;
+  margin: 0;
+}
 .icon-btn {
-  width: 38px; height: 38px;
-  display: inline-flex; align-items: center; justify-content: center;
-  border: 1px solid color-mix(in srgb, var(--primary) 14%, var(--border)); border-radius: 999px;
-  background: var(--bg-elevated); color: var(--text);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.22);
-  cursor: pointer; transition: transform var(--transition), box-shadow var(--transition), border-color var(--transition);
+  width: 38px;
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid color-mix(in srgb, var(--primary) 14%, var(--border));
+  border-radius: 999px;
+  background: var(--bg-elevated);
+  color: var(--text);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  cursor: pointer;
+  transition:
+    transform var(--transition),
+    box-shadow var(--transition),
+    border-color var(--transition);
   &:hover {
     transform: translateY(-2px);
     background: var(--bg);
     border-color: color-mix(in srgb, var(--primary) 34%, var(--border));
     box-shadow: var(--shadow-xs);
   }
-  &.warning { color: var(--warning); border-color: color-mix(in srgb, var(--warning) 30%, transparent); }
-  &.danger  { color: var(--danger);  border-color: color-mix(in srgb, var(--danger)  30%, transparent); }
+  &.warning {
+    color: var(--warning);
+    border-color: color-mix(in srgb, var(--warning) 30%, transparent);
+  }
+  &.danger {
+    color: var(--danger);
+    border-color: color-mix(in srgb, var(--danger) 30%, transparent);
+  }
 }
-.filter-row { display: flex; gap: 12px; flex-wrap: wrap; }
+.filter-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
 .filter-row .form-group {
   min-width: 160px;
   margin: 0;
@@ -1328,10 +1531,15 @@ onMounted(async () => {
   padding: 7px;
   border-radius: 999px;
   border: 1px solid var(--sales-panel-border);
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--bg-elevated) 86%, transparent), color-mix(in srgb, var(--primary) 5%, transparent));
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.26), var(--shadow-xs);
-  
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--bg-elevated) 86%, transparent),
+    color-mix(in srgb, var(--primary) 5%, transparent)
+  );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.26),
+    var(--shadow-xs);
+
   .tab-slider {
     position: absolute;
     top: 7px;
@@ -1344,7 +1552,7 @@ onMounted(async () => {
     transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
     z-index: 1;
   }
-  
+
   button {
     position: relative;
     z-index: 2;
@@ -1358,7 +1566,7 @@ onMounted(async () => {
     transition: color 0.28s ease;
     box-shadow: none !important;
     transform: none !important;
-    
+
     &:hover {
       color: var(--text-strong);
     }
@@ -1380,9 +1588,21 @@ onMounted(async () => {
   background:
     linear-gradient(90deg, var(--sales-grid-line) 1px, transparent 1px),
     linear-gradient(0deg, var(--sales-grid-line) 1px, transparent 1px),
-    radial-gradient(circle at top right, color-mix(in srgb, var(--primary) 14%, transparent), transparent 34%),
-    linear-gradient(135deg, color-mix(in srgb, var(--surface-1) 94%, var(--primary) 6%), var(--surface-2));
-  background-size: 42px 42px, 42px 42px, auto, auto;
+    radial-gradient(
+      circle at top right,
+      color-mix(in srgb, var(--primary) 14%, transparent),
+      transparent 34%
+    ),
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--surface-1) 94%, var(--primary) 6%),
+      var(--surface-2)
+    );
+  background-size:
+    42px 42px,
+    42px 42px,
+    auto,
+    auto;
 }
 .sales-insight::before {
   content: '';
@@ -1401,12 +1621,23 @@ onMounted(async () => {
   inset: auto 20px 0 20px;
   height: 3px;
   border-radius: 999px 999px 0 0;
-  background: linear-gradient(90deg, var(--primary), color-mix(in srgb, var(--accent) 70%, var(--primary)), transparent);
+  background: linear-gradient(
+    90deg,
+    var(--primary),
+    color-mix(in srgb, var(--accent) 70%, var(--primary)),
+    transparent
+  );
   opacity: 0.72;
 }
-.sales-insight.warning { border-color: color-mix(in srgb, var(--warning) 30%, var(--border)); }
-.sales-insight.success { border-color: color-mix(in srgb, var(--success) 26%, var(--border)); }
-.sales-insight.muted { border-color: color-mix(in srgb, var(--text-muted) 18%, var(--border)); }
+.sales-insight.warning {
+  border-color: color-mix(in srgb, var(--warning) 30%, var(--border));
+}
+.sales-insight.success {
+  border-color: color-mix(in srgb, var(--success) 26%, var(--border));
+}
+.sales-insight.muted {
+  border-color: color-mix(in srgb, var(--text-muted) 18%, var(--border));
+}
 .insight-copy,
 .insight-metrics {
   position: relative;
@@ -1449,9 +1680,14 @@ onMounted(async () => {
   padding: 15px 16px;
   border-radius: var(--radius-md);
   border: 1px solid color-mix(in srgb, var(--primary) 12%, var(--border));
-  background:
-    linear-gradient(145deg, color-mix(in srgb, var(--bg-elevated) 88%, transparent), color-mix(in srgb, var(--card-bg) 72%, transparent));
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.24), var(--shadow-xs);
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--bg-elevated) 88%, transparent),
+    color-mix(in srgb, var(--card-bg) 72%, transparent)
+  );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.24),
+    var(--shadow-xs);
 }
 .insight-tile::before {
   content: '';
@@ -1478,12 +1714,24 @@ onMounted(async () => {
   font-weight: 950;
   letter-spacing: -0.03em;
 }
-.insight-tile.success::before { background: color-mix(in srgb, var(--success) 58%, transparent); }
-.insight-tile.warning::before { background: color-mix(in srgb, var(--warning) 65%, transparent); }
-.insight-tile.primary::before { background: color-mix(in srgb, var(--primary) 70%, transparent); }
-.insight-tile.success strong { color: var(--success); }
-.insight-tile.warning strong { color: var(--warning); }
-.insight-tile.primary strong { color: var(--primary-strong); }
+.insight-tile.success::before {
+  background: color-mix(in srgb, var(--success) 58%, transparent);
+}
+.insight-tile.warning::before {
+  background: color-mix(in srgb, var(--warning) 65%, transparent);
+}
+.insight-tile.primary::before {
+  background: color-mix(in srgb, var(--primary) 70%, transparent);
+}
+.insight-tile.success strong {
+  color: var(--success);
+}
+.insight-tile.warning strong {
+  color: var(--warning);
+}
+.insight-tile.primary strong {
+  color: var(--primary-strong);
+}
 .stats-row {
   gap: 14px;
 }
@@ -1497,7 +1745,9 @@ onMounted(async () => {
   background:
     linear-gradient(135deg, color-mix(in srgb, var(--primary) 6%, transparent), transparent 44%),
     color-mix(in srgb, var(--card-bg) 92%, var(--bg-elevated));
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.22), var(--shadow-xs);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    var(--shadow-xs);
 }
 .stats-row :deep(.stat-card::after) {
   content: '';
@@ -1531,7 +1781,10 @@ onMounted(async () => {
   font-weight: 950;
   letter-spacing: -0.04em;
 }
-.main-row { align-items: start; gap: 18px; }
+.main-row {
+  align-items: start;
+  gap: 18px;
+}
 .form-card,
 .list-card {
   position: relative;
@@ -1539,9 +1792,19 @@ onMounted(async () => {
   border-color: var(--sales-panel-border);
   border-radius: calc(var(--radius-lg) + 2px);
   background:
-    radial-gradient(circle at top left, color-mix(in srgb, var(--primary) 8%, transparent), transparent 32%),
-    linear-gradient(145deg, color-mix(in srgb, var(--card-bg) 94%, var(--primary) 4%), var(--bg-elevated));
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.2), var(--shadow-xs);
+    radial-gradient(
+      circle at top left,
+      color-mix(in srgb, var(--primary) 8%, transparent),
+      transparent 32%
+    ),
+    linear-gradient(
+      145deg,
+      color-mix(in srgb, var(--card-bg) 94%, var(--primary) 4%),
+      var(--bg-elevated)
+    );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    var(--shadow-xs);
 }
 .form-card::before,
 .list-card::before {
@@ -1549,7 +1812,12 @@ onMounted(async () => {
   position: absolute;
   inset: 0;
   height: 4px;
-  background: linear-gradient(90deg, var(--primary), color-mix(in srgb, var(--accent) 70%, var(--primary)), transparent);
+  background: linear-gradient(
+    90deg,
+    var(--primary),
+    color-mix(in srgb, var(--accent) 70%, var(--primary)),
+    transparent
+  );
   opacity: 0.74;
 }
 .form-card h3,
@@ -1589,8 +1857,11 @@ onMounted(async () => {
 .form-card textarea {
   min-height: 46px;
   border-radius: var(--radius-md);
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--bg-elevated) 92%, transparent), color-mix(in srgb, var(--card-bg) 86%, transparent));
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--bg-elevated) 92%, transparent),
+    color-mix(in srgb, var(--card-bg) 86%, transparent)
+  );
 }
 .form-card .btn-primary[type='submit'] {
   width: 100%;
@@ -1606,8 +1877,16 @@ onMounted(async () => {
   gap: 14px;
   padding: 22px;
   background:
-    radial-gradient(circle at 15% 10%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 28%),
-    linear-gradient(145deg, color-mix(in srgb, var(--card-bg) 92%, var(--primary) 7%), var(--bg-elevated));
+    radial-gradient(
+      circle at 15% 10%,
+      color-mix(in srgb, var(--accent) 18%, transparent),
+      transparent 28%
+    ),
+    linear-gradient(
+      145deg,
+      color-mix(in srgb, var(--card-bg) 92%, var(--primary) 7%),
+      var(--bg-elevated)
+    );
 }
 .monthly-sales-card h3 {
   margin-bottom: 0;
@@ -1647,7 +1926,11 @@ onMounted(async () => {
 .monthly-actions .monthly-import-btn {
   color: #fff;
   border-color: transparent;
-  background: linear-gradient(135deg, var(--success), color-mix(in srgb, var(--success) 72%, #052e16));
+  background: linear-gradient(
+    135deg,
+    var(--success),
+    color-mix(in srgb, var(--success) 72%, #052e16)
+  );
   box-shadow: 0 12px 24px color-mix(in srgb, var(--success) 24%, transparent);
 }
 .monthly-actions .monthly-import-btn:hover {
@@ -1695,8 +1978,11 @@ onMounted(async () => {
   justify-content: space-between;
   gap: 14px;
   padding: 20px 20px 14px;
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--card-bg) 96%, var(--primary) 4%), var(--bg-elevated));
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--card-bg) 96%, var(--primary) 4%),
+    var(--bg-elevated)
+  );
   border-bottom: 1px solid color-mix(in srgb, var(--primary) 10%, var(--border));
 }
 .history-head h3 {
@@ -1788,7 +2074,10 @@ onMounted(async () => {
   color: var(--primary-strong);
   font-weight: 900;
   cursor: pointer;
-  transition: transform var(--transition), box-shadow var(--transition), background var(--transition);
+  transition:
+    transform var(--transition),
+    box-shadow var(--transition),
+    background var(--transition);
 }
 .history-edit-btn:hover:not(:disabled) {
   transform: translateY(-1px);
@@ -1799,68 +2088,170 @@ onMounted(async () => {
   opacity: 0.45;
   cursor: not-allowed;
 }
-.empty { text-align: center; color: var(--text-muted); padding: 24px; }
-.excel-guide {
-  summary { cursor: pointer; font-weight: 700; color: var(--text-strong); }
-  .guide-note { color: var(--text-muted); font-size: 0.88rem; margin: 8px 0 12px; }
-  .guide-table-wrap { overflow-x: auto; }
-  .guide-table {
-    width: 100%; font-size: 0.8rem; border-collapse: collapse;
-    th, td { border: 1px solid var(--border); padding: 8px; text-align: right; }
-    th { background: linear-gradient(135deg, var(--primary), var(--primary-strong)); color: #fff; }
-    .ok-row { background: color-mix(in srgb, var(--success) 8%, transparent); }
-    .warn-row { background: color-mix(in srgb, var(--warning) 10%, transparent); }
-    .bad-row td { background: color-mix(in srgb, var(--danger) 8%, transparent); color: var(--danger); }
-  }
-  code { background: var(--bg); padding: 2px 6px; border-radius: 4px; font-size: 0.82rem; }
-  .guide-list { margin: 12px 0 0; padding-right: 20px; font-size: 0.88rem; }
+.empty {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 24px;
 }
-.import-result { margin-top: 4px; border-radius: var(--radius-sm); padding: 12px 16px; background: color-mix(in srgb, var(--success) 8%, transparent); border: 1px solid color-mix(in srgb, var(--success) 20%, transparent); }
-.import-result.err { background: color-mix(in srgb, var(--danger) 6%, transparent); border-color: color-mix(in srgb, var(--danger) 20%, transparent); }
-.import-msg { margin: 0 0 8px; font-weight: 700; color: var(--success); }
-.import-result.err .import-msg { color: var(--danger); }
-.import-details { margin: 0; padding-right: 20px; font-size: 0.88rem; color: var(--text); li { margin: 4px 0; } }
-.import-hint { margin: 10px 0 0; font-size: 0.84rem; color: var(--text-muted); }
+.excel-guide {
+  summary {
+    cursor: pointer;
+    font-weight: 700;
+    color: var(--text-strong);
+  }
+  .guide-note {
+    color: var(--text-muted);
+    font-size: 0.88rem;
+    margin: 8px 0 12px;
+  }
+  .guide-table-wrap {
+    overflow-x: auto;
+  }
+  .guide-table {
+    width: 100%;
+    font-size: 0.8rem;
+    border-collapse: collapse;
+    th,
+    td {
+      border: 1px solid var(--border);
+      padding: 8px;
+      text-align: right;
+    }
+    th {
+      background: linear-gradient(135deg, var(--primary), var(--primary-strong));
+      color: #fff;
+    }
+    .ok-row {
+      background: color-mix(in srgb, var(--success) 8%, transparent);
+    }
+    .warn-row {
+      background: color-mix(in srgb, var(--warning) 10%, transparent);
+    }
+    .bad-row td {
+      background: color-mix(in srgb, var(--danger) 8%, transparent);
+      color: var(--danger);
+    }
+  }
+  code {
+    background: var(--bg);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.82rem;
+  }
+  .guide-list {
+    margin: 12px 0 0;
+    padding-right: 20px;
+    font-size: 0.88rem;
+  }
+}
+.import-result {
+  margin-top: 4px;
+  border-radius: var(--radius-sm);
+  padding: 12px 16px;
+  background: color-mix(in srgb, var(--success) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--success) 20%, transparent);
+}
+.import-result.err {
+  background: color-mix(in srgb, var(--danger) 6%, transparent);
+  border-color: color-mix(in srgb, var(--danger) 20%, transparent);
+}
+.import-msg {
+  margin: 0 0 8px;
+  font-weight: 700;
+  color: var(--success);
+}
+.import-result.err .import-msg {
+  color: var(--danger);
+}
+.import-details {
+  margin: 0;
+  padding-right: 20px;
+  font-size: 0.88rem;
+  color: var(--text);
+  li {
+    margin: 4px 0;
+  }
+}
+.import-hint {
+  margin: 10px 0 0;
+  font-size: 0.84rem;
+  color: var(--text-muted);
+}
 .danger-actions {
   border: 1px solid color-mix(in srgb, var(--danger) 20%, transparent);
   background: color-mix(in srgb, var(--danger) 3%, transparent);
-  border-radius: var(--radius-sm); padding: 16px 20px; margin-top: 4px;
+  border-radius: var(--radius-sm);
+  padding: 16px 20px;
+  margin-top: 4px;
 }
 .danger-title {
-  font-weight: 800; color: var(--text-strong); margin-bottom: 14px;
-  font-size: 0.95rem; display: flex; align-items: center; gap: 6px;
+  font-weight: 800;
+  color: var(--text-strong);
+  margin-bottom: 14px;
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 .danger-row {
-  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-  padding: 10px 0; border-bottom: 1px solid color-mix(in srgb, var(--danger) 12%, transparent);
-  &:last-child { border-bottom: none; padding-bottom: 0; }
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 10px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--danger) 12%, transparent);
+  &:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
 }
 .danger-label {
-  font-size: 0.82rem; font-weight: 700; color: var(--text-muted);
-  min-width: 110px; flex-shrink: 0;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  min-width: 110px;
+  flex-shrink: 0;
 }
 .date-input {
-  padding: 8px 12px; border: 1px solid var(--border-strong);
-  border-radius: var(--radius-xs); background: var(--bg-elevated);
-  font-size: 0.88rem; max-width: 160px;
+  padding: 8px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-xs);
+  background: var(--bg-elevated);
+  font-size: 0.88rem;
+  max-width: 160px;
 }
 .delete-type-btn {
-  display: inline-flex; align-items: center; gap: 7px;
-  padding: 8px 16px; border-radius: var(--radius-sm);
-  font-weight: 700; font-size: 0.88rem; cursor: pointer;
-  transition: var(--transition); border: 2px solid transparent;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  font-weight: 700;
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: var(--transition);
+  border: 2px solid transparent;
 
-  .btn-icon { font-size: 1rem; }
-  .btn-text { white-space: nowrap; }
+  .btn-icon {
+    font-size: 1rem;
+  }
+  .btn-text {
+    white-space: nowrap;
+  }
 
-  &:disabled { opacity: 0.45; cursor: not-allowed; }
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
 
   &.branch {
     background: color-mix(in srgb, var(--primary) 10%, transparent);
     color: var(--primary-dark);
     border-color: color-mix(in srgb, var(--primary) 30%, transparent);
     &:hover:not(:disabled) {
-      background: var(--primary); color: #fff; border-color: var(--primary);
+      background: var(--primary);
+      color: #fff;
+      border-color: var(--primary);
       box-shadow: 0 4px 12px color-mix(in srgb, var(--primary) 35%, transparent);
     }
   }
@@ -1870,7 +2261,9 @@ onMounted(async () => {
     color: var(--accent);
     border-color: color-mix(in srgb, var(--accent) 30%, transparent);
     &:hover:not(:disabled) {
-      background: var(--accent); color: #fff; border-color: var(--accent);
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
       box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 35%, transparent);
     }
   }
@@ -1880,7 +2273,9 @@ onMounted(async () => {
     color: var(--warning);
     border-color: color-mix(in srgb, var(--warning) 30%, transparent);
     &:hover:not(:disabled) {
-      background: var(--warning); color: #fff; border-color: var(--warning);
+      background: var(--warning);
+      color: #fff;
+      border-color: var(--warning);
       box-shadow: 0 4px 12px color-mix(in srgb, var(--warning) 35%, transparent);
     }
   }
@@ -1890,28 +2285,65 @@ onMounted(async () => {
     color: var(--danger);
     border-color: color-mix(in srgb, var(--danger) 30%, transparent);
     &:hover:not(:disabled) {
-      background: var(--danger); color: #fff; border-color: var(--danger);
+      background: var(--danger);
+      color: #fff;
+      border-color: var(--danger);
       box-shadow: 0 4px 12px color-mix(in srgb, var(--danger) 35%, transparent);
     }
   }
 }
 @media (max-width: 1100px) {
-  .opening-balance-head { grid-template-columns: 1fr; align-items: stretch; }
-  .ledger-amount { max-width: 320px; }
-  .opening-balance-actions { justify-content: flex-start; }
-  .sales-insight { grid-template-columns: 1fr; }
-  .insight-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .opening-balance-head {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+  .ledger-amount {
+    max-width: 320px;
+  }
+  .opening-balance-actions {
+    justify-content: flex-start;
+  }
+  .sales-insight {
+    grid-template-columns: 1fr;
+  }
+  .insight-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
-@media (max-width: 900px) { .main-row { grid-template-columns: 1fr; } }
+@media (max-width: 900px) {
+  .main-row {
+    grid-template-columns: 1fr;
+  }
+}
 @media (max-width: 640px) {
-  .opening-ledger { padding: 16px; border-radius: var(--radius-lg); }
-  .ledger-title { align-items: flex-start; }
-  .ledger-mark { width: 58px; height: 48px; border-radius: 16px; font-size: 0.72rem; }
-  .opening-balance-grid { grid-template-columns: 1fr; }
-  .ledger-amount { max-width: none; }
-  .ledger-action { flex: 1; }
-  .insight-metrics { grid-template-columns: 1fr; }
-  .monthly-rules { grid-template-columns: 1fr; }
+  .opening-ledger {
+    padding: 16px;
+    border-radius: var(--radius-lg);
+  }
+  .ledger-title {
+    align-items: flex-start;
+  }
+  .ledger-mark {
+    width: 58px;
+    height: 48px;
+    border-radius: 16px;
+    font-size: 0.72rem;
+  }
+  .opening-balance-grid {
+    grid-template-columns: 1fr;
+  }
+  .ledger-amount {
+    max-width: none;
+  }
+  .ledger-action {
+    flex: 1;
+  }
+  .insight-metrics {
+    grid-template-columns: 1fr;
+  }
+  .monthly-rules {
+    grid-template-columns: 1fr;
+  }
   .list-card {
     max-height: none;
     overflow: hidden;
@@ -1943,9 +2375,13 @@ onMounted(async () => {
     border: 1px solid color-mix(in srgb, var(--primary) 12%, var(--border));
     border-radius: var(--radius-md);
     background:
-      radial-gradient(circle at 0 100%, color-mix(in srgb, var(--accent) 10%, transparent), transparent 38%),
+      radial-gradient(
+        circle at 0 100%,
+        color-mix(in srgb, var(--accent) 10%, transparent),
+        transparent 38%
+      ),
       color-mix(in srgb, var(--bg-elevated) 82%, transparent);
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.22);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
   }
   .list-card tbody td,
   .list-card tbody td:first-child,
@@ -1996,15 +2432,22 @@ onMounted(async () => {
   margin-bottom: 16px;
 }
 .partial-header {
-  display: flex; align-items: center; gap: 8px;
-  font-weight: 800; font-size: 0.9rem; color: var(--warning);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 800;
+  font-size: 0.9rem;
+  color: var(--warning);
   margin-bottom: 12px;
-  .partial-icon { font-size: 1.1rem; }
+  .partial-icon {
+    font-size: 1.1rem;
+  }
 }
 .remaining-display {
   padding: 11px 14px;
   border-radius: var(--radius-xs);
-  font-weight: 800; font-size: 1rem;
+  font-weight: 800;
+  font-size: 1rem;
   border: 2px solid;
   &.has-remaining {
     background: color-mix(in srgb, var(--danger) 8%, transparent);
@@ -2018,10 +2461,13 @@ onMounted(async () => {
   }
 }
 .remaining-note {
-  margin-top: 10px; font-size: 0.84rem; font-weight: 700;
+  margin-top: 10px;
+  font-size: 0.84rem;
+  font-weight: 700;
   color: var(--warning);
   background: color-mix(in srgb, var(--warning) 8%, transparent);
-  padding: 8px 12px; border-radius: var(--radius-xs);
+  padding: 8px 12px;
+  border-radius: var(--radius-xs);
 }
 
 /* Modal styles for editing */
@@ -2040,13 +2486,23 @@ onMounted(async () => {
 }
 
 @keyframes overlayFadeIn {
-  from { opacity: 0; }
-  to   { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes modalSlideIn {
-  from { opacity: 0; transform: translateY(24px) scale(0.97); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
+  from {
+    opacity: 0;
+    transform: translateY(24px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .modal-card {
@@ -2057,7 +2513,9 @@ onMounted(async () => {
   background: var(--card-bg, #fff);
   border: 1px solid var(--card-border, #e2e8f0);
   border-radius: var(--radius-lg, 16px);
-  box-shadow: 0 24px 60px -12px rgba(0,0,0,0.35), 0 8px 24px -4px rgba(0,0,0,0.2);
+  box-shadow:
+    0 24px 60px -12px rgba(0, 0, 0, 0.35),
+    0 8px 24px -4px rgba(0, 0, 0, 0.2);
   /* إيقاف تأثير الـ hover على الكارد داخل الموديل */
   transform: none !important;
   animation: modalSlideIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -2065,8 +2523,9 @@ onMounted(async () => {
 
 .modal-card:hover {
   transform: none !important;
-  box-shadow: 0 24px 60px -12px rgba(0,0,0,0.35), 0 8px 24px -4px rgba(0,0,0,0.2) !important;
+  box-shadow:
+    0 24px 60px -12px rgba(0, 0, 0, 0.35),
+    0 8px 24px -4px rgba(0, 0, 0, 0.2) !important;
   border-color: var(--card-border, #e2e8f0) !important;
 }
-
 </style>

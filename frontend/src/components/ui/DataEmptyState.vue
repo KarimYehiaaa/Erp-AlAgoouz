@@ -13,10 +13,10 @@
 
 <script setup>
 defineProps({
-  title:   { type: String, default: 'لا توجد بيانات' },
+  title: { type: String, default: 'لا توجد بيانات' },
   message: { type: String, default: '' },
-  icon:    { type: String, default: 'inventory' },
-  tone:    { type: String, default: '' }, // 'muted', 'primary', 'warning'
+  icon: { type: String, default: 'inventory' },
+  tone: { type: String, default: '' }, // 'muted', 'primary', 'warning'
   compact: { type: Boolean, default: false },
 });
 </script>
@@ -35,7 +35,10 @@ defineProps({
 .empty-state-compact {
   padding: 28px 16px;
   gap: 10px;
-  .empty-icon { width: 56px; height: 56px; }
+  .empty-icon {
+    width: 56px;
+    height: 56px;
+  }
 }
 
 .empty-icon {
@@ -63,9 +66,15 @@ defineProps({
   }
 }
 
-.empty-state:hover .empty-icon { transform: scale(1.06); }
+.empty-state:hover .empty-icon {
+  transform: scale(1.06);
+}
 
-.empty-text { display: flex; flex-direction: column; gap: 6px; }
+.empty-text {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
 
 .empty-title {
   font-size: 1rem;

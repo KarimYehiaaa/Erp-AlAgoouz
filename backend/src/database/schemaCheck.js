@@ -15,7 +15,8 @@ export const checkSchemaVersion = async () => {
       return;
     }
 
-    const files = fs.readdirSync(migrationsDir)
+    const files = fs
+      .readdirSync(migrationsDir)
       .filter((file) => file.endsWith('.sql'))
       .sort((a, b) => a.localeCompare(b));
 
@@ -32,7 +33,8 @@ export const checkSchemaVersion = async () => {
     const hasMigrationsTable = tableCheck.rows[0].exists;
 
     if (!hasMigrationsTable) {
-      const msg = '❌ [بن العجوز ERP] خطأ: لم يتم تهيئة جداول قاعدة البيانات بعد. يرجى تشغيل أمر التهيئة أولاً: npm run setup';
+      const msg =
+        '❌ [بن العجوز ERP] خطأ: لم يتم تهيئة جداول قاعدة البيانات بعد. يرجى تشغيل أمر التهيئة أولاً: npm run setup';
       logger.error(msg);
       console.error(msg);
       process.exit(1);
@@ -40,15 +42,16 @@ export const checkSchemaVersion = async () => {
 
     // 3. Get applied migrations from DB
     const appliedRes = await query(`SELECT version FROM schema_migrations`);
-    const appliedVersions = new Set(appliedRes.rows.map(row => row.version));
+    const appliedVersions = new Set(appliedRes.rows.map((row) => row.version));
 
     // 4. Find any pending migrations
-    const pending = files.filter(file => !appliedVersions.has(file));
+    const pending = files.filter((file) => !appliedVersions.has(file));
 
     if (pending.length > 0) {
-      const msg = `❌ [بن العجوز ERP] خطأ: قاعدة البيانات متأخرة عن كود البرنامج ولديك (${pending.length}) هجرات معلقة.\n` +
-                  `المعلقات: ${pending.join(', ')}\n` +
-                  `يرجى تشغيل أمر التحديث لتحديث قاعدة البيانات بأمان: npm run update`;
+      const msg =
+        `❌ [بن العجوز ERP] خطأ: قاعدة البيانات متأخرة عن كود البرنامج ولديك (${pending.length}) هجرات معلقة.\n` +
+        `المعلقات: ${pending.join(', ')}\n` +
+        `يرجى تشغيل أمر التحديث لتحديث قاعدة البيانات بأمان: npm run update`;
       logger.error(msg);
       console.error(msg);
       process.exit(1);
@@ -57,7 +60,7 @@ export const checkSchemaVersion = async () => {
     logger.info('✅ [بن العجوز ERP] قاعدة البيانات متوافقة ومحدثة بالكامل مع كود البرنامج.');
   } catch (err) {
     logger.error('❌ [بن العجوز ERP] فشل فحص إصدار قاعدة البيانات: %s', err.message);
-    // Do not crash the server on network/connection issues on startup, 
+    // Do not crash the server on network/connection issues on startup,
     // the app will handle DB reconnection or show 503 error.
   }
 };

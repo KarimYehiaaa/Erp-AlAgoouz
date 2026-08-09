@@ -56,7 +56,8 @@ async function runSqlFile(client, filePath) {
 
 function getMigrationFiles() {
   const migrationsDir = path.join(__dirname, '../../migrations');
-  return fs.readdirSync(migrationsDir)
+  return fs
+    .readdirSync(migrationsDir)
     .filter((file) => file.endsWith('.sql'))
     .sort((a, b) => a.localeCompare(b))
     .map((file) => path.join(migrationsDir, file));

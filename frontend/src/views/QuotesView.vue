@@ -12,7 +12,12 @@
 
       <div class="hero-actions">
         <button type="button" class="btn btn-outline" @click="resetForm">إعادة ضبط</button>
-        <button type="button" class="btn btn-outline" :disabled="savingTemplate" @click="saveTemplate">
+        <button
+          type="button"
+          class="btn btn-outline"
+          :disabled="savingTemplate"
+          @click="saveTemplate"
+        >
           {{ savingTemplate ? 'جارٍ حفظ القالب...' : 'حفظ البنود كقالب ثابت' }}
         </button>
         <button type="button" class="btn btn-primary" :disabled="saving" @click="downloadPdf">
@@ -35,7 +40,11 @@
 
         <div class="form-group">
           <label>ملاحظات سريعة</label>
-          <textarea v-model.trim="form.notes" rows="3" placeholder="أي ملاحظات تظهر في عرض الأسعار..."></textarea>
+          <textarea
+            v-model.trim="form.notes"
+            rows="3"
+            placeholder="أي ملاحظات تظهر في عرض الأسعار..."
+          ></textarea>
         </div>
 
         <div class="items-head">
@@ -66,7 +75,14 @@
               </div>
             </div>
             <div class="item-side">
-              <button v-if="form.items.length > 1" type="button" class="btn btn-sm btn-danger" @click="removeItem(index)">حذف</button>
+              <button
+                v-if="form.items.length > 1"
+                type="button"
+                class="btn btn-sm btn-danger"
+                @click="removeItem(index)"
+              >
+                حذف
+              </button>
             </div>
           </div>
         </div>
@@ -106,7 +122,16 @@
               <p><strong>الاسم:</strong> {{ form.customer_name || 'عميل نقدي' }}</p>
             </div>
             <div class="party-box meta">
-              <p><strong>تاريخ الإصدار:</strong> {{ new Date().toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric' }) }}</p>
+              <p>
+                <strong>تاريخ الإصدار:</strong>
+                {{
+                  new Date().toLocaleDateString('ar-EG', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                  })
+                }}
+              </p>
               <p><strong>الصلاحية:</strong> ساري لمدة 15 يوم</p>
             </div>
           </div>
@@ -148,7 +173,8 @@ import { quotes as quotesApi } from '@/api';
 import { formatMoney } from '@/utils/currency';
 
 const templateStorageKey = 'quote_template';
-const makeKey = () => (globalThis.crypto?.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()));
+const makeKey = () =>
+  globalThis.crypto?.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random());
 const makeItem = (seed = {}) => ({
   key: seed.key || makeKey(),
   name: seed.name || '',
@@ -173,12 +199,14 @@ const savedTemplate = ref({ items: [makeItem()] });
 
 const normalizeTemplate = (source) => ({
   items: (Array.isArray(source?.items) ? source.items : [])
-    .map((item) => makeItem({
-      key: item.key,
-      name: item.name || item.product_name || item.description || '',
-      unit: item.unit || '',
-      price: item.price ?? item.unit_price ?? 0,
-    }))
+    .map((item) =>
+      makeItem({
+        key: item.key,
+        name: item.name || item.product_name || item.description || '',
+        unit: item.unit || '',
+        price: item.price ?? item.unit_price ?? 0,
+      }),
+    )
     .filter((item) => item.name.trim()),
 });
 
@@ -263,11 +291,13 @@ const buildPayload = () => ({
 const saveTemplate = async () => {
   templateMessage.value = '';
   const template = normalizeTemplate({
-    items: form.items.filter((item) => item.name.trim()).map((item) => ({
-      name: item.name,
-      unit: item.unit,
-      price: item.price,
-    })),
+    items: form.items
+      .filter((item) => item.name.trim())
+      .map((item) => ({
+        name: item.name,
+        unit: item.unit,
+        price: item.price,
+      })),
   });
   if (!template.items.length) {
     error.value = 'أضف بندًا واحدًا على الأقل قبل حفظ القالب.';
@@ -345,7 +375,11 @@ onMounted(loadTemplate);
   gap: 16px;
   background:
     radial-gradient(circle at top right, rgba(197, 157, 112, 0.18), transparent 28%),
-    linear-gradient(135deg, color-mix(in srgb, var(--bg-elevated) 84%, #fff) 0%, var(--bg-elevated) 100%);
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--bg-elevated) 84%, #fff) 0%,
+      var(--bg-elevated) 100%
+    );
 }
 
 .hero-brand {
@@ -561,9 +595,23 @@ onMounted(loadTemplate);
   display: flex;
   gap: 12px;
   align-items: center;
-  h1 { font-size: 1.35rem; color: #5c3d2e; margin: 0 0 2px; font-weight: 800; }
-  .tagline { color: #8b5e3c; font-size: 0.8rem; margin: 0 0 4px; font-weight: 700; }
-  p { margin: 2px 0; font-size: 0.8rem; color: var(--text-muted); }
+  h1 {
+    font-size: 1.35rem;
+    color: #5c3d2e;
+    margin: 0 0 2px;
+    font-weight: 800;
+  }
+  .tagline {
+    color: #8b5e3c;
+    font-size: 0.8rem;
+    margin: 0 0 4px;
+    font-weight: 700;
+  }
+  p {
+    margin: 2px 0;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+  }
 }
 .inv-title-box {
   text-align: left;
@@ -571,8 +619,17 @@ onMounted(loadTemplate);
   color: #fff;
   padding: 10px 16px;
   border-radius: 8px;
-  .inv-type { display: block; font-size: 0.8rem; opacity: 0.9; }
-  .inv-number { display: block; font-size: 1.1rem; font-weight: 800; margin-top: 2px; }
+  .inv-type {
+    display: block;
+    font-size: 0.8rem;
+    opacity: 0.9;
+  }
+  .inv-number {
+    display: block;
+    font-size: 1.1rem;
+    font-weight: 800;
+    margin-top: 2px;
+  }
 }
 .inv-parties {
   display: grid;
@@ -585,8 +642,17 @@ onMounted(loadTemplate);
   padding: 12px;
   border-radius: 8px;
   border: 1px solid var(--border);
-  h4 { margin: 0 0 6px; color: #5c3d2e; font-size: 0.88rem; font-weight: 800; }
-  p { margin: 4px 0; font-size: 0.82rem; color: var(--text-strong); }
+  h4 {
+    margin: 0 0 6px;
+    color: #5c3d2e;
+    font-size: 0.88rem;
+    font-weight: 800;
+  }
+  p {
+    margin: 4px 0;
+    font-size: 0.82rem;
+    color: var(--text-strong);
+  }
 }
 .inv-table {
   width: 100%;
@@ -606,7 +672,9 @@ onMounted(loadTemplate);
     font-size: 0.82rem;
     color: var(--text-strong);
   }
-  tbody tr:nth-child(even) { background: var(--bg); }
+  tbody tr:nth-child(even) {
+    background: var(--bg);
+  }
 }
 .inv-notes {
   background: #fff9e6;
@@ -623,7 +691,10 @@ onMounted(loadTemplate);
   padding-top: 10px;
   border-top: 1px solid var(--border);
   color: var(--text-muted);
-  p { font-size: 0.78rem; margin: 0; }
+  p {
+    font-size: 0.78rem;
+    margin: 0;
+  }
 }
 
 @media (max-width: 980px) {

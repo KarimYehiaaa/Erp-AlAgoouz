@@ -22,7 +22,7 @@ export const getDefaultWarehouseId = async (db = query) => {
      FROM warehouses
      WHERE deleted_at IS NULL AND is_active = TRUE
      ORDER BY id ASC
-     LIMIT 1`
+     LIMIT 1`,
   );
   return Number(fallback.rows[0]?.id || 0) || null;
 };
@@ -33,7 +33,7 @@ export const getWarehouseIdByCode = async (code, db = query) => {
      FROM warehouses
      WHERE code = $1 AND deleted_at IS NULL AND is_active = TRUE
      LIMIT 1`,
-    [code]
+    [code],
   );
   return Number(result.rows[0]?.id || 0) || null;
 };
@@ -41,14 +41,17 @@ export const getWarehouseIdByCode = async (code, db = query) => {
 export const getMainWarehouseId = async (db = query) => {
   const byCode = await getWarehouseIdByCode('MAIN', db);
   if (byCode) return byCode;
-  const result = await db(`SELECT id FROM warehouses WHERE (type = 'main' OR code = 'MAIN') AND deleted_at IS NULL AND is_active = TRUE LIMIT 1`);
-  return Number(result.rows[0]?.id || 0) || await getDefaultWarehouseId(db);
+  const result = await db(
+    `SELECT id FROM warehouses WHERE (type = 'main' OR code = 'MAIN') AND deleted_at IS NULL AND is_active = TRUE LIMIT 1`,
+  );
+  return Number(result.rows[0]?.id || 0) || (await getDefaultWarehouseId(db));
 };
 
 export const getStoreWarehouseId = async (db = query) => {
   const byCode = await getWarehouseIdByCode('STORE', db);
   if (byCode) return byCode;
-  const result = await db(`SELECT id FROM warehouses WHERE (type = 'store' OR code = 'STORE') AND deleted_at IS NULL AND is_active = TRUE LIMIT 1`);
-  return Number(result.rows[0]?.id || 0) || await getDefaultWarehouseId(db);
+  const result = await db(
+    `SELECT id FROM warehouses WHERE (type = 'store' OR code = 'STORE') AND deleted_at IS NULL AND is_active = TRUE LIMIT 1`,
+  );
+  return Number(result.rows[0]?.id || 0) || (await getDefaultWarehouseId(db));
 };
-

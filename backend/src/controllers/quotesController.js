@@ -1,19 +1,24 @@
 import * as quotePdfService from '../services/quotePdfService.js';
 import * as userService from '../services/userService.js';
-import { AppError } from '../middleware/errorHandler.js';
+import { AppError } from '../types/errors.js';
 import { ok } from './helper.js';
 
 export const quotes = {
   template: async (req, res, next) => {
     try {
       if (req.method === 'GET') {
-        ok(res, await userService.getSetting('quote_template') || { items: [] });
+        ok(res, (await userService.getSetting('quote_template')) || { items: [] });
         return;
       }
       const template = {
         items: Array.isArray(req.body?.items) ? req.body.items : [],
       };
-      await userService.upsertSetting('quote_template', template, req.user.id, 'قالب البنود الثابتة لعرض السعر');
+      await userService.upsertSetting(
+        'quote_template',
+        template,
+        req.user.id,
+        'قالب البنود الثابتة لعرض السعر',
+      );
       ok(res, template, 'تم حفظ قالب عرض السعر');
     } catch (e) {
       next(e);

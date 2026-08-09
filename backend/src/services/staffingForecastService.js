@@ -36,21 +36,21 @@ export const getStaffingForecast = async (params = {}) => {
         avg_transactions: 0.0,
         avg_revenue: 0.0,
         traffic_level: 'منخفض', // منخفض، متوسط، مرتفع
-        recommended_staff: 1
+        recommended_staff: 1,
       };
     }
   }
 
   // 3. ملء المصفوفة بالبيانات التاريخية وحساب المتوسطات والتوصيات
-  rows.forEach(row => {
+  rows.forEach((row) => {
     const d = Number(row.dow);
     const h = Number(row.hour);
-    
+
     // تسجيل الساعات التي تقع ضمن فترة التشغيل فقط
     if (density[d] && density[d][h]) {
       const avgTx = Number((Number(row.tx_count) / WEEKS_COUNT).toFixed(2));
       const avgRev = Number((Number(row.total_revenue) / WEEKS_COUNT).toFixed(2));
-      
+
       let traffic = 'منخفض';
       let staff = 1;
 
@@ -66,7 +66,7 @@ export const getStaffingForecast = async (params = {}) => {
         avg_transactions: avgTx,
         avg_revenue: avgRev,
         traffic_level: traffic,
-        recommended_staff: staff
+        recommended_staff: staff,
       };
     }
   });
@@ -80,7 +80,7 @@ export const getStaffingForecast = async (params = {}) => {
     3: 'الأربعاء',
     4: 'الخميس',
     5: 'الجمعة',
-    6: 'السبت'
+    6: 'السبت',
   };
 
   for (let d = 0; d < 7; d++) {
@@ -94,7 +94,7 @@ export const getStaffingForecast = async (params = {}) => {
         avg_transactions: hourData.avg_transactions,
         avg_revenue: hourData.avg_revenue,
         traffic_level: hourData.traffic_level,
-        recommended_staff: hourData.recommended_staff
+        recommended_staff: hourData.recommended_staff,
       });
     }
   }
@@ -102,12 +102,12 @@ export const getStaffingForecast = async (params = {}) => {
   // فرز الساعات تنازلياً حسب الكثافة لاستخراج أعلى 5 ساعات ذروة
   const peakHours = [...allHours]
     .sort((a, b) => b.avg_transactions - a.avg_transactions)
-    .filter(x => x.avg_transactions > 0)
+    .filter((x) => x.avg_transactions > 0)
     .slice(0, 5);
 
   return {
     weeklyDensity: density,
     peakHours,
-    dayNames: dayNamesAr
+    dayNames: dayNamesAr,
   };
 };

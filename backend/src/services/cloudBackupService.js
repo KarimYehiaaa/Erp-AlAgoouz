@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import { query } from '../database/pool.js';
 import * as backupService from './backupService.js';
-import { AppError } from '../middleware/errorHandler.js';
+import { AppError } from '../types/errors.js';
 import { decrypt } from '../utils/crypto.js';
 
 function base64url(str, encoding = 'utf8') {
@@ -15,11 +15,10 @@ function base64url(str, encoding = 'utf8') {
 export async function getGoogleDriveAccessToken(serviceAccountJson) {
   let keyData;
   try {
-    keyData = typeof serviceAccountJson === 'string' 
-      ? JSON.parse(serviceAccountJson) 
-      : serviceAccountJson;
+    keyData =
+      typeof serviceAccountJson === 'string' ? JSON.parse(serviceAccountJson) : serviceAccountJson;
   } catch (err) {
-    throw new Error('فشل تحليل رمز JSON لحساب الخدمة Google: ' + err.message);
+    throw new Error('فشل تحليل رمز JSON لحساب الخدمة Google: ' + err.message, { cause: err });
   }
 
   const clientEmail = keyData.client_email;
@@ -35,7 +34,7 @@ export async function getGoogleDriveAccessToken(serviceAccountJson) {
     scope: 'https://www.googleapis.com/auth/drive.file',
     aud: 'https://oauth2.googleapis.com/token',
     exp: now + 3600,
-    iat: now
+    iat: now,
   };
 
   const encodedHeader = base64url(JSON.stringify(header));
@@ -56,12 +55,14 @@ export async function getGoogleDriveAccessToken(serviceAccountJson) {
   const response = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: params.toString()
+    body: params.toString(),
   });
 
   if (!response.ok) {
     const errText = await response.text();
-    throw new Error(`فشل الحصول على Access Token من Google: ${response.statusText}. التفاصيل: ${errText}`);
+    throw new Error(
+      `فشل الحصول على Access Token من Google: ${response.statusText}. التفاصيل: ${errText}`,
+    );
   }
 
   const tokenData = await response.json();
@@ -78,12 +79,14 @@ export async function getGoogleDriveAccessTokenViaOAuth(clientId, clientSecret, 
   const response = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: params.toString()
+    body: params.toString(),
   });
 
   if (!response.ok) {
     const errText = await response.text();
-    throw new Error(`فشل تجديد Access Token لـ Google OAuth2: ${response.statusText}. التفاصيل: ${errText}`);
+    throw new Error(
+      `فشل تجديد Access Token لـ Google OAuth2: ${response.statusText}. التفاصيل: ${errText}`,
+    );
   }
 
   const tokenData = await response.json();
@@ -92,18 +95,20 @@ export async function getGoogleDriveAccessTokenViaOAuth(clientId, clientSecret, 
 
 export const getCloudConfig = async () => {
   const result = await query(`SELECT value FROM settings WHERE key = 'cloud_backup'`);
-  return result.rows[0]?.value || { 
-    provider: 'none', 
-    gdrive_auth_type: 'service_account', // 'service_account' or 'oauth'
-    gdrive_key: '', 
-    gdrive_folder_id: '', 
-    gdrive_client_id: '',
-    gdrive_client_secret: '',
-    gdrive_refresh_token: '',
-    dropbox_token: '', 
-    dropbox_path: '/AlAgoouz-ERP-Backups', 
-    webhook_url: '' 
-  };
+  return (
+    result.rows[0]?.value || {
+      provider: 'none',
+      gdrive_auth_type: 'service_account', // 'service_account' or 'oauth'
+      gdrive_key: '',
+      gdrive_folder_id: '',
+      gdrive_client_id: '',
+      gdrive_client_secret: '',
+      gdrive_refresh_token: '',
+      dropbox_token: '',
+      dropbox_path: '/AlAgoouz-ERP-Backups',
+      webhook_url: '',
+    }
+  );
 };
 
 export const uploadBackupToCloud = async (backupData, fileName, config) => {
@@ -112,9 +117,12 @@ export const uploadBackupToCloud = async (backupData, fileName, config) => {
 
   const decryptedConfig = { ...config };
   if (decryptedConfig.gdrive_key) decryptedConfig.gdrive_key = decrypt(decryptedConfig.gdrive_key);
-  if (decryptedConfig.dropbox_token) decryptedConfig.dropbox_token = decrypt(decryptedConfig.dropbox_token);
-  if (decryptedConfig.gdrive_client_secret) decryptedConfig.gdrive_client_secret = decrypt(decryptedConfig.gdrive_client_secret);
-  if (decryptedConfig.gdrive_refresh_token) decryptedConfig.gdrive_refresh_token = decrypt(decryptedConfig.gdrive_refresh_token);
+  if (decryptedConfig.dropbox_token)
+    decryptedConfig.dropbox_token = decrypt(decryptedConfig.dropbox_token);
+  if (decryptedConfig.gdrive_client_secret)
+    decryptedConfig.gdrive_client_secret = decrypt(decryptedConfig.gdrive_client_secret);
+  if (decryptedConfig.gdrive_refresh_token)
+    decryptedConfig.gdrive_refresh_token = decrypt(decryptedConfig.gdrive_refresh_token);
 
   const content = JSON.stringify(backupData, null, 2);
   const blob = new Blob([content], { type: 'application/json' });
@@ -135,7 +143,10 @@ export const uploadBackupToCloud = async (backupData, fileName, config) => {
       const refreshToken = decryptedConfig.gdrive_refresh_token;
 
       if (!clientId || !clientSecret || !refreshToken) {
-        throw new AppError('بيانات اتصالات Google OAuth2 (Client ID, Client Secret, Refresh Token) غير مكتملة', 400);
+        throw new AppError(
+          'بيانات اتصالات Google OAuth2 (Client ID, Client Secret, Refresh Token) غير مكتملة',
+          400,
+        );
       }
       accessToken = await getGoogleDriveAccessTokenViaOAuth(clientId, clientSecret, refreshToken);
     } else {
@@ -145,7 +156,7 @@ export const uploadBackupToCloud = async (backupData, fileName, config) => {
     const folderId = decryptedConfig.gdrive_folder_id?.trim();
     const metadata = {
       name: fileName.endsWith('.json') ? fileName : `${fileName}.json`,
-      mimeType: 'application/json'
+      mimeType: 'application/json',
     };
 
     if (folderId) {
@@ -153,7 +164,7 @@ export const uploadBackupToCloud = async (backupData, fileName, config) => {
     }
 
     const boundary = 'gdrive_upload_boundary';
-    
+
     const multipartBody = [
       `--${boundary}`,
       'Content-Type: application/json; charset=UTF-8',
@@ -163,25 +174,36 @@ export const uploadBackupToCloud = async (backupData, fileName, config) => {
       'Content-Type: application/json',
       '',
       content,
-      `--${boundary}--`
+      `--${boundary}--`,
     ].join('\r\n');
 
-    const response = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': `multipart/related; boundary=${boundary}`,
-        'Content-Length': Buffer.byteLength(multipartBody).toString()
+    const response = await fetch(
+      'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': `multipart/related; boundary=${boundary}`,
+          'Content-Length': Buffer.byteLength(multipartBody).toString(),
+        },
+        body: multipartBody,
       },
-      body: multipartBody
-    });
+    );
 
     if (!response.ok) {
       const errText = await response.text();
-      if (errText.includes('storageQuotaExceeded') || errText.includes('Service Accounts do not have storage quota')) {
-        throw new AppError('خطأ في المساحة: حساب الخدمة لـ Google Drive لا يملك مساحة تخزينية. لتفعيل النسخ الاحتياطي مجاناً، يرجى إنشاء "مساحة عمل مشتركة" (Shared Drive) في حسابك وإضافة بريد الخدمة (alagoouz@alagoouz.iam.gserviceaccount.com) كعضو فيها برتبة "مساهم"، أو تفعيل النسخ الاحتياطي عبر Dropbox أو Discord Webhook في الإعدادات.', 403);
+      if (
+        errText.includes('storageQuotaExceeded') ||
+        errText.includes('Service Accounts do not have storage quota')
+      ) {
+        throw new AppError(
+          'خطأ في المساحة: حساب الخدمة لـ Google Drive لا يملك مساحة تخزينية. لتفعيل النسخ الاحتياطي مجاناً، يرجى إنشاء "مساحة عمل مشتركة" (Shared Drive) في حسابك وإضافة بريد الخدمة (alagoouz@alagoouz.iam.gserviceaccount.com) كعضو فيها برتبة "مساهم"، أو تفعيل النسخ الاحتياطي عبر Dropbox أو Discord Webhook في الإعدادات.',
+          403,
+        );
       }
-      throw new Error(`فشل رفع الملف إلى Google Drive: ${response.statusText}. التفاصيل: ${errText}`);
+      throw new Error(
+        `فشل رفع الملف إلى Google Drive: ${response.statusText}. التفاصيل: ${errText}`,
+      );
     }
 
     const fileData = await response.json();
@@ -202,17 +224,17 @@ export const uploadBackupToCloud = async (backupData, fileName, config) => {
       mode: 'add',
       autorename: true,
       mute: false,
-      strict_conflict: false
+      strict_conflict: false,
     });
 
     const response = await fetch('https://content.dropboxapi.com/2/files/upload', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${token}`,
+        Authorization: `Bearer ${token}`,
         'Dropbox-API-Arg': dropboxArg,
-        'Content-Type': 'application/octet-stream'
+        'Content-Type': 'application/octet-stream',
       },
-      body: content
+      body: content,
     });
 
     if (!response.ok) {
@@ -225,21 +247,44 @@ export const uploadBackupToCloud = async (backupData, fileName, config) => {
   }
 
   if (provider === 'webhook') {
-    const url = decryptedConfig.webhook_url?.trim();
-    if (!url) throw new AppError('Webhook URL is missing', 400);
+    let urlObj;
+    try {
+      urlObj = new URL(decryptedConfig.webhook_url?.trim());
+    } catch (e) {
+      throw new AppError('Webhook URL is invalid', 400);
+    }
+
+    if (urlObj.protocol !== 'http:' && urlObj.protocol !== 'https:') {
+      throw new AppError('Webhook URL must be HTTP or HTTPS', 400);
+    }
+
+    // SSRF Prevention: Block local/private IPs and localhost
+    const hostname = urlObj.hostname;
+    const isLocal =
+      /^(localhost|127\.\d+\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+|192\.168\.\d+\.\d+|169\.254\.\d+\.\d+|\[::1\])$/i.test(
+        hostname,
+      );
+    if (isLocal) {
+      throw new AppError('الروابط الداخلية للشبكة غير مسموح بها لأسباب أمنية', 403);
+    }
+
+    const url = urlObj.toString();
 
     const formData = new FormData();
     formData.append('file', blob, fileName);
 
     if (url.includes('discord.com/api/webhooks/')) {
-      formData.append('payload_json', JSON.stringify({
-        content: `🔒 **نسخة احتياطية سحابية جديدة**\n📂 الملف: \`${fileName}\`\n📅 التاريخ: \`${new Date().toLocaleString('ar-EG')}\``
-      }));
+      formData.append(
+        'payload_json',
+        JSON.stringify({
+          content: `🔒 **نسخة احتياطية سحابية جديدة**\n📂 الملف: \`${fileName}\`\n📅 التاريخ: \`${new Date().toLocaleString('ar-EG')}\``,
+        }),
+      );
     }
 
     const response = await fetch(url, {
       method: 'POST',
-      body: formData
+      body: formData,
     });
 
     if (!response.ok) {
@@ -259,5 +304,14 @@ export const testCloudBackup = async (config) => {
   const timestamp = now.toISOString().replace(/T/, '_').replace(/:/g, '-').split('.')[0];
   const fileName = `test-cloud-backup-${timestamp}.json`;
 
-  return await uploadBackupToCloud(backupRes, fileName, config);
+  const fs = await import('fs/promises');
+  let backupData;
+  try {
+    const content = await fs.readFile(backupRes.path, 'utf8');
+    backupData = JSON.parse(content);
+  } catch (e) {
+    throw new AppError('فشل قراءة النسخة الاحتياطية لاختبارها', 500);
+  }
+
+  return await uploadBackupToCloud(backupData, fileName, config);
 };

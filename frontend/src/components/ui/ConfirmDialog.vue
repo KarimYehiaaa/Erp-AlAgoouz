@@ -67,10 +67,22 @@ const emit = defineEmits(['update:modelValue', 'confirm']);
   display: grid;
   place-items: center;
 
-  &.tone-bg-danger  { background: color-mix(in srgb, var(--danger)  12%, transparent); color: var(--danger); }
-  &.tone-bg-warning { background: color-mix(in srgb, var(--warning) 12%, transparent); color: var(--warning); }
-  &.tone-bg-primary { background: color-mix(in srgb, var(--primary) 12%, transparent); color: var(--primary); }
-  &.tone-bg-success { background: color-mix(in srgb, var(--success) 12%, transparent); color: var(--success); }
+  &.tone-bg-danger {
+    background: color-mix(in srgb, var(--danger) 12%, transparent);
+    color: var(--danger);
+  }
+  &.tone-bg-warning {
+    background: color-mix(in srgb, var(--warning) 12%, transparent);
+    color: var(--warning);
+  }
+  &.tone-bg-primary {
+    background: color-mix(in srgb, var(--primary) 12%, transparent);
+    color: var(--primary);
+  }
+  &.tone-bg-success {
+    background: color-mix(in srgb, var(--success) 12%, transparent);
+    color: var(--success);
+  }
 }
 
 .confirm-message {

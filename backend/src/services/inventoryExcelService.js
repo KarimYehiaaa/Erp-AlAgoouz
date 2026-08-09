@@ -4,22 +4,20 @@
  */
 import XLSX from 'xlsx';
 import { query } from '../database/pool.js';
-import { AppError } from '../middleware/errorHandler.js';
+import { AppError } from '../types/errors.js';
 import { returnProductToStock } from './inventoryService.js';
 import { readSafeWorkbook } from './excelSecurity.js';
 import { roundMoney } from '../utils/money.js';
 
-const normalizeDigits = (value) => String(value ?? '')
-  .replace(/[٠-٩]/g, (d) => '0123456789'['٠١٢٣٤٥٦٧٨٩'.indexOf(d)])
-  .replace(/[٫٬]/g, '.')
-  .replace(/,/g, '.');
+const normalizeDigits = (value) =>
+  String(value ?? '')
+    .replace(/[٠-٩]/g, (d) => '0123456789'['٠١٢٣٤٥٦٧٨٩'.indexOf(d)])
+    .replace(/[٫٬]/g, '.')
+    .replace(/,/g, '.');
 
 const parseExcelQuantity = (value) => {
   if (typeof value === 'number') return value;
-  const normalized = normalizeDigits(value)
-    .replace(/\s/g, '')
-    .replace(/[lI|]/g, '')
-    .trim();
+  const normalized = normalizeDigits(value).replace(/\s/g, '').replace(/[lI|]/g, '').trim();
   if (!normalized) return NaN;
   if (/^\d+\.\d+\.\d+$/.test(normalized)) {
     return Number(normalized.replace(/\./g, ''));
@@ -33,15 +31,17 @@ const isPlaceholderWarehouse = (value) => {
   return !text || ['-', '—', '0'].includes(text);
 };
 const countNonEmptyCells = (row) => row.reduce((count, cell) => count + (isBlank(cell) ? 0 : 1), 0);
-const normalizeHeaderText = (value) => normalizeDigits(value)
-  .toLowerCase()
-  .replace(/[\s_\-]+/g, '')
-  .replace(/[^\w\u0600-\u06ff]/g, '');
+const normalizeHeaderText = (value) =>
+  normalizeDigits(value)
+    .toLowerCase()
+    .replace(/[\s_\-]+/g, '')
+    .replace(/[^\w\u0600-\u06ff]/g, '');
 const headerMatches = (value, aliases) => {
   const normalized = normalizeHeaderText(value);
   return aliases.some((alias) => normalized.includes(normalizeHeaderText(alias)));
 };
-const findHeaderIndex = (headers, aliases) => headers.findIndex((header) => headerMatches(header, aliases));
+const findHeaderIndex = (headers, aliases) =>
+  headers.findIndex((header) => headerMatches(header, aliases));
 
 const codeAliases = ['sku', 'productsku', 'productcode', 'itemcode', 'كود', 'الكود'];
 const qtyAliases = ['quantity', 'qty', 'returnquantity', 'restockquantity', 'الكمية', 'المرتجع'];
@@ -74,7 +74,9 @@ const resolveWarehouseId = async (warehouseName, defaultWarehouseId, sku, rowNum
   }
 
   if (!warehouseId) {
-    const whRes = await query(`SELECT id FROM warehouses WHERE deleted_at IS NULL ORDER BY id LIMIT 1`);
+    const whRes = await query(
+      `SELECT id FROM warehouses WHERE deleted_at IS NULL ORDER BY id LIMIT 1`,
+    );
     warehouseId = whRes.rows[0]?.id || null;
   }
 
@@ -137,7 +139,16 @@ export const buildReturnTemplate = async (warehouseId) => {
     [`تاريخ التصدير: ${new Date().toLocaleDateString('ar-EG')}`],
     ['املأ عمود الكمية فقط، ويمكن تغيير المخزن أو الملاحظات عند الحاجة'],
     [],
-    ['SKU', 'اسم المنتج', 'التصنيف', 'الوحدة', 'المخزن', 'الرصيد الحالي', 'الكمية المرتجعة', 'ملاحظات'],
+    [
+      'SKU',
+      'اسم المنتج',
+      'التصنيف',
+      'الوحدة',
+      'المخزن',
+      'الرصيد الحالي',
+      'الكمية المرتجعة',
+      'ملاحظات',
+    ],
   ];
 
   for (const row of rows) {
@@ -181,10 +192,10 @@ export const importReturnFromExcel = async (buffer, userId, defaultWarehouseId) 
   }
 
   const headers = allRows[headerRowIdx].map((h) => String(h || '').trim());
-  let skuIdx = findHeaderIndex(headers, codeAliases);
-  let qtyIdx = findHeaderIndex(headers, qtyAliases);
-  let notesIdx = findHeaderIndex(headers, notesAliases);
-  let warehouseIdx = findHeaderIndex(headers, warehouseAliases);
+  const skuIdx = findHeaderIndex(headers, codeAliases);
+  const qtyIdx = findHeaderIndex(headers, qtyAliases);
+  const notesIdx = findHeaderIndex(headers, notesAliases);
+  const warehouseIdx = findHeaderIndex(headers, warehouseAliases);
 
   if (skuIdx === -1) throw new AppError('عمود SKU غير موجود أو غير صحيح', 400);
   if (qtyIdx === -1) throw new AppError('عمود الكمية غير موجود أو غير صحيح', 400);
@@ -240,20 +251,33 @@ export const importReturnFromExcel = async (buffer, userId, defaultWarehouseId) 
 
     const product = productRes.rows[0];
     if (product.has_active_recipe) {
-      results.failed.push({ row: rowNumber, sku, message: 'المنتج مرتبط بوصفة نشطة ولا يمكن استرداده للمخزن' });
+      results.failed.push({
+        row: rowNumber,
+        sku,
+        message: 'المنتج مرتبط بوصفة نشطة ولا يمكن استرداده للمخزن',
+      });
       continue;
     }
 
-    const warehouseId = await resolveWarehouseId(warehouseName, defaultWarehouseId, sku, rowNumber, results.failed);
+    const warehouseId = await resolveWarehouseId(
+      warehouseName,
+      defaultWarehouseId,
+      sku,
+      rowNumber,
+      results.failed,
+    );
     if (!warehouseId) continue;
 
     try {
-      const result = await returnProductToStock({
-        product_id: product.id,
-        warehouse_id: warehouseId,
-        quantity: qty,
-        notes: notes || `استرداد من Excel - ${new Date().toLocaleDateString('ar-EG')}`,
-      }, userId);
+      const result = await returnProductToStock(
+        {
+          product_id: product.id,
+          warehouse_id: warehouseId,
+          quantity: qty,
+          notes: notes || `استرداد من Excel - ${new Date().toLocaleDateString('ar-EG')}`,
+        },
+        userId,
+      );
 
       results.success++;
       results.details.push({
@@ -269,7 +293,11 @@ export const importReturnFromExcel = async (buffer, userId, defaultWarehouseId) 
   }
 
   if (results.success === 0) {
-    results.failed.push({ row: null, sku: null, message: 'لم يتم تطبيق أي صف صالح من ملف الاسترداد' });
+    results.failed.push({
+      row: null,
+      sku: null,
+      message: 'لم يتم تطبيق أي صف صالح من ملف الاسترداد',
+    });
   }
 
   return results;
@@ -282,16 +310,26 @@ export const validateReturnExcel = async (buffer) => {
 
   const headerRowIdx = resolveHeaderRow(allRows);
   if (headerRowIdx === -1) {
-    return { ok: false, validCount: 0, errors: ['لم يتم العثور على صف العناوين في ملف الاسترداد'], preview: [] };
+    return {
+      ok: false,
+      validCount: 0,
+      errors: ['لم يتم العثور على صف العناوين في ملف الاسترداد'],
+      preview: [],
+    };
   }
 
   const headers = allRows[headerRowIdx].map((h) => String(h || '').trim());
-  let skuIdx = findHeaderIndex(headers, codeAliases);
-  let qtyIdx = findHeaderIndex(headers, qtyAliases);
-  let warehouseIdx = findHeaderIndex(headers, warehouseAliases);
+  const skuIdx = findHeaderIndex(headers, codeAliases);
+  const qtyIdx = findHeaderIndex(headers, qtyAliases);
+  const warehouseIdx = findHeaderIndex(headers, warehouseAliases);
 
   if (skuIdx === -1 || qtyIdx === -1) {
-    return { ok: false, validCount: 0, errors: ['أعمدة SKU والكمية غير مكتملة أو غير صحيحة'], preview: [] };
+    return {
+      ok: false,
+      validCount: 0,
+      errors: ['أعمدة SKU والكمية غير مكتملة أو غير صحيحة'],
+      preview: [],
+    };
   }
 
   const dataRows = allRows.slice(headerRowIdx + 1);
@@ -358,7 +396,12 @@ export const validateReturnExcel = async (buffer) => {
 
     validCount++;
     if (preview.length < 5) {
-      preview.push({ sku, product_name: productRes.rows[0].name_ar, warehouse_name: warehouseName, quantity: qty });
+      preview.push({
+        sku,
+        product_name: productRes.rows[0].name_ar,
+        warehouse_name: warehouseName,
+        quantity: qty,
+      });
     }
   }
 

@@ -21,7 +21,10 @@
               v-if="toast.onUndo"
               class="toast-undo"
               type="button"
-              @click="toast.onUndo(); removeToast(toast.id)"
+              @click="
+                toast.onUndo();
+                removeToast(toast.id);
+              "
             >
               تراجع
             </button>
@@ -35,7 +38,12 @@
           />
 
           <!-- Close -->
-          <button class="toast-close" type="button" @click="removeToast(toast.id)" aria-label="إغلاق">
+          <button
+            class="toast-close"
+            type="button"
+            @click="removeToast(toast.id)"
+            aria-label="إغلاق"
+          >
             <AppIcon name="close" :size="14" />
           </button>
         </div>
@@ -55,9 +63,9 @@ const removeToast = (id) => appStore.removeToast(id);
 const toastIcon = (type) => {
   const map = {
     success: 'check',
-    error:   'warning',
+    error: 'warning',
     warning: 'warning',
-    info:    'copilot',
+    info: 'copilot',
   };
   return map[type] || 'copilot';
 };
@@ -76,7 +84,9 @@ const toastIcon = (type) => {
   max-width: min(380px, calc(100vw - 32px));
 }
 
-.toast-list { display: contents; }
+.toast-list {
+  display: contents;
+}
 
 .toast-item {
   position: relative;
@@ -92,10 +102,18 @@ const toastIcon = (type) => {
   overflow: hidden;
   min-width: 280px;
 
-  &.toast-success { border-color: color-mix(in srgb, var(--success) 35%, var(--border)); }
-  &.toast-error   { border-color: color-mix(in srgb, var(--danger)  35%, var(--border)); }
-  &.toast-warning { border-color: color-mix(in srgb, var(--warning) 35%, var(--border)); }
-  &.toast-info    { border-color: color-mix(in srgb, var(--primary) 35%, var(--border)); }
+  &.toast-success {
+    border-color: color-mix(in srgb, var(--success) 35%, var(--border));
+  }
+  &.toast-error {
+    border-color: color-mix(in srgb, var(--danger) 35%, var(--border));
+  }
+  &.toast-warning {
+    border-color: color-mix(in srgb, var(--warning) 35%, var(--border));
+  }
+  &.toast-info {
+    border-color: color-mix(in srgb, var(--primary) 35%, var(--border));
+  }
 }
 
 .toast-icon {
@@ -106,10 +124,22 @@ const toastIcon = (type) => {
   display: grid;
   place-items: center;
 
-  .toast-success & { background: color-mix(in srgb, var(--success) 12%, transparent); color: var(--success); }
-  .toast-error   & { background: color-mix(in srgb, var(--danger)  12%, transparent); color: var(--danger); }
-  .toast-warning & { background: color-mix(in srgb, var(--warning) 12%, transparent); color: var(--warning); }
-  .toast-info    & { background: color-mix(in srgb, var(--primary) 12%, transparent); color: var(--primary); }
+  .toast-success & {
+    background: color-mix(in srgb, var(--success) 12%, transparent);
+    color: var(--success);
+  }
+  .toast-error & {
+    background: color-mix(in srgb, var(--danger) 12%, transparent);
+    color: var(--danger);
+  }
+  .toast-warning & {
+    background: color-mix(in srgb, var(--warning) 12%, transparent);
+    color: var(--warning);
+  }
+  .toast-info & {
+    background: color-mix(in srgb, var(--primary) 12%, transparent);
+    color: var(--primary);
+  }
 }
 
 .toast-body {
@@ -138,7 +168,9 @@ const toastIcon = (type) => {
   padding: 0;
   text-decoration: underline;
 
-  &:hover { opacity: 0.75; }
+  &:hover {
+    opacity: 0.75;
+  }
 }
 
 .toast-close {
@@ -154,7 +186,10 @@ const toastIcon = (type) => {
   flex-shrink: 0;
   transition: all 0.15s;
 
-  &:hover { background: var(--border); color: var(--text); }
+  &:hover {
+    background: var(--border);
+    color: var(--text);
+  }
 }
 
 /* Progress bar */
@@ -168,15 +203,27 @@ const toastIcon = (type) => {
   transform-origin: right;
   animation: toast-shrink linear forwards;
 
-  .toast-success & { background: var(--success); }
-  .toast-error   & { background: var(--danger); }
-  .toast-warning & { background: var(--warning); }
-  .toast-info    & { background: var(--primary); }
+  .toast-success & {
+    background: var(--success);
+  }
+  .toast-error & {
+    background: var(--danger);
+  }
+  .toast-warning & {
+    background: var(--warning);
+  }
+  .toast-info & {
+    background: var(--primary);
+  }
 }
 
 @keyframes toast-shrink {
-  from { transform: scaleX(1); }
-  to   { transform: scaleX(0); }
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
 }
 
 /* ── Transitions ──────────────────────────────────────────────── */

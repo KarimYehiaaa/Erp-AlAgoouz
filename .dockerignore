@@ -1,0 +1,10 @@
+node_modules
+.git
+*.md
+.env*
+logs/
+dist/
+.gemini/
+.agents/
+backups/
+*.log

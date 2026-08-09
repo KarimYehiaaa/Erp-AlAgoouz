@@ -16,7 +16,7 @@ const customFormat = winston.format.combine(
   winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
   winston.format.errors({ stack: true }),
   winston.format.splat(),
-  winston.format.json()
+  winston.format.json(),
 );
 
 const consoleFormat = winston.format.combine(
@@ -31,14 +31,14 @@ const consoleFormat = winston.format.combine(
       return `[${timestamp}] ${level}: ${message}\nStack: ${stack}`;
     }
     return `[${timestamp}] ${level}: ${message}`;
-  })
+  }),
 );
 
 // Daily Rotate File Transports (Only if not running on Vercel)
 const transports = [
   new winston.transports.Console({
     format: consoleFormat,
-  })
+  }),
 ];
 
 if (!isVercel) {
@@ -57,7 +57,7 @@ if (!isVercel) {
       zippedArchive: true,
       maxSize: '20m',
       maxFiles: '14d',
-    })
+    }),
   );
 }
 

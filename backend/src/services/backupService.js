@@ -1,238 +1,328 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { query, getClient } from '../database/pool.js';
-import { AppError } from '../middleware/errorHandler.js';
+import { AppError } from '../types/errors.js';
 import { encrypt, decrypt } from '../utils/crypto.js';
 
 const BACKUP_DIR = path.join(process.cwd(), 'backups');
 
 const resolveBackupFilePath = (name) => {
-    const rawName = String(name || '');
-    const fileName = path.basename(rawName);
+  const rawName = String(name || '');
+  const fileName = path.basename(rawName);
 
-    if (!fileName || fileName !== rawName || fileName.includes('..') || !fileName.endsWith('.json')) {
-        throw new AppError('Invalid backup file name', 400);
-    }
+  if (!fileName || fileName !== rawName || fileName.includes('..') || !fileName.endsWith('.json')) {
+    throw new AppError('Invalid backup file name', 400);
+  }
 
-    const resolved = path.resolve(BACKUP_DIR, fileName);
-    const backupRoot = path.resolve(BACKUP_DIR) + path.sep;
-    if (!resolved.startsWith(backupRoot)) {
-        throw new AppError('Invalid backup file name', 400);
-    }
+  const resolved = path.resolve(BACKUP_DIR, fileName);
+  const backupRoot = path.resolve(BACKUP_DIR) + path.sep;
+  if (!resolved.startsWith(backupRoot)) {
+    throw new AppError('Invalid backup file name', 400);
+  }
 
-    return resolved;
+  return resolved;
 };
 
 export const CLEAR_DATA_TABLES = [
-    'sale_items',
+  'sale_items',
+  'sales',
+  'invoices',
+  'invoice_items',
+  'payments',
+  'inventory',
+  'stock_movements',
+  'expenses',
+  'purchase_invoice_items',
+  'purchase_invoices',
+];
+
+// BUG-03 FIX: قائمة بيضاء للجداول المسموح باستعادتها — يمنع SQL Injection
+const ALLOWED_RESTORE_TABLES = new Set([
+  'warehouses',
+  'roles',
+  'permissions',
+  'role_permissions',
+  'users',
+  'products',
+  'product_categories',
+  'customers',
+  'suppliers',
+  'expense_categories',
+  'product_recipes',
+  'product_recipe_items',
+  'sales',
+  'sale_items',
+  'invoices',
+  'invoice_items',
+  'payments',
+  'inventory',
+  'stock_movements',
+  'expenses',
+  'purchase_invoices',
+  'purchase_invoice_items',
+  'settings',
+  'activity_logs',
+  'stocktakes',
+  'stocktake_items',
+  'refresh_tokens',
+  'db_row_audits',
+  'product_units',
+  'inventory_cost_layers',
+  'inventory_cost_layer_consumptions',
+  'notifications',
+  'employee_shifts',
+  'employees',
+  'employee_attendance',
+  'employee_advances',
+  'payroll_runs',
+  'payroll_items',
+]);
+
+// Ordered list to respect foreign-key dependencies when restoring
+const RESTORE_ORDER = [
+  // Master / lookup tables first
+  'warehouses',
+  'roles',
+  'permissions',
+  'role_permissions',
+  'users',
+  'product_categories',
+  'products',
+  'customers',
+  'suppliers',
+  'expense_categories',
+  // Shifts and employees
+  'employee_shifts',
+  'employees',
+  // Recipes depend on products
+  'product_recipes',
+  'product_recipe_items',
+  // Purchase -> invoice items
+  'purchase_invoices',
+  'purchase_invoice_items',
+  // Sales and invoices
+  'sales',
+  'sale_items',
+  'invoices',
+  'invoice_items',
+  'payments',
+  // Inventory & movements
+  'inventory',
+  'stock_movements',
+  'expenses',
+  // HR transaction tables (depend on employees and expenses)
+  'employee_attendance',
+  'employee_advances',
+  'payroll_runs',
+  'payroll_items',
+  // System
+  'settings',
+  'activity_logs',
+  'refresh_tokens',
+  'db_row_audits',
+  'notifications',
+  'product_units',
+  'inventory_cost_layers',
+  'inventory_cost_layer_consumptions',
+  'stocktakes',
+  'stocktake_items',
+];
+
+const ensureDir = async () => {
+  try {
+    await fs.mkdir(BACKUP_DIR, { recursive: true });
+  } catch (_) {}
+};
+
+export const createBackup = async () => {
+  await ensureDir();
+  // BUG-18 FIX: شمل جميع الجداول الحيوية في النسخة الاحتياطية
+  const tables = [
+    // Master data
+    'warehouses',
+    'roles',
+    'permissions',
+    'role_permissions',
+    'users',
+    'products',
+    'product_categories',
+    'customers',
+    'suppliers',
+    'expense_categories',
+    'product_recipes',
+    'product_recipe_items',
+    'employee_shifts',
+    'employees',
+    // Transactional data
     'sales',
+    'sale_items',
     'invoices',
     'invoice_items',
     'payments',
     'inventory',
     'stock_movements',
     'expenses',
-    'purchase_invoice_items',
     'purchase_invoices',
-];
-
-// BUG-03 FIX: قائمة بيضاء للجداول المسموح باستعادتها — يمنع SQL Injection
-const ALLOWED_RESTORE_TABLES = new Set([
-    'warehouses', 'roles', 'permissions', 'role_permissions',
-    'users', 'products', 'product_categories', 'customers', 'suppliers',
-    'expense_categories', 'product_recipes', 'product_recipe_items',
-    'sales', 'sale_items', 'invoices', 'invoice_items',
-    'payments', 'inventory', 'stock_movements',
-    'expenses', 'purchase_invoices', 'purchase_invoice_items',
-    'settings', 'activity_logs',
-    'employee_shifts', 'employees', 'employee_attendance', 'employee_advances', 'payroll_runs', 'payroll_items',
-]);
-
-// Ordered list to respect foreign-key dependencies when restoring
-const RESTORE_ORDER = [
-    // Master / lookup tables first
-    'warehouses', 'roles', 'permissions', 'role_permissions',
-    'users', 'product_categories', 'products', 'customers', 'suppliers',
-    'expense_categories',
-    // Shifts and employees
-    'employee_shifts', 'employees',
-    // Recipes depend on products
-    'product_recipes', 'product_recipe_items',
-    // Purchase -> invoice items
-    'purchase_invoices', 'purchase_invoice_items',
-    // Sales and invoices
-    'sales', 'sale_items', 'invoices', 'invoice_items',
-    'payments',
-    // Inventory & movements
-    'inventory', 'stock_movements',
-    'expenses',
-    // HR transaction tables (depend on employees and expenses)
-    'employee_attendance', 'employee_advances', 'payroll_runs', 'payroll_items',
+    'purchase_invoice_items',
+    'employee_attendance',
+    'employee_advances',
+    'payroll_runs',
+    'payroll_items',
     // System
-    'settings', 'activity_logs',
-];
+    'settings',
+    'activity_logs',
+    'refresh_tokens',
+    'db_row_audits',
+    'notifications',
+    'product_units',
+    'inventory_cost_layers',
+    'inventory_cost_layer_consumptions',
+    'stocktakes',
+    'stocktake_items',
+  ];
+  const out = {};
+  for (const t of tables) {
+    const res = await query(`SELECT * FROM ${t}`);
+    out[t] = res.rows;
+  }
+  const rawPayload = JSON.stringify({ meta: { created_at: new Date().toISOString() }, data: out });
+  const encryptedPayload = encrypt(rawPayload);
+  const backupJson = JSON.stringify({ encrypted: true, payload: encryptedPayload });
 
-
-const ensureDir = async () => {
-    try { await fs.mkdir(BACKUP_DIR, { recursive: true }); } catch (_) { }
-};
-
-export const createBackup = async () => {
-    await ensureDir();
-    // BUG-18 FIX: شمل جميع الجداول الحيوية في النسخة الاحتياطية
-    const tables = [
-        // Master data
-        'warehouses', 'roles', 'permissions', 'role_permissions',
-        'users', 'products', 'product_categories', 'customers', 'suppliers',
-        'expense_categories', 'product_recipes', 'product_recipe_items',
-        'employee_shifts', 'employees',
-        // Transactional data
-        'sales', 'sale_items', 'invoices', 'invoice_items',
-        'payments', 'inventory', 'stock_movements',
-        'expenses', 'purchase_invoices', 'purchase_invoice_items',
-        'employee_attendance', 'employee_advances', 'payroll_runs', 'payroll_items',
-        // System
-        'settings', 'activity_logs',
-    ];
-    const out = {};
-    for (const t of tables) {
-        const res = await query(`SELECT * FROM ${t}`);
-        out[t] = res.rows;
-    }
-    const rawPayload = JSON.stringify({ meta: { created_at: new Date().toISOString() }, data: out });
-    const encryptedPayload = encrypt(rawPayload);
-    const backupJson = JSON.stringify({ encrypted: true, payload: encryptedPayload });
-
-    const fileName = `backup-${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
-    const filePath = path.join(BACKUP_DIR, fileName);
-    await fs.writeFile(filePath, backupJson, 'utf8');
-    return { file: fileName, path: filePath };
+  const fileName = `backup-${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
+  const filePath = path.join(BACKUP_DIR, fileName);
+  await fs.writeFile(filePath, backupJson, 'utf8');
+  return { file: fileName, path: filePath };
 };
 
 export const listBackups = async () => {
-    await ensureDir();
-    const files = await fs.readdir(BACKUP_DIR);
-    const backupFiles = files.filter((f) => f.endsWith('.json'));
-    const stats = await Promise.all(backupFiles.map(async (f) => {
-        const st = await fs.stat(path.join(BACKUP_DIR, f));
-        return { name: f, size: st.size, mtime: st.mtime };
-    }));
-    return stats.sort((a, b) => b.mtime - a.mtime);
+  await ensureDir();
+  const files = await fs.readdir(BACKUP_DIR);
+  const backupFiles = files.filter((f) => f.endsWith('.json'));
+  const stats = await Promise.all(
+    backupFiles.map(async (f) => {
+      const st = await fs.stat(path.join(BACKUP_DIR, f));
+      return { name: f, size: st.size, mtime: st.mtime };
+    }),
+  );
+  return stats.sort((a, b) => b.mtime - a.mtime);
 };
 
 export const downloadBackupPath = async (name) => {
-    const p = resolveBackupFilePath(name);
-    try { await fs.access(p); return p; } catch (e) { throw new AppError('النسخة غير موجودة', 404); }
+  const p = resolveBackupFilePath(name);
+  try {
+    await fs.access(p);
+    return p;
+  } catch (e) {
+    throw new AppError('النسخة غير موجودة', 404);
+  }
 };
 
 export const clearAllData = async () => {
-    // destructive: truncate operational data (keep settings, users, products, and recipes)
-    const client = await getClient();
-    let replicationRoleChanged = false;
+  // destructive: truncate operational data (keep settings, users, products, and recipes)
+  const client = await getClient();
+  const replicationRoleChanged = false;
+  try {
+    await client.query('BEGIN');
+    // Temporarily disable triggers/constraints that are enforced by triggers
+    // This helps importing data that may violate business-enforced triggers
+    // during a direct restore. Will be automatically reset when transaction ends.
     try {
-        await client.query('BEGIN');
-        // Temporarily disable triggers/constraints that are enforced by triggers
-        // This helps importing data that may violate business-enforced triggers
-        // during a direct restore. Will be reset back to 'origin' after restore.
-        try {
-            await client.query("SET session_replication_role = 'replica'");
-            replicationRoleChanged = true;
-        } catch (e) {
-            // If we cannot change role, continue and rely on careful ordering
-            console.warn('[Restore] could not set session_replication_role, continuing with triggers enabled');
-        }
-        for (const t of CLEAR_DATA_TABLES) {
-            await client.query(`TRUNCATE TABLE ${t} RESTART IDENTITY CASCADE`);
-        }
-        await client.query('COMMIT');
-        return { cleared: CLEAR_DATA_TABLES.length };
+      await client.query("SET LOCAL session_replication_role = 'replica'");
     } catch (e) {
-        await client.query('ROLLBACK');
-        throw e;
-    } finally {
-        if (replicationRoleChanged) {
-            try { await client.query("SET session_replication_role = 'origin'"); } catch (_) { }
-        }
-        client.release();
+      // If we cannot change role, continue and rely on careful ordering
+      console.warn(
+        '[Restore] could not set session_replication_role, continuing with triggers enabled',
+      );
     }
+    for (const t of CLEAR_DATA_TABLES) {
+      await client.query(`TRUNCATE TABLE ${t} RESTART IDENTITY CASCADE`);
+    }
+    await client.query('COMMIT');
+    return { cleared: CLEAR_DATA_TABLES.length };
+  } catch (e) {
+    await client.query('ROLLBACK');
+    throw e;
+  } finally {
+    client.release();
+  }
 };
 
 export const restoreBackup = async (name) => {
-    const p = resolveBackupFilePath(name);
-    let content;
-    try { content = await fs.readFile(p, 'utf8'); } catch (e) { throw new AppError('النسخة غير موجودة', 404); }
-    let parsed = JSON.parse(content);
-    if (parsed && parsed.encrypted) {
-        try {
-            const decrypted = decrypt(parsed.payload);
-            parsed = JSON.parse(decrypted);
-        } catch (err) {
-            throw new AppError('فشل فك تشفير النسخة الاحتياطية. قد يكون مفتاح التشفير غير صحيح.', 400);
-        }
-    }
-    const data = parsed.data || {};
-    // Choose tables in a dependency-safe order (only those present in the backup)
-    const restoreTables = RESTORE_ORDER.filter((t) => ALLOWED_RESTORE_TABLES.has(t) && Object.prototype.hasOwnProperty.call(data, t));
-    // build helper maps from backup data to fix business-rule-sensitive rows during restore
-    const productPrimaryMap = new Map();
-    if (Array.isArray(data.products)) {
-        for (const p of data.products) {
-            if (p && typeof p.id !== 'undefined') productPrimaryMap.set(p.id, p.primary_warehouse_id || null);
-        }
-    }
-    const client = await getClient();
-    let replicationRoleChanged = false;
+  const p = resolveBackupFilePath(name);
+  let content;
+  try {
+    content = await fs.readFile(p, 'utf8');
+  } catch (e) {
+    throw new AppError('النسخة غير موجودة', 404);
+  }
+  let parsed = JSON.parse(content);
+  if (parsed && parsed.encrypted) {
     try {
-        await client.query('BEGIN');
-        try {
-            await client.query("SET session_replication_role = 'replica'");
-            replicationRoleChanged = true;
-        } catch (e) {
-            console.warn('[Restore] could not set session_replication_role, continuing with triggers enabled');
-        }
-        for (const table of [...restoreTables].reverse()) {
-            await client.query(`TRUNCATE TABLE ${table} RESTART IDENTITY CASCADE`);
-        }
-        for (const table of restoreTables) {
-            const rows = data[table];
-            // BUG-03 FIX: رفض أي جدول غير موجود في القائمة البيضاء — يمنع SQL Injection
-            if (!ALLOWED_RESTORE_TABLES.has(table)) {
-                console.warn(`[Restore] تجاهل جدول غير مصرح به: ${table}`);
-                continue;
-            }
-            if (!Array.isArray(rows) || rows.length === 0) continue;
-            // فقط الأعمدة التي تحتوي أسماء SQL آمنة (حروف وأرقام وشرطة سفلية)
-            const cols = Object.keys(rows[0]).filter(c => /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(c));
-            const colList = cols.map((c) => `"${c}"`).join(',');
-            for (const row of rows) {
-                // Fix production output movements to use product primary warehouse if present
-                if (table === 'stock_movements' && row && row.movement_type === 'production') {
-                    const prodId = row.product_id;
-                    const primaryWh = productPrimaryMap.get(prodId);
-                    if (primaryWh && row.to_warehouse_id !== primaryWh) {
-                        row.to_warehouse_id = primaryWh;
-                    }
-                }
-                const vals = cols.map((c) => row[c]);
-                const params = vals.map((_, i) => `$${i + 1}`).join(',');
-                try {
-                    await client.query(`INSERT INTO ${table} (${colList}) VALUES (${params})`, vals);
-                } catch (err) {
-                    console.warn(`[Restore] failed insert into ${table}:`, err.message);
-                    // continue with other rows to recover as much as possible
-                    continue;
-                }
-            }
-        }
-        await client.query('COMMIT');
-        return { restored: restoreTables.length };
-    } catch (e) {
-        await client.query('ROLLBACK');
-        throw e;
-    } finally {
-        if (replicationRoleChanged) {
-            try { await client.query("SET session_replication_role = 'origin'"); } catch (_) { }
-        }
-        client.release();
+      const decrypted = decrypt(parsed.payload);
+      parsed = JSON.parse(decrypted);
+    } catch (err) {
+      throw new AppError('فشل فك تشفير النسخة الاحتياطية. قد يكون مفتاح التشفير غير صحيح.', 400);
     }
+  }
+  const data = parsed.data || {};
+  // Choose tables in a dependency-safe order (only those present in the backup)
+  const restoreTables = RESTORE_ORDER.filter(
+    (t) => ALLOWED_RESTORE_TABLES.has(t) && Object.prototype.hasOwnProperty.call(data, t),
+  );
+  // build helper maps from backup data to fix business-rule-sensitive rows during restore
+  const productPrimaryMap = new Map();
+  if (Array.isArray(data.products)) {
+    for (const p of data.products) {
+      if (p && typeof p.id !== 'undefined')
+        productPrimaryMap.set(p.id, p.primary_warehouse_id || null);
+    }
+  }
+  const client = await getClient();
+  const replicationRoleChanged = false;
+  try {
+    await client.query('BEGIN');
+    try {
+      await client.query("SET LOCAL session_replication_role = 'replica'");
+    } catch (e) {
+      console.warn(
+        '[Restore] could not set session_replication_role, continuing with triggers enabled',
+      );
+    }
+    for (const table of [...restoreTables].reverse()) {
+      await client.query(`TRUNCATE TABLE ${table} RESTART IDENTITY CASCADE`);
+    }
+    for (const table of restoreTables) {
+      const rows = data[table];
+      // BUG-03 FIX: رفض أي جدول غير موجود في القائمة البيضاء — يمنع SQL Injection
+      if (!ALLOWED_RESTORE_TABLES.has(table)) {
+        console.warn(`[Restore] تجاهل جدول غير مصرح به: ${table}`);
+        continue;
+      }
+      if (!Array.isArray(rows) || rows.length === 0) continue;
+      // فقط الأعمدة التي تحتوي أسماء SQL آمنة (حروف وأرقام وشرطة سفلية)
+      const cols = Object.keys(rows[0]).filter((c) => /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(c));
+      const colList = cols.map((c) => `"${c}"`).join(',');
+      for (const row of rows) {
+        // Fix production output movements to use product primary warehouse if present
+        if (table === 'stock_movements' && row && row.movement_type === 'production') {
+          const prodId = row.product_id;
+          const primaryWh = productPrimaryMap.get(prodId);
+          if (primaryWh && row.to_warehouse_id !== primaryWh) {
+            row.to_warehouse_id = primaryWh;
+          }
+        }
+        const vals = cols.map((c) => row[c]);
+        const params = vals.map((_, i) => `$${i + 1}`).join(',');
+        await client.query(`INSERT INTO ${table} (${colList}) VALUES (${params})`, vals);
+      }
+    }
+    await client.query('COMMIT');
+    return { restored: restoreTables.length };
+  } catch (e) {
+    await client.query('ROLLBACK');
+    throw e;
+  } finally {
+    client.release();
+  }
 };

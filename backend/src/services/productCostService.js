@@ -6,30 +6,32 @@ import { roundMoney } from '../utils/money.js';
 export const UNIT_ALIASES = {
   kg: 'kg',
   kilo: 'kg',
-  'كيلو': 'kg',
-  'كجم': 'kg',
-  'جرام': 'g',
+  كيلو: 'kg',
+  كجم: 'kg',
+  جرام: 'g',
   g: 'g',
   gram: 'g',
-  'g': 'g',
   l: 'l',
   liter: 'l',
   litre: 'l',
-  'لتر': 'l',
+  لتر: 'l',
   ml: 'ml',
   milli: 'ml',
-  'مل': 'ml',
+  مل: 'ml',
   count: 'count',
   unit: 'count',
   piece: 'count',
   pieces: 'count',
-  'عدد': 'count',
-  'قطعة': 'count',
+  عدد: 'count',
+  قطعة: 'count',
 };
 
-
-
-export const normalizeUnit = (u) => UNIT_ALIASES[String(u || '').trim().toLowerCase()] || null;
+export const normalizeUnit = (u) =>
+  UNIT_ALIASES[
+    String(u || '')
+      .trim()
+      .toLowerCase()
+  ] || null;
 
 export const convertQty = (qty, fromUnit, toUnit) => {
   if (fromUnit === toUnit) return qty;
@@ -59,7 +61,11 @@ export const calculateRecipeCost = (items = []) => {
       totalCost += qty * Number(item.ingredient_unit_price || 0);
       continue;
     }
-    const unitPrice = unitPriceFor(item.ingredient_purchase_price, item.ingredient_unit, item.unit_code);
+    const unitPrice = unitPriceFor(
+      item.ingredient_purchase_price,
+      item.ingredient_unit,
+      item.unit_code,
+    );
     if (unitPrice == null) continue;
     totalCost += qty * unitPrice;
   }
@@ -88,7 +94,7 @@ export const getProductsEffectiveCosts = async (db, productIds = []) => {
   if (pendingIds.length > 0) {
     // 1. Fetch all products base data
     const prodRes = await db.query(
-      `SELECT id, purchase_price, unit FROM products WHERE deleted_at IS NULL`
+      `SELECT id, purchase_price, unit FROM products WHERE deleted_at IS NULL`,
     );
     const productMap = new Map();
     for (const r of prodRes.rows) {
@@ -106,9 +112,9 @@ export const getProductsEffectiveCosts = async (db, productIds = []) => {
        FROM product_recipes r
        JOIN product_recipe_items ri ON ri.recipe_id = r.id
        JOIN products ip ON ip.id = ri.ingredient_product_id
-       WHERE r.deleted_at IS NULL AND r.is_active = TRUE`
+       WHERE r.deleted_at IS NULL AND r.is_active = TRUE`,
     );
-    
+
     const recipeMap = new Map();
     for (const item of recipeItemsRes.rows) {
       const parentId = Number(item.parent_product_id);
@@ -126,7 +132,7 @@ export const getProductsEffectiveCosts = async (db, productIds = []) => {
       const normalizedIdVal = normalizeId(id);
       if (!normalizedIdVal) return { cost: 0, source: 'purchase_price' };
       if (resolvedCache.has(normalizedIdVal)) return resolvedCache.get(normalizedIdVal);
-      
+
       if (stack.has(normalizedIdVal)) {
         // Break circular dependency, fallback to base price
         const base = productMap.get(normalizedIdVal);

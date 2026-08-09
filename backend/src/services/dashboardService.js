@@ -3,7 +3,6 @@ import { getOpeningBalanceForDate } from './openingBalanceService.js';
 import { appCache } from '../utils/cache.js';
 import { roundMoney, toNumber } from '../utils/money.js';
 
-
 const formatDate = (date) => {
   const yyyy = date.getFullYear();
   const mm = String(date.getMonth() + 1).padStart(2, '0');
@@ -101,7 +100,8 @@ const _setCached = (key, data) => {
 let _lastInvalidated = 0;
 export const invalidateDashboardCache = () => {
   const now = Date.now();
-  if (now - _lastInvalidated > 30000) { // بحد أقصى مرة واحدة كل 30 ثانية
+  if (now - _lastInvalidated > 30000) {
+    // بحد أقصى مرة واحدة كل 30 ثانية
     _dashboardCache.clear();
     appCache.invalidateByTag('pl_report');
     appCache.invalidateByTag('product_cost');
@@ -113,12 +113,14 @@ const _computeDashboardStats = async (filters = {}) => {
   const period = getPeriod(filters);
   const grouping = period.grouping || 'day';
   const interval = grouping === 'month' ? '1 month' : '1 day';
-  const salesJoin = grouping === 'month'
-    ? "date_trunc('month', s.sale_date) = date_trunc('month', d::date)"
-    : "s.sale_date = d::date";
-  const expenseJoin = grouping === 'month'
-    ? "date_trunc('month', e.expense_date) = date_trunc('month', d::date)"
-    : "e.expense_date = d::date";
+  const salesJoin =
+    grouping === 'month'
+      ? "date_trunc('month', s.sale_date) = date_trunc('month', d::date)"
+      : 's.sale_date = d::date';
+  const expenseJoin =
+    grouping === 'month'
+      ? "date_trunc('month', e.expense_date) = date_trunc('month', d::date)"
+      : 'e.expense_date = d::date';
 
   // BUG FIX: استخدام التاريخ الحالي للخادم كالشهر الحالي بدلاً من MAX(month_date) لمنع تداخل الشهور أو بقاء لوحة التحكم عالقة في الشهر السابق عند بدء شهر جديد.
   const currentMonthDate = new Date();
@@ -153,20 +155,20 @@ const _computeDashboardStats = async (filters = {}) => {
          AND deleted_at IS NULL
          AND status = 'completed'
        GROUP BY sale_type`,
-      [currentMonth.start, currentMonth.end]
+      [currentMonth.start, currentMonth.end],
     ),
     query(
       `SELECT COALESCE(SUM(amount),0) AS total, COUNT(*)::int AS count
        FROM expenses
        WHERE expense_date BETWEEN $1::date AND $2::date AND deleted_at IS NULL`,
-      [currentMonth.start, currentMonth.end]
+      [currentMonth.start, currentMonth.end],
     ),
     query(
       `SELECT COALESCE(SUM(total_amount),0) AS total, COUNT(*)::int AS count
        FROM purchase_invoices
        WHERE invoice_date BETWEEN $1::date AND $2::date
          AND deleted_at IS NULL`,
-      [currentMonth.start, currentMonth.end]
+      [currentMonth.start, currentMonth.end],
     ),
     query(
       `SELECT COALESCE(SUM(total_amount),0) AS total,
@@ -175,13 +177,13 @@ const _computeDashboardStats = async (filters = {}) => {
               COUNT(*)::int AS count
        FROM sales
        WHERE sale_date = $1::date AND deleted_at IS NULL AND status = 'completed'`,
-      [period.today]
+      [period.today],
     ),
     query(
       `SELECT COALESCE(SUM(amount),0) AS total, COUNT(*)::int AS count
        FROM expenses
        WHERE expense_date = $1::date AND deleted_at IS NULL`,
-      [period.today]
+      [period.today],
     ),
     query(
       `SELECT COALESCE(SUM(total_amount),0) AS total,
@@ -190,20 +192,20 @@ const _computeDashboardStats = async (filters = {}) => {
               COUNT(*)::int AS count
        FROM sales
        WHERE sale_date BETWEEN $1::date AND $2::date AND deleted_at IS NULL AND status = 'completed'`,
-      [period.start, period.end]
+      [period.start, period.end],
     ),
     query(
       `SELECT COALESCE(SUM(amount),0) AS total, COUNT(*)::int AS count
        FROM expenses
        WHERE expense_date BETWEEN $1::date AND $2::date AND deleted_at IS NULL`,
-      [period.start, period.end]
+      [period.start, period.end],
     ),
     query(
       `SELECT COALESCE(SUM(total_amount),0) AS total, COUNT(*)::int AS count
        FROM purchase_invoices
        WHERE invoice_date BETWEEN $1::date AND $2::date
          AND deleted_at IS NULL`,
-      [period.start, period.end]
+      [period.start, period.end],
     ),
     query(
       `SELECT COALESCE(SUM(total_amount),0) AS total,
@@ -212,27 +214,27 @@ const _computeDashboardStats = async (filters = {}) => {
               COUNT(*)::int AS count
        FROM sales
        WHERE sale_date BETWEEN $1::date AND $2::date AND deleted_at IS NULL AND status = 'completed'`,
-      [period.previousStart, period.previousEnd]
+      [period.previousStart, period.previousEnd],
     ),
     query(
       `SELECT COALESCE(SUM(amount),0) AS total, COUNT(*)::int AS count
        FROM expenses
        WHERE expense_date BETWEEN $1::date AND $2::date AND deleted_at IS NULL`,
-      [period.previousStart, period.previousEnd]
+      [period.previousStart, period.previousEnd],
     ),
     query(
       `SELECT COALESCE(SUM(total_amount),0) AS total, COUNT(*)::int AS count
        FROM purchase_invoices
        WHERE invoice_date BETWEEN $1::date AND $2::date
          AND deleted_at IS NULL`,
-      [period.previousStart, period.previousEnd]
+      [period.previousStart, period.previousEnd],
     ),
     query(
       `SELECT COALESCE(SUM(total_amount),0) AS total, COUNT(*)::int AS count
        FROM purchase_invoices
        WHERE invoice_date = $1::date
          AND deleted_at IS NULL`,
-      [period.today]
+      [period.today],
     ),
     query(
       `SELECT sale_type,
@@ -243,7 +245,7 @@ const _computeDashboardStats = async (filters = {}) => {
        WHERE sale_date BETWEEN $1::date AND $2::date AND deleted_at IS NULL AND status = 'completed'
        GROUP BY sale_type
        ORDER BY total DESC`,
-      [period.start, period.end]
+      [period.start, period.end],
     ),
     query(
       `SELECT payment_status,
@@ -252,25 +254,37 @@ const _computeDashboardStats = async (filters = {}) => {
        FROM sales
        WHERE sale_date BETWEEN $1::date AND $2::date AND deleted_at IS NULL AND status = 'completed'
        GROUP BY payment_status`,
-      [period.start, period.end]
+      [period.start, period.end],
     ),
     query(
       `SELECT COUNT(*)::int AS count,
-              COALESCE(SUM(
-                GREATEST(0, i.total_amount - COALESCE((
-                  SELECT SUM(amount)
-                  FROM payments
-                  WHERE reference_type = 'sale' AND reference_id = i.sale_id
-                ), 0))
-              ), 0) AS amount
-       FROM invoices i
-       JOIN sales s ON s.id = i.sale_id
-       WHERE i.payment_status IN ('unpaid','partial')
-         AND s.sale_type = 'wholesale'
-         AND i.deleted_at IS NULL
-         AND s.deleted_at IS NULL`
+              COALESCE(SUM(total_balance), 0) AS amount
+       FROM (
+         SELECT 
+           (COALESCE(c.opening_balance, 0) + 
+            COALESCE(cs.total_purchased, 0) - 
+            COALESCE(cs.total_paid, 0)
+           ) AS total_balance
+         FROM customers c
+         LEFT JOIN (
+             SELECT 
+                 s.customer_id,
+                 SUM(s.total_amount) AS total_purchased,
+                 SUM(
+                     COALESCE((SELECT SUM(amount) FROM payments WHERE reference_type = 'sale' AND reference_id = s.id), 0) +
+                     COALESCE((SELECT SUM(amount) FROM payments WHERE reference_type = 'invoice' AND reference_id IN (SELECT id FROM invoices WHERE sale_id = s.id)), 0)
+                 ) AS total_paid
+             FROM sales s
+             WHERE s.deleted_at IS NULL
+             GROUP BY s.customer_id
+         ) cs ON cs.customer_id = c.id
+         WHERE c.deleted_at IS NULL
+       ) t
+       WHERE t.total_balance > 0`,
     ),
-    query(`SELECT COUNT(*)::int AS count FROM customers WHERE deleted_at IS NULL AND is_active = TRUE`),
+    query(
+      `SELECT COUNT(*)::int AS count FROM customers WHERE deleted_at IS NULL AND is_active = TRUE`,
+    ),
   ]);
 
   // Batch 2: inventory + charts (queries مستقلة عن السياق الزمني في معظمها)
@@ -301,10 +315,12 @@ const _computeDashboardStats = async (filters = {}) => {
        FROM inventory i
        JOIN products p ON p.id = i.product_id
        LEFT JOIN layer_values lv ON lv.product_id = i.product_id AND lv.warehouse_id = i.warehouse_id
-       WHERE p.deleted_at IS NULL`
+       WHERE p.deleted_at IS NULL`,
     ),
     query(`SELECT COUNT(*)::int AS count FROM v_product_stock WHERE is_low_stock = TRUE`),
-    query(`SELECT * FROM v_product_stock WHERE is_low_stock = TRUE ORDER BY total_quantity ASC LIMIT 8`),
+    query(
+      `SELECT * FROM v_product_stock WHERE is_low_stock = TRUE ORDER BY total_quantity ASC LIMIT 8`,
+    ),
     query(
       `SELECT p.id, p.name_ar, p.sku,
               COALESCE(SUM(si.quantity),0) AS qty,
@@ -317,7 +333,7 @@ const _computeDashboardStats = async (filters = {}) => {
        GROUP BY p.id, p.name_ar, p.sku
        ORDER BY revenue DESC
        LIMIT 8`,
-      [period.start, period.end]
+      [period.start, period.end],
     ),
     query(
       `SELECT s.id, s.sale_number, s.sale_type, s.sale_date, s.total_amount, s.profit_amount,
@@ -326,14 +342,14 @@ const _computeDashboardStats = async (filters = {}) => {
        LEFT JOIN customers c ON c.id = s.customer_id
        WHERE s.deleted_at IS NULL
        ORDER BY s.created_at DESC
-       LIMIT 8`
+       LIMIT 8`,
     ),
     query(
       `SELECT al.action_ar, al.module, al.created_at, u.full_name
        FROM activity_logs al
        LEFT JOIN users u ON al.user_id = u.id
        ORDER BY al.created_at DESC
-       LIMIT 10`
+       LIMIT 10`,
     ),
     query(
       `SELECT date_trunc('${grouping}', d)::date AS date,
@@ -344,7 +360,7 @@ const _computeDashboardStats = async (filters = {}) => {
        LEFT JOIN sales s ON ${salesJoin} AND s.deleted_at IS NULL AND s.status = 'completed'
        GROUP BY date_trunc('${grouping}', d)::date
        ORDER BY date`,
-      [period.start, period.end]
+      [period.start, period.end],
     ),
     query(
       `SELECT date_trunc('${grouping}', d)::date AS date, COALESCE(SUM(e.amount),0) AS expenses
@@ -352,7 +368,7 @@ const _computeDashboardStats = async (filters = {}) => {
        LEFT JOIN expenses e ON ${expenseJoin} AND e.deleted_at IS NULL
        GROUP BY date_trunc('${grouping}', d)::date
        ORDER BY date`,
-      [period.start, period.end]
+      [period.start, period.end],
     ),
     query(
       `SELECT COALESCE(ec.name_ar, ':J1 E5FA') AS name_ar,
@@ -364,7 +380,7 @@ const _computeDashboardStats = async (filters = {}) => {
        GROUP BY ec.id, ec.name_ar
        ORDER BY total DESC
        LIMIT 6`,
-      [period.start, period.end]
+      [period.start, period.end],
     ),
     query(
       // إصلاح: توحيد مع inventoryStats — إزالة استثناء منتجات الوصفات
@@ -381,7 +397,7 @@ const _computeDashboardStats = async (filters = {}) => {
        WHERE p.deleted_at IS NULL
        GROUP BY p.id, p.name_ar
        ORDER BY value DESC
-       LIMIT 10`
+       LIMIT 10`,
     ),
   ]);
 
@@ -415,7 +431,7 @@ const _computeDashboardStats = async (filters = {}) => {
        LEFT JOIN layer_values lv ON lv.product_id = i.product_id AND lv.warehouse_id = i.warehouse_id
        WHERE w.deleted_at IS NULL
        GROUP BY w.id, w.name_ar
-       ORDER BY value DESC`
+       ORDER BY value DESC`,
     ),
     query(
       `SELECT c.id, c.name_ar, c.phone,
@@ -431,7 +447,7 @@ const _computeDashboardStats = async (filters = {}) => {
        GROUP BY c.id, c.name_ar, c.phone
        ORDER BY total_spent DESC
        LIMIT 8`,
-      [period.start, period.end]
+      [period.start, period.end],
     ),
     query(
       `SELECT COUNT(*)::int AS total,
@@ -454,7 +470,7 @@ const _computeDashboardStats = async (filters = {}) => {
          SELECT COUNT(*)::int AS items_count
          FROM product_recipe_items
          WHERE recipe_id = product_recipes.id
-       ) item_counts ON TRUE`
+       ) item_counts ON TRUE`,
     ),
     query(
       `SELECT r.id, r.name_ar, p.name_ar AS product_name,
@@ -475,7 +491,7 @@ const _computeDashboardStats = async (filters = {}) => {
        GROUP BY r.id, r.name_ar, p.name_ar
        ORDER BY revenue DESC, estimated_cost DESC
        LIMIT 8`,
-      [period.start, period.end]
+      [period.start, period.end],
     ),
     query(
       `SELECT r.id, r.name_ar AS recipe_name, p.name_ar AS product_name,
@@ -488,7 +504,7 @@ const _computeDashboardStats = async (filters = {}) => {
        GROUP BY r.id, r.name_ar, p.name_ar, ri.id, ri.quantity
        HAVING COALESCE(SUM(inv.quantity),0) < ri.quantity
        ORDER BY missing_ingredients DESC
-       LIMIT 8`
+       LIMIT 8`,
     ),
     query(
       `SELECT COALESCE(SUM(total_amount),0) AS total,
@@ -496,7 +512,7 @@ const _computeDashboardStats = async (filters = {}) => {
        FROM purchase_invoices
        WHERE invoice_date BETWEEN $1::date AND $2::date
          AND deleted_at IS NULL`,
-      [period.start, period.end]
+      [period.start, period.end],
     ),
     query(
       // الآن purchase_invoices لها supplier_id (migration 018) —
@@ -517,7 +533,7 @@ const _computeDashboardStats = async (filters = {}) => {
        WHERE s.deleted_at IS NULL
        GROUP BY s.id, s.name_ar, pay.total_paid
        ORDER BY total DESC
-       LIMIT 8`
+       LIMIT 8`,
     ),
     query(
       `SELECT COALESCE(pc.name_ar, 'غير مصنف') AS name_ar,
@@ -534,7 +550,7 @@ const _computeDashboardStats = async (filters = {}) => {
        GROUP BY pc.id, pc.name_ar
        ORDER BY profit DESC
        LIMIT 8`,
-      [period.start, period.end]
+      [period.start, period.end],
     ),
     query(
       `SELECT payment_method,
@@ -545,7 +561,7 @@ const _computeDashboardStats = async (filters = {}) => {
          AND reference_type != 'invoice'
        GROUP BY payment_method
        ORDER BY total DESC`,
-      [period.start, period.end]
+      [period.start, period.end],
     ),
     query(
       `SELECT movement_type,
@@ -555,7 +571,7 @@ const _computeDashboardStats = async (filters = {}) => {
        WHERE DATE(created_at) BETWEEN $1::date AND $2::date
        GROUP BY movement_type
        ORDER BY count DESC`,
-      [period.start, period.end]
+      [period.start, period.end],
     ),
     query(
       `SELECT EXTRACT(HOUR FROM sale_date + created_at::time)::int AS hour,
@@ -567,7 +583,7 @@ const _computeDashboardStats = async (filters = {}) => {
          AND status = 'completed'
        GROUP BY EXTRACT(HOUR FROM sale_date + created_at::time)
        ORDER BY hour ASC`,
-      [period.start, period.end]
+      [period.start, period.end],
     ),
   ]);
 
@@ -583,7 +599,8 @@ const _computeDashboardStats = async (filters = {}) => {
   const currentMonthExpensesRow = currentMonthExpenses.rows[0] || {};
   const currentMonthPurchasesRow = currentMonthPurchases.rows[0] || {};
   const currentMonthSaleRows = currentMonthSalesByType.rows || [];
-  const currentMonthSaleRow = (type) => currentMonthSaleRows.find((row) => row.sale_type === type) || {};
+  const currentMonthSaleRow = (type) =>
+    currentMonthSaleRows.find((row) => row.sale_type === type) || {};
   const currentMonthBranchSales = toNumber(currentMonthSaleRow('branch').total);
   const currentMonthWholesaleSales = toNumber(currentMonthSaleRow('wholesale').total);
   const currentMonthBranchCount = toNumber(currentMonthSaleRow('branch').count);
@@ -595,9 +612,18 @@ const _computeDashboardStats = async (filters = {}) => {
   const openingBalanceRow = await getOpeningBalanceForDate(currentMonthDate);
   const openingBalanceTotal = toNumber(openingBalanceRow.amount);
 
-  const periodCogs = toNumber(periodSalesRow.cost) > 0 ? toNumber(periodSalesRow.cost) : toNumber(periodPurchases.rows[0]?.total);
-  const previousCogs = toNumber(previousSalesRow.cost) > 0 ? toNumber(previousSalesRow.cost) : toNumber(previousPurchases.rows[0]?.total);
-  const todayCogs = toNumber(todaySalesRow.cost) > 0 ? toNumber(todaySalesRow.cost) : toNumber(todayPurchases.rows[0]?.total);
+  const periodCogs =
+    toNumber(periodSalesRow.cost) > 0
+      ? toNumber(periodSalesRow.cost)
+      : toNumber(periodPurchases.rows[0]?.total);
+  const previousCogs =
+    toNumber(previousSalesRow.cost) > 0
+      ? toNumber(previousSalesRow.cost)
+      : toNumber(previousPurchases.rows[0]?.total);
+  const todayCogs =
+    toNumber(todaySalesRow.cost) > 0
+      ? toNumber(todaySalesRow.cost)
+      : toNumber(todayPurchases.rows[0]?.total);
   const periodGrossProfit = roundMoney(toNumber(periodSalesRow.total) - periodCogs);
   const previousGrossProfit = roundMoney(toNumber(previousSalesRow.total) - previousCogs);
   const todayGrossProfit = roundMoney(toNumber(todaySalesRow.total) - todayCogs);
@@ -606,11 +632,21 @@ const _computeDashboardStats = async (filters = {}) => {
   const netProfit = roundMoney(periodGrossProfit - toNumber(periodExpensesRow.total));
   const previousNetProfit = roundMoney(previousGrossProfit - toNumber(previousExpensesRow.total));
   const todayNet = roundMoney(todayGrossProfit - toNumber(todayExpensesRow.total));
-  const collectionRate = toNumber(periodSalesRow.total) > 0
-    ? roundMoney(((toNumber(periodSalesRow.total) - toNumber(unpaidInvoices.rows[0]?.amount)) / toNumber(periodSalesRow.total)) * 100)
-    : 100;
+  const collectionRate =
+    toNumber(periodSalesRow.total) > 0
+      ? roundMoney(
+          ((toNumber(periodSalesRow.total) - toNumber(unpaidInvoices.rows[0]?.amount)) /
+            toNumber(periodSalesRow.total)) *
+            100,
+        )
+      : 100;
   const unpaidAmount = roundMoney(unpaidInvoices.rows[0]?.amount);
-  const cashFlowMonth = roundMoney(openingBalanceTotal + toNumber(periodSalesRow.total) - toNumber(periodExpensesRow.total) - toNumber(purchaseSummaryRow.total));
+  const cashFlowMonth = roundMoney(
+    openingBalanceTotal +
+      toNumber(periodSalesRow.total) -
+      toNumber(periodExpensesRow.total) -
+      toNumber(purchaseSummaryRow.total),
+  );
   const realIncomeMonth = roundMoney(cashFlowMonth - unpaidAmount);
 
   const periodPayload = {
@@ -666,7 +702,12 @@ const _computeDashboardStats = async (filters = {}) => {
       purchases: roundMoney(currentMonthPurchasesTotal),
       purchasesCount: toNumber(currentMonthPurchasesRow.count),
       openingBalance: roundMoney(openingBalanceTotal),
-      cashNet: roundMoney(openingBalanceTotal + currentMonthTotalSales - currentMonthPurchasesTotal - currentMonthExpensesTotal),
+      cashNet: roundMoney(
+        openingBalanceTotal +
+          currentMonthTotalSales -
+          currentMonthPurchasesTotal -
+          currentMonthExpensesTotal,
+      ),
     },
     salesByType: salesByType.rows,
     paymentSummary: paymentSummary.rows,
@@ -711,10 +752,18 @@ const _computeDashboardStats = async (filters = {}) => {
     peakHours: peakHours.rows,
 
     dailySales: { total: roundMoney(todaySalesRow.total), count: toNumber(todaySalesRow.count) },
-    monthlySales: { total: periodPayload.sales, profit: periodPayload.grossProfit, count: periodPayload.salesCount },
+    monthlySales: {
+      total: periodPayload.sales,
+      profit: periodPayload.grossProfit,
+      count: periodPayload.salesCount,
+    },
     todayProfit: roundMoney(todaySalesRow.profit),
     monthlyExpenses: periodPayload.expenses,
-    retailMonthly: roundMoney(salesByType.rows.filter((r) => r.sale_type !== 'wholesale').reduce((sum, r) => sum + toNumber(r.total), 0)),
+    retailMonthly: roundMoney(
+      salesByType.rows
+        .filter((r) => r.sale_type !== 'wholesale')
+        .reduce((sum, r) => sum + toNumber(r.total), 0),
+    ),
     wholesaleMonthly: roundMoney(salesByType.rows.find((r) => r.sale_type === 'wholesale')?.total),
     avgDailySalesMonth: periodPayload.avgDailySales,
     cashFlowMonth,

@@ -10,7 +10,25 @@
     "update": "node scripts/update-project.js",
     "pm2:start": "pm2 start ecosystem.config.cjs",
     "pm2:stop": "pm2 stop bin-al-ajouz-api bin-al-ajouz-web",
-    "pm2:logs": "pm2 logs"
+    "pm2:logs": "pm2 logs",
+    "lint": "eslint backend/src frontend/src",
+    "lint:fix": "eslint --fix backend/src frontend/src",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "backend/src/**/*.{js,ts,mjs}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "frontend/src/**/*.{vue,js,ts}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "**/*.{json,css,scss,md,yml,yaml}": [
+      "prettier --write"
+    ]
   },
   "type": "module",
   "dependencies": {
@@ -34,7 +52,17 @@
     "zod": "^3.23.8"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=22.0.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.8.1",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-vue": "^10.10.0",
+    "globals": "^17.9.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.3.0",
+    "prettier": "^3.9.6",
+    "typescript-eslint": "^8.66.0"
   }
 }
-

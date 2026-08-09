@@ -4,10 +4,10 @@ const clients = new Set();
 
 export const initWebSocket = (server) => {
   const wss = new WebSocketServer({ server });
-  
+
   wss.on('connection', (ws) => {
     clients.add(ws);
-    
+
     // Heartbeat to keep connection alive
     ws.isAlive = true;
     ws.on('pong', () => {

@@ -23,7 +23,7 @@ import { computed } from 'vue';
 import { formatMoney, abbreviateNumber } from '@/utils/formatters';
 
 const props = defineProps({
-  stats: { type: Object, required: true }
+  stats: { type: Object, required: true },
 });
 
 const money = (val) => formatMoney(val || 0);

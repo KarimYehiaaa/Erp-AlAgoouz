@@ -11,10 +11,10 @@ export const runDatabaseMaintenance = async () => {
   try {
     // VACUUM ANALYZE cleans up dead tuples and updates statistics for the query planner
     await query('VACUUM ANALYZE');
-    
+
     const duration = ((Date.now() - startTime) / 1000).toFixed(2);
     const msg = `✅ [بن العجوز ERP] اكتملت صيانة قاعدة البيانات بنجاح (VACUUM ANALYZE) خلال ${duration} ثانية.`;
-    
+
     logger.info(msg);
     await sendAlert('🧹 صيانة قاعدة البيانات', msg, 'info');
   } catch (err) {
@@ -25,11 +25,13 @@ export const runDatabaseMaintenance = async () => {
 };
 
 export const initDatabaseMaintenanceScheduler = () => {
-  logger.info('📅 [بن العجوز ERP] تم تفعيل جدولة صيانة قاعدة البيانات (كل يوم أحد الساعة 3:00 صباحاً).');
+  logger.info(
+    '📅 [بن العجوز ERP] تم تفعيل جدولة صيانة قاعدة البيانات (كل يوم أحد الساعة 3:00 صباحاً).',
+  );
 
   // Check every 30 minutes
   const CHECK_INTERVAL = 30 * 60 * 1000;
-  
+
   setInterval(async () => {
     const now = new Date();
     const todayStr = now.toDateString();

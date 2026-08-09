@@ -22,14 +22,14 @@ export const getSmartPricingAlerts = async () => {
   const products = (await query(productsSql)).rows;
 
   // 2. حساب التكلفة الفعلية والعودية لكل منتج (تدعم تحويل الوحدات والوصفات المتداخلة)
-  const productIds = products.map(p => p.id);
+  const productIds = products.map((p) => p.id);
   const costsMap = await getProductsEffectiveCosts(pool, productIds);
 
   // 3. مقارنة التكلفة بسعر البيع وحساب الهوامش والأخطار
   const alerts = [];
-  const TARGET_MARGIN = 0.60; // هامش الربح المستهدف (60%)
+  const TARGET_MARGIN = 0.6; // هامش الربح المستهدف (60%)
 
-  products.forEach(p => {
+  products.forEach((p) => {
     const costResolved = costsMap.get(p.id);
     const cost = costResolved ? costResolved.cost : Number(p.purchase_price || 0);
     const salePrice = Number(p.sale_price);
@@ -43,11 +43,11 @@ export const getSmartPricingAlerts = async () => {
     // إذا كان الهامش أقل من 50% نعتبره تنبيهاً، وإذا قل عن 25% أو كان سالباً فهو حرج
     let status = 'healthy';
     let statusAr = 'مستقر';
-    
+
     if (margin < 0.25) {
       status = 'critical';
       statusAr = 'خطر / خسارة';
-    } else if (margin < 0.50) {
+    } else if (margin < 0.5) {
       status = 'warning';
       statusAr = 'هامش منخفض';
     }
@@ -67,7 +67,7 @@ export const getSmartPricingAlerts = async () => {
       margin: Number((margin * 100).toFixed(1)), // كنسبة مئوية
       suggested_price: suggestedPrice,
       status,
-      status_ar: statusAr
+      status_ar: statusAr,
     });
   });
 

@@ -1,5 +1,4 @@
 @use 'variables';
-@use 'themes';
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -548,20 +547,6 @@ table {
   border-radius: var(--radius-sm);
   display: inline-block;
   vertical-align: middle;
-}
-[data-theme='dark'] .skeleton-shimmer {
-  background: linear-gradient(90deg, var(--bg-soft) 25%, var(--border) 50%, var(--bg-soft) 75%);
-}
-
-/* View Transitions API styles for Radial Dark Mode Toggle */
-::view-transition-old(root),
-::view-transition-new(root) {
-  animation: none;
-  mix-blend-mode: normal;
-  display: block;
-}
-::view-transition-image-pair(root) {
-  isolation: auto;
 }
 
 /* Custom Elegant Scrollbars */

@@ -1,6 +1,5 @@
 <template>
   <div class="recipes-page">
-
     <!-- Header -->
     <div class="page-header card">
       <div class="header-title">
@@ -10,7 +9,7 @@
           <p>تعريف مكونات كل منتج — يُخصم المخزون تلقائياً عند البيع</p>
         </div>
       </div>
-      <div class="header-actions" style="display: flex; gap: 10px;">
+      <div class="header-actions" style="display: flex; gap: 10px">
         <button class="btn btn-outline" @click="openCalculator">
           <AppIcon name="costs" :size="16" /> حاسبة التوليفات
         </button>
@@ -58,7 +57,10 @@
       <div v-for="recipe in recipes" :key="recipe.id" class="recipe-card card">
         <div class="recipe-header">
           <div class="recipe-product">
-            <span class="recipe-type-badge" :class="recipe.items.length === 1 ? 'simple' : 'compound'">
+            <span
+              class="recipe-type-badge"
+              :class="recipe.items.length === 1 ? 'simple' : 'compound'"
+            >
               {{ recipe.items.length === 1 ? '⚡ بسيط' : '🔗 مركب' }}
             </span>
             <div>
@@ -84,7 +86,9 @@
           <div v-for="item in recipe.items" :key="item.id" class="ingredient-row">
             <div class="ingredient-info">
               <span class="ingredient-name">{{ item.ingredient_name }}</span>
-              <span class="ingredient-qty">{{ item.quantity }} {{ unitLabel(item.unit_code) }}</span>
+              <span class="ingredient-qty"
+                >{{ item.quantity }} {{ unitLabel(item.unit_code) }}</span
+              >
             </div>
             <div class="ingredient-stock">
               <div class="stock-bar-wrap">
@@ -109,12 +113,18 @@
           </div>
           <div class="recipe-sales">
             <span class="sales-label">مبيعات الشهر:</span>
-            <span class="sales-value">{{ formatQty(recipe.monthly_sold || 0) }} {{ unitLabel(recipe.product_unit) }}</span>
+            <span class="sales-value"
+              >{{ formatQty(recipe.monthly_sold || 0) }} {{ unitLabel(recipe.product_unit) }}</span
+            >
           </div>
           <div class="recipe-stock-impact">
             <span class="impact-label">تأثير على المخزون:</span>
             <span class="impact-value" :class="recipe.can_produce > 0 ? 'ok' : 'danger'">
-              {{ recipe.can_produce > 0 ? `يمكن إنتاج ${formatQty(recipe.can_produce)} وحدة` : '⚠️ مخزون غير كافٍ' }}
+              {{
+                recipe.can_produce > 0
+                  ? `يمكن إنتاج ${formatQty(recipe.can_produce)} وحدة`
+                  : '⚠️ مخزون غير كافٍ'
+              }}
             </span>
           </div>
         </div>
@@ -164,8 +174,12 @@
           <div class="ingredients-header">
             <h4>المكونات</h4>
             <div class="recipe-type-hint">
-              <span v-if="form.items.length === 1" class="type-badge simple">⚡ وصفة بسيطة (مكون واحد)</span>
-              <span v-else class="type-badge compound">🔗 وصفة مركبة ({{ form.items.length }} مكونات)</span>
+              <span v-if="form.items.length === 1" class="type-badge simple"
+                >⚡ وصفة بسيطة (مكون واحد)</span
+              >
+              <span v-else class="type-badge compound"
+                >🔗 وصفة مركبة ({{ form.items.length }} مكونات)</span
+              >
             </div>
           </div>
 
@@ -177,18 +191,27 @@
                   <select v-model.number="item.ingredient_product_id" @change="autoSetUnit(item)">
                     <option :value="null">اختر الخامة</option>
                     <option v-for="p in rawMaterials" :key="p.id" :value="p.id">
-                      {{ p.name_ar }} ({{ unitLabel(p.unit) }}) — مخزون: {{ formatQty(p.total_stock) }}
+                      {{ p.name_ar }} ({{ unitLabel(p.unit) }}) — مخزون:
+                      {{ formatQty(p.total_stock) }}
                     </option>
                   </select>
                 </div>
                 <div class="form-group flex-1">
                   <label v-if="i === 0">الكمية</label>
-                  <input v-model.number="item.quantity" type="number" min="0.001" step="0.001" placeholder="0" />
+                  <input
+                    v-model.number="item.quantity"
+                    type="number"
+                    min="0.001"
+                    step="0.001"
+                    placeholder="0"
+                  />
                 </div>
                 <div class="form-group flex-1">
                   <label v-if="i === 0">الوحدة</label>
                   <select v-model="item.unit_code">
-                    <option v-for="u in recipeUnitOptions" :key="u.code" :value="u.code">{{ u.label }}</option>
+                    <option v-for="u in recipeUnitOptions" :key="u.code" :value="u.code">
+                      {{ u.label }}
+                    </option>
                   </select>
                 </div>
                 <div class="form-group flex-1">
@@ -201,8 +224,12 @@
                 class="remove-ingredient-btn"
                 :disabled="form.items.length === 1"
                 @click="removeItem(i)"
-                :title="form.items.length === 1 ? 'يجب أن يكون هناك مكون واحد على الأقل' : 'حذف المكون'"
-              >✕</button>
+                :title="
+                  form.items.length === 1 ? 'يجب أن يكون هناك مكون واحد على الأقل' : 'حذف المكون'
+                "
+              >
+                ✕
+              </button>
             </div>
           </div>
 
@@ -228,11 +255,11 @@
 
         <p v-if="formError" class="form-error">{{ formError }}</p>
 
-          <button class="btn btn-outline" @click="closeForm">إلغاء</button>
-          <button class="btn btn-save" :disabled="saving" @click="saveRecipe">
-            <AppIcon name="save" :size="16" />
-            {{ saving ? '⏳ جاري الحفظ...' : (form.id ? 'حفظ التعديلات' : 'إضافة الوصفة') }}
-          </button>
+        <button class="btn btn-outline" @click="closeForm">إلغاء</button>
+        <button class="btn btn-save" :disabled="saving" @click="saveRecipe">
+          <AppIcon name="save" :size="16" />
+          {{ saving ? '⏳ جاري الحفظ...' : form.id ? 'حفظ التعديلات' : 'إضافة الوصفة' }}
+        </button>
       </div>
     </div>
 
@@ -280,11 +307,11 @@
           <div v-if="produceError" class="form-error">{{ produceError }}</div>
         </div>
 
-          <button class="btn btn-outline" @click="closeProduce">إلغاء</button>
-          <button class="btn btn-save" :disabled="producing" @click="saveProduce">
-            <AppIcon name="check" :size="16" />
-            {{ producing ? '⏳ جاري الحفظ...' : produceActionLabel }}
-          </button>
+        <button class="btn btn-outline" @click="closeProduce">إلغاء</button>
+        <button class="btn btn-save" :disabled="producing" @click="saveProduce">
+          <AppIcon name="check" :size="16" />
+          {{ producing ? '⏳ جاري الحفظ...' : produceActionLabel }}
+        </button>
       </div>
     </div>
 
@@ -299,7 +326,11 @@
         <div class="form-section">
           <div class="form-group">
             <label>اسم التوليفة المقترحة (اختياري)</label>
-            <input v-model="calcForm.name_ar" type="text" placeholder="مثال: توليفة مخصوصة بالهيل" />
+            <input
+              v-model="calcForm.name_ar"
+              type="text"
+              placeholder="مثال: توليفة مخصوصة بالهيل"
+            />
           </div>
         </div>
 
@@ -312,21 +343,34 @@
               <div class="ingredient-form-fields">
                 <div class="form-group flex-3">
                   <label v-if="i === 0">الخامة (البن/مكون)</label>
-                  <select v-model.number="item.ingredient_product_id" @change="autoSetCalcUnit(item)">
+                  <select
+                    v-model.number="item.ingredient_product_id"
+                    @change="autoSetCalcUnit(item)"
+                  >
                     <option :value="null">اختر الخامة</option>
                     <option v-for="p in rawMaterials" :key="p.id" :value="p.id">
-                      {{ p.name_ar }} ({{ unitLabel(p.unit) }}) — الشراء: {{ formatMoney(p.purchase_price) }}
+                      {{ p.name_ar }} ({{ unitLabel(p.unit) }}) — الشراء:
+                      {{ formatMoney(p.purchase_price) }}
                     </option>
                   </select>
                 </div>
                 <div class="form-group flex-1">
                   <label v-if="i === 0">الوزن</label>
-                  <input v-model.number="item.quantity" type="number" min="0.001" step="0.001" placeholder="0" @input="calcProfitMargin" />
+                  <input
+                    v-model.number="item.quantity"
+                    type="number"
+                    min="0.001"
+                    step="0.001"
+                    placeholder="0"
+                    @input="calcProfitMargin"
+                  />
                 </div>
                 <div class="form-group flex-1">
                   <label v-if="i === 0">الوحدة</label>
                   <select v-model="item.unit_code" @change="calcProfitMargin">
-                    <option v-for="u in recipeUnitOptions" :key="u.code" :value="u.code">{{ u.label }}</option>
+                    <option v-for="u in recipeUnitOptions" :key="u.code" :value="u.code">
+                      {{ u.label }}
+                    </option>
                   </select>
                 </div>
                 <div class="form-group flex-1">
@@ -339,11 +383,18 @@
                 class="remove-ingredient-btn"
                 :disabled="calcForm.items.length === 1"
                 @click="removeCalcItem(i)"
-              >✕</button>
+              >
+                ✕
+              </button>
             </div>
           </div>
 
-          <button type="button" class="btn btn-outline btn-add-ingredient" @click="addCalcItem" style="width: 100%; margin-top: 8px;">
+          <button
+            type="button"
+            class="btn btn-outline btn-add-ingredient"
+            @click="addCalcItem"
+            style="width: 100%; margin-top: 8px"
+          >
             + إضافة مكون آخر للتوليفة
           </button>
         </div>
@@ -357,53 +408,94 @@
             <span>إجمالي التكلفة الكلية للخلطة:</span>
             <strong>{{ formatMoney(calcTotalCost) }}</strong>
           </div>
-          <div class="total-row" style="border-top: 1px dashed var(--border); padding-top: 8px; margin-top: 4px;">
+          <div
+            class="total-row"
+            style="border-top: 1px dashed var(--border); padding-top: 8px; margin-top: 4px"
+          >
             <span>متوسط تكلفة الكيلو الواحد:</span>
-            <strong style="color: var(--primary-dark); font-size: 1.1rem;">{{ formatMoney(calcCostPerKilo) }}</strong>
+            <strong style="color: var(--primary-dark); font-size: 1.1rem">{{
+              formatMoney(calcCostPerKilo)
+            }}</strong>
           </div>
         </div>
 
-        <div class="form-section bg-light" style="background: rgba(var(--primary-rgb), 0.02); border-top: 1px solid var(--border);">
-          <h4 style="margin-bottom: 12px;">تحديد هوامش الأرباح والبيع</h4>
+        <div
+          class="form-section bg-light"
+          style="background: rgba(var(--primary-rgb), 0.02); border-top: 1px solid var(--border)"
+        >
+          <h4 style="margin-bottom: 12px">تحديد هوامش الأرباح والبيع</h4>
           <div class="grid grid-2">
             <div class="form-group">
               <label>سعر البيع المقترح للكيلو (ج.م)</label>
-              <input v-model.number="calcForm.target_price" type="number" min="0" step="0.5" placeholder="0" @input="onTargetPriceInput" />
+              <input
+                v-model.number="calcForm.target_price"
+                type="number"
+                min="0"
+                step="0.5"
+                placeholder="0"
+                @input="onTargetPriceInput"
+              />
             </div>
             <div class="form-group">
               <label>هامش الربح المستهدف (%)</label>
-              <input v-model.number="calcForm.target_margin" type="number" min="-100" max="100" step="1" placeholder="40" @input="onTargetMarginInput" />
+              <input
+                v-model.number="calcForm.target_margin"
+                type="number"
+                min="-100"
+                max="100"
+                step="1"
+                placeholder="40"
+                @input="onTargetMarginInput"
+              />
             </div>
           </div>
 
-          <div class="form-group" style="margin-top: 14px;">
-            <label style="display: flex; justify-content: space-between; font-size: 0.82rem; font-weight: 600; color: var(--text-muted); margin-bottom: 6px;">
+          <div class="form-group" style="margin-top: 14px">
+            <label
+              style="
+                display: flex;
+                justify-content: space-between;
+                font-size: 0.82rem;
+                font-weight: 600;
+                color: var(--text-muted);
+                margin-bottom: 6px;
+              "
+            >
               <span>تحريك الهامش المستهدف تفاعلياً:</span>
-              <span style="font-weight: 700; color: var(--primary-dark);">{{ calcForm.target_margin || 0 }}%</span>
+              <span style="font-weight: 700; color: var(--primary-dark)"
+                >{{ calcForm.target_margin || 0 }}%</span
+              >
             </label>
-            <input 
-              v-model.number="calcForm.target_margin" 
-              type="range" 
-              min="-20" 
-              max="95" 
-              step="1" 
-              class="range-slider" 
-              @input="onTargetMarginInput" 
+            <input
+              v-model.number="calcForm.target_margin"
+              type="range"
+              min="-20"
+              max="95"
+              step="1"
+              class="range-slider"
+              @input="onTargetMarginInput"
             />
           </div>
 
-          <div style="margin-top: 12px; display: flex; justify-content: space-between; font-size: 0.9rem;">
+          <div
+            style="
+              margin-top: 12px;
+              display: flex;
+              justify-content: space-between;
+              font-size: 0.9rem;
+            "
+          >
             <span>الحالة الربحية:</span>
-            <strong :class="calcMarginClass" style="font-size: 1rem;">
+            <strong :class="calcMarginClass" style="font-size: 1rem">
               {{ calcProfitStatusText }}
             </strong>
           </div>
         </div>
 
-          <button class="btn btn-outline" @click="closeCalculator">إلغاء</button>
-          <button class="btn btn-save" :disabled="!isCalcValid" @click="convertToRecipe">
-            <AppIcon name="check" :size="16" /> تحويل لوصفة حقيقية
-          </button>
+        <button class="btn btn-outline" @click="closeCalculator">إلغاء</button>
+        <button class="btn btn-save" :disabled="!isCalcValid" @click="convertToRecipe">
+          <AppIcon name="check" :size="16" /> تحويل لوصفة حقيقية
+        </button>
       </div>
     </div>
 
@@ -416,14 +508,15 @@
         </div>
         <div class="productions-filters">
           <input v-model="prodFilter.from_date" type="date" class="filter-input" title="من تاريخ" />
-          <input v-model="prodFilter.to_date"   type="date" class="filter-input" title="إلى تاريخ" />
+          <input v-model="prodFilter.to_date" type="date" class="filter-input" title="إلى تاريخ" />
           <button class="btn btn-outline" @click="loadProductions">🔄</button>
         </div>
       </div>
 
       <div v-if="productionsLoading" class="loading-state">⏳ جاري التحميل...</div>
       <div v-else-if="!productions.length" class="empty-state">
-        <span>🏭</span><p>لا توجد عمليات إنتاج بعد</p>
+        <span>🏭</span>
+        <p>لا توجد عمليات إنتاج بعد</p>
       </div>
       <div v-else class="productions-table">
         <div class="prod-table-head">
@@ -491,7 +584,13 @@
             </div>
             <div class="reverse-row">
               <span>المخزون الحالي:</span>
-              <strong :class="Number(reverseTarget.current_stock) < Number(reverseTarget.quantity) ? 'text-warn' : ''">
+              <strong
+                :class="
+                  Number(reverseTarget.current_stock) < Number(reverseTarget.quantity)
+                    ? 'text-warn'
+                    : ''
+                "
+              >
                 {{ formatQty(reverseTarget.current_stock) }}
                 <small v-if="Number(reverseTarget.current_stock) < Number(reverseTarget.quantity)">
                   (أقل من الكمية المنتجة — سيُعكس بالمتاح)
@@ -503,7 +602,7 @@
               <strong>{{ formatProdDate(reverseTarget.created_at) }}</strong>
             </div>
           </div>
-          <div class="form-group" style="margin-top:14px">
+          <div class="form-group" style="margin-top: 14px">
             <label>كمية العكس (اتركها فارغة للعكس الكامل)</label>
             <input
               v-model.number="reverseQtyInput"
@@ -519,14 +618,13 @@
           </div>
           <p v-if="reverseError" class="form-error">{{ reverseError }}</p>
         </div>
-          <button class="btn btn-outline" @click="showReverseModal = false">إلغاء</button>
-          <button class="btn btn-delete" :disabled="reversing" @click="doReverse">
-            <AppIcon name="delete" :size="16" />
-            {{ reversing ? '⏳ جاري العكس...' : 'تأكيد العكس' }}
-          </button>
+        <button class="btn btn-outline" @click="showReverseModal = false">إلغاء</button>
+        <button class="btn btn-delete" :disabled="reversing" @click="doReverse">
+          <AppIcon name="delete" :size="16" />
+          {{ reversing ? '⏳ جاري العكس...' : 'تأكيد العكس' }}
+        </button>
       </div>
     </div>
-
   </div>
 </template>
 
@@ -613,9 +711,9 @@ const calcTotalWeightGrams = computed(() => {
   return calcForm.value.items.reduce((sum, item) => {
     const qty = Number(item.quantity || 0);
     const norm = normalizeUnit(item.unit_code);
-    if (norm === 'kg') return sum + (qty * 1000);
+    if (norm === 'kg') return sum + qty * 1000;
     if (norm === 'g') return sum + qty;
-    if (norm === 'l') return sum + (qty * 1000);
+    if (norm === 'l') return sum + qty * 1000;
     if (norm === 'ml') return sum + qty;
     return sum + qty;
   }, 0);
@@ -681,18 +779,22 @@ const calcProfitStatusText = computed(() => {
 });
 
 const isCalcValid = computed(() => {
-  const validItems = calcForm.value.items.filter(it => it.ingredient_product_id && Number(it.quantity) > 0);
+  const validItems = calcForm.value.items.filter(
+    (it) => it.ingredient_product_id && Number(it.quantity) > 0,
+  );
   return validItems.length > 0 && calcTotalWeightGrams.value > 0;
 });
 
 const convertToRecipe = () => {
-  const validItems = calcForm.value.items.filter(it => it.ingredient_product_id && Number(it.quantity) > 0);
+  const validItems = calcForm.value.items.filter(
+    (it) => it.ingredient_product_id && Number(it.quantity) > 0,
+  );
   showCalculator.value = false;
   form.value = {
     id: null,
     product_id: null,
     name_ar: calcForm.value.name_ar?.trim() || 'توليفة محتسبة',
-    items: validItems.map(it => ({
+    items: validItems.map((it) => ({
       ingredient_product_id: it.ingredient_product_id,
       quantity: Number(it.quantity),
       unit_code: it.unit_code || 'g',
@@ -746,13 +848,37 @@ const formatQty = (v) => {
 
 const normalizeUnit = (u) => {
   const map = {
-    kg: 'kg', kilo: 'kg', 'كيلو': 'kg', 'كيلوجرام': 'kg', 'كجم': 'kg',
-    g: 'g', gram: 'g', 'جرام': 'g', 'غرام': 'g',
-    l: 'l', liter: 'l', litre: 'l', 'لتر': 'l',
-    ml: 'ml', milli: 'ml', 'ملي': 'ml', 'مل': 'ml',
-    count: 'count', unit: 'count', piece: 'count', pieces: 'count', 'عدد': 'count', 'قطعة': 'count',
+    kg: 'kg',
+    kilo: 'kg',
+    كيلو: 'kg',
+    كيلوجرام: 'kg',
+    كجم: 'kg',
+    g: 'g',
+    gram: 'g',
+    جرام: 'g',
+    غرام: 'g',
+    l: 'l',
+    liter: 'l',
+    litre: 'l',
+    لتر: 'l',
+    ml: 'ml',
+    milli: 'ml',
+    ملي: 'ml',
+    مل: 'ml',
+    count: 'count',
+    unit: 'count',
+    piece: 'count',
+    pieces: 'count',
+    عدد: 'count',
+    قطعة: 'count',
   };
-  return map[String(u || '').trim().toLowerCase()] || null;
+  return (
+    map[
+      String(u || '')
+        .trim()
+        .toLowerCase()
+    ] || null
+  );
 };
 
 const convertQty = (qty, from, to) => {
@@ -785,7 +911,7 @@ const productsWithoutRecipe = computed(() => {
 const lowStockIngredients = computed(() => {
   let count = 0;
   for (const recipe of recipes.value) {
-    for (const item of (recipe.items || [])) {
+    for (const item of recipe.items || []) {
       if (Number(item.stock_available || 0) < Number(item.quantity || 0)) count++;
     }
   }
@@ -795,15 +921,15 @@ const lowStockIngredients = computed(() => {
 // stock bar helpers — مع تحويل الوحدات
 const getAvailableInRecipeUnit = (item) => {
   const availableRaw = Number(item.stock_available || 0);
-  const recipeUnit   = normalizeUnit(item.unit_code);
-  const stockUnit    = normalizeUnit(item.ingredient_unit);
+  const recipeUnit = normalizeUnit(item.unit_code);
+  const stockUnit = normalizeUnit(item.ingredient_unit);
   if (!recipeUnit || !stockUnit || recipeUnit === stockUnit) return availableRaw;
   const converted = convertQty(availableRaw, stockUnit, recipeUnit);
   return converted != null ? converted : availableRaw;
 };
 
 const stockBarWidth = (item) => {
-  const needed    = Number(item.quantity || 0);
+  const needed = Number(item.quantity || 0);
   const available = getAvailableInRecipeUnit(item);
   if (!needed) return 100;
   return Math.min((available / needed) * 100, 100);
@@ -812,7 +938,7 @@ const stockBarWidth = (item) => {
 const stockBarClass = (item) => {
   const pct = stockBarWidth(item);
   if (pct >= 100) return 'stock-ok';
-  if (pct >= 50)  return 'stock-warn';
+  if (pct >= 50) return 'stock-warn';
   return 'stock-low';
 };
 
@@ -825,7 +951,11 @@ const itemCost = (item) => {
 
   // fallback: لو purchase_price صفر/غير موجود استخدم sale_price
   const basePrice =
-    Number(p.purchase_price || 0) > 0 ? p.purchase_price : (Number(p.sale_price || 0) > 0 ? p.sale_price : 0);
+    Number(p.purchase_price || 0) > 0
+      ? p.purchase_price
+      : Number(p.sale_price || 0) > 0
+        ? p.sale_price
+        : 0;
 
   const unitPrice = unitPriceFor(basePrice, p.unit, item.unit_code);
   return Number(item.quantity || 0) * unitPrice;
@@ -853,13 +983,13 @@ const formMarginClass = computed(() => {
 });
 
 const produceActionLabel = computed(() =>
-  produceForm.value.mode === 'opening_production' ? 'حفظ الرصيد الافتتاحي' : 'إنتاج الدفعة'
+  produceForm.value.mode === 'opening_production' ? 'حفظ الرصيد الافتتاحي' : 'إنتاج الدفعة',
 );
 
 const produceModeHelp = computed(() =>
   produceForm.value.mode === 'opening_production'
     ? 'يزود مخزون المنتج بدون خصم المكونات لأنه رصيد موجود من قبل.'
-    : 'يخصم مكونات الوصفة ويحولها إلى مخزون فعلي للمنتج.'
+    : 'يخصم مكونات الوصفة ويحولها إلى مخزون فعلي للمنتج.',
 );
 
 // ─── data loading ─────────────────────────────────────────────────────────────
@@ -881,7 +1011,9 @@ const load = async () => {
     if (warehouses.value.length) {
       if (!produceForm.value.warehouse_id) produceForm.value.warehouse_id = warehouses.value[0].id;
       try {
-        const bpRes = await productsApi.branchProducts({ warehouse_id: produceForm.value.warehouse_id });
+        const bpRes = await productsApi.branchProducts({
+          warehouse_id: produceForm.value.warehouse_id,
+        });
         branchProds = bpRes.data || [];
       } catch (e) {
         // fallback to initial result if re-fetch fails
@@ -894,19 +1026,19 @@ const load = async () => {
       const enrichedItems = (r.items || []).map((item) => {
         const p = allProducts.value.find((prod) => prod.id === item.ingredient_product_id);
         const globalStock = p ? Number(p.total_stock || 0) : null;
-        
+
         // Use global stock across all warehouses to prevent false "insufficient stock" warnings
         return {
           ...item,
-          stock_available: globalStock != null ? Number(globalStock) : (item.stock_available || 0),
+          stock_available: globalStock != null ? Number(globalStock) : item.stock_available || 0,
         };
       });
 
       let canProduce = Infinity;
       for (const item of enrichedItems) {
-        const neededRaw    = Number(item.quantity || 0);
-        const recipeUnit   = normalizeUnit(item.unit_code);
-        const stockUnit    = normalizeUnit(item.ingredient_unit);
+        const neededRaw = Number(item.quantity || 0);
+        const recipeUnit = normalizeUnit(item.unit_code);
+        const stockUnit = normalizeUnit(item.ingredient_unit);
         const availableRaw = Number(item.stock_available || 0);
 
         if (neededRaw <= 0) continue;
@@ -976,18 +1108,30 @@ const openProduce = (recipe) => {
     product_name: recipe.product_name || '',
     mode: 'production',
     quantity: 1,
-    warehouse_id: product?.primary_warehouse_id || produceForm.value.warehouse_id || warehouses.value[0]?.id || null,
+    warehouse_id:
+      product?.primary_warehouse_id ||
+      produceForm.value.warehouse_id ||
+      warehouses.value[0]?.id ||
+      null,
     notes: '',
   };
   produceError.value = '';
   showProduceModal.value = true;
 };
 
-const closeForm = () => { showForm.value = false; formError.value = ''; };
-const closeProduce = () => { showProduceModal.value = false; produceError.value = ''; };
+const closeForm = () => {
+  showForm.value = false;
+  formError.value = '';
+};
+const closeProduce = () => {
+  showProduceModal.value = false;
+  produceError.value = '';
+};
 
 const addItem = () => form.value.items.push(emptyItem());
-const removeItem = (i) => { if (form.value.items.length > 1) form.value.items.splice(i, 1); };
+const removeItem = (i) => {
+  if (form.value.items.length > 1) form.value.items.splice(i, 1);
+};
 
 const autoSetUnit = (item) => {
   const p = allProducts.value.find((x) => x.id === item.ingredient_product_id);
@@ -999,14 +1143,27 @@ const autoSetUnit = (item) => {
 
 const saveRecipe = async () => {
   formError.value = '';
-  if (!form.value.product_id) { formError.value = 'اختر المنتج النهائي'; return; }
-  if (!form.value.name_ar?.trim()) { formError.value = 'اكتب اسم الوصفة'; return; }
+  if (!form.value.product_id) {
+    formError.value = 'اختر المنتج النهائي';
+    return;
+  }
+  if (!form.value.name_ar?.trim()) {
+    formError.value = 'اكتب اسم الوصفة';
+    return;
+  }
   const items = form.value.items.filter((x) => x.ingredient_product_id && Number(x.quantity) > 0);
-  if (!items.length) { formError.value = 'أضف مكوناً واحداً على الأقل'; return; }
+  if (!items.length) {
+    formError.value = 'أضف مكوناً واحداً على الأقل';
+    return;
+  }
 
   saving.value = true;
   try {
-    const payload = { product_id: form.value.product_id, name_ar: form.value.name_ar.trim(), items };
+    const payload = {
+      product_id: form.value.product_id,
+      name_ar: form.value.name_ar.trim(),
+      items,
+    };
     if (form.value.id) await costsApi.updateRecipe(form.value.id, payload);
     else await costsApi.createRecipe(payload);
     closeForm();
@@ -1019,7 +1176,8 @@ const saveRecipe = async () => {
 };
 
 const deleteRecipe = async (id) => {
-  if (!confirm('تأكيد حذف الوصفة؟ بعد الحذف سيتم خصم المنتج نفسه مباشرة من المخزون عند البيع.')) return;
+  if (!confirm('تأكيد حذف الوصفة؟ بعد الحذف سيتم خصم المنتج نفسه مباشرة من المخزون عند البيع.'))
+    return;
   try {
     await costsApi.deleteRecipe(id);
     await load();
@@ -1055,12 +1213,14 @@ const saveProduce = async () => {
     await load();
     // Notify other views (inventory) that production occurred
     try {
-      window.dispatchEvent(new CustomEvent('inventory-updated', {
-        detail: {
-          product_id: produceForm.value.product_id || produceForm.value.recipe_id,
-          warehouse_id: produceForm.value.warehouse_id,
-        }
-      }));
+      window.dispatchEvent(
+        new CustomEvent('inventory-updated', {
+          detail: {
+            product_id: produceForm.value.product_id || produceForm.value.recipe_id,
+            warehouse_id: produceForm.value.warehouse_id,
+          },
+        }),
+      );
     } catch (e) {
       console.warn('Failed to dispatch inventory-updated event', e);
     }
@@ -1072,7 +1232,7 @@ const saveProduce = async () => {
 };
 
 // ─── Productions ──────────────────────────────────────────────────────────
-const productions        = ref([]);
+const productions = ref([]);
 const productionsLoading = ref(false);
 const prodFilter = ref({
   from_date: '',
@@ -1081,15 +1241,15 @@ const prodFilter = ref({
 
 // Reverse state
 const showReverseModal = ref(false);
-const reverseTarget    = ref(null);
-const reverseQtyInput  = ref(null);
-const reversing        = ref(false);  // movement_id of the one being reversed, or false
-const reverseError     = ref('');
+const reverseTarget = ref(null);
+const reverseQtyInput = ref(null);
+const reversing = ref(false); // movement_id of the one being reversed, or false
+const reverseError = ref('');
 
 const formatProdDate = (ts) => {
   if (!ts) return '—';
   const d = new Date(ts);
-  return `${d.getDate().toString().padStart(2,'0')}/${(d.getMonth()+1).toString().padStart(2,'0')}/${d.getFullYear()} ${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`;
+  return `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()} ${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
 };
 
 const loadProductions = async () => {
@@ -1097,7 +1257,7 @@ const loadProductions = async () => {
   try {
     const params = {};
     if (prodFilter.value.from_date) params.from_date = prodFilter.value.from_date;
-    if (prodFilter.value.to_date)   params.to_date   = prodFilter.value.to_date;
+    if (prodFilter.value.to_date) params.to_date = prodFilter.value.to_date;
     productions.value = (await costsApi.listProductions(params))?.data || [];
   } catch (e) {
     productions.value = [];
@@ -1107,16 +1267,16 @@ const loadProductions = async () => {
 };
 
 const confirmReverse = (prod) => {
-  reverseTarget.value  = prod;
+  reverseTarget.value = prod;
   reverseQtyInput.value = null;
-  reverseError.value   = '';
+  reverseError.value = '';
   showReverseModal.value = true;
 };
 
 const doReverse = async () => {
   if (!reverseTarget.value) return;
   reverseError.value = '';
-  reversing.value    = reverseTarget.value.movement_id;
+  reversing.value = reverseTarget.value.movement_id;
   try {
     const body = {};
     if (reverseQtyInput.value && Number(reverseQtyInput.value) > 0) {
@@ -1140,7 +1300,11 @@ onMounted(async () => {
 </script>
 
 <style lang="scss" scoped>
-.recipes-page { display: flex; flex-direction: column; gap: 20px; }
+.recipes-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
 
 /* Range Slider */
 .range-slider {
@@ -1151,7 +1315,7 @@ onMounted(async () => {
   background: var(--border);
   outline: none;
   margin: 6px 0;
-  
+
   &::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
@@ -1161,7 +1325,7 @@ onMounted(async () => {
     background: #2e7d4f;
     cursor: pointer;
     transition: transform 0.1s;
-    
+
     &:hover {
       transform: scale(1.2);
     }
@@ -1169,53 +1333,138 @@ onMounted(async () => {
 }
 
 .page-header {
-  display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;
-  .header-title { display: flex; align-items: center; gap: 14px;
-    .header-icon { font-size: 2rem; }
-    h2 { margin: 0; font-size: 1.3rem; color: var(--primary-dark); }
-    p { margin: 4px 0 0; font-size: 0.85rem; color: var(--text-muted); }
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  .header-title {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    .header-icon {
+      font-size: 2rem;
+    }
+    h2 {
+      margin: 0;
+      font-size: 1.3rem;
+      color: var(--primary-dark);
+    }
+    p {
+      margin: 4px 0 0;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
   }
 }
 
 /* Stats */
-.stats-row { gap: 14px; }
+.stats-row {
+  gap: 14px;
+}
 .stat-card {
-  display: flex; align-items: center; gap: 14px; padding: 16px 20px;
-  .stat-icon { font-size: 1.8rem; }
-  .stat-label { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 4px; }
-  .stat-value { font-size: 1.4rem; font-weight: 800; color: var(--primary-dark);
-    &.warn { color: #b45309; }
-    &.danger { color: #b42318; }
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 20px;
+  .stat-icon {
+    font-size: 1.8rem;
+  }
+  .stat-label {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+  }
+  .stat-value {
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: var(--primary-dark);
+    &.warn {
+      color: #b45309;
+    }
+    &.danger {
+      color: #b42318;
+    }
   }
 }
 
 /* Recipes Grid */
-.recipes-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 16px; }
+.recipes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+  gap: 16px;
+}
 
 .recipe-card {
-  display: flex; flex-direction: column; gap: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
   .recipe-header {
-    display: flex; justify-content: space-between; align-items: flex-start;
-    padding-bottom: 14px; border-bottom: 1px solid var(--border); margin-bottom: 14px;
-    .recipe-product { display: flex; align-items: center; gap: 10px; }
-    .recipe-product-name { font-weight: 700; font-size: 1rem; color: var(--primary-dark); }
-    .recipe-name-sub { font-size: 0.78rem; color: var(--text-muted); margin-top: 2px; }
-    .recipe-actions { display: flex; gap: 6px; }
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 14px;
+    .recipe-product {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .recipe-product-name {
+      font-weight: 700;
+      font-size: 1rem;
+      color: var(--primary-dark);
+    }
+    .recipe-name-sub {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+    .recipe-actions {
+      display: flex;
+      gap: 6px;
+    }
   }
 }
 
 .recipe-type-badge {
-  padding: 3px 10px; border-radius: 20px; font-size: 0.78rem; font-weight: 700; white-space: nowrap;
-  &.simple { background: rgba(46,125,79,0.1); color: #2e7d4f; border: 1px solid rgba(46,125,79,0.2); }
-  &.compound { background: rgba(99,60,180,0.1); color: #5b21b6; border: 1px solid rgba(99,60,180,0.2); }
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  white-space: nowrap;
+  &.simple {
+    background: rgba(46, 125, 79, 0.1);
+    color: #2e7d4f;
+    border: 1px solid rgba(46, 125, 79, 0.2);
+  }
+  &.compound {
+    background: rgba(99, 60, 180, 0.1);
+    color: #5b21b6;
+    border: 1px solid rgba(99, 60, 180, 0.2);
+  }
 }
 
 .btn-icon {
-  width: 32px; height: 32px; border: 1px solid var(--border); border-radius: 8px;
-  background: var(--bg-card); cursor: pointer; display: flex; align-items: center; justify-content: center;
-  font-size: 0.9rem; transition: var(--transition);
-  &:hover { background: var(--bg); }
-  &.danger:hover { background: rgba(180,35,24,0.1); border-color: rgba(180,35,24,0.3); }
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-card);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  transition: var(--transition);
+  &:hover {
+    background: var(--bg);
+  }
+  &.danger:hover {
+    background: rgba(180, 35, 24, 0.1);
+    border-color: rgba(180, 35, 24, 0.3);
+  }
 }
 
 .produce-summary {
@@ -1223,68 +1472,197 @@ onMounted(async () => {
   flex-direction: column;
   gap: 4px;
   margin-bottom: 14px;
-  .produce-product { font-weight: 800; color: var(--primary-dark); font-size: 1rem; }
-  .produce-sub { color: var(--text-muted); font-size: 0.88rem; }
+  .produce-product {
+    font-weight: 800;
+    color: var(--primary-dark);
+    font-size: 1rem;
+  }
+  .produce-sub {
+    color: var(--text-muted);
+    font-size: 0.88rem;
+  }
 }
 
 /* Ingredients */
-.ingredients-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
+.ingredients-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 14px;
+}
 .ingredient-row {
-  display: flex; flex-direction: column; gap: 4px; padding: 8px 10px;
-  background: var(--bg); border-radius: 8px; border: 1px solid var(--border);
-  .ingredient-info { display: flex; justify-content: space-between; align-items: center;
-    .ingredient-name { font-weight: 600; font-size: 0.88rem; }
-    .ingredient-qty { font-size: 0.82rem; color: var(--text-muted); background: var(--bg-card); padding: 2px 8px; border-radius: 12px; }
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  background: var(--bg);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  .ingredient-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    .ingredient-name {
+      font-weight: 600;
+      font-size: 0.88rem;
+    }
+    .ingredient-qty {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      background: var(--bg-card);
+      padding: 2px 8px;
+      border-radius: 12px;
+    }
   }
-  .ingredient-stock { display: flex; align-items: center; gap: 8px;
-    .stock-bar-wrap { flex: 1; height: 5px; background: var(--border); border-radius: 3px; overflow: hidden; }
-    .stock-bar { height: 100%; border-radius: 3px; transition: width 0.3s; }
-    .stock-label { font-size: 0.75rem; white-space: nowrap; }
+  .ingredient-stock {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    .stock-bar-wrap {
+      flex: 1;
+      height: 5px;
+      background: var(--border);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .stock-bar {
+      height: 100%;
+      border-radius: 3px;
+      transition: width 0.3s;
+    }
+    .stock-label {
+      font-size: 0.75rem;
+      white-space: nowrap;
+    }
   }
 }
 
-.stock-ok { background: #2e7d4f; color: #2e7d4f; }
-.stock-warn { background: #f59e0b; color: #b45309; }
-.stock-low { background: #b42318; color: #b42318; }
+.stock-ok {
+  background: #2e7d4f;
+  color: #2e7d4f;
+}
+.stock-warn {
+  background: #f59e0b;
+  color: #b45309;
+}
+.stock-low {
+  background: #b42318;
+  color: #b42318;
+}
 
 /* Recipe Footer */
 .recipe-footer {
-  display: flex; flex-wrap: wrap; gap: 12px; padding-top: 12px; border-top: 1px solid var(--border);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
   font-size: 0.82rem;
-  .recipe-cost, .recipe-sales, .recipe-stock-impact { display: flex; flex-direction: column; gap: 2px; }
-  .cost-label, .sales-label, .impact-label { color: var(--text-muted); }
-  .cost-value, .sales-value { font-weight: 700; color: var(--primary-dark); }
-  .impact-value { font-weight: 700;
-    &.ok { color: #2e7d4f; }
-    &.danger { color: #b42318; }
+  .recipe-cost,
+  .recipe-sales,
+  .recipe-stock-impact {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .cost-label,
+  .sales-label,
+  .impact-label {
+    color: var(--text-muted);
+  }
+  .cost-value,
+  .sales-value {
+    font-weight: 700;
+    color: var(--primary-dark);
+  }
+  .impact-value {
+    font-weight: 700;
+    &.ok {
+      color: #2e7d4f;
+    }
+    &.danger {
+      color: #b42318;
+    }
   }
 }
 
 /* Warning Card */
 .warning-card {
-  border: 1px solid rgba(245,158,11,0.3); background: rgba(245,158,11,0.04);
-  h3 { margin: 0 0 6px; color: #b45309; }
-  .warning-note { color: var(--text-muted); font-size: 0.88rem; margin-bottom: 14px; }
-  .no-recipe-list { display: flex; flex-direction: column; gap: 8px; }
-  .no-recipe-item { display: flex; align-items: center; gap: 12px; padding: 8px 12px; background: var(--bg); border-radius: 8px;
-    .no-recipe-name { font-weight: 600; flex: 1; }
-    .no-recipe-sku { font-size: 0.78rem; color: var(--text-muted); font-family: monospace; }
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  background: rgba(245, 158, 11, 0.04);
+  h3 {
+    margin: 0 0 6px;
+    color: #b45309;
+  }
+  .warning-note {
+    color: var(--text-muted);
+    font-size: 0.88rem;
+    margin-bottom: 14px;
+  }
+  .no-recipe-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .no-recipe-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 12px;
+    background: var(--bg);
+    border-radius: 8px;
+    .no-recipe-name {
+      font-weight: 600;
+      flex: 1;
+    }
+    .no-recipe-sku {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      font-family: monospace;
+    }
   }
 }
 
 /* Modal */
 .modal-overlay {
-  position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200;
-  display: flex; align-items: center; justify-content: center; padding: 16px;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
 }
 .modal-card {
-  background: var(--bg-card); border-radius: var(--radius); width: min(680px, 96vw);
-  max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow-lg);
-  .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 20px 24px 0;
-    h3 { margin: 0; color: var(--primary-dark); }
-    .close-btn { background: none; border: none; font-size: 1.1rem; cursor: pointer; color: var(--text-muted); padding: 4px 8px; }
+  background: var(--bg-card);
+  border-radius: var(--radius);
+  width: min(680px, 96vw);
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow-lg);
+  .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 24px 0;
+    h3 {
+      margin: 0;
+      color: var(--primary-dark);
+    }
+    .close-btn {
+      background: none;
+      border: none;
+      font-size: 1.1rem;
+      cursor: pointer;
+      color: var(--text-muted);
+      padding: 4px 8px;
+    }
   }
-  .form-section { padding: 16px 24px; border-bottom: 1px solid var(--border); }
+  .form-section {
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--border);
+  }
   textarea {
     width: 100%;
     border: 1px solid var(--border);
@@ -1297,46 +1675,143 @@ onMounted(async () => {
   }
 }
 
-.ingredients-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;
-  h4 { margin: 0; color: var(--primary-dark); }
-  .type-badge { padding: 3px 10px; border-radius: 20px; font-size: 0.78rem; font-weight: 700;
-    &.simple { background: rgba(46,125,79,0.1); color: #2e7d4f; }
-    &.compound { background: rgba(99,60,180,0.1); color: #5b21b6; }
+.ingredients-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  h4 {
+    margin: 0;
+    color: var(--primary-dark);
+  }
+  .type-badge {
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    &.simple {
+      background: rgba(46, 125, 79, 0.1);
+      color: #2e7d4f;
+    }
+    &.compound {
+      background: rgba(99, 60, 180, 0.1);
+      color: #5b21b6;
+    }
   }
 }
 
-.ingredients-form-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
+.ingredients-form-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 10px;
+}
 .ingredient-form-row {
-  display: flex; align-items: flex-end; gap: 8px;
-  .ingredient-form-fields { display: flex; gap: 8px; flex: 1; align-items: flex-end; }
-  .flex-3 { flex: 3; }
-  .flex-1 { flex: 1; }
-  .cost-display { padding: 9px 10px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); font-size: 0.85rem; font-weight: 600; color: var(--primary-dark); white-space: nowrap; }
-  .remove-ingredient-btn { width: 32px; height: 36px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-card); cursor: pointer; color: var(--text-muted); flex-shrink: 0; margin-bottom: 0;
-    &:hover:not(:disabled) { background: rgba(180,35,24,0.1); color: #b42318; border-color: rgba(180,35,24,0.3); }
-    &:disabled { opacity: 0.4; cursor: not-allowed; }
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  .ingredient-form-fields {
+    display: flex;
+    gap: 8px;
+    flex: 1;
+    align-items: flex-end;
+  }
+  .flex-3 {
+    flex: 3;
+  }
+  .flex-1 {
+    flex: 1;
+  }
+  .cost-display {
+    padding: 9px 10px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--primary-dark);
+    white-space: nowrap;
+  }
+  .remove-ingredient-btn {
+    width: 32px;
+    height: 36px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg-card);
+    cursor: pointer;
+    color: var(--text-muted);
+    flex-shrink: 0;
+    margin-bottom: 0;
+    &:hover:not(:disabled) {
+      background: rgba(180, 35, 24, 0.1);
+      color: #b42318;
+      border-color: rgba(180, 35, 24, 0.3);
+    }
+    &:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
   }
 }
 
-.btn-add-ingredient { width: 100%; margin-top: 4px; }
+.btn-add-ingredient {
+  width: 100%;
+  margin-top: 4px;
+}
 
 .form-totals {
-  padding: 14px 24px; background: var(--bg); border-bottom: 1px solid var(--border);
-  .total-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 0.9rem; }
-  .profit-row strong { font-size: 1rem; }
+  padding: 14px 24px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  .total-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 0;
+    font-size: 0.9rem;
+  }
+  .profit-row strong {
+    font-size: 1rem;
+  }
 }
 
-.margin-high { color: #2e7d4f; }
-.margin-mid { color: #b45309; }
-.margin-low { color: #b42318; }
+.margin-high {
+  color: #2e7d4f;
+}
+.margin-mid {
+  color: #b45309;
+}
+.margin-low {
+  color: #b42318;
+}
 
-.form-error { color: #b42318; padding: 10px 24px; font-size: 0.88rem; }
-.modal-actions { display: flex; gap: 10px; padding: 16px 24px; }
+.form-error {
+  color: #b42318;
+  padding: 10px 24px;
+  font-size: 0.88rem;
+}
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  padding: 16px 24px;
+}
 
-.loading-state { text-align: center; padding: 48px; color: var(--text-muted); }
-.empty-state { text-align: center; padding: 48px; color: var(--text-muted);
-  span { font-size: 2.5rem; display: block; margin-bottom: 8px; }
-  p { margin-bottom: 16px; }
+.loading-state {
+  text-align: center;
+  padding: 48px;
+  color: var(--text-muted);
+}
+.empty-state {
+  text-align: center;
+  padding: 48px;
+  color: var(--text-muted);
+  span {
+    font-size: 2.5rem;
+    display: block;
+    margin-bottom: 8px;
+  }
+  p {
+    margin-bottom: 16px;
+  }
 }
 
 /* ─── Productions Section ─── */
@@ -1355,8 +1830,16 @@ onMounted(async () => {
   gap: 12px;
   flex-wrap: wrap;
 
-  h3 { margin: 0 0 4px; font-size: 1.05rem; color: var(--text-strong); }
-  p  { margin: 0; color: var(--text-muted); font-size: 0.85rem; }
+  h3 {
+    margin: 0 0 4px;
+    font-size: 1.05rem;
+    color: var(--text-strong);
+  }
+  p {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+  }
 }
 
 .productions-filters {
@@ -1403,8 +1886,12 @@ onMounted(async () => {
   border-bottom: 1px solid var(--border);
   transition: background 0.15s;
 
-  &:hover { background: color-mix(in srgb, var(--primary) 3%, transparent); }
-  &:last-child { border-bottom: none; }
+  &:hover {
+    background: color-mix(in srgb, var(--primary) 3%, transparent);
+  }
+  &:last-child {
+    border-bottom: none;
+  }
 
   &.reversed {
     opacity: 0.55;
@@ -1412,13 +1899,33 @@ onMounted(async () => {
   }
 }
 
-.prod-name  { font-weight: 700; color: var(--text-strong); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.prod-recipe { color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.prod-date  { color: var(--text-muted); font-size: 0.8rem; }
+.prod-name {
+  font-weight: 700;
+  color: var(--text-strong);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.prod-recipe {
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.prod-date {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
 
-.col-num    { text-align: center; }
-.col-status { text-align: center; }
-.col-actions { text-align: end; }
+.col-num {
+  text-align: center;
+}
+.col-status {
+  text-align: center;
+}
+.col-actions {
+  text-align: end;
+}
 
 .badge-reversed {
   display: inline-block;
@@ -1440,11 +1947,17 @@ onMounted(async () => {
   color: var(--primary-dark);
 }
 
-.text-muted { color: var(--text-muted); }
-.text-warn  { color: var(--warning, #f59e0b); }
+.text-muted {
+  color: var(--text-muted);
+}
+.text-warn {
+  color: var(--warning, #f59e0b);
+}
 
 /* Reverse Modal */
-.reverse-modal { max-width: 460px; }
+.reverse-modal {
+  max-width: 460px;
+}
 
 .reverse-summary {
   background: var(--bg);
@@ -1461,9 +1974,15 @@ onMounted(async () => {
   border-bottom: 1px solid var(--border);
   font-size: 0.9rem;
 
-  &:last-child { border-bottom: none; }
-  span { color: var(--text-muted); }
-  strong { color: var(--text-strong); }
+  &:last-child {
+    border-bottom: none;
+  }
+  span {
+    color: var(--text-muted);
+  }
+  strong {
+    color: var(--text-strong);
+  }
 }
 
 .reverse-warning {
@@ -1478,14 +1997,23 @@ onMounted(async () => {
 }
 
 @media (max-width: 768px) {
-  .recipes-grid { grid-template-columns: 1fr; }
-  .ingredient-form-fields { flex-wrap: wrap; }
-  .prod-table-head { display: none; }
+  .recipes-grid {
+    grid-template-columns: 1fr;
+  }
+  .ingredient-form-fields {
+    flex-wrap: wrap;
+  }
+  .prod-table-head {
+    display: none;
+  }
   .prod-table-row {
     grid-template-columns: 1fr 1fr;
     gap: 6px;
     padding: 12px 16px;
   }
-  .productions-filters { flex-direction: column; align-items: flex-start; }
+  .productions-filters {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }
 </style>

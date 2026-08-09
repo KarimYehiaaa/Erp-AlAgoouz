@@ -14,9 +14,7 @@
           <option value="hr">موارد بشرية</option>
           <option value="backup">نسخ احتياطي</option>
         </select>
-        <button class="feed-refresh" @click="$emit('refresh')" title="تحديث">
-          🔄
-        </button>
+        <button class="feed-refresh" @click="$emit('refresh')" title="تحديث">🔄</button>
       </div>
     </div>
 
@@ -35,7 +33,9 @@
         <div class="feed-content">
           <div class="feed-top">
             <span class="feed-user">{{ item.full_name || item.username || 'النظام' }}</span>
-            <span class="feed-module-badge" :class="moduleClass(item.module)">{{ moduleLabel(item.module) }}</span>
+            <span class="feed-module-badge" :class="moduleClass(item.module)">{{
+              moduleLabel(item.module)
+            }}</span>
           </div>
           <div class="feed-action">{{ item.action_ar }}</div>
           <div class="feed-meta">
@@ -107,15 +107,20 @@ const formatTime = (ts) => {
   if (diff < 60) return 'الآن';
   if (diff < 3600) return `منذ ${Math.floor(diff / 60)} دقيقة`;
   if (diff < 86400) return `منذ ${Math.floor(diff / 3600)} ساعة`;
-  return d.toLocaleDateString('ar-EG', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  return d.toLocaleDateString('ar-EG', {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 };
 </script>
 
 <style scoped>
 .activity-feed {
   border-radius: 16px;
-  background: var(--card-bg, rgba(255,255,255,0.04));
-  border: 1px solid var(--border, rgba(255,255,255,0.08));
+  background: var(--card-bg, rgba(255, 255, 255, 0.04));
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
   overflow: hidden;
 }
 
@@ -124,7 +129,7 @@ const formatTime = (ts) => {
   justify-content: space-between;
   align-items: center;
   padding: 16px 20px;
-  border-bottom: 1px solid var(--border, rgba(255,255,255,0.06));
+  border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.06));
 }
 
 .feed-title {
@@ -141,8 +146,8 @@ const formatTime = (ts) => {
 }
 
 .feed-filter {
-  background: var(--input-bg, rgba(255,255,255,0.06));
-  border: 1px solid var(--border, rgba(255,255,255,0.1));
+  background: var(--input-bg, rgba(255, 255, 255, 0.06));
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.1));
   color: var(--text, #ccc);
   padding: 5px 10px;
   border-radius: 8px;
@@ -162,7 +167,7 @@ const formatTime = (ts) => {
 }
 
 .feed-refresh:hover {
-  background: var(--border, rgba(255,255,255,0.08));
+  background: var(--border, rgba(255, 255, 255, 0.08));
 }
 
 .feed-empty {
@@ -181,12 +186,12 @@ const formatTime = (ts) => {
   display: flex;
   gap: 12px;
   padding: 14px 20px;
-  border-bottom: 1px solid var(--border, rgba(255,255,255,0.04));
+  border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.04));
   transition: background 0.2s ease;
 }
 
 .feed-item:hover {
-  background: rgba(255,255,255,0.02);
+  background: rgba(255, 255, 255, 0.02);
 }
 
 .feed-dot {
@@ -197,17 +202,39 @@ const formatTime = (ts) => {
   flex-shrink: 0;
 }
 
-.feed-dot.mod-auth { background: #3b82f6; }
-.feed-dot.mod-sales { background: #10b981; }
-.feed-dot.mod-inventory { background: #8b5cf6; }
-.feed-dot.mod-products { background: #f59e0b; }
-.feed-dot.mod-purchases { background: #06b6d4; }
-.feed-dot.mod-expenses { background: #ef4444; }
-.feed-dot.mod-hr { background: #ec4899; }
-.feed-dot.mod-backup { background: #6366f1; }
-.feed-dot.mod-users { background: #14b8a6; }
-.feed-dot.mod-admin { background: #f97316; }
-.feed-dot.mod-default { background: #6b7280; }
+.feed-dot.mod-auth {
+  background: #3b82f6;
+}
+.feed-dot.mod-sales {
+  background: #10b981;
+}
+.feed-dot.mod-inventory {
+  background: #8b5cf6;
+}
+.feed-dot.mod-products {
+  background: #f59e0b;
+}
+.feed-dot.mod-purchases {
+  background: #06b6d4;
+}
+.feed-dot.mod-expenses {
+  background: #ef4444;
+}
+.feed-dot.mod-hr {
+  background: #ec4899;
+}
+.feed-dot.mod-backup {
+  background: #6366f1;
+}
+.feed-dot.mod-users {
+  background: #14b8a6;
+}
+.feed-dot.mod-admin {
+  background: #f97316;
+}
+.feed-dot.mod-default {
+  background: #6b7280;
+}
 
 .feed-content {
   flex: 1;
@@ -234,17 +261,50 @@ const formatTime = (ts) => {
   border-radius: 6px;
 }
 
-.feed-module-badge.mod-auth { background: rgba(59,130,246,0.12); color: #3b82f6; }
-.feed-module-badge.mod-sales { background: rgba(16,185,129,0.12); color: #10b981; }
-.feed-module-badge.mod-inventory { background: rgba(139,92,246,0.12); color: #8b5cf6; }
-.feed-module-badge.mod-products { background: rgba(245,158,11,0.12); color: #f59e0b; }
-.feed-module-badge.mod-purchases { background: rgba(6,182,212,0.12); color: #06b6d4; }
-.feed-module-badge.mod-expenses { background: rgba(239,68,68,0.12); color: #ef4444; }
-.feed-module-badge.mod-hr { background: rgba(236,72,153,0.12); color: #ec4899; }
-.feed-module-badge.mod-backup { background: rgba(99,102,241,0.12); color: #6366f1; }
-.feed-module-badge.mod-users { background: rgba(20,184,166,0.12); color: #14b8a6; }
-.feed-module-badge.mod-admin { background: rgba(249,115,22,0.12); color: #f97316; }
-.feed-module-badge.mod-default { background: rgba(107,114,128,0.12); color: #6b7280; }
+.feed-module-badge.mod-auth {
+  background: rgba(59, 130, 246, 0.12);
+  color: #3b82f6;
+}
+.feed-module-badge.mod-sales {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+}
+.feed-module-badge.mod-inventory {
+  background: rgba(139, 92, 246, 0.12);
+  color: #8b5cf6;
+}
+.feed-module-badge.mod-products {
+  background: rgba(245, 158, 11, 0.12);
+  color: #f59e0b;
+}
+.feed-module-badge.mod-purchases {
+  background: rgba(6, 182, 212, 0.12);
+  color: #06b6d4;
+}
+.feed-module-badge.mod-expenses {
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+}
+.feed-module-badge.mod-hr {
+  background: rgba(236, 72, 153, 0.12);
+  color: #ec4899;
+}
+.feed-module-badge.mod-backup {
+  background: rgba(99, 102, 241, 0.12);
+  color: #6366f1;
+}
+.feed-module-badge.mod-users {
+  background: rgba(20, 184, 166, 0.12);
+  color: #14b8a6;
+}
+.feed-module-badge.mod-admin {
+  background: rgba(249, 115, 22, 0.12);
+  color: #f97316;
+}
+.feed-module-badge.mod-default {
+  background: rgba(107, 114, 128, 0.12);
+  color: #6b7280;
+}
 
 .feed-action {
   font-size: 0.82rem;
@@ -258,7 +318,8 @@ const formatTime = (ts) => {
   margin-top: 4px;
 }
 
-.feed-time, .feed-ip {
+.feed-time,
+.feed-ip {
   font-size: 0.7rem;
   color: var(--text-muted, #666);
   font-weight: 500;

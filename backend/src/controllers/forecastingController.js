@@ -71,5 +71,5 @@ export const forecasting = {
     } catch (e) {
       next(e);
     }
-  }
+  },
 };

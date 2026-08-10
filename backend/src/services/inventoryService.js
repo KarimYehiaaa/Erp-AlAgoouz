@@ -1,34 +1,26 @@
-// @ts-nocheck
-import { getClient, query } from '../database/pool.js';
-import { AppError } from '../types/errors.js';
-import { invalidateDashboardCache } from './dashboardService.js';
-import { toNumber, sanitizeLimit } from '../utils/money.js';
-
-/**
- * Helpers to ensure / lock inventory rows inside a transaction.
- */
-export const lockInventoryRow = async (client: any, productId: any, warehouseId: any) => {
+import { getClient, query } from "../database/pool.js";
+import { AppError } from "../types/errors.js";
+import { invalidateDashboardCache } from "./dashboardService.js";
+import { toNumber, sanitizeLimit } from "../utils/money.js";
+const lockInventoryRow = async (client, productId, warehouseId) => {
   const res = await client.query(
     `SELECT * FROM inventory WHERE product_id = $1 AND warehouse_id = $2 FOR UPDATE`,
     [productId, warehouseId]
   );
   if (res.rows[0]) return res.rows[0];
-
   await client.query(
     `INSERT INTO inventory (product_id, warehouse_id, quantity)
      VALUES ($1,$2,0)
      ON CONFLICT (product_id, warehouse_id, COALESCE(batch_number, '')) DO NOTHING`,
     [productId, warehouseId]
   );
-
   const res2 = await client.query(
     `SELECT * FROM inventory WHERE product_id = $1 AND warehouse_id = $2 FOR UPDATE`,
     [productId, warehouseId]
   );
   return res2.rows[0];
 };
-
-export const ensureInventoryRow = async (client: any, productId: any, warehouseId: any) => {
+const ensureInventoryRow = async (client, productId, warehouseId) => {
   await client.query(
     `INSERT INTO inventory (product_id, warehouse_id, quantity)
      VALUES ($1,$2,0)
@@ -36,8 +28,7 @@ export const ensureInventoryRow = async (client: any, productId: any, warehouseI
     [productId, warehouseId]
   );
 };
-
-const assertNotRecipeProduct = async (client: any, productId: any) => {
+const assertNotRecipeProduct = async (client, productId) => {
   const recipe = await client.query(
     `SELECT 1
      FROM product_recipes
@@ -48,101 +39,87 @@ const assertNotRecipeProduct = async (client: any, productId: any) => {
     [productId]
   );
   if (recipe.rows[0]) {
-    throw new AppError('لا يمكن تعديل مخزون منتج مرتبط بوصفة نشطة', 400);
+    throw new AppError("\u0644\u0627 \u064A\u0645\u0643\u0646 \u062A\u0639\u062F\u064A\u0644 \u0645\u062E\u0632\u0648\u0646 \u0645\u0646\u062A\u062C \u0645\u0631\u062A\u0628\u0637 \u0628\u0648\u0635\u0641\u0629 \u0646\u0634\u0637\u0629", 400);
   }
 };
-const ADJUSTMENT_MOVEMENT_TYPES = new Set(['adjustment']);
-
-const ensureStockTarget = async (client: any, productId: any, warehouseId: any) => {
+const ADJUSTMENT_MOVEMENT_TYPES = /* @__PURE__ */ new Set(["adjustment"]);
+const ensureStockTarget = async (client, productId, warehouseId) => {
   const product = await client.query(
     `SELECT id
      FROM products
      WHERE id = $1 AND deleted_at IS NULL AND is_active = TRUE`,
     [productId]
   );
-  if (!product.rows[0]) throw new AppError('المنتج غير موجود', 404);
-
+  if (!product.rows[0]) throw new AppError("\u0627\u0644\u0645\u0646\u062A\u062C \u063A\u064A\u0631 \u0645\u0648\u062C\u0648\u062F", 404);
   const warehouse = await client.query(
     `SELECT id
      FROM warehouses
      WHERE id = $1 AND deleted_at IS NULL AND is_active = TRUE`,
     [warehouseId]
   );
-  if (!warehouse.rows[0]) throw new AppError('المخزن غير موجود', 404);
+  if (!warehouse.rows[0]) throw new AppError("\u0627\u0644\u0645\u062E\u0632\u0646 \u063A\u064A\u0631 \u0645\u0648\u062C\u0648\u062F", 404);
 };
-
-import { inventoryRepository } from '../repositories/inventory.repository.js';
-
-export const getInventory = async (warehouseId: any) => {
+import { inventoryRepository } from "../repositories/inventory.repository.js";
+const getInventory = async (warehouseId) => {
   return await inventoryRepository.getInventoryList(warehouseId);
 };
-
-export const getStockMovements = async (filters = {}) => {
+const getStockMovements = async (filters = {}) => {
   return await inventoryRepository.getStockMovements(filters);
 };
-
-export const transferStock = async (data: any, userId: any) => {
+const transferStock = async (data, userId) => {
   const client = await getClient();
   try {
-    await client.query('BEGIN');
+    await client.query("BEGIN");
     const { product_id, from_warehouse_id, to_warehouse_id, notes } = data;
     const to_product_id = data.to_product_id ? Number(data.to_product_id) : Number(product_id);
     const quantity = toNumber(data.quantity);
-    
     if (!product_id || !from_warehouse_id || !to_warehouse_id) {
-      throw new AppError('جميع الحقول مطلوبة');
+      throw new AppError("\u062C\u0645\u064A\u0639 \u0627\u0644\u062D\u0642\u0648\u0644 \u0645\u0637\u0644\u0648\u0628\u0629");
     }
     if (quantity <= 0) {
-      throw new AppError('الكمية يجب أن تكون أكبر من صفر');
+      throw new AppError("\u0627\u0644\u0643\u0645\u064A\u0629 \u064A\u062C\u0628 \u0623\u0646 \u062A\u0643\u0648\u0646 \u0623\u0643\u0628\u0631 \u0645\u0646 \u0635\u0641\u0631");
     }
     if (Number(from_warehouse_id) === Number(to_warehouse_id) && to_product_id === Number(product_id)) {
-      throw new AppError('لا يمكن التحويل إلى نفس المنتج والمخزن');
+      throw new AppError("\u0644\u0627 \u064A\u0645\u0643\u0646 \u0627\u0644\u062A\u062D\u0648\u064A\u0644 \u0625\u0644\u0649 \u0646\u0641\u0633 \u0627\u0644\u0645\u0646\u062A\u062C \u0648\u0627\u0644\u0645\u062E\u0632\u0646");
     }
-
     await assertNotRecipeProduct(client, product_id);
     if (to_product_id !== Number(product_id)) {
       await assertNotRecipeProduct(client, to_product_id);
     }
-
     const fromRow = await lockInventoryRow(client, product_id, from_warehouse_id);
     if (parseFloat(fromRow.quantity || 0) < quantity) {
-      throw new AppError('الكمية الحالية في المخزن غير كافية');
+      throw new AppError("\u0627\u0644\u0643\u0645\u064A\u0629 \u0627\u0644\u062D\u0627\u0644\u064A\u0629 \u0641\u064A \u0627\u0644\u0645\u062E\u0632\u0646 \u063A\u064A\u0631 \u0643\u0627\u0641\u064A\u0629");
     }
-
     await client.query(
       `UPDATE inventory SET quantity = quantity - $1 WHERE product_id = $2 AND warehouse_id = $3`,
       [quantity, product_id, from_warehouse_id]
     );
-
     await client.query(
       `INSERT INTO inventory (product_id, warehouse_id, quantity) VALUES ($1,$2,$3)
        ON CONFLICT (product_id, warehouse_id, COALESCE(batch_number, ''))
        DO UPDATE SET quantity = inventory.quantity + $3, updated_at = NOW()`,
       [to_product_id, to_warehouse_id, quantity]
     );
-
     if (to_product_id !== Number(product_id)) {
-      let sourceName = 'منتج المصدر';
-      let destName = 'منتج الوجهة';
+      let sourceName = "\u0645\u0646\u062A\u062C \u0627\u0644\u0645\u0635\u062F\u0631";
+      let destName = "\u0645\u0646\u062A\u062C \u0627\u0644\u0648\u062C\u0647\u0629";
       const pNames = await client.query(
         `SELECT id, name_ar FROM products WHERE id IN ($1, $2)`,
         [product_id, to_product_id]
       );
-      pNames.rows.forEach(row => {
+      pNames.rows.forEach((row) => {
         if (row.id === Number(product_id)) sourceName = row.name_ar;
         if (row.id === to_product_id) destName = row.name_ar;
       });
-
       await client.query(
         `INSERT INTO stock_movements (product_id, from_warehouse_id, to_warehouse_id, movement_type, quantity, user_id, notes)
          VALUES ($1,$2,$3,'transfer',$4,$5,$6)`,
-        [product_id, from_warehouse_id, to_warehouse_id, quantity, userId, `تحويل إلى منتج آخر: ${destName}. ${notes || ''}`.trim()]
+        [product_id, from_warehouse_id, to_warehouse_id, quantity, userId, `\u062A\u062D\u0648\u064A\u0644 \u0625\u0644\u0649 \u0645\u0646\u062A\u062C \u0622\u062E\u0631: ${destName}. ${notes || ""}`.trim()]
       );
-
       await client.query(
         `INSERT INTO stock_movements (product_id, from_warehouse_id, to_warehouse_id, movement_type, quantity, user_id, notes)
          VALUES ($1,$2,$3,'transfer',$4,$5,$6)`,
-        [to_product_id, from_warehouse_id, to_warehouse_id, quantity, userId, `تحويل من منتج آخر: ${sourceName}. ${notes || ''}`.trim()]
+        [to_product_id, from_warehouse_id, to_warehouse_id, quantity, userId, `\u062A\u062D\u0648\u064A\u0644 \u0645\u0646 \u0645\u0646\u062A\u062C \u0622\u062E\u0631: ${sourceName}. ${notes || ""}`.trim()]
       );
     } else {
       await client.query(
@@ -151,138 +128,117 @@ export const transferStock = async (data: any, userId: any) => {
         [product_id, from_warehouse_id, to_warehouse_id, quantity, userId, notes]
       );
     }
-
-    await client.query('COMMIT');
+    await client.query("COMMIT");
     invalidateDashboardCache();
     return { success: true };
   } catch (err) {
-    await client.query('ROLLBACK');
+    await client.query("ROLLBACK");
     throw err;
   } finally {
     client.release();
   }
 };
-
-export const adjustStock = async (data: any, userId: any) => {
-  const { product_id, warehouse_id, quantity, notes, movement_type = 'adjustment', min_stock } = data;
+const adjustStock = async (data, userId) => {
+  const { product_id, warehouse_id, quantity, notes, movement_type = "adjustment", min_stock } = data;
   const targetQty = toNumber(quantity, NaN);
-  const nextMinStock = min_stock === undefined ? undefined : toNumber(min_stock, NaN);
-  if (!product_id || !warehouse_id) throw new AppError('المنتج والمخزن مطلوبان', 400);
-  if (!Number.isFinite(targetQty) || targetQty < 0) throw new AppError('الكمية يجب أن تكون صفر أو أكبر', 400);
-  if (nextMinStock !== undefined && (!Number.isFinite(nextMinStock) || nextMinStock < 0)) {
-    throw new AppError('حد المخزون يجب أن يكون صفر أو أكبر', 400);
+  const nextMinStock = min_stock === void 0 ? void 0 : toNumber(min_stock, NaN);
+  if (!product_id || !warehouse_id) throw new AppError("\u0627\u0644\u0645\u0646\u062A\u062C \u0648\u0627\u0644\u0645\u062E\u0632\u0646 \u0645\u0637\u0644\u0648\u0628\u0627\u0646", 400);
+  if (!Number.isFinite(targetQty) || targetQty < 0) throw new AppError("\u0627\u0644\u0643\u0645\u064A\u0629 \u064A\u062C\u0628 \u0623\u0646 \u062A\u0643\u0648\u0646 \u0635\u0641\u0631 \u0623\u0648 \u0623\u0643\u0628\u0631", 400);
+  if (nextMinStock !== void 0 && (!Number.isFinite(nextMinStock) || nextMinStock < 0)) {
+    throw new AppError("\u062D\u062F \u0627\u0644\u0645\u062E\u0632\u0648\u0646 \u064A\u062C\u0628 \u0623\u0646 \u064A\u0643\u0648\u0646 \u0635\u0641\u0631 \u0623\u0648 \u0623\u0643\u0628\u0631", 400);
   }
   if (!ADJUSTMENT_MOVEMENT_TYPES.has(movement_type)) {
-    throw new AppError('نوع الحركة غير صحيح', 400);
+    throw new AppError("\u0646\u0648\u0639 \u0627\u0644\u062D\u0631\u0643\u0629 \u063A\u064A\u0631 \u0635\u062D\u064A\u062D", 400);
   }
-
   const client = await getClient();
   try {
-    await client.query('BEGIN');
+    await client.query("BEGIN");
     await ensureStockTarget(client, product_id, warehouse_id);
     await assertNotRecipeProduct(client, product_id);
-
     const currentRow = await lockInventoryRow(client, product_id, warehouse_id);
     const currentQty = parseFloat(currentRow.quantity || 0);
     const delta = targetQty - currentQty;
-
     await client.query(
-      'INSERT INTO inventory (product_id, warehouse_id, quantity) VALUES ($1,$2,$3) ON CONFLICT (product_id, warehouse_id, COALESCE(batch_number, \'\')) DO UPDATE SET quantity = $3, updated_at = NOW()',
+      "INSERT INTO inventory (product_id, warehouse_id, quantity) VALUES ($1,$2,$3) ON CONFLICT (product_id, warehouse_id, COALESCE(batch_number, '')) DO UPDATE SET quantity = $3, updated_at = NOW()",
       [product_id, warehouse_id, targetQty]
     );
-
-    if (nextMinStock !== undefined) {
+    if (nextMinStock !== void 0) {
       await client.query(
-        'UPDATE products SET min_stock = $1, updated_at = NOW() WHERE id = $2 AND deleted_at IS NULL',
+        "UPDATE products SET min_stock = $1, updated_at = NOW() WHERE id = $2 AND deleted_at IS NULL",
         [nextMinStock, product_id]
       );
     }
-
-    if (Math.abs(delta) > 0.0001) {
+    if (Math.abs(delta) > 1e-4) {
       const movementQuantity = Math.abs(delta);
       const fromWarehouseId = delta < 0 ? warehouse_id : null;
       const toWarehouseId = delta > 0 ? warehouse_id : null;
       await client.query(
-        'INSERT INTO stock_movements (product_id, from_warehouse_id, to_warehouse_id, movement_type, quantity, user_id, notes) VALUES ($1,$2,$3,$4,$5,$6,$7)',
-        [product_id, fromWarehouseId, toWarehouseId, movement_type, movementQuantity, userId, notes || ('تعديل يدوي: ' + (delta >= 0 ? '+' : '') + delta.toFixed(3))]
+        "INSERT INTO stock_movements (product_id, from_warehouse_id, to_warehouse_id, movement_type, quantity, user_id, notes) VALUES ($1,$2,$3,$4,$5,$6,$7)",
+        [product_id, fromWarehouseId, toWarehouseId, movement_type, movementQuantity, userId, notes || "\u062A\u0639\u062F\u064A\u0644 \u064A\u062F\u0648\u064A: " + (delta >= 0 ? "+" : "") + delta.toFixed(3)]
       );
     }
-
-    await client.query('COMMIT');
+    await client.query("COMMIT");
   } catch (err) {
-    await client.query('ROLLBACK');
+    await client.query("ROLLBACK");
     throw err;
   } finally {
     client.release();
   }
 };
-
-export const getWarehouses = async () =>
-  (await query(`SELECT * FROM warehouses WHERE deleted_at IS NULL ORDER BY id`)).rows;
-
-export const returnProductToStock = async (data: any, userId: any) => {
+const getWarehouses = async () => (await query(`SELECT * FROM warehouses WHERE deleted_at IS NULL ORDER BY id`)).rows;
+const returnProductToStock = async (data, userId) => {
   const { product_id, warehouse_id, quantity, notes, sale_id } = data;
   const qty = parseFloat(quantity);
-  if (!qty || qty <= 0) throw new AppError('الكمية يجب أن تكون أكبر من صفر');
-
+  if (!qty || qty <= 0) throw new AppError("\u0627\u0644\u0643\u0645\u064A\u0629 \u064A\u062C\u0628 \u0623\u0646 \u062A\u0643\u0648\u0646 \u0623\u0643\u0628\u0631 \u0645\u0646 \u0635\u0641\u0631");
   const product = await query(`SELECT id, name_ar, sku FROM products WHERE id = $1 AND deleted_at IS NULL`, [product_id]);
-  if (!product.rows[0]) throw new AppError('المنتج غير موجود', 404);
-
+  if (!product.rows[0]) throw new AppError("\u0627\u0644\u0645\u0646\u062A\u062C \u063A\u064A\u0631 \u0645\u0648\u062C\u0648\u062F", 404);
   const warehouse = await query(`SELECT id, name_ar FROM warehouses WHERE id = $1 AND deleted_at IS NULL`, [warehouse_id]);
-  if (!warehouse.rows[0]) throw new AppError('المخزن غير موجود', 404);
-
+  if (!warehouse.rows[0]) throw new AppError("\u0627\u0644\u0645\u062E\u0632\u0646 \u063A\u064A\u0631 \u0645\u0648\u062C\u0648\u062F", 404);
   const client = await getClient();
   try {
-    await client.query('BEGIN');
+    await client.query("BEGIN");
     await assertNotRecipeProduct(client, product_id);
-
     await client.query(
       `INSERT INTO inventory (product_id, warehouse_id, quantity) VALUES ($1,$2,$3)
        ON CONFLICT (product_id, warehouse_id, COALESCE(batch_number, ''))
        DO UPDATE SET quantity = inventory.quantity + $3, updated_at = NOW()`,
       [product_id, warehouse_id, qty]
     );
-
-    const refType = sale_id ? 'sale' : 'product_return';
+    const refType = sale_id ? "sale" : "product_return";
     const refId = sale_id || product_id;
-
     await client.query(
       `INSERT INTO stock_movements (product_id, to_warehouse_id, movement_type, quantity, reference_type, reference_id, user_id, notes)
        VALUES ($1,$2,'return',$3,$4,$5,$6,$7)`,
-      [product_id, warehouse_id, qty, refType, refId, userId, notes || 'استرداد منتج للمخزن']
+      [product_id, warehouse_id, qty, refType, refId, userId, notes || "\u0627\u0633\u062A\u0631\u062F\u0627\u062F \u0645\u0646\u062A\u062C \u0644\u0644\u0645\u062E\u0632\u0646"]
     );
-
     const stock = await client.query(
       `SELECT quantity FROM inventory WHERE product_id = $1 AND warehouse_id = $2`,
       [product_id, warehouse_id]
     );
-
     await client.query(
       `INSERT INTO activity_logs (user_id, module, action_ar, details) VALUES ($1,'products',$2,$3)`,
       [
         userId,
-        `استرداد منتج: ${product.rows[0].name_ar} (+${qty})`,
-        JSON.stringify({ product_id, warehouse_id, quantity: qty, new_stock: stock.rows[0]?.quantity }),
+        `\u0627\u0633\u062A\u0631\u062F\u0627\u062F \u0645\u0646\u062A\u062C: ${product.rows[0].name_ar} (+${qty})`,
+        JSON.stringify({ product_id, warehouse_id, quantity: qty, new_stock: stock.rows[0]?.quantity })
       ]
     );
-
-    await client.query('COMMIT');
+    await client.query("COMMIT");
     return {
       product_id,
       product_name: product.rows[0].name_ar,
       warehouse_name: warehouse.rows[0].name_ar,
       quantity: qty,
-      new_quantity: parseFloat(stock.rows[0]?.quantity || 0),
+      new_quantity: parseFloat(stock.rows[0]?.quantity || 0)
     };
   } catch (err) {
-    await client.query('ROLLBACK');
+    await client.query("ROLLBACK");
     throw err;
   } finally {
     client.release();
   }
 };
-
-export const getProductReturns = async (filters = {}) => {
+const getProductReturns = async (filters = {}) => {
   let sql = `SELECT sm.*, p.name_ar as product_name, p.sku, w.name_ar as warehouse_name, u.full_name as user_name
     FROM stock_movements sm
     JOIN products p ON sm.product_id = p.id
@@ -292,45 +248,54 @@ export const getProductReturns = async (filters = {}) => {
       AND sm.reference_type = 'product_return'`;
   const params = [];
   let i = 1;
-  if (filters.product_id) { sql += ` AND sm.product_id = $${i++}`; params.push(filters.product_id); }
+  if (filters.product_id) {
+    sql += ` AND sm.product_id = $${i++}`;
+    params.push(filters.product_id);
+  }
   sql += ` ORDER BY sm.created_at DESC LIMIT ${sanitizeLimit(filters.limit, 50)}`;
   return (await query(sql, params)).rows;
 };
-
-export const clearAllInventoryData = async (userId: any) => {
+const clearAllInventoryData = async (userId) => {
   const client = await getClient();
   try {
-    await client.query('BEGIN');
-
+    await client.query("BEGIN");
     const inventoryCountRes = await client.query(`SELECT COUNT(*)::int AS count FROM inventory`);
     const movementCountRes = await client.query(`SELECT COUNT(*)::int AS count FROM stock_movements`);
-
-    // استخدام DELETE بدلاً من TRUNCATE لضمان تفعيل triggers التدقيق (Row-Level Audits)
     await client.query(`DELETE FROM stock_movements`);
     await client.query(`DELETE FROM inventory`);
-
     await client.query(
       `INSERT INTO activity_logs (user_id, module, action_ar, details)
        VALUES ($1, 'inventory', $2, $3)`,
       [
         userId,
-        'حذف المخزون بالكامل',
+        "\u062D\u0630\u0641 \u0627\u0644\u0645\u062E\u0632\u0648\u0646 \u0628\u0627\u0644\u0643\u0627\u0645\u0644",
         JSON.stringify({
           inventory_rows_deleted: inventoryCountRes.rows[0]?.count || 0,
-          stock_movements_deleted: movementCountRes.rows[0]?.count || 0,
-        }),
+          stock_movements_deleted: movementCountRes.rows[0]?.count || 0
+        })
       ]
     );
-
-    await client.query('COMMIT');
+    await client.query("COMMIT");
     return {
       inventory_rows_deleted: inventoryCountRes.rows[0]?.count || 0,
-      stock_movements_deleted: movementCountRes.rows[0]?.count || 0,
+      stock_movements_deleted: movementCountRes.rows[0]?.count || 0
     };
   } catch (err) {
-    await client.query('ROLLBACK');
+    await client.query("ROLLBACK");
     throw err;
   } finally {
     client.release();
   }
+};
+export {
+  adjustStock,
+  clearAllInventoryData,
+  ensureInventoryRow,
+  getInventory,
+  getProductReturns,
+  getStockMovements,
+  getWarehouses,
+  lockInventoryRow,
+  returnProductToStock,
+  transferStock
 };

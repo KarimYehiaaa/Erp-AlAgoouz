@@ -1,23 +1,13 @@
-import { BaseRepository, BaseEntity } from './base.repository.js';
-import { query } from '../database/pool.js';
-import { sanitizeLimit } from '../utils/money.js';
-
-export interface InventoryEntity extends BaseEntity {
-  product_id: number;
-  warehouse_id: number;
-  quantity: number;
-  batch_number?: string;
-  notes?: string;
-}
-
-export class InventoryRepository extends BaseRepository<InventoryEntity> {
-  protected tableName = 'inventory';
-
+import { BaseRepository } from "./base.repository.js";
+import { query } from "../database/pool.js";
+import { sanitizeLimit } from "../utils/money.js";
+class InventoryRepository extends BaseRepository {
+  tableName = "inventory";
   /**
    * Fetches inventory summary with product and warehouse details.
    */
-  async getInventoryList(warehouseId?: number): Promise<any[]> {
-    const params: any[] = [];
+  async getInventoryList(warehouseId) {
+    const params = [];
     let sql = `
       SELECT DISTINCT ON (p.id)
         COALESCE(i.id, 0) AS id,
@@ -80,20 +70,17 @@ export class InventoryRepository extends BaseRepository<InventoryEntity> {
       WHERE p.deleted_at IS NULL
         AND p.is_active = TRUE
     `;
-
     if (warehouseId) {
       sql += ` AND w.id = $1`;
       params.push(warehouseId);
     }
-
     sql += ` ORDER BY p.id, p.name_ar`;
     return (await query(sql, params)).rows;
   }
-
   /**
    * Fetches stock movements.
    */
-  async getStockMovements(filters: any = {}): Promise<any[]> {
+  async getStockMovements(filters = {}) {
     let sql = `SELECT sm.*, p.name_ar as product_name, u.full_name as user_name,
       fw.name_ar as from_warehouse, tw.name_ar as to_warehouse
       FROM stock_movements sm
@@ -101,13 +88,23 @@ export class InventoryRepository extends BaseRepository<InventoryEntity> {
       LEFT JOIN users u ON sm.user_id = u.id
       LEFT JOIN warehouses fw ON sm.from_warehouse_id = fw.id
       LEFT JOIN warehouses tw ON sm.to_warehouse_id = tw.id WHERE 1=1`;
-    const params: any[] = [];
+    const params = [];
     let i = 1;
-    if (filters.product_id) { sql += ` AND sm.product_id = $${i++}`; params.push(filters.product_id); }
-    if (filters.warehouse_id) { sql += ` AND (sm.from_warehouse_id = $${i} OR sm.to_warehouse_id = $${i})`; params.push(filters.warehouse_id); i++; }
+    if (filters.product_id) {
+      sql += ` AND sm.product_id = $${i++}`;
+      params.push(filters.product_id);
+    }
+    if (filters.warehouse_id) {
+      sql += ` AND (sm.from_warehouse_id = $${i} OR sm.to_warehouse_id = $${i})`;
+      params.push(filters.warehouse_id);
+      i++;
+    }
     sql += ` ORDER BY sm.created_at DESC LIMIT ${sanitizeLimit(filters.limit)}`;
     return (await query(sql, params)).rows;
   }
 }
-
-export const inventoryRepository = new InventoryRepository();
+const inventoryRepository = new InventoryRepository();
+export {
+  InventoryRepository,
+  inventoryRepository
+};

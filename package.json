@@ -33,6 +33,7 @@
   },
   "type": "module",
   "dependencies": {
+    "@sentry/node": "^10.69.0",
     "@types/cookie-parser": "^1.4.10",
     "@types/express": "^5.0.6",
     "@types/node": "^26.2.0",

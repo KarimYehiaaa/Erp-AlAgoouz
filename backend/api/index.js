@@ -35001,7 +35001,7 @@ var require_exception_handler = __commonJS({
       handle(...args) {
         args.forEach((arg) => {
           if (Array.isArray(arg)) {
-            return arg.forEach((handler2) => this._addHandler(handler2));
+            return arg.forEach((handler) => this._addHandler(handler));
           }
           this._addHandler(arg);
         });
@@ -35097,11 +35097,11 @@ var require_exception_handler = __commonJS({
        * @param {Transport} handler - The transport to add as an exception handler.
        * @returns {void}
        */
-      _addHandler(handler2) {
-        if (!this.handlers.has(handler2)) {
-          handler2.handleExceptions = true;
-          const wrapper = new ExceptionStream(handler2);
-          this.handlers.set(handler2, wrapper);
+      _addHandler(handler) {
+        if (!this.handlers.has(handler)) {
+          handler.handleExceptions = true;
+          const wrapper = new ExceptionStream(handler);
+          this.handlers.set(handler, wrapper);
           this.logger.pipe(wrapper);
         }
       }
@@ -35135,9 +35135,9 @@ var require_exception_handler = __commonJS({
         if (!handlers2 || handlers2.length === 0) {
           return process.nextTick(gracefulExit);
         }
-        asyncForEach(handlers2, (handler2, next) => {
+        asyncForEach(handlers2, (handler, next) => {
           const done = once3(next);
-          const transport = handler2.transport || handler2;
+          const transport = handler.transport || handler;
           function onDone2(event) {
             return () => {
               debug2(event);
@@ -35239,7 +35239,7 @@ var require_rejection_handler = __commonJS({
       handle(...args) {
         args.forEach((arg) => {
           if (Array.isArray(arg)) {
-            return arg.forEach((handler2) => this._addHandler(handler2));
+            return arg.forEach((handler) => this._addHandler(handler));
           }
           this._addHandler(arg);
         });
@@ -35337,11 +35337,11 @@ var require_rejection_handler = __commonJS({
        * @param {Transport} handler - The transport to add as an exception handler.
        * @returns {void}
        */
-      _addHandler(handler2) {
-        if (!this.handlers.has(handler2)) {
-          handler2.handleRejections = true;
-          const wrapper = new RejectionStream(handler2);
-          this.handlers.set(handler2, wrapper);
+      _addHandler(handler) {
+        if (!this.handlers.has(handler)) {
+          handler.handleRejections = true;
+          const wrapper = new RejectionStream(handler);
+          this.handlers.set(handler, wrapper);
           this.logger.pipe(wrapper);
         }
       }
@@ -35377,9 +35377,9 @@ var require_rejection_handler = __commonJS({
         }
         asyncForEach(
           handlers2,
-          (handler2, next) => {
+          (handler, next) => {
             const done = once3(next);
-            const transport = handler2.transport || handler2;
+            const transport = handler.transport || handler;
             function onDone2(event) {
               return () => {
                 debug2(event);
@@ -61867,9 +61867,9 @@ var require_event_target = __commonJS({
        *     the listener would be automatically removed when invoked.
        * @public
        */
-      addEventListener(type, handler2, options = {}) {
+      addEventListener(type, handler, options = {}) {
         for (const listener of this.listeners(type)) {
-          if (!options[kForOnEventAttribute] && listener[kListener] === handler2 && !listener[kForOnEventAttribute]) {
+          if (!options[kForOnEventAttribute] && listener[kListener] === handler && !listener[kForOnEventAttribute]) {
             return;
           }
         }
@@ -61880,7 +61880,7 @@ var require_event_target = __commonJS({
               data: isBinary ? data : data.toString()
             });
             event[kTarget] = this;
-            callListener(handler2, this, event);
+            callListener(handler, this, event);
           };
         } else if (type === "close") {
           wrapper = function onClose(code, message) {
@@ -61890,7 +61890,7 @@ var require_event_target = __commonJS({
               wasClean: this._closeFrameReceived && this._closeFrameSent
             });
             event[kTarget] = this;
-            callListener(handler2, this, event);
+            callListener(handler, this, event);
           };
         } else if (type === "error") {
           wrapper = function onError2(error2) {
@@ -61899,19 +61899,19 @@ var require_event_target = __commonJS({
               message: error2.message
             });
             event[kTarget] = this;
-            callListener(handler2, this, event);
+            callListener(handler, this, event);
           };
         } else if (type === "open") {
           wrapper = function onOpen() {
             const event = new Event2("open");
             event[kTarget] = this;
-            callListener(handler2, this, event);
+            callListener(handler, this, event);
           };
         } else {
           return;
         }
         wrapper[kForOnEventAttribute] = !!options[kForOnEventAttribute];
-        wrapper[kListener] = handler2;
+        wrapper[kListener] = handler;
         if (options.once) {
           this.once(type, wrapper);
         } else {
@@ -61925,9 +61925,9 @@ var require_event_target = __commonJS({
        * @param {(Function|Object)} handler The listener to remove
        * @public
        */
-      removeEventListener(type, handler2) {
+      removeEventListener(type, handler) {
         for (const listener of this.listeners(type)) {
-          if (listener[kListener] === handler2 && !listener[kForOnEventAttribute]) {
+          if (listener[kListener] === handler && !listener[kForOnEventAttribute]) {
             this.removeListener(type, listener);
             break;
           }
@@ -62568,15 +62568,15 @@ var require_websocket = __commonJS({
           }
           return null;
         },
-        set(handler2) {
+        set(handler) {
           for (const listener of this.listeners(method)) {
             if (listener[kForOnEventAttribute]) {
               this.removeListener(method, listener);
               break;
             }
           }
-          if (typeof handler2 !== "function") return;
-          this.addEventListener(method, handler2, {
+          if (typeof handler !== "function") return;
+          this.addEventListener(method, handler, {
             [kForOnEventAttribute]: true
           });
         }
@@ -258954,8 +258954,8 @@ var require_global_error_handler = __commonJS({
     exports.globalErrorHandler = exports.setGlobalErrorHandler = void 0;
     var logging_error_handler_1 = require_logging_error_handler();
     var delegateHandler = (0, logging_error_handler_1.loggingErrorHandler)();
-    function setGlobalErrorHandler(handler2) {
-      delegateHandler = handler2;
+    function setGlobalErrorHandler(handler) {
+      delegateHandler = handler;
     }
     exports.setGlobalErrorHandler = setGlobalErrorHandler;
     function globalErrorHandler(ex) {
@@ -268504,11 +268504,11 @@ var require_node_abort_controller = __commonJS({
       get [Symbol.toStringTag]() {
         return "AbortSignal";
       }
-      removeEventListener(name, handler2) {
-        this.eventEmitter.removeListener(name, handler2);
+      removeEventListener(name, handler) {
+        this.eventEmitter.removeListener(name, handler);
       }
-      addEventListener(name, handler2) {
-        this.eventEmitter.on(name, handler2);
+      addEventListener(name, handler) {
+        this.eventEmitter.on(name, handler);
       }
       dispatchEvent(type) {
         const event = { type, target: this };
@@ -336413,13 +336413,13 @@ function normalizeStackTracePath(path9) {
 // backend/node_modules/@sentry/core/build/esm/instrument/handlers.js
 var handlers = {};
 var instrumented = {};
-function addHandler(type, handler2) {
+function addHandler(type, handler) {
   handlers[type] = handlers[type] || [];
-  handlers[type].push(handler2);
+  handlers[type].push(handler);
   return () => {
     const typeHandlers = handlers[type];
     if (typeHandlers) {
-      const index = typeHandlers.indexOf(handler2);
+      const index = typeHandlers.indexOf(handler);
       if (index !== -1) {
         typeHandlers.splice(index, 1);
       }
@@ -336441,14 +336441,14 @@ function triggerHandlers(type, data) {
   if (!typeHandlers) {
     return;
   }
-  for (const handler2 of typeHandlers) {
+  for (const handler of typeHandlers) {
     try {
-      handler2(data);
+      handler(data);
     } catch (e) {
       DEBUG_BUILD && debug.error(
         `Error while triggering instrumentation handler.
 Type: ${type}
-Name: ${getFunctionName(handler2)}
+Name: ${getFunctionName(handler)}
 Error:`,
         e
       );
@@ -340621,17 +340621,17 @@ var SyncPromise = class _SyncPromise {
     }
     const cachedHandlers = this._handlers.slice();
     this._handlers = [];
-    cachedHandlers.forEach((handler2) => {
-      if (handler2[0]) {
+    cachedHandlers.forEach((handler) => {
+      if (handler[0]) {
         return;
       }
       if (this._state === STATE_RESOLVED) {
-        handler2[1](this._value);
+        handler[1](this._value);
       }
       if (this._state === STATE_REJECTED) {
-        handler2[2](this._value);
+        handler[2](this._value);
       }
-      handler2[0] = true;
+      handler[0] = true;
     });
   }
   /** Run the executor for the SyncPromise. */
@@ -343652,9 +343652,9 @@ function normalizeQueryString(queryString) {
 
 // backend/node_modules/@sentry/core/build/esm/instrument/console.js
 var _filter = /* @__PURE__ */ new Set([]);
-function addConsoleInstrumentationHandler(handler2) {
+function addConsoleInstrumentationHandler(handler) {
   const type = "console";
-  const removeHandler = addHandler(type, handler2);
+  const removeHandler = addHandler(type, handler);
   maybeInstrument(type, instrumentConsole);
   return removeHandler;
 }
@@ -346254,8 +346254,8 @@ function isCallbackManager(value) {
   const candidate = value;
   return typeof candidate.addHandler === "function" && typeof candidate.copy === "function";
 }
-function isSentryHandler(handler2) {
-  return typeof handler2 === "object" && handler2?.name === "SentryCallbackHandler";
+function isSentryHandler(handler) {
+  return typeof handler === "object" && handler?.name === "SentryCallbackHandler";
 }
 function containsSentryHandler(handlers2) {
   return handlers2.some(isSentryHandler);
@@ -346291,7 +346291,7 @@ function createLangChainCallbackHandler(options = {}) {
       spanMap.delete(runId);
     }
   };
-  const handler2 = {
+  const handler = {
     // Required LangChain BaseCallbackHandler properties
     lc_serializable: false,
     lc_namespace: ["langchain_core", "callbacks", "sentry"],
@@ -346510,24 +346510,24 @@ function createLangChainCallbackHandler(options = {}) {
     },
     // LangChain BaseCallbackHandler required methods
     copy() {
-      return handler2;
+      return handler;
     },
     toJSON() {
       return {
         lc: 1,
         type: "not_implemented",
-        id: handler2.lc_id
+        id: handler.lc_id
       };
     },
     toJSONNotImplemented() {
       return {
         lc: 1,
         type: "not_implemented",
-        id: handler2.lc_id
+        id: handler.lc_id
       };
     }
   };
-  return handler2;
+  return handler;
 }
 
 // backend/node_modules/@sentry/core/build/esm/tracing/langchain/embeddings.js
@@ -354519,15 +354519,15 @@ var FastifyInstrumentationV3 = class extends import_instrumentation5.Instrumenta
     return function(original) {
       return function wrappedAddHook(...args) {
         const name = args[0];
-        const handler2 = args[1];
+        const handler = args[1];
         const pluginName = this.pluginName;
         if (!hooksNamesToWrap.has(name)) {
           return original.apply(this, args);
         }
-        const syncFunctionWithDone = typeof args[args.length - 1] === "function" && handler2.constructor.name !== "AsyncFunction";
+        const syncFunctionWithDone = typeof args[args.length - 1] === "function" && handler.constructor.name !== "AsyncFunction";
         return original.apply(this, [
           name,
-          instrumentation._wrapHandler(pluginName, name, handler2, syncFunctionWithDone)
+          instrumentation._wrapHandler(pluginName, name, handler, syncFunctionWithDone)
         ]);
       };
     };
@@ -354580,8 +354580,8 @@ var FastifyInstrumentationV3 = class extends import_instrumentation5.Instrumenta
         return done();
       }
       const anyRequest = request2;
-      const handler2 = anyRequest.routeOptions?.handler || anyRequest.context?.handler;
-      const handlerName = handler2?.name.startsWith("bound ") ? handler2.name.substring(6) : handler2?.name;
+      const handler = anyRequest.routeOptions?.handler || anyRequest.context?.handler;
+      const handlerName = handler?.name.startsWith("bound ") ? handler.name.substring(6) : handler?.name;
       const spanName = `${FastifyNames.REQUEST_HANDLER} - ${handlerName || this.pluginName || ANONYMOUS_NAME}`;
       const spanAttributes = {
         [AttributeNames.PLUGIN_NAME]: this.pluginName,
@@ -356269,7 +356269,7 @@ function otelWireRoute(routeOptions) {
       );
     } else if (Array.isArray(handlerLike)) {
       routeOptions[hook] = handlerLike.map(
-        (handler2) => handlerWrapper(handler2, hook, routeHookAttributes(this.pluginName, hook, handler2, routeOptions.url))
+        (handler) => handlerWrapper(handler, hook, routeHookAttributes(this.pluginName, hook, handler, routeOptions.url))
       );
     }
   }
@@ -356282,12 +356282,12 @@ function otelWireRoute(routeOptions) {
     [ATTRIBUTE_HOOK_CALLBACK_NAME]: routeOptions.handler.name.length > 0 ? routeOptions.handler.name : ANONYMOUS_FUNCTION_NAME
   });
 }
-function routeHookAttributes(pluginName, hook, handler2, url) {
+function routeHookAttributes(pluginName, hook, handler, url) {
   return {
     [ATTRIBUTE_HOOK_NAME]: `${pluginName} - route -> ${hook}`,
     [ATTRIBUTE_FASTIFY_TYPE]: HOOK_TYPE_ROUTE,
     [Ts]: url,
-    [ATTRIBUTE_HOOK_CALLBACK_NAME]: handler2.name?.length > 0 ? handler2.name : ANONYMOUS_FUNCTION_NAME
+    [ATTRIBUTE_HOOK_CALLBACK_NAME]: handler.name?.length > 0 ? handler.name : ANONYMOUS_FUNCTION_NAME
   };
 }
 function appendRouteHook(existing, hook) {
@@ -356364,7 +356364,7 @@ function addHookPatched(name, hook) {
   }
   return addHookOriginal.call(this, name, hook);
 }
-function setNotFoundHandlerPatched(hooks, handler2) {
+function setNotFoundHandlerPatched(hooks, handler) {
   const setNotFoundHandlerOriginal = this[kSetNotFoundOriginal];
   if (typeof hooks === "function") {
     setNotFoundHandlerOriginal.call(
@@ -356391,17 +356391,17 @@ function setNotFoundHandlerPatched(hooks, handler2) {
       [ATTRIBUTE_HOOK_CALLBACK_NAME]: hooks.preHandler.name?.length > 0 ? hooks.preHandler.name : ANONYMOUS_FUNCTION_NAME
     });
   }
-  if (handler2 == null) {
+  if (handler == null) {
     setNotFoundHandlerOriginal.call(this, hooks);
     return;
   }
   setNotFoundHandlerOriginal.call(
     this,
     hooks,
-    handlerWrapper(handler2, "notFoundHandler", {
+    handlerWrapper(handler, "notFoundHandler", {
       [ATTRIBUTE_HOOK_NAME]: `${this.pluginName} - not-found-handler`,
       [ATTRIBUTE_FASTIFY_TYPE]: HOOK_TYPE_INSTANCE,
-      [ATTRIBUTE_HOOK_CALLBACK_NAME]: handler2.name?.length > 0 ? handler2.name : ANONYMOUS_FUNCTION_NAME
+      [ATTRIBUTE_HOOK_CALLBACK_NAME]: handler.name?.length > 0 ? handler.name : ANONYMOUS_FUNCTION_NAME
     })
   );
 }
@@ -356413,14 +356413,14 @@ function getRequestFromArgs(args) {
   }
   return null;
 }
-function handlerWrapper(handler2, hookName, spanAttributes = {}) {
+function handlerWrapper(handler, hookName, spanAttributes = {}) {
   return function handlerWrapped(...args) {
     const request2 = getRequestFromArgs(args);
     if (request2 === null || getRequestRouteConfig(request2)?.otel === false) {
-      return handler2.call(this, ...args);
+      return handler.call(this, ...args);
     }
     const parentSpan = request2[kRequestSpan] ?? void 0;
-    const handlerName = handler2.name?.length > 0 ? handler2.name : this.pluginName ?? ANONYMOUS_FUNCTION_NAME;
+    const handlerName = handler.name?.length > 0 ? handler.name : this.pluginName ?? ANONYMOUS_FUNCTION_NAME;
     const hookType = spanAttributes[ATTRIBUTE_FASTIFY_TYPE];
     const op = hookType === HOOK_TYPE_INSTANCE ? HOOK_OP : hookType === HOOK_TYPE_HANDLER ? REQUEST_HANDLER_OP : void 0;
     const name = op ? stripFastifyPrefix(spanAttributes[ATTRIBUTE_HOOK_NAME]) : `${hookName} - ${handlerName}`;
@@ -356434,7 +356434,7 @@ function handlerWrapper(handler2, hookName, spanAttributes = {}) {
         },
         parentSpan
       },
-      () => handler2.call(this, ...args)
+      () => handler.call(this, ...args)
     );
   };
 }
@@ -360266,8 +360266,8 @@ var HapiInstrumentation = class extends import_instrumentation26.Instrumentation
           const eventObj = eventsList[i2];
           if (isLifecycleExtType(eventObj.type)) {
             const lifecycleEventObj = eventObj;
-            const handler2 = instrumentation._wrapExtMethods(lifecycleEventObj.method, eventObj.type, pluginName);
-            lifecycleEventObj.method = handler2;
+            const handler = instrumentation._wrapExtMethods(lifecycleEventObj.method, eventObj.type, pluginName);
+            lifecycleEventObj.method = handler;
             eventsList[i2] = lifecycleEventObj;
           }
         }
@@ -360275,12 +360275,12 @@ var HapiInstrumentation = class extends import_instrumentation26.Instrumentation
       } else if (isDirectExtInput(args)) {
         const extInput = args;
         const method = extInput[1];
-        const handler2 = instrumentation._wrapExtMethods(method, extInput[0], pluginName);
-        return original.apply(this, [extInput[0], handler2, extInput[2]]);
+        const handler = instrumentation._wrapExtMethods(method, extInput[0], pluginName);
+        return original.apply(this, [extInput[0], handler, extInput[2]]);
       } else if (isLifecycleExtEventObj(args[0])) {
         const lifecycleEventObj = args[0];
-        const handler2 = instrumentation._wrapExtMethods(lifecycleEventObj.method, lifecycleEventObj.type, pluginName);
-        lifecycleEventObj.method = handler2;
+        const handler = instrumentation._wrapExtMethods(lifecycleEventObj.method, lifecycleEventObj.type, pluginName);
+        lifecycleEventObj.method = handler;
         return original.call(this, lifecycleEventObj);
       }
       return original.apply(this, args);
@@ -360502,12 +360502,12 @@ var HonoInstrumentation = class extends import_instrumentation28.Instrumentation
           const handlers2 = args.slice(1);
           return original.apply(this, [
             path9,
-            ...handlers2.map((handler2) => instrumentation._wrapHandler(handler2))
+            ...handlers2.map((handler) => instrumentation._wrapHandler(handler))
           ]);
         }
         return original.apply(
           this,
-          args.map((handler2) => instrumentation._wrapHandler(handler2))
+          args.map((handler) => instrumentation._wrapHandler(handler))
         );
       };
     };
@@ -360522,7 +360522,7 @@ var HonoInstrumentation = class extends import_instrumentation28.Instrumentation
         const handlers2 = args.slice(2);
         return original.apply(this, [
           ...args.slice(0, 2),
-          ...handlers2.map((handler2) => instrumentation._wrapHandler(handler2))
+          ...handlers2.map((handler) => instrumentation._wrapHandler(handler))
         ]);
       };
     };
@@ -360542,12 +360542,12 @@ var HonoInstrumentation = class extends import_instrumentation28.Instrumentation
           const handlers2 = args.slice(1);
           return original.apply(this, [
             path9,
-            ...handlers2.map((handler2) => instrumentation._wrapHandler(handler2))
+            ...handlers2.map((handler) => instrumentation._wrapHandler(handler))
           ]);
         }
         return original.apply(
           this,
-          args.map((handler2) => instrumentation._wrapHandler(handler2))
+          args.map((handler) => instrumentation._wrapHandler(handler))
         );
       };
     };
@@ -360555,24 +360555,24 @@ var HonoInstrumentation = class extends import_instrumentation28.Instrumentation
   /**
    * Wraps a handler or middleware handler to apply instrumentation.
    */
-  _wrapHandler(handler2) {
+  _wrapHandler(handler) {
     const instrumentation = this;
     return function(c, next) {
       if (!instrumentation.isEnabled()) {
-        return handler2.apply(this, [c, next]);
+        return handler.apply(this, [c, next]);
       }
       const path9 = c.req.path;
       const span = instrumentation.tracer.startSpan(path9);
       return context.with(trace.setSpan(context.active(), span), () => {
         return instrumentation._safeExecute(
           () => {
-            const result = handler2.apply(this, [c, next]);
+            const result = handler.apply(this, [c, next]);
             if (isThenable(result)) {
               return result.then((result2) => {
                 const type = instrumentation._determineHandlerType(result2);
                 span.setAttributes({
                   [AttributeNames5.HONO_TYPE]: type,
-                  [AttributeNames5.HONO_NAME]: type === HonoTypes.REQUEST_HANDLER ? path9 : handler2.name || "anonymous"
+                  [AttributeNames5.HONO_NAME]: type === HonoTypes.REQUEST_HANDLER ? path9 : handler.name || "anonymous"
                 });
                 instrumentation.getConfig().responseHook?.(span);
                 return result2;
@@ -360581,7 +360581,7 @@ var HonoInstrumentation = class extends import_instrumentation28.Instrumentation
               const type = instrumentation._determineHandlerType(result);
               span.setAttributes({
                 [AttributeNames5.HONO_TYPE]: type,
-                [AttributeNames5.HONO_NAME]: type === HonoTypes.REQUEST_HANDLER ? path9 : handler2.name || "anonymous"
+                [AttributeNames5.HONO_NAME]: type === HonoTypes.REQUEST_HANDLER ? path9 : handler.name || "anonymous"
               });
               instrumentation.getConfig().responseHook?.(span);
               return result;
@@ -362705,9 +362705,9 @@ function patchFunctions(functionsSupportedVersions2, wrap, unwrap) {
 function patchV2Functions(triggerType) {
   return function v2FunctionsWrapper(original) {
     return function(...args) {
-      const handler2 = typeof args[0] === "function" ? args[0] : args[1];
+      const handler = typeof args[0] === "function" ? args[0] : args[1];
       const documentOrOptions = typeof args[0] === "function" ? void 0 : args[0];
-      if (!handler2) {
+      if (!handler) {
         return original.call(this, ...args);
       }
       const wrappedHandler = async function(...handlerArgs) {
@@ -362733,7 +362733,7 @@ function patchV2Functions(triggerType) {
           },
           async (span) => {
             try {
-              const result = await handler2.apply(this, handlerArgs);
+              const result = await handler.apply(this, handlerArgs);
               span.end();
               return result;
             } catch (error2) {
@@ -363231,11 +363231,9 @@ process.on("unhandledRejection", (reason) => {
 var src_default = app;
 
 // backend/api/index.ts
-function handler(req, res) {
-  return src_default(req, res);
-}
+var index_default = src_default;
 export {
-  handler as default
+  index_default as default
 };
 /*! Bundled license information:
 

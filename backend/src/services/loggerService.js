@@ -67,24 +67,4 @@ export const logger = winston.createLogger({
   transports: transports,
 });
 
-// Redirect console.log and console.error to winston
-const originalLog = console.log;
-const originalError = console.error;
-const originalWarn = console.warn;
-
-console.log = (...args) => {
-  logger.info({ message: args.join(' '), fromConsole: true });
-  originalLog.apply(console, args);
-};
-
-console.error = (...args) => {
-  logger.error({ message: args.join(' '), fromConsole: true });
-  originalError.apply(console, args);
-};
-
-console.warn = (...args) => {
-  logger.warn({ message: args.join(' '), fromConsole: true });
-  originalWarn.apply(console, args);
-};
-
 export default logger;

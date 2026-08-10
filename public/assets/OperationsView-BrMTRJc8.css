@@ -1,0 +1,189 @@
+.operations-page[data-v-d204d611] {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.ops-hero[data-v-d204d611] {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 24px;
+  background:
+    radial-gradient(
+      circle at 8% 12%,
+      color-mix(in srgb, var(--accent) 24%, transparent),
+      transparent 34%
+    ),
+    linear-gradient(135deg, color-mix(in srgb, var(--primary) 12%, var(--surface)), var(--surface));
+}
+.ops-hero h2[data-v-d204d611] {
+  margin: 6px 0;
+  font-size: clamp(1.7rem, 3vw, 2.5rem);
+}
+.ops-hero p[data-v-d204d611] {
+  margin: 0;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+.eyebrow[data-v-d204d611] {
+  color: var(--primary);
+  font-weight: 950;
+  font-size: 0.82rem;
+}
+.summary-grid[data-v-d204d611],
+.alerts-grid[data-v-d204d611] {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+.summary-card span[data-v-d204d611] {
+  color: var(--text-muted);
+  font-weight: 800;
+}
+.summary-card strong[data-v-d204d611] {
+  display: block;
+  margin-top: 8px;
+  font-size: 2.2rem;
+  color: var(--primary);
+}
+.summary-card.danger strong[data-v-d204d611] {
+  color: var(--danger);
+}
+.alert-card[data-v-d204d611] {
+  position: relative;
+  overflow: hidden;
+  border-inline-start: 5px solid var(--primary);
+}
+.alert-card.danger[data-v-d204d611] {
+  border-inline-start-color: var(--danger);
+}
+.alert-card.warning[data-v-d204d611] {
+  border-inline-start-color: var(--warning);
+}
+.alert-card.info[data-v-d204d611] {
+  border-inline-start-color: var(--info);
+}
+.alert-card p[data-v-d204d611] {
+  color: var(--text-muted);
+  font-weight: 700;
+  line-height: 1.7;
+}
+.alert-card ul[data-v-d204d611] {
+  display: grid;
+  gap: 7px;
+  margin: 14px 0;
+  padding: 0;
+  list-style: none;
+}
+.alert-card li[data-v-d204d611] {
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--bg-elevated) 82%, transparent);
+  font-weight: 800;
+}
+.alert-card small[data-v-d204d611] {
+  color: var(--text-muted);
+}
+.alert-head[data-v-d204d611] {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.alert-head span[data-v-d204d611] {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 950;
+}
+.alert-head h3[data-v-d204d611] {
+  margin: 4px 0 0;
+}
+.alert-head strong[data-v-d204d611] {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  color: #fff;
+  background: var(--primary);
+}
+.alert-link[data-v-d204d611] {
+  color: var(--primary);
+  font-weight: 950;
+}
+.empty-state[data-v-d204d611] {
+  grid-column: 1/-1;
+  text-align: center;
+  color: var(--text-muted);
+}
+.audit-card[data-v-d204d611] {
+  overflow: hidden;
+}
+.audit-head[data-v-d204d611] {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.audit-head h3[data-v-d204d611] {
+  margin: 0;
+}
+.audit-head p[data-v-d204d611] {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+}
+.filters[data-v-d204d611] {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.filters input[data-v-d204d611] {
+  min-width: 180px;
+}
+.table-wrap[data-v-d204d611] {
+  overflow: auto;
+}
+.table-wrap table[data-v-d204d611] {
+  width: 100%;
+  border-collapse: collapse;
+}
+.table-wrap th[data-v-d204d611],
+.table-wrap td[data-v-d204d611] {
+  padding: 12px 10px;
+  border-bottom: 1px solid var(--border);
+  text-align: right;
+  white-space: nowrap;
+}
+.table-wrap th[data-v-d204d611] {
+  color: var(--text-muted);
+  font-size: 0.84rem;
+}
+.pill[data-v-d204d611] {
+  display: inline-flex;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
+  color: var(--primary);
+  font-weight: 900;
+}
+.empty[data-v-d204d611] {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 20px;
+}
+@media (max-width: 980px) {
+  .ops-hero[data-v-d204d611],
+  .audit-head[data-v-d204d611] {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .summary-grid[data-v-d204d611],
+  .alerts-grid[data-v-d204d611] {
+    grid-template-columns: 1fr;
+  }
+  .filters input[data-v-d204d611],
+  .filters .btn[data-v-d204d611] {
+    flex: 1;
+  }
+}

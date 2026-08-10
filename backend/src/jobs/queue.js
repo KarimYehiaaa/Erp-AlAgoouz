@@ -1,44 +1,107 @@
 import { Queue, Worker } from 'bullmq';
 import IORedis from 'ioredis';
-import config from '../config/index.js';
 
 const isVercel = process.env.VERCEL === 'true' || !!process.env.VERCEL;
 
 export let systemQueue = null;
 export let systemWorker = null;
 
-if (!isVercel) {
-  // Setup Redis connection
-  const connection = new IORedis(process.env.REDIS_URL || 'redis://localhost:6379', {
-    maxRetriesPerRequest: null,
-  });
+/**
+ * Redis اختياري — إذا لم يوجد REDIS_URL ولم يوجد Redis محلي،
+ * لا يتم إنشاء Queue/Worker على الإطلاق ولا يتم طباعة أخطاء متكررة.
+ */
+const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
+let redisReady = false;
 
-  // Setup Main Queue
-  systemQueue = new Queue('system-queue', { connection });
+async function probeRedis() {
+  return new Promise((resolve) => {
+    const probe = new IORedis(REDIS_URL, {
+      maxRetriesPerRequest: 1,
+      retryStrategy: () => null, // لا إعادة محاولة
+      connectTimeout: 3000, // 3 ثوان فقط
+      lazyConnect: true,
+      enableOfflineQueue: false,
+    });
 
-  // Example Worker
-  systemWorker = new Worker('system-queue', async job => {
-    if (job.name === 'backup') {
-      console.log(`[Job] Executing backup job ${job.id}`);
-      // Simulate backup task
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      console.log(`[Job] Backup job ${job.id} completed successfully`);
-    }
-  }, { connection });
+    // كتم الأخطاء أثناء الفحص
+    probe.on('error', () => {});
 
-  systemWorker.on('completed', job => {
-    console.log(`[Queue] Job ${job.id} has completed!`);
-  });
-
-  systemWorker.on('failed', (job, err) => {
-    console.error(`[Queue] Job ${job?.id} has failed with ${err.message}`);
+    probe
+      .connect()
+      .then(() => probe.ping())
+      .then(() => {
+        probe.disconnect();
+        resolve(true);
+      })
+      .catch(() => {
+        try {
+          probe.disconnect();
+        } catch (_) {}
+        resolve(false);
+      });
   });
 }
 
+if (!isVercel) {
+  probeRedis()
+    .then((available) => {
+      if (!available) {
+        console.log(
+          '[Queue] ⚠️ Redis غير متاح — نظام الطوابير (BullMQ) معطّل. ' +
+            'لتفعيله: ثبّت Redis أو أضف REDIS_URL في .env',
+        );
+        return;
+      }
+
+      redisReady = true;
+      console.log('[Queue] ✅ تم الاتصال بـ Redis — نظام الطوابير مُفعّل');
+
+      const connection = new IORedis(REDIS_URL, {
+        maxRetriesPerRequest: null,
+      });
+
+      // كتم أخطاء الاتصال بعد الإنشاء
+      connection.on('error', (err) => {
+        console.error(`[Queue] خطأ Redis: ${err.message}`);
+      });
+
+      // Setup Main Queue
+      systemQueue = new Queue('system-queue', { connection });
+
+      // Worker
+      systemWorker = new Worker(
+        'system-queue',
+        async (job) => {
+          if (job.name === 'backup') {
+            console.log(`[Job] Executing backup job ${job.id}`);
+            await new Promise((resolve) => setTimeout(resolve, 2000));
+            console.log(`[Job] Backup job ${job.id} completed successfully`);
+          }
+        },
+        { connection },
+      );
+
+      systemWorker.on('completed', (job) => {
+        console.log(`[Queue] Job ${job.id} has completed!`);
+      });
+
+      systemWorker.on('failed', (job, err) => {
+        console.error(`[Queue] Job ${job?.id} has failed with ${err.message}`);
+      });
+    })
+    .catch((err) => {
+      console.warn(`[Queue] ⚠️ فشل تهيئة نظام الطوابير: ${err.message}`);
+    });
+}
+
 export const addBackupJob = async () => {
-  if (isVercel) return; // Cannot run background queues on Vercel
-  await systemQueue.add('backup', { time: new Date().toISOString() }, {
-    attempts: 3,
-    backoff: { type: 'exponential', delay: 1000 }
-  });
+  if (isVercel || !systemQueue || !redisReady) return;
+  await systemQueue.add(
+    'backup',
+    { time: new Date().toISOString() },
+    {
+      attempts: 3,
+      backoff: { type: 'exponential', delay: 1000 },
+    },
+  );
 };

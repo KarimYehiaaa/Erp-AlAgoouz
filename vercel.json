@@ -1,13 +1,10 @@
 {
+  "buildCommand": "cd frontend && npx vite build --outDir ../dist",
+  "outputDirectory": "dist",
   "functions": {
     "api/**/*.js": {
+      "maxDuration": 30,
       "includeFiles": "dist/**"
     }
-  },
-  "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/api/index"
-    }
-  ]
+  }
 }

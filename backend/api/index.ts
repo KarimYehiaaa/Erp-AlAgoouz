@@ -1,12 +1,9 @@
-import app from '../src/index';
+import express from 'express';
 
-export default async function handler(req: any, res: any) {
-  try {
-    return app(req, res);
-  } catch (err: any) {
-    return res.status(500).json({
-      error: err?.message || 'Server Error',
-      stack: err?.stack,
-    });
-  }
-}
+const app = express();
+
+app.all('*', (req, res) => {
+  res.json({ status: 'ok', message: 'Backend API Serverless Function is live!', timestamp: new Date().toISOString() });
+});
+
+export default app;

@@ -53,7 +53,7 @@ app.use('/logo.png', express.static(path.join(__dirname, '../../assets/logo.png'
 app.use('/api/v1', routes);
 app.use('/v1', routes); // دعم Vercel (حيث يتم حذف /api)
 
-app.get('/api/debug', authenticate, (req, res) => {
+app.get('/api/debug', authenticate, (req: any, res: any) => {
   if (config.nodeEnv === 'production' || req.user?.role_name !== 'admin') {
     return res.status(404).json({ success: false, message: 'الصفحة غير موجودة' });
   }
@@ -71,7 +71,7 @@ app.get('/api/debug', authenticate, (req, res) => {
   });
 });
 
-app.get('/debug', authenticate, (req, res) => {
+app.get('/debug', authenticate, (req: any, res: any) => {
   if (config.nodeEnv === 'production' || req.user?.role_name !== 'admin') {
     return res.status(404).json({ success: false, message: 'الصفحة غير موجودة' });
   }
@@ -89,7 +89,7 @@ app.get('/debug', authenticate, (req, res) => {
   });
 });
 
-app.get('/api/health', async (req, res) => {
+app.get('/api/health', async (req: any, res: any) => {
   const health = await checkHealth();
   const statusCode = health.ok ? 200 : 503;
   res.status(statusCode).json({
@@ -106,7 +106,7 @@ app.get('/api/health', async (req, res) => {
   });
 });
 
-app.get('/health', async (req, res) => {
+app.get('/health', async (req: any, res: any) => {
   const health = await checkHealth();
   const statusCode = health.ok ? 200 : 503;
   res.status(statusCode).json({

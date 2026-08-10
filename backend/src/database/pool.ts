@@ -30,11 +30,12 @@ const connectionOptions = process.env.DATABASE_URL
 
 // ─── Pool Configuration ────────────────────────────────────────────────────────
 // تحديد الحد الأقصى للاتصالات حسب البيئة
-const maxConnections = process.env.VERCEL ? 1 : config.db.ssl ? 10 : 60;
+const dbSsl = (config.db as any).ssl;
+const maxConnections = process.env.VERCEL ? 1 : dbSsl ? 10 : 60;
 
 const pool = new Pool({
   ...connectionOptions,
-  ssl: config.db.ssl,
+  ssl: dbSsl,
   max: maxConnections,
   min: process.env.VERCEL ? 0 : 2, // اتصالان جاهزان دائماً (إلا Vercel)
   idleTimeoutMillis: process.env.VERCEL ? 1000 : 30000,

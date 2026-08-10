@@ -17,8 +17,11 @@ import cookieParser from 'cookie-parser';
 import pool, { checkHealth, closePool } from './database/pool.js';
 import { initAutoBackupScheduler } from './services/autoBackupService.js';
 import { initWebSocket } from './services/websocketService.js';
-import './jobs/queue.js'; // Initialize BullMQ workers
 import { initSentry } from './services/sentry.js';
+
+if (!process.env.VERCEL) {
+  import('./jobs/queue.js');
+}
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();

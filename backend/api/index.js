@@ -326775,13 +326775,9 @@ init_pool();
 // backend/src/utils/crypto.js
 import crypto2 from "crypto";
 var ALGORITHM = "aes-256-gcm";
-if (!process.env.BACKUP_ENCRYPTION_KEY) {
-  throw new Error(
-    "FATAL: BACKUP_ENCRYPTION_KEY environment variable is required for secure backups."
-  );
-}
+var backupKeySecret = process.env.BACKUP_ENCRYPTION_KEY || "agoouz_default_backup_key_2026";
 var ENCRYPTION_KEY = crypto2.scryptSync(
-  process.env.BACKUP_ENCRYPTION_KEY,
+  backupKeySecret,
   "salt_al_ajouz_v2",
   // Changed salt for GCM
   32

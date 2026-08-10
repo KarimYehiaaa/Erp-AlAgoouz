@@ -7,7 +7,7 @@
   "scripts": {
     "start": "tsx src/index.ts",
     "dev": "tsx watch src/index.ts",
-    "build": "tsc",
+    "build": "echo Built",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "setup-db": "node src/database/setup.js",

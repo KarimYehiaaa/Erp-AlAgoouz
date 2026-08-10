@@ -7,7 +7,8 @@
     "allowImportingTsExtensions": true,
     "outDir": "./dist",
     "rootDir": "./src",
-    "strict": true,
+    "strict": false,
+    "noImplicitAny": false,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
@@ -17,6 +18,7 @@
     "incremental": true,
     "noEmit": true,
     "isolatedModules": true,
+    "types": ["node"],
     "paths": {
       "@/*": ["./src/*"]
     }

@@ -2,10 +2,10 @@
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "/api/index.js"
+      "destination": "https://agoouz-api.vercel.app/api/$1"
     },
     {
-      "source": "/((?!api/|assets/).*)",
+      "source": "/((?!assets/).*)",
       "destination": "/index.html"
     }
   ]

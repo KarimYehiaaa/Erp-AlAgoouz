@@ -116,12 +116,11 @@ app.get("/health", async (req, res) => {
   });
 });
 const possibleDistPaths = [
-  path.join(__dirname, "../../frontend/dist"),
-  // local: backend/src → frontend/dist
+  path.join(process.cwd(), "dist"),
   path.join(process.cwd(), "frontend/dist"),
-  // Render: root → frontend/dist
+  path.join(__dirname, "../dist"),
+  path.join(__dirname, "../../frontend/dist"),
   path.join(__dirname, "../../../frontend/dist")
-  // fallback
 ];
 const frontendDist = possibleDistPaths.find((p) => fs.existsSync(p));
 if (frontendDist) {

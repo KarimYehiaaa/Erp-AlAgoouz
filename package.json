@@ -4,7 +4,8 @@
   "private": true,
   "description": "بن العجوز ERP",
   "scripts": {
-    "start": "node backend/src/index.js",
+    "start": "tsx backend/src/index.ts",
+    "start:prod": "node backend/src/index.js",
     "setup": "node scripts/setup-project.js",
     "backup": "node scripts/backup-system.js",
     "update": "node scripts/update-project.js",
@@ -63,6 +64,7 @@
     "husky": "^9.1.7",
     "lint-staged": "^17.3.0",
     "prettier": "^3.9.6",
+    "tsx": "^4.23.11",
     "typescript-eslint": "^8.66.0"
   }
 }

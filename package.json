@@ -6,6 +6,7 @@
   "scripts": {
     "start": "tsx backend/src/index.ts",
     "start:prod": "node backend/src/index.js",
+    "build": "cd frontend && npm run build",
     "setup": "node scripts/setup-project.js",
     "backup": "node scripts/backup-system.js",
     "update": "node scripts/update-project.js",

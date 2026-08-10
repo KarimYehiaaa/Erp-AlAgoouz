@@ -142,10 +142,9 @@ export async function runMigrations() {
 }
 
 // Run directly if executed from command line
-const nodePath = path.resolve(process.argv[1]);
-const modulePath = path.resolve(fileURLToPath(import.meta.url));
+const isCLI = process.argv[1] && process.argv[1] !== '' ? path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url)) : false;
 
-if (nodePath === modulePath) {
+if (isCLI) {
   runMigrations().catch((err) => {
     console.error('Migration failed:', err);
     process.exit(1);

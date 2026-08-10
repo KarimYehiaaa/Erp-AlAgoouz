@@ -59,17 +59,21 @@ app.use(
 );
 app.use('/assets', express.static(path.join(__dirname, '../../assets')));
 app.use('/logo.png', express.static(path.join(__dirname, '../../assets/logo.png')));
+app.get('/api/ping-test', (req, res) =>
+  res.json({ ok: true, url: req.url, path: req.path, originalUrl: req.originalUrl }),
+);
+app.get('/ping-test', (req, res) =>
+  res.json({ ok: true, url: req.url, path: req.path, originalUrl: req.originalUrl }),
+);
 app.use('/api/v1', routes);
 app.use('/v1', routes);
 app.get('/api/debug', authenticate, (req, res) => {
   if (config.nodeEnv === 'production' || req.user?.role_name !== 'admin') {
-    return res
-      .status(404)
-      .json({
-        success: false,
-        message:
-          '\u0627\u0644\u0635\u0641\u062D\u0629 \u063A\u064A\u0631 \u0645\u0648\u062C\u0648\u062F\u0629',
-      });
+    return res.status(404).json({
+      success: false,
+      message:
+        '\u0627\u0644\u0635\u0641\u062D\u0629 \u063A\u064A\u0631 \u0645\u0648\u062C\u0648\u062F\u0629',
+    });
   }
   res.json({
     success: true,
@@ -86,13 +90,11 @@ app.get('/api/debug', authenticate, (req, res) => {
 });
 app.get('/debug', authenticate, (req, res) => {
   if (config.nodeEnv === 'production' || req.user?.role_name !== 'admin') {
-    return res
-      .status(404)
-      .json({
-        success: false,
-        message:
-          '\u0627\u0644\u0635\u0641\u062D\u0629 \u063A\u064A\u0631 \u0645\u0648\u062C\u0648\u062F\u0629',
-      });
+    return res.status(404).json({
+      success: false,
+      message:
+        '\u0627\u0644\u0635\u0641\u062D\u0629 \u063A\u064A\u0631 \u0645\u0648\u062C\u0648\u062F\u0629',
+    });
   }
   res.json({
     success: true,

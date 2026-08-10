@@ -363234,7 +363234,7 @@ process.on("unhandledRejection", (reason) => {
 });
 var src_default = app;
 
-// backend/api/index.ts
+// api/index.ts
 function handler(req, res) {
   return src_default(req, res);
 }

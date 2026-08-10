@@ -233,6 +233,7 @@ export const runAutoBackup = async () => {
  * جدولة وتفعيل النسخ الاحتياطي الصامت في الخلفية
  */
 export const initAutoBackupScheduler = () => {
+  if (process.env.VERCEL) return;
   // 1. تشغيل نسخة احتياطية فورية عند تشغيل السيرفر
   setTimeout(async () => {
     console.log('🚀 [بن العجوز ERP] تفعيل نظام النسخ الاحتياطي الصامت المحلي...');

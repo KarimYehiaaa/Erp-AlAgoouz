@@ -3,6 +3,7 @@ import { WebSocketServer } from 'ws';
 const clients = new Set();
 
 export const initWebSocket = (server) => {
+  if (process.env.VERCEL) return;
   const wss = new WebSocketServer({ server });
 
   wss.on('connection', (ws) => {

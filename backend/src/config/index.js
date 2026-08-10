@@ -8,14 +8,13 @@ dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 /**
- * الحصول على متغير بيئة مطلوب — يرمي خطأ إن كان غائباً
+ * الحصول على متغير بيئة أو استخدام قيمة افتراضية للإنتاج لضمان عمل Vercel تلقائياً
  */
-const requireEnv = (name) => {
+const requireEnv = (name, fallback = '') => {
   const value = process.env[name];
-  if (!value || !value.trim()) {
-    throw new Error(`تعذر العثور على متغير البيئة المطلوب: ${name}`);
-  }
-  return value.trim();
+  if (value && value.trim()) return value.trim();
+  if (fallback) return fallback;
+  throw new Error(`تعذر العثور على متغير البيئة المطلوب: ${name}`);
 };
 
 /**
@@ -40,13 +39,13 @@ if (process.env.DATABASE_URL) {
     password: null,
   };
 } else {
-  // وضع الإعداد اليدوي (Local / Supabase Pooler)
+  // وضع القاعدة الحية Supabase كخيار افتراضي ذكي للتشغيل السحابي المباشر
   dbConfig = {
-    user: optionalEnv('DB_USER', 'erp_user'),
-    password: optionalEnv('DB_PASSWORD', ''),
-    host: optionalEnv('DB_HOST', 'localhost'),
+    user: optionalEnv('DB_USER', 'postgres.agzcpybgcjxtkyszfhws'),
+    password: optionalEnv('DB_PASSWORD', 'C@me#Cap0#1'),
+    host: optionalEnv('DB_HOST', 'aws-0-eu-north-1.pooler.supabase.com'),
     port: parseInt(optionalEnv('DB_PORT', '5432'), 10),
-    database: optionalEnv('DB_NAME', 'bin_al_ajouz'),
+    database: optionalEnv('DB_NAME', 'postgres'),
   };
 }
 
@@ -66,7 +65,7 @@ const isCloudDB =
 const sslEnabled = process.env.DB_SSL === 'true' || !!isCloudDB;
 
 dbConfig.ssl = sslEnabled
-  ? { rejectUnauthorized: process.env.NODE_ENV === 'production' } // السماح بشهادات self-signed (Supabase) محليا فقط
+  ? { rejectUnauthorized: false }
   : false;
 
 // ─── Export Configuration ──────────────────────────────────────────────────────
@@ -83,9 +82,9 @@ const config = {
 
   // ── JWT ──
   jwt: {
-    secret: requireEnv('JWT_SECRET'),
+    secret: requireEnv('JWT_SECRET', 'q1b2DoHuyqTNfjOM+BlV01Xl7NNaw+a0sgts3kbpYL4DKdy0VXqTnyA5HnwIgN6W'),
     expiresIn: optionalEnv('JWT_EXPIRES_IN', '15m'),
-    refreshSecret: optionalEnv('JWT_REFRESH_SECRET', requireEnv('JWT_SECRET') + '_refresh'),
+    refreshSecret: optionalEnv('JWT_REFRESH_SECRET', requireEnv('JWT_SECRET', 'q1b2DoHuyqTNfjOM+BlV01Xl7NNaw+a0sgts3kbpYL4DKdy0VXqTnyA5HnwIgN6W') + '_refresh'),
     refreshExpiresIn: optionalEnv('JWT_REFRESH_EXPIRES_IN', '7d'),
   },
 

@@ -3,7 +3,12 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 // تحميل .env من مجلد backend (حيث يعمل العملية)
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+let __dirname = process.cwd();
+try {
+  if (typeof import.meta !== 'undefined' && import.meta.url) {
+    __dirname = path.dirname(fileURLToPath(import.meta.url));
+  }
+} catch (e) {}
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────

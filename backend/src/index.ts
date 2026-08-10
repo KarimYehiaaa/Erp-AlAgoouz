@@ -23,7 +23,12 @@ if (!process.env.VERCEL) {
   import('./jobs/queue.js');
 }
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+let __dirname = process.cwd();
+try {
+  if (typeof import.meta !== 'undefined' && import.meta.url) {
+    __dirname = path.dirname(fileURLToPath(import.meta.url));
+  }
+} catch (e) {}
 const app = express();
 
 initSentry(app);

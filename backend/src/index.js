@@ -59,12 +59,6 @@ app.use(
 );
 app.use('/assets', express.static(path.join(__dirname, '../../assets')));
 app.use('/logo.png', express.static(path.join(__dirname, '../../assets/logo.png')));
-app.get('/api/ping-test', (req, res) =>
-  res.json({ ok: true, url: req.url, path: req.path, originalUrl: req.originalUrl }),
-);
-app.get('/ping-test', (req, res) =>
-  res.json({ ok: true, url: req.url, path: req.path, originalUrl: req.originalUrl }),
-);
 app.use('/api/v1', routes);
 app.use('/v1', routes);
 app.get('/api/debug', authenticate, (req, res) => {

@@ -1,4 +1,5 @@
 import axios from 'axios';
+import * as Sentry from '@sentry/vue';
 
 const api = axios.create({
   baseURL: `${import.meta.env.VITE_API_URL || ''}/api/v1`,
@@ -107,6 +108,12 @@ api.interceptors.response.use(
     if (message?.includes('قاعدة البيانات') || err.response?.status === 503) {
       message = 'قاعدة البيانات غير متصلة. شغّل PostgreSQL أو نفّذ: docker compose up -d';
     }
+
+    // Report unhandled backend errors to Sentry
+    if (!err.response || err.response.status >= 500) {
+      Sentry.captureException(err);
+    }
+
     return Promise.reject({ message, status: err.response?.status });
   },
 );

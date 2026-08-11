@@ -61,7 +61,11 @@ export const consumeRecipeForSale = async (
     globalStocks.rows.map((r) => [Number(r.product_id), Number(r.total)]),
   );
 
-  for (const item of itemsRes.rows) {
+  // ترتيب المكونات تصاعدياً بناءً على ingredient_product_id لمنع Deadlock عند القفل المتزامن
+  const sortedIngredients = [...itemsRes.rows].sort(
+    (a, b) => Number(a.ingredient_product_id) - Number(b.ingredient_product_id)
+  );
+  for (const item of sortedIngredients) {
     const recipeUnit = normalizeUnit(item.unit_code);
     const stockUnit = normalizeUnit(item.ingredient_unit);
 

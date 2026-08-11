@@ -7,6 +7,8 @@ import SkeletonLoader from './components/SkeletonLoader.vue';
 import './styles/main.scss';
 import { initSentry } from './sentry.js';
 
+import { permissionDirective } from './directives/permission';
+
 const app = createApp(App);
 const pinia = createPinia();
 app.use(pinia);
@@ -15,6 +17,8 @@ app.use(router);
 initSentry(app, router);
 
 app.component('AppIcon', AppIcon);
+app.directive('permission', permissionDirective);
+
 app.config.errorHandler = (err, instance, info) => {
   console.error('[Global Vue ErrorHandler caught error]:', err, info);
 };

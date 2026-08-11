@@ -324,8 +324,15 @@ const syncOfflineSales = async () => {
         await salesApi.create(cleanSale);
         await localDb.deleteOfflineSale(offline_id);
       } catch (err) {
-        console.error(`Failed to sync offline sale ${offline_id}:`, err);
-        break; // Stop syncing to maintain correct chronological order
+        const isNetworkError = !navigator.onLine || !err.status || err.code === 'ERR_NETWORK';
+        if (isNetworkError) {
+          console.error(`Network error syncing ${offline_id}, stopping sync:`, err);
+          break; // توقف المزامنة مؤقتاً حتى عودة الاتصال
+        }
+        // خطأ تحقق (400) — الفاتورة تالفة، تخطيها لمتابعة المزامنة
+        console.error(`Skipping corrupted offline sale ${offline_id} (${err.status}):`, err);
+        // حذف الفاتورة التالفة لمنع تكرار الفشل
+        await localDb.deleteOfflineSale(offline_id);
       }
     }
 

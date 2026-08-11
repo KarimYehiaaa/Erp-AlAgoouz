@@ -1,4 +1,4 @@
-import { getClient, query } from '../database/pool.js';
+import { getClient, query, withTransaction } from '../database/pool.js';
 import { AppError } from '../types/errors.js';
 import { invalidateDashboardCache } from './dashboardService.js';
 import { roundMoney, toNumber } from '../utils/money.js';
@@ -337,91 +337,93 @@ export const saveAttendanceRange = async (data, userId) => {
   );
   if (!dates.length) return { count: 0, rows: [] };
 
-  const employee = (
-    await query(
-      `
-    SELECT e.daily_required_hours, s.start_time, s.required_hours, s.grace_minutes, s.overtime_enabled
-    FROM employees e
-    LEFT JOIN employee_shifts s ON s.id = e.shift_id
-    WHERE e.id = $1 AND e.deleted_at IS NULL
-  `,
-      [employeeId],
-    )
-  ).rows[0];
-  if (!employee) throw new AppError('الموظف غير موجود', 404);
+  return await withTransaction(async (client) => {
+    const employee = (
+      await client.query(
+        `
+      SELECT e.daily_required_hours, s.start_time, s.required_hours, s.grace_minutes, s.overtime_enabled
+      FROM employees e
+      LEFT JOIN employee_shifts s ON s.id = e.shift_id
+      WHERE e.id = $1 AND e.deleted_at IS NULL
+    `,
+        [employeeId],
+      )
+    ).rows[0];
+    if (!employee) throw new AppError('الموظف غير موجود', 404);
 
-  const requiredHours = toNumber(
-    employee.required_hours,
-    toNumber(employee.daily_required_hours, 8),
-  );
-  const saved = [];
-
-  for (const workDate of dates) {
-    const checkIn = data.check_in ? mergeDateWithTime(workDate, data.check_in) : null;
-    const checkOut = data.check_out ? mergeDateWithTime(workDate, data.check_out) : null;
-    const status = data.status || 'present';
-
-    let regularHours = 0;
-    let overtimeHours = 0;
-    let lateMinutes = 0;
-
-    if (!['absent', 'unpaid_leave', 'weekly_off'].includes(status)) {
-      if (status === 'paid_leave') {
-        regularHours = requiredHours;
-      } else if (status === 'half_day') {
-        regularHours = roundMoney(requiredHours / 2);
-      } else if (checkIn && checkOut) {
-        const diffMs = new Date(checkOut).getTime() - new Date(checkIn).getTime();
-        const workedHours = Math.max(0, diffMs / 36e5);
-        regularHours = Math.min(workedHours, requiredHours);
-        overtimeHours = employee.overtime_enabled ? Math.max(0, workedHours - requiredHours) : 0;
-      } else if (status === 'present') {
-        regularHours = requiredHours;
-      }
-
-      if (checkIn && employee.start_time) {
-        const expected = new Date(`${workDate}T${employee.start_time}`);
-        const actual = new Date(checkIn);
-        const grace = Math.max(0, Number(employee.grace_minutes || 0));
-        lateMinutes = Math.max(
-          0,
-          Math.floor((actual.getTime() - expected.getTime()) / 60000) - grace,
-        );
-      }
-    }
-
-    const result = await query(
-      `INSERT INTO employee_attendance
-        (employee_id, work_date, check_in, check_out, status, regular_hours, overtime_hours, late_minutes, notes, user_id)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
-       ON CONFLICT (employee_id, work_date)
-       DO UPDATE SET
-         check_in = EXCLUDED.check_in,
-         check_out = EXCLUDED.check_out,
-         status = EXCLUDED.status,
-         regular_hours = EXCLUDED.regular_hours,
-         overtime_hours = EXCLUDED.overtime_hours,
-         late_minutes = EXCLUDED.late_minutes,
-         notes = EXCLUDED.notes,
-         user_id = EXCLUDED.user_id,
-         deleted_at = NULL
-       RETURNING *`,
-      [
-        data.employee_id,
-        workDate,
-        checkIn,
-        checkOut,
-        status,
-        roundMoney(regularHours),
-        roundMoney(overtimeHours),
-        lateMinutes,
-        data.notes || null,
-        userId,
-      ],
+    const requiredHours = toNumber(
+      employee.required_hours,
+      toNumber(employee.daily_required_hours, 8),
     );
-    saved.push(result.rows[0]);
-  }
-  return { count: saved.length, rows: saved };
+    const saved = [];
+
+    for (const workDate of dates) {
+      const checkIn = data.check_in ? mergeDateWithTime(workDate, data.check_in) : null;
+      const checkOut = data.check_out ? mergeDateWithTime(workDate, data.check_out) : null;
+      const status = data.status || 'present';
+
+      let regularHours = 0;
+      let overtimeHours = 0;
+      let lateMinutes = 0;
+
+      if (!['absent', 'unpaid_leave', 'weekly_off'].includes(status)) {
+        if (status === 'paid_leave') {
+          regularHours = requiredHours;
+        } else if (status === 'half_day') {
+          regularHours = roundMoney(requiredHours / 2);
+        } else if (checkIn && checkOut) {
+          const diffMs = new Date(checkOut).getTime() - new Date(checkIn).getTime();
+          const workedHours = Math.max(0, diffMs / 36e5);
+          regularHours = Math.min(workedHours, requiredHours);
+          overtimeHours = employee.overtime_enabled ? Math.max(0, workedHours - requiredHours) : 0;
+        } else if (status === 'present') {
+          regularHours = requiredHours;
+        }
+
+        if (checkIn && employee.start_time) {
+          const expected = new Date(`${workDate}T${employee.start_time}`);
+          const actual = new Date(checkIn);
+          const grace = Math.max(0, Number(employee.grace_minutes || 0));
+          lateMinutes = Math.max(
+            0,
+            Math.floor((actual.getTime() - expected.getTime()) / 60000) - grace,
+          );
+        }
+      }
+
+      const result = await client.query(
+        `INSERT INTO employee_attendance
+          (employee_id, work_date, check_in, check_out, status, regular_hours, overtime_hours, late_minutes, notes, user_id)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+         ON CONFLICT (employee_id, work_date)
+         DO UPDATE SET
+           check_in = EXCLUDED.check_in,
+           check_out = EXCLUDED.check_out,
+           status = EXCLUDED.status,
+           regular_hours = EXCLUDED.regular_hours,
+           overtime_hours = EXCLUDED.overtime_hours,
+           late_minutes = EXCLUDED.late_minutes,
+           notes = EXCLUDED.notes,
+           user_id = EXCLUDED.user_id,
+           deleted_at = NULL
+         RETURNING *`,
+        [
+          data.employee_id,
+          workDate,
+          checkIn,
+          checkOut,
+          status,
+          roundMoney(regularHours),
+          roundMoney(overtimeHours),
+          lateMinutes,
+          data.notes || null,
+          userId,
+        ],
+      );
+      saved.push(result.rows[0]);
+    }
+    return { count: saved.length, rows: saved };
+  });
 };
 
 export const listAdvances = async (filters = {}) => {

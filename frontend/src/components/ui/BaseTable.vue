@@ -176,10 +176,9 @@
                 :index="index"
               >
                 <!-- Default: formatted value -->
-                <span
-                  :class="col.cellClass ? col.cellClass(row) : ''"
-                  v-html="formatCell(row, col)"
-                />
+                <span :class="col.cellClass ? col.cellClass(row) : ''">
+                  {{ formatCell(row, col) }}
+                </span>
               </slot>
             </td>
 

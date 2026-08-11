@@ -16,9 +16,9 @@
           <option value="">كل المخازن</option>
           <option v-for="w in warehouses" :key="w.id" :value="w.id">{{ w.name_ar }}</option>
         </select>
-        <button v-if="tab === 'stock'" class="btn btn-outline" @click="openTransferModal">
-          🔄 تحويل مخزون
-        </button>
+        <button v-permission="'inventory.edit'" v-if="tab === 'stock'" class="btn btn-outline" @click="openTransferModal">
+        🔄 تحويل جديد
+      </button>
       </div>
     </div>
 
@@ -67,6 +67,7 @@
         </template>
         <template #cell-actions="{ item }">
           <button
+            v-permission="'inventory.edit'"
             class="icon-btn"
             title="تحويل بين المخزن الرئيسي وصالة البيع"
             @click="openTransferProduct(item)"
@@ -74,6 +75,7 @@
             🔄
           </button>
           <button
+            v-permission="'inventory.edit'"
             class="icon-btn"
             :class="{ disabled: item.has_active_recipe }"
             :disabled="item.has_active_recipe"
@@ -84,7 +86,7 @@
           >
             ✎
           </button>
-          <button class="icon-btn btn-danger" title="تسجيل هالك" @click="openWastage(item)">
+          <button v-permission="'inventory.edit'" class="icon-btn btn-danger" title="تسجيل هالك" @click="openWastage(item)">
             🗑️
           </button>
         </template>

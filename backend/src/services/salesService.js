@@ -80,6 +80,10 @@ const generateNumber = async (client, prefix, settingKey) => {
     "invoice": "seq_invoices_number"
   };
   const seqName = sequenceMap[settingKey] || "seq_sales_number";
+  const ALLOWED_SEQUENCES = new Set(['seq_sales_number', 'seq_invoices_number']);
+  if (!ALLOWED_SEQUENCES.has(seqName)) {
+    throw new Error('تسلسل غير مسموح به لمنع حقن SQL');
+  }
   const res = await client.query(`SELECT nextval('${seqName}') AS next_val`);
   return `${prefix}-${res.rows[0].next_val}`;
 };
@@ -161,7 +165,9 @@ const applySaleItems = async (client, { saleId, items, warehouseId, userId }) =>
     [warehouseId]
   );
   const candidateWarehouseIds = warehousesRes.rows.map((w) => Number(w.id));
-  for (const it of items) {
+  // ترتيب العناصر تصاعدياً بناءً على product_id لمنع Deadlock عند القفل المتزامن
+  const sortedItems = [...items].sort((a, b) => Number(a.product_id) - Number(b.product_id));
+  for (const it of sortedItems) {
     const qty = Number(it.quantity || 0);
     const unitPrice = Number(it.unit_price || 0);
     const lineTotal = it.total_amount;
@@ -597,12 +603,17 @@ const restoreInventoryForSale = async (client, saleId, userId) => {
   const sale = (await client.query(`SELECT warehouse_id FROM sales WHERE id = $1`, [saleId])).rows[0];
   if (!sale) return;
   const items = (await client.query(`SELECT * FROM sale_items WHERE sale_id = $1`, [saleId])).rows;
-  for (const item of items) {
-    const recipeCheck = await client.query(
-      `SELECT 1 FROM product_recipes WHERE product_id = $1 AND deleted_at IS NULL AND is_active = TRUE LIMIT 1`,
-      [item.product_id]
-    );
-    if (recipeCheck.rows[0]) {
+  // جلب كل المنتجات التي لها وصفات بأستعلام واحد (بدلاً من N+1)
+  const productIds = items.map((i) => i.product_id);
+  const recipesRes = await client.query(
+    `SELECT DISTINCT product_id FROM product_recipes WHERE product_id = ANY($1::int[]) AND deleted_at IS NULL AND is_active = TRUE`,
+    [productIds]
+  );
+  const recipeProductIds = new Set(recipesRes.rows.map((r) => Number(r.product_id)));
+  // ترتيب تصاعدي لمنع Deadlock عند القفل
+  const sortedItems = [...items].sort((a, b) => Number(a.product_id) - Number(b.product_id));
+  for (const item of sortedItems) {
+    if (recipeProductIds.has(Number(item.product_id))) {
       await recipesService.restoreRecipeConsumptionForProduct(client, {
         productId: item.product_id,
         soldQty: item.quantity,

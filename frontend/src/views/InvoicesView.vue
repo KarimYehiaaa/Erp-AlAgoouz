@@ -6,11 +6,11 @@
         <p>هذا القسم مخصص لفواتير العملاء اليدوية فقط لإرسالها ومشاركتها.</p>
       </div>
       <div class="create-actions">
-        <router-link to="/invoices/quotes" class="btn btn-outline quote-btn">
+        <router-link v-permission="'invoices.add'" to="/invoices/quotes" class="btn btn-outline quote-btn">
           <AppIcon name="quote" />
           <span>عرض أسعار</span>
         </router-link>
-        <router-link to="/invoices/create" class="btn btn-primary">+ إنشاء فاتورة</router-link>
+        <router-link v-permission="'invoices.add'" to="/invoices/create" class="btn btn-primary">+ إنشاء فاتورة</router-link>
       </div>
     </div>
 
@@ -57,10 +57,11 @@
               <router-link :to="`/invoices/${inv.id}`" class="icon-btn" title="عرض">
                 <AppIcon name="search" :size="16" />
               </router-link>
-              <router-link :to="`/invoices/${inv.id}/edit`" class="icon-btn" title="تعديل">
+              <router-link v-permission="'invoices.edit'" :to="`/invoices/${inv.id}/edit`" class="icon-btn" title="تعديل">
                 <AppIcon name="edit" :size="16" />
               </router-link>
               <button
+                v-permission="'invoices.delete'"
                 type="button"
                 class="icon-btn danger"
                 @click="deleteInvoice(inv.id)"

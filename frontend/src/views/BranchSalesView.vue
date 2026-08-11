@@ -1027,25 +1027,34 @@ const submitManualSale = async () => {
       await printReceipt(saleRecord);
     }
   } catch (e) {
-    console.warn('Online submit failed, saving offline fallback...', e);
-    try {
-      const saleRecord = await localDb.saveOfflineSale(payload);
-      lastSavedSale.value = saleRecord;
+    // التفريق بين أخطاء الشبكة (حفظ أوفلاين) وأخطاء التحقق (عرض للمستخدم)
+    const isNetworkError = !navigator.onLine || !e.status || e.code === 'ERR_NETWORK';
 
-      const offlineSales = await localDb.getOfflineSales();
-      appStore.pendingSyncCount = offlineSales.length;
+    if (isNetworkError) {
+      console.warn('Network error — saving offline fallback...', e);
+      try {
+        const saleRecord = await localDb.saveOfflineSale(payload);
+        lastSavedSale.value = saleRecord;
 
-      playBeep('success');
-      clearCart();
-      salesHistory.value.unshift(saleRecord);
-      alert('⚠️ تم حفظ الفاتورة محلياً (فشل الاتصال بالخادم). سيتم مزامنتها تلقائياً.');
+        const offlineSales = await localDb.getOfflineSales();
+        appStore.pendingSyncCount = offlineSales.length;
 
-      if (autoPrint.value) {
-        await printReceipt(saleRecord);
+        playBeep('success');
+        clearCart();
+        salesHistory.value.unshift(saleRecord);
+        alert('⚠️ تم حفظ الفاتورة محلياً (فشل الاتصال بالخادم). سيتم مزامنتها تلقائياً.');
+
+        if (autoPrint.value) {
+          await printReceipt(saleRecord);
+        }
+      } catch (offlineErr) {
+        playBeep('error');
+        saleError.value = 'فشل تسجيل البيع: ' + (e.message || offlineErr.message);
       }
-    } catch (err) {
+    } else {
+      // خطأ تحقق أو سيرفر — عرضه للمستخدم بدون حفظ أوفلاين
       playBeep('error');
-      saleError.value = 'فشل تسجيل البيع: ' + (e.message || err.message);
+      saleError.value = e.message || 'فشل تسجيل البيع — تحقق من البيانات وحاول مرة أخرى';
     }
   } finally {
     saving.value = false;

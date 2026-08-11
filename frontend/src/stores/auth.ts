@@ -60,8 +60,33 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   const isAuthenticated = computed(() => !!token.value);
-  const hasPermission = (code: string) =>
-    user.value?.role_name === 'admin' || permissions.value.some((p) => p.code === code);
+  
+  const legacyMap: Record<string, string[]> = {
+    'sales.branch': ['pos.view'],
+    'sales.wholesale': ['pos.view'],
+    'sales.pos': ['pos.view'],
+    'sales.return': ['pos.view'],
+    'products.manage': ['products.view', 'products.add', 'products.edit', 'products.delete'],
+    'inventory.manage': ['inventory.view', 'inventory.add', 'inventory.edit', 'inventory.delete'],
+    'customers.manage': ['customers.view', 'customers.add', 'customers.edit', 'customers.delete'],
+    'suppliers.manage': ['suppliers.view', 'suppliers.add', 'suppliers.edit', 'suppliers.delete'],
+    'invoices.manage': ['invoices.view', 'invoices.add', 'invoices.edit', 'invoices.delete'],
+    'expenses.manage': ['expenses.view', 'expenses.add', 'expenses.edit', 'expenses.delete'],
+    'reports.view': ['reports.view', 'reports.add', 'reports.edit', 'reports.delete'],
+    'users.manage': ['users.view', 'users.add', 'users.edit', 'users.delete'],
+    'settings.manage': ['settings.view', 'settings.add', 'settings.edit', 'settings.delete'],
+    'hr.manage': ['shifts.view', 'shifts.add', 'shifts.edit', 'shifts.delete']
+  };
+
+  const hasPermission = (code: string) => {
+    if (user.value?.role_name === 'owner' || user.value?.role_name === 'admin' || user.value?.role_name === 'sys_admin') return true;
+    if (permissions.value.some((p) => p.code === code)) return true;
+    
+    if (legacyMap[code]) {
+      return legacyMap[code].some(mappedCode => permissions.value.some(p => p.code === mappedCode));
+    }
+    return false;
+  };
 
   const login = async (username: string, password: string) => {
     const res = await authApi.login({ username, password });

@@ -3,7 +3,7 @@ import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import { v4 as uuidv4 } from "uuid";
 import config from "../config/index.js";
-import { query } from "../database/pool.js";
+import { query, withTransaction } from "../database/pool.js";
 import { AppError } from "../types/errors.js";
 const hashToken = (token) => crypto.createHash("sha256").update(token).digest("hex");
 const logFailedLogin = async (username, userId, meta = {}, reason = "invalid_credentials") => {
@@ -120,38 +120,42 @@ const login = async (username, password, meta = {}) => {
   };
 };
 const refreshAccessToken = async (refreshToken) => {
-  if (!refreshToken) throw new AppError("Refresh token \u0645\u0637\u0644\u0648\u0628", 401);
+  if (!refreshToken) throw new AppError("Refresh token مطلوب", 401);
   let decoded;
   try {
     decoded = jwt.verify(refreshToken, config.jwt.refreshSecret);
   } catch {
-    throw new AppError("Refresh token \u063A\u064A\u0631 \u0635\u0627\u0644\u062D \u0623\u0648 \u0645\u0646\u062A\u0647\u064A", 401, "INVALID_REFRESH");
+    throw new AppError("Refresh token غير صالح أو منتهي", 401, "INVALID_REFRESH");
   }
-  const tokenHash = hashToken(refreshToken);
-  const result = await query(
-    `SELECT rt.*, u.is_active, u.deleted_at, r.name as role_name
-     FROM refresh_tokens rt
-     JOIN users u ON rt.user_id = u.id
-     JOIN roles r ON u.role_id = r.id
-     WHERE rt.token_hash = $1 AND rt.revoked = FALSE AND rt.expires_at > NOW()`,
-    [tokenHash]
-  );
-  const row = result.rows[0];
-  if (!row || !row.is_active || row.deleted_at) {
-    if (decoded.userId) {
-      await query("UPDATE refresh_tokens SET revoked = TRUE WHERE user_id = $1", [decoded.userId]);
+  
+  return await withTransaction(async (client) => {
+    const tokenHash = hashToken(refreshToken);
+    const result = await client.query(
+      `SELECT rt.*, u.is_active, u.deleted_at, r.name as role_name
+       FROM refresh_tokens rt
+       JOIN users u ON rt.user_id = u.id
+       JOIN roles r ON u.role_id = r.id
+       WHERE rt.token_hash = $1 AND rt.revoked = FALSE AND rt.expires_at > NOW()
+       FOR UPDATE`,
+      [tokenHash]
+    );
+    const row = result.rows[0];
+    if (!row || !row.is_active || row.deleted_at) {
+      if (decoded.userId) {
+        await client.query("UPDATE refresh_tokens SET revoked = TRUE WHERE user_id = $1", [decoded.userId]);
+      }
+      throw new AppError("الجلسة انتهت، يرجى تسجيل الدخول مرة أخرى", 401, "INVALID_REFRESH");
     }
-    throw new AppError("\u0627\u0644\u062C\u0644\u0633\u0629 \u0627\u0646\u062A\u0647\u062A\u060C \u064A\u0631\u062C\u0649 \u062A\u0633\u062C\u064A\u0644 \u0627\u0644\u062F\u062E\u0648\u0644 \u0645\u0631\u0629 \u0623\u062E\u0631\u0649", 401, "INVALID_REFRESH");
-  }
-  await query("UPDATE refresh_tokens SET revoked = TRUE WHERE id = $1", [row.id]);
-  const { accessToken, refreshToken: newRefresh } = issueTokens(row.user_id, row.role_name);
-  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1e3);
-  await query(
-    `INSERT INTO refresh_tokens (user_id, token_hash, expires_at, ip_address, user_agent)
-     VALUES ($1, $2, $3, $4, $5)`,
-    [row.user_id, hashToken(newRefresh), expiresAt, row.ip_address, row.user_agent]
-  );
-  return { token: accessToken, refreshToken: newRefresh };
+    await client.query("UPDATE refresh_tokens SET revoked = TRUE WHERE id = $1", [row.id]);
+    const { accessToken, refreshToken: newRefresh } = issueTokens(row.user_id, row.role_name);
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1e3);
+    await client.query(
+      `INSERT INTO refresh_tokens (user_id, token_hash, expires_at, ip_address, user_agent)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [row.user_id, hashToken(newRefresh), expiresAt, row.ip_address, row.user_agent]
+    );
+    return { token: accessToken, refreshToken: newRefresh };
+  });
 };
 const logout = async (userId) => {
   await query("UPDATE refresh_tokens SET revoked = TRUE WHERE user_id = $1 AND revoked = FALSE", [

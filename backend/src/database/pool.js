@@ -4,8 +4,7 @@ const { Pool, types } = pg;
 types.setTypeParser(1082, (value) => value);
 types.setTypeParser(1700, (value) => {
   if (value === null) return null;
-  const num = parseFloat(value);
-  return Math.round(num * 100) / 100;
+  return parseFloat(value);
 });
 const connectionOptions = process.env.DATABASE_URL ? { connectionString: process.env.DATABASE_URL } : {
   host: config.db.host,

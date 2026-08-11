@@ -32,11 +32,11 @@ const authenticate = async (req, res, next) => {
       }
     }
     req.user = {
+      ...user,
       userId: user.id,
       role: user.role_name || "",
       jti: decoded.jti
     };
-    req.user = user;
     next();
   } catch (err) {
     if (err.name === "JsonWebTokenError" || err.name === "TokenExpiredError") {
@@ -45,16 +45,43 @@ const authenticate = async (req, res, next) => {
     next(err);
   }
 };
+const legacyMap = {
+  'sales.branch': ['pos.view', 'pos.add', 'pos.edit', 'pos.delete'],
+  'sales.wholesale': ['pos.view', 'pos.add', 'pos.edit', 'pos.delete'],
+  'sales.pos': ['pos.view', 'pos.add', 'pos.edit', 'pos.delete'],
+  'sales.return': ['pos.delete'],
+  'products.manage': ['products.view', 'products.add', 'products.edit', 'products.delete'],
+  'inventory.manage': ['inventory.view', 'inventory.add', 'inventory.edit', 'inventory.delete'],
+  'customers.manage': ['customers.view', 'customers.add', 'customers.edit', 'customers.delete'],
+  'suppliers.manage': ['suppliers.view', 'suppliers.add', 'suppliers.edit', 'suppliers.delete'],
+  'invoices.manage': ['invoices.view', 'invoices.add', 'invoices.edit', 'invoices.delete'],
+  'expenses.manage': ['expenses.view', 'expenses.add', 'expenses.edit', 'expenses.delete'],
+  'reports.view': ['reports.view', 'reports.add', 'reports.edit', 'reports.delete'],
+  'users.manage': ['users.view', 'users.add', 'users.edit', 'users.delete'],
+  'settings.view': ['settings.view'],
+  'settings.manage': ['settings.view', 'settings.add', 'settings.edit', 'settings.delete'],
+  'hr.manage': ['shifts.view', 'shifts.add', 'shifts.edit', 'shifts.delete']
+};
+
 const authorize = (...permissions) => async (req, res, next) => {
   try {
-    if (req.user?.role_name === "admin" || req.user?.role === "admin") return next();
+    if (req.user?.role_name === "admin" || req.user?.role === "admin" || req.user?.role_name === "sys_admin" || req.user?.role_name === "owner") return next();
     const roleId = req.user?.role_id;
     if (!roleId) throw new AppError("\u063A\u064A\u0631 \u0645\u0635\u0631\u062D \u0644\u0643", 401, "UNAUTHORIZED");
+    
+    // Expand requested permissions to include mapped specific permissions
+    let requiredPermissions = [...permissions];
+    for (const p of permissions) {
+        if (legacyMap[p]) {
+            requiredPermissions.push(...legacyMap[p]);
+        }
+    }
+
     const result = await query(
       `SELECT p.code FROM permissions p
        JOIN role_permissions rp ON p.id = rp.permission_id
        WHERE rp.role_id = $1 AND p.code = ANY($2)`,
-      [roleId, permissions]
+      [roleId, requiredPermissions]
     );
     if (!result.rows.length) {
       throw new AppError("\u0644\u064A\u0633 \u0644\u062F\u064A\u0643 \u0635\u0644\u0627\u062D\u064A\u0629 \u0644\u062A\u0646\u0641\u064A\u0630 \u0647\u0630\u0647 \u0627\u0644\u0639\u0645\u0644\u064A\u0629", 403, "FORBIDDEN");
@@ -82,12 +109,12 @@ const auditLog = (action, entityType) => async (req, res, next) => {
       console.error("[AuditLog] \u0641\u0634\u0644 \u062D\u0641\u0638 \u0633\u062C\u0644 \u0627\u0644\u062A\u062F\u0642\u064A\u0642:", auditErr.message);
     }
   };
-  res.json = async function(body) {
-    await tryWriteAudit(body);
+  res.json = function(body) {
+    tryWriteAudit(body).catch(err => console.error("[AuditLog]", err.message));
     return originalJson(body);
   };
-  res.send = async function(body) {
-    await tryWriteAudit(body);
+  res.send = function(body) {
+    tryWriteAudit(body).catch(err => console.error("[AuditLog]", err.message));
     return originalSend(body);
   };
   next();

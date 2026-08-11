@@ -13,7 +13,7 @@ export const recalculateCustomerBalance = async (db = query, customerId) => {
     `
     UPDATE customers c
     SET balance = COALESCE(c.opening_balance, 0) + COALESCE((
-      SELECT GREATEST(0, SUM(outstanding))
+      SELECT SUM(outstanding)
       FROM (
         SELECT
           CASE
@@ -49,7 +49,7 @@ export const recalculateCustomerBalance = async (db = query, customerId) => {
       ) source
     ), 0),
     current_balance = COALESCE(c.opening_balance, 0) + COALESCE((
-      SELECT GREATEST(0, SUM(outstanding))
+      SELECT SUM(outstanding)
       FROM (
         SELECT
           CASE

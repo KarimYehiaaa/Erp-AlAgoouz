@@ -1,7 +1,8 @@
 import { AppError } from "../types/errors.js";
 const validate = (schema) => (req, res, next) => {
   try {
-    const data = { ...req.body, ...req.params, ...req.query };
+    // حماية من Prototype Pollution باستخدام Object.create(null)
+    const data = Object.assign(Object.create(null), req.body, req.params, req.query);
     const parsed = schema.parse(data);
     req.validated = parsed;
     next();

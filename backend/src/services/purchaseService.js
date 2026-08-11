@@ -3,6 +3,7 @@ import { AppError } from '../types/errors.js';
 import { getDefaultWarehouseId } from './warehouseService.js';
 import { parseLocalizedNumber } from '../utils/numberParsing.js';
 import { invalidateDashboardCache } from './dashboardService.js';
+import { roundMoney } from '../utils/money.js';
 
 export const parsePurchaseAmount = parseLocalizedNumber;
 
@@ -141,7 +142,9 @@ const applyPurchaseItems = async (client, invoice, items, userId, notePrefix = '
 const reversePurchaseItems = async (client, invoice, items, userId, notePrefix = 'إلغاء شراء') => {
   const shortages = [];
 
-  for (const it of items) {
+  // ترتيب العناصر تصاعدياً بناءً على product_id لمنع Deadlock عند القفل المتزامن
+  const sortedItems = [...items].sort((a, b) => Number(a.product_id) - Number(b.product_id));
+  for (const it of sortedItems) {
     const productId = Number(it.product_id);
     const warehouseId = Number(it.warehouse_id);
     const qty = Number(it.quantity);
@@ -344,7 +347,7 @@ export const createPurchaseInvoice = async (payload, userId) => {
       if (!warehouseId)
         throw new AppError(`المنتج "${product.name_ar}" لا يملك مخزنًا محددًا`, 400);
 
-      const lineTotal = Math.round(quantity * unitPrice * 100) / 100;
+      const lineTotal = roundMoney(quantity * unitPrice);
       subtotal += lineTotal;
       normalized.push({
         product_id: productId,
@@ -551,7 +554,8 @@ export const deletePurchaseInvoice = async (invoiceId, userId) => {
     ).rows;
 
     const shortages = [];
-    for (const it of items) {
+    const sortedItems = [...items].sort((a, b) => Number(a.product_id) - Number(b.product_id));
+    for (const it of sortedItems) {
       const productId = Number(it.product_id);
       const warehouseId = Number(it.warehouse_id);
       const qty = Number(it.quantity);

@@ -249,6 +249,7 @@
               <td>{{ inv.items?.length || 0 }}</td>
               <td>
                 <button
+                  v-permission="'inventory.edit'"
                   type="button"
                   class="icon-btn"
                   @click="editInvoice(inv)"
@@ -258,6 +259,7 @@
                   <AppIcon name="edit" :size="16" />
                 </button>
                 <button
+                  v-permission="'inventory.delete'"
                   type="button"
                   class="icon-btn danger"
                   @click="deleteInvoice(inv.id, inv.invoice_number)"
@@ -295,7 +297,9 @@
             <input type="month" class="month-picker-overlay" @change="selectExpensesMonth" />
           </div>
         </div>
-        <button class="btn btn-primary" @click="openExpenseCreate">+ مصروف جديد</button>
+        <div class="actions" style="margin-bottom: 20px">
+          <button v-permission="'expenses.add'" class="btn btn-primary" @click="openExpenseCreate">+ مصروف جديد</button>
+        </div>
       </div>
 
       <!-- Expenses Summary Stat Cards -->
@@ -380,11 +384,11 @@
               </td>
               <td style="font-weight: 800; color: var(--accent)">{{ formatMoney(e.amount) }}</td>
               <td>{{ e.expense_date }}</td>
-              <td>
-                <button type="button" class="icon-btn" @click="openExpenseEdit(e)" title="تعديل">
+              <td class="actions">
+                <button v-permission="'expenses.edit'" type="button" class="icon-btn" @click="openExpenseEdit(e)" title="تعديل">
                   <AppIcon name="edit" :size="16" />
                 </button>
-                <button type="button" class="icon-btn danger" @click="removeExpense(e)" title="حذف">
+                <button v-permission="'expenses.delete'" type="button" class="icon-btn danger" @click="removeExpense(e)" title="حذف">
                   <AppIcon name="delete" :size="16" />
                 </button>
               </td>

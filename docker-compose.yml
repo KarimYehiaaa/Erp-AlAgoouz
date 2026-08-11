@@ -50,16 +50,7 @@ services:
       - postgres
     restart: always
 
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    container_name: bin_al_ajouz_web
-    ports:
-      - '80:80'
-    depends_on:
-      - backend
-    restart: always
+
 
 volumes:
   pgdata:

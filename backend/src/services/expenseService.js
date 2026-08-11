@@ -31,6 +31,10 @@ export const getExpenses = async (filters = {}) => {
 };
 
 export const createExpense = async (data, userId) => {
+  const amount = parseFloat(data.amount);
+  if (isNaN(amount) || amount <= 0) {
+    throw new AppError('مبلغ المصروف يجب أن يكون رقماً موجباً أكبر من الصفر');
+  }
   const resSeq = await query(`SELECT nextval('seq_expenses_number') AS next_val`);
   const num = `EXP-${resSeq.rows[0].next_val}`;
   const isFixed = data.is_fixed !== undefined ? Boolean(data.is_fixed) : false;
@@ -56,6 +60,12 @@ export const createExpense = async (data, userId) => {
 };
 
 export const updateExpense = async (id, data) => {
+  if (data.amount !== undefined) {
+    const amount = parseFloat(data.amount);
+    if (isNaN(amount) || amount <= 0) {
+      throw new AppError('مبلغ المصروف يجب أن يكون رقماً موجباً أكبر من الصفر');
+    }
+  }
   const result = await query(
     `UPDATE expenses
      SET category_id = COALESCE($1, category_id),

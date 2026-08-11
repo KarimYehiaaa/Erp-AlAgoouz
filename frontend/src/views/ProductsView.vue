@@ -17,18 +17,18 @@
         </button>
       </div>
       <div v-if="tab === 'list'" class="header-actions">
-        <button type="button" class="btn btn-outline" @click="downloadTemplate">
+        <button type="button" class="btn btn-outline" @click="downloadTemplate" v-permission="'products.edit'">
           <AppIcon name="download" :size="16" /> قالب Excel
         </button>
-        <button type="button" class="btn btn-outline" @click="exportProducts">
+        <button type="button" class="btn btn-outline" @click="exportProducts" v-permission="'products.edit'">
           <AppIcon name="download" :size="16" /> تصدير المنتجات (Excel)
         </button>
-        <label class="btn btn-outline import-btn">
+        <label class="btn btn-outline import-btn" v-permission="'products.add'">
           <AppIcon name="download" :size="16" style="transform: rotate(180deg)" /> استيراد وتعديل
           (Excel)
           <input type="file" accept=".xlsx,.xls" hidden @change="onImport" />
         </label>
-        <button type="button" class="btn btn-add" :disabled="loading" @click="openForm()">
+        <button type="button" class="btn btn-add" :disabled="loading" @click="openForm()" v-permission="'products.add'">
           <AppIcon name="add" :size="16" />
           {{ loading ? 'جاري التحميل...' : 'إضافة منتج' }}
         </button>
@@ -110,6 +110,7 @@
                 class="icon-btn danger"
                 title="حذف المنتج"
                 @click="deleteOneProduct(item)"
+                v-permission="'products.delete'"
               >
                 <AppIcon name="delete" :size="16" />
               </button>

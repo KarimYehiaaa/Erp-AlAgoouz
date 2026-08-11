@@ -46,9 +46,9 @@ if (process.env.DATABASE_URL) {
 } else {
   // وضع القاعدة الحية Supabase كخيار افتراضي ذكي للتشغيل السحابي المباشر
   dbConfig = {
-    user: optionalEnv('DB_USER', 'postgres.agzcpybgcjxtkyszfhws'),
-    password: optionalEnv('DB_PASSWORD', 'C@me#Cap0#1'),
-    host: optionalEnv('DB_HOST', 'aws-0-eu-north-1.pooler.supabase.com'),
+    user: requireEnv('DB_USER'),
+    password: requireEnv('DB_PASSWORD'),
+    host: requireEnv('DB_HOST'),
     port: parseInt(optionalEnv('DB_PORT', '5432'), 10),
     database: optionalEnv('DB_NAME', 'postgres'),
   };
@@ -87,9 +87,9 @@ const config = {
 
   // ── JWT ──
   jwt: {
-    secret: requireEnv('JWT_SECRET', 'q1b2DoHuyqTNfjOM+BlV01Xl7NNaw+a0sgts3kbpYL4DKdy0VXqTnyA5HnwIgN6W'),
+    secret: requireEnv('JWT_SECRET'),
     expiresIn: optionalEnv('JWT_EXPIRES_IN', '15m'),
-    refreshSecret: optionalEnv('JWT_REFRESH_SECRET', requireEnv('JWT_SECRET', 'q1b2DoHuyqTNfjOM+BlV01Xl7NNaw+a0sgts3kbpYL4DKdy0VXqTnyA5HnwIgN6W') + '_refresh'),
+    refreshSecret: optionalEnv('JWT_REFRESH_SECRET', requireEnv('JWT_SECRET') + '_refresh'),
     refreshExpiresIn: optionalEnv('JWT_REFRESH_EXPIRES_IN', '7d'),
   },
 

@@ -1,4 +1,4 @@
-import { getClient, query } from '../database/pool.js';
+import { getClient, query, withTransaction } from '../database/pool.js';
 import { AppError } from '../types/errors.js';
 import { recalculateCustomerBalance } from './customerBalanceService.js';
 import { sanitizeLimit } from '../utils/money.js';
@@ -358,69 +358,71 @@ export const recordPayment = async (customerId, data) => {
 };
 
 export const recordSalePayment = async (saleId, data) => {
-  const sale = (
-    await query(
-      `SELECT s.*, c.name_ar as customer_name
-     FROM sales s LEFT JOIN customers c ON c.id = s.customer_id
-     WHERE s.id = $1 AND s.deleted_at IS NULL`,
-      [saleId],
-    )
-  ).rows[0];
-  if (!sale) throw new AppError('العملية غير موجودة', 404);
+  return await withTransaction(async (client) => {
+    const sale = (
+      await client.query(
+        `SELECT s.*, c.name_ar as customer_name
+       FROM sales s LEFT JOIN customers c ON c.id = s.customer_id
+       WHERE s.id = $1 AND s.deleted_at IS NULL FOR UPDATE`,
+        [saleId],
+      )
+    ).rows[0];
+    if (!sale) throw new AppError('العملية غير موجودة', 404);
 
-  const amount = parseFloat(data.amount);
-  if (!amount || amount <= 0) throw new AppError('المبلغ يجب أن يكون أكبر من صفر');
+    const amount = parseFloat(data.amount);
+    if (!amount || amount <= 0) throw new AppError('المبلغ يجب أن يكون أكبر من صفر');
 
-  const paidSoFar = (
-    await query(
-      `SELECT COALESCE(SUM(amount),0) as total FROM payments WHERE reference_type='sale' AND reference_id=$1`,
-      [saleId],
-    )
-  ).rows[0].total;
+    const paidSoFar = (
+      await client.query(
+        `SELECT COALESCE(SUM(amount),0) as total FROM payments WHERE reference_type='sale' AND reference_id=$1`,
+        [saleId],
+      )
+    ).rows[0].total;
 
-  const remaining = Number(sale.total_amount) - Number(paidSoFar);
-  if (amount > remaining + 0.01) {
-    throw new AppError(`المبلغ (${amount}) أكبر من المتبقي (${remaining.toFixed(2)})`);
-  }
+    const remaining = Number(sale.total_amount) - Number(paidSoFar);
+    if (amount > remaining + 0.01) {
+      throw new AppError(`المبلغ (${amount}) أكبر من المتبقي (${remaining.toFixed(2)})`);
+    }
 
-  const payNum = `PAY-S${saleId}-${Date.now()}`;
-  await query(
-    `INSERT INTO payments (payment_number, reference_type, reference_id, amount, payment_method, notes, user_id)
-     VALUES ($1,'sale',$2,$3,$4,$5,$6)`,
-    [
-      payNum,
-      saleId,
+    const payNum = `PAY-S${saleId}-${Date.now()}`;
+    await client.query(
+      `INSERT INTO payments (payment_number, reference_type, reference_id, amount, payment_method, notes, user_id)
+       VALUES ($1,'sale',$2,$3,$4,$5,$6)`,
+      [
+        payNum,
+        saleId,
+        amount,
+        data.payment_method || 'cash',
+        data.notes || null,
+        data.user_id || null,
+      ],
+    );
+
+    const newPaid = Number(paidSoFar) + amount;
+    const newStatus = newPaid >= Number(sale.total_amount) - 0.01 ? 'paid' : 'partial';
+    await client.query(`UPDATE sales SET payment_status=$1 WHERE id=$2`, [newStatus, saleId]);
+    await client.query(`UPDATE invoices SET payment_status=$1 WHERE sale_id=$2`, [newStatus, saleId]);
+
+    if (sale.customer_id) {
+      await recalculateCustomerBalance(client, sale.customer_id);
+    }
+
+    await client.query(
+      `INSERT INTO activity_logs (user_id, module, action_ar, details) VALUES ($1,'sales',$2,$3)`,
+      [
+        data.user_id || null,
+        `تسجيل دفعة على المبيعات ${sale.sale_number}: ${amount} ج.م`,
+        JSON.stringify({ sale_id: saleId, amount }),
+      ],
+    );
+
+    return {
+      success: true,
       amount,
-      data.payment_method || 'cash',
-      data.notes || null,
-      data.user_id || null,
-    ],
-  );
-
-  const newPaid = Number(paidSoFar) + amount;
-  const newStatus = newPaid >= Number(sale.total_amount) - 0.01 ? 'paid' : 'partial';
-  await query(`UPDATE sales SET payment_status=$1 WHERE id=$2`, [newStatus, saleId]);
-  await query(`UPDATE invoices SET payment_status=$1 WHERE sale_id=$2`, [newStatus, saleId]);
-
-  if (sale.customer_id) {
-    await recalculateCustomerBalance(query, sale.customer_id);
-  }
-
-  await query(
-    `INSERT INTO activity_logs (user_id, module, action_ar, details) VALUES ($1,'sales',$2,$3)`,
-    [
-      data.user_id || null,
-      `تسجيل دفعة على المبيعات ${sale.sale_number}: ${amount} ج.م`,
-      JSON.stringify({ sale_id: saleId, amount }),
-    ],
-  );
-
-  return {
-    success: true,
-    amount,
-    new_status: newStatus,
-    remaining: Math.max(0, remaining - amount),
-  };
+      new_status: newStatus,
+      remaining: Math.max(0, remaining - amount),
+    };
+  });
 };
 
 export const getCustomerStatement = async (id) => {

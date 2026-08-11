@@ -71,7 +71,7 @@
 
             <div class="card-footer">
               <div class="info-value">📎 الشعار: استبدل الملف <code>public/logo.png</code></div>
-              <button v-if="canEdit" class="btn btn-save" :disabled="saving" @click="saveCompany">
+              <button v-permission="'settings.manage'" v-if="canEdit" class="btn btn-save" :disabled="saving" @click="saveCompany">
                 <AppIcon name="save" :size="16" />
                 {{ saving ? 'جاري الحفظ...' : 'حفظ البيانات' }}
               </button>
@@ -178,8 +178,7 @@
               </span>
               <div v-if="canEdit" class="col-actions row-actions">
                 <template v-if="categoryEditing === cat.id">
-                  <button
-                    class="action-btn save"
+                  <button v-permission="'settings.manage'" class="action-btn save"
                     :disabled="categorySaving"
                     @click="saveCategory(cat)"
                   >
@@ -191,8 +190,7 @@
                   <button class="icon-btn edit" @click="startEditCategory(cat)">
                     <AppIcon name="edit" :size="14" />
                   </button>
-                  <button
-                    class="icon-btn danger"
+                  <button v-permission="'settings.manage'" class="icon-btn danger"
                     :disabled="categorySaving"
                     @click="deleteCategory(cat.id)"
                   >
@@ -257,7 +255,7 @@
               </span>
               <div v-if="canEdit" class="col-actions row-actions">
                 <template v-if="unitEditing === unit.id">
-                  <button class="action-btn save" :disabled="unitSaving" @click="saveUnit(unit)">
+                  <button v-permission="'settings.manage'" class="action-btn save" :disabled="unitSaving" @click="saveUnit(unit)">
                     حفظ
                   </button>
                   <button class="action-btn" @click="cancelEditUnit">إلغاء</button>
@@ -266,7 +264,7 @@
                   <button class="icon-btn edit" @click="startEditUnit(unit)">
                     <AppIcon name="edit" :size="14" />
                   </button>
-                  <button class="icon-btn danger" :disabled="unitSaving" @click="removeUnit(unit)">
+                  <button v-permission="'settings.manage'" class="icon-btn danger" :disabled="unitSaving" @click="removeUnit(unit)">
                     <AppIcon name="delete" :size="14" />
                   </button>
                 </template>
@@ -590,7 +588,7 @@
         <div class="settings-card">
           <div class="backup-toolbar">
             <div class="toolbar-group">
-              <button class="btn btn-add" @click="createBackup" :disabled="backuping || !canEdit">
+              <button v-permission="'settings.manage'" class="btn btn-add" @click="createBackup" :disabled="backuping || !canEdit">
                 <AppIcon name="add" :size="16" /> إنشاء نسخة
               </button>
               <button class="btn btn-outline" @click="refreshBackups">
@@ -625,7 +623,7 @@
                 <button class="btn btn-sm btn-outline" @click="download(b.name)">
                   <AppIcon name="download" :size="14" /> تحميل
                 </button>
-                <button v-if="canEdit" class="btn btn-sm btn-edit" @click="restore(b.name)">
+                <button v-permission="'settings.manage'" v-if="canEdit" class="btn btn-sm btn-edit" @click="restore(b.name)">
                   <AppIcon name="arrowLeft" :size="14" /> استرداد
                 </button>
               </div>
@@ -789,8 +787,7 @@
           </div>
 
           <div class="cloud-actions">
-            <button
-              v-if="canEdit"
+            <button v-permission="'settings.manage'" v-if="canEdit"
               class="btn btn-save"
               @click="saveCloudBackupSettings"
               :disabled="cloudSaving"

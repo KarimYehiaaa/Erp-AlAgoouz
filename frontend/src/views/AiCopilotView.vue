@@ -122,6 +122,7 @@
 
 <script setup>
 import { ref, onMounted, nextTick } from 'vue';
+import DOMPurify from 'dompurify';
 import { forecasting } from '@/api';
 
 const inputText = ref('');
@@ -209,7 +210,7 @@ const formatMessage = (text) => {
     '<span class="finance-metric">$1</span>',
   );
 
-  return html;
+  return DOMPurify.sanitize(html);
 };
 
 const sendSuggestedPrompt = (text) => {

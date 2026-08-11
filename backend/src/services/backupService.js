@@ -289,16 +289,20 @@ export const restoreBackup = async (name) => {
         '[Restore] could not set session_replication_role, continuing with triggers enabled',
       );
     }
-    for (const table of [...restoreTables].reverse()) {
-      await client.query(`TRUNCATE TABLE ${table} RESTART IDENTITY CASCADE`);
-    }
-    for (const table of restoreTables) {
-      const rows = data[table];
-      // BUG-03 FIX: رفض أي جدول غير موجود في القائمة البيضاء — يمنع SQL Injection
+    // تصفية الجداول المسموح بها أولاً لمنع TRUNCATE على جداول غير مصرح بها (SQL Injection)
+    const validRestoreTables = restoreTables.filter(table => {
       if (!ALLOWED_RESTORE_TABLES.has(table)) {
         console.warn(`[Restore] تجاهل جدول غير مصرح به: ${table}`);
-        continue;
+        return false;
       }
+      return true;
+    });
+
+    for (const table of [...validRestoreTables].reverse()) {
+      await client.query(`TRUNCATE TABLE ${table} RESTART IDENTITY CASCADE`);
+    }
+    for (const table of validRestoreTables) {
+      const rows = data[table];
       if (!Array.isArray(rows) || rows.length === 0) continue;
       // فقط الأعمدة التي تحتوي أسماء SQL آمنة (حروف وأرقام وشرطة سفلية)
       const cols = Object.keys(rows[0]).filter((c) => /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(c));

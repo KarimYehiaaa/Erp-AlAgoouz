@@ -1,7 +1,7 @@
 <template>
   <div>
     <div class="page-header">
-      <button class="btn btn-primary" @click="openCreate">+ مورد جديد</button>
+      <button v-permission="'suppliers.add'" class="btn btn-primary" @click="openCreate">+ مورد جديد</button>
     </div>
 
     <!-- شبكة كروت الموردين -->
@@ -34,10 +34,10 @@
           <div class="supplier-head">
             <h3>{{ s.name_ar }}</h3>
             <div class="actions" @click.stop>
-              <button type="button" class="icon-btn" @click="openEdit(s)" title="تعديل">
+              <button v-permission="'suppliers.edit'" type="button" class="icon-btn" @click="openEdit(s)" title="تعديل">
                 <AppIcon name="edit" :size="16" />
               </button>
-              <button type="button" class="icon-btn danger" @click="removeSupplier(s)" title="حذف">
+              <button v-permission="'suppliers.delete'" type="button" class="icon-btn danger" @click="removeSupplier(s)" title="حذف">
                 <AppIcon name="delete" :size="16" />
               </button>
             </div>
@@ -120,8 +120,8 @@
         </div>
 
         <div class="modal-actions-bar">
-          <button type="button" class="btn btn-primary btn-sm" @click="openPaymentForm">
-            + تسجيل سداد دفعة للمورد
+          <button v-permission="'suppliers.edit'" type="button" class="btn btn-primary btn-sm" @click="openPaymentForm">
+            + تسجيل دفعة للمورد
           </button>
         </div>
 

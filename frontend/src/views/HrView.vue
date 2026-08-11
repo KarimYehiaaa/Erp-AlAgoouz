@@ -131,7 +131,7 @@
             </div>
           </div>
           <div style="margin-top: 16px; display: flex; gap: 8px">
-            <button class="btn btn-primary" type="submit" :disabled="loading">
+            <button v-permission="'hr.edit'" class="btn btn-primary" type="submit" :disabled="loading">
               {{ editingEmployeeId ? 'تحديث البيانات' : 'إضافة الموظف' }}
             </button>
             <button
@@ -254,7 +254,7 @@
             </div>
           </div>
           <div style="margin-top: 16px">
-            <button class="btn btn-primary" type="submit" :disabled="loading">
+            <button v-permission="'hr.edit'" class="btn btn-primary" type="submit" :disabled="loading">
               حفظ الحضور للأيام المحددة
             </button>
           </div>
@@ -365,7 +365,7 @@
             </div>
           </div>
           <div style="margin-top: 16px">
-            <button class="btn btn-primary" type="submit" :disabled="loading">
+            <button v-permission="'hr.edit'" class="btn btn-primary" type="submit" :disabled="loading">
               صرف السلفة وتسجيل مصروف
             </button>
           </div>

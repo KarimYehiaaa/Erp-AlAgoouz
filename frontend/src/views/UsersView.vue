@@ -2,11 +2,11 @@
   <div class="users-page">
     <section class="page-header card">
       <div>
-        <h2>إدارة المستخدمين</h2>
-        <p>عدّل بيانات المستخدمين، الصلاحيات، وحالة الحسابات من هنا.</p>
+        <h2>المستخدمون والصلاحيات</h2>
+        <p>عدّل بيانات المستخدمين، وحساباتهم والأدوار والصلاحيات المخصصة لهم من هنا.</p>
       </div>
       <div class="header-actions">
-        <button type="button" class="btn btn-add" @click="startCreate">
+        <button v-permission="'users.add'" v-if="activeTab === 'users'" type="button" class="btn btn-add" @click="startCreate">
           <AppIcon name="add" :size="16" /> إضافة مستخدم جديد
         </button>
         <button type="button" class="btn btn-outline" @click="refreshUsers" :disabled="loading">
@@ -15,7 +15,17 @@
       </div>
     </section>
 
-    <section class="users-layout">
+    <div class="tabs-container">
+      <button class="tab-btn" :class="{ active: activeTab === 'users' }" @click="activeTab = 'users'">
+        <AppIcon name="users" :size="18" /> المستخدمون
+      </button>
+      <button class="tab-btn" :class="{ active: activeTab === 'roles' }" @click="activeTab = 'roles'">
+        <AppIcon name="shield" :size="18" /> الأدوار والصلاحيات
+      </button>
+    </div>
+
+    <div v-show="activeTab === 'users'">
+      <section class="users-layout">
       <!-- قائمة المستخدمين -->
       <article class="card table-card">
         <div class="card-head search-head">
@@ -82,10 +92,11 @@
                   </span>
                 </td>
                 <td class="actions-cell">
-                  <button type="button" class="btn btn-sm btn-edit" @click="selectUser(u)">
+                  <button v-permission="'users.edit'" type="button" class="btn btn-sm btn-edit" @click="selectUser(u)">
                     <AppIcon name="edit" :size="14" /> تعديل
                   </button>
                   <button
+                    v-permission="'users.delete'"
                     type="button"
                     class="btn btn-sm btn-delete"
                     @click="deleteUser(u)"
@@ -646,164 +657,12 @@
         </table>
       </div>
     </section>
+    </div>
+    <!-- New Advanced RBAC UI -->
+    <div v-if="activeTab === 'roles'">
+      <RolesPermissions />
+    </div>
 
-    <!-- Roles & Permissions Matrix Section -->
-    <section class="permissions-section card card-premium-flow" style="margin-top: 24px">
-      <div
-        class="card-head"
-        style="border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 18px"
-      >
-        <div class="title-info">
-          <h3 style="margin: 0; font-size: 1.15rem; font-weight: 850; color: var(--text-strong)">
-            🔑 إدارة صلاحيات المناصب والأدوار
-          </h3>
-          <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: var(--text-muted)">
-            حدد الصلاحيات والصفحات المتاحة لكل منصب في النظام
-          </p>
-        </div>
-      </div>
-      <div class="permissions-settings-wrap" style="display: grid; gap: 20px">
-        <div
-          class="role-selector-wrap"
-          style="display: flex; align-items: center; gap: 12px; max-width: 400px"
-        >
-          <label
-            style="
-              font-weight: 800;
-              min-width: 100px;
-              font-size: 0.88rem;
-              color: var(--text-strong);
-            "
-            >اختر المنصب:</label
-          >
-          <select
-            v-model="selectedPermissionRole"
-            @change="handleRolePermissionChange"
-            class="form-select"
-            style="
-              flex: 1;
-              min-height: 38px;
-              padding: 6px 12px;
-              border-radius: var(--radius-sm);
-              border: 1px solid var(--border);
-              background: var(--bg-elevated);
-              color: var(--text);
-              font-weight: 700;
-            "
-          >
-            <option v-for="role in roles" :key="role.id" :value="role.id">
-              {{ role.name_ar }} {{ role.name === 'admin' ? '(كامل الصلاحيات)' : '' }}
-            </option>
-          </select>
-        </div>
-
-        <div
-          v-if="selectedPermissionRole"
-          class="permissions-grid-container"
-          style="display: grid; gap: 24px"
-        >
-          <div
-            v-if="selectedPermissionRoleName === 'admin'"
-            class="alert alert-info"
-            style="
-              background: var(--primary-soft);
-              border: 1px solid var(--primary-strong);
-              color: var(--primary-dark);
-              padding: 12px;
-              border-radius: var(--radius-md);
-              font-weight: 800;
-              font-size: 0.88rem;
-            "
-          >
-            ℹ️ منصب "مدير النظام" يملك كافة صلاحيات النظام بشكل افتراضي وكامل ولا يمكن تعديل
-            صلاحياته برمجياً لضمان عدم إغلاق النظام.
-          </div>
-          <div
-            v-else
-            style="
-              display: grid;
-              grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-              gap: 20px;
-            "
-          >
-            <div
-              v-for="(perms, moduleName) in groupedPermissions"
-              :key="moduleName"
-              class="module-group"
-            >
-              <h4
-                style="
-                  margin-top: 0;
-                  color: var(--primary-dark);
-                  font-weight: 850;
-                  font-size: 0.92rem;
-                  border-bottom: 2px solid var(--border);
-                  padding-bottom: 8px;
-                  margin-bottom: 12px;
-                  display: flex;
-                  align-items: center;
-                  gap: 6px;
-                "
-              >
-                📂 {{ getModuleLabel(moduleName) }}
-              </h4>
-              <div style="display: grid; gap: 10px; position: relative; z-index: 5">
-                <label
-                  v-for="p in perms"
-                  :key="p.id"
-                  style="
-                    display: flex;
-                    align-items: center;
-                    gap: 10px;
-                    cursor: pointer;
-                    font-size: 0.84rem;
-                    color: var(--text-strong);
-                    font-weight: 750;
-                  "
-                >
-                  <input
-                    type="checkbox"
-                    :value="p.id"
-                    v-model="selectedPermissionIds"
-                    style="width: 16px; height: 16px; accent-color: var(--accent)"
-                  />
-                  <span>{{ p.name_ar }}</span>
-                </label>
-              </div>
-            </div>
-          </div>
-
-          <div
-            v-if="selectedPermissionRoleName !== 'admin'"
-            class="form-actions"
-            style="
-              margin-top: 12px;
-              display: flex;
-              justify-content: flex-end;
-              border-top: 1px solid var(--border);
-              padding-top: 14px;
-            "
-          >
-            <button
-              type="button"
-              class="btn btn-save"
-              :disabled="savingPermissions"
-              @click="saveRolePermissions"
-              style="
-                min-width: 160px;
-                display: inline-flex;
-                align-items: center;
-                justify-content: center;
-                gap: 8px;
-              "
-            >
-              <AppIcon v-if="!savingPermissions" name="save" :size="16" />
-              {{ savingPermissions ? 'جاري الحفظ...' : 'حفظ صلاحيات المنصب' }}
-            </button>
-          </div>
-        </div>
-      </div>
-    </section>
   </div>
 </template>
 
@@ -812,6 +671,9 @@ import { computed, onMounted, ref } from 'vue';
 import { users as api } from '@/api';
 import { useAuthStore } from '@/stores/auth';
 import { useAppStore } from '@/stores/app';
+import RolesPermissions from '@/components/users/RolesPermissions.vue';
+
+const activeTab = ref('users');
 
 const authStore = useAuthStore();
 const appStore = useAppStore();
@@ -1492,10 +1354,45 @@ onMounted(refreshUsers);
 .empty {
   text-align: center;
   color: var(--text-muted);
-  padding: 34px !important;
-  font-size: 0.92rem;
-  font-weight: 700;
+  padding: 30px;
 }
+
+/* Tabs */
+.tabs-container {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 25px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 10px;
+}
+
+.tab-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 1.1rem;
+  font-weight: 600;
+  padding: 10px 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+.tab-btn:hover {
+  background: rgba(212, 154, 91, 0.05);
+  color: var(--primary);
+}
+
+.tab-btn.active {
+  color: var(--primary);
+  background: rgba(212, 154, 91, 0.1);
+  box-shadow: 0 4px 12px rgba(212, 154, 91, 0.1);
+}
+
 .module-group {
   border: 1px solid var(--card-border) !important;
   border-radius: var(--radius-lg);

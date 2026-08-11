@@ -18,7 +18,7 @@
           <option value="wholesale">جملة فقط</option>
           <option value="retail">تجزئة فقط</option>
         </select>
-        <button class="btn btn-add" @click="openForm()">
+        <button v-permission="'customers.add'" class="btn btn-add" @click="openForm()">
           <AppIcon name="add" :size="16" /> عميل جديد
         </button>
       </div>
@@ -110,10 +110,10 @@
               <button class="icon-btn" @click="openStatement(c)" title="الحساب الجاري">
                 <AppIcon name="reports" :size="16" />
               </button>
-              <button class="icon-btn edit" @click="openForm(c)" title="تعديل">
+              <button v-permission="'customers.edit'" class="icon-btn edit" @click="openForm(c)" title="تعديل">
                 <AppIcon name="edit" :size="16" />
               </button>
-              <button class="icon-btn danger" @click="removeCustomer(c)" title="حذف">
+              <button v-permission="'customers.delete'" class="icon-btn danger" @click="removeCustomer(c)" title="حذف">
                 <AppIcon name="delete" :size="16" />
               </button>
             </td>
@@ -192,14 +192,14 @@
               </div>
             </div>
             <div class="payment-actions">
-              <button
+              <button v-permission="'customers.edit'"
                 class="btn btn-outline"
                 type="button"
                 @click="payForm.amount = statement.summary.total_balance"
               >
                 سداد كامل الرصيد
               </button>
-              <button
+              <button v-permission="'customers.edit'"
                 class="btn btn-save"
                 :disabled="savingPayment || !payForm.amount"
                 @click="submitPayment"

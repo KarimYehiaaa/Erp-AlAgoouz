@@ -9,7 +9,7 @@
         </p>
       </div>
       <div class="header-actions">
-        <button class="btn btn-primary" @click="openCreateModal">
+        <button v-permission="'inventory.add'" class="btn btn-primary" @click="openCreateModal">
           <span class="btn-icon">➕</span> بدء جرد جديد
         </button>
       </div>
@@ -77,6 +77,7 @@
               </button>
 
               <button
+                v-permission="'inventory.delete'"
                 v-if="s.status === 'draft'"
                 class="btn btn-xs btn-danger-link"
                 title="حذف المسودة"

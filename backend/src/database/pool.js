@@ -14,33 +14,43 @@ const connectionOptions = process.env.DATABASE_URL ? { connectionString: process
   password: config.db.password
 };
 const dbSsl = config.db.ssl;
-const maxConnections = process.env.VERCEL ? 1 : 5;
+const maxConnections = process.env.VERCEL ? 1 : 3;
 const pool = new Pool({
   ...connectionOptions,
   ssl: dbSsl,
   max: maxConnections,
   min: 0,
-  idleTimeoutMillis: 3000,
+  idleTimeoutMillis: 1000,
   connectionTimeoutMillis: 5000,
   statement_timeout: 30000,
   query_timeout: 30000,
-  keepAlive: true,
-  keepAliveInitialDelayMillis: 10000
+  allowExitOnIdle: true
 });
 pool.on("error", (err, client) => {
-  console.error("[DB Pool] \u062E\u0637\u0623 \u063A\u064A\u0631 \u0645\u062A\u0648\u0642\u0639 \u0641\u064A \u0627\u062A\u0635\u0627\u0644 \u0642\u0627\u0639\u062F\u0629 \u0627\u0644\u0628\u064A\u0627\u0646\u0627\u062A:", err.message);
+  console.error("[DB Pool] خطأ غير متوقع في اتصال قاعدة البيانات:", err.message);
 });
 pool.on("connect", (_client) => {
   if (process.env.NODE_ENV === "development") {
-    console.log(`[DB Pool] \u0627\u062A\u0635\u0627\u0644 \u062C\u062F\u064A\u062F \u2014 \u0625\u062C\u0645\u0627\u0644\u064A: ${pool.totalCount} / ${maxConnections}`);
+    console.log(`[DB Pool] اتصال جديد — إجمالي: ${pool.totalCount} / ${maxConnections}`);
   }
 });
 pool.on("remove", (_client) => {
   if (process.env.NODE_ENV === "development") {
-    console.log(`[DB Pool] \u0625\u0632\u0627\u0644\u0629 \u0627\u062A\u0635\u0627\u0644 \u2014 \u0645\u062A\u0628\u0642\u064D: ${pool.totalCount}`);
+    console.log(`[DB Pool] إزالة اتصال — متبقٍ: ${pool.totalCount}`);
   }
 });
-const query = (text, params) => pool.query(text, params);
+const query = async (text, params) => {
+  try {
+    return await pool.query(text, params);
+  } catch (err) {
+    if (err.message && err.message.includes('EMAXCONNSESSION')) {
+      console.warn('⚠️ [DB Pool] Supabase pooler full, retrying query in 500ms...');
+      await new Promise(res => setTimeout(res, 500));
+      return await pool.query(text, params);
+    }
+    throw err;
+  }
+};
 const getClient = () => pool.connect();
 const withTransaction = async (fn) => {
   const client = await pool.connect();

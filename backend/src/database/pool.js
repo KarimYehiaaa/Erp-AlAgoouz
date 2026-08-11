@@ -14,23 +14,18 @@ const connectionOptions = process.env.DATABASE_URL ? { connectionString: process
   password: config.db.password
 };
 const dbSsl = config.db.ssl;
-const maxConnections = process.env.VERCEL ? 1 : dbSsl ? 10 : 60;
+const maxConnections = process.env.VERCEL ? 1 : 5;
 const pool = new Pool({
   ...connectionOptions,
   ssl: dbSsl,
   max: maxConnections,
-  min: process.env.VERCEL ? 0 : 2,
-  // اتصالان جاهزان دائماً (إلا Vercel)
-  idleTimeoutMillis: process.env.VERCEL ? 1e3 : 3e4,
-  connectionTimeoutMillis: 8e3,
-  // ← زيادة الـ timeout لـ Supabase
-  statement_timeout: 3e4,
-  // ← 30 ثانية حد أقصى للـ Query
-  query_timeout: 3e4,
-  // ← حماية إضافية على مستوى Client
+  min: 0,
+  idleTimeoutMillis: 3000,
+  connectionTimeoutMillis: 5000,
+  statement_timeout: 30000,
+  query_timeout: 30000,
   keepAlive: true,
-  // ← منع انقطاع الاتصال الخامل
-  keepAliveInitialDelayMillis: 1e4
+  keepAliveInitialDelayMillis: 10000
 });
 pool.on("error", (err, client) => {
   console.error("[DB Pool] \u062E\u0637\u0623 \u063A\u064A\u0631 \u0645\u062A\u0648\u0642\u0639 \u0641\u064A \u0627\u062A\u0635\u0627\u0644 \u0642\u0627\u0639\u062F\u0629 \u0627\u0644\u0628\u064A\u0627\u0646\u0627\u062A:", err.message);

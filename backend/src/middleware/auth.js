@@ -47,9 +47,20 @@ const authenticate = async (req, res, next) => {
 };
 const legacyMap = {
   'sales.branch': ['pos.view', 'pos.add', 'pos.edit', 'pos.delete'],
-  'sales.wholesale': ['pos.view', 'pos.add', 'pos.edit', 'pos.delete'],
-  'sales.pos': ['pos.view', 'pos.add', 'pos.edit', 'pos.delete'],
-  'sales.return': ['pos.delete'],
+  'sales.wholesale': ['pos.view', 'pos.add', 'pos.edit', 'pos.delete', 'sales.view', 'sales.add', 'sales.edit', 'sales.delete'],
+  'sales.pos': ['pos.view', 'pos.add', 'pos.edit', 'pos.delete', 'sales.view', 'sales.add', 'sales.edit', 'sales.delete'],
+  'sales.return': ['pos.delete', 'sales.delete'],
+  'pos.view': ['pos.view', 'sales.view'],
+  'pos.add': ['pos.add', 'sales.add'],
+  'pos.edit': ['pos.edit', 'sales.edit'],
+  'pos.delete': ['pos.delete', 'sales.delete'],
+  'sales.view': ['sales.view', 'pos.view'],
+  'sales.add': ['sales.add', 'pos.add'],
+  'sales.edit': ['sales.edit', 'pos.edit'],
+  'sales.delete': ['sales.delete', 'pos.delete'],
+  'purchases.view': ['purchases.view', 'inventory.view', 'expenses.view'],
+  'recipes.view': ['recipes.view', 'products.view'],
+  'hr.view': ['hr.view', 'shifts.view'],
   'products.manage': ['products.view', 'products.add', 'products.edit', 'products.delete'],
   'inventory.manage': ['inventory.view', 'inventory.add', 'inventory.edit', 'inventory.delete'],
   'customers.manage': ['customers.view', 'customers.add', 'customers.edit', 'customers.delete'],
@@ -60,7 +71,7 @@ const legacyMap = {
   'users.manage': ['users.view', 'users.add', 'users.edit', 'users.delete'],
   'settings.view': ['settings.view'],
   'settings.manage': ['settings.view', 'settings.add', 'settings.edit', 'settings.delete'],
-  'hr.manage': ['shifts.view', 'shifts.add', 'shifts.edit', 'shifts.delete']
+  'hr.manage': ['shifts.view', 'shifts.add', 'shifts.edit', 'shifts.delete', 'hr.view', 'hr.add', 'hr.edit', 'hr.delete']
 };
 
 const authorize = (...permissions) => async (req, res, next) => {

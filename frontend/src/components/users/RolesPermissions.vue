@@ -111,7 +111,10 @@ import api from '@/api/index';
 import { useAppStore } from '@/stores/app';
 
 const appStore = useAppStore();
-const toast = { success: (msg) => appStore.addToast({type: 'success', message: msg}), error: (msg) => appStore.addToast({type: 'error', message: msg}) };
+const toast = { 
+  success: (msg: string) => appStore.addToast(msg, 'success'), 
+  error: (msg: string) => appStore.addToast(msg, 'error') 
+};
 
 const roles = ref<any[]>([]);
 const allPermissions = ref<any[]>([]);

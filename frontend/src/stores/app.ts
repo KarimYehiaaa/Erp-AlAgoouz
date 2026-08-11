@@ -85,9 +85,15 @@ export const useAppStore = defineStore('app', () => {
 
   const toasts = ref<Toast[]>([]);
   
-  const addToast = (message: string, type: string = 'info', duration: number = 4000, onUndo: (() => void) | null = null) => {
+  const addToast = (message: any, type: string = 'info', duration: number = 4000, onUndo: (() => void) | null = null) => {
+    let msgText = message;
+    let msgType = type;
+    if (typeof message === 'object' && message !== null) {
+      msgText = message.message || JSON.stringify(message);
+      if (message.type) msgType = message.type;
+    }
     const id = Date.now() + Math.random().toString(36).substring(2, 9);
-    toasts.value.push({ id, message, type, duration, onUndo });
+    toasts.value.push({ id, message: msgText, type: msgType, duration, onUndo });
     if (duration > 0) {
       setTimeout(() => {
         removeToast(id);

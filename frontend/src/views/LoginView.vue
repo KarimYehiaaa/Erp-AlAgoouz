@@ -45,15 +45,15 @@
         </div>
 
         <div class="form-header">
-          <h2>LOGIN</h2>
-          <p>تسجيل الدخول إلى حسابك</p>
+          <h2>تسجيل الدخول</h2>
+          <p>أدخل بياناتك للوصول إلى لوحة التحكم</p>
         </div>
 
         <!-- ========== LOGIN FORM ========== -->
         <form @submit.prevent="handleLogin" class="glass-form" novalidate>
           <!-- Username Field -->
           <div class="input-group">
-            <label for="login-username">Username</label>
+            <label for="login-username">اسم المستخدم</label>
             <div class="input-wrapper">
               <svg
                 class="input-icon"
@@ -73,7 +73,7 @@
                 id="login-username"
                 v-model="form.username"
                 type="text"
-                placeholder="Your Username"
+                placeholder="أدخل اسم المستخدم الخاص بك"
                 required
                 autocomplete="username"
               />
@@ -82,7 +82,7 @@
 
           <!-- Password Field -->
           <div class="input-group">
-            <label for="login-password">Password</label>
+            <label for="login-password">كلمة المرور</label>
             <div class="input-wrapper">
               <svg
                 class="input-icon"
@@ -151,7 +151,6 @@
 
           <!-- Options -->
           <div class="form-options">
-            <!-- Remember me using elegant UI -->
             <label class="custom-check">
               <input type="checkbox" v-model="rememberMe" />
               <span class="check-mark">
@@ -165,10 +164,10 @@
                   />
                 </svg>
               </span>
-              <span class="check-label">تذكرني</span>
+              <span class="check-label">تذكر بياناتي</span>
             </label>
             <button type="button" class="forgot-link" @click="showForgotHelp">
-              Forgot Password?
+              هل نسيت كلمة المرور؟
             </button>
           </div>
 
@@ -196,12 +195,27 @@
           <!-- Submit Button -->
           <button type="submit" class="submit-btn" :disabled="loading">
             <span v-if="loading" class="btn-spinner"></span>
-            <span v-else>LOGIN</span>
+            <span v-else class="btn-text">
+              تسجيل الدخول
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <line x1="19" y1="12" x2="5" y2="12" />
+                <polyline points="12 19 5 12 12 5" />
+              </svg>
+            </span>
           </button>
         </form>
 
         <div class="footer-links">
-          <p>Don't have an account? <a href="#" @click.prevent>Sign Up</a></p>
+          <p>ليس لديك حساب؟ <a href="#" @click.prevent="showForgotHelp">تواصل مع الإدارة</a></p>
         </div>
       </div>
     </main>
@@ -225,7 +239,7 @@ const error = ref('');
 const shakeCard = ref(false);
 
 const showForgotHelp = () => {
-  alert('يرجى التواصل مع الإدارة لإعادة تعيين كلمة المرور الخاصة بك.');
+  alert('يرجى التواصل مع مسؤول النظام لإنشاء حساب أو إعادة تعيين كلمة المرور الخاصة بك.');
 };
 
 const handleLogin = async () => {
@@ -258,9 +272,9 @@ const handleLogoError = (e: Event) => {
 <style scoped>
 /* 
   FONT IMPORTS 
-  Using 'Outfit' for English text/UI elements and 'Aref Ruqaa'/'Cairo' for Arabic calligraphy
+  Using 'Cairo' for Modern UI Arabic texts and 'Aref Ruqaa' for Arabic calligraphy
 */
-@import url('https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@400;700&family=Outfit:wght@300;400;600;800&family=Cairo:wght@400;600;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@400;700&family=Cairo:wght@400;500;600;700;800&display=swap');
 
 /* ════════════════════════════════════════════════════════════════════
    ROOT LAYOUT
@@ -268,8 +282,8 @@ const handleLogoError = (e: Event) => {
 .login-page-v2 {
   display: flex;
   min-height: 100dvh;
-  direction: ltr; /* Keeping UI LTR for Login layout as requested by mockup style, Text is RTL where needed */
-  font-family: 'Outfit', 'Cairo', sans-serif;
+  direction: rtl; /* This naturally puts Brand on the Right and Form on the Left */
+  font-family: 'Cairo', sans-serif;
   background: #0a0604;
   color: #fff;
 }
@@ -418,28 +432,38 @@ const handleLogoError = (e: Event) => {
   position: relative;
   z-index: 1;
   width: 100%;
-  max-width: 420px;
+  max-width: 440px;
 
-  /* Glassmorphism Effect */
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-top: 1px solid rgba(255, 255, 255, 0.2);
-  border-left: 1px solid rgba(255, 255, 255, 0.15);
+  /* Enhanced Glassmorphism Effect */
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
   box-shadow:
-    0 30px 60px rgba(0, 0, 0, 0.6),
-    inset 0 0 20px rgba(255, 255, 255, 0.02);
-  border-radius: 24px;
-  padding: 45px 40px;
+    0 30px 60px rgba(0, 0, 0, 0.7),
+    inset 0 0 30px rgba(255, 255, 255, 0.03);
+  border-radius: 28px;
+  padding: 50px 45px;
 
-  animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: slideUp 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+  transition:
+    transform 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.4s ease;
+}
+
+.glass-container:hover {
+  transform: translateY(-5px);
+  box-shadow:
+    0 40px 70px rgba(0, 0, 0, 0.8),
+    inset 0 0 30px rgba(255, 255, 255, 0.04);
 }
 
 @keyframes slideUp {
   from {
     opacity: 0;
-    transform: translateY(30px);
+    transform: translateY(40px);
   }
   to {
     opacity: 1;
@@ -453,7 +477,7 @@ const handleLogoError = (e: Event) => {
   justify-content: center;
   gap: 15px;
   margin-bottom: 30px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   padding-bottom: 20px;
 }
 
@@ -464,62 +488,60 @@ const handleLogoError = (e: Event) => {
 }
 
 .mobile-brand img {
-  width: 50px;
+  width: 55px;
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.5));
 }
 
 .mobile-text h1 {
   font-family: 'Aref Ruqaa', serif;
-  font-size: 1.8rem;
+  font-size: 2rem;
   margin: 0;
   color: #e8d0a9;
 }
 .mobile-text p {
   font-family: 'Aref Ruqaa', serif;
   margin: 0;
-  font-size: 1rem;
+  font-size: 1.1rem;
   color: #c4a47c;
 }
 
 .form-header {
   text-align: center;
-  margin-bottom: 35px;
+  margin-bottom: 40px;
 }
 
 .form-header h2 {
   font-size: 2.2rem;
-  font-weight: 400;
+  font-weight: 700;
   color: #e8d0a9;
   margin: 0;
-  letter-spacing: 2px;
-  font-family: 'Outfit', serif;
-  text-transform: uppercase;
+  letter-spacing: 0px;
 }
 
 .form-header p {
-  color: rgba(255, 255, 255, 0.5);
-  font-size: 0.9rem;
-  margin: 5px 0 0;
-  font-family: 'Cairo', sans-serif;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 0.95rem;
+  margin: 8px 0 0;
+  font-weight: 500;
 }
 
 .glass-form {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 22px;
 }
 
 .input-group {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
 .input-group label {
-  font-size: 0.85rem;
-  color: rgba(255, 255, 255, 0.8);
-  font-weight: 300;
-  letter-spacing: 0.5px;
-  margin-left: 5px;
+  font-size: 0.95rem;
+  color: rgba(255, 255, 255, 0.85);
+  font-weight: 600;
+  margin-right: 5px; /* RTL right margin */
 }
 
 .input-wrapper {
@@ -530,71 +552,78 @@ const handleLogoError = (e: Event) => {
 
 .input-icon {
   position: absolute;
-  left: 16px;
-  color: rgba(255, 255, 255, 0.4);
-  transition: color 0.3s;
+  right: 18px; /* Icon on the right for RTL */
+  color: rgba(255, 255, 255, 0.35);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .input-wrapper input {
   width: 100%;
-  height: 54px;
-  background: rgba(0, 0, 0, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  padding: 0 45px; /* space for icon left and eye right */
+  height: 56px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 0 50px 0 20px; /* Space on right for icon */
   color: #fff;
   font-size: 1rem;
-  font-family: 'Outfit', sans-serif;
-  transition: all 0.3s ease;
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+  font-family: 'Cairo', sans-serif;
+  font-weight: 500;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.2);
 }
 
 .input-wrapper input::placeholder {
-  color: rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.25);
+  font-weight: 400;
 }
 
 /* Glowing Amber Border on Focus */
 .input-wrapper input:focus {
   outline: none;
   border-color: #d49a5b;
-  background: rgba(0, 0, 0, 0.4);
+  background: rgba(0, 0, 0, 0.45);
   box-shadow:
-    0 0 15px rgba(212, 154, 91, 0.2),
-    inset 0 2px 4px rgba(0, 0, 0, 0.2);
+    0 0 20px rgba(212, 154, 91, 0.15),
+    inset 0 2px 6px rgba(0, 0, 0, 0.3);
+  transform: translateY(-2px);
 }
 
 .input-wrapper:focus-within .input-icon {
   color: #d49a5b;
+  transform: scale(1.1);
 }
 
 .eye-btn {
   position: absolute;
-  right: 16px;
+  left: 18px; /* Eye on the left for RTL */
   background: none;
   border: none;
-  color: rgba(255, 255, 255, 0.4);
+  color: rgba(255, 255, 255, 0.35);
   cursor: pointer;
-  padding: 0;
+  padding: 4px;
   display: flex;
-  transition: color 0.3s;
+  transition: all 0.3s;
+  border-radius: 50%;
 }
 
 .eye-btn:hover {
-  color: #fff;
+  color: #e8d0a9;
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .form-options {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 0.85rem;
+  font-size: 0.9rem;
   margin-top: -5px;
+  padding: 0 4px;
 }
 
 .custom-check {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   cursor: pointer;
 }
 
@@ -603,105 +632,139 @@ const handleLogoError = (e: Event) => {
 }
 
 .check-mark {
-  width: 18px;
-  height: 18px;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 4px;
+  width: 20px;
+  height: 20px;
+  border: 1.5px solid rgba(255, 255, 255, 0.25);
+  border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.3s;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  background: rgba(0, 0, 0, 0.2);
 }
 
 .check-mark svg {
-  width: 10px;
-  height: 10px;
+  width: 12px;
+  height: 12px;
   color: #000;
   opacity: 0;
-  transform: scale(0);
-  transition: all 0.3s;
+  transform: scale(0) rotate(-15deg);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.custom-check:hover .check-mark {
+  border-color: rgba(255, 255, 255, 0.4);
 }
 
 .custom-check input:checked + .check-mark {
   background: #d49a5b;
   border-color: #d49a5b;
+  box-shadow: 0 4px 10px rgba(212, 154, 91, 0.3);
 }
 
 .custom-check input:checked + .check-mark svg {
   opacity: 1;
-  transform: scale(1);
+  transform: scale(1) rotate(0);
 }
 
 .check-label {
-  color: rgba(255, 255, 255, 0.6);
-  font-family: 'Cairo', sans-serif;
+  color: rgba(255, 255, 255, 0.7);
+  font-weight: 500;
+  transition: color 0.3s;
+}
+
+.custom-check:hover .check-label {
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .forgot-link {
   color: #d49a5b;
   text-decoration: underline;
   text-decoration-color: transparent;
-  transition: text-decoration-color 0.3s;
-  font-family: 'Outfit', sans-serif;
+  transition: all 0.3s;
+  font-weight: 600;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  font-family: inherit;
+  font-size: inherit;
 }
 
 .forgot-link:hover {
   text-decoration-color: #d49a5b;
+  color: #e8d0a9;
 }
 
 .submit-btn {
-  height: 54px;
-  margin-top: 10px;
+  height: 58px;
+  margin-top: 15px;
   background: linear-gradient(135deg, #d49a5b 0%, #8a572a 100%);
-  border: none;
-  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
   color: #fff;
-  font-size: 1.1rem;
-  font-weight: 600;
-  font-family: 'Outfit', serif;
-  letter-spacing: 1px;
+  font-size: 1.15rem;
+  font-weight: 700;
+  font-family: 'Cairo', sans-serif;
+  letter-spacing: 0.5px;
   cursor: pointer;
-  transition: all 0.3s;
-  box-shadow: 0 8px 20px rgba(138, 87, 42, 0.3);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow:
+    0 10px 25px rgba(138, 87, 42, 0.35),
+    inset 0 2px 5px rgba(255, 255, 255, 0.2);
   position: relative;
   overflow: hidden;
 }
 
+/* Elegant light sweep effect */
 .submit-btn::before {
   content: '';
   position: absolute;
   top: 0;
-  left: -100%;
-  width: 100%;
+  left: -150%;
+  width: 150%;
   height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-  transition: left 0.5s;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.25), transparent);
+  transform: skewX(-20deg);
+  transition: left 0.7s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .submit-btn:hover::before {
-  left: 100%;
+  left: 150%;
 }
 
 .submit-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 25px rgba(138, 87, 42, 0.4);
+  transform: translateY(-3px);
+  box-shadow:
+    0 15px 35px rgba(138, 87, 42, 0.5),
+    inset 0 2px 5px rgba(255, 255, 255, 0.3);
+  filter: brightness(1.1);
 }
 
 .submit-btn:active {
-  transform: translateY(0);
+  transform: translateY(1px);
+  box-shadow: 0 5px 15px rgba(138, 87, 42, 0.3);
 }
 
 .submit-btn:disabled {
-  opacity: 0.7;
+  opacity: 0.6;
   cursor: not-allowed;
   transform: none;
+  filter: grayscale(0.5);
+}
+
+.btn-text {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
 }
 
 .btn-spinner {
   display: inline-block;
-  width: 20px;
-  height: 20px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
+  width: 24px;
+  height: 24px;
+  border: 3px solid rgba(255, 255, 255, 0.3);
   border-top-color: #fff;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
@@ -714,39 +777,41 @@ const handleLogoError = (e: Event) => {
 }
 
 .footer-links {
-  margin-top: 25px;
+  margin-top: 30px;
   text-align: center;
-  font-size: 0.85rem;
-  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.95rem;
+  color: rgba(255, 255, 255, 0.55);
+  font-weight: 500;
 }
 
 .footer-links a {
   color: #d49a5b;
-  font-weight: 600;
+  font-weight: 700;
   text-decoration: none;
-  margin-left: 5px;
+  margin-right: 5px; /* RTL margin */
+  transition: color 0.3s;
 }
 
 .footer-links a:hover {
-  text-decoration: underline;
+  color: #e8d0a9;
 }
 
 .error-msg {
   display: flex;
   align-items: center;
-  gap: 8px;
-  color: #ff6b6b;
-  background: rgba(255, 107, 107, 0.1);
-  padding: 10px 15px;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 107, 107, 0.2);
-  font-size: 0.9rem;
-  font-family: 'Cairo', sans-serif;
+  gap: 10px;
+  color: #ff8787;
+  background: rgba(255, 107, 107, 0.15);
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 107, 107, 0.3);
+  font-size: 0.95rem;
+  font-weight: 600;
 }
 
 .fade-slide-enter-active,
 .fade-slide-leave-active {
-  transition: all 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .fade-slide-enter-from,
 .fade-slide-leave-to {
@@ -770,27 +835,21 @@ const handleLogoError = (e: Event) => {
   30%,
   50%,
   70% {
-    transform: translate3d(-4px, 0, 0);
+    transform: translate3d(-5px, 0, 0);
   }
   40%,
   60% {
-    transform: translate3d(4px, 0, 0);
+    transform: translate3d(5px, 0, 0);
   }
-}
-
-/* Fix specific RTL alignments for Arabic texts */
-.custom-check,
-.error-msg {
-  direction: rtl;
 }
 
 @media (max-width: 480px) {
   .glass-container {
-    padding: 30px 20px;
-    border-radius: 20px;
+    padding: 35px 25px;
+    border-radius: 22px;
   }
   .form-header h2 {
-    font-size: 1.8rem;
+    font-size: 1.9rem;
   }
 }
 </style>

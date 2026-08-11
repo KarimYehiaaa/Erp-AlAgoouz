@@ -34,9 +34,12 @@ const optionalEnv = (name, defaultValue = '') => {
 let dbConfig;
 
 if (process.env.DATABASE_URL) {
-  // وضع Render / Supabase الكامل عبر Connection String
+  let connStr = process.env.DATABASE_URL;
+  if (connStr.includes('pooler.supabase.com:5432')) {
+    connStr = connStr.replace(':5432', ':6543');
+  }
   dbConfig = {
-    connectionString: process.env.DATABASE_URL,
+    connectionString: connStr,
     host: null,
     port: null,
     database: null,
@@ -44,12 +47,16 @@ if (process.env.DATABASE_URL) {
     password: null,
   };
 } else {
-  // وضع القاعدة الحية Supabase كخيار افتراضي ذكي للتشغيل السحابي المباشر
+  let portNum = parseInt(optionalEnv('DB_PORT', '6543'), 10);
+  const dbHost = requireEnv('DB_HOST');
+  if (dbHost && dbHost.includes('pooler.supabase.com') && portNum === 5432) {
+    portNum = 6543; // Switch to Transaction Mode (unlimited pooled clients)
+  }
   dbConfig = {
     user: requireEnv('DB_USER'),
     password: requireEnv('DB_PASSWORD'),
-    host: requireEnv('DB_HOST'),
-    port: parseInt(optionalEnv('DB_PORT', '5432'), 10),
+    host: dbHost,
+    port: portNum,
     database: optionalEnv('DB_NAME', 'postgres'),
   };
 }

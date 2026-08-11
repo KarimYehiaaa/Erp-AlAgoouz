@@ -18,11 +18,16 @@
             @error="handleLogoError"
           />
           <div class="logo-glow" aria-hidden="true"></div>
+
+          <!-- Light Beam falling on the text -->
+          <div class="light-beam" aria-hidden="true"></div>
         </div>
 
         <!-- Typography -->
-        <h1 class="calligraphy-title">بن العجوز</h1>
-        <h2 class="calligraphy-subtitle">أصل المزاج</h2>
+        <div class="text-container">
+          <h1 class="calligraphy-title">بن العجوز</h1>
+          <h2 class="calligraphy-subtitle">أصل المزاج</h2>
+        </div>
       </div>
     </aside>
 
@@ -223,7 +228,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 
@@ -238,6 +243,19 @@ const showPassword = ref(false);
 const error = ref('');
 const shakeCard = ref(false);
 
+const STORAGE_KEY = 'erp_remembered_username';
+
+onMounted(() => {
+  // Load saved username if exists
+  const savedUser = localStorage.getItem(STORAGE_KEY);
+  if (savedUser) {
+    form.value.username = savedUser;
+    rememberMe.value = true;
+  } else {
+    rememberMe.value = false;
+  }
+});
+
 const showForgotHelp = () => {
   alert('يرجى التواصل مع مسؤول النظام لإنشاء حساب أو إعادة تعيين كلمة المرور الخاصة بك.');
 };
@@ -248,6 +266,14 @@ const handleLogin = async () => {
   error.value = '';
   try {
     await auth.login(form.value.username, form.value.password);
+
+    // Save or remove remembered user
+    if (rememberMe.value) {
+      localStorage.setItem(STORAGE_KEY, form.value.username);
+    } else {
+      localStorage.removeItem(STORAGE_KEY);
+    }
+
     router.push('/');
   } catch (e: any) {
     error.value = e.message || 'اسم المستخدم أو كلمة المرور غير صحيحة';
@@ -317,8 +343,8 @@ const handleLogoError = (e: Event) => {
 /* Warm ambient golden light */
 .ambient-light {
   position: absolute;
-  width: 600px;
-  height: 600px;
+  width: 700px;
+  height: 700px;
   background: radial-gradient(circle, rgba(218, 165, 32, 0.15) 0%, transparent 60%);
   top: 50%;
   left: 50%;
@@ -334,31 +360,65 @@ const handleLogoError = (e: Event) => {
   flex-direction: column;
   align-items: center;
   text-align: center;
+  gap: 15px; /* Added gap to separate logo from text clearly */
 }
 
 /* 3D Logo Styling */
 .brand-logo-3d {
   position: relative;
-  margin-bottom: 30px;
+  margin-bottom: 25px;
   animation: float3D 6s ease-in-out infinite;
+  z-index: 4;
 }
 
 .logo-img {
-  width: 220px;
+  width: 320px; /* INCREASED LOGO SIZE */
   height: auto;
   object-fit: contain;
-  filter: drop-shadow(0 20px 30px rgba(0, 0, 0, 0.8));
+  filter: drop-shadow(0 25px 40px rgba(0, 0, 0, 0.9));
   position: relative;
   z-index: 2;
 }
 
 .logo-glow {
   position: absolute;
-  inset: 10px;
-  background: radial-gradient(circle, rgba(255, 180, 80, 0.4), transparent 70%);
-  filter: blur(25px);
+  inset: 15px;
+  background: radial-gradient(circle, rgba(255, 180, 80, 0.5), transparent 70%);
+  filter: blur(35px);
   z-index: 1;
   animation: pulseGlow 4s ease-in-out infinite;
+}
+
+/* LIGHT BEAM EFFECT SHINING DOWN ON TEXT */
+.light-beam {
+  position: absolute;
+  top: 65%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 500px;
+  height: 450px;
+  background: radial-gradient(
+    ellipse at top,
+    rgba(255, 200, 100, 0.35) 0%,
+    rgba(218, 165, 32, 0.1) 40%,
+    transparent 70%
+  );
+  z-index: 3;
+  mix-blend-mode: screen; /* Makes it look like real volumetric light hitting the text */
+  pointer-events: none;
+  animation: beamPulse 5s ease-in-out infinite;
+}
+
+@keyframes beamPulse {
+  0%,
+  100% {
+    opacity: 0.7;
+    transform: translateX(-50%) scaleY(1);
+  }
+  50% {
+    opacity: 1;
+    transform: translateX(-50%) scaleY(1.05);
+  }
 }
 
 @keyframes float3D {
@@ -367,7 +427,7 @@ const handleLogoError = (e: Event) => {
     transform: translateY(0) rotateX(0deg) rotateY(0deg);
   }
   50% {
-    transform: translateY(-15px) rotateX(5deg) rotateY(5deg);
+    transform: translateY(-20px) rotateX(6deg) rotateY(6deg);
   }
 }
 
@@ -379,29 +439,37 @@ const handleLogoError = (e: Event) => {
   }
   50% {
     opacity: 1;
-    transform: scale(1.1);
+    transform: scale(1.15);
   }
 }
 
 /* Typography (Arabic Calligraphy) */
+.text-container {
+  position: relative;
+  z-index: 5;
+}
+
 .calligraphy-title {
   font-family: 'Aref Ruqaa', serif;
-  font-size: 5rem;
+  font-size: 7.5rem; /* INCREASED TEXT SIZE */
   font-weight: 700;
   color: #e8d0a9;
   margin: 0;
-  text-shadow: 2px 4px 15px rgba(0, 0, 0, 0.6);
-  line-height: 1.2;
+  text-shadow:
+    0px 8px 25px rgba(0, 0, 0, 0.8),
+    0 0 30px rgba(218, 165, 32, 0.3); /* Enhanced shadow for beam contrast */
+  line-height: 1.1;
+  letter-spacing: -2px;
 }
 
 .calligraphy-subtitle {
   font-family: 'Aref Ruqaa', serif;
-  font-size: 2rem;
+  font-size: 2.8rem; /* INCREASED TEXT SIZE */
   font-weight: 400;
   color: #c4a47c;
   margin: 0;
-  margin-top: -10px;
-  text-shadow: 1px 2px 10px rgba(0, 0, 0, 0.5);
+  margin-top: -15px;
+  text-shadow: 0px 4px 15px rgba(0, 0, 0, 0.7);
 }
 
 /* ════════════════════════════════════════════════════════════════════
@@ -488,20 +556,20 @@ const handleLogoError = (e: Event) => {
 }
 
 .mobile-brand img {
-  width: 55px;
+  width: 75px;
   filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.5));
 }
 
 .mobile-text h1 {
   font-family: 'Aref Ruqaa', serif;
-  font-size: 2rem;
+  font-size: 2.5rem;
   margin: 0;
   color: #e8d0a9;
 }
 .mobile-text p {
   font-family: 'Aref Ruqaa', serif;
   margin: 0;
-  font-size: 1.1rem;
+  font-size: 1.4rem;
   color: #c4a47c;
 }
 

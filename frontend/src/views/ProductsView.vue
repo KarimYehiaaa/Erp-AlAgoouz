@@ -88,7 +88,7 @@
           </template>
           <template #cell-actions="{ item }">
             <div class="actions-cell">
-              <button type="button" class="icon-btn edit" title="تعديل" @click="editProduct(item)">
+              <button type="button" class="icon-btn edit" title="تعديل" @click="editProduct(item)" v-permission="'products.edit'">
                 <AppIcon name="edit" :size="16" />
               </button>
               <button
@@ -96,6 +96,7 @@
                 class="icon-btn"
                 :class="{ disabled: item.has_active_recipe }"
                 :disabled="item.has_active_recipe"
+                v-permission="'products.edit'"
                 :title="
                   item.has_active_recipe
                     ? 'منتج وصفة نشطة: لا يتم استرداد مخزونه مباشرة'
@@ -119,9 +120,9 @@
         </BaseTable>
       </div>
 
-      <div class="danger-mini card">
+      <div class="danger-mini card" v-permission="'products.delete'">
         <span>حذف كل المنتجات</span>
-        <button type="button" class="btn btn-sm btn-delete" @click="deleteAllProducts">
+        <button type="button" class="btn btn-sm btn-delete" @click="deleteAllProducts" v-permission="'products.delete'">
           <AppIcon name="delete" :size="14" /> حذف الكل
         </button>
       </div>

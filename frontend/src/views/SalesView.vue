@@ -385,6 +385,7 @@
           </template>
           <template #cell-actions="{ item }">
             <button
+              v-permission="['sales.edit', 'pos.edit']"
               type="button"
               class="history-edit-btn"
               :disabled="activeTab === 'monthly' || saving || item.status !== 'completed'"

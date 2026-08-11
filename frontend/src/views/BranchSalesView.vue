@@ -305,6 +305,7 @@
             <div v-if="saleError" class="alert alert-danger">{{ saleError }}</div>
 
             <button
+              v-permission="['pos.add', 'sales.add']"
               type="submit"
               class="btn btn-primary btn-submit"
               :class="{ 'btn-loading': saving }"
@@ -511,6 +512,7 @@
               </td>
               <td>
                 <button
+                  v-permission="['pos.delete', 'sales.delete', 'pos.edit', 'sales.edit']"
                   v-if="sale.status === 'completed' && !sale.offline_id"
                   class="btn-sm btn-danger"
                   @click="returnSale(sale)"

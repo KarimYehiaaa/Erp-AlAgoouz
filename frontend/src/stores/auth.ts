@@ -62,10 +62,21 @@ export const useAuthStore = defineStore('auth', () => {
   const isAuthenticated = computed(() => !!token.value);
   
   const legacyMap: Record<string, string[]> = {
-    'sales.branch': ['pos.view'],
-    'sales.wholesale': ['pos.view'],
-    'sales.pos': ['pos.view'],
-    'sales.return': ['pos.view'],
+    'sales.branch': ['pos.view', 'sales.view'],
+    'sales.wholesale': ['pos.view', 'sales.view'],
+    'sales.pos': ['pos.view', 'sales.view'],
+    'sales.return': ['pos.delete', 'sales.delete'],
+    'pos.view': ['pos.view', 'sales.view'],
+    'pos.add': ['pos.add', 'sales.add'],
+    'pos.edit': ['pos.edit', 'sales.edit'],
+    'pos.delete': ['pos.delete', 'sales.delete'],
+    'sales.view': ['sales.view', 'pos.view'],
+    'sales.add': ['sales.add', 'pos.add'],
+    'sales.edit': ['sales.edit', 'pos.edit'],
+    'sales.delete': ['sales.delete', 'pos.delete'],
+    'purchases.view': ['purchases.view', 'inventory.view', 'expenses.view'],
+    'recipes.view': ['recipes.view', 'products.view'],
+    'hr.view': ['hr.view', 'shifts.view'],
     'products.manage': ['products.view', 'products.add', 'products.edit', 'products.delete'],
     'inventory.manage': ['inventory.view', 'inventory.add', 'inventory.edit', 'inventory.delete'],
     'customers.manage': ['customers.view', 'customers.add', 'customers.edit', 'customers.delete'],
@@ -75,7 +86,7 @@ export const useAuthStore = defineStore('auth', () => {
     'reports.view': ['reports.view', 'reports.add', 'reports.edit', 'reports.delete'],
     'users.manage': ['users.view', 'users.add', 'users.edit', 'users.delete'],
     'settings.manage': ['settings.view', 'settings.add', 'settings.edit', 'settings.delete'],
-    'hr.manage': ['shifts.view', 'shifts.add', 'shifts.edit', 'shifts.delete']
+    'hr.manage': ['shifts.view', 'shifts.add', 'shifts.edit', 'shifts.delete', 'hr.view', 'hr.add', 'hr.edit', 'hr.delete']
   };
 
   const hasPermission = (code: string) => {

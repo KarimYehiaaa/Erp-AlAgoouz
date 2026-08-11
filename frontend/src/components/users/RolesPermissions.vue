@@ -166,8 +166,18 @@ const selectRole = async (role: any) => {
   selectedRole.value = role;
   try {
     const res = await api.get(`/roles/${role.id}/permissions`);
-    const permList = extractData(res);
-    selectedPermissions.value = permList.map((p: any) => p.code || p);
+    const rawList = extractData(res);
+    
+    // Map backend permission IDs or objects to string codes (e.g. 174 -> 'dashboard.view')
+    selectedPermissions.value = rawList
+      .map((item: any) => {
+        const id = typeof item === 'number' ? item : (item.permission_id || item.id);
+        const found = allPermissions.value.find((ap: any) => ap.id === Number(id));
+        if (found) return found.code;
+        if (typeof item === 'string') return item;
+        return null;
+      })
+      .filter(Boolean) as string[];
   } catch (error) {
     console.error('selectRole error:', error);
     toast.error('فشل في تحميل صلاحيات الدور');
@@ -175,7 +185,7 @@ const selectRole = async (role: any) => {
 };
 
 const isOwner = (role: any) => {
-  return role && role.id === 1;
+  return role && (role.id === 1 || role.name === 'admin');
 };
 
 const savePermissions = async () => {
@@ -183,17 +193,18 @@ const savePermissions = async () => {
   
   loading.value = true;
   try {
-    // Map string codes back to permission IDs
+    // Map string codes (e.g. 'dashboard.view') to integer IDs (e.g. 174)
     const permIds = selectedPermissions.value
-      .map(code => {
-        const p = allPermissions.value.find(ap => ap.code === code);
-        return p ? p.id : null;
+      .map((code: string) => {
+        const found = allPermissions.value.find((ap: any) => ap.code === code);
+        return found ? Number(found.id) : null;
       })
-      .filter(id => id !== null);
+      .filter((id): id is number => typeof id === 'number' && !isNaN(id) && id > 0);
 
     await api.post(`/roles/${selectedRole.value.id}/permissions`, { permissionIds: permIds });
     toast.success('تم حفظ الصلاحيات بنجاح!');
   } catch (error) {
+    console.error('savePermissions error:', error);
     toast.error('حدث خطأ أثناء حفظ الصلاحيات');
   } finally {
     loading.value = false;

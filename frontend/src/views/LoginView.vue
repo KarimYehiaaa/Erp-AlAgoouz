@@ -18,9 +18,6 @@
             @error="handleLogoError"
           />
           <div class="logo-glow" aria-hidden="true"></div>
-
-          <!-- Light Beam falling on the text -->
-          <div class="light-beam" aria-hidden="true"></div>
         </div>
 
         <!-- Typography -->
@@ -308,7 +305,7 @@ const handleLogoError = (e: Event) => {
 .login-page-v2 {
   display: flex;
   min-height: 100dvh;
-  direction: rtl; /* This naturally puts Brand on the Right and Form on the Left */
+  direction: rtl;
   font-family: 'Cairo', sans-serif;
   background: #0a0604;
   color: #fff;
@@ -332,7 +329,6 @@ const handleLogoError = (e: Event) => {
   }
 }
 
-/* Deep espresso gradient mimicking a cinematic backdrop */
 .cinematic-bg {
   position: absolute;
   inset: 0;
@@ -340,7 +336,6 @@ const handleLogoError = (e: Event) => {
   z-index: 0;
 }
 
-/* Warm ambient golden light */
 .ambient-light {
   position: absolute;
   width: 700px;
@@ -360,7 +355,7 @@ const handleLogoError = (e: Event) => {
   flex-direction: column;
   align-items: center;
   text-align: center;
-  gap: 15px; /* Added gap to separate logo from text clearly */
+  gap: 15px;
 }
 
 /* 3D Logo Styling */
@@ -372,7 +367,7 @@ const handleLogoError = (e: Event) => {
 }
 
 .logo-img {
-  width: 320px; /* INCREASED LOGO SIZE */
+  width: 320px;
   height: auto;
   object-fit: contain;
   filter: drop-shadow(0 25px 40px rgba(0, 0, 0, 0.9));
@@ -387,38 +382,6 @@ const handleLogoError = (e: Event) => {
   filter: blur(35px);
   z-index: 1;
   animation: pulseGlow 4s ease-in-out infinite;
-}
-
-/* LIGHT BEAM EFFECT SHINING DOWN ON TEXT */
-.light-beam {
-  position: absolute;
-  top: 65%;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 500px;
-  height: 450px;
-  background: radial-gradient(
-    ellipse at top,
-    rgba(255, 200, 100, 0.35) 0%,
-    rgba(218, 165, 32, 0.1) 40%,
-    transparent 70%
-  );
-  z-index: 3;
-  mix-blend-mode: screen; /* Makes it look like real volumetric light hitting the text */
-  pointer-events: none;
-  animation: beamPulse 5s ease-in-out infinite;
-}
-
-@keyframes beamPulse {
-  0%,
-  100% {
-    opacity: 0.7;
-    transform: translateX(-50%) scaleY(1);
-  }
-  50% {
-    opacity: 1;
-    transform: translateX(-50%) scaleY(1.05);
-  }
 }
 
 @keyframes float3D {
@@ -911,13 +874,45 @@ const handleLogoError = (e: Event) => {
   }
 }
 
-@media (max-width: 480px) {
+@media (max-width: 1024px) {
+  .login-page-v2 {
+    padding: 15px; /* Breathing room for smaller screens */
+  }
+  .form-panel {
+    padding: 0; /* Remove extra padding so container fits well */
+  }
   .glass-container {
-    padding: 35px 25px;
-    border-radius: 22px;
+    padding: 40px 30px;
+    margin: 0 auto;
+    width: 100%;
+    max-width: 400px;
+  }
+}
+
+@media (max-width: 480px) {
+  .login-page-v2 {
+    padding: 10px;
+  }
+  .glass-container {
+    padding: 30px 20px;
+    border-radius: 20px;
   }
   .form-header h2 {
-    font-size: 1.9rem;
+    font-size: 1.8rem;
+  }
+  .mobile-brand {
+    gap: 10px;
+    flex-direction: column; /* Stack logo and text on very small screens for symmetry */
+    text-align: center;
+  }
+  .mobile-brand img {
+    width: 65px;
+  }
+  .mobile-text h1 {
+    font-size: 2.2rem;
+  }
+  .mobile-text p {
+    font-size: 1.2rem;
   }
 }
 </style>

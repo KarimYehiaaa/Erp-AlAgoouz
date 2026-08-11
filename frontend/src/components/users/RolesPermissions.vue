@@ -135,18 +135,26 @@ const modules = [
   { id: 'promotions', title: 'العروض الترويجية', icon: 'sell' }
 ];
 
+const extractData = (res: any) => {
+  if (Array.isArray(res)) return res;
+  if (Array.isArray(res?.data)) return res.data;
+  if (Array.isArray(res?.data?.data)) return res.data.data;
+  return [];
+};
+
 const loadData = async () => {
   try {
     const [rolesRes, permsRes] = await Promise.all([
       api.get('/roles'),
       api.get('/permissions')
     ]);
-    roles.value = rolesRes.data.data;
-    allPermissions.value = permsRes.data.data;
+    roles.value = extractData(rolesRes);
+    allPermissions.value = extractData(permsRes);
     if (roles.value.length) {
       selectRole(roles.value[0]);
     }
   } catch (error) {
+    console.error('loadData error:', error);
     toast.error('فشل في تحميل الأدوار والصلاحيات');
   }
 };
@@ -155,8 +163,10 @@ const selectRole = async (role: any) => {
   selectedRole.value = role;
   try {
     const res = await api.get(`/roles/${role.id}/permissions`);
-    selectedPermissions.value = res.data.data.map((p: any) => p.code);
+    const permList = extractData(res);
+    selectedPermissions.value = permList.map((p: any) => p.code || p);
   } catch (error) {
+    console.error('selectRole error:', error);
     toast.error('فشل في تحميل صلاحيات الدور');
   }
 };

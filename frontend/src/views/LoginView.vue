@@ -168,9 +168,9 @@
               </span>
               <span class="check-label">تذكر بياناتي</span>
             </label>
-            <button type="button" class="forgot-link" @click="showForgotHelp">
-              هل نسيت كلمة المرور؟
-            </button>
+            <a href="https://wa.me/201142819808" target="_blank" class="forgot-link"
+              >هل نسيت كلمة المرور؟</a
+            >
           </div>
 
           <!-- Error Message -->
@@ -217,8 +217,12 @@
         </form>
 
         <div class="footer-links">
-          <p>ليس لديك حساب؟ <a href="#" @click.prevent="showForgotHelp">تواصل مع الإدارة</a></p>
+          <p>
+            ليس لديك حساب؟ <a href="https://wa.me/201142819808" target="_blank">تواصل مع الإدارة</a>
+          </p>
         </div>
+
+        <div class="copyright">تصميم وتطوير بن العجوز &copy; 2026</div>
       </div>
     </main>
   </div>
@@ -252,10 +256,6 @@ onMounted(() => {
     rememberMe.value = false;
   }
 });
-
-const showForgotHelp = () => {
-  alert('يرجى التواصل مع مسؤول النظام لإنشاء حساب أو إعادة تعيين كلمة المرور الخاصة بك.');
-};
 
 const handleLogin = async () => {
   if (!form.value.username || !form.value.password) return;
@@ -725,6 +725,17 @@ const handleLogoError = (e: Event) => {
 .forgot-link:hover {
   text-decoration-color: #d49a5b;
   color: #e8d0a9;
+}
+
+.copyright {
+  margin-top: 25px;
+  text-align: center;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.4);
+  font-weight: 500;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  padding-top: 15px;
+  font-family: 'Cairo', sans-serif;
 }
 
 .submit-btn {

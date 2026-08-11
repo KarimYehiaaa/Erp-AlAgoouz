@@ -107,7 +107,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import AppIcon from '@/components/AppIcon.vue';
-import { users } from '@/api/index';
+import api from '@/api/index';
 import { useAppStore } from '@/stores/app';
 
 const appStore = useAppStore();
@@ -138,8 +138,8 @@ const modules = [
 const loadData = async () => {
   try {
     const [rolesRes, permsRes] = await Promise.all([
-      users.roles(),
-      users.permissions()
+      api.get('/roles'),
+      api.get('/permissions')
     ]);
     roles.value = rolesRes.data.data;
     allPermissions.value = permsRes.data.data;
@@ -154,7 +154,7 @@ const loadData = async () => {
 const selectRole = async (role: any) => {
   selectedRole.value = role;
   try {
-    const res = await users.rolePermissions(role.id);
+    const res = await api.get(`/roles/${role.id}/permissions`);
     selectedPermissions.value = res.data.data.map((p: any) => p.code);
   } catch (error) {
     toast.error('فشل في تحميل صلاحيات الدور');
@@ -178,7 +178,7 @@ const savePermissions = async () => {
       })
       .filter(id => id !== null);
 
-    await users.updateRolePermissions(selectedRole.value.id, permIds);
+    await api.post(`/roles/${selectedRole.value.id}/permissions`, { permissionIds: permIds });
     toast.success('تم حفظ الصلاحيات بنجاح!');
   } catch (error) {
     toast.error('حدث خطأ أثناء حفظ الصلاحيات');

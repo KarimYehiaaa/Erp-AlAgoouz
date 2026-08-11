@@ -123,19 +123,22 @@ const selectedPermissions = ref<string[]>([]);
 const loading = ref(false);
 
 const modules = [
-  { id: 'dashboard', title: 'الرئيسية', icon: 'dashboard' },
-  { id: 'pos', title: 'شاشة البيع', icon: 'pos' },
-  { id: 'products', title: 'المنتجات', icon: 'inventory_2' },
-  { id: 'inventory', title: 'حركة المخزن', icon: 'sync_alt' },
-  { id: 'customers', title: 'العملاء', icon: 'group' },
-  { id: 'suppliers', title: 'الموردين', icon: 'local_shipping' },
-  { id: 'reports', title: 'التقارير', icon: 'bar_chart' },
-  { id: 'invoices', title: 'الفواتير', icon: 'receipt' },
-  { id: 'expenses', title: 'المصروفات', icon: 'payments' },
-  { id: 'settings', title: 'الإعدادات', icon: 'settings' },
-  { id: 'shifts', title: 'الوردية', icon: 'lock_clock' },
-  { id: 'users', title: 'المستخدمون', icon: 'manage_accounts' },
-  { id: 'promotions', title: 'العروض الترويجية', icon: 'sell' }
+  { id: 'dashboard', title: 'الرئيسية واللوحة العامة', icon: 'dashboard' },
+  { id: 'pos', title: 'شاشة البيع (POS)', icon: 'pos' },
+  { id: 'sales', title: 'إدارة المبيعات وحركاتها', icon: 'shopping_cart' },
+  { id: 'products', title: 'إدارة المنتجات والأصناف', icon: 'inventory_2' },
+  { id: 'inventory', title: 'المخزون وحركة المستودع', icon: 'sync_alt' },
+  { id: 'purchases', title: 'إدارة المشتريات وأوامر الشراء', icon: 'shopping_bag' },
+  { id: 'invoices', title: 'الفواتير والتحصيل', icon: 'receipt' },
+  { id: 'expenses', title: 'المصروفات والمدفوعات', icon: 'payments' },
+  { id: 'customers', title: 'إدارة العملاء والذمم', icon: 'group' },
+  { id: 'suppliers', title: 'إدارة الموردين والشركات', icon: 'local_shipping' },
+  { id: 'recipes', title: 'الوصفات وتكاليف الإنتاج', icon: 'menu_book' },
+  { id: 'reports', title: 'التقارير والتحليلات الذكية', icon: 'bar_chart' },
+  { id: 'hr', title: 'الموارد البشرية والورديات', icon: 'badge' },
+  { id: 'users', title: 'إدارة المستخدمين والصلاحيات', icon: 'manage_accounts' },
+  { id: 'settings', title: 'إعدادات النظام والنسخ الاحتياطي', icon: 'settings' },
+  { id: 'promotions', title: 'العروض الترويجية والخصومات', icon: 'sell' }
 ];
 
 const extractData = (res: any) => {

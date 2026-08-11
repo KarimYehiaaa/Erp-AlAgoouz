@@ -138,8 +138,8 @@ const modules = [
 const loadData = async () => {
   try {
     const [rolesRes, permsRes] = await Promise.all([
-      api.users.getRoles(),
-      api.users.getPermissions()
+      api.users.roles(),
+      api.users.permissions()
     ]);
     roles.value = rolesRes.data.data;
     allPermissions.value = permsRes.data.data;
@@ -154,7 +154,7 @@ const loadData = async () => {
 const selectRole = async (role: any) => {
   selectedRole.value = role;
   try {
-    const res = await api.users.getRolePermissions(role.id);
+    const res = await api.users.rolePermissions(role.id);
     selectedPermissions.value = res.data.data.map((p: any) => p.code);
   } catch (error) {
     toast.error('فشل في تحميل صلاحيات الدور');

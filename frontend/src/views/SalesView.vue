@@ -2,6 +2,20 @@
   <div class="sales-page">
     <div class="page-toolbar card">
       <div v-if="activeTab !== 'monthly'" class="toolbar-actions">
+        <router-link
+          to="/invoices/create"
+          class="btn btn-primary btn-sm"
+          style="display: inline-flex; align-items: center; gap: 6px; font-weight: 600"
+        >
+          <span>+ إنشاء فاتورة جملة</span>
+        </router-link>
+        <router-link
+          to="/invoices/quotes"
+          class="btn btn-outline btn-sm"
+          style="display: inline-flex; align-items: center; gap: 6px"
+        >
+          <span>عرض أسعار</span>
+        </router-link>
         <button
           type="button"
           class="icon-btn"
@@ -125,21 +139,21 @@
         :class="{ active: activeTab === 'branch' }"
         @click="switchTab('branch')"
       >
-        🏪 مبيعات المحل
+        🏪 يومي
       </button>
       <button
         type="button"
         :class="{ active: activeTab === 'wholesale' }"
         @click="switchTab('wholesale')"
       >
-        📦 مبيعات الجملة
+        📦 جملة
       </button>
       <button
         type="button"
         :class="{ active: activeTab === 'monthly' }"
         @click="switchTab('monthly')"
       >
-        📊 مبيعات شهرية
+        📊 شهري
       </button>
     </div>
 
@@ -175,14 +189,213 @@
       <StatCard label="آجل/جزئي" :value="openCreditTotal" icon="warning" />
     </div>
 
-    <div class="grid main-row" :class="{ 'grid-2': !editingSaleId }">
-      <div v-if="activeTab === 'monthly'" class="card form-card monthly-sales-card">
+    <!-- 1. المبيعات اليومية (الفرع): نموذج الإدخال اليدوي + سجل مبيعات الفرع اليومية -->
+    <div v-if="activeTab === 'branch'" class="grid main-row" :class="{ 'grid-2': !editingSaleId }">
+      <Teleport to="body" :disabled="!editingSaleId">
+        <div
+          :class="{ 'modal-overlay': editingSaleId }"
+          @click.self="editingSaleId ? cancelEdit() : null"
+        >
+          <div class="card form-card" :class="{ 'modal-card': editingSaleId }">
+            <h3>
+              {{ editingSaleId ? 'تعديل بيع' : 'تسجيل مبيعات يومية' }}
+            </h3>
+            <form @submit.prevent="submitSale">
+              <div v-if="editingSaleId" class="edit-banner">
+                <span>وضع التعديل مفعل للفاتورة {{ editingSaleNumber }}</span>
+                <button type="button" class="btn btn-outline btn-sm" @click="cancelEdit">
+                  إلغاء التعديل
+                </button>
+              </div>
+              <div class="form-group">
+                <label>تاريخ المبيعات *</label>
+                <input v-model="form.sale_date" type="date" required />
+              </div>
+              <div class="form-group">
+                <label>المبلغ (ج.م) *</label>
+                <input
+                  v-model.number="form.total_amount"
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  required
+                  placeholder="0.00"
+                />
+              </div>
+              <div class="form-group">
+                <label>حالة الدفع *</label>
+                <select v-model="form.payment_status">
+                  <option value="paid">مدفوع بالكامل</option>
+                  <option value="partial">دفع جزئي</option>
+                  <option value="unpaid">آجل (غير مدفوع)</option>
+                </select>
+              </div>
+              <div v-if="form.payment_status === 'partial'" class="form-group">
+                <label>المبلغ المدفوع حالياً (ج.م) *</label>
+                <input
+                  v-model.number="form.paid_amount"
+                  type="number"
+                  min="0.01"
+                  :max="form.total_amount || undefined"
+                  step="0.01"
+                  required
+                  placeholder="أدخل المبلغ المدفوع"
+                />
+                <div v-if="remainingAmount > 0" class="field-hint warning">
+                  ⚠️ سيُضاف {{ formatMoney(remainingAmount) }} لرصيد العميل المستحق
+                </div>
+              </div>
+              <div class="form-group">
+                <label>ملاحظات</label>
+                <textarea v-model="form.notes" rows="2"></textarea>
+              </div>
+              <button type="submit" class="btn btn-primary" :disabled="saving">
+                {{ saving ? 'جاري الحفظ...' : editingSaleId ? 'حفظ التعديل' : 'حفظ' }}
+              </button>
+            </form>
+          </div>
+        </div>
+      </Teleport>
+
+      <div class="card table-wrap list-card sales-history-card">
+        <div class="history-head">
+          <div>
+            <h3>سجل المبيعات اليومية</h3>
+            <p>{{ sales.length }} عملية</p>
+          </div>
+          <div style="display: flex; align-items: center; gap: 12px">
+            <router-link to="/branch-sales" class="btn btn-outline btn-sm">
+              <span>🛒 شاشة الكاشير والمبيعات السريعة</span>
+            </router-link>
+            <span class="history-total">{{ formatMoney(periodTotal) }}</span>
+          </div>
+        </div>
+        <BaseTable
+          :items="sales"
+          :columns="activeColumns"
+          :loading="loadingSales"
+          empty-message="لا توجد مبيعات يومية للفرع في هذه الفترة"
+        >
+          <template #cell-sale_date="{ item }">
+            <span class="history-date">{{ formatDate(item.sale_date || item.created_at) }}</span>
+          </template>
+          <template #cell-sale_number="{ item }">
+            <span class="mono" style="font-weight: 700">{{
+              item.sale_number || item.invoice_number || '—'
+            }}</span>
+          </template>
+          <template #cell-total_amount="{ item }">
+            <span class="history-amount">{{ formatMoney(item.total_amount) }}</span>
+          </template>
+          <template #cell-payment_status="{ item }">
+            <span class="history-payment" :class="paymentBadge(item.payment_status)">
+              {{ paymentStatusLabel(item.payment_status) }}
+            </span>
+          </template>
+          <template #cell-actions="{ item }">
+            <button
+              v-permission="['sales.edit', 'pos.edit']"
+              type="button"
+              class="history-edit-btn"
+              :disabled="activeTab === 'monthly' || saving || item.status !== 'completed'"
+              @click="startEdit(item)"
+            >
+              تعديل
+            </button>
+          </template>
+        </BaseTable>
+      </div>
+    </div>
+
+    <!-- 2. مبيعات الجملة (wholesale): جدول فواتير الجملة للعملاء فقط (بدون نموذج إدخال يدوي عادي) -->
+    <div v-else-if="activeTab === 'wholesale'" class="wholesale-view-wrap">
+      <div class="card table-wrap list-card sales-history-card">
+        <div
+          class="history-head"
+          style="
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+          "
+        >
+          <div>
+            <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700">فواتير الجملة</h3>
+            <p style="margin: 4px 0 0 0; opacity: 0.8; font-size: 0.9rem">
+              {{ sales.length }} فاتورة
+            </p>
+          </div>
+          <div style="display: flex; align-items: center; gap: 10px">
+            <router-link
+              to="/invoices/create"
+              class="btn btn-primary"
+              style="display: inline-flex; align-items: center; gap: 6px; font-weight: 600"
+            >
+              <span>+ فاتورة جديدة</span>
+            </router-link>
+            <router-link
+              to="/invoices/quotes"
+              class="btn btn-outline"
+              style="display: inline-flex; align-items: center; gap: 6px"
+            >
+              <span>عرض أسعار</span>
+            </router-link>
+            <span class="history-total">{{ formatMoney(periodTotal) }}</span>
+          </div>
+        </div>
+        <BaseTable
+          :items="sales"
+          :columns="activeColumns"
+          :loading="loadingSales"
+          empty-message="لا توجد فواتير مبيعات جملة للعملاء في هذه الفترة"
+        >
+          <template #cell-sale_date="{ item }">
+            <span class="history-date">{{ formatDate(item.sale_date || item.created_at) }}</span>
+          </template>
+          <template #cell-sale_number="{ item }">
+            <span class="mono" style="font-weight: 700">{{
+              item.sale_number || item.invoice_number || '—'
+            }}</span>
+          </template>
+          <template #cell-customer_name="{ item }">
+            <span class="customer-chip" style="font-weight: 800; color: var(--accent, #c77a2f)">
+              👤 {{ item.customer_name || item.customer_name_ar || 'عميل جملة' }}
+            </span>
+          </template>
+          <template #cell-total_amount="{ item }">
+            <span class="history-amount">{{ formatMoney(item.total_amount) }}</span>
+          </template>
+          <template #cell-payment_status="{ item }">
+            <span class="history-payment" :class="paymentBadge(item.payment_status)">
+              {{ paymentStatusLabel(item.payment_status) }}
+            </span>
+          </template>
+          <template #cell-actions="{ item }">
+            <router-link
+              :to="`/invoices/${item.invoice_id || item.id}`"
+              class="btn btn-outline btn-sm"
+              style="margin-left: 6px"
+            >
+              عرض / طباعة
+            </router-link>
+            <router-link
+              :to="`/invoices/${item.invoice_id || item.id}/edit`"
+              class="btn btn-outline btn-sm"
+            >
+              تعديل
+            </router-link>
+          </template>
+        </BaseTable>
+      </div>
+    </div>
+
+    <!-- 3. المبيعات الشهرية (monthly): رفع واستيراد ملفات Excel فقط (بدون جدول سجل مبيعات) -->
+    <div v-else-if="activeTab === 'monthly'" class="monthly-view-wrap">
+      <div class="card form-card monthly-sales-card" style="max-width: 900px; margin: 0 auto">
         <span class="monthly-kicker">Excel فقط</span>
-        <h3>استيراد المبيعات الشهرية للمحل</h3>
+        <h3>استيراد مبيعات شهرية</h3>
         <p class="monthly-copy">
-          ارفع ملف المبيعات الشهرية هنا، وسيتم تسجيلها كمبيعات محل مرتبطة بمخزون المحل مباشرة.
-          المنتج العادي يخصم من رصيده، والمنتج صاحب الوصفة يخصم بمكونات الوصفة حسب إعداد المنتج
-          الحالي.
+          ارفع ملف مبيعات جهاز المبيعات الرئيسي هنا وسيتم تسجيلها وخصمها من المخزون تلقائياً.
         </p>
         <div class="monthly-actions">
           <button
@@ -220,7 +433,7 @@
         </div>
         <div class="monthly-rules">
           <span>المخزن المستهدف: مخزون المحل</span>
-          <span>نوع البيع: مبيعات محل</span>
+          <span>نوع البيع: مبيعات شهرية</span>
           <span>الدفع الافتراضي: مدفوع</span>
         </div>
         <div
@@ -233,168 +446,6 @@
             <li v-for="(d, i) in monthlyImportDetails" :key="i">{{ d }}</li>
           </ul>
         </div>
-      </div>
-
-      <Teleport v-else to="body" :disabled="!editingSaleId">
-        <div
-          :class="{ 'modal-overlay': editingSaleId }"
-          @click.self="editingSaleId ? cancelEdit() : null"
-        >
-          <div class="card form-card" :class="{ 'modal-card': editingSaleId }">
-            <h3>
-              {{
-                editingSaleId
-                  ? 'تعديل فاتورة بيع'
-                  : activeTab === 'branch'
-                    ? 'تسجيل مبيعات فرع'
-                    : 'تسجيل مبيعات جملة'
-              }}
-            </h3>
-            <form @submit.prevent="submitSale">
-              <div v-if="editingSaleId" class="edit-banner">
-                <span>وضع التعديل مفعل للفاتورة {{ editingSaleNumber }}</span>
-                <button type="button" class="btn btn-outline btn-sm" @click="cancelEdit">
-                  إلغاء التعديل
-                </button>
-              </div>
-              <div class="form-group">
-                <label>تاريخ المبيعات *</label>
-                <input v-model="form.sale_date" type="date" required />
-              </div>
-              <div class="form-group">
-                <label>المبلغ (ج.م) *</label>
-                <input
-                  v-model.number="form.total_amount"
-                  type="number"
-                  min="0.01"
-                  step="0.01"
-                  required
-                  placeholder="0.00"
-                />
-              </div>
-              <div v-if="activeTab === 'wholesale'" class="form-group">
-                <label>اسم العميل *</label>
-                <select v-model="form.customer_id" required>
-                  <option :value="null" disabled>-- اختر اسم العميل (مطلوب) --</option>
-                  <option v-for="c in wholesaleCustomers" :key="c.id" :value="c.id">
-                    👤 {{ c.name_ar }} ({{ c.code }})
-                  </option>
-                </select>
-              </div>
-              <div class="grid grid-2">
-                <div class="form-group">
-                  <label>طريقة الدفع</label>
-                  <select v-model="form.payment_method">
-                    <option value="cash">نقدي</option>
-                    <option value="card">بطاقة</option>
-                    <option value="transfer">تحويل</option>
-                    <option value="credit">آجل</option>
-                  </select>
-                </div>
-                <div class="form-group">
-                  <label>حالة الدفع</label>
-                  <select v-model="form.payment_status">
-                    <option value="paid">مدفوع بالكامل</option>
-                    <option value="partial">دفع جزئي</option>
-                    <option value="unpaid">غير مدفوع (آجل)</option>
-                  </select>
-                </div>
-              </div>
-
-              <!-- حقل الدفع الجزئي — يظهر فقط عند اختيار "جزئي" -->
-              <div v-if="form.payment_status === 'partial'" class="partial-payment-box">
-                <div class="partial-header">
-                  <span class="partial-icon">💳</span>
-                  <span>تفاصيل الدفع الجزئي</span>
-                </div>
-                <div class="grid grid-2">
-                  <div class="form-group">
-                    <label>المبلغ المدفوع (ج.م) *</label>
-                    <input
-                      v-model.number="form.paid_amount"
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      :max="form.total_amount"
-                      placeholder="0.00"
-                      @input="calcRemaining"
-                    />
-                  </div>
-                  <div class="form-group">
-                    <label>المبلغ المتبقي (ج.م)</label>
-                    <div
-                      class="remaining-display"
-                      :class="remainingAmount > 0 ? 'has-remaining' : 'no-remaining'"
-                    >
-                      {{ formatMoney(remainingAmount) }}
-                    </div>
-                  </div>
-                </div>
-                <div v-if="remainingAmount > 0" class="remaining-note">
-                  ⚠️ سيُضاف {{ formatMoney(remainingAmount) }} لرصيد العميل المستحق
-                </div>
-              </div>
-              <div class="form-group">
-                <label>ملاحظات</label>
-                <textarea v-model="form.notes" rows="2"></textarea>
-              </div>
-              <button type="submit" class="btn btn-primary" :disabled="saving">
-                {{
-                  saving ? 'جاري الحفظ...' : editingSaleId ? 'حفظ تعديل الفاتورة' : 'حفظ المبيعات'
-                }}
-              </button>
-            </form>
-          </div>
-        </div>
-      </Teleport>
-
-      <div class="card table-wrap list-card sales-history-card">
-        <div class="history-head">
-          <div>
-            <h3>سجل المبيعات</h3>
-            <p>{{ sales.length }} عملية في الفترة المحددة</p>
-          </div>
-          <span class="history-total">{{ formatMoney(periodTotal) }}</span>
-        </div>
-        <BaseTable
-          :items="sales"
-          :columns="activeColumns"
-          :loading="loadingSales"
-          empty-message="لا توجد مبيعات في هذه الفترة"
-        >
-          <template #cell-sale_date="{ item }">
-            <span class="history-date">{{ formatDate(item.sale_date || item.created_at) }}</span>
-          </template>
-          <template #cell-sale_number="{ item }">
-            <span class="mono" style="font-weight: 700">{{
-              item.sale_number || item.invoice_number || '—'
-            }}</span>
-          </template>
-          <template #cell-customer_name="{ item }">
-            <span class="customer-chip" style="font-weight: 800; color: var(--accent, #c77a2f)">
-              👤 {{ item.customer_name || item.customer_name_ar || 'عميل جملة' }}
-            </span>
-          </template>
-          <template #cell-total_amount="{ item }">
-            <span class="history-amount">{{ formatMoney(item.total_amount) }}</span>
-          </template>
-          <template #cell-payment_status="{ item }">
-            <span class="history-payment" :class="paymentBadge(item.payment_status)">
-              {{ paymentStatusLabel(item.payment_status) }}
-            </span>
-          </template>
-          <template #cell-actions="{ item }">
-            <button
-              v-permission="['sales.edit', 'pos.edit']"
-              type="button"
-              class="history-edit-btn"
-              :disabled="activeTab === 'monthly' || saving || item.status !== 'completed'"
-              @click="startEdit(item)"
-            >
-              تعديل
-            </button>
-          </template>
-        </BaseTable>
       </div>
     </div>
 
@@ -549,8 +600,8 @@
 
 <script setup lang="ts">
 // @ts-nocheck
-import { ref, computed, onMounted } from 'vue';
-import { useRoute } from 'vue-router';
+import { ref, computed, onMounted, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import StatCard from '@/components/StatCard.vue';
 import AppIcon from '@/components/AppIcon.vue';
 import BaseTable from '@/components/ui/BaseTable.vue';
@@ -558,6 +609,7 @@ import { sales as salesApi, customers as customersApi } from '@/api';
 import { formatMoney } from '@/utils/currency';
 
 const route = useRoute();
+const router = useRouter();
 
 const localTodayYmd = () => {
   const now = new Date();
@@ -570,6 +622,16 @@ const today = localTodayYmd();
 const activeTab = ref(route.query.tab || 'branch');
 const sales = ref([]);
 const loadingSales = ref(false);
+
+watch(
+  () => route.query.tab,
+  (newTab) => {
+    if (newTab && newTab !== activeTab.value) {
+      activeTab.value = String(newTab);
+      load();
+    }
+  },
+);
 
 const salesColumns = [
   { key: 'sale_date', label: 'التاريخ' },
@@ -598,6 +660,13 @@ const activeColumns = computed(() => {
   ];
 });
 const wholesaleCustomers = ref([]);
+const allCustomers = ref([]);
+const totalCustomerDebts = computed(() => {
+  return allCustomers.value.reduce((sum, cust) => {
+    const bal = Number((cust.total_balance ?? cust.balance) || 0);
+    return sum + (bal > 0 ? bal : 0);
+  }, 0);
+});
 const saving = ref(false);
 const openingBalanceLoading = ref(false);
 const openingBalanceSaving = ref(false);
@@ -664,12 +733,15 @@ const collectedTotal = computed(() =>
     return sum;
   }, 0),
 );
-const openCreditTotal = computed(() =>
-  completedSales.value.reduce((sum, sale) => {
+const openCreditTotal = computed(() => {
+  if (activeTab.value === 'wholesale') {
+    return totalCustomerDebts.value;
+  }
+  return completedSales.value.reduce((sum, sale) => {
     if (isOpenPayment(sale)) return sum + Number(sale.total_amount || 0);
     return sum;
-  }, 0),
-);
+  }, 0);
+});
 const openPaymentCount = computed(
   () => completedSales.value.filter((sale) => isOpenPayment(sale)).length,
 );
@@ -677,13 +749,26 @@ const periodCashTotal = computed(
   () => Number(openingBalanceForm.value.amount || 0) + collectedTotal.value,
 );
 const salesListQuery = computed(() => ({
-  sale_type: activeTab.value === 'monthly' ? 'branch' : activeTab.value,
-  entry_mode: activeTab.value === 'monthly' ? 'pos' : undefined,
+  sale_type:
+    activeTab.value === 'branch'
+      ? 'branch'
+      : activeTab.value === 'wholesale'
+        ? 'wholesale'
+        : undefined,
   from_date: filters.value.from_date,
   to_date: filters.value.to_date,
   limit: 200,
 }));
 const salesHealth = computed(() => {
+  if (activeTab.value === 'wholesale') {
+    if (openCreditTotal.value > 0) {
+      return {
+        tone: 'warning',
+        title: 'مديونيات عملاء مستحقة للتحصيل',
+        message: `إجمالي رصيد مديونيات العملاء الكلية المتبقية للتحصيل هو ${formatMoney(openCreditTotal.value)} (شاملة الأرصدة الافتتاحية ومسحوبات الفواتير وتتخصم تلقائياً عند السداد).`,
+      };
+    }
+  }
   if (openPaymentCount.value > 0) {
     return {
       tone: 'warning',
@@ -730,6 +815,7 @@ const paymentBadge = (s) => [
 
 const switchTab = (tab) => {
   activeTab.value = tab;
+  router.replace({ query: { ...route.query, tab } }).catch(() => {});
   cancelEdit();
   load();
 };
@@ -841,7 +927,7 @@ const selectMonth = (event) => {
 const load = async () => {
   loadingSales.value = true;
   try {
-    const [salesRes, openingRes] = await Promise.all([
+    const [salesRes, openingRes, customersRes] = await Promise.all([
       salesApi.list(salesListQuery.value),
       salesApi
         .openingBalance({
@@ -849,8 +935,13 @@ const load = async () => {
           to_date: filters.value.to_date,
         })
         .catch(() => null),
+      customersApi.list({ limit: 500 }).catch(() => null),
     ]);
     sales.value = salesRes.data;
+    if (customersRes?.data) {
+      allCustomers.value = customersRes.data;
+      wholesaleCustomers.value = customersRes.data.filter((x) => x.customer_type === 'wholesale');
+    }
     if (openingRes?.data) {
       openingBalanceForm.value = {
         from_date: openingRes.data.from_date || filters.value.from_date,

@@ -63,12 +63,12 @@ const rawMenuGroups = [
     ],
   },
   {
-    label: 'التشغيل',
+    label: 'التشغيل والبيع',
     items: [
       { to: '/branch-sales', label: 'شاشة الكاشير (POS)', icon: 'shop', perm: 'pos.view' },
-      { to: '/sales', label: 'سجل المبيعات والتسويات', icon: 'sales', perm: 'sales.view' },
-      { to: '/customers', label: 'العملاء', icon: 'customers', perm: 'customers.view' },
+      { to: '/sales', label: 'المبيعات', icon: 'sales', perm: 'sales.view' },
       { to: '/invoices', label: 'الفواتير', icon: 'invoices', perm: 'invoices.view' },
+      { to: '/customers', label: 'العملاء والمديونيات', icon: 'customers', perm: 'customers.view' },
     ],
   },
   {

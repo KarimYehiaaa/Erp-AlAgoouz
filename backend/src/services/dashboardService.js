@@ -96,17 +96,13 @@ const _setCached = (key, data) => {
   _dashboardCache.set(key, { data, at: Date.now() });
 };
 
-// استدعاء هذه الدالة من أي مكان لمسح الـ cache (مثلاً بعد حفظ بيع جديد)
+// استدعاء هذه الدالة من أي مكان لمسح الـ cache فوراً بعد أي تغيير
 let _lastInvalidated = 0;
 export const invalidateDashboardCache = () => {
-  const now = Date.now();
-  if (now - _lastInvalidated > 30000) {
-    // بحد أقصى مرة واحدة كل 30 ثانية
-    _dashboardCache.clear();
-    appCache.invalidateByTag('pl_report');
-    appCache.invalidateByTag('product_cost');
-    _lastInvalidated = now;
-  }
+  _dashboardCache.clear();
+  appCache.invalidateByTag('pl_report');
+  appCache.invalidateByTag('product_cost');
+  _lastInvalidated = Date.now();
 };
 
 const _computeDashboardStats = async (filters = {}) => {
@@ -258,29 +254,9 @@ const _computeDashboardStats = async (filters = {}) => {
     ),
     query(
       `SELECT COUNT(*)::int AS count,
-              COALESCE(SUM(total_balance), 0) AS amount
-       FROM (
-         SELECT 
-           (COALESCE(c.opening_balance, 0) + 
-            COALESCE(cs.total_purchased, 0) - 
-            COALESCE(cs.total_paid, 0)
-           ) AS total_balance
-         FROM customers c
-         LEFT JOIN (
-             SELECT 
-                 s.customer_id,
-                 SUM(s.total_amount) AS total_purchased,
-                 SUM(
-                     COALESCE((SELECT SUM(amount) FROM payments WHERE reference_type = 'sale' AND reference_id = s.id), 0) +
-                     COALESCE((SELECT SUM(amount) FROM payments WHERE reference_type = 'invoice' AND reference_id IN (SELECT id FROM invoices WHERE sale_id = s.id)), 0)
-                 ) AS total_paid
-             FROM sales s
-             WHERE s.deleted_at IS NULL
-             GROUP BY s.customer_id
-         ) cs ON cs.customer_id = c.id
-         WHERE c.deleted_at IS NULL
-       ) t
-       WHERE t.total_balance > 0`,
+              COALESCE(SUM(COALESCE(current_balance, balance, 0)), 0) AS amount
+       FROM customers
+       WHERE deleted_at IS NULL AND COALESCE(current_balance, balance, 0) > 0`,
     ),
     query(
       `SELECT COUNT(*)::int AS count FROM customers WHERE deleted_at IS NULL AND is_active = TRUE`,
@@ -632,11 +608,15 @@ const _computeDashboardStats = async (filters = {}) => {
   const netProfit = roundMoney(periodGrossProfit - toNumber(periodExpensesRow.total));
   const previousNetProfit = roundMoney(previousGrossProfit - toNumber(previousExpensesRow.total));
   const todayNet = roundMoney(todayGrossProfit - toNumber(todayExpensesRow.total));
+  const periodUnpaidSales = paymentSummary.rows
+    ? paymentSummary.rows
+        .filter((r) => ['unpaid', 'partial'].includes(r.payment_status))
+        .reduce((sum, r) => sum + toNumber(r.total), 0)
+    : 0;
   const collectionRate =
     toNumber(periodSalesRow.total) > 0
       ? roundMoney(
-          ((toNumber(periodSalesRow.total) - toNumber(unpaidInvoices.rows[0]?.amount)) /
-            toNumber(periodSalesRow.total)) *
+          ((toNumber(periodSalesRow.total) - periodUnpaidSales) / toNumber(periodSalesRow.total)) *
             100,
         )
       : 100;

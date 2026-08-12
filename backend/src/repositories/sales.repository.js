@@ -1,8 +1,8 @@
-import { BaseRepository } from "./base.repository.js";
-import { query } from "../database/pool.js";
-import { getPaginationParams, buildPaginationMeta } from "../utils/pagination.js";
+import { BaseRepository } from './base.repository.js';
+import { query } from '../database/pool.js';
+import { getPaginationParams, buildPaginationMeta } from '../utils/pagination.js';
 class SalesRepository extends BaseRepository {
-  tableName = "sales";
+  tableName = 'sales';
   /**
    * Fetches sales list with related customer and user data (supports pagination).
    */
@@ -10,6 +10,7 @@ class SalesRepository extends BaseRepository {
     const { page, limit, offset } = getPaginationParams(filters);
     let sql = `SELECT s.*, c.name_ar as customer_name, c.code as customer_code, u.full_name as user_name,
       w.name_ar as warehouse_name,
+      (SELECT id FROM invoices WHERE sale_id = s.id LIMIT 1) as invoice_id,
       (SELECT COUNT(*) FROM sale_items si WHERE si.sale_id = s.id) as items_count,
       COUNT(*) OVER() as full_count
       FROM sales s
@@ -51,7 +52,4 @@ class SalesRepository extends BaseRepository {
   }
 }
 const salesRepository = new SalesRepository();
-export {
-  SalesRepository,
-  salesRepository
-};
+export { SalesRepository, salesRepository };

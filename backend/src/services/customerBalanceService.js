@@ -17,14 +17,13 @@ export const recalculateCustomerBalance = async (db = query, customerId) => {
       FROM (
         SELECT
           CASE
-            -- المبيعات المرتجعة: رصيدها صفر (تم الاسترداد)
             WHEN s.status = 'returned' THEN 0
             ELSE
               COALESCE(s.total_amount, 0) - COALESCE((
                 SELECT SUM(amount)
                 FROM payments p
-                WHERE p.reference_type = 'sale'
-                  AND p.reference_id = s.id
+                WHERE (p.reference_type = 'sale' AND p.reference_id = s.id)
+                   OR (p.reference_type = 'invoice' AND p.reference_id = (SELECT id FROM invoices WHERE sale_id = s.id LIMIT 1))
               ), 0)
           END AS outstanding
         FROM sales s
@@ -58,8 +57,8 @@ export const recalculateCustomerBalance = async (db = query, customerId) => {
               COALESCE(s.total_amount, 0) - COALESCE((
                 SELECT SUM(amount)
                 FROM payments p
-                WHERE p.reference_type = 'sale'
-                  AND p.reference_id = s.id
+                WHERE (p.reference_type = 'sale' AND p.reference_id = s.id)
+                   OR (p.reference_type = 'invoice' AND p.reference_id = (SELECT id FROM invoices WHERE sale_id = s.id LIMIT 1))
               ), 0)
           END AS outstanding
         FROM sales s

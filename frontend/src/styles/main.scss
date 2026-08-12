@@ -1,6 +1,10 @@
 @use 'variables';
 
-* { box-sizing: border-box; margin: 0; padding: 0; }
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
 
 html,
 body,
@@ -22,19 +26,30 @@ body {
 }
 
 body::before {
-  content: "";
+  content: '';
   position: fixed;
   inset: -18% -12%;
   pointer-events: none;
   z-index: -1;
-  opacity: .42;
+  opacity: 0.42;
   background:
-    radial-gradient(circle at 18% 20%, color-mix(in srgb, var(--primary) 12%, transparent), transparent 18rem),
-    radial-gradient(circle at 78% 12%, color-mix(in srgb, var(--accent) 11%, transparent), transparent 16rem);
+    radial-gradient(
+      circle at 18% 20%,
+      color-mix(in srgb, var(--primary) 12%, transparent),
+      transparent 18rem
+    ),
+    radial-gradient(
+      circle at 78% 12%,
+      color-mix(in srgb, var(--accent) 11%, transparent),
+      transparent 16rem
+    );
   animation: ambientDrift 18s ease-in-out infinite alternate;
 }
 
-a { color: inherit; text-decoration: none; }
+a {
+  color: inherit;
+  text-decoration: none;
+}
 
 button,
 input,
@@ -45,7 +60,12 @@ textarea {
 }
 
 button {
-  transition: background-color var(--transition), border-color var(--transition), color var(--transition), box-shadow var(--transition), transform var(--transition);
+  transition:
+    background-color var(--transition),
+    border-color var(--transition),
+    color var(--transition),
+    box-shadow var(--transition),
+    transform var(--transition);
 }
 
 button:disabled {
@@ -67,16 +87,18 @@ button:disabled {
   letter-spacing: 0;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 
-  &:active { transform: translateY(1px); }
+  &:active {
+    transform: translateY(1px);
+  }
 
   &-loading {
     position: relative !important;
     pointer-events: none !important;
     color: transparent !important;
     background-image: none !important;
-    
+
     &::after {
-      content: "" !important;
+      content: '' !important;
       position: absolute !important;
       width: 18px !important;
       height: 18px !important;
@@ -92,10 +114,13 @@ button:disabled {
   }
 
   @keyframes btn-spin {
-    to { transform: rotate(360deg); }
+    to {
+      transform: rotate(360deg);
+    }
   }
 
-  &-primary, &-add {
+  &-primary,
+  &-add {
     background: var(--primary);
     color: #fff;
     box-shadow: var(--shadow-xs);
@@ -141,7 +166,8 @@ button:disabled {
     }
   }
 
-  &-danger, &-delete {
+  &-danger,
+  &-delete {
     background: var(--danger);
     color: #fff;
     box-shadow: var(--shadow-xs);
@@ -201,7 +227,9 @@ button:disabled {
     box-shadow: var(--shadow-xs);
   }
 
-  &.danger, &.delete, &.btn-delete {
+  &.danger,
+  &.delete,
+  &.btn-delete {
     color: var(--text-muted);
     border-color: var(--border-strong);
 
@@ -213,7 +241,8 @@ button:disabled {
     }
   }
 
-  &.edit, &.btn-edit {
+  &.edit,
+  &.btn-edit {
     &:hover {
       background: color-mix(in srgb, var(--primary) 8%, var(--bg-elevated));
       border-color: var(--primary-soft);
@@ -222,7 +251,8 @@ button:disabled {
     }
   }
 
-  &.save, &.btn-save {
+  &.save,
+  &.btn-save {
     &:hover {
       background: color-mix(in srgb, var(--success) 8%, var(--bg-elevated));
       border-color: color-mix(in srgb, var(--success) 30%, transparent);
@@ -249,17 +279,24 @@ button:disabled {
   backdrop-filter: blur(12px) saturate(1.08);
   -webkit-backdrop-filter: blur(12px) saturate(1.08);
   transform-style: preserve-3d;
-  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.28s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.28s ease;
+  transition:
+    transform 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+    border-color 0.28s ease;
 }
 
 .card:hover,
 .panel:hover {
   transform: translateY(-4px) scale(1.002);
-  box-shadow: 0 12px 28px -8px color-mix(in srgb, var(--primary) 12%, transparent), var(--shadow-md);
+  box-shadow:
+    0 12px 28px -8px color-mix(in srgb, var(--primary) 12%, transparent),
+    var(--shadow-md);
   border-color: color-mix(in srgb, var(--primary) 28%, var(--card-border));
 }
 
-.card { padding: var(--space-5); }
+.card {
+  padding: var(--space-5);
+}
 
 .form-group {
   margin-bottom: var(--space-4);
@@ -282,7 +319,9 @@ button:disabled {
     border-radius: var(--radius-sm);
     background: var(--bg-elevated);
     color: var(--text);
-    transition: border-color var(--transition), box-shadow var(--transition);
+    transition:
+      border-color var(--transition),
+      box-shadow var(--transition);
 
     &:focus {
       outline: none;
@@ -330,8 +369,12 @@ table {
     font-weight: 900;
   }
 
-  tr:last-child td { border-bottom: none; }
-  tr:hover td { background: color-mix(in srgb, var(--primary) 5%, var(--bg-elevated)); }
+  tr:last-child td {
+    border-bottom: none;
+  }
+  tr:hover td {
+    background: color-mix(in srgb, var(--primary) 5%, var(--bg-elevated));
+  }
 }
 
 .badge {
@@ -343,10 +386,22 @@ table {
   font-size: 0.76rem;
   font-weight: 800;
 
-  &-success { background: color-mix(in srgb, var(--success) 13%, transparent); color: var(--success); }
-  &-warning { background: color-mix(in srgb, var(--warning) 14%, transparent); color: var(--warning); }
-  &-danger { background: color-mix(in srgb, var(--danger) 13%, transparent); color: var(--danger); }
-  &-info { background: color-mix(in srgb, var(--info) 13%, transparent); color: var(--info); }
+  &-success {
+    background: color-mix(in srgb, var(--success) 13%, transparent);
+    color: var(--success);
+  }
+  &-warning {
+    background: color-mix(in srgb, var(--warning) 14%, transparent);
+    color: var(--warning);
+  }
+  &-danger {
+    background: color-mix(in srgb, var(--danger) 13%, transparent);
+    color: var(--danger);
+  }
+  &-info {
+    background: color-mix(in srgb, var(--info) 13%, transparent);
+    color: var(--info);
+  }
 }
 
 .header-icon,
@@ -366,11 +421,14 @@ table {
 
 /* Premium Stat Card and Icon Wrapper animations */
 .stat-card {
-  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.28s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.28s ease;
+  transition:
+    transform 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+    border-color 0.28s ease;
 
   .stat-icon-wrap {
     transition: all 0.28s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 2px 6px rgba(0,0,0,0.02);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
   }
 
   &:hover {
@@ -387,10 +445,19 @@ table {
   }
 }
 
-.grid { display: grid; gap: var(--space-5); }
-.grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.grid {
+  display: grid;
+  gap: var(--space-5);
+}
+.grid-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.grid-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.grid-4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
 
 .page-header {
   display: flex;
@@ -455,17 +522,33 @@ table {
   }
 }
 
-@media (max-width: 1200px) { .grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (max-width: 900px) { .grid-3 { grid-template-columns: 1fr; } }
+@media (max-width: 1200px) {
+  .grid-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 900px) {
+  .grid-3 {
+    grid-template-columns: 1fr;
+  }
+}
 @media (max-width: 768px) {
   .grid-2,
-  .grid-4 { grid-template-columns: 1fr; }
-  .page-header { flex-direction: column; align-items: stretch; }
+  .grid-4 {
+    grid-template-columns: 1fr;
+  }
+  .page-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
 }
 
 .fade-enter-active,
 .fade-leave-active {
-  transition: opacity 0.28s cubic-bezier(0.4, 0, 0.2, 1), transform 0.28s cubic-bezier(0.4, 0, 0.2, 1), filter 0.28s ease;
+  transition:
+    opacity 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+    transform 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+    filter 0.28s ease;
 }
 .fade-enter-from {
   opacity: 0;
@@ -479,15 +562,27 @@ table {
 }
 
 @keyframes slideIn {
-  from { opacity: 0; transform: translateY(10px) scale(.99); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-.animate-in { animation: slideIn 0.28s ease forwards; }
+.animate-in {
+  animation: slideIn 0.28s ease forwards;
+}
 
 @keyframes ambientDrift {
-  from { transform: translate3d(0, 0, 0) rotate(0deg); }
-  to { transform: translate3d(2.5%, 1.5%, 0) rotate(-2deg); }
+  from {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+  to {
+    transform: translate3d(2.5%, 1.5%, 0) rotate(-2deg);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -511,8 +606,13 @@ table {
   scrollbar-color: var(--border-strong) transparent;
 }
 
-::-webkit-scrollbar { width: 7px; height: 7px; }
-::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
 ::-webkit-scrollbar-thumb {
   background: var(--border-strong);
   border-radius: 999px;
@@ -520,9 +620,15 @@ table {
 
 /* Skeleton Loading Pulse */
 @keyframes skeleton-pulse {
-  0% { background-color: color-mix(in srgb, var(--border) 60%, transparent); }
-  50% { background-color: color-mix(in srgb, var(--border) 95%, transparent); }
-  100% { background-color: color-mix(in srgb, var(--border) 60%, transparent); }
+  0% {
+    background-color: color-mix(in srgb, var(--border) 60%, transparent);
+  }
+  50% {
+    background-color: color-mix(in srgb, var(--border) 95%, transparent);
+  }
+  100% {
+    background-color: color-mix(in srgb, var(--border) 60%, transparent);
+  }
 }
 .skeleton-loader {
   animation: skeleton-pulse 1.4s ease-in-out infinite;
@@ -531,14 +637,30 @@ table {
   display: inline-block;
   vertical-align: middle;
 }
-.skeleton-text { height: 14px; width: 100%; margin: 4px 0; }
-.skeleton-title { height: 22px; width: 50%; margin: 6px 0; }
-.skeleton-circle { width: 36px; height: 36px; border-radius: 50%; }
+.skeleton-text {
+  height: 14px;
+  width: 100%;
+  margin: 4px 0;
+}
+.skeleton-title {
+  height: 22px;
+  width: 50%;
+  margin: 6px 0;
+}
+.skeleton-circle {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+}
 
 /* Shimmer Loading Skeleton Effect */
 @keyframes shimmer-move {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
 }
 .skeleton-shimmer {
   background: linear-gradient(90deg, var(--bg-soft) 25%, var(--border) 50%, var(--bg-soft) 75%);
@@ -583,8 +705,14 @@ table {
   animation: tooltip-zoom 0.18s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
 @keyframes tooltip-zoom {
-  from { opacity: 0; transform: scale(0.92) translateY(4px); }
-  to { opacity: 1; transform: scale(1) translateY(0); }
+  from {
+    opacity: 0;
+    transform: scale(0.92) translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
 }
 
 /* Privacy Mode Blurring */
@@ -611,7 +739,7 @@ table {
     transition: filter 0.22s cubic-bezier(0.4, 0, 0.2, 1);
     cursor: help;
     user-select: none;
-    
+
     &:hover {
       filter: blur(0px) !important;
       user-select: auto;
@@ -626,46 +754,48 @@ table {
   --space-5: 14px;
   --space-6: 18px;
   --space-7: 22px;
-  
-  .panel, .card {
+
+  .panel,
+  .card {
     padding: 10px 14px !important;
   }
-  
-  th, td {
+
+  th,
+  td {
     padding: 6px 10px !important;
     font-size: 0.82rem !important;
   }
-  
+
   .product-card {
     padding: 8px !important;
     min-height: auto !important;
-    
+
     .product-name {
       margin-bottom: 2px !important;
       font-size: 0.82rem !important;
     }
-    
+
     .product-meta {
       margin-bottom: 2px !important;
       font-size: 0.74rem !important;
     }
   }
-  
+
   .cart-item {
     padding: 6px !important;
     margin-bottom: 6px !important;
-    
+
     .cart-item-info {
       .cart-item-name {
         font-size: 0.82rem !important;
       }
     }
   }
-  
+
   .metric-card {
     min-height: 90px !important;
     padding: 10px 12px !important;
-    
+
     strong {
       font-size: 1.05rem !important;
     }
@@ -679,19 +809,18 @@ table {
 
 /* ── Skeleton Shimmer Loaders ── */
 .shimmer {
-  background: linear-gradient(
-    90deg,
-    var(--bg-soft) 25%,
-    var(--border) 37%,
-    var(--bg-soft) 63%
-  );
+  background: linear-gradient(90deg, var(--bg-soft) 25%, var(--border) 37%, var(--bg-soft) 63%);
   background-size: 400% 100%;
   animation: shimmer-load 1.4s ease infinite;
 }
 
 @keyframes shimmer-load {
-  0% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
 }
 
 .skeleton-dashboard {
@@ -741,12 +870,12 @@ table {
   gap: 12px !important;
   min-height: 112px !important;
   box-shadow: none !important;
-  
+
   .skeleton-line {
     height: 14px;
     border-radius: 4px;
     width: 70%;
-    
+
     &.price {
       width: 40%;
       height: 12px;
@@ -755,10 +884,14 @@ table {
 }
 
 @media (max-width: 1300px) {
-  .skeleton-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .skeleton-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 @media (max-width: 640px) {
-  .skeleton-grid { grid-template-columns: 1fr; }
+  .skeleton-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* ─── Print Styles for Thermal Invoices (80mm) & A4 Invoices ─── */
@@ -795,7 +928,7 @@ table {
     min-height: auto !important;
     background: none !important;
   }
-  
+
   body::before {
     display: none !important;
   }
@@ -830,11 +963,115 @@ table {
   }
 }
 
-/* ── Responsive Mobile Utilities ── */
+/* ── Responsive Mobile Optimization ── */
 @media (max-width: 768px) {
-  .grid-2, .grid-3, .grid-4 {
+  /* Prevent iOS Safari input zoom */
+  input[type='text'],
+  input[type='number'],
+  input[type='password'],
+  input[type='email'],
+  input[type='search'],
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+
+  /* Responsive Grid Layouts */
+  .grid-2,
+  .grid-3,
+  .grid-4,
+  .grid-5 {
     grid-template-columns: 1fr !important;
-    gap: var(--space-4) !important;
+    gap: 12px !important;
+  }
+
+  /* Page Header & Inline Tabs horizontal swiping */
+  .page-header {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 12px !important;
+  }
+
+  .header-actions {
+    width: 100% !important;
+    justify-content: space-between !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+
+  .tabs.inline-tabs {
+    display: flex !important;
+    overflow-x: auto !important;
+    flex-wrap: nowrap !important;
+    width: 100% !important;
+    padding-bottom: 4px !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+
+    &::-webkit-scrollbar {
+      display: none !important;
+    }
+
+    button {
+      white-space: nowrap !important;
+      flex-shrink: 0 !important;
+      padding: 8px 14px !important;
+      font-size: 0.85rem !important;
+    }
+  }
+
+  /* Modals & Dialog Popups optimization */
+  .modal {
+    padding: 10px !important;
+    align-items: flex-end !important;
+  }
+
+  .modal-content {
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: 88vh !important;
+    border-radius: 16px 16px 0 0 !important;
+    padding: 16px !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  .modal-actions {
+    flex-direction: column-reverse !important;
+    gap: 8px !important;
+    width: 100% !important;
+
+    button {
+      width: 100% !important;
+      justify-content: center !important;
+      padding: 12px !important;
+    }
+  }
+
+  /* Touch Table Container Horizontal Scroll */
+  .bt-container,
+  .table-wrap {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    touch-action: pan-x pan-y !important;
+    border-radius: var(--radius-md) !important;
+  }
+
+  .bt-table,
+  table {
+    min-width: 600px;
+  }
+
+  .bt-th,
+  .bt-td {
+    padding: 8px 10px !important;
+    font-size: 0.8rem !important;
+  }
+
+  /* Card and Stat Cards Touch Optimizations */
+  .card {
+    padding: 14px !important;
   }
 
   .table-to-card {
@@ -884,15 +1121,6 @@ table {
       }
     }
   }
-
-  /* Optimize modal popup padding and sizing for mobile */
-  .modal {
-    padding: var(--space-3) !important;
-  }
-  .modal-content {
-    max-height: 94vh !important;
-    border-radius: var(--radius-lg) !important;
-  }
 }
 
 /* Custom premium visual styles, neon pulse indicators, card glows, and page fade animations */
@@ -921,34 +1149,61 @@ table {
 }
 
 @keyframes pulse-success {
-  0%, 100% { box-shadow: 0 0 3px var(--success); transform: scale(0.9); }
-  50% { box-shadow: 0 0 12px var(--success); transform: scale(1.15); }
+  0%,
+  100% {
+    box-shadow: 0 0 3px var(--success);
+    transform: scale(0.9);
+  }
+  50% {
+    box-shadow: 0 0 12px var(--success);
+    transform: scale(1.15);
+  }
 }
 @keyframes pulse-warning {
-  0%, 100% { box-shadow: 0 0 3px var(--warning); transform: scale(0.9); }
-  50% { box-shadow: 0 0 12px var(--warning); transform: scale(1.15); }
+  0%,
+  100% {
+    box-shadow: 0 0 3px var(--warning);
+    transform: scale(0.9);
+  }
+  50% {
+    box-shadow: 0 0 12px var(--warning);
+    transform: scale(1.15);
+  }
 }
 @keyframes pulse-danger {
-  0%, 100% { box-shadow: 0 0 3px var(--danger); transform: scale(0.9); }
-  50% { box-shadow: 0 0 12px var(--danger); transform: scale(1.15); }
+  0%,
+  100% {
+    box-shadow: 0 0 3px var(--danger);
+    transform: scale(0.9);
+  }
+  50% {
+    box-shadow: 0 0 12px var(--danger);
+    transform: scale(1.15);
+  }
 }
 
 /* Premium Gold Hover Overlay & Light Sweep effect for Cards */
-.card, .panel, .btn {
+.card,
+.panel,
+.btn {
   position: relative;
   overflow: hidden;
-  
+
   &::before {
     content: '';
     position: absolute;
     inset: 0;
-    background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 7%, transparent) 0%, transparent 45%);
+    background: linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--accent) 7%, transparent) 0%,
+      transparent 45%
+    );
     opacity: 0;
     transition: opacity 0.35s ease;
     pointer-events: none;
     z-index: 1;
   }
-  
+
   /* Reflective Frosted Glass Light Sweep animation */
   &::after {
     content: '';
@@ -968,7 +1223,7 @@ table {
     z-index: 2;
     transition: none;
   }
-  
+
   &:hover {
     &::before {
       opacity: 1;
@@ -996,12 +1251,7 @@ table {
     left: -50%;
     width: 200%;
     height: 200%;
-    background: conic-gradient(
-      transparent,
-      transparent,
-      transparent,
-      var(--accent)
-    );
+    background: conic-gradient(transparent, transparent, transparent, var(--accent));
     animation: border-rotate 8s linear infinite;
     z-index: -2;
   }
@@ -1023,7 +1273,8 @@ table {
 }
 
 /* Page fade and slide-up transition */
-.fade-slide-enter-active, .fade-slide-leave-active {
+.fade-slide-enter-active,
+.fade-slide-leave-active {
   transition: all 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 .fade-slide-enter-from {
@@ -1037,13 +1288,16 @@ table {
 
 /* ── Custom Animation & Micro-interaction Classes ── */
 .hover-lift {
-  transition: transform var(--transition), box-shadow var(--transition), border-color var(--transition);
-  
+  transition:
+    transform var(--transition),
+    box-shadow var(--transition),
+    border-color var(--transition);
+
   &:hover {
     transform: translateY(-4px) scale(1.01);
     box-shadow: var(--shadow-md);
   }
-  
+
   &:active {
     transform: translateY(-1px) scale(0.99);
   }
@@ -1081,7 +1335,9 @@ table {
     border-radius: var(--radius-sm);
     background: var(--bg-elevated);
     color: var(--text-strong);
-    transition: border-color var(--transition), box-shadow var(--transition);
+    transition:
+      border-color var(--transition),
+      box-shadow var(--transition);
 
     &:focus {
       outline: none;
@@ -1106,7 +1362,10 @@ table {
     transform-origin: right top;
     color: var(--text-muted);
     pointer-events: none;
-    transition: transform var(--transition), color var(--transition), background var(--transition);
+    transition:
+      transform var(--transition),
+      color var(--transition),
+      background var(--transition);
   }
 }
 
@@ -1120,19 +1379,16 @@ table {
       box-shadow: none !important;
     }
   }
-  
+
   .stagger-fade-item {
     opacity: 1 !important;
     transform: none !important;
     animation: none !important;
   }
-  
+
   .shimmer,
   .animate-pulse {
     animation: none !important;
     background: var(--bg-soft) !important;
   }
 }
-
-
-

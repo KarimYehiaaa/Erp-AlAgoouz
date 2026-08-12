@@ -1106,6 +1106,7 @@ const openProduce = (recipe) => {
   produceForm.value = {
     recipe_id: recipe.id,
     product_name: recipe.product_name || '',
+    unit: product?.unit || recipe.product_unit || recipe.unit || 'kg',
     mode: 'production',
     quantity: 1,
     warehouse_id:

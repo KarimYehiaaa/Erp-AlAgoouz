@@ -17,10 +17,20 @@
         </button>
       </div>
       <div v-if="tab === 'list'" class="header-actions">
-        <button type="button" class="btn btn-outline" @click="downloadTemplate" v-permission="'products.edit'">
+        <button
+          type="button"
+          class="btn btn-outline"
+          @click="downloadTemplate"
+          v-permission="'products.edit'"
+        >
           <AppIcon name="download" :size="16" /> قالب Excel
         </button>
-        <button type="button" class="btn btn-outline" @click="exportProducts" v-permission="'products.edit'">
+        <button
+          type="button"
+          class="btn btn-outline"
+          @click="exportProducts"
+          v-permission="'products.edit'"
+        >
           <AppIcon name="download" :size="16" /> تصدير المنتجات (Excel)
         </button>
         <label class="btn btn-outline import-btn" v-permission="'products.add'">
@@ -28,7 +38,13 @@
           (Excel)
           <input type="file" accept=".xlsx,.xls" hidden @change="onImport" />
         </label>
-        <button type="button" class="btn btn-add" :disabled="loading" @click="openForm()" v-permission="'products.add'">
+        <button
+          type="button"
+          class="btn btn-add"
+          :disabled="loading"
+          @click="openForm()"
+          v-permission="'products.add'"
+        >
           <AppIcon name="add" :size="16" />
           {{ loading ? 'جاري التحميل...' : 'إضافة منتج' }}
         </button>
@@ -78,17 +94,40 @@
           <template #cell-sale_price="{ item }">
             {{ formatMoney(item.sale_price) }}
           </template>
-          <template #cell-total_quantity="{ item }">
-            <span class="warehouse-cell" style="font-weight: 800; color: var(--accent, #c77a2f)">
-              📦 {{ item.total_quantity !== undefined ? item.total_quantity : item.quantity || 0 }}
-            </span>
+          <template #cell-profit_margin="{ item }">
+            <div class="margin-cell">
+              <span
+                :class="['badge', getMarginClass(item)]"
+                style="font-weight: 800; font-size: 0.82rem"
+              >
+                {{ formatMargin(item) }}
+              </span>
+              <small
+                style="
+                  display: block;
+                  font-size: 0.76rem;
+                  color: var(--text-muted, #888);
+                  margin-top: 2px;
+                  font-weight: 600;
+                "
+                v-if="getProfitAmount(item) !== 0"
+              >
+                {{ getProfitAmount(item) > 0 ? '+' : '' }}{{ formatMoney(getProfitAmount(item)) }}
+              </small>
+            </div>
           </template>
           <template #cell-status="{ item }">
             {{ item.is_active ? 'نشط' : 'معطل' }}
           </template>
           <template #cell-actions="{ item }">
             <div class="actions-cell">
-              <button type="button" class="icon-btn edit" title="تعديل" @click="editProduct(item)" v-permission="'products.edit'">
+              <button
+                type="button"
+                class="icon-btn edit"
+                title="تعديل"
+                @click="editProduct(item)"
+                v-permission="'products.edit'"
+              >
                 <AppIcon name="edit" :size="16" />
               </button>
               <button
@@ -122,7 +161,12 @@
 
       <div class="danger-mini card" v-permission="'products.delete'">
         <span>حذف كل المنتجات</span>
-        <button type="button" class="btn btn-sm btn-delete" @click="deleteAllProducts" v-permission="'products.delete'">
+        <button
+          type="button"
+          class="btn btn-sm btn-delete"
+          @click="deleteAllProducts"
+          v-permission="'products.delete'"
+        >
           <AppIcon name="delete" :size="14" /> حذف الكل
         </button>
       </div>
@@ -425,10 +469,44 @@ const productsColumns = [
   { key: 'category', label: 'القسم' },
   { key: 'purchase_price', label: 'الشراء' },
   { key: 'sale_price', label: 'البيع' },
-  { key: 'total_quantity', label: 'الإجمالي' },
+  { key: 'profit_margin', label: 'هامش الربح' },
   { key: 'status', label: 'الحالة' },
   { key: 'actions', label: '', align: 'right' },
 ];
+
+const getCostPrice = (item) => Number(item.purchase_price || item.effective_cost || 0);
+const getSalePrice = (item) => Number(item.sale_price || 0);
+
+const getProfitAmount = (item) => {
+  const cost = getCostPrice(item);
+  const sale = getSalePrice(item);
+  return sale - cost;
+};
+
+const getMarginPercent = (item) => {
+  const cost = getCostPrice(item);
+  const profit = getProfitAmount(item);
+  if (cost > 0) {
+    return (profit / cost) * 100;
+  }
+  if (getSalePrice(item) > 0) {
+    return 100;
+  }
+  return 0;
+};
+
+const formatMargin = (item) => {
+  const pct = getMarginPercent(item);
+  const sign = pct > 0 ? '+' : '';
+  return `${sign}${pct.toFixed(1)}%`;
+};
+
+const getMarginClass = (item) => {
+  const profit = getProfitAmount(item);
+  if (profit > 0) return 'badge-success';
+  if (profit < 0) return 'badge-danger';
+  return 'badge-neutral';
+};
 
 const form = ref({
   sku: '',

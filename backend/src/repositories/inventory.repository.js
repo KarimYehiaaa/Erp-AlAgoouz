@@ -1,18 +1,21 @@
-import { BaseRepository } from "./base.repository.js";
-import { query } from "../database/pool.js";
-import { sanitizeLimit } from "../utils/money.js";
+import { BaseRepository } from './base.repository.js';
+import { query } from '../database/pool.js';
+import { sanitizeLimit } from '../utils/money.js';
 class InventoryRepository extends BaseRepository {
-  tableName = "inventory";
+  tableName = 'inventory';
   /**
    * Fetches inventory summary with product and warehouse details.
    */
   async getInventoryList(warehouseId) {
     const params = [];
-    let sql = `
+    const whParam = warehouseId
+      ? '$1'
+      : 'COALESCE(p.primary_warehouse_id, (SELECT id FROM warehouses WHERE deleted_at IS NULL AND is_active = TRUE ORDER BY id ASC LIMIT 1))';
+    const sql = `
       SELECT DISTINCT ON (p.id)
         COALESCE(i.id, 0) AS id,
         p.id AS product_id,
-        w.id AS warehouse_id,
+        COALESCE(w.id, ${warehouseId ? '$1' : 'p.primary_warehouse_id'}) AS warehouse_id,
         COALESCE(i.quantity, 0) AS quantity,
         COALESCE(inv_summary.total_stock, 0) AS total_quantity,
         COALESCE(inv_summary.main_stock, 0) AS main_quantity,
@@ -23,6 +26,7 @@ class InventoryRepository extends BaseRepository {
         p.sku,
         p.name_ar,
         p.min_stock,
+        COALESCE(p.purchase_price, 0) AS purchase_price,
         p.sale_price,
         EXISTS (
           SELECT 1
@@ -31,27 +35,16 @@ class InventoryRepository extends BaseRepository {
             AND r.deleted_at IS NULL
             AND r.is_active = TRUE
         ) AS has_active_recipe,
-        w.name_ar AS warehouse_name,
+        COALESCE(w.name_ar, 'المخزن') AS warehouse_name,
         CASE WHEN COALESCE(inv_summary.total_stock, 0) <= p.min_stock THEN TRUE ELSE FALSE END AS is_low
       FROM products p
-      JOIN warehouses w
+      LEFT JOIN warehouses w
         ON w.deleted_at IS NULL
         AND w.is_active = TRUE
-        AND (
-          p.primary_warehouse_id = w.id
-          OR (
-            p.primary_warehouse_id IS NULL
-            AND EXISTS (
-              SELECT 1
-              FROM inventory ix
-              WHERE ix.product_id = p.id
-                AND ix.warehouse_id = w.id
-            )
-          )
-        )
+        AND w.id = ${whParam}
       LEFT JOIN inventory i
         ON i.product_id = p.id
-        AND i.warehouse_id = w.id
+        AND i.warehouse_id = ${whParam}
       LEFT JOIN LATERAL (
         SELECT
           COALESCE(SUM(inv2.quantity), 0) AS total_stock,
@@ -69,19 +62,18 @@ class InventoryRepository extends BaseRepository {
       ) inv_summary ON TRUE
       WHERE p.deleted_at IS NULL
         AND p.is_active = TRUE
+      ORDER BY p.id ASC
     `;
     if (warehouseId) {
-      sql += ` AND w.id = $1`;
       params.push(warehouseId);
     }
-    sql += ` ORDER BY p.id, p.name_ar`;
     return (await query(sql, params)).rows;
   }
   /**
    * Fetches stock movements.
    */
   async getStockMovements(filters = {}) {
-    let sql = `SELECT sm.*, p.name_ar as product_name, u.full_name as user_name,
+    let sql = `SELECT sm.*, p.name_ar as product_name, p.sku as product_sku, p.unit as product_unit, u.full_name as user_name,
       fw.name_ar as from_warehouse, tw.name_ar as to_warehouse
       FROM stock_movements sm
       JOIN products p ON sm.product_id = p.id
@@ -99,12 +91,13 @@ class InventoryRepository extends BaseRepository {
       params.push(filters.warehouse_id);
       i++;
     }
+    if (filters.movement_type) {
+      sql += ` AND sm.movement_type = $${i++}`;
+      params.push(filters.movement_type);
+    }
     sql += ` ORDER BY sm.created_at DESC LIMIT ${sanitizeLimit(filters.limit)}`;
     return (await query(sql, params)).rows;
   }
 }
 const inventoryRepository = new InventoryRepository();
-export {
-  InventoryRepository,
-  inventoryRepository
-};
+export { InventoryRepository, inventoryRepository };

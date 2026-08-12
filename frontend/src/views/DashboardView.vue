@@ -574,8 +574,8 @@ const alertItems = computed(() => [
   },
   {
     key: 'unpaid',
-    label: 'فواتير غير محصلة',
-    value: `${number(stats.value?.unpaidInvoices?.count)} / ${money(stats.value?.unpaidInvoices?.amount)}`,
+    label: 'إجمالي مديونيات العملاء وفواتير غير محصلة',
+    value: `${money(stats.value?.unpaidInvoices?.amount)} (${number(stats.value?.unpaidInvoices?.count)} عميل)`,
     tone: Number(stats.value?.unpaidInvoices?.amount || 0) ? 'warning' : 'success',
   },
   {
@@ -1116,15 +1116,24 @@ const loadDashboard = async () => {
 };
 
 const handleWindowFocus = () => loadDashboard();
+const handleRealtimeUpdate = () => loadDashboard();
 
 onMounted(() => {
   loadDashboard();
   loadWarehouses();
   window.addEventListener('focus', handleWindowFocus);
+  window.addEventListener('invoices-updated', handleRealtimeUpdate);
+  window.addEventListener('sales-updated', handleRealtimeUpdate);
+  window.addEventListener('inventory-updated', handleRealtimeUpdate);
+  window.addEventListener('expenses-updated', handleRealtimeUpdate);
 });
 
 onBeforeUnmount(() => {
   window.removeEventListener('focus', handleWindowFocus);
+  window.removeEventListener('invoices-updated', handleRealtimeUpdate);
+  window.removeEventListener('sales-updated', handleRealtimeUpdate);
+  window.removeEventListener('inventory-updated', handleRealtimeUpdate);
+  window.removeEventListener('expenses-updated', handleRealtimeUpdate);
   destroyCharts();
 });
 </script>

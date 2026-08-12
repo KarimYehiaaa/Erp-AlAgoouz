@@ -63,7 +63,7 @@ export const consumeRecipeForSale = async (
 
   // ترتيب المكونات تصاعدياً بناءً على ingredient_product_id لمنع Deadlock عند القفل المتزامن
   const sortedIngredients = [...itemsRes.rows].sort(
-    (a, b) => Number(a.ingredient_product_id) - Number(b.ingredient_product_id)
+    (a, b) => Number(a.ingredient_product_id) - Number(b.ingredient_product_id),
   );
   for (const item of sortedIngredients) {
     const recipeUnit = normalizeUnit(item.unit_code);
@@ -508,6 +508,8 @@ export const produceRecipeBatch = async (
     );
 
     const resolvedItems = [];
+    const resolvedDeductions = []; // { ingredient_product_id, ingredient_name, warehouse_id, quantity }
+
     if (operationMode === 'production') {
       const itemsRes = await client.query(
         `SELECT ri.*, p.name_ar AS ingredient_name, p.unit AS ingredient_unit
@@ -576,8 +578,6 @@ export const produceRecipeBatch = async (
       }
 
       // 2. Deduct incrementally from warehouses based on priority
-      const resolvedDeductions = []; // { product_id, warehouse_id, quantity }
-
       for (const req of requirements) {
         let remainingNeeded = Number(req.quantity);
 

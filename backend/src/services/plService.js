@@ -249,12 +249,16 @@ export const getProfitAndLoss = async (fromDate, toDate) => {
       margin: grossProfitMargin,
     },
 
-    // ── المصاريف التشغيلية ──
+    // ── المصاريف التشغيلية (ثابتة ومتغيرة) ──
     operating_expenses: {
       total: expensesTotal,
+      fixed_total: fixedExpenses,
+      variable_total: variableExpenses,
+      break_even_revenue: breakEvenRevenue,
       count: toNum(expensesData.rows[0]?.expenses_count),
       breakdown: expensesByCategory.rows.map((r) => ({
         category: r.category,
+        is_fixed: Boolean(r.is_fixed),
         total: roundMoney(toNum(r.total)),
         count: r.count,
       })),

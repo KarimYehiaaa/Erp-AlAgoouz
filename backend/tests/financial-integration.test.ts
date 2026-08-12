@@ -1,11 +1,11 @@
-import test from 'node:test';
+import { test, afterAll, expect } from 'vitest';
 import assert from 'node:assert/strict';
 import { createExpense } from '../src/services/expenseService.js';
 import { roundMoney } from '../src/utils/money.js';
 import { AppError } from '../src/types/errors.js';
 import pool from '../src/database/pool.js';
 
-test.after(async () => {
+afterAll(async () => {
   await pool.end();
 });
 

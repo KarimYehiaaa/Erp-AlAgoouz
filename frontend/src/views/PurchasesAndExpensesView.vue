@@ -298,7 +298,9 @@
           </div>
         </div>
         <div class="actions" style="margin-bottom: 20px">
-          <button v-permission="'expenses.add'" class="btn btn-primary" @click="openExpenseCreate">+ مصروف جديد</button>
+          <button v-permission="'expenses.add'" class="btn btn-primary" @click="openExpenseCreate">
+            + مصروف جديد
+          </button>
         </div>
       </div>
 
@@ -330,6 +332,46 @@
         />
       </div>
 
+      <!-- Filter Tabs by Expense Nature -->
+      <div
+        style="
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 12px;
+          gap: 12px;
+          flex-wrap: wrap;
+        "
+      >
+        <div class="tabs inline-tabs" style="margin-bottom: 0">
+          <button
+            type="button"
+            :class="{ active: expenseTypeFilter === 'all' }"
+            @click="expenseTypeFilter = 'all'"
+          >
+            📋 كافة المصروفات ({{ expensesList.length }})
+          </button>
+          <button
+            type="button"
+            :class="{ active: expenseTypeFilter === 'fixed' }"
+            @click="expenseTypeFilter = 'fixed'"
+          >
+            🏢 المصروفات الثابتة ({{
+              periodFixedExpensesTotal ? formatMoney(periodFixedExpensesTotal) : '0'
+            }})
+          </button>
+          <button
+            type="button"
+            :class="{ active: expenseTypeFilter === 'variable' }"
+            @click="expenseTypeFilter = 'variable'"
+          >
+            🛒 المصروفات المتغيرة ({{
+              periodVariableExpensesTotal ? formatMoney(periodVariableExpensesTotal) : '0'
+            }})
+          </button>
+        </div>
+      </div>
+
       <div class="card table-wrap">
         <table class="items-table">
           <thead>
@@ -351,7 +393,7 @@
               <td><div class="skeleton-shimmer" style="height: 18px; width: 80px"></div></td>
               <td><div class="skeleton-shimmer" style="height: 18px; width: 50px"></div></td>
             </tr>
-            <tr v-else v-for="e in expensesList" :key="e.id">
+            <tr v-else v-for="e in filteredExpensesList" :key="e.id">
               <td style="font-weight: 700">{{ e.title }}</td>
               <td>{{ e.category_name }}</td>
               <td>
@@ -385,10 +427,22 @@
               <td style="font-weight: 800; color: var(--accent)">{{ formatMoney(e.amount) }}</td>
               <td>{{ e.expense_date }}</td>
               <td class="actions">
-                <button v-permission="'expenses.edit'" type="button" class="icon-btn" @click="openExpenseEdit(e)" title="تعديل">
+                <button
+                  v-permission="'expenses.edit'"
+                  type="button"
+                  class="icon-btn"
+                  @click="openExpenseEdit(e)"
+                  title="تعديل"
+                >
                   <AppIcon name="edit" :size="16" />
                 </button>
-                <button v-permission="'expenses.delete'" type="button" class="icon-btn danger" @click="removeExpense(e)" title="حذف">
+                <button
+                  v-permission="'expenses.delete'"
+                  type="button"
+                  class="icon-btn danger"
+                  @click="removeExpense(e)"
+                  title="حذف"
+                >
                   <AppIcon name="delete" :size="16" />
                 </button>
               </td>
@@ -733,6 +787,7 @@ const savePurchaseInvoice = async () => {
 const expensesList = ref([]);
 const expenseCategories = ref([]);
 const expensesSaving = ref(false);
+const expenseTypeFilter = ref('all');
 
 const periodExpensesTotal = computed(() => {
   return expensesList.value.reduce((sum, e) => sum + Number(e.amount || 0), 0);
@@ -752,6 +807,16 @@ const periodVariableExpensesTotal = computed(() => {
 
 const periodExpensesCount = computed(() => {
   return expensesList.value.length;
+});
+
+const filteredExpensesList = computed(() => {
+  if (expenseTypeFilter.value === 'fixed') {
+    return expensesList.value.filter((e) => Boolean(e.is_fixed));
+  }
+  if (expenseTypeFilter.value === 'variable') {
+    return expensesList.value.filter((e) => !Boolean(e.is_fixed));
+  }
+  return expensesList.value;
 });
 
 const expensesFilters = ref({
@@ -782,7 +847,9 @@ const resetExpenseForm = () => {
 };
 
 const onExpenseCategoryChange = () => {
-  const cat = expenseCategories.value.find((c) => c.id === expenseForm.value.category_id);
+  const cat = expenseCategories.value.find(
+    (c) => Number(c.id) === Number(expenseForm.value.category_id),
+  );
   if (cat) {
     expenseForm.value.is_fixed = Boolean(cat.is_fixed);
   }
@@ -798,7 +865,7 @@ const openExpenseEdit = (row) => {
     id: row.id,
     title: row.title,
     category_id: row.category_id,
-    is_fixed: Boolean(row.is_fixed),
+    is_fixed: row.is_fixed === true || String(row.is_fixed) === 'true',
     amount: Number(row.amount || 0),
     expense_date: String(row.expense_date || '').slice(0, 10),
   };
@@ -849,6 +916,7 @@ const suggestExpenseCategory = async () => {
       const exists = expenseCategories.value.some((c) => c.id === res.data.category_id);
       if (exists) {
         expenseForm.value.category_id = res.data.category_id;
+        onExpenseCategoryChange();
       }
     }
   } catch (err) {
@@ -859,8 +927,13 @@ const suggestExpenseCategory = async () => {
 const saveExpense = async () => {
   expensesSaving.value = true;
   try {
-    if (expenseForm.value.id) await expensesApi.update(expenseForm.value.id, expenseForm.value);
-    else await expensesApi.create(expenseForm.value);
+    const payload = {
+      ...expenseForm.value,
+      is_fixed:
+        expenseForm.value.is_fixed === true || String(expenseForm.value.is_fixed) === 'true',
+    };
+    if (expenseForm.value.id) await expensesApi.update(expenseForm.value.id, payload);
+    else await expensesApi.create(payload);
     showExpenseForm.value = false;
     resetExpenseForm();
     await loadExpensesOnly();

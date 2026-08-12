@@ -102,7 +102,7 @@ const mainMetrics = computed(() => {
       key: 'unpaid',
       label: 'مديونيات العملاء',
       value: money(s?.unpaidInvoices?.amount),
-      sub: `${number(s?.unpaidInvoices?.count)} فاتورة آجلة`,
+      sub: `${number(s?.unpaidInvoices?.count)} عميل عليه مديونية`,
       icon: 'warning',
       tone: Number(s?.unpaidInvoices?.amount || 0) ? 'danger' : 'success',
       to: '/sales?tab=wholesale',

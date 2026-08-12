@@ -162,6 +162,9 @@ if (!process.env.VERCEL) {
   import('../scripts/migrate.js').then(async ({ runMigrations }) => {
     try {
       await runMigrations();
+      const { syncStandaloneInvoicesToWholesaleSales } =
+        await import('./services/invoiceService.js');
+      await syncStandaloneInvoicesToWholesaleSales();
     } catch (e) {
       console.error('Failed to run database migrations:', e);
       process.exit(1);

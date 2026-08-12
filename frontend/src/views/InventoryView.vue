@@ -16,9 +16,14 @@
           <option value="">كل المخازن</option>
           <option v-for="w in warehouses" :key="w.id" :value="w.id">{{ w.name_ar }}</option>
         </select>
-        <button v-permission="'inventory.edit'" v-if="tab === 'stock'" class="btn btn-outline" @click="openTransferModal">
-        🔄 تحويل جديد
-      </button>
+        <button
+          v-permission="'inventory.edit'"
+          v-if="tab === 'stock'"
+          class="btn btn-outline"
+          @click="openTransferModal"
+        >
+          🔄 تحويل جديد
+        </button>
       </div>
     </div>
 
@@ -26,6 +31,67 @@
 
     <!-- ===== STOCK TAB ===== -->
     <template v-if="tab === 'stock'">
+      <!-- Inventory Valuation Summary Cards -->
+      <div class="grid grid-3" style="margin-bottom: 16px; gap: 12px">
+        <div
+          class="card"
+          style="
+            padding: 14px;
+            background: linear-gradient(
+              135deg,
+              rgba(59, 130, 246, 0.08) 0%,
+              rgba(59, 130, 246, 0.02) 100%
+            );
+            border: 1px solid rgba(59, 130, 246, 0.2);
+          "
+        >
+          <span style="font-size: 0.8rem; font-weight: 700; color: #64748b"
+            >💵 إجمالي تقييم رصيد المخزون (بالتكلفة)</span
+          >
+          <h3 style="margin: 4px 0 0 0; font-size: 1.25rem; font-weight: 800; color: #1e3a8a">
+            {{ formatMoney(totalInventoryValue) }}
+          </h3>
+        </div>
+        <div
+          class="card"
+          style="
+            padding: 14px;
+            background: linear-gradient(
+              135deg,
+              rgba(16, 185, 129, 0.08) 0%,
+              rgba(16, 185, 129, 0.02) 100%
+            );
+            border: 1px solid rgba(16, 185, 129, 0.2);
+          "
+        >
+          <span style="font-size: 0.8rem; font-weight: 700; color: #64748b"
+            >🏢 قيمة مخزون الرئيسي</span
+          >
+          <h3 style="margin: 4px 0 0 0; font-size: 1.25rem; font-weight: 800; color: #065f46">
+            {{ formatMoney(mainWarehouseValue) }}
+          </h3>
+        </div>
+        <div
+          class="card"
+          style="
+            padding: 14px;
+            background: linear-gradient(
+              135deg,
+              rgba(245, 158, 11, 0.08) 0%,
+              rgba(245, 158, 11, 0.02) 100%
+            );
+            border: 1px solid rgba(245, 158, 11, 0.2);
+          "
+        >
+          <span style="font-size: 0.8rem; font-weight: 700; color: #64748b"
+            >🏪 قيمة مخزون الفرع / المحل</span
+          >
+          <h3 style="margin: 4px 0 0 0; font-size: 1.25rem; font-weight: 800; color: #92400e">
+            {{ formatMoney(branchWarehouseValue) }}
+          </h3>
+        </div>
+      </div>
+
       <BaseTable
         :items="items"
         :columns="stockColumns"
@@ -42,11 +108,21 @@
         <template #cell-sku="{ item }">
           <span class="mono">{{ item.sku || '—' }}</span>
         </template>
+        <template #cell-purchase_price="{ item }">
+          <span class="mono" style="font-weight: 700; color: #475569">
+            {{ formatMoney(item.purchase_price || 0) }}
+          </span>
+        </template>
         <template #cell-total_quantity="{ item }">
           <span class="qty qty-total" :class="{ 'qty-low': item.is_low }">
             <strong>{{
               fmtQty(item.total_quantity !== undefined ? item.total_quantity : item.quantity)
             }}</strong>
+          </span>
+        </template>
+        <template #cell-stock_value="{ item }">
+          <span class="mono" style="font-weight: 800; color: var(--accent, #c77a2f)">
+            {{ formatMoney(getItemStockValue(item)) }}
           </span>
         </template>
         <template #cell-main_quantity="{ item }">
@@ -86,7 +162,12 @@
           >
             ✎
           </button>
-          <button v-permission="'inventory.edit'" class="icon-btn btn-danger" title="تسجيل هالك" @click="openWastage(item)">
+          <button
+            v-permission="'inventory.edit'"
+            class="icon-btn btn-danger"
+            title="تسجيل هالك"
+            @click="openWastage(item)"
+          >
             🗑️
           </button>
         </template>
@@ -274,10 +355,46 @@
     <!-- ===== MOVEMENTS TAB ===== -->
     <template v-if="tab === 'movements'">
       <div class="card table-wrap">
-        <h3 style="margin-bottom: 14px">📋 سجل حركة المخزون</h3>
-        <BaseTable :items="movements" :columns="movementsColumns" empty-message="لا توجد حركات">
+        <div
+          style="
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 14px;
+            flex-wrap: wrap;
+            gap: 10px;
+          "
+        >
+          <h3 style="margin: 0">📋 سجل حركة المخزون</h3>
+          <div style="display: flex; align-items: center; gap: 8px">
+            <label style="font-size: 0.84rem; font-weight: 700">تصفية الحركات:</label>
+            <select
+              v-model="movementTypeFilter"
+              class="warehouse-select"
+              style="font-size: 0.85rem"
+            >
+              <option value="">كل الحركات</option>
+              <option value="transfer">🔄 التحويلات فقط</option>
+              <option value="sale">🛒 مبيعات</option>
+              <option value="purchase">📥 مشتريات</option>
+              <option value="wastage">🗑️ هالك</option>
+              <option value="adjustment">✏️ تعديل مخزون</option>
+            </select>
+          </div>
+        </div>
+
+        <BaseTable
+          :items="filteredMovements"
+          :columns="movementsColumns"
+          empty-message="لا توجد حركات"
+        >
           <template #cell-product_name="{ item }">
-            {{ item.product_name }}
+            <div style="display: flex; flex-direction: column">
+              <strong style="font-size: 0.9rem">{{ item.product_name }}</strong>
+              <small class="mono" style="color: #888" v-if="item.product_sku">{{
+                item.product_sku
+              }}</small>
+            </div>
           </template>
           <template #cell-movement_type="{ item }">
             <span :class="['move-badge', item.movement_type]">{{
@@ -299,45 +416,133 @@
           <template #cell-created_at="{ item }">
             {{ new Date(item.created_at).toLocaleString('en-GB') }}
           </template>
+          <template #cell-actions="{ item }">
+            <button
+              v-if="item.movement_type === 'transfer'"
+              class="icon-btn"
+              title="طباعة إذن التحويل المخزني"
+              @click="printTransferVoucherFromMovement(item)"
+            >
+              🖨️
+            </button>
+          </template>
         </BaseTable>
       </div>
     </template>
 
     <!-- Edit Modal -->
     <div v-if="showEdit" class="modal" @click.self="showEdit = false">
-      <div class="card modal-content">
-        <h3>✏️ تعديل المخزون</h3>
+      <div class="card modal-content" style="max-width: 550px">
+        <h3>✏️ تعديل الكميات وتوزيع المخزون</h3>
         <form @submit.prevent="saveEdit">
           <div class="form-group">
-            <label>المنتج</label><input :value="editForm.name_ar" disabled />
+            <label>اسم المنتج</label>
+            <input :value="editForm.name_ar" disabled style="font-weight: 700" />
           </div>
+
           <div class="form-group">
-            <label>المخزن</label><input :value="editForm.warehouse_name" disabled />
-          </div>
-          <div class="form-group">
-            <label>الكمية الحالية</label
-            ><input
-              v-model.number="editForm.quantity"
-              type="number"
-              min="0"
-              step="0.001"
-              required
-            />
-          </div>
-          <div class="form-group">
-            <label>الحد الأدنى</label
-            ><input
+            <label>الحد الأدنى الإجمالي للمخزون (للتنبيه)</label>
+            <input
               v-model.number="editForm.min_stock"
               type="number"
               min="0"
               step="0.001"
               required
+              placeholder="مثال: 5"
             />
           </div>
-          <div class="modal-actions">
+
+          <div class="form-group" v-if="warehouses.length" style="margin-top: 10px">
+            <div
+              style="
+                background: var(--bg-elevated, rgba(255, 255, 255, 0.03));
+                border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+                padding: 14px;
+                border-radius: 12px;
+              "
+            >
+              <label
+                style="
+                  font-weight: 800;
+                  font-size: 0.92rem;
+                  color: var(--accent, #c77a2f);
+                  margin-bottom: 4px;
+                  display: flex;
+                  align-items: center;
+                  gap: 6px;
+                "
+              >
+                📦 توزيع رصيد المخزون بالمنشأة
+              </label>
+              <small
+                style="
+                  display: block;
+                  color: var(--text-muted, #888);
+                  font-size: 0.78rem;
+                  margin-bottom: 12px;
+                "
+              >
+                حدد الكميات المتاحة في المخزن الرئيسي وفي مخزن المحل / الفرع:
+              </small>
+              <div class="grid grid-2" style="gap: 12px">
+                <div v-for="w in warehouses" :key="w.id" class="form-group" style="margin: 0">
+                  <label
+                    style="
+                      font-size: 0.82rem;
+                      font-weight: 700;
+                      display: flex;
+                      align-items: center;
+                      justify-content: space-between;
+                      margin-bottom: 4px;
+                    "
+                  >
+                    <span>{{ w.name_ar }}</span>
+                    <span
+                      v-if="
+                        w.type === 'main' ||
+                        w.code === 'MAIN' ||
+                        (w.name_ar && w.name_ar.includes('رئيسي'))
+                      "
+                      style="
+                        font-size: 0.72rem;
+                        color: #3b82f6;
+                        font-weight: 800;
+                        background: rgba(59, 130, 246, 0.1);
+                        padding: 2px 6px;
+                        border-radius: 4px;
+                      "
+                      >🏢 مخزن رئيسي</span
+                    >
+                    <span
+                      v-else
+                      style="
+                        font-size: 0.72rem;
+                        color: #10b981;
+                        font-weight: 800;
+                        background: rgba(16, 185, 129, 0.1);
+                        padding: 2px 6px;
+                        border-radius: 4px;
+                      "
+                      >🏪 مخزن المحل / الفرع</span
+                    >
+                  </label>
+                  <input
+                    v-model.number="editForm.warehouse_stocks[w.id]"
+                    type="number"
+                    min="0"
+                    step="0.001"
+                    placeholder="أدخل الكمية..."
+                    style="font-weight: 700; font-size: 1rem"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-actions" style="margin-top: 16px">
             <button type="button" class="btn btn-outline" @click="showEdit = false">إلغاء</button>
             <button type="submit" class="btn btn-primary" :disabled="savingEdit">
-              {{ savingEdit ? 'جاري الحفظ...' : 'حفظ' }}
+              {{ savingEdit ? 'جاري الحفظ...' : 'حفظ التعديلات' }}
             </button>
           </div>
         </form>
@@ -346,8 +551,27 @@
 
     <!-- Transfer Modal -->
     <div v-if="showTransfer" class="modal" @click.self="showTransfer = false">
-      <div class="card modal-content">
-        <h3>🔄 تحويل بين المخزن الرئيسي وصالة البيع (الفرع)</h3>
+      <div class="card modal-content" style="max-width: 650px">
+        <h3>🔄 تحويل بين المخازن وإذن نقل مخزني</h3>
+
+        <!-- Mode Switcher -->
+        <div class="tabs inline-tabs" style="margin-bottom: 14px">
+          <button
+            type="button"
+            :class="{ active: transferMode === 'single' }"
+            @click="transferMode = 'single'"
+          >
+            📦 تحويل صنف فردي
+          </button>
+          <button
+            type="button"
+            :class="{ active: transferMode === 'batch' }"
+            @click="transferMode = 'batch'"
+          >
+            📋 إذن تحويل متعدد البنود
+          </button>
+        </div>
+
         <div style="display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap">
           <button
             type="button"
@@ -384,96 +608,302 @@
             🔄 عكس الاتجاه
           </button>
         </div>
+
         <form @submit.prevent="doTransfer">
-          <div class="form-group">
-            <label>من مخزن (المصدر)</label>
-            <select v-model.number="transfer.from_warehouse_id" required>
-              <option v-for="w in warehouses" :key="w.id" :value="w.id">{{ w.name_ar }}</option>
-            </select>
-          </div>
+          <div class="grid grid-2" style="gap: 12px">
+            <div class="form-group">
+              <label>من مخزن (المصدر) *</label>
+              <select v-model.number="transfer.from_warehouse_id" required>
+                <option v-for="w in warehouses" :key="w.id" :value="w.id">{{ w.name_ar }}</option>
+              </select>
+            </div>
 
-          <div class="form-group">
-            <label>إلى مخزن (الوجهة)</label>
-            <select v-model.number="transfer.to_warehouse_id" required>
-              <option
-                v-for="w in warehouses"
-                :key="w.id"
-                :value="w.id"
-                :disabled="w.id === transfer.from_warehouse_id"
-              >
-                {{ w.name_ar }}
-              </option>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label>المنتج (المصدر)</label>
-            <select
-              v-model.number="transfer.product_id"
-              required
-              :disabled="loadingTransferProducts"
-            >
-              <option :value="null" disabled>
-                {{
-                  loadingTransferProducts ? 'جاري تحميل المنتجات المتاحة...' : 'اختر منتج المصدر'
-                }}
-              </option>
-              <option v-for="p in transferProducts" :key="p.product_id" :value="p.product_id">
-                {{ p.name_ar }} (المتاح: {{ fmtQty(p.quantity) }})
-              </option>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label>المنتج (الوجهة)</label>
-            <select v-model.number="transfer.to_product_id" required>
-              <option :value="null" disabled>اختر منتج الوجهة</option>
-              <option v-for="p in allProducts" :key="p.id" :value="p.id">
-                {{ p.name_ar }}
-              </option>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label>الكمية المراد تحويلها</label>
-            <input
-              v-model.number="transfer.quantity"
-              type="number"
-              min="0.001"
-              step="0.001"
-              required
-            />
-            <div
-              v-if="selectedTransferProduct"
-              style="
-                margin-top: 8px;
-                display: flex;
-                flex-direction: column;
-                gap: 6px;
-                font-size: 0.82rem;
-                font-weight: 700;
-              "
-            >
-              <small style="color: #2e7d4f; display: block">
-                ℹ️ الكمية المتوفرة حالياً في مخزن المصدر:
-                {{ fmtQty(selectedTransferProduct.quantity) }}
-              </small>
-              <small style="color: #64748b; display: block">
-                ℹ️ الكمية المتوفرة حالياً في مخزن الوجهة:
-                {{ fmtQty(selectedTransferDestProduct ? selectedTransferDestProduct.quantity : 0) }}
-              </small>
+            <div class="form-group">
+              <label>إلى مخزن (الوجهة) *</label>
+              <select v-model.number="transfer.to_warehouse_id" required>
+                <option
+                  v-for="w in warehouses"
+                  :key="w.id"
+                  :value="w.id"
+                  :disabled="w.id === transfer.from_warehouse_id"
+                >
+                  {{ w.name_ar }}
+                </option>
+              </select>
             </div>
           </div>
+
+          <!-- SINGLE ITEM MODE -->
+          <template v-if="transferMode === 'single'">
+            <div class="form-group">
+              <label>المنتج (المصدر) *</label>
+              <select
+                v-model.number="transfer.product_id"
+                required
+                :disabled="loadingTransferProducts"
+              >
+                <option :value="null" disabled>
+                  {{
+                    loadingTransferProducts ? 'جاري تحميل المنتجات المتاحة...' : 'اختر منتج المصدر'
+                  }}
+                </option>
+                <option v-for="p in transferProducts" :key="p.product_id" :value="p.product_id">
+                  {{ p.name_ar }} (المتاح: {{ fmtQty(p.quantity) }})
+                </option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>المنتج (الوجهة) *</label>
+              <select v-model.number="transfer.to_product_id" required>
+                <option :value="null" disabled>اختر منتج الوجهة</option>
+                <option v-for="p in allProducts" :key="p.id" :value="p.id">
+                  {{ p.name_ar }}
+                </option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>الكمية المراد تحويلها *</label>
+              <input
+                v-model.number="transfer.quantity"
+                type="number"
+                min="0.001"
+                step="0.001"
+                required
+              />
+              <div
+                v-if="selectedTransferProduct"
+                style="
+                  margin-top: 8px;
+                  display: flex;
+                  flex-direction: column;
+                  gap: 6px;
+                  font-size: 0.82rem;
+                  font-weight: 700;
+                "
+              >
+                <small style="color: #2e7d4f; display: block">
+                  ℹ️ الكمية المتوفرة حالياً في مخزن المصدر:
+                  {{ fmtQty(selectedTransferProduct.quantity) }}
+                </small>
+                <small style="color: #64748b; display: block">
+                  ℹ️ الكمية المتوفرة حالياً في مخزن الوجهة:
+                  {{
+                    fmtQty(selectedTransferDestProduct ? selectedTransferDestProduct.quantity : 0)
+                  }}
+                </small>
+              </div>
+            </div>
+          </template>
+
+          <!-- BATCH ITEMS MODE -->
+          <template v-else>
+            <div style="margin-top: 10px; margin-bottom: 12px">
+              <div
+                style="
+                  display: flex;
+                  justify-content: space-between;
+                  align-items: center;
+                  margin-bottom: 8px;
+                "
+              >
+                <label style="font-weight: 800; font-size: 0.9rem; color: var(--accent, #c77a2f)">
+                  📋 بنود إذن التحويل المخزني ({{ batchItems.length }})
+                </label>
+                <button type="button" class="btn btn-sm btn-outline" @click="addBatchRow">
+                  + إضافة بند للإذن
+                </button>
+              </div>
+
+              <div
+                v-for="(bItem, idx) in batchItems"
+                :key="idx"
+                style="
+                  display: flex;
+                  gap: 8px;
+                  align-items: center;
+                  background: var(--bg-elevated, rgba(255, 255, 255, 0.03));
+                  padding: 8px;
+                  border-radius: 8px;
+                  margin-bottom: 8px;
+                "
+              >
+                <div style="flex: 2">
+                  <select v-model.number="bItem.product_id" required style="font-size: 0.84rem">
+                    <option :value="null" disabled>اختر المنتج</option>
+                    <option v-for="p in transferProducts" :key="p.product_id" :value="p.product_id">
+                      {{ p.name_ar }} (المتاح: {{ fmtQty(p.quantity) }})
+                    </option>
+                  </select>
+                </div>
+                <div style="flex: 1">
+                  <input
+                    v-model.number="bItem.quantity"
+                    type="number"
+                    min="0.001"
+                    step="0.001"
+                    placeholder="الكمية..."
+                    required
+                    style="font-size: 0.84rem"
+                  />
+                </div>
+                <button
+                  type="button"
+                  class="icon-btn btn-danger"
+                  title="حذف البند"
+                  :disabled="batchItems.length <= 1"
+                  @click="removeBatchRow(idx)"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+          </template>
 
           <div class="modal-actions">
             <button type="button" class="btn btn-outline" @click="showTransfer = false">
               إلغاء
             </button>
             <button type="submit" class="btn btn-primary" :disabled="loadingTransferProducts">
-              تحويل
+              <AppIcon name="save" :size="16" /> تنفيذ وإخراج إذن التحويل
             </button>
           </div>
         </form>
+      </div>
+    </div>
+
+    <!-- Printable Transfer Voucher Document Modal -->
+    <div v-if="showVoucherModal" class="modal" @click.self="showVoucherModal = false">
+      <div class="card modal-content transfer-voucher-doc" style="max-width: 650px; padding: 24px">
+        <div
+          class="voucher-header"
+          style="
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid var(--border, #ccc);
+            padding-bottom: 12px;
+            margin-bottom: 16px;
+          "
+        >
+          <div>
+            <h2
+              style="margin: 0; font-size: 1.3rem; font-weight: 800; color: var(--accent, #c77a2f)"
+            >
+              بن العجوز ERP
+            </h2>
+            <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: #666">
+              إذن نقل وتحويل مخزني رسمي
+            </p>
+          </div>
+          <div style="text-align: left">
+            <span
+              class="badge badge-info"
+              style="font-size: 0.9rem; font-weight: 800; padding: 4px 10px"
+              >{{ currentVoucher?.transfer_number || 'TRF-VOUCHER' }}</span
+            >
+            <small style="display: block; margin-top: 4px; color: #888">{{
+              formatDateTime(currentVoucher?.created_at || Date.now())
+            }}</small>
+          </div>
+        </div>
+
+        <div
+          class="voucher-meta"
+          style="
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            background: rgba(0, 0, 0, 0.03);
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+          "
+        >
+          <div>
+            <strong style="display: block; font-size: 0.8rem; color: #666"
+              >من مخزن (المصدر):</strong
+            >
+            <span style="color: #3b82f6; font-weight: 800; font-size: 1rem">{{
+              currentVoucher?.from_warehouse_name
+            }}</span>
+          </div>
+          <div>
+            <strong style="display: block; font-size: 0.8rem; color: #666"
+              >إلى مخزن (الوجهة):</strong
+            >
+            <span style="color: #10b981; font-weight: 800; font-size: 1rem">{{
+              currentVoucher?.to_warehouse_name
+            }}</span>
+          </div>
+        </div>
+
+        <table
+          class="inv-table"
+          style="width: 100%; border-collapse: collapse; margin-bottom: 20px"
+        >
+          <thead>
+            <tr style="background: var(--bg-elevated, #f4f4f4); text-align: right">
+              <th style="padding: 8px">#</th>
+              <th style="padding: 8px">المنتج</th>
+              <th style="padding: 8px">الكود</th>
+              <th style="padding: 8px">الكمية المحولة</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="(it, idx) in currentVoucher?.items || []"
+              :key="idx"
+              style="border-bottom: 1px solid rgba(0, 0, 0, 0.05)"
+            >
+              <td style="padding: 8px">{{ idx + 1 }}</td>
+              <td style="padding: 8px; font-weight: 700">{{ it.product_name }}</td>
+              <td style="padding: 8px" class="mono">{{ it.sku || '—' }}</td>
+              <td style="padding: 8px; font-weight: 800; color: #2e7d4f">
+                {{ fmtQty(it.quantity) }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div
+          class="voucher-signatures"
+          style="
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 24px;
+            padding-top: 16px;
+            border-top: 1px dashed #ccc;
+            text-align: center;
+          "
+        >
+          <div>
+            <small style="display: block; color: #666; margin-bottom: 24px"
+              >توقيع المُسلّم (أمين مخزن المصدر)</small
+            >
+            <span>........................................</span>
+          </div>
+          <div>
+            <small style="display: block; color: #666; margin-bottom: 24px"
+              >توقيع المستلم (مسؤول مخزن الوجهة)</small
+            >
+            <span>........................................</span>
+          </div>
+        </div>
+
+        <div
+          class="modal-actions no-print"
+          style="margin-top: 24px; display: flex; justify-content: space-between"
+        >
+          <button type="button" class="btn btn-outline" @click="showVoucherModal = false">
+            إغلاق
+          </button>
+          <button type="button" class="btn btn-primary" @click="printVoucher">
+            🖨️ طباعة إذن التحويل
+          </button>
+        </div>
       </div>
     </div>
 
@@ -529,6 +959,7 @@ import { onMounted, ref, watch, computed } from 'vue';
 import { onBeforeUnmount } from 'vue';
 import { inventory as inventoryApi, products as productsApi } from '@/api';
 import BaseTable from '@/components/ui/BaseTable.vue';
+import { formatMoney } from '@/utils/currency';
 
 const tab = ref('stock');
 const items = ref([]);
@@ -551,13 +982,41 @@ const highlighted = ref({});
 const stockColumns = [
   { key: 'name_ar', label: 'المنتج' },
   { key: 'sku', label: 'الكود' },
-  { key: 'total_quantity', label: 'الإجمالي' },
+  { key: 'purchase_price', label: 'سعر الشراء' },
+  { key: 'total_quantity', label: 'إجمالي الكمية' },
+  { key: 'stock_value', label: 'قيمة المخزون' },
   { key: 'main_quantity', label: 'المخزن الرئيسي' },
   { key: 'branch_quantity', label: 'مخزن الفرع' },
   { key: 'min_stock', label: 'الحد الأدنى' },
   { key: 'status', label: 'الحالة' },
   { key: 'actions', label: '', align: 'right' },
 ];
+
+const getItemStockValue = (item) => {
+  const qty = Number(item.total_quantity !== undefined ? item.total_quantity : item.quantity || 0);
+  const cost = Number(item.purchase_price || 0);
+  return qty * cost;
+};
+
+const totalInventoryValue = computed(() => {
+  return items.value.reduce((sum, i) => sum + getItemStockValue(i), 0);
+});
+
+const mainWarehouseValue = computed(() => {
+  return items.value.reduce((sum, i) => {
+    const qty = Number(getMainQty(i) || 0);
+    const cost = Number(i.purchase_price || 0);
+    return sum + qty * cost;
+  }, 0);
+});
+
+const branchWarehouseValue = computed(() => {
+  return items.value.reduce((sum, i) => {
+    const qty = Number(getBranchQty(i) || 0);
+    const cost = Number(i.purchase_price || 0);
+    return sum + qty * cost;
+  }, 0);
+});
 
 const getMainQty = (item) => {
   if (item.main_quantity !== undefined && item.main_quantity !== null) return item.main_quantity;
@@ -592,16 +1051,15 @@ const movementsColumns = [
   { key: 'to_warehouse', label: 'إلى' },
   { key: 'user_name', label: 'بواسطة' },
   { key: 'created_at', label: 'التاريخ' },
+  { key: 'actions', label: 'إذن', align: 'right' },
 ];
 
 const editForm = ref({
   id: null,
   product_id: null,
-  warehouse_id: null,
   name_ar: '',
-  warehouse_name: '',
-  quantity: 0,
   min_stock: 0,
+  warehouse_stocks: {},
 });
 const wastageForm = ref({
   product_id: null,
@@ -619,6 +1077,17 @@ const transfer = ref({
   quantity: 1,
 });
 
+const transferMode = ref('single'); // 'single' | 'batch'
+const batchItems = ref([{ product_id: null, to_product_id: null, quantity: 1, notes: '' }]);
+const showVoucherModal = ref(false);
+const currentVoucher = ref(null);
+const movementTypeFilter = ref('');
+
+const filteredMovements = computed(() => {
+  if (!movementTypeFilter.value) return movements.value;
+  return movements.value.filter((m) => m.movement_type === movementTypeFilter.value);
+});
+
 const transferProducts = ref([]);
 const transferDestProducts = ref([]);
 const allProducts = ref([]);
@@ -630,33 +1099,72 @@ const selectedTransferProduct = computed(() => {
 
 const selectedTransferDestProduct = computed(() => {
   if (!transfer.value.to_product_id) return null;
-  return (
-    transferDestProducts.value.find((p) => p.product_id === transfer.value.to_product_id) || {
-      quantity: 0,
-    }
-  );
+  const targetId = Number(transfer.value.to_product_id);
+  const found = transferDestProducts.value.find((p) => Number(p.product_id || p.id) === targetId);
+  return found || { quantity: 0 };
 });
+
+const loadAllProducts = async () => {
+  try {
+    const res = await productsApi.list({ limit: 1000 });
+    allProducts.value = (res.data || []).filter(
+      (p) => p.is_active !== false && !p.has_active_recipe,
+    );
+  } catch (e) {
+    console.error('Error loading products list:', e);
+  }
+};
 
 const loadTransferProducts = async () => {
   if (!showTransfer.value) return; // Guard: only load when modal is open
   const fromWhId = transfer.value.from_warehouse_id;
-  if (!fromWhId) {
-    transferProducts.value = [];
-    return;
-  }
   loadingTransferProducts.value = true;
   try {
-    const res = await inventoryApi.list({ warehouse_id: fromWhId });
-    transferProducts.value = (res.data || []).filter((item) => Number(item.quantity) > 0);
+    if (!allProducts.value.length) {
+      await loadAllProducts();
+    }
+    const invMap = new Map();
+    if (fromWhId) {
+      const res = await inventoryApi.list({ warehouse_id: fromWhId });
+      (res.data || []).forEach((inv) => {
+        invMap.set(Number(inv.product_id), Number(inv.quantity || 0));
+      });
+    }
+
+    transferProducts.value = allProducts.value.map((prod) => {
+      let qty = 0;
+      if (invMap.has(prod.id)) {
+        qty = invMap.get(prod.id);
+      } else if (prod.warehouse_breakdown && Array.isArray(prod.warehouse_breakdown)) {
+        const wh = prod.warehouse_breakdown.find(
+          (w) => Number(w.warehouse_id) === Number(fromWhId),
+        );
+        if (wh) qty = Number(wh.quantity || 0);
+      }
+      return {
+        product_id: prod.id,
+        id: prod.id,
+        name_ar: prod.name_ar,
+        sku: prod.sku,
+        quantity: qty,
+      };
+    });
   } catch (e) {
     console.error('Error loading transfer products:', e);
+    transferProducts.value = allProducts.value.map((prod) => ({
+      product_id: prod.id,
+      id: prod.id,
+      name_ar: prod.name_ar,
+      sku: prod.sku,
+      quantity: 0,
+    }));
   } finally {
     loadingTransferProducts.value = false;
   }
 };
 
 const loadTransferDestProducts = async () => {
-  if (!showTransfer.value) return; // Guard: only load when modal is open
+  if (!showTransfer.value) return;
   const toWhId = transfer.value.to_warehouse_id;
   if (!toWhId) {
     transferDestProducts.value = [];
@@ -699,15 +1207,6 @@ watch(
     transfer.value.to_product_id = newVal;
   },
 );
-
-const loadAllProducts = async () => {
-  try {
-    const res = await productsApi.list({ limit: 1000 });
-    allProducts.value = (res.data || []).filter((p) => p.is_active && !p.has_active_recipe);
-  } catch (e) {
-    console.error('Error loading products list:', e);
-  }
-};
 
 const swapTransferDirection = () => {
   const temp = transfer.value.from_warehouse_id;
@@ -839,15 +1338,43 @@ const onInventoryUpdated = (ev) => {
 onMounted(() => window.addEventListener('inventory-updated', onInventoryUpdated));
 onBeforeUnmount(() => window.removeEventListener('inventory-updated', onInventoryUpdated));
 
-const openEdit = (row) => {
+const openEdit = async (row) => {
+  if (!warehouses.value.length) {
+    try {
+      const wh = await inventoryApi.warehouses();
+      warehouses.value = wh.data || [];
+    } catch (e) {
+      console.error('Failed to load warehouses:', e);
+    }
+  }
+
+  const stocksObj = {};
+  warehouses.value.forEach((w) => {
+    stocksObj[w.id] = 0;
+  });
+
+  const breakdownList = Array.isArray(row.warehouse_breakdown)
+    ? row.warehouse_breakdown
+    : typeof row.warehouse_breakdown === 'string'
+      ? JSON.parse(row.warehouse_breakdown)
+      : [];
+
+  if (breakdownList.length > 0) {
+    breakdownList.forEach((wb) => {
+      if (wb.warehouse_id) {
+        stocksObj[wb.warehouse_id] = Number(wb.quantity || 0);
+      }
+    });
+  } else if (row.warehouse_id) {
+    stocksObj[row.warehouse_id] = Number(row.quantity || 0);
+  }
+
   editForm.value = {
     id: row.id,
     product_id: row.product_id,
-    warehouse_id: row.warehouse_id,
     name_ar: row.name_ar,
-    warehouse_name: row.warehouse_name,
-    quantity: Number(row.quantity || 0),
     min_stock: Number(row.min_stock || 0),
+    warehouse_stocks: stocksObj,
   };
   showEdit.value = true;
 };
@@ -858,23 +1385,28 @@ const isHighlighted = (row) => {
 };
 
 const saveEdit = async () => {
-  const quantity = Number(editForm.value.quantity);
   const min_stock = Number(editForm.value.min_stock);
-  if (isNaN(quantity) || quantity < 0) {
-    setMsg('أدخل كمية صحيحة.', true);
+  if (isNaN(min_stock) || min_stock < 0) {
+    setMsg('أدخل حد أدنى صحيح للمخزون.', true);
     return;
   }
   savingEdit.value = true;
   try {
-    await inventoryApi.adjust({
-      product_id: editForm.value.product_id,
-      warehouse_id: editForm.value.warehouse_id,
-      quantity,
-      min_stock,
-      notes: 'تعديل يدوي من شاشة المخزون',
-    });
+    const whEntries = Object.entries(editForm.value.warehouse_stocks || {});
+    for (let i = 0; i < whEntries.length; i++) {
+      const [whIdStr, qtyVal] = whEntries[i];
+      const whId = Number(whIdStr);
+      const targetQty = Number(qtyVal || 0);
+      await inventoryApi.adjust({
+        product_id: editForm.value.product_id,
+        warehouse_id: whId,
+        quantity: targetQty,
+        min_stock: i === 0 ? min_stock : undefined,
+        notes: 'تعديل يدوي من شاشة المخزون',
+      });
+    }
     showEdit.value = false;
-    setMsg(`تم حفظ تعديل ${editForm.value.name_ar} بنجاح.`);
+    setMsg(`تم حفظ تعديل مخزون ${editForm.value.name_ar} بنجاح.`);
     await load();
   } catch (e) {
     setMsg(e.message || 'فشل حفظ التعديل.', true);
@@ -921,27 +1453,128 @@ const saveWastage = async () => {
   }
 };
 
+const addBatchRow = () => {
+  batchItems.value.push({ product_id: null, to_product_id: null, quantity: 1, notes: '' });
+};
+
+const removeBatchRow = (idx) => {
+  if (batchItems.value.length > 1) {
+    batchItems.value.splice(idx, 1);
+  }
+};
+
+const printVoucher = () => {
+  window.print();
+};
+
+const printTransferVoucherFromMovement = (item) => {
+  const matchCode = item.notes?.match(/TRF-\d{4}-\d+/);
+  const code = matchCode ? matchCode[0] : `TRF-${item.id}`;
+  currentVoucher.value = {
+    transfer_number: code,
+    from_warehouse_name: item.from_warehouse || 'المخزن المصدر',
+    to_warehouse_name: item.to_warehouse || 'مخزن الوجهة',
+    created_at: item.created_at,
+    items: [
+      {
+        product_name: item.product_name,
+        sku: item.product_sku || '',
+        quantity: item.quantity,
+      },
+    ],
+  };
+  showVoucherModal.value = true;
+};
+
 const doTransfer = async () => {
-  const selectedProd = selectedTransferProduct.value;
-  if (!selectedProd) {
-    setMsg('يرجى اختيار منتج المصدر أولاً.', true);
+  if (!transfer.value.from_warehouse_id || !transfer.value.to_warehouse_id) {
+    setMsg('يرجى تحديد المخزن المصدر والوجهة.', true);
+    return;
+  }
+  if (transfer.value.from_warehouse_id === transfer.value.to_warehouse_id) {
+    setMsg('لا يمكن التحويل لنفس المخزن.', true);
     return;
   }
 
-  if (!transfer.value.to_product_id) {
-    setMsg('يرجى اختيار منتج الوجهة.', true);
-    return;
-  }
+  let payload = {};
 
-  if (transfer.value.quantity > Number(selectedProd.quantity)) {
-    setMsg('الكمية المراد تحويلها أكبر من الكمية المتوفرة في المخزن المحدد.', true);
-    return;
+  if (transferMode.value === 'single') {
+    const selectedProd = selectedTransferProduct.value;
+    if (!selectedProd) {
+      setMsg('يرجى اختيار منتج المصدر أولاً.', true);
+      return;
+    }
+    if (!transfer.value.to_product_id) {
+      setMsg('يرجى اختيار منتج الوجهة.', true);
+      return;
+    }
+    if (transfer.value.quantity > Number(selectedProd.quantity)) {
+      setMsg('الكمية المراد تحويلها أكبر من الكمية المتوفرة في المخزن المحدد.', true);
+      return;
+    }
+    payload = {
+      from_warehouse_id: transfer.value.from_warehouse_id,
+      to_warehouse_id: transfer.value.to_warehouse_id,
+      product_id: transfer.value.product_id,
+      to_product_id: transfer.value.to_product_id,
+      quantity: transfer.value.quantity,
+      notes: 'تحويل يدوي بين المخازن',
+    };
+  } else {
+    // Batch Mode
+    const validItems = batchItems.value.filter((it) => it.product_id && Number(it.quantity) > 0);
+    if (!validItems.length) {
+      setMsg('يرجى تحديد منتج واحد على الأقل بكمية صحيحة.', true);
+      return;
+    }
+    payload = {
+      from_warehouse_id: transfer.value.from_warehouse_id,
+      to_warehouse_id: transfer.value.to_warehouse_id,
+      items: validItems.map((it) => ({
+        product_id: it.product_id,
+        to_product_id: it.to_product_id || it.product_id,
+        quantity: Number(it.quantity),
+        notes: it.notes || '',
+      })),
+    };
   }
 
   try {
-    await inventoryApi.transfer(transfer.value);
+    const res = await inventoryApi.transfer(payload);
+    const fromW = warehouses.value.find((w) => w.id === transfer.value.from_warehouse_id);
+    const toW = warehouses.value.find((w) => w.id === transfer.value.to_warehouse_id);
+
+    const voucherItems =
+      transferMode.value === 'single'
+        ? [
+            {
+              product_name: selectedTransferProduct.value?.name_ar || 'منتج',
+              sku: selectedTransferProduct.value?.sku || '',
+              quantity: transfer.value.quantity,
+            },
+          ]
+        : payload.items.map((it) => {
+            const p =
+              transferProducts.value.find((x) => x.product_id === it.product_id) ||
+              allProducts.value.find((x) => x.id === it.product_id);
+            return {
+              product_name: p?.name_ar || `منتج ${it.product_id}`,
+              sku: p?.sku || '',
+              quantity: it.quantity,
+            };
+          });
+
+    currentVoucher.value = {
+      transfer_number: res?.data?.transfer_number || res?.transfer_number || `TRF-${Date.now()}`,
+      from_warehouse_name: fromW?.name_ar || 'المخزن المصدر',
+      to_warehouse_name: toW?.name_ar || 'مخزن الوجهة',
+      created_at: res?.data?.created_at || new Date().toISOString(),
+      items: voucherItems,
+    };
+
     showTransfer.value = false;
-    setMsg('تم التحويل بنجاح.');
+    showVoucherModal.value = true;
+    setMsg('تم تنفيذ إذن التحويل بنجاح.');
     await load();
   } catch (e) {
     setMsg(e.message || 'فشل تحويل المخزون.', true);

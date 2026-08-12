@@ -37,7 +37,7 @@ export const createExpense = async (data, userId) => {
   }
   const resSeq = await query(`SELECT nextval('seq_expenses_number') AS next_val`);
   const num = `EXP-${resSeq.rows[0].next_val}`;
-  const isFixed = data.is_fixed !== undefined ? Boolean(data.is_fixed) : false;
+  const isFixed = data.is_fixed === true || String(data.is_fixed) === 'true';
   const result = await query(
     `INSERT INTO expenses (expense_number, category_id, title, amount, expense_date, payment_method, recurring, is_fixed, notes, user_id)
      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
@@ -66,6 +66,11 @@ export const updateExpense = async (id, data) => {
       throw new AppError('مبلغ المصروف يجب أن يكون رقماً موجباً أكبر من الصفر');
     }
   }
+  const isFixed =
+    data.is_fixed !== undefined && data.is_fixed !== null
+      ? data.is_fixed === true || String(data.is_fixed) === 'true'
+      : null;
+
   const result = await query(
     `UPDATE expenses
      SET category_id = COALESCE($1, category_id),
@@ -74,7 +79,7 @@ export const updateExpense = async (id, data) => {
          expense_date = COALESCE($4, expense_date),
          payment_method = COALESCE($5, payment_method),
          recurring = COALESCE($6, recurring),
-         is_fixed = COALESCE($7, is_fixed),
+         is_fixed = CASE WHEN $7::boolean IS NOT NULL THEN $7::boolean ELSE is_fixed END,
          notes = COALESCE($8, notes)
      WHERE id = $9 AND deleted_at IS NULL
      RETURNING *`,
@@ -85,7 +90,7 @@ export const updateExpense = async (id, data) => {
       data.expense_date,
       data.payment_method,
       data.recurring,
-      data.is_fixed,
+      isFixed,
       data.notes,
       id,
     ],

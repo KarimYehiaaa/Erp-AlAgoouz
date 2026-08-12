@@ -2,6 +2,7 @@ import { getClient, query, withTransaction } from '../database/pool.js';
 import { AppError } from '../types/errors.js';
 import { recalculateCustomerBalance } from './customerBalanceService.js';
 import { sanitizeLimit } from '../utils/money.js';
+import { invalidateDashboardCache } from './dashboardService.js';
 
 const generateCustomerCode = async () => {
   const res = await query(
@@ -226,7 +227,7 @@ export const recordPayment = async (customerId, data) => {
          s.id,
          s.sale_number AS entry_number,
          s.total_amount,
-         COALESCE((SELECT SUM(amount) FROM payments WHERE reference_type = 'sale' AND reference_id = s.id), 0) AS paid_amount,
+         COALESCE((SELECT SUM(amount) FROM payments WHERE (reference_type = 'sale' AND reference_id = s.id) OR (reference_type = 'invoice' AND reference_id = (SELECT id FROM invoices WHERE sale_id = s.id LIMIT 1))), 0) AS paid_amount,
          COALESCE(s.sale_date, DATE(s.created_at)) AS entry_date,
          s.created_at
        FROM sales s
@@ -323,6 +324,10 @@ export const recordPayment = async (customerId, data) => {
           newStatus,
           debt.id,
         ]);
+        await client.query(
+          `UPDATE sales SET payment_status = $1 WHERE id = (SELECT sale_id FROM invoices WHERE id = $2)`,
+          [newStatus, debt.id],
+        );
       }
 
       allocations.push({
@@ -348,6 +353,7 @@ export const recordPayment = async (customerId, data) => {
     );
 
     await client.query('COMMIT');
+    invalidateDashboardCache();
     return { success: true, amount, customer_name: customer.name_ar, allocations };
   } catch (err) {
     await client.query('ROLLBACK');
@@ -374,7 +380,7 @@ export const recordSalePayment = async (saleId, data) => {
 
     const paidSoFar = (
       await client.query(
-        `SELECT COALESCE(SUM(amount),0) as total FROM payments WHERE reference_type='sale' AND reference_id=$1`,
+        `SELECT COALESCE(SUM(amount),0) as total FROM payments WHERE (reference_type='sale' AND reference_id=$1) OR (reference_type='invoice' AND reference_id = (SELECT id FROM invoices WHERE sale_id = $1 LIMIT 1))`,
         [saleId],
       )
     ).rows[0].total;
@@ -401,7 +407,10 @@ export const recordSalePayment = async (saleId, data) => {
     const newPaid = Number(paidSoFar) + amount;
     const newStatus = newPaid >= Number(sale.total_amount) - 0.01 ? 'paid' : 'partial';
     await client.query(`UPDATE sales SET payment_status=$1 WHERE id=$2`, [newStatus, saleId]);
-    await client.query(`UPDATE invoices SET payment_status=$1 WHERE sale_id=$2`, [newStatus, saleId]);
+    await client.query(`UPDATE invoices SET payment_status=$1 WHERE sale_id=$2`, [
+      newStatus,
+      saleId,
+    ]);
 
     if (sale.customer_id) {
       await recalculateCustomerBalance(client, sale.customer_id);
@@ -450,10 +459,10 @@ export const getCustomerStatement = async (id) => {
        s.created_at,
        COALESCE(
          (SELECT SUM(amount) FROM payments
-          WHERE reference_type = 'sale' AND reference_id = s.id), 0
+          WHERE (reference_type = 'sale' AND reference_id = s.id) OR (reference_type = 'invoice' AND reference_id = (SELECT id FROM invoices WHERE sale_id = s.id LIMIT 1))), 0
        ) AS paid_amount,
        (SELECT payment_method FROM payments
-        WHERE reference_type = 'sale' AND reference_id = s.id
+        WHERE (reference_type = 'sale' AND reference_id = s.id) OR (reference_type = 'invoice' AND reference_id = (SELECT id FROM invoices WHERE sale_id = s.id LIMIT 1))
         ORDER BY created_at DESC LIMIT 1) AS payment_method
       FROM sales s
       WHERE s.customer_id = $1

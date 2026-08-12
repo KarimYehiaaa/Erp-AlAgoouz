@@ -1,16 +1,16 @@
-import { BaseRepository } from "./base.repository.js";
-import { query } from "../database/pool.js";
-import { sanitizeLimit } from "../utils/money.js";
-import { AppError } from "../types/errors.js";
+import { BaseRepository } from './base.repository.js';
+import { query } from '../database/pool.js';
+import { sanitizeLimit } from '../utils/money.js';
+import { AppError } from '../types/errors.js';
 class InvoicesRepository extends BaseRepository {
-  tableName = "invoices";
+  tableName = 'invoices';
   /**
    * Fetches invoices list.
    */
   async getInvoicesList(filters = {}) {
     let sql = `SELECT i.*, c.name_ar as customer_name, s.sale_number
       FROM invoices i LEFT JOIN customers c ON i.customer_id = c.id
-      LEFT JOIN sales s ON i.sale_id = s.id WHERE i.deleted_at IS NULL AND i.sale_id IS NULL`;
+      LEFT JOIN sales s ON i.sale_id = s.id WHERE i.deleted_at IS NULL`;
     const params = [];
     let idx = 1;
     if (filters.payment_status) {
@@ -45,19 +45,21 @@ class InvoicesRepository extends BaseRepository {
        LEFT JOIN customers c ON i.customer_id = c.id
        LEFT JOIN sales s ON i.sale_id = s.id
        LEFT JOIN users u ON i.user_id = u.id
-       WHERE i.id = $1 AND i.deleted_at IS NULL`,
-      [id]
+       WHERE (i.id = $1 OR i.sale_id = $1) AND i.deleted_at IS NULL
+       ORDER BY (CASE WHEN i.id = $1 THEN 1 ELSE 2 END) LIMIT 1`,
+      [id],
     );
-    if (!result.rows[0]) throw new AppError("\u0627\u0644\u0641\u0627\u062A\u0648\u0631\u0629 \u063A\u064A\u0631 \u0645\u0648\u062C\u0648\u062F\u0629", 404);
+    if (!result.rows[0])
+      throw new AppError(
+        '\u0627\u0644\u0641\u0627\u062A\u0648\u0631\u0629 \u063A\u064A\u0631 \u0645\u0648\u062C\u0648\u062F\u0629',
+        404,
+      );
     const settings = await query(`SELECT key, value FROM settings WHERE key IN ('company', 'tax')`);
-    const company = settings.rows.find((r) => r.key === "company")?.value || {};
-    const tax = settings.rows.find((r) => r.key === "tax")?.value || { rate: 14 };
+    const company = settings.rows.find((r) => r.key === 'company')?.value || {};
+    const tax = settings.rows.find((r) => r.key === 'tax')?.value || { rate: 14 };
     const inv = result.rows[0];
     return { ...inv, company, tax_settings: tax };
   }
 }
 const invoicesRepository = new InvoicesRepository();
-export {
-  InvoicesRepository,
-  invoicesRepository
-};
+export { InvoicesRepository, invoicesRepository };

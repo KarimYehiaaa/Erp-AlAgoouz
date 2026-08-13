@@ -18,13 +18,14 @@ export const recalculateCustomerBalance = async (db = query, customerId) => {
         SELECT
           CASE
             WHEN s.status = 'returned' THEN 0
+            WHEN s.payment_status = 'paid' THEN 0
             ELSE
-              COALESCE(s.total_amount, 0) - COALESCE((
+              GREATEST(0, COALESCE(s.total_amount, 0) - COALESCE((
                 SELECT SUM(amount)
                 FROM payments p
                 WHERE (p.reference_type = 'sale' AND p.reference_id = s.id)
                    OR (p.reference_type = 'invoice' AND p.reference_id = (SELECT id FROM invoices WHERE sale_id = s.id LIMIT 1))
-              ), 0)
+              ), 0))
           END AS outstanding
         FROM sales s
         WHERE s.customer_id = $1
@@ -35,12 +36,16 @@ export const recalculateCustomerBalance = async (db = query, customerId) => {
         UNION ALL
 
         SELECT
-          COALESCE(i.total_amount, 0) - COALESCE((
-            SELECT SUM(amount)
-            FROM payments p
-            WHERE p.reference_type = 'invoice'
-              AND p.reference_id = i.id
-          ), 0) AS outstanding
+          CASE
+            WHEN i.payment_status = 'paid' THEN 0
+            ELSE
+              GREATEST(0, COALESCE(i.total_amount, 0) - COALESCE((
+                SELECT SUM(amount)
+                FROM payments p
+                WHERE p.reference_type = 'invoice'
+                  AND p.reference_id = i.id
+              ), 0))
+          END AS outstanding
         FROM invoices i
         WHERE i.customer_id = $1
           AND i.sale_id IS NULL
@@ -53,13 +58,14 @@ export const recalculateCustomerBalance = async (db = query, customerId) => {
         SELECT
           CASE
             WHEN s.status = 'returned' THEN 0
+            WHEN s.payment_status = 'paid' THEN 0
             ELSE
-              COALESCE(s.total_amount, 0) - COALESCE((
+              GREATEST(0, COALESCE(s.total_amount, 0) - COALESCE((
                 SELECT SUM(amount)
                 FROM payments p
                 WHERE (p.reference_type = 'sale' AND p.reference_id = s.id)
                    OR (p.reference_type = 'invoice' AND p.reference_id = (SELECT id FROM invoices WHERE sale_id = s.id LIMIT 1))
-              ), 0)
+              ), 0))
           END AS outstanding
         FROM sales s
         WHERE s.customer_id = $1
@@ -70,12 +76,16 @@ export const recalculateCustomerBalance = async (db = query, customerId) => {
         UNION ALL
 
         SELECT
-          COALESCE(i.total_amount, 0) - COALESCE((
-            SELECT SUM(amount)
-            FROM payments p
-            WHERE p.reference_type = 'invoice'
-              AND p.reference_id = i.id
-          ), 0) AS outstanding
+          CASE
+            WHEN i.payment_status = 'paid' THEN 0
+            ELSE
+              GREATEST(0, COALESCE(i.total_amount, 0) - COALESCE((
+                SELECT SUM(amount)
+                FROM payments p
+                WHERE p.reference_type = 'invoice'
+                  AND p.reference_id = i.id
+              ), 0))
+          END AS outstanding
         FROM invoices i
         WHERE i.customer_id = $1
           AND i.sale_id IS NULL

@@ -1,33 +1,37 @@
-@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&family=Outfit:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@400;700&family=Cairo:wght@300;400;500;600;700;800&family=Outfit:wght@300;400;500;600;700;800&display=swap');
 
 :root {
   /* ── Typography ── */
-  --font-ui: 'Cairo', 'Outfit', "Segoe UI", Tahoma, Arial, sans-serif;
+  --font-ui: 'Cairo', 'Outfit', 'Segoe UI', Tahoma, Arial, sans-serif;
+  --font-calligraphy: 'Aref Ruqaa', serif;
 
-  /* ── Core Backgrounds ── */
-  --bg: #F7F3EE;
-  --bg-elevated: #FFFFFF;
-  --bg-card: #FFFFFF;
-  --bg-soft: #F0E8DE;
-  
+  /* ── Core Backgrounds (Warm Latte & Premium Roast) ── */
+  --bg: #fdf8f3;
+  --bg-elevated: #ffffff;
+  --bg-card: #ffffff;
+  --bg-soft: #faf3eb;
+
   /* ── Surfaces ── */
-  --surface-1: #FFFFFF;
-  --surface-2: #FAF7F2;
-  --surface-3: #F0E8DE;
+  --surface-1: #ffffff;
+  --surface-2: #f8f2eb;
+  --surface-3: #f3eae0;
 
   /* ── Text Colors ── */
-  --text: #1C1410;
-  --text-strong: #110B08;
-  --text-muted: #7C6B5D;
+  --text: #2c1810;
+  --text-strong: #1a0d08;
+  --text-muted: #8a786a;
 
-  /* ── Primary & Accent Colors ── */
-  --primary: #8B5E3C;
-  --primary-strong: #7A4E30;
-  --primary-dark: #4A3F37;
-  --primary-soft: #D5C8BB;
-  --accent: #B07D4F;
-  --accent-soft: rgba(176, 125, 79, 0.12);
-  --focus-ring: rgba(176, 125, 79, 0.25);
+  /* ── Primary & Accent Colors (Espresso & Gold) ── */
+  --primary: #8a572a;
+  --primary-strong: #6e411b;
+  --primary-dark: #4a2b12;
+  --primary-soft: #e6d4c3;
+  --accent: #c8956e;
+  --accent-dark: #a0734d;
+  --accent-light: #e8cbaf;
+  --accent-soft: rgba(200, 149, 110, 0.14);
+  --accent-glow: rgba(200, 149, 110, 0.2);
+  --focus-ring: rgba(200, 149, 110, 0.28);
 
   /* ── Semantic Colors ── */
   --success: #15803d;
@@ -36,8 +40,8 @@
   --info: #0369a1;
 
   /* ── Borders ── */
-  --border: #E6D9CC;
-  --border-strong: #C5B8AA;
+  --border: #ede5da;
+  --border-strong: #d9cbba;
 
   /* ── Layout Measurements ── */
   --sidebar-width: 280px;
@@ -48,10 +52,10 @@
   /* ── Border Radii ── */
   --radius-xs: 6px;
   --radius-sm: 8px;
-  --radius-md: 10px;
-  --radius-lg: 10px;
-  --radius-xl: 14px;
-  --radius: var(--radius-sm);
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 22px;
+  --radius: var(--radius-md);
 
   /* ── Spacing ── */
   --space-1: 4px;
@@ -62,40 +66,39 @@
   --space-6: 24px;
   --space-7: 32px;
 
-  /* ── Shadows ── */
-  --shadow-xs: 0 1px 2px rgba(44, 24, 16, 0.05);
-  --shadow-sm: 0 8px 20px rgba(44, 24, 16, 0.08);
-  --shadow-md: 0 16px 34px rgba(44, 24, 16, 0.12);
-  --shadow-lg: 0 24px 54px rgba(44, 24, 16, 0.16);
+  /* ── Warm Shadows ── */
+  --shadow-xs: 0 1px 3px rgba(44, 24, 16, 0.04);
+  --shadow-sm: 0 4px 14px rgba(44, 24, 16, 0.06);
+  --shadow-md: 0 10px 28px rgba(44, 24, 16, 0.09);
+  --shadow-lg: 0 20px 48px rgba(44, 24, 16, 0.13);
 
-  /* ── Sidebar (Espresso Dark Palette) ── */
-  --sidebar-bg: #160B04;
-  --sidebar-surface: #2C1810;
-  --sidebar-text: #F7F3EE;
-  --sidebar-muted: #B07D4F;
+  /* ── Sidebar (Warm Dark Roast Palette) ── */
+  --sidebar-bg: linear-gradient(165deg, #2a170e 0%, #3d2214 45%, #56331e 100%);
+  --sidebar-surface: #3d2214;
+  --sidebar-text: #fdf8f3;
+  --sidebar-muted: #c8956e;
+  --sidebar-active-bg: linear-gradient(135deg, #c8956e 0%, #a0734d 100%);
 
   /* ── Glassmorphism & App Gradients ── */
-  --glass-bg: rgba(255, 255, 255, 0.92);
-  --glass-border: rgba(230, 217, 204, 0.75);
-  --glass-blur: blur(16px);
-  
+  --glass-bg: rgba(253, 248, 243, 0.88);
+  --glass-border: rgba(237, 229, 218, 0.85);
+  --glass-blur: blur(18px);
+
   --app-bg:
-    radial-gradient(circle at 12% 8%, color-mix(in srgb, var(--primary) 6%, transparent), transparent 28rem),
-    radial-gradient(circle at 86% 0%, color-mix(in srgb, var(--accent) 5%, transparent), transparent 24rem),
-    var(--bg);
-    
-  --card-bg: linear-gradient(180deg, color-mix(in srgb, #fff 74%, transparent), color-mix(in srgb, var(--surface-2) 82%, transparent));
-  --card-border: color-mix(in srgb, var(--border) 82%, transparent);
-  
+    radial-gradient(circle at 12% 8%, rgba(200, 149, 110, 0.08), transparent 30rem),
+    radial-gradient(circle at 86% 0%, rgba(138, 87, 42, 0.06), transparent 26rem), var(--bg);
+
+  --card-bg: #ffffff;
+  --card-border: var(--border);
+
   --header-bg:
-    linear-gradient(135deg, color-mix(in srgb, var(--primary) 8%, transparent), transparent 52%),
-    linear-gradient(225deg, color-mix(in srgb, var(--accent) 6%, transparent), transparent 48%),
-    var(--bg-elevated);
-    
+    linear-gradient(135deg, rgba(200, 149, 110, 0.07), transparent 52%),
+    linear-gradient(225deg, rgba(138, 87, 42, 0.05), transparent 48%), var(--bg-elevated);
+
   --metric-bg:
-    linear-gradient(180deg, color-mix(in srgb, var(--surface-3) 55%, transparent), transparent 74%),
-    var(--bg-elevated);
+    linear-gradient(180deg, rgba(250, 243, 235, 0.6), transparent 74%), var(--bg-elevated);
 
   /* ── Transitions ── */
-  --transition: 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  --transition: 220ms cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-spring: 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }

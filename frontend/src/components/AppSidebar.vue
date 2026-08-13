@@ -188,14 +188,14 @@ const menuGroups = computed(() => {
 }
 
 .brand-name {
-  color: #fff;
-  font-size: 1rem;
-  font-weight: 900;
+  color: #f5e6d0;
+  font-size: 1.05rem;
+  font-weight: 800;
   line-height: 1.2;
 }
 
 .brand-sub {
-  color: var(--sidebar-muted);
+  color: var(--accent);
   font-size: 0.72rem;
   white-space: nowrap;
 }
@@ -212,9 +212,10 @@ const menuGroups = computed(() => {
 
 .group-label {
   padding: 10px 8px 6px;
-  color: var(--sidebar-muted);
+  color: rgba(245, 230, 208, 0.55);
   font-size: 0.72rem;
-  font-weight: 900;
+  font-weight: 800;
+  letter-spacing: 0.3px;
 }
 
 .nav-item {
@@ -225,7 +226,7 @@ const menuGroups = computed(() => {
   min-height: 42px;
   padding: 9px 10px;
   border-radius: var(--radius-md);
-  color: var(--sidebar-text);
+  color: rgba(253, 248, 243, 0.82);
   overflow: hidden;
   white-space: nowrap;
   isolation: isolate;
@@ -241,11 +242,7 @@ const menuGroups = computed(() => {
     inset: 0;
     opacity: 0;
     z-index: -1;
-    background: radial-gradient(
-      circle at center,
-      color-mix(in srgb, var(--accent) 30%, transparent),
-      transparent 75%
-    );
+    background: radial-gradient(circle at center, rgba(200, 149, 110, 0.25), transparent 75%);
     transform: scale(0.6);
     transition:
       opacity 280ms cubic-bezier(0.4, 0, 0.2, 1),
@@ -253,7 +250,7 @@ const menuGroups = computed(() => {
   }
 
   &:hover {
-    background: rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.09);
     color: #fff;
     transform: translateX(-3px);
 
@@ -264,21 +261,17 @@ const menuGroups = computed(() => {
   }
 
   &.active {
-    background: linear-gradient(
-      90deg,
-      color-mix(in srgb, var(--accent) 7%, transparent) 0%,
-      var(--sidebar-surface) 100%
-    );
+    background: linear-gradient(135deg, rgba(200, 149, 110, 0.22) 0%, rgba(61, 34, 20, 0.85) 100%);
     color: #fff;
     box-shadow:
       inset -3.5px 0 0 var(--accent),
-      0 8px 24px rgba(0, 0, 0, 0.25),
-      0 0 12px color-mix(in srgb, var(--accent) 15%, transparent);
+      0 6px 20px rgba(0, 0, 0, 0.25),
+      0 0 12px rgba(200, 149, 110, 0.15);
 
     .nav-icon {
       color: #fff;
-      background: linear-gradient(145deg, var(--accent), rgba(255, 255, 255, 0.15));
-      box-shadow: 0 0 18px color-mix(in srgb, var(--accent) 42%, transparent);
+      background: linear-gradient(145deg, var(--accent), var(--accent-dark));
+      box-shadow: 0 0 14px rgba(200, 149, 110, 0.4);
     }
   }
 }

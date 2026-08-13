@@ -1,70 +1,108 @@
 <template>
-  <div class="login-page-v2" dir="rtl">
+  <div class="login-page" dir="rtl">
     <!-- ═══════════════════════════════════════════════════════════════
-         RIGHT SIDE: Brand Showcase & 3D Visuals
+         RIGHT SIDE: Brand Showcase with Particles & Typography
          ═══════════════════════════════════════════════════════════════ -->
     <aside class="brand-panel">
-      <!-- Atmospheric dark cinematic background with warm lighting -->
-      <div class="cinematic-bg" aria-hidden="true"></div>
-      <div class="ambient-light" aria-hidden="true"></div>
+      <!-- Coffee Particles Canvas -->
+      <canvas ref="particlesCanvas" class="particles-canvas" aria-hidden="true"></canvas>
 
-      <div class="brand-content">
-        <!-- 3D Logo representation -->
-        <div class="brand-logo-3d">
+      <!-- Warm Gradient Overlay -->
+      <div class="brand-gradient" aria-hidden="true"></div>
+
+      <!-- Brand Content -->
+      <div
+        class="brand-content"
+        :style="{
+          transform: `translate(${offset.x * 0.3}px, ${offset.y * 0.3}px)`,
+        }"
+      >
+        <!-- Logo with Parallax -->
+        <div class="brand-logo-wrap">
           <img
             src="/logo-transparent.png"
             alt="بن العجوز"
-            class="logo-img"
+            class="brand-logo"
+            :style="{
+              transform: `translate(${offset.x}px, ${offset.y}px)`,
+            }"
             @error="handleLogoError"
           />
-          <div class="logo-glow" aria-hidden="true"></div>
+          <div class="logo-ambient" aria-hidden="true"></div>
         </div>
 
-        <!-- Typography -->
-        <div class="text-container">
-          <h1 class="calligraphy-title">بن العجوز</h1>
-          <h2 class="calligraphy-subtitle">أصل المزاج</h2>
+        <!-- Calligraphy Title -->
+        <h1 class="brand-title">بن العجوز</h1>
+
+        <!-- Typing Effect Tagline -->
+        <div class="typing-tagline">
+          <span class="typed-text">{{ displayedText }}</span>
+          <span class="cursor" :class="{ visible: cursorVisible }">|</span>
         </div>
+
+        <!-- Feature Highlights -->
+        <div class="brand-features">
+          <div
+            v-for="(feature, i) in features"
+            :key="feature.label"
+            class="feature-item"
+            :style="{ transitionDelay: `${0.4 + i * 0.12}s` }"
+            :class="{ show: featuresVisible }"
+          >
+            <span class="feature-icon" v-html="feature.icon"></span>
+            <span class="feature-label">{{ feature.label }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom Credit -->
+      <div class="brand-footer">
+        <span class="footer-dot"></span>
+        <span>نظام إدارة متكامل</span>
       </div>
     </aside>
 
     <!-- ═══════════════════════════════════════════════════════════════
-         LEFT SIDE: Glassmorphism Login Interface
+         LEFT SIDE: Clean Premium Form
          ═══════════════════════════════════════════════════════════════ -->
     <main class="form-panel">
-      <!-- Dark backdrop for the left side to match the overall dark aesthetic -->
-      <div class="form-backdrop" aria-hidden="true"></div>
-
-      <!-- Glassmorphism Container -->
-      <div class="glass-container" :class="{ 'card-shake': shakeCard }">
-        <!-- Mobile Header (Visible only on small screens) -->
+      <div class="form-card" :class="{ 'card-shake': shakeCard }">
+        <!-- Mobile Brand Header -->
         <div class="mobile-brand">
-          <img src="/logo-transparent.png" alt="بن العجوز" @error="handleLogoError" />
+          <img
+            src="/logo-transparent.png"
+            alt="بن العجوز"
+            class="mobile-logo"
+            @error="handleLogoError"
+          />
           <div class="mobile-text">
             <h1>بن العجوز</h1>
             <p>أصل المزاج</p>
           </div>
         </div>
 
+        <!-- Form Header -->
         <div class="form-header">
           <h2>تسجيل الدخول</h2>
           <p>أدخل بياناتك للوصول إلى لوحة التحكم</p>
         </div>
 
         <!-- ========== LOGIN FORM ========== -->
-        <form @submit.prevent="handleLogin" class="glass-form" novalidate>
+        <form @submit.prevent="handleLogin" class="login-form" novalidate>
           <!-- Username Field -->
-          <div class="input-group">
-            <label for="login-username">اسم المستخدم</label>
-            <div class="input-wrapper">
+          <div
+            class="field-group"
+            :class="{ focused: isFieldActive('username'), filled: form.username }"
+          >
+            <div class="field-wrapper">
               <svg
-                class="input-icon"
+                class="field-icon"
                 width="20"
                 height="20"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
-                stroke-width="2"
+                stroke-width="1.8"
                 stroke-linecap="round"
                 stroke-linejoin="round"
               >
@@ -75,25 +113,30 @@
                 id="login-username"
                 v-model="form.username"
                 type="text"
-                placeholder="أدخل اسم المستخدم الخاص بك"
+                placeholder=" "
                 required
                 autocomplete="username"
+                @focus="onFocusField('username')"
+                @blur="onBlurField"
               />
+              <label for="login-username">اسم المستخدم</label>
             </div>
           </div>
 
           <!-- Password Field -->
-          <div class="input-group">
-            <label for="login-password">كلمة المرور</label>
-            <div class="input-wrapper">
+          <div
+            class="field-group"
+            :class="{ focused: isFieldActive('password'), filled: form.password }"
+          >
+            <div class="field-wrapper">
               <svg
-                class="input-icon"
+                class="field-icon"
                 width="20"
                 height="20"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
-                stroke-width="2"
+                stroke-width="1.8"
                 stroke-linecap="round"
                 stroke-linejoin="round"
               >
@@ -104,18 +147,21 @@
                 id="login-password"
                 v-model="form.password"
                 :type="showPassword ? 'text' : 'password'"
-                placeholder="••••••••"
+                placeholder=" "
                 required
                 autocomplete="current-password"
+                @focus="onFocusField('password')"
+                @blur="onBlurField"
+                @input="onPasswordInput"
               />
+              <label for="login-password">كلمة المرور</label>
               <button
                 type="button"
-                class="eye-btn"
+                class="eye-toggle"
                 @click="showPassword = !showPassword"
                 tabindex="-1"
                 :title="showPassword ? 'إخفاء كلمة المرور' : 'عرض كلمة المرور'"
               >
-                <!-- Eye open -->
                 <svg
                   v-if="!showPassword"
                   width="18"
@@ -130,7 +176,6 @@
                   <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
                   <circle cx="12" cy="12" r="3" />
                 </svg>
-                <!-- Eye closed -->
                 <svg
                   v-else
                   width="18"
@@ -149,13 +194,27 @@
                 </svg>
               </button>
             </div>
+            <!-- Password Strength Indicator -->
+            <Transition name="strength-slide">
+              <div v-if="form.password && strength.score > 0" class="strength-bar">
+                <div class="strength-track">
+                  <div
+                    class="strength-fill"
+                    :style="{ width: strength.percentage + '%', background: strength.color }"
+                  ></div>
+                </div>
+                <span class="strength-label" :style="{ color: strength.color }">{{
+                  strength.label
+                }}</span>
+              </div>
+            </Transition>
           </div>
 
-          <!-- Options -->
+          <!-- Options Row -->
           <div class="form-options">
             <label class="custom-check">
               <input type="checkbox" v-model="rememberMe" />
-              <span class="check-mark">
+              <span class="check-box">
                 <svg viewBox="0 0 12 10" fill="none">
                   <polyline
                     points="1.5 5 4.5 8 10.5 2"
@@ -166,16 +225,16 @@
                   />
                 </svg>
               </span>
-              <span class="check-label">تذكر بياناتي</span>
+              <span class="check-text">تذكر بياناتي</span>
             </label>
-            <a href="https://wa.me/201142819808" target="_blank" class="forgot-link"
-              >هل نسيت كلمة المرور؟</a
-            >
+            <a href="https://wa.me/201142819808" target="_blank" class="forgot-link">
+              هل نسيت كلمة المرور؟
+            </a>
           </div>
 
           <!-- Error Message -->
-          <Transition name="fade-slide">
-            <div v-if="error" class="error-msg">
+          <Transition name="err-slide">
+            <div v-if="error" class="error-banner">
               <svg
                 width="16"
                 height="16"
@@ -197,8 +256,8 @@
           <!-- Submit Button -->
           <button type="submit" class="submit-btn" :disabled="loading">
             <span v-if="loading" class="btn-spinner"></span>
-            <span v-else class="btn-text">
-              تسجيل الدخول
+            <span v-else class="btn-content">
+              <span>تسجيل الدخول</span>
               <svg
                 width="20"
                 height="20"
@@ -213,30 +272,46 @@
                 <polyline points="12 19 5 12 12 5" />
               </svg>
             </span>
+            <span class="btn-shimmer" aria-hidden="true"></span>
           </button>
         </form>
 
+        <!-- Footer Links -->
         <div class="footer-links">
           <p>
             ليس لديك حساب؟ <a href="https://wa.me/201142819808" target="_blank">تواصل مع الإدارة</a>
           </p>
         </div>
 
-        <div class="copyright">تصميم وتطوير بن العجوز &copy; 2026</div>
+        <!-- Server Status & Copyright -->
+        <div class="form-footer">
+          <div class="server-status">
+            <span class="pulse-dot"></span>
+            <span>متصل بالسيرفر</span>
+          </div>
+          <span class="copyright">تصميم وتطوير بن العجوز &copy; 2026</span>
+        </div>
       </div>
     </main>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
+import { useTypingEffect } from '@/composables/useTypingEffect';
+import { useParticles } from '@/composables/useParticles';
+import {
+  useMouseParallax,
+  usePasswordStrength,
+  useInputAnimations,
+} from '@/composables/useLoginAnimations';
 
 const router = useRouter();
 const auth = useAuthStore();
 
-// Form State
+// ─── Form State ───────────────────────────────────────────
 const form = ref({ username: '', password: '' });
 const rememberMe = ref(true);
 const loading = ref(false);
@@ -246,17 +321,47 @@ const shakeCard = ref(false);
 
 const STORAGE_KEY = 'erp_remembered_username';
 
-onMounted(() => {
-  // Load saved username if exists
-  const savedUser = localStorage.getItem(STORAGE_KEY);
-  if (savedUser) {
-    form.value.username = savedUser;
-    rememberMe.value = true;
-  } else {
-    rememberMe.value = false;
-  }
+// ─── Composables ──────────────────────────────────────────
+const { offset } = useMouseParallax(12);
+const { strength, evaluate } = usePasswordStrength();
+const { activeField, onFocusField, onBlurField, isFieldActive } = useInputAnimations();
+
+const {
+  displayedText,
+  cursorVisible,
+  start: startTyping,
+} = useTypingEffect({
+  phrases: ['أصل المزاج', 'قهوة بحب', 'طعم لا يُنسى', 'جودة بلا حدود'],
+  typingSpeed: 110,
+  deletingSpeed: 55,
+  pauseDuration: 2500,
 });
 
+const { init: initParticles } = useParticles({
+  count: 20,
+  color: 'rgba(255, 220, 170, 0.25)',
+  minSize: 3,
+  maxSize: 7,
+  speed: 0.3,
+});
+
+// ─── Brand Features ───────────────────────────────────────
+const features = [
+  { icon: '☕', label: 'إدارة المنتجات والمخزون' },
+  { icon: '📊', label: 'تقارير مالية لحظية' },
+  { icon: '🔒', label: 'حماية بيانات متقدمة' },
+];
+const featuresVisible = ref(false);
+
+// ─── Refs ─────────────────────────────────────────────────
+const particlesCanvas = ref<HTMLCanvasElement | null>(null);
+
+// ─── Password Input Handler ──────────────────────────────
+const onPasswordInput = () => {
+  evaluate(form.value.password);
+};
+
+// ─── Login Handler ────────────────────────────────────────
 const handleLogin = async () => {
   if (!form.value.username || !form.value.password) return;
   loading.value = true;
@@ -290,35 +395,106 @@ const triggerShake = () => {
 const handleLogoError = (e: Event) => {
   (e.target as HTMLImageElement).src = '/logo.svg';
 };
+
+// ─── Lifecycle ────────────────────────────────────────────
+onMounted(async () => {
+  // Load saved username
+  const savedUser = localStorage.getItem(STORAGE_KEY);
+  if (savedUser) {
+    form.value.username = savedUser;
+    rememberMe.value = true;
+  } else {
+    rememberMe.value = false;
+  }
+
+  // Start typing effect
+  startTyping();
+
+  // Initialize particles
+  await nextTick();
+  if (particlesCanvas.value) {
+    initParticles(particlesCanvas.value);
+  }
+
+  // Stagger features entrance
+  setTimeout(() => {
+    featuresVisible.value = true;
+  }, 600);
+});
 </script>
 
 <style scoped>
-/* 
-  FONT IMPORTS 
-  Using 'Cairo' for Modern UI Arabic texts and 'Aref Ruqaa' for Arabic calligraphy
+/*
+  FONT IMPORTS
+  Cairo for UI / Aref Ruqaa for Arabic calligraphy
 */
 @import url('https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@400;700&family=Cairo:wght@400;500;600;700;800&display=swap');
 
 /* ════════════════════════════════════════════════════════════════════
-   ROOT LAYOUT
+   CSS CUSTOM PROPERTIES (Warm Light Theme)
    ════════════════════════════════════════════════════════════════════ */
-.login-page-v2 {
-  display: flex;
-  min-height: 100dvh;
-  direction: rtl;
-  font-family: 'Cairo', sans-serif;
-  background: #0a0604;
-  color: #fff;
+.login-page {
+  --bg-cream: #fdf8f3;
+  --bg-white: #ffffff;
+  --surface: #faf7f2;
+  --border-light: #ede5da;
+  --border-medium: #d9cbba;
+
+  --text-primary: #2c1810;
+  --text-secondary: #6b5b50;
+  --text-muted: #9c8e82;
+
+  --accent: #c8956e;
+  --accent-dark: #a0734d;
+  --accent-light: #e6c9a8;
+  --accent-glow: rgba(200, 149, 110, 0.18);
+
+  --brand-gradient-start: #3d2517;
+  --brand-gradient-mid: #5c3a24;
+  --brand-gradient-end: #7a5038;
+
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 22px;
+  --radius-xl: 28px;
+
+  --shadow-card: 0 2px 8px rgba(44, 24, 16, 0.05), 0 12px 40px rgba(44, 24, 16, 0.08);
+  --shadow-card-hover: 0 4px 12px rgba(44, 24, 16, 0.07), 0 20px 50px rgba(44, 24, 16, 0.12);
+  --shadow-input-focus: 0 0 0 3.5px var(--accent-glow);
+
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 /* ════════════════════════════════════════════════════════════════════
-   RIGHT SIDE — BRAND SHOWCASE (Cinematic Dark Coffee)
+   ROOT LAYOUT
+   ════════════════════════════════════════════════════════════════════ */
+.login-page {
+  display: flex;
+  min-height: 100dvh;
+  direction: rtl;
+  font-family: 'Cairo', 'Segoe UI', Tahoma, Arial, sans-serif;
+  background: var(--bg-cream);
+  color: var(--text-primary);
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   BRAND PANEL (Right Side — Desktop Only)
    ════════════════════════════════════════════════════════════════════ */
 .brand-panel {
-  display: none;
-  flex: 1.2;
   position: relative;
+  display: none;
+  width: 46%;
+  min-width: 400px;
+  max-width: 640px;
+  flex-shrink: 0;
   overflow: hidden;
+  background: linear-gradient(
+    165deg,
+    var(--brand-gradient-start) 0%,
+    var(--brand-gradient-mid) 45%,
+    var(--brand-gradient-end) 100%
+  );
   align-items: center;
   justify-content: center;
 }
@@ -329,172 +505,238 @@ const handleLogoError = (e: Event) => {
   }
 }
 
-.cinematic-bg {
+/* Canvas for floating coffee particles */
+.particles-canvas {
   position: absolute;
   inset: 0;
-  background: radial-gradient(circle at 50% 40%, #2a160d 0%, #110905 50%, #050201 100%);
-  z-index: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+  pointer-events: none;
 }
 
-.ambient-light {
+/* Subtle warm glow overlay */
+.brand-gradient {
   position: absolute;
-  width: 700px;
-  height: 700px;
-  background: radial-gradient(circle, rgba(218, 165, 32, 0.15) 0%, transparent 60%);
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  z-index: 1;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 50% 30%, rgba(232, 195, 140, 0.12) 0%, transparent 65%),
+    radial-gradient(ellipse at 20% 80%, rgba(200, 149, 110, 0.08) 0%, transparent 50%);
+  z-index: 2;
   pointer-events: none;
 }
 
 .brand-content {
   position: relative;
-  z-index: 2;
+  z-index: 3;
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
-  gap: 15px;
+  gap: 8px;
+  transition: transform 0.15s ease-out;
+  will-change: transform;
 }
 
-/* 3D Logo Styling */
-.brand-logo-3d {
+/* Logo */
+.brand-logo-wrap {
   position: relative;
-  margin-bottom: 25px;
-  animation: float3D 6s ease-in-out infinite;
-  z-index: 4;
+  margin-bottom: 16px;
 }
 
-.logo-img {
-  width: 320px;
+.brand-logo {
+  width: 260px;
   height: auto;
   object-fit: contain;
-  filter: drop-shadow(0 25px 40px rgba(0, 0, 0, 0.9));
   position: relative;
   z-index: 2;
+  filter: drop-shadow(0 16px 35px rgba(0, 0, 0, 0.5));
+  transition: transform 0.2s ease-out;
+  will-change: transform;
+  animation: logoBreathe 5s ease-in-out infinite;
 }
 
-.logo-glow {
-  position: absolute;
-  inset: 15px;
-  background: radial-gradient(circle, rgba(255, 180, 80, 0.5), transparent 70%);
-  filter: blur(35px);
-  z-index: 1;
-  animation: pulseGlow 4s ease-in-out infinite;
-}
-
-@keyframes float3D {
+@keyframes logoBreathe {
   0%,
   100% {
-    transform: translateY(0) rotateX(0deg) rotateY(0deg);
+    transform: translateY(0);
   }
   50% {
-    transform: translateY(-20px) rotateX(6deg) rotateY(6deg);
+    transform: translateY(-8px);
   }
 }
 
-@keyframes pulseGlow {
+.logo-ambient {
+  position: absolute;
+  inset: -20px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(232, 195, 140, 0.35), transparent 65%);
+  filter: blur(25px);
+  z-index: 1;
+  animation: ambientPulse 4s ease-in-out infinite;
+}
+
+@keyframes ambientPulse {
   0%,
   100% {
-    opacity: 0.6;
+    opacity: 0.5;
     transform: scale(1);
   }
   50% {
-    opacity: 1;
-    transform: scale(1.15);
+    opacity: 0.9;
+    transform: scale(1.08);
   }
 }
 
-/* Typography (Arabic Calligraphy) */
-.text-container {
-  position: relative;
-  z-index: 5;
-}
-
-.calligraphy-title {
+/* Title */
+.brand-title {
   font-family: 'Aref Ruqaa', serif;
-  font-size: 7.5rem; /* INCREASED TEXT SIZE */
+  font-size: 5rem;
   font-weight: 700;
-  color: #e8d0a9;
+  color: #f5e6d0;
   margin: 0;
-  text-shadow:
-    0px 8px 25px rgba(0, 0, 0, 0.8),
-    0 0 30px rgba(218, 165, 32, 0.3); /* Enhanced shadow for beam contrast */
+  text-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
   line-height: 1.1;
-  letter-spacing: -2px;
+  letter-spacing: -1px;
 }
 
-.calligraphy-subtitle {
+/* Typing Tagline */
+.typing-tagline {
   font-family: 'Aref Ruqaa', serif;
-  font-size: 2.8rem; /* INCREASED TEXT SIZE */
-  font-weight: 400;
-  color: #c4a47c;
-  margin: 0;
-  margin-top: -15px;
-  text-shadow: 0px 4px 15px rgba(0, 0, 0, 0.7);
-}
-
-/* ════════════════════════════════════════════════════════════════════
-   LEFT SIDE — GLASSMORPHISM FORM
-   ════════════════════════════════════════════════════════════════════ */
-.form-panel {
-  flex: 1;
-  position: relative;
+  font-size: 1.8rem;
+  color: rgba(245, 230, 208, 0.75);
+  margin-top: -4px;
+  height: 2.4rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 20px;
 }
 
-/* Dark espresso backdrop to unify with right side */
-.form-backdrop {
-  position: absolute;
-  inset: 0;
-  background: #140a06;
-  background-image:
-    linear-gradient(45deg, rgba(255, 255, 255, 0.02) 25%, transparent 25%),
-    linear-gradient(-45deg, rgba(255, 255, 255, 0.02) 25%, transparent 25%);
-  background-size: 20px 20px;
-  z-index: 0;
+.typed-text {
+  display: inline;
 }
 
-.glass-container {
-  position: relative;
-  z-index: 1;
+.cursor {
+  display: inline-block;
+  color: var(--accent);
+  font-weight: 300;
+  margin-right: 2px;
+  opacity: 0;
+  transition: opacity 0.1s;
+}
+
+.cursor.visible {
+  opacity: 1;
+}
+
+/* Brand Features */
+.brand-features {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 32px;
   width: 100%;
-  max-width: 440px;
+  max-width: 280px;
+}
 
-  /* Enhanced Glassmorphism Effect */
-  background: rgba(255, 255, 255, 0.04);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-top: 1px solid rgba(255, 255, 255, 0.15);
-  border-right: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow:
-    0 30px 60px rgba(0, 0, 0, 0.7),
-    inset 0 0 30px rgba(255, 255, 255, 0.03);
-  border-radius: 28px;
-  padding: 50px 45px;
+.feature-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: rgba(245, 230, 208, 0.8);
+  opacity: 0;
+  transform: translateX(20px);
+  transition: all 0.5s var(--ease-out);
+}
 
-  animation: slideUp 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+.feature-item.show {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.feature-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-sm);
+  background: rgba(245, 230, 208, 0.1);
+  border: 1px solid rgba(245, 230, 208, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  flex-shrink: 0;
+  transition: all 0.3s ease;
+}
+
+.feature-item:hover .feature-icon {
+  background: rgba(245, 230, 208, 0.18);
+  transform: scale(1.06);
+}
+
+/* Brand Footer */
+.brand-footer {
+  position: absolute;
+  bottom: 28px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.76rem;
+  color: rgba(245, 230, 208, 0.45);
+  font-weight: 600;
+  z-index: 3;
+}
+
+.footer-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(200, 149, 110, 0.6);
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   FORM PANEL (Left Side — Always Visible)
+   ════════════════════════════════════════════════════════════════════ */
+.form-panel {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 28px 20px;
+  background: var(--bg-cream);
+}
+
+@media (min-width: 1024px) {
+  .form-panel {
+    background: var(--bg-white);
+    padding: 40px 48px;
+  }
+}
+
+/* ─── Form Card ───────────────────────────────────────────────── */
+.form-card {
+  width: 100%;
+  max-width: 430px;
+  background: var(--bg-white);
+  border-radius: var(--radius-xl);
+  padding: 42px 36px;
+  box-shadow: var(--shadow-card);
+  border: 1px solid var(--border-light);
+  animation: cardSlideIn 0.6s var(--ease-out);
   transition:
-    transform 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.4s var(--ease-out),
     box-shadow 0.4s ease;
 }
 
-.glass-container:hover {
-  transform: translateY(-5px);
-  box-shadow:
-    0 40px 70px rgba(0, 0, 0, 0.8),
-    inset 0 0 30px rgba(255, 255, 255, 0.04);
+.form-card:hover {
+  box-shadow: var(--shadow-card-hover);
 }
 
-@keyframes slideUp {
+@keyframes cardSlideIn {
   from {
     opacity: 0;
-    transform: translateY(40px);
+    transform: translateY(24px);
   }
   to {
     opacity: 1;
@@ -502,428 +744,585 @@ const handleLogoError = (e: Event) => {
   }
 }
 
-.mobile-brand {
-  display: none;
-  align-items: center;
-  justify-content: center;
-  gap: 15px;
-  margin-bottom: 30px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  padding-bottom: 20px;
-}
-
-@media (max-width: 1023px) {
-  .mobile-brand {
-    display: flex;
+@media (min-width: 1024px) {
+  .form-card {
+    max-width: 400px;
+    background: transparent;
+    box-shadow: none;
+    border: none;
+    border-radius: 0;
+    padding: 0;
+  }
+  .form-card:hover {
+    box-shadow: none;
   }
 }
 
-.mobile-brand img {
-  width: 75px;
-  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.5));
+/* ─── Mobile Brand Header ─────────────────────────────────── */
+.mobile-brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 28px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+@media (min-width: 1024px) {
+  .mobile-brand {
+    display: none;
+  }
+}
+
+.mobile-logo {
+  width: 58px;
+  height: 58px;
+  border-radius: var(--radius-md);
+  object-fit: contain;
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.12));
 }
 
 .mobile-text h1 {
-  font-family: 'Aref Ruqaa', serif;
-  font-size: 2.5rem;
   margin: 0;
-  color: #e8d0a9;
-}
-.mobile-text p {
-  font-family: 'Aref Ruqaa', serif;
-  margin: 0;
-  font-size: 1.4rem;
-  color: #c4a47c;
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--text-primary);
 }
 
+.mobile-text p {
+  margin: 2px 0 0;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+/* ─── Form Header ─────────────────────────────────────────── */
 .form-header {
-  text-align: center;
-  margin-bottom: 40px;
+  margin-bottom: 32px;
 }
 
 .form-header h2 {
-  font-size: 2.2rem;
-  font-weight: 700;
-  color: #e8d0a9;
-  margin: 0;
-  letter-spacing: 0px;
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin: 0 0 6px;
 }
 
 .form-header p {
-  color: rgba(255, 255, 255, 0.55);
-  font-size: 0.95rem;
-  margin: 8px 0 0;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  margin: 0;
   font-weight: 500;
+  line-height: 1.6;
 }
 
-.glass-form {
+/* ─── Login Form ──────────────────────────────────────────── */
+.login-form {
   display: flex;
   flex-direction: column;
-  gap: 22px;
+  gap: 20px;
 }
 
-.input-group {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+/* ─── Field Group (Floating Label) ────────────────────────── */
+.field-group {
+  position: relative;
 }
 
-.input-group label {
-  font-size: 0.95rem;
-  color: rgba(255, 255, 255, 0.85);
-  font-weight: 600;
-  margin-right: 5px; /* RTL right margin */
-}
-
-.input-wrapper {
+.field-wrapper {
   position: relative;
   display: flex;
   align-items: center;
 }
 
-.input-icon {
+.field-icon {
   position: absolute;
-  right: 18px; /* Icon on the right for RTL */
-  color: rgba(255, 255, 255, 0.35);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  right: 16px;
+  color: var(--text-muted);
+  z-index: 3;
+  pointer-events: none;
+  transition:
+    color 0.3s ease,
+    transform 0.3s ease;
 }
 
-.input-wrapper input {
+.field-wrapper input {
   width: 100%;
   height: 56px;
-  background: rgba(0, 0, 0, 0.25);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 14px;
-  padding: 0 50px 0 20px; /* Space on right for icon */
-  color: #fff;
-  font-size: 1rem;
+  padding: 20px 48px 8px 48px;
+  border: 1.5px solid var(--border-light);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  font-weight: 600;
   font-family: 'Cairo', sans-serif;
-  font-weight: 500;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.2);
-}
-
-.input-wrapper input::placeholder {
-  color: rgba(255, 255, 255, 0.25);
-  font-weight: 400;
-}
-
-/* Glowing Amber Border on Focus */
-.input-wrapper input:focus {
   outline: none;
-  border-color: #d49a5b;
-  background: rgba(0, 0, 0, 0.45);
-  box-shadow:
-    0 0 20px rgba(212, 154, 91, 0.15),
-    inset 0 2px 6px rgba(0, 0, 0, 0.3);
-  transform: translateY(-2px);
+  transition: all 0.25s var(--ease-out);
 }
 
-.input-wrapper:focus-within .input-icon {
-  color: #d49a5b;
-  transform: scale(1.1);
-}
-
-.eye-btn {
+.field-wrapper label {
   position: absolute;
-  left: 18px; /* Eye on the left for RTL */
+  right: 48px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  pointer-events: none;
+  transform-origin: right center;
+  transition: all 0.25s var(--ease-out);
+}
+
+/* Float label up when focused or filled */
+.field-wrapper input:focus + label,
+.field-wrapper input:not(:placeholder-shown) + label {
+  top: 12px;
+  transform: translateY(0) scale(0.78);
+  color: var(--accent);
+  font-weight: 700;
+}
+
+/* Focus state */
+.field-wrapper input:focus {
+  border-color: var(--accent);
+  background: var(--bg-white);
+  box-shadow: var(--shadow-input-focus);
+}
+
+.field-group.focused .field-icon {
+  color: var(--accent);
+  transform: scale(1.08);
+}
+
+/* ─── Password Strength Indicator ─────────────────────────── */
+.strength-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  padding: 0 4px;
+}
+
+.strength-track {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border-light);
+  overflow: hidden;
+}
+
+.strength-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition:
+    width 0.4s var(--ease-out),
+    background 0.4s ease;
+}
+
+.strength-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+  transition: color 0.3s ease;
+}
+
+.strength-slide-enter-active {
+  animation: strengthIn 0.3s var(--ease-out);
+}
+.strength-slide-leave-active {
+  animation: strengthIn 0.2s ease-in reverse;
+}
+@keyframes strengthIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ─── Eye Toggle ──────────────────────────────────────────── */
+.eye-toggle {
+  position: absolute;
+  left: 14px;
   background: none;
   border: none;
-  color: rgba(255, 255, 255, 0.35);
+  color: var(--text-muted);
   cursor: pointer;
-  padding: 4px;
+  padding: 5px;
   display: flex;
-  transition: all 0.3s;
-  border-radius: 50%;
+  align-items: center;
+  z-index: 3;
+  border-radius: 8px;
+  transition: all 0.2s ease;
 }
 
-.eye-btn:hover {
-  color: #e8d0a9;
-  background: rgba(255, 255, 255, 0.05);
+.eye-toggle:hover {
+  color: var(--accent-dark);
+  background: var(--accent-glow);
 }
 
+/* ─── Form Options ────────────────────────────────────────── */
 .form-options {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 0.9rem;
-  margin-top: -5px;
-  padding: 0 4px;
+  margin-top: 2px;
 }
 
 .custom-check {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   cursor: pointer;
+  user-select: none;
 }
 
 .custom-check input {
-  display: none;
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
 }
 
-.check-mark {
+.check-box {
   width: 20px;
   height: 20px;
-  border: 1.5px solid rgba(255, 255, 255, 0.25);
+  border: 2px solid var(--border-medium);
   border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  background: rgba(0, 0, 0, 0.2);
+  flex-shrink: 0;
+  transition: all 0.22s var(--ease-spring);
+  background: var(--bg-white);
 }
 
-.check-mark svg {
+.check-box svg {
   width: 12px;
-  height: 12px;
-  color: #000;
+  height: 10px;
+  color: #fff;
   opacity: 0;
   transform: scale(0) rotate(-15deg);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.22s var(--ease-spring);
 }
 
-.custom-check:hover .check-mark {
-  border-color: rgba(255, 255, 255, 0.4);
+.custom-check input:checked + .check-box {
+  background: var(--accent);
+  border-color: var(--accent);
+  box-shadow: 0 2px 8px rgba(200, 149, 110, 0.4);
 }
 
-.custom-check input:checked + .check-mark {
-  background: #d49a5b;
-  border-color: #d49a5b;
-  box-shadow: 0 4px 10px rgba(212, 154, 91, 0.3);
-}
-
-.custom-check input:checked + .check-mark svg {
+.custom-check input:checked + .check-box svg {
   opacity: 1;
   transform: scale(1) rotate(0);
 }
 
-.check-label {
-  color: rgba(255, 255, 255, 0.7);
-  font-weight: 500;
-  transition: color 0.3s;
-}
-
-.custom-check:hover .check-label {
-  color: rgba(255, 255, 255, 0.9);
+.check-text {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  font-weight: 600;
 }
 
 .forgot-link {
-  color: #d49a5b;
-  text-decoration: underline;
-  text-decoration-color: transparent;
-  transition: all 0.3s;
-  font-weight: 600;
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0;
+  color: var(--accent);
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition: color 0.2s ease;
   font-family: inherit;
-  font-size: inherit;
 }
 
 .forgot-link:hover {
-  text-decoration-color: #d49a5b;
-  color: #e8d0a9;
+  color: var(--accent-dark);
+  text-decoration: underline;
 }
 
-.copyright {
-  margin-top: 25px;
-  text-align: center;
-  font-size: 0.85rem;
-  color: rgba(255, 255, 255, 0.4);
-  font-weight: 500;
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
-  padding-top: 15px;
-  font-family: 'Cairo', sans-serif;
-}
-
-.submit-btn {
-  height: 58px;
-  margin-top: 15px;
-  background: linear-gradient(135deg, #d49a5b 0%, #8a572a 100%);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 14px;
-  color: #fff;
-  font-size: 1.15rem;
+/* ─── Error Banner ────────────────────────────────────────── */
+.error-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(239, 68, 68, 0.07);
+  border: 1px solid rgba(239, 68, 68, 0.15);
+  color: #dc2626;
+  font-size: 0.84rem;
   font-weight: 700;
-  font-family: 'Cairo', sans-serif;
-  letter-spacing: 0.5px;
-  cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow:
-    0 10px 25px rgba(138, 87, 42, 0.35),
-    inset 0 2px 5px rgba(255, 255, 255, 0.2);
+}
+
+.error-banner svg {
+  flex-shrink: 0;
+}
+
+.err-slide-enter-active {
+  animation: errIn 0.32s var(--ease-out);
+}
+.err-slide-leave-active {
+  animation: errIn 0.22s ease-in reverse;
+}
+@keyframes errIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ─── Submit Button ───────────────────────────────────────── */
+.submit-btn {
   position: relative;
+  width: 100%;
+  height: 54px;
+  margin-top: 8px;
+  border-radius: var(--radius-md);
+  border: none;
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%);
+  color: #fff;
+  font-size: 1.05rem;
+  font-weight: 800;
+  font-family: 'Cairo', sans-serif;
+  cursor: pointer;
   overflow: hidden;
-}
-
-/* Elegant light sweep effect */
-.submit-btn::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -150%;
-  width: 150%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.25), transparent);
-  transform: skewX(-20deg);
-  transition: left 0.7s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.submit-btn:hover::before {
-  left: 150%;
-}
-
-.submit-btn:hover {
-  transform: translateY(-3px);
   box-shadow:
-    0 15px 35px rgba(138, 87, 42, 0.5),
-    inset 0 2px 5px rgba(255, 255, 255, 0.3);
-  filter: brightness(1.1);
+    0 4px 16px rgba(200, 149, 110, 0.4),
+    0 1px 3px rgba(200, 149, 110, 0.2);
+  transition: all 0.3s var(--ease-out);
 }
 
-.submit-btn:active {
-  transform: translateY(1px);
-  box-shadow: 0 5px 15px rgba(138, 87, 42, 0.3);
+.submit-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow:
+    0 8px 28px rgba(200, 149, 110, 0.55),
+    0 2px 6px rgba(200, 149, 110, 0.25);
+}
+
+.submit-btn:active:not(:disabled) {
+  transform: translateY(0) scale(0.98);
 }
 
 .submit-btn:disabled {
-  opacity: 0.6;
+  opacity: 0.65;
   cursor: not-allowed;
-  transform: none;
-  filter: grayscale(0.5);
 }
 
-.btn-text {
+.btn-content {
+  position: relative;
+  z-index: 2;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: 8px;
+}
+
+.btn-shimmer {
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 55%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transform: skew(-25deg);
+  animation: shimmerSweep 3.8s infinite;
+  pointer-events: none;
+}
+
+@keyframes shimmerSweep {
+  0% {
+    left: -100%;
+  }
+  22%,
+  100% {
+    left: 200%;
+  }
 }
 
 .btn-spinner {
+  position: relative;
+  z-index: 2;
   display: inline-block;
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   border: 3px solid rgba(255, 255, 255, 0.3);
-  border-top-color: #fff;
   border-radius: 50%;
-  animation: spin 0.8s linear infinite;
+  border-top-color: #fff;
+  animation: spinRotate 0.7s linear infinite;
 }
 
-@keyframes spin {
+@keyframes spinRotate {
   to {
     transform: rotate(360deg);
   }
 }
 
+/* ─── Footer Links ────────────────────────────────────────── */
 .footer-links {
-  margin-top: 30px;
+  margin-top: 28px;
   text-align: center;
-  font-size: 0.95rem;
-  color: rgba(255, 255, 255, 0.55);
+  font-size: 0.88rem;
+  color: var(--text-secondary);
   font-weight: 500;
 }
 
+.footer-links p {
+  margin: 0;
+}
+
 .footer-links a {
-  color: #d49a5b;
+  color: var(--accent);
   font-weight: 700;
   text-decoration: none;
-  margin-right: 5px; /* RTL margin */
-  transition: color 0.3s;
+  margin-right: 4px;
+  transition: color 0.2s;
 }
 
 .footer-links a:hover {
-  color: #e8d0a9;
+  color: var(--accent-dark);
 }
 
-.error-msg {
+/* ─── Form Footer ─────────────────────────────────────────── */
+.form-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-light);
+}
+
+.server-status {
   display: flex;
   align-items: center;
-  gap: 10px;
-  color: #ff8787;
-  background: rgba(255, 107, 107, 0.15);
-  padding: 12px 16px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 107, 107, 0.3);
-  font-size: 0.95rem;
+  gap: 6px;
+}
+
+.pulse-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #16a34a;
+  box-shadow: 0 0 6px rgba(22, 163, 74, 0.5);
+  animation: dotPulse 2.2s ease-in-out infinite;
+}
+
+@keyframes dotPulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+.server-status span:last-child {
+  font-size: 0.74rem;
+  color: var(--text-muted);
   font-weight: 600;
 }
 
-.fade-slide-enter-active,
-.fade-slide-leave-active {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-.fade-slide-enter-from,
-.fade-slide-leave-to {
-  opacity: 0;
-  transform: translateY(-10px);
+.copyright {
+  font-size: 0.72rem;
+  color: var(--border-medium);
+  font-weight: 600;
 }
 
+/* ─── Card Shake ──────────────────────────────────────────── */
 .card-shake {
-  animation: shake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+  animation: cardShakeAnim 0.5s var(--ease-spring);
 }
 
-@keyframes shake {
+@keyframes cardShakeAnim {
   10%,
   90% {
-    transform: translate3d(-1px, 0, 0);
+    transform: translate(-2px);
   }
   20%,
   80% {
-    transform: translate3d(2px, 0, 0);
+    transform: translate(4px);
   }
   30%,
   50%,
   70% {
-    transform: translate3d(-5px, 0, 0);
+    transform: translate(-6px);
   }
   40%,
   60% {
-    transform: translate3d(5px, 0, 0);
+    transform: translate(6px);
   }
 }
 
-@media (max-width: 1024px) {
-  .login-page-v2 {
-    padding: 15px; /* Breathing room for smaller screens */
-  }
-  .form-panel {
-    padding: 0; /* Remove extra padding so container fits well */
-  }
-  .glass-container {
-    padding: 40px 30px;
-    margin: 0 auto;
-    width: 100%;
-    max-width: 400px;
-  }
-}
-
+/* ════════════════════════════════════════════════════════════════════
+   RESPONSIVE ADJUSTMENTS
+   ════════════════════════════════════════════════════════════════════ */
 @media (max-width: 480px) {
-  .login-page-v2 {
-    padding: 10px;
+  .form-panel {
+    padding: 16px 12px;
   }
-  .glass-container {
-    padding: 30px 20px;
-    border-radius: 20px;
+  .form-card {
+    padding: 30px 22px;
+    border-radius: var(--radius-lg);
   }
   .form-header h2 {
-    font-size: 1.8rem;
+    font-size: 1.45rem;
   }
   .mobile-brand {
     gap: 10px;
-    flex-direction: column; /* Stack logo and text on very small screens for symmetry */
+    flex-direction: column;
     text-align: center;
   }
-  .mobile-brand img {
-    width: 65px;
+  .mobile-logo {
+    width: 52px;
+    height: 52px;
   }
   .mobile-text h1 {
-    font-size: 2.2rem;
+    font-size: 1.3rem;
   }
   .mobile-text p {
-    font-size: 1.2rem;
+    font-size: 0.75rem;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .form-card {
+    max-width: 460px;
+    padding: 46px 40px;
+  }
+}
+
+@media (min-width: 1440px) {
+  .brand-logo {
+    width: 300px;
+  }
+  .brand-title {
+    font-size: 5.8rem;
+  }
+  .typing-tagline {
+    font-size: 2rem;
+  }
+}
+
+/* ─── Reduced Motion ──────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .brand-logo,
+  .logo-ambient,
+  .btn-shimmer,
+  .pulse-dot,
+  .form-card,
+  .feature-item {
+    animation: none !important;
+  }
+  .field-wrapper input:focus {
+    transform: none;
+  }
+  .submit-btn:hover:not(:disabled) {
+    transform: none;
   }
 }
 </style>

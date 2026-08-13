@@ -32,7 +32,10 @@ export const getCustomers = async (filters = {}) => {
       FROM (
         SELECT s.customer_id,
                COALESCE(s.total_amount, 0) AS total_purchased,
-               COALESCE(p.total_paid, 0) AS total_paid
+               CASE
+                 WHEN s.payment_status = 'paid' THEN COALESCE(s.total_amount, 0)
+                 ELSE COALESCE(p.total_paid, 0)
+               END AS total_paid
         FROM sales s
         LEFT JOIN (
           SELECT reference_id, SUM(amount) AS total_paid
@@ -48,7 +51,10 @@ export const getCustomers = async (filters = {}) => {
 
         SELECT i.customer_id,
                COALESCE(i.total_amount, 0) AS total_purchased,
-               COALESCE(p.total_paid, 0) AS total_paid
+               CASE
+                 WHEN i.payment_status = 'paid' THEN COALESCE(i.total_amount, 0)
+                 ELSE COALESCE(p.total_paid, 0)
+               END AS total_paid
         FROM invoices i
         LEFT JOIN (
           SELECT reference_id, SUM(amount) AS total_paid
@@ -72,7 +78,6 @@ export const getCustomers = async (filters = {}) => {
   if (filters.search) {
     sql += ` AND (c.name_ar ILIKE $${i} OR c.phone ILIKE $${i} OR c.code ILIKE $${i})`;
     params.push(`%${filters.search}%`);
-    i++;
   }
   sql += ` ORDER BY c.name_ar LIMIT ${sanitizeLimit(filters.limit)}`;
   const rows = (await query(sql, params)).rows;

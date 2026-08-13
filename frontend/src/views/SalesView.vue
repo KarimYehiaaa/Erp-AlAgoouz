@@ -165,15 +165,21 @@
       </div>
       <div class="insight-metrics">
         <div class="insight-tile">
-          <span>بداية المدة</span>
-          <strong>{{ formatMoney(openingBalanceForm.amount || 0) }}</strong>
+          <span>{{ activeTab === 'wholesale' ? 'ديون سابقة/افتتاحية' : 'بداية المدة' }}</span>
+          <strong>{{
+            formatMoney(
+              activeTab === 'wholesale' ? totalOpeningBalanceDebts : openingBalanceForm.amount || 0,
+            )
+          }}</strong>
         </div>
         <div class="insight-tile success">
           <span>مبيعات محصلة</span>
           <strong>{{ formatMoney(collectedTotal) }}</strong>
         </div>
         <div class="insight-tile warning">
-          <span>آجل/جزئي للمتابعة</span>
+          <span>{{
+            activeTab === 'wholesale' ? 'إجمالي ديون العملاء الكلية' : 'آجل/جزئي للمتابعة'
+          }}</span>
           <strong>{{ formatMoney(openCreditTotal) }}</strong>
         </div>
         <div class="insight-tile primary">
@@ -183,7 +189,17 @@
       </div>
     </section>
 
-    <div class="grid grid-3 stats-row">
+    <div v-if="activeTab === 'wholesale'" class="grid grid-4 stats-row">
+      <StatCard label="مبيعات جملة الفترة" :value="periodTotal" icon="coins" />
+      <StatCard label="المحصل المباشر" :value="collectedTotal" icon="check" />
+      <StatCard
+        label="ديون مرحلة سابقة/افتتاحية"
+        :value="totalOpeningBalanceDebts"
+        icon="reports"
+      />
+      <StatCard label="إجمالي ديون العملاء الكلية" :value="totalCustomerDebts" icon="warning" />
+    </div>
+    <div v-else class="grid grid-3 stats-row">
       <StatCard label="إجمالي الفترة" :value="periodTotal" icon="coins" />
       <StatCard label="المحصل" :value="collectedTotal" icon="check" />
       <StatCard label="آجل/جزئي" :value="openCreditTotal" icon="warning" />
@@ -665,6 +681,11 @@ const totalCustomerDebts = computed(() => {
   return allCustomers.value.reduce((sum, cust) => {
     const bal = Number((cust.total_balance ?? cust.balance) || 0);
     return sum + (bal > 0 ? bal : 0);
+  }, 0);
+});
+const totalOpeningBalanceDebts = computed(() => {
+  return allCustomers.value.reduce((sum, cust) => {
+    return sum + Number(cust.opening_balance || 0);
   }, 0);
 });
 const saving = ref(false);

@@ -1,41 +1,43 @@
-import pg from "pg";
-import config from "../config/index.js";
+import pg from 'pg';
+import config from '../config/index.js';
 const { Pool, types } = pg;
 types.setTypeParser(1082, (value) => value);
 types.setTypeParser(1700, (value) => {
   if (value === null) return null;
   return parseFloat(value);
 });
-const connectionOptions = process.env.DATABASE_URL ? { connectionString: process.env.DATABASE_URL } : {
-  host: config.db.host,
-  port: config.db.port,
-  database: config.db.database,
-  user: config.db.user,
-  password: config.db.password
-};
+const connectionOptions = process.env.DATABASE_URL
+  ? { connectionString: process.env.DATABASE_URL }
+  : {
+      host: config.db.host,
+      port: config.db.port,
+      database: config.db.database,
+      user: config.db.user,
+      password: config.db.password,
+    };
 const dbSsl = config.db.ssl;
-const maxConnections = process.env.VERCEL ? 1 : 3;
+const maxConnections = process.env.VERCEL ? 1 : 5;
 const pool = new Pool({
   ...connectionOptions,
   ssl: dbSsl,
   max: maxConnections,
   min: 0,
-  idleTimeoutMillis: 1000,
-  connectionTimeoutMillis: 5000,
+  idleTimeoutMillis: 10000,
+  connectionTimeoutMillis: 15000,
   statement_timeout: 30000,
   query_timeout: 30000,
-  allowExitOnIdle: true
+  allowExitOnIdle: true,
 });
-pool.on("error", (err, client) => {
-  console.error("[DB Pool] خطأ غير متوقع في اتصال قاعدة البيانات:", err.message);
+pool.on('error', (err, client) => {
+  console.error('[DB Pool] خطأ غير متوقع في اتصال قاعدة البيانات:', err.message);
 });
-pool.on("connect", (_client) => {
-  if (process.env.NODE_ENV === "development") {
+pool.on('connect', (_client) => {
+  if (process.env.NODE_ENV === 'development') {
     console.log(`[DB Pool] اتصال جديد — إجمالي: ${pool.totalCount} / ${maxConnections}`);
   }
 });
-pool.on("remove", (_client) => {
-  if (process.env.NODE_ENV === "development") {
+pool.on('remove', (_client) => {
+  if (process.env.NODE_ENV === 'development') {
     console.log(`[DB Pool] إزالة اتصال — متبقٍ: ${pool.totalCount}`);
   }
 });
@@ -45,7 +47,7 @@ const query = async (text, params) => {
   } catch (err) {
     if (err.message && err.message.includes('EMAXCONNSESSION')) {
       console.warn('⚠️ [DB Pool] Supabase pooler full, retrying query in 500ms...');
-      await new Promise(res => setTimeout(res, 500));
+      await new Promise((res) => setTimeout(res, 500));
       return await pool.query(text, params);
     }
     throw err;
@@ -55,12 +57,12 @@ const getClient = () => pool.connect();
 const withTransaction = async (fn) => {
   const client = await pool.connect();
   try {
-    await client.query("BEGIN");
+    await client.query('BEGIN');
     const result = await fn(client);
-    await client.query("COMMIT");
+    await client.query('COMMIT');
     return result;
   } catch (err) {
-    await client.query("ROLLBACK");
+    await client.query('ROLLBACK');
     throw err;
   } finally {
     client.release();
@@ -69,7 +71,7 @@ const withTransaction = async (fn) => {
 const checkHealth = async () => {
   const start = Date.now();
   try {
-    await pool.query("SELECT 1 AS ping");
+    await pool.query('SELECT 1 AS ping');
     return {
       ok: true,
       latencyMs: Date.now() - start,
@@ -77,8 +79,8 @@ const checkHealth = async () => {
         total: pool.totalCount,
         idle: pool.idleCount,
         waiting: pool.waitingCount,
-        max: maxConnections
-      }
+        max: maxConnections,
+      },
     };
   } catch (err) {
     return {
@@ -89,22 +91,19 @@ const checkHealth = async () => {
         total: pool.totalCount,
         idle: pool.idleCount,
         waiting: pool.waitingCount,
-        max: maxConnections
-      }
+        max: maxConnections,
+      },
     };
   }
 };
 const closePool = async () => {
-  console.log("[DB Pool] \u0625\u063A\u0644\u0627\u0642 \u062C\u0645\u064A\u0639 \u0627\u0644\u0627\u062A\u0635\u0627\u0644\u0627\u062A...");
+  console.log(
+    '[DB Pool] \u0625\u063A\u0644\u0627\u0642 \u062C\u0645\u064A\u0639 \u0627\u0644\u0627\u062A\u0635\u0627\u0644\u0627\u062A...',
+  );
   await pool.end();
-  console.log("[DB Pool] \u062A\u0645 \u0625\u063A\u0644\u0627\u0642 \u0627\u0644\u0640 Pool \u0628\u0646\u062C\u0627\u062D");
+  console.log(
+    '[DB Pool] \u062A\u0645 \u0625\u063A\u0644\u0627\u0642 \u0627\u0644\u0640 Pool \u0628\u0646\u062C\u0627\u062D',
+  );
 };
 var pool_default = pool;
-export {
-  checkHealth,
-  closePool,
-  pool_default as default,
-  getClient,
-  query,
-  withTransaction
-};
+export { checkHealth, closePool, pool_default as default, getClient, query, withTransaction };

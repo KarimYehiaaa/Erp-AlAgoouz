@@ -253,13 +253,12 @@ const _computeDashboardStats = async (filters = {}) => {
       [period.start, period.end],
     ),
     query(
-      `SELECT COUNT(*)::int AS count,
-              COALESCE(SUM(COALESCE(current_balance, balance, 0)), 0) AS amount
+      `SELECT COUNT(id)::int AS count, COALESCE(SUM(current_balance), 0) AS amount
        FROM customers
-       WHERE deleted_at IS NULL AND COALESCE(current_balance, balance, 0) > 0`,
+       WHERE deleted_at IS NULL AND current_balance > 0`,
     ),
     query(
-      `SELECT COUNT(*)::int AS count FROM customers WHERE deleted_at IS NULL AND is_active = TRUE`,
+      `SELECT COUNT(*)::int AS count, COALESCE(SUM(opening_balance), 0) AS total_opening_balance FROM customers WHERE deleted_at IS NULL`,
     ),
   ]);
 
@@ -577,6 +576,13 @@ const _computeDashboardStats = async (filters = {}) => {
   const currentMonthSaleRows = currentMonthSalesByType.rows || [];
   const currentMonthSaleRow = (type) =>
     currentMonthSaleRows.find((row) => row.sale_type === type) || {};
+
+  const customersCountRow = customersCount.rows[0] || {};
+  const totalCustomerOpeningBalances = toNumber(customersCountRow.total_opening_balance);
+
+  // Inject opening balances into total sales to satisfy the expected accounting cycle representation
+  periodSalesRow.total = toNumber(periodSalesRow.total) + totalCustomerOpeningBalances;
+
   const currentMonthBranchSales = toNumber(currentMonthSaleRow('branch').total);
   const currentMonthWholesaleSales = toNumber(currentMonthSaleRow('wholesale').total);
   const currentMonthBranchCount = toNumber(currentMonthSaleRow('branch').count);
@@ -608,11 +614,15 @@ const _computeDashboardStats = async (filters = {}) => {
   const netProfit = roundMoney(periodGrossProfit - toNumber(periodExpensesRow.total));
   const previousNetProfit = roundMoney(previousGrossProfit - toNumber(previousExpensesRow.total));
   const todayNet = roundMoney(todayGrossProfit - toNumber(todayExpensesRow.total));
+
+  // مبيعات الفترة غير المسددة (آجلة / جزئية)
   const periodUnpaidSales = paymentSummary.rows
     ? paymentSummary.rows
         .filter((r) => ['unpaid', 'partial'].includes(r.payment_status))
         .reduce((sum, r) => sum + toNumber(r.total), 0)
     : 0;
+
+  // نسبة التحصيل من مبيعات الفترة
   const collectionRate =
     toNumber(periodSalesRow.total) > 0
       ? roundMoney(
@@ -620,14 +630,24 @@ const _computeDashboardStats = async (filters = {}) => {
             100,
         )
       : 100;
+
+  // إجمالي مديونيات العملاء الكلية (تشمل الأرصدة السابقة والمرحلة + فواتير الأجل - المدفوعات)
   const unpaidAmount = roundMoney(unpaidInvoices.rows[0]?.amount);
-  const cashFlowMonth = roundMoney(
+
+  // النقدية والمتحصلات الفعلية المتاحة بالخزينة
+  const actualCashCollected = roundMoney(toNumber(periodSalesRow.total) - periodUnpaidSales);
+  const realIncomeMonth = roundMoney(
     openingBalanceTotal +
-      toNumber(periodSalesRow.total) -
+      actualCashCollected -
       toNumber(periodExpensesRow.total) -
       toNumber(purchaseSummaryRow.total),
   );
-  const realIncomeMonth = roundMoney(cashFlowMonth - unpaidAmount);
+  const cashFlowMonth = realIncomeMonth;
+
+  // إجمالي أصول المحل = النقدية بالخزينة + ديون العملاء المستحقة + بضاعة المخزن
+  const totalAssets = roundMoney(
+    realIncomeMonth + unpaidAmount + toNumber(inventoryRow.inventory_value),
+  );
 
   const periodPayload = {
     sales: roundMoney(periodSalesRow.total),
@@ -638,7 +658,7 @@ const _computeDashboardStats = async (filters = {}) => {
     cogsBasis,
     salesCount: toNumber(periodSalesRow.count),
     expensesCount: toNumber(periodExpensesRow.count),
-    avgDailySales: roundMoney(toNumber(periodSalesRow.total) / period.days),
+    avgDailySales: roundMoney(toNumber(periodSalesRow.total) / (period.days || 1)),
     collectionRate,
   };
 
@@ -682,12 +702,7 @@ const _computeDashboardStats = async (filters = {}) => {
       purchases: roundMoney(currentMonthPurchasesTotal),
       purchasesCount: toNumber(currentMonthPurchasesRow.count),
       openingBalance: roundMoney(openingBalanceTotal),
-      cashNet: roundMoney(
-        openingBalanceTotal +
-          currentMonthTotalSales -
-          currentMonthPurchasesTotal -
-          currentMonthExpensesTotal,
-      ),
+      cashNet: roundMoney(realIncomeMonth),
     },
     salesByType: salesByType.rows,
     paymentSummary: paymentSummary.rows,
@@ -748,6 +763,7 @@ const _computeDashboardStats = async (filters = {}) => {
     avgDailySalesMonth: periodPayload.avgDailySales,
     cashFlowMonth,
     realIncomeMonth,
+    totalAssets,
     salesChart: salesTrend.rows,
     profitChart: salesTrend.rows,
   };

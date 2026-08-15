@@ -1,7 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { buildArchiveName, buildTarCommand, runBackup, type BackupDeps } from '../../scripts/backup-system.ts';
+import { checkBuildPath, type CheckBuildPathFs } from '../../scripts/lib/checkBuildPath.ts';
 
 /**
  * اختبار وحدة لـ backup-system.ts — عبر المنصات وبدون قاعدة بيانات.
@@ -23,10 +25,15 @@ function makeDeps(): { deps: BackupDeps; calls: { cmd: string; opts: { cwd: stri
   };
   const deps: BackupDeps = {
     execSync: execSyncMock,
+    // قراءة package.json/vite.config الحقيقية (الإعدادات الحالية سليمة → الفحص يمر)،
+    // مع existsSync محاكى لتجنب لمس مجلدات فعلية.
     fs: {
-      existsSync: vi.fn(() => true),
+      // existsSync يقرأ الحالة الفعلية (حتى لا يظن الحارس أن dist الجذر موجود ويمنع النسخ)
+      existsSync: (p: string) => fs.existsSync(p),
       mkdirSync: vi.fn(),
       statSync: vi.fn(() => ({ size: 2 * 1024 * 1024 }) as never),
+      readFileSync: (p: string, enc: 'utf8') => fs.readFileSync(p, enc),
+      readdirSync: (p: string) => fs.readdirSync(p),
     },
   };
   return { deps, calls };
@@ -104,5 +111,73 @@ describe('backup-system.ts (cross-platform tar with relative path)', () => {
     runBackup(deps);
 
     expect(deps.fs.mkdirSync).toHaveBeenCalledWith(destinationFolder, { recursive: true });
+  });
+
+  it('يعمل فحص مسار البناء قبل تصدير قاعدة البيانات (يستدعي checkBuildPath)', () => {
+    const env = makeDeps();
+    runBackup(env.deps);
+    // أول استدعاء لا يزال سكربت DB — أي أن الحارس مرّ (لا أخطاء) والنسخ استمر.
+    const dbCall = env.calls.find((c) => c.cmd.includes('run-manual-backup'));
+    expect(dbCall).toBeDefined();
+  });
+});
+
+describe('checkBuildPath (build path guard, pure)', () => {
+  // fs افتراضي يقرأ المشروع الحقيقي (إعدادات سليمة) — نحاكي سيناريوهات الانتكاس عبر readFileSync مخصص.
+  function makeFops(
+    overrides: {
+      rootPkgBuild?: string;
+      rootDistIndexExists?: boolean;
+    } = {},
+  ): CheckBuildPathFs {
+    const real = fs;
+    const rootPkg = JSON.parse(real.readFileSync(path.join(rootDir, 'package.json'), 'utf8'));
+    if (overrides.rootPkgBuild !== undefined) {
+      rootPkg.scripts.build = overrides.rootPkgBuild;
+    }
+    return {
+      readFileSync: (p: string, enc: 'utf8') => {
+        if (p === path.join(rootDir, 'package.json')) return JSON.stringify(rootPkg);
+        return real.readFileSync(p, enc);
+      },
+      readdirSync: (p: string) => real.readdirSync(p),
+      existsSync: (p: string) => {
+        if (p === path.join(rootDir, 'dist', 'index.html')) {
+          return overrides.rootDistIndexExists ?? false;
+        }
+        return real.existsSync(p);
+      },
+    };
+  }
+
+  it('يمر بالإعدادات السليمة الحالية (لا أخطاء)', () => {
+    const result = checkBuildPath(rootDir, { fops: makeFops() });
+    expect(result.errors).toEqual([]);
+  });
+
+  it('يكتشف --outDir ../dist في root package.json', () => {
+    const result = checkBuildPath(rootDir, {
+      fops: makeFops({ rootPkgBuild: 'cd frontend && npx vite build --outDir ../dist' }),
+    });
+    expect(result.errors.length).toBeGreaterThan(0);
+    expect(result.errors[0]).toContain('--outDir');
+  });
+
+  it('يكتشف وجود dist/index.html زائد في الجذر', () => {
+    const result = checkBuildPath(rootDir, { fops: makeFops({ rootDistIndexExists: true }) });
+    expect(result.errors.length).toBeGreaterThan(0);
+    expect(result.errors.some((e) => e.includes('الجذر'))).toBe(true);
+  });
+
+  it('تحذير (لا خطأ) عند غياب frontend/dist/index.html (لم يُبنَ بعد)', () => {
+    const fops = makeFops();
+    const orig = fops.existsSync;
+    fops.existsSync = (p: string) => {
+      if (p === path.join(rootDir, 'frontend', 'dist', 'index.html')) return false;
+      return orig(p);
+    };
+    const result = checkBuildPath(rootDir, { fops });
+    expect(result.errors).toEqual([]);
+    expect(result.warnings.some((w) => w.includes('frontend/dist/index.html'))).toBe(true);
   });
 });

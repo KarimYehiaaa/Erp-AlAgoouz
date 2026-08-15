@@ -15,6 +15,7 @@ import { execSync } from 'child_process';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath, pathToFileURL } from 'url';
+import { checkBuildPath, printBuildPathResult } from './lib/checkBuildPath.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, '..');
@@ -52,6 +53,17 @@ export function runBackup(deps: BackupDeps): { archivePath: string; archiveName:
   console.log('==================================================');
   console.log('   AlAgoouz ERP - Full System Backup (Node.js)    ');
   console.log('==================================================');
+
+  // 0. حارس مسار البناء — لا ننسخ حالة بناء خاطئة (dist جذر زائد أو --outDir خاطئ)
+  console.log('\x1b[36m0. Checking build path (frontend/dist vs root dist/)...\x1b[0m');
+  const buildPathResult = checkBuildPath(rootDir, { fops });
+  printBuildPathResult(buildPathResult);
+  if (buildPathResult.errors.length) {
+    console.error(
+      '\x1b[31mERROR: Build path check failed — refusing to back up broken build state. Fix the build config first.\x1b[0m',
+    );
+    process.exit(1);
+  }
 
   // 1. تصدير قاعدة البيانات إلى JSON
   console.log('\x1b[33m1. Exporting database to JSON...\x1b[0m');

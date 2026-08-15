@@ -1,0 +1,177 @@
+/* أنماط المودال المشتركة — مستوردة من مودالات الوصفات الثلاثة (غير scoped) */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.modal-card {
+  background: var(--bg-card);
+  border-radius: var(--radius);
+  width: min(680px, 96vw);
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow-lg);
+}
+.modal-card .modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px 0;
+}
+.modal-card .modal-header h3 {
+  margin: 0;
+  color: var(--primary-dark);
+}
+.modal-card .modal-header .close-btn {
+  background: none;
+  border: none;
+  font-size: 1.1rem;
+  cursor: pointer;
+  color: var(--text-muted);
+  padding: 4px 8px;
+}
+.modal-card .form-section {
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+}
+.modal-card textarea {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  background: var(--bg-elevated);
+  color: var(--text);
+  font-family: inherit;
+  resize: vertical;
+}
+
+.ingredients-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.ingredients-header h4 {
+  margin: 0;
+  color: var(--primary-dark);
+}
+.ingredients-header .type-badge {
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+.ingredients-header .type-badge.simple {
+  background: rgba(46, 125, 79, 0.1);
+  color: #2e7d4f;
+}
+.ingredients-header .type-badge.compound {
+  background: rgba(99, 60, 180, 0.1);
+  color: #5b21b6;
+}
+
+.ingredients-form-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.ingredient-form-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+.ingredient-form-row .ingredient-form-fields {
+  display: flex;
+  gap: 8px;
+  flex: 1;
+  align-items: flex-end;
+}
+.ingredient-form-row .flex-3 {
+  flex: 3;
+}
+.ingredient-form-row .flex-1 {
+  flex: 1;
+}
+.ingredient-form-row .cost-display {
+  padding: 9px 10px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--primary-dark);
+  white-space: nowrap;
+}
+.ingredient-form-row .remove-ingredient-btn {
+  width: 32px;
+  height: 36px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-card);
+  cursor: pointer;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  margin-bottom: 0;
+}
+.ingredient-form-row .remove-ingredient-btn:hover:not(:disabled) {
+  background: rgba(180, 35, 24, 0.1);
+  color: #b42318;
+  border-color: rgba(180, 35, 24, 0.3);
+}
+.ingredient-form-row .remove-ingredient-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.btn-add-ingredient {
+  width: 100%;
+  margin-top: 4px;
+}
+
+.form-totals {
+  padding: 14px 24px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+.form-totals .total-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+  font-size: 0.9rem;
+}
+.form-totals .profit-row strong {
+  font-size: 1rem;
+}
+
+.margin-high {
+  color: #2e7d4f;
+}
+.margin-mid {
+  color: #b45309;
+}
+.margin-low {
+  color: #b42318;
+}
+
+.form-error {
+  color: #b42318;
+  padding: 10px 24px;
+  font-size: 0.88rem;
+}
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  padding: 16px 24px;
+}
+
+@media (max-width: 768px) {
+  .ingredient-form-fields {
+    flex-wrap: wrap;
+  }
+}

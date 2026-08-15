@@ -1,4 +1,8 @@
 node_modules/
+
+# Freebuff desktop runtime (session DBs and preview logs).
+.freebuff/
+
 # Build artifacts — untracked; files stay on disk (Glitch serves frontend/dist from the working copy).
 dist/
 frontend/dist/

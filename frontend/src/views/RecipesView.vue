@@ -145,359 +145,52 @@
     </div>
 
     <!-- Recipe Form Modal -->
-    <div v-if="showForm" class="modal-overlay" @click.self="closeForm">
-      <div class="modal-card">
-        <div class="modal-header">
-          <h3>{{ form.id ? '✏️ تعديل وصفة' : '➕ وصفة جديدة' }}</h3>
-          <button class="close-btn" @click="closeForm">✕</button>
-        </div>
-
-        <div class="form-section">
-          <div class="grid grid-2">
-            <div class="form-group">
-              <label>المنتج النهائي *</label>
-              <select v-model.number="form.product_id" :disabled="!!form.id">
-                <option :value="null">اختر المنتج</option>
-                <option v-for="p in allProducts" :key="p.id" :value="p.id">
-                  {{ p.name_ar }} ({{ unitLabel(p.unit) }})
-                </option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label>اسم الوصفة *</label>
-              <input v-model="form.name_ar" type="text" placeholder="مثال: توليفة العجوز" />
-            </div>
-          </div>
-        </div>
-
-        <div class="form-section">
-          <div class="ingredients-header">
-            <h4>المكونات</h4>
-            <div class="recipe-type-hint">
-              <span v-if="form.items.length === 1" class="type-badge simple"
-                >⚡ وصفة بسيطة (مكون واحد)</span
-              >
-              <span v-else class="type-badge compound"
-                >🔗 وصفة مركبة ({{ form.items.length }} مكونات)</span
-              >
-            </div>
-          </div>
-
-          <div class="ingredients-form-list">
-            <div v-for="(item, i) in form.items" :key="i" class="ingredient-form-row">
-              <div class="ingredient-form-fields">
-                <div class="form-group flex-3">
-                  <label v-if="i === 0">المكون (خامة)</label>
-                  <select v-model.number="item.ingredient_product_id" @change="autoSetUnit(item)">
-                    <option :value="null">اختر الخامة</option>
-                    <option v-for="p in rawMaterials" :key="p.id" :value="p.id">
-                      {{ p.name_ar }} ({{ unitLabel(p.unit) }}) — مخزون:
-                      {{ formatQty(p.total_stock) }}
-                    </option>
-                  </select>
-                </div>
-                <div class="form-group flex-1">
-                  <label v-if="i === 0">الكمية</label>
-                  <input
-                    v-model.number="item.quantity"
-                    type="number"
-                    min="0.001"
-                    step="0.001"
-                    placeholder="0"
-                  />
-                </div>
-                <div class="form-group flex-1">
-                  <label v-if="i === 0">الوحدة</label>
-                  <select v-model="item.unit_code">
-                    <option v-for="u in recipeUnitOptions" :key="u.code" :value="u.code">
-                      {{ u.label }}
-                    </option>
-                  </select>
-                </div>
-                <div class="form-group flex-1">
-                  <label v-if="i === 0">التكلفة</label>
-                  <div class="cost-display">{{ formatMoney(itemCost(item)) }}</div>
-                </div>
-              </div>
-              <button
-                type="button"
-                class="remove-ingredient-btn"
-                :disabled="form.items.length === 1"
-                @click="removeItem(i)"
-                :title="
-                  form.items.length === 1 ? 'يجب أن يكون هناك مكون واحد على الأقل' : 'حذف المكون'
-                "
-              >
-                ✕
-              </button>
-            </div>
-          </div>
-
-          <button type="button" class="btn btn-outline btn-add-ingredient" @click="addItem">
-            + إضافة مكون آخر
-          </button>
-        </div>
-
-        <div class="form-totals">
-          <div class="total-row">
-            <span>إجمالي تكلفة الوصفة:</span>
-            <strong>{{ formatMoney(totalFormCost) }}</strong>
-          </div>
-          <div v-if="form.product_id" class="total-row">
-            <span>سعر بيع المنتج:</span>
-            <strong>{{ formatMoney(selectedProductSalePrice) }}</strong>
-          </div>
-          <div v-if="form.product_id" class="total-row profit-row">
-            <span>هامش الربح المتوقع:</span>
-            <strong :class="formMarginClass">{{ formMarginPct.toFixed(1) }}%</strong>
-          </div>
-        </div>
-
-        <p v-if="formError" class="form-error">{{ formError }}</p>
-
-        <button class="btn btn-outline" @click="closeForm">إلغاء</button>
-        <button class="btn btn-save" :disabled="saving" @click="saveRecipe">
-          <AppIcon name="save" :size="16" />
-          {{ saving ? '⏳ جاري الحفظ...' : form.id ? 'حفظ التعديلات' : 'إضافة الوصفة' }}
-        </button>
-      </div>
-    </div>
+    <RecipeFormModal
+      v-if="showForm"
+      :form="form"
+      :all-products="allProducts"
+      :raw-materials="rawMaterials"
+      :recipe-unit-options="recipeUnitOptions"
+      :saving="saving"
+      :form-error="formError"
+      :total-form-cost="totalFormCost"
+      :selected-product-sale-price="selectedProductSalePrice"
+      :form-margin-pct="formMarginPct"
+      :form-margin-class="formMarginClass"
+      :format-money="formatMoney"
+      :format-qty="formatQty"
+      :unit-label="unitLabel"
+      @close="closeForm"
+      @save="saveRecipe"
+      @add-item="addItem"
+      @remove-item="removeItem"
+    />
 
     <!-- Produce Batch Modal -->
-    <div v-if="showProduceModal" class="modal-overlay" @click.self="closeProduce">
-      <div class="modal-card">
-        <div class="modal-header">
-          <h3>🏭 إنتاج دفعة</h3>
-          <button class="close-btn" @click="closeProduce">✕</button>
-        </div>
-
-        <div class="form-section">
-          <div class="produce-summary">
-            <div class="produce-product">{{ produceForm.product_name }}</div>
-            <div class="produce-sub">{{ produceModeHelp }}</div>
-          </div>
-          <div class="form-group">
-            <label>نوع العملية *</label>
-            <select v-model="produceForm.mode">
-              <option value="production">إنتاج فعلي - يخصم المكونات</option>
-              <option value="opening_production">رصيد افتتاحي - بدون خصم مكونات</option>
-            </select>
-          </div>
-          <div class="grid grid-2">
-            <div class="form-group">
-              <label>الكمية المنتجة *</label>
-              <input v-model.number="produceForm.quantity" type="number" min="0.001" step="0.001" />
-            </div>
-            <div class="form-group">
-              <label>الوحدة (تلقائي)</label>
-              <input :value="unitLabel(produceForm.unit || '')" type="text" readonly />
-            </div>
-            <div class="form-group">
-              <label>المخزن *</label>
-              <select v-model.number="produceForm.warehouse_id">
-                <option :value="null">اختر المخزن</option>
-                <option v-for="w in warehouses" :key="w.id" :value="w.id">{{ w.name_ar }}</option>
-              </select>
-            </div>
-          </div>
-          <div class="form-group">
-            <label>ملاحظات</label>
-            <textarea v-model="produceForm.notes" rows="3" placeholder="اختياري"></textarea>
-          </div>
-          <div v-if="produceError" class="form-error">{{ produceError }}</div>
-        </div>
-
-        <button class="btn btn-outline" @click="closeProduce">إلغاء</button>
-        <button class="btn btn-save" :disabled="producing" @click="saveProduce">
-          <AppIcon name="check" :size="16" />
-          {{ producing ? '⏳ جاري الحفظ...' : produceActionLabel }}
-        </button>
-      </div>
-    </div>
+    <ProduceModal
+      v-if="showProduceModal"
+      :produce-form="produceForm"
+      :warehouses="warehouses"
+      :producing="producing"
+      :produce-error="produceError"
+      :produce-action-label="produceActionLabel"
+      :produce-mode-help="produceModeHelp"
+      :unit-label="unitLabel"
+      @close="closeProduce"
+      @save="saveProduce"
+    />
 
     <!-- Calculator Modal -->
-    <div v-if="showCalculator" class="modal-overlay" @click.self="closeCalculator">
-      <div class="modal-card">
-        <div class="modal-header">
-          <h3>🧮 حاسبة تكلفة وهامش ربح التوليفات</h3>
-          <button class="close-btn" @click="closeCalculator">✕</button>
-        </div>
-
-        <div class="form-section">
-          <div class="form-group">
-            <label>اسم التوليفة المقترحة (اختياري)</label>
-            <input
-              v-model="calcForm.name_ar"
-              type="text"
-              placeholder="مثال: توليفة مخصوصة بالهيل"
-            />
-          </div>
-        </div>
-
-        <div class="form-section">
-          <div class="ingredients-header">
-            <h4>المكونات ونسب الخلط</h4>
-          </div>
-          <div class="ingredients-form-list">
-            <div v-for="(item, i) in calcForm.items" :key="i" class="ingredient-form-row">
-              <div class="ingredient-form-fields">
-                <div class="form-group flex-3">
-                  <label v-if="i === 0">الخامة (البن/مكون)</label>
-                  <select
-                    v-model.number="item.ingredient_product_id"
-                    @change="autoSetCalcUnit(item)"
-                  >
-                    <option :value="null">اختر الخامة</option>
-                    <option v-for="p in rawMaterials" :key="p.id" :value="p.id">
-                      {{ p.name_ar }} ({{ unitLabel(p.unit) }}) — الشراء:
-                      {{ formatMoney(p.purchase_price) }}
-                    </option>
-                  </select>
-                </div>
-                <div class="form-group flex-1">
-                  <label v-if="i === 0">الوزن</label>
-                  <input
-                    v-model.number="item.quantity"
-                    type="number"
-                    min="0.001"
-                    step="0.001"
-                    placeholder="0"
-                    @input="calcProfitMargin"
-                  />
-                </div>
-                <div class="form-group flex-1">
-                  <label v-if="i === 0">الوحدة</label>
-                  <select v-model="item.unit_code" @change="calcProfitMargin">
-                    <option v-for="u in recipeUnitOptions" :key="u.code" :value="u.code">
-                      {{ u.label }}
-                    </option>
-                  </select>
-                </div>
-                <div class="form-group flex-1">
-                  <label v-if="i === 0">التكلفة</label>
-                  <div class="cost-display">{{ formatMoney(itemCost(item)) }}</div>
-                </div>
-              </div>
-              <button
-                type="button"
-                class="remove-ingredient-btn"
-                :disabled="calcForm.items.length === 1"
-                @click="removeCalcItem(i)"
-              >
-                ✕
-              </button>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            class="btn btn-outline btn-add-ingredient"
-            @click="addCalcItem"
-            style="width: 100%; margin-top: 8px"
-          >
-            + إضافة مكون آخر للتوليفة
-          </button>
-        </div>
-
-        <div class="form-totals">
-          <div class="total-row">
-            <span>إجمالي وزن الخلطة:</span>
-            <strong>{{ calcTotalWeightText }}</strong>
-          </div>
-          <div class="total-row">
-            <span>إجمالي التكلفة الكلية للخلطة:</span>
-            <strong>{{ formatMoney(calcTotalCost) }}</strong>
-          </div>
-          <div
-            class="total-row"
-            style="border-top: 1px dashed var(--border); padding-top: 8px; margin-top: 4px"
-          >
-            <span>متوسط تكلفة الكيلو الواحد:</span>
-            <strong style="color: var(--primary-dark); font-size: 1.1rem">{{
-              formatMoney(calcCostPerKilo)
-            }}</strong>
-          </div>
-        </div>
-
-        <div
-          class="form-section bg-light"
-          style="background: rgba(var(--primary-rgb), 0.02); border-top: 1px solid var(--border)"
-        >
-          <h4 style="margin-bottom: 12px">تحديد هوامش الأرباح والبيع</h4>
-          <div class="grid grid-2">
-            <div class="form-group">
-              <label>سعر البيع المقترح للكيلو (ج.م)</label>
-              <input
-                v-model.number="calcForm.target_price"
-                type="number"
-                min="0"
-                step="0.5"
-                placeholder="0"
-                @input="onTargetPriceInput"
-              />
-            </div>
-            <div class="form-group">
-              <label>هامش الربح المستهدف (%)</label>
-              <input
-                v-model.number="calcForm.target_margin"
-                type="number"
-                min="-100"
-                max="100"
-                step="1"
-                placeholder="40"
-                @input="onTargetMarginInput"
-              />
-            </div>
-          </div>
-
-          <div class="form-group" style="margin-top: 14px">
-            <label
-              style="
-                display: flex;
-                justify-content: space-between;
-                font-size: 0.82rem;
-                font-weight: 600;
-                color: var(--text-muted);
-                margin-bottom: 6px;
-              "
-            >
-              <span>تحريك الهامش المستهدف تفاعلياً:</span>
-              <span style="font-weight: 700; color: var(--primary-dark)"
-                >{{ calcForm.target_margin || 0 }}%</span
-              >
-            </label>
-            <input
-              v-model.number="calcForm.target_margin"
-              type="range"
-              min="-20"
-              max="95"
-              step="1"
-              class="range-slider"
-              @input="onTargetMarginInput"
-            />
-          </div>
-
-          <div
-            style="
-              margin-top: 12px;
-              display: flex;
-              justify-content: space-between;
-              font-size: 0.9rem;
-            "
-          >
-            <span>الحالة الربحية:</span>
-            <strong :class="calcMarginClass" style="font-size: 1rem">
-              {{ calcProfitStatusText }}
-            </strong>
-          </div>
-        </div>
-
-        <button class="btn btn-outline" @click="closeCalculator">إلغاء</button>
-        <button class="btn btn-save" :disabled="!isCalcValid" @click="convertToRecipe">
-          <AppIcon name="check" :size="16" /> تحويل لوصفة حقيقية
-        </button>
-      </div>
-    </div>
+    <CalculatorModal
+      v-if="showCalculator"
+      :raw-materials="rawMaterials"
+      :all-products="allProducts"
+      :recipe-unit-options="recipeUnitOptions"
+      :format-money="formatMoney"
+      :unit-label="unitLabel"
+      @close="closeCalculator"
+      @convert="convertToRecipe"
+    />
 
     <!-- ═══════ سجل عمليات الإنتاج ═══════ -->
     <div class="card productions-section">
@@ -618,11 +311,13 @@
           </div>
           <p v-if="reverseError" class="form-error">{{ reverseError }}</p>
         </div>
-        <button class="btn btn-outline" @click="showReverseModal = false">إلغاء</button>
-        <button class="btn btn-delete" :disabled="reversing" @click="doReverse">
-          <AppIcon name="delete" :size="16" />
-          {{ reversing ? '⏳ جاري العكس...' : 'تأكيد العكس' }}
-        </button>
+        <div class="modal-actions">
+          <button class="btn btn-outline" @click="showReverseModal = false">إلغاء</button>
+          <button class="btn btn-delete" :disabled="reversing" @click="doReverse">
+            <AppIcon name="delete" :size="16" />
+            {{ reversing ? '⏳ جاري العكس...' : 'تأكيد العكس' }}
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -630,8 +325,13 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
+import AppIcon from '@/components/AppIcon.vue';
+import RecipeFormModal from '@/components/recipes/RecipeFormModal.vue';
+import ProduceModal from '@/components/recipes/ProduceModal.vue';
+import CalculatorModal from '@/components/recipes/CalculatorModal.vue';
 import { costs as costsApi, products as productsApi, warehouses as warehousesApi } from '@/api';
 import { formatMoney } from '@/utils/currency';
+import { normalizeUnit, convertQty, itemCost } from '@/utils/recipeCost';
 import { useProductMeta } from '@/composables/useProductMeta';
 
 const { units: dbUnits, loadMeta, unitLabel: metaUnitLabel } = useProductMeta();
@@ -664,26 +364,10 @@ const form = ref({
   items: [emptyItem()],
 });
 
-// ─── Calculator state ────────────────────────────────────────────────────────
+// ─── Calculator state (فتح/إغلاق فقط — المنطق داخل المكوّن) ────────────────
 const showCalculator = ref(false);
-const calcForm = ref({
-  name_ar: '',
-  target_price: 0,
-  target_margin: 40,
-  items: [emptyCalcItem()],
-});
-
-function emptyCalcItem() {
-  return { ingredient_product_id: null, quantity: 100, unit_code: 'g' };
-}
 
 const openCalculator = () => {
-  calcForm.value = {
-    name_ar: '',
-    target_price: 0,
-    target_margin: 40,
-    items: [emptyCalcItem()],
-  };
   showCalculator.value = true;
 };
 
@@ -691,114 +375,12 @@ const closeCalculator = () => {
   showCalculator.value = false;
 };
 
-const addCalcItem = () => calcForm.value.items.push(emptyCalcItem());
-const removeCalcItem = (i: any) => {
-  if (calcForm.value.items.length > 1) calcForm.value.items.splice(i, 1);
-  calcProfitMargin();
-};
-
-const autoSetCalcUnit = (item: any) => {
-  const p = allProducts.value.find((x: any) => x.id === item.ingredient_product_id);
-  if (p) {
-    const norm = normalizeUnit(p.unit);
-    if (norm) item.unit_code = norm;
-  }
-  calcProfitMargin();
-};
-
-// Calculations
-const calcTotalWeightGrams = computed(() => {
-  return calcForm.value.items.reduce((sum: any, item: any) => {
-    const qty = Number(item.quantity || 0);
-    const norm = normalizeUnit(item.unit_code);
-    if (norm === 'kg') return sum + qty * 1000;
-    if (norm === 'g') return sum + qty;
-    if (norm === 'l') return sum + qty * 1000;
-    if (norm === 'ml') return sum + qty;
-    return sum + qty;
-  }, 0);
-});
-
-const calcTotalWeightText = computed(() => {
-  const wg = calcTotalWeightGrams.value;
-  if (wg >= 1000) return `${(wg / 1000).toFixed(2)} كيلو`;
-  return `${wg.toFixed(0)} جرام`;
-});
-
-const calcTotalCost = computed(() => {
-  return calcForm.value.items.reduce((s: any, it: any) => s + itemCost(it), 0);
-});
-
-const calcCostPerKilo = computed(() => {
-  const wg = calcTotalWeightGrams.value;
-  const tc = calcTotalCost.value;
-  if (!wg) return 0;
-  return tc * (1000 / wg);
-});
-
-// Sync Target Price and Target Margin
-const onTargetPriceInput = () => {
-  const cost = calcCostPerKilo.value;
-  const price = Number(calcForm.value.target_price || 0);
-  if (price > 0) {
-    calcForm.value.target_margin = Math.round(((price - cost) / price) * 100);
-  } else {
-    calcForm.value.target_margin = 0;
-  }
-};
-
-const onTargetMarginInput = () => {
-  const cost = calcCostPerKilo.value;
-  const margin = Number(calcForm.value.target_margin || 0);
-  if (margin < 100) {
-    calcForm.value.target_price = Number((cost / (1 - margin / 100)).toFixed(2));
-  } else {
-    calcForm.value.target_price = 0;
-  }
-};
-
-// Recalculate if totals change
-const calcProfitMargin = () => {
-  onTargetMarginInput();
-};
-
-const calcMarginClass = computed(() => {
-  const m = Number(calcForm.value.target_margin || 0);
-  if (m >= 40) return 'margin-high';
-  if (m >= 20) return 'margin-mid';
-  return 'margin-low';
-});
-
-const calcProfitStatusText = computed(() => {
-  const cost = calcCostPerKilo.value;
-  const price = Number(calcForm.value.target_price || 0);
-  const margin = Number(calcForm.value.target_margin || 0);
-  if (!price || price <= 0) return 'الرجاء إدخال سعر البيع';
-  if (price < cost) return `⚠️ بيع بخسارة! هامش الربح: ${margin}%`;
-  return `✅ هامش الربح المحقق: ${margin}% (الربح للكيلو: ${formatMoney(price - cost)})`;
-});
-
-const isCalcValid = computed(() => {
-  const validItems = calcForm.value.items.filter(
-    (it: any) => it.ingredient_product_id && Number(it.quantity) > 0,
-  );
-  return validItems.length > 0 && calcTotalWeightGrams.value > 0;
-});
-
-const convertToRecipe = () => {
-  const validItems = calcForm.value.items.filter(
-    (it: any) => it.ingredient_product_id && Number(it.quantity) > 0,
-  );
-  showCalculator.value = false;
+const convertToRecipe = (recipe: any) => {
   form.value = {
     id: null,
     product_id: null,
-    name_ar: calcForm.value.name_ar?.trim() || 'توليفة محتسبة',
-    items: validItems.map((it: any) => ({
-      ingredient_product_id: it.ingredient_product_id,
-      quantity: Number(it.quantity),
-      unit_code: it.unit_code || 'g',
-    })),
+    name_ar: recipe.name_ar || 'توليفة محتسبة',
+    items: recipe.items || [],
   };
   formError.value = '';
   showForm.value = true;
@@ -846,59 +428,6 @@ const formatQty = (v: any) => {
   return n % 1 === 0 ? n.toLocaleString('en-GB') : n.toFixed(3);
 };
 
-const normalizeUnit = (u: any) => {
-  const map = {
-    kg: 'kg',
-    kilo: 'kg',
-    كيلو: 'kg',
-    كيلوجرام: 'kg',
-    كجم: 'kg',
-    g: 'g',
-    gram: 'g',
-    جرام: 'g',
-    غرام: 'g',
-    l: 'l',
-    liter: 'l',
-    litre: 'l',
-    لتر: 'l',
-    ml: 'ml',
-    milli: 'ml',
-    ملي: 'ml',
-    مل: 'ml',
-    count: 'count',
-    unit: 'count',
-    piece: 'count',
-    pieces: 'count',
-    عدد: 'count',
-    قطعة: 'count',
-  };
-  return (
-    map[
-      String(u || '')
-        .trim()
-        .toLowerCase() as keyof typeof map
-    ] || null
-  );
-};
-
-const convertQty = (qty: any, from: any, to: any) => {
-  if (from === to) return qty;
-  if (from === 'kg' && to === 'g') return qty * 1000;
-  if (from === 'g' && to === 'kg') return qty / 1000;
-  if (from === 'l' && to === 'ml') return qty * 1000;
-  if (from === 'ml' && to === 'l') return qty / 1000;
-  return null;
-};
-
-const unitPriceFor = (basePrice: any, productUnit: any, wantedUnit: any) => {
-  const from = normalizeUnit(productUnit);
-  const to = normalizeUnit(wantedUnit);
-  if (!from || !to) return 0;
-  const c = convertQty(1, from, to);
-  if (c == null || c === 0) return 0;
-  return Number(basePrice || 0) / c;
-};
-
 // ─── computed ─────────────────────────────────────────────────────────────────
 // raw materials = all products (ingredients come from the full product list)
 const rawMaterials = computed(() => allProducts.value);
@@ -943,27 +472,10 @@ const stockBarClass = (item: any) => {
 };
 
 // form cost calculation
-const getIngredient = (item: any) =>
-  allProducts.value.find((p: any) => p.id === item.ingredient_product_id);
-
-const itemCost = (item: any) => {
-  const p = getIngredient(item);
-  if (!p) return 0;
-
-  // fallback: لو purchase_price صفر/غير موجود استخدم sale_price
-  const basePrice =
-    Number(p.purchase_price || 0) > 0
-      ? p.purchase_price
-      : Number(p.sale_price || 0) > 0
-        ? p.sale_price
-        : 0;
-
-  const unitPrice = unitPriceFor(basePrice, p.unit, item.unit_code);
-  return Number(item.quantity || 0) * unitPrice;
-};
+const itemCostLocal = (item: any) => itemCost(item, allProducts.value);
 
 const totalFormCost = computed(() =>
-  form.value.items.reduce((s: any, it: any) => s + itemCost(it), 0),
+  form.value.items.reduce((s: any, it: any) => s + itemCostLocal(it), 0),
 );
 
 const selectedProductSalePrice = computed(() => {
@@ -1123,14 +635,6 @@ const closeProduce = () => {
 const addItem = () => form.value.items.push(emptyItem());
 const removeItem = (i: any) => {
   if (form.value.items.length > 1) form.value.items.splice(i, 1);
-};
-
-const autoSetUnit = (item: any) => {
-  const p = allProducts.value.find((x: any) => x.id === item.ingredient_product_id);
-  if (p) {
-    const norm = normalizeUnit(p.unit);
-    if (norm) item.unit_code = norm;
-  }
 };
 
 const saveRecipe = async () => {
@@ -1300,32 +804,6 @@ onMounted(async () => {
   gap: 20px;
 }
 
-/* Range Slider */
-.range-slider {
-  -webkit-appearance: none;
-  width: 100%;
-  height: 6px;
-  border-radius: 3px;
-  background: var(--border);
-  outline: none;
-  margin: 6px 0;
-
-  &::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    appearance: none;
-    width: 16px;
-    height: 16px;
-    border-radius: 50%;
-    background: #2e7d4f;
-    cursor: pointer;
-    transition: transform 0.1s;
-
-    &:hover {
-      transform: scale(1.2);
-    }
-  }
-}
-
 .page-header {
   display: flex;
   justify-content: space-between;
@@ -1458,22 +936,6 @@ onMounted(async () => {
   &.danger:hover {
     background: rgba(180, 35, 24, 0.1);
     border-color: rgba(180, 35, 24, 0.3);
-  }
-}
-
-.produce-summary {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-bottom: 14px;
-  .produce-product {
-    font-weight: 800;
-    color: var(--primary-dark);
-    font-size: 1rem;
-  }
-  .produce-sub {
-    color: var(--text-muted);
-    font-size: 0.88rem;
   }
 }
 
@@ -1617,7 +1079,7 @@ onMounted(async () => {
   }
 }
 
-/* Modal */
+/* Reverse Modal (owned by the view) */
 .modal-overlay {
   position: fixed;
   inset: 0;
@@ -1667,115 +1129,6 @@ onMounted(async () => {
     font-family: inherit;
     resize: vertical;
   }
-}
-
-.ingredients-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-  h4 {
-    margin: 0;
-    color: var(--primary-dark);
-  }
-  .type-badge {
-    padding: 3px 10px;
-    border-radius: 20px;
-    font-size: 0.78rem;
-    font-weight: 700;
-    &.simple {
-      background: rgba(46, 125, 79, 0.1);
-      color: #2e7d4f;
-    }
-    &.compound {
-      background: rgba(99, 60, 180, 0.1);
-      color: #5b21b6;
-    }
-  }
-}
-
-.ingredients-form-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-bottom: 10px;
-}
-.ingredient-form-row {
-  display: flex;
-  align-items: flex-end;
-  gap: 8px;
-  .ingredient-form-fields {
-    display: flex;
-    gap: 8px;
-    flex: 1;
-    align-items: flex-end;
-  }
-  .flex-3 {
-    flex: 3;
-  }
-  .flex-1 {
-    flex: 1;
-  }
-  .cost-display {
-    padding: 9px 10px;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: var(--primary-dark);
-    white-space: nowrap;
-  }
-  .remove-ingredient-btn {
-    width: 32px;
-    height: 36px;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    background: var(--bg-card);
-    cursor: pointer;
-    color: var(--text-muted);
-    flex-shrink: 0;
-    margin-bottom: 0;
-    &:hover:not(:disabled) {
-      background: rgba(180, 35, 24, 0.1);
-      color: #b42318;
-      border-color: rgba(180, 35, 24, 0.3);
-    }
-    &:disabled {
-      opacity: 0.4;
-      cursor: not-allowed;
-    }
-  }
-}
-
-.btn-add-ingredient {
-  width: 100%;
-  margin-top: 4px;
-}
-
-.form-totals {
-  padding: 14px 24px;
-  background: var(--bg);
-  border-bottom: 1px solid var(--border);
-  .total-row {
-    display: flex;
-    justify-content: space-between;
-    padding: 4px 0;
-    font-size: 0.9rem;
-  }
-  .profit-row strong {
-    font-size: 1rem;
-  }
-}
-
-.margin-high {
-  color: #2e7d4f;
-}
-.margin-mid {
-  color: #b45309;
-}
-.margin-low {
-  color: #b42318;
 }
 
 .form-error {
@@ -1993,9 +1346,6 @@ onMounted(async () => {
 @media (max-width: 768px) {
   .recipes-grid {
     grid-template-columns: 1fr;
-  }
-  .ingredient-form-fields {
-    flex-wrap: wrap;
   }
   .prod-table-head {
     display: none;

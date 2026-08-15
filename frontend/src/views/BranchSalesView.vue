@@ -61,369 +61,65 @@
 
       <div class="grid grid-2 main-grid">
         <!-- Products Panel -->
-        <div class="card products-panel" :class="{ 'mobile-hidden': activeTab !== 'products' }">
-          <div class="panel-header">
-            <h3>🛍️ منتجات الفرع</h3>
-            <div class="panel-filters">
-              <input
-                ref="searchInputRef"
-                v-model="productSearch"
-                type="text"
-                placeholder="بحث عن منتج... (F7)"
-                class="search-input"
-                @input="filterProducts"
-              />
-              <select v-model="selectedCategory" @change="filterProducts" class="category-select">
-                <option value="">كل التصنيفات</option>
-                <option v-for="cat in categories" :key="cat.id" :value="cat.id">
-                  {{ cat.name_ar }}
-                </option>
-              </select>
-            </div>
-          </div>
-
-          <!-- Category Interactive Pills Bar -->
-          <div v-if="categories.length" class="category-pills-bar">
-            <button
-              type="button"
-              class="pill-btn"
-              :class="{ active: !selectedCategory }"
-              @click="
-                selectedCategory = '';
-                filterProducts();
-              "
-            >
-              ✨ الكل
-            </button>
-            <button
-              v-for="cat in categories"
-              :key="cat.id"
-              type="button"
-              class="pill-btn"
-              :class="{ active: String(selectedCategory) === String(cat.id) }"
-              @click="
-                selectedCategory = cat.id;
-                filterProducts();
-              "
-            >
-              {{ cat.name_ar }}
-            </button>
-          </div>
-
-          <!-- Premium Skeletons for Product Grid Loading -->
-          <div v-if="loadingProducts" class="products-grid">
-            <div
-              v-for="i in 8"
-              :key="'sk-prod-' + i"
-              class="product-card"
-              style="
-                display: flex;
-                flex-direction: column;
-                justify-content: center;
-                align-items: center;
-                min-height: 84px;
-              "
-            >
-              <SkeletonLoader type="line" height="14px" width="80%" class="mb-2" />
-              <SkeletonLoader type="line" height="12px" width="50%" />
-            </div>
-          </div>
-          <div v-else-if="!filteredProducts.length" class="empty-state">
-            <span>🔍</span>
-            <p>لا توجد منتجات مطابقة</p>
-          </div>
-          <div v-else class="products-grid">
-            <div
-              v-for="product in filteredProducts"
-              :key="product.id"
-              class="product-card"
-              :class="{
-                'no-recipe': !product.has_recipe,
-                'low-stock': hasLowIngredients(product) || getProductStockClass(product) === 'low',
-                'is-out-of-stock': getProductStockClass(product) === 'out',
-                selected: isInCart(product.id),
-              }"
-              @click="addToCart(product)"
-            >
-              <!-- 🟢 مؤشر المخزون المضيء -->
-              <span
-                class="stock-indicator-dot"
-                :class="getProductStockClass(product)"
-                :title="getProductStockTitle(product)"
-              ></span>
-              <div class="product-name">{{ product.name_ar }}</div>
-              <div class="product-meta">
-                <span class="product-price">{{ formatMoney(product.sale_price) }}</span>
-                <span class="product-cat">{{ product.category_name || '—' }}</span>
-              </div>
-              <div class="product-status">
-                <span
-                  v-if="!product.has_recipe"
-                  class="badge badge-info"
-                  title="بدون وصفة - سيتم خصم المنتج نفسه من المخزون"
-                  >خصم مباشر</span
-                >
-                <span v-else-if="hasLowIngredients(product)" class="badge badge-warning"
-                  >⚠️ مخزون منخفض</span
-                >
-                <span v-else class="badge badge-success">✓ متاح</span>
-              </div>
-              <div v-if="isInCart(product.id)" class="cart-qty-badge">
-                {{ getCartQty(product.id) }}
-              </div>
-            </div>
-          </div>
-        </div>
+        <ProductsPanel
+          ref="productsPanelRef"
+          :filtered-products="filteredProducts"
+          :categories="categories"
+          :loading-products="loadingProducts"
+          v-model:product-search="productSearch"
+          v-model:selected-category="selectedCategory"
+          :active-tab="activeTab"
+          :format-money="formatMoney"
+          :has-low-ingredients="hasLowIngredients"
+          :get-product-stock-class="getProductStockClass"
+          :get-product-stock-title="getProductStockTitle"
+          :is-in-cart="isInCart"
+          :get-cart-qty="getCartQty"
+          @add-to-cart="addToCart"
+          @filter="filterProducts"
+        />
 
         <!-- Cart & Form Panel -->
-        <div class="card cart-panel" :class="{ 'mobile-hidden': activeTab !== 'cart' }">
-          <h3>🛒 سلة المبيعات</h3>
-
-          <!-- Cart Items -->
-          <div v-if="!cart.length" class="empty-cart">
-            <span>🛒</span>
-            <p>اضغط على منتج لإضافته</p>
-          </div>
-          <div v-else class="cart-items">
-            <div v-for="(item, idx) in cart" :key="item.product_id" class="cart-item">
-              <div class="cart-item-info">
-                <span class="cart-item-name">{{ item.name_ar }}</span>
-                <span class="cart-item-price">{{ formatMoney(item.unit_price) }}</span>
-              </div>
-              <div class="cart-item-controls">
-                <button class="qty-btn" @click="decreaseQty(idx)">−</button>
-                <input
-                  v-model.number="item.quantity"
-                  type="number"
-                  min="0.1"
-                  step="0.1"
-                  class="qty-input"
-                  @change="validateQty(idx)"
-                />
-                <button class="qty-btn" @click="increaseQty(idx)">+</button>
-                <button class="remove-btn" @click="removeFromCart(idx)">🗑️</button>
-              </div>
-              <div class="cart-item-total">{{ formatMoney(item.quantity * item.unit_price) }}</div>
-            </div>
-          </div>
-
-          <!-- Suggested Complementary Items (Market Basket Analysis) -->
-          <div v-if="cart.length && recommendedItems.length" class="cart-recommendations">
-            <div class="rec-title">✨ مقترحات ذكية ترافق السلة:</div>
-            <div class="rec-list">
-              <div
-                v-for="rec in recommendedItems"
-                :key="rec.product_id"
-                class="rec-item"
-                @click="addRecommendedToCart(rec)"
-                title="اضغط لإضافة هذا الصنف المقترح"
-              >
-                <div class="rec-name">
-                  <span class="rec-name-text">{{ rec.name_ar }}</span>
-                  <span class="rec-category">{{ rec.category_name }}</span>
-                </div>
-                <div class="rec-action">
-                  <span class="rec-price">{{ formatMoney(rec.sale_price) }}</span>
-                  <span class="rec-add-icon">➕</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Cart Summary -->
-          <div v-if="cart.length" class="cart-summary">
-            <div class="summary-row">
-              <span>المجموع الفرعي</span>
-              <span>{{ formatMoney(cartSubtotal) }}</span>
-            </div>
-            <div class="summary-row discount-row">
-              <span>خصم (ج.م)</span>
-              <input
-                v-model.number="saleForm.discount_amount"
-                type="number"
-                min="0"
-                step="0.01"
-                class="discount-input"
-              />
-            </div>
-            <div class="summary-row total-row">
-              <span>الإجمالي</span>
-              <span class="total-amount">{{ formatMoney(cartTotal) }}</span>
-            </div>
-          </div>
-
-          <!-- Sale Form -->
-          <form @submit.prevent="submitManualSale" class="sale-form">
-            <div class="form-row">
-              <div class="form-group">
-                <label>تاريخ البيع *</label>
-                <input v-model="saleForm.sale_date" type="date" required />
-              </div>
-              <div class="form-group">
-                <label>طريقة الدفع</label>
-                <select v-model="saleForm.payment_method">
-                  <option value="cash">نقدي</option>
-                  <option value="card">بطاقة</option>
-                  <option value="transfer">تحويل</option>
-                  <option value="credit">آجل</option>
-                </select>
-              </div>
-            </div>
-            <div class="form-group"></div>
-
-            <!-- إعدادات الطباعة الحرارية المباشرة -->
-            <div class="printer-settings-box">
-              <div class="printer-header">
-                <span>🖨️ الطباعة الحرارية المباشرة</span>
-              </div>
-              <div class="printer-controls">
-                <div class="printer-info">
-                  <span class="printer-status" :class="{ configured: printerName }">
-                    {{ printerName ? `طابعة نشطة: ${printerName}` : 'لم يتم تحديد طابعة USB' }}
-                  </span>
-                  <button type="button" class="btn-sm btn-outline" @click="selectPrinter">
-                    {{ printerName ? 'تغيير' : 'تحديد طابعة' }}
-                  </button>
-                </div>
-                <div class="printer-options">
-                  <label class="checkbox-label">
-                    <input type="checkbox" v-model="autoPrint" />
-                    <span>طباعة تلقائية عند البيع</span>
-                  </label>
-                  <button
-                    v-if="lastSavedSale"
-                    type="button"
-                    class="btn-sm btn-outline print-last-btn"
-                    @click="printReceipt(lastSavedSale)"
-                  >
-                    🖨️ طباعة الفاتورة الأخيرة
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div v-if="saleError" class="alert alert-danger">{{ saleError }}</div>
-
-            <button
-              v-permission="['pos.add', 'sales.add']"
-              type="submit"
-              class="btn btn-primary btn-submit"
-              :class="{ 'btn-loading': saving }"
-              :disabled="saving || !cart.length"
-            >
-              {{ saving ? '⏳ جاري الحفظ...' : `💾 تسجيل البيع (${formatMoney(cartTotal)})` }}
-            </button>
-            <button
-              type="button"
-              class="btn btn-outline btn-clear"
-              @click="clearCart"
-              :disabled="!cart.length"
-            >
-              🗑️ مسح السلة
-            </button>
-          </form>
-        </div>
+        <CartPanel
+          :cart="cart"
+          :sale-form="saleForm"
+          :recommended-items="recommendedItems"
+          :cart-subtotal="cartSubtotal"
+          :cart-total="cartTotal"
+          :saving="saving"
+          :sale-error="saleError"
+          v-model:auto-print="autoPrint"
+          :printer-name="printerName"
+          :last-saved-sale="lastSavedSale"
+          :active-tab="activeTab"
+          :format-money="formatMoney"
+          @increase-qty="increaseQty"
+          @decrease-qty="decreaseQty"
+          @validate-qty="validateQty"
+          @remove-from-cart="removeFromCart"
+          @add-recommended="addRecommendedToCart"
+          @submit-sale="submitManualSale"
+          @clear-cart="clearCart"
+          @select-printer="selectPrinter"
+          @print-last="printReceipt"
+        />
       </div>
     </div>
 
     <!-- Excel Mode -->
-    <div v-if="showMode === 'excel'" class="excel-mode card">
-      <h3>📊 استيراد مبيعات الفرع من Excel</h3>
-      <p class="excel-note">
-        حمّل القالب — فيه كل منتجات الفرع جاهزة بالكود والاسم والسعر. اكتب الكمية فقط لكل منتج بيع،
-        ثم ارفع الملف.
-      </p>
-
-      <div class="excel-actions">
-        <button
-          class="btn btn-primary"
-          @click="downloadBranchTemplate"
-          :disabled="downloadingTemplate"
-        >
-          {{ downloadingTemplate ? '⏳ جاري التحميل...' : '📥 تحميل القالب (منتجات جاهزة)' }}
-        </button>
-        <label class="btn btn-outline import-label">
-          🔍 فحص الملف قبل الرفع
-          <input type="file" accept=".xlsx,.xls" hidden @change="onValidateExcel" />
-        </label>
-        <label class="btn btn-outline import-label">
-          📤 رفع واستيراد
-          <input type="file" accept=".xlsx,.xls" hidden @change="onImportExcel" />
-        </label>
-      </div>
-
-      <!-- نتيجة الفحص / الاستيراد -->
-      <div v-if="excelMsg" class="import-result" :class="{ 'import-err': excelErr }">
-        <p class="import-msg">{{ excelMsg }}</p>
-        <ul v-if="excelDetails.length" class="import-details">
-          <li v-for="(d, i) in excelDetails" :key="i">{{ d }}</li>
-        </ul>
-      </div>
-
-      <!-- شرح الخطوات -->
-      <div class="excel-steps">
-        <div class="step">
-          <div class="step-num">1</div>
-          <div class="step-body">
-            <strong>حمّل القالب</strong>
-            <span>فيه كل منتجات الفرع جاهزة — كود + اسم + سعر</span>
-          </div>
-        </div>
-        <div class="step">
-          <div class="step-num">2</div>
-          <div class="step-body">
-            <strong>اكتب الكمية</strong>
-            <span>في عمود «الكمية» فقط للمنتجات التي بيعت — اترك الباقي فارغاً</span>
-          </div>
-        </div>
-        <div class="step">
-          <div class="step-num">3</div>
-          <div class="step-body">
-            <strong>ارفع الملف</strong>
-            <span>سيتم خصم المخزون تلقائياً بناءً على وصفة كل منتج</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- معاينة المنتجات في القالب -->
-      <details class="excel-guide" open>
-        <summary>👁️ معاينة شكل القالب ({{ allProducts.length }} منتج)</summary>
-        <div class="guide-table-wrap">
-          <table class="guide-table">
-            <thead>
-              <tr>
-                <th>تاريخ_البيع</th>
-                <th>كود_المنتج</th>
-                <th>اسم_المنتج</th>
-                <th>التصنيف</th>
-                <th>سعر_البيع</th>
-                <th style="background: #2e7d4f">الكمية ← اكتبها هنا</th>
-                <th>طريقة_الدفع</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="p in allProducts.slice(0, 8)" :key="p.id">
-                <td class="muted">{{ todayStr }}</td>
-                <td>
-                  <code>{{ p.sku }}</code>
-                </td>
-                <td>{{ p.name_ar }}</td>
-                <td class="muted">{{ p.category_name || '—' }}</td>
-                <td>{{ formatMoney(p.sale_price) }}</td>
-                <td class="qty-col">___</td>
-                <td class="muted">cash</td>
-              </tr>
-              <tr v-if="allProducts.length > 8">
-                <td colspan="7" class="more-row">
-                  ... و {{ allProducts.length - 8 }} منتج آخر في القالب
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        <p class="guide-note">⚠️ لا تعدّل عمود «كود_المنتج» — هو المرجع الأساسي للاستيراد</p>
-      </details>
-    </div>
+    <ExcelMode
+      v-if="showMode === 'excel'"
+      :all-products="allProducts"
+      :downloading-template="downloadingTemplate"
+      :excel-msg="excelMsg"
+      :excel-err="excelErr"
+      :excel-details="excelDetails"
+      :today-str="todayStr"
+      :format-money="formatMoney"
+      @download="downloadBranchTemplate"
+      @validate="onValidateExcel"
+      @import="onImportExcel"
+    />
 
     <!-- Counts Modal -->
     <div v-if="countsModal" class="modal" @click.self="countsModal = false">
@@ -539,6 +235,10 @@
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue';
 import StatCard from '@/components/StatCard.vue';
 import AppIcon from '@/components/AppIcon.vue';
+import SkeletonLoader from '@/components/SkeletonLoader.vue';
+import ProductsPanel from '@/components/branch/ProductsPanel.vue';
+import CartPanel from '@/components/branch/CartPanel.vue';
+import ExcelMode from '@/components/branch/ExcelMode.vue';
 import {
   sales as salesApi,
   products as productsApi,
@@ -587,7 +287,7 @@ const autoPrint = ref(localStorage.getItem('auto_print_receipt') !== 'false');
 const printerName = ref(directPrinter.getSelectedPrinterName() || '');
 const lastSavedSale = ref<any>(null);
 
-const searchInputRef = ref<any>(null);
+const productsPanelRef = ref<InstanceType<typeof ProductsPanel> | null>(null);
 const companySettings = ref({
   name_ar: 'بن العجوز',
   phone: '',
@@ -674,10 +374,7 @@ const handleGlobalKeyDown = (e: any) => {
     playBeep('warning');
   } else if (e.key === 'F7') {
     e.preventDefault();
-    if (searchInputRef.value) {
-      searchInputRef.value.focus();
-      searchInputRef.value.select();
-    }
+    productsPanelRef.value?.focusSearch();
   }
 };
 
@@ -1157,9 +854,7 @@ const downloadBranchTemplate = async () => {
   }
 };
 
-const onValidateExcel = async (e: any) => {
-  const file = e.target.files?.[0];
-  if (!file) return;
+const onValidateExcel = async (file: File) => {
   excelMsg.value = 'جاري فحص الملف...';
   excelErr.value = false;
   excelDetails.value = [];
@@ -1178,12 +873,9 @@ const onValidateExcel = async (e: any) => {
     excelErr.value = true;
     excelMsg.value = err.message || 'فشل فحص الملف';
   }
-  e.target.value = '';
 };
 
-const onImportExcel = async (e: any) => {
-  const file = e.target.files?.[0];
-  if (!file) return;
+const onImportExcel = async (file: File) => {
   excelMsg.value = 'جاري الاستيراد...';
   excelErr.value = false;
   excelDetails.value = [];
@@ -1203,7 +895,6 @@ const onImportExcel = async (e: any) => {
     excelErr.value = true;
     excelMsg.value = err.message || 'فشل الاستيراد';
   }
-  e.target.value = '';
 };
 
 // ─── lifecycle & events ───
@@ -1360,514 +1051,61 @@ const submitCounts = async () => {
   align-items: start;
 }
 
-/* Products Panel */
-.products-panel {
-  .panel-header {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    margin-bottom: 16px;
-    h3 {
-      margin: 0;
-      color: var(--primary-dark);
-    }
-    .panel-filters {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
-  }
-  .search-input,
-  .category-select {
-    flex: 1;
-    min-width: 120px;
-    padding: 8px 12px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    background: var(--bg);
-    font-size: 0.9rem;
-  }
-}
-
-/* Category Pills Bar */
-.category-pills-bar {
+/* Counts Modal */
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  z-index: 100;
   display: flex;
-  gap: 8px;
+  align-items: center;
+  justify-content: center;
+}
+.modal-content {
+  max-width: 720px;
+  width: 90%;
+}
+.counts-table-wrap {
   overflow-x: auto;
-  padding: 4px 2px 10px 2px;
-  margin-bottom: 12px;
-  scrollbar-width: thin;
-
-  .pill-btn {
-    padding: 6px 14px;
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    background: var(--bg-card, var(--bg));
-    color: var(--text);
-    font-size: 0.84rem;
-    font-weight: 600;
-    cursor: pointer;
-    white-space: nowrap;
-    transition: all 0.2s ease;
-
-    &:hover {
-      border-color: var(--primary);
-      color: var(--primary);
-    }
-
-    &.active {
-      background: var(--primary);
-      color: #fff;
-      border-color: var(--primary);
-      box-shadow: 0 2px 6px color-mix(in srgb, var(--primary) 30%, transparent);
-    }
-  }
-}
-
-.products-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 10px;
-  max-height: 520px;
+  max-height: 55vh;
   overflow-y: auto;
-  padding: 4px;
 }
-
-.product-card {
-  position: relative;
-  padding: 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  transition:
-    transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1),
-    box-shadow 0.25s ease,
-    border-color 0.25s ease,
-    background 0.25s ease;
-  background: var(--bg-card);
-  text-align: center;
-  animation: card-fade-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
-
-  @for $i from 1 through 24 {
-    &:nth-child(#{$i}) {
-      animation-delay: #{$i * 15}ms;
-    }
+.counts-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+  th,
+  td {
+    padding: 8px 10px;
+    text-align: right;
+    border-bottom: 1px solid var(--border);
   }
-
-  &:hover {
-    border-color: var(--accent);
-    transform: translateY(-4px);
-    box-shadow: 0 8px 20px rgba(161, 98, 7, 0.1);
-  }
-
-  &:active {
-    transform: translateY(-1px) scale(0.96);
-  }
-
-  &.selected {
-    border-color: var(--accent);
-    background: var(--accent-soft);
-  }
-
-  &.no-recipe {
-    border-style: dashed;
-  }
-  &.low-stock {
-    border-color: #f59e0b;
-  }
-
-  .product-name {
+  th {
+    background: var(--bg);
     font-weight: 700;
-    font-size: 0.88rem;
-    margin-bottom: 6px;
-    line-height: 1.3;
-  }
-  .product-meta {
-    display: flex;
-    justify-content: space-between;
-    font-size: 0.78rem;
     color: var(--text-muted);
-    margin-bottom: 6px;
+    font-size: 0.8rem;
   }
-  .product-price {
-    font-weight: 700;
-    color: var(--primary-dark);
+  code {
+    background: var(--bg);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 0.8rem;
   }
-  .product-status {
-    margin-top: 4px;
-  }
-
-  .cart-qty-badge {
-    position: absolute;
-    top: -8px;
-    left: -8px;
-    background: var(--accent);
-    color: #fff;
-    border-radius: 50%;
-    width: 22px;
-    height: 22px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.75rem;
-    font-weight: 800;
-    box-shadow: var(--shadow-xs);
-  }
-
-  /* 🟢 مؤشر المخزون المضيء */
-  .stock-indicator-dot {
-    position: absolute;
-    top: 8px;
-    right: 8px;
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    box-shadow: 0 0 6px currentColor;
-
-    &.good {
-      color: #10b981;
-      background-color: #10b981;
-    }
-    &.low {
-      color: #f97316;
-      background-color: #f97316;
-    }
-    &.out {
-      color: #ef4444;
-      background-color: #ef4444;
-    }
-  }
-
-  &.is-out-of-stock {
-    opacity: 0.58;
-    cursor: not-allowed;
-    pointer-events: none;
-    border-color: rgba(239, 68, 68, 0.22) !important;
-    background: color-mix(in srgb, var(--danger) 2%, var(--bg-card)) !important;
-
-    &:hover {
-      transform: none !important;
-      box-shadow: none !important;
-    }
-  }
-}
-
-@keyframes card-fade-in {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* Cart Panel */
-.cart-panel {
-  h3 {
-    margin-bottom: 16px;
-    color: var(--primary-dark);
-  }
-  .empty-cart {
-    text-align: center;
-    padding: 40px 20px;
-    color: var(--text-muted);
-    span {
-      font-size: 3rem;
-      display: inline-block;
-      margin-bottom: 8px;
-      animation: cart-bounce 2s ease-in-out infinite;
-    }
-  }
-}
-
-@keyframes cart-bounce {
-  0%,
-  100% {
-    transform: translateY(0) rotate(0deg);
-  }
-  50% {
-    transform: translateY(-8px) rotate(4deg);
-  }
-}
-
-.cart-items {
-  max-height: 280px;
-  overflow-y: auto;
-  margin-bottom: 12px;
-}
-.cart-item {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 10px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  margin-bottom: 8px;
-  background: var(--bg);
-  .cart-item-info {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    .cart-item-name {
-      font-weight: 600;
-      font-size: 0.9rem;
-    }
-    .cart-item-price {
-      color: var(--text-muted);
-      font-size: 0.85rem;
-    }
-  }
-  .cart-item-controls {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-  .qty-btn {
-    width: 28px;
-    height: 28px;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    background: var(--bg-card);
-    cursor: pointer;
-    font-size: 1rem;
-    font-weight: 700;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    &:hover {
-      background: var(--primary);
-      color: #fff;
-    }
-  }
-  .qty-input {
-    width: 60px;
-    text-align: center;
-    padding: 4px;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-  }
-  .remove-btn {
-    background: none;
-    border: none;
-    cursor: pointer;
-    font-size: 1rem;
-    margin-right: auto;
-  }
-  .cart-item-total {
-    font-weight: 700;
-    color: var(--primary-dark);
-    text-align: left;
-    font-size: 0.95rem;
-  }
-}
-
-.cart-summary {
-  border-top: 2px solid var(--border);
-  padding-top: 12px;
-  margin-bottom: 16px;
-  .summary-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 4px 0;
-    font-size: 0.9rem;
-  }
-  .discount-row .discount-input {
+  input[type='number'] {
     width: 90px;
-    padding: 4px 8px;
+    padding: 5px 8px;
     border: 1px solid var(--border);
     border-radius: 6px;
     text-align: center;
   }
-  .total-row {
-    font-weight: 800;
-    font-size: 1.05rem;
-    border-top: 1px solid var(--border);
-    padding-top: 8px;
-    margin-top: 4px;
-  }
-  .total-amount {
-    color: var(--primary-dark);
-    font-size: 1.15rem;
-  }
 }
-
-.sale-form {
-  .form-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
-  }
-  .btn-submit {
-    width: 100%;
-    margin-bottom: 8px;
-    padding: 12px;
-    font-size: 1rem;
-  }
-  .btn-clear {
-    width: 100%;
-  }
-}
-
-.alert-danger {
-  background: rgba(180, 35, 24, 0.08);
-  border: 1px solid rgba(180, 35, 24, 0.3);
-  color: #b42318;
-  padding: 10px 14px;
-  border-radius: var(--radius);
-  margin-bottom: 12px;
-  font-size: 0.9rem;
-}
-
-/* Excel Mode */
-.excel-mode {
-  h3 {
-    margin-bottom: 8px;
-    color: var(--primary-dark);
-  }
-  .excel-note {
-    color: var(--text-muted);
-    font-size: 0.9rem;
-    margin-bottom: 16px;
-  }
-  .excel-actions {
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
-    margin-bottom: 20px;
-  }
-  .import-label {
-    cursor: pointer;
-  }
-}
-
-/* Steps */
-.excel-steps {
+.modal-actions {
+  margin-top: 14px;
   display: flex;
-  gap: 0;
-  margin-bottom: 20px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  overflow: hidden;
-  .step {
-    flex: 1;
-    display: flex;
-    align-items: flex-start;
-    gap: 12px;
-    padding: 14px 16px;
-    border-left: 1px solid var(--border);
-    &:last-child {
-      border-left: none;
-    }
-    .step-num {
-      width: 28px;
-      height: 28px;
-      border-radius: 50%;
-      background: var(--primary);
-      color: #fff;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 800;
-      font-size: 0.9rem;
-      flex-shrink: 0;
-    }
-    .step-body {
-      display: flex;
-      flex-direction: column;
-      gap: 3px;
-      strong {
-        font-size: 0.9rem;
-        color: var(--primary-dark);
-      }
-      span {
-        font-size: 0.8rem;
-        color: var(--text-muted);
-      }
-    }
-  }
-}
-
-.import-result {
-  padding: 12px;
-  border-radius: var(--radius);
-  background: rgba(46, 125, 79, 0.08);
-  border: 1px solid rgba(46, 125, 79, 0.3);
-  &.import-err {
-    background: rgba(180, 35, 24, 0.08);
-    border-color: rgba(180, 35, 24, 0.3);
-  }
-  .import-msg {
-    margin: 0 0 8px;
-    font-weight: 700;
-  }
-  .import-details {
-    margin: 0;
-    padding-right: 20px;
-    font-size: 0.88rem;
-    li {
-      margin: 3px 0;
-    }
-  }
-}
-
-.excel-guide {
-  margin-top: 16px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 12px;
-  summary {
-    cursor: pointer;
-    font-weight: 700;
-    color: var(--primary-dark);
-    margin-bottom: 8px;
-  }
-  .guide-note {
-    color: var(--text-muted);
-    font-size: 0.85rem;
-    margin-top: 10px;
-  }
-  .guide-table-wrap {
-    overflow-x: auto;
-    margin-top: 10px;
-  }
-  .guide-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.82rem;
-    th,
-    td {
-      border: 1px solid var(--border);
-      padding: 7px 10px;
-      text-align: right;
-    }
-    th {
-      background: var(--primary);
-      color: #fff;
-    }
-    .muted {
-      color: var(--text-muted);
-    }
-    .qty-col {
-      background: rgba(46, 125, 79, 0.08);
-      font-weight: 700;
-      color: #2e7d4f;
-      text-align: center;
-    }
-    .more-row {
-      text-align: center;
-      color: var(--text-muted);
-      font-style: italic;
-    }
-    code {
-      background: var(--bg);
-      padding: 1px 5px;
-      border-radius: 4px;
-      font-size: 0.8rem;
-    }
-  }
+  gap: 10px;
+  justify-content: flex-end;
 }
 
 /* History */
@@ -1987,180 +1225,10 @@ const submitCounts = async () => {
   color: var(--text-muted);
   font-size: 1rem;
 }
-.empty-state {
-  text-align: center;
-  padding: 32px;
-  color: var(--text-muted);
-  span {
-    font-size: 2.5rem;
-    display: inline-block;
-    margin-bottom: 8px;
-    animation: search-sway 2.2s ease-in-out infinite;
-  }
-}
-
-@keyframes search-sway {
-  0%,
-  100% {
-    transform: rotate(-6deg) scale(1);
-  }
-  50% {
-    transform: rotate(12deg) scale(1.08);
-  }
-}
 
 @media (max-width: 900px) {
   .main-grid {
     grid-template-columns: 1fr;
-  }
-  .products-grid {
-    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-  }
-}
-
-/* Printer Settings Styling */
-.printer-settings-box {
-  margin: 16px 0;
-  padding: 14px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--bg);
-  box-shadow: var(--shadow-sm);
-
-  .printer-header {
-    font-weight: 700;
-    font-size: 0.88rem;
-    color: var(--primary-dark);
-    margin-bottom: 10px;
-    border-bottom: 1px solid var(--border);
-    padding-bottom: 6px;
-  }
-
-  .printer-controls {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-  }
-
-  .printer-info {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 12px;
-
-    .printer-status {
-      font-size: 0.8rem;
-      color: var(--text-muted);
-
-      &.configured {
-        color: var(--success);
-        font-weight: 700;
-      }
-    }
-  }
-
-  .printer-options {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 10px;
-    margin-top: 4px;
-  }
-
-  .checkbox-label {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 0.8rem;
-    cursor: pointer;
-    color: var(--text);
-
-    input {
-      width: 16px;
-      height: 16px;
-      cursor: pointer;
-      accent-color: var(--primary);
-    }
-  }
-
-  .print-last-btn {
-    font-size: 0.78rem;
-    padding: 6px 12px;
-  }
-}
-
-/* AI Recommendations styling */
-.cart-recommendations {
-  margin: 12px 14px;
-  padding: 10px 12px;
-  background: var(--surface-2);
-  border: 1px dashed var(--primary-soft);
-  border-radius: var(--radius-md);
-
-  .rec-title {
-    font-size: 0.8rem;
-    font-weight: 800;
-    color: var(--primary-dark);
-    margin-bottom: 8px;
-  }
-
-  .rec-list {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  .rec-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 6px 10px;
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    cursor: pointer;
-    transition: all var(--transition);
-
-    &:hover {
-      background: var(--primary-soft);
-      border-color: var(--primary-strong);
-      transform: translateX(-2px);
-    }
-
-    .rec-name {
-      display: flex;
-      flex-direction: column;
-      text-align: right;
-
-      .rec-name-text {
-        font-size: 0.82rem;
-        font-weight: 700;
-        color: var(--text-strong);
-      }
-
-      .rec-category {
-        font-size: 0.7rem;
-        color: var(--text-muted);
-      }
-    }
-
-    .rec-action {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-
-      .rec-price {
-        font-size: 0.8rem;
-        font-weight: 700;
-        color: var(--accent);
-      }
-
-      .rec-add-icon {
-        font-size: 0.72rem;
-        color: var(--primary);
-      }
-    }
   }
 }
 
@@ -2199,13 +1267,6 @@ const submitCounts = async () => {
         color: #ffffff;
         box-shadow: var(--shadow-sm);
       }
-    }
-  }
-
-  .products-panel,
-  .cart-panel {
-    &.mobile-hidden {
-      display: none !important;
     }
   }
 

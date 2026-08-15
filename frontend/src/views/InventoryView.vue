@@ -30,405 +30,44 @@
     <p v-if="msg" :class="['msg', err ? 'err' : 'ok']">{{ msg }}</p>
 
     <!-- ===== STOCK TAB ===== -->
-    <template v-if="tab === 'stock'">
-      <!-- Inventory Valuation Summary Cards -->
-      <div class="grid grid-3" style="margin-bottom: 16px; gap: 12px">
-        <div
-          class="card"
-          style="
-            padding: 14px;
-            background: linear-gradient(
-              135deg,
-              rgba(59, 130, 246, 0.08) 0%,
-              rgba(59, 130, 246, 0.02) 100%
-            );
-            border: 1px solid rgba(59, 130, 246, 0.2);
-          "
-        >
-          <span style="font-size: 0.8rem; font-weight: 700; color: #64748b"
-            >💵 إجمالي تقييم رصيد المخزون (بالتكلفة)</span
-          >
-          <h3 style="margin: 4px 0 0 0; font-size: 1.25rem; font-weight: 800; color: #1e3a8a">
-            {{ formatMoney(totalInventoryValue) }}
-          </h3>
-        </div>
-        <div
-          class="card"
-          style="
-            padding: 14px;
-            background: linear-gradient(
-              135deg,
-              rgba(16, 185, 129, 0.08) 0%,
-              rgba(16, 185, 129, 0.02) 100%
-            );
-            border: 1px solid rgba(16, 185, 129, 0.2);
-          "
-        >
-          <span style="font-size: 0.8rem; font-weight: 700; color: #64748b"
-            >🏢 قيمة مخزون الرئيسي</span
-          >
-          <h3 style="margin: 4px 0 0 0; font-size: 1.25rem; font-weight: 800; color: #065f46">
-            {{ formatMoney(mainWarehouseValue) }}
-          </h3>
-        </div>
-        <div
-          class="card"
-          style="
-            padding: 14px;
-            background: linear-gradient(
-              135deg,
-              rgba(245, 158, 11, 0.08) 0%,
-              rgba(245, 158, 11, 0.02) 100%
-            );
-            border: 1px solid rgba(245, 158, 11, 0.2);
-          "
-        >
-          <span style="font-size: 0.8rem; font-weight: 700; color: #64748b"
-            >🏪 قيمة مخزون الفرع / المحل</span
-          >
-          <h3 style="margin: 4px 0 0 0; font-size: 1.25rem; font-weight: 800; color: #92400e">
-            {{ formatMoney(branchWarehouseValue) }}
-          </h3>
-        </div>
-      </div>
-
-      <BaseTable
-        :items="items"
-        :columns="stockColumns"
-        :loading="loading"
-        empty-message="لا توجد بيانات مخزون"
-        :row-class="(i) => [{ 'row-low': i.is_low }, { 'row-highlight': isHighlighted(i) }]"
-      >
-        <template #cell-name_ar="{ item }">
-          <div class="product-name">
-            {{ item.name_ar }}
-            <span v-if="item.has_active_recipe" class="recipe-chip">وصفة</span>
-          </div>
-        </template>
-        <template #cell-sku="{ item }">
-          <span class="mono">{{ item.sku || '—' }}</span>
-        </template>
-        <template #cell-purchase_price="{ item }">
-          <span class="mono" style="font-weight: 700; color: #475569">
-            {{ formatMoney(item.purchase_price || 0) }}
-          </span>
-        </template>
-        <template #cell-total_quantity="{ item }">
-          <span class="qty qty-total" :class="{ 'qty-low': item.is_low }">
-            <strong>{{
-              fmtQty(item.total_quantity !== undefined ? item.total_quantity : item.quantity)
-            }}</strong>
-          </span>
-        </template>
-        <template #cell-stock_value="{ item }">
-          <span class="mono" style="font-weight: 800; color: var(--accent, #c77a2f)">
-            {{ formatMoney(getItemStockValue(item)) }}
-          </span>
-        </template>
-        <template #cell-main_quantity="{ item }">
-          <span class="pill pill-main"> 🏢 {{ fmtQty(getMainQty(item)) }} </span>
-        </template>
-        <template #cell-branch_quantity="{ item }">
-          <span class="pill pill-branch"> 🏪 {{ fmtQty(getBranchQty(item)) }} </span>
-        </template>
-        <template #cell-min_stock="{ item }">
-          <span class="min-stock-tag" title="الحد الأدنى محسوب ومطبق بناءً على إجمالي رصيد المنشأة">
-            {{ fmtQty(item.min_stock || 0) }}
-          </span>
-        </template>
-        <template #cell-status="{ item }">
-          <span :class="['badge', item.is_low ? 'badge-danger' : 'badge-success']">
-            {{ item.is_low ? '⚠️ أقل من الحد الأدنى' : '✅ متوفر بالكامل' }}
-          </span>
-        </template>
-        <template #cell-actions="{ item }">
-          <button
-            v-permission="'inventory.edit'"
-            class="icon-btn"
-            title="تحويل بين المخزن الرئيسي وصالة البيع"
-            @click="openTransferProduct(item)"
-          >
-            🔄
-          </button>
-          <button
-            v-permission="'inventory.edit'"
-            class="icon-btn"
-            :class="{ disabled: item.has_active_recipe }"
-            :disabled="item.has_active_recipe"
-            :title="
-              item.has_active_recipe ? 'منتج وصفة نشطة: يتم تحديثه من مكونات الوصفة فقط' : 'تعديل'
-            "
-            @click="openEdit(item)"
-          >
-            ✎
-          </button>
-          <button
-            v-permission="'inventory.edit'"
-            class="icon-btn btn-danger"
-            title="تسجيل هالك"
-            @click="openWastage(item)"
-          >
-            🗑️
-          </button>
-        </template>
-      </BaseTable>
-    </template>
+    <StockTab
+      :items="items"
+      :loading="loading"
+      :stock-columns="stockColumns"
+      :total-inventory-value="totalInventoryValue"
+      :main-warehouse-value="mainWarehouseValue"
+      :branch-warehouse-value="branchWarehouseValue"
+      :get-item-stock-value="getItemStockValue"
+      :get-main-qty="getMainQty"
+      :get-branch-qty="getBranchQty"
+      :is-highlighted="isHighlighted"
+      :fmt-qty="fmtQty"
+      :format-money="formatMoney"
+      @open-transfer="openTransferProduct"
+      @open-edit="openEdit"
+      @open-wastage="openWastage"
+    />
 
     <!-- ===== EXCEL RETURN TAB ===== -->
-    <template v-if="tab === 'return'">
-      <div class="excel-return-page">
-        <!-- Info Card -->
-        <div class="card info-card">
-          <div class="info-icon">📥</div>
-          <div class="info-body">
-            <h3>استرداد المخزون بالجملة عبر Excel</h3>
-            <p>
-              حمّل القالب — فيه كل المنتجات جاهزة بالكود والاسم والمخزون الحالي. اكتب الكمية
-              المُستردة فقط لكل منتج، ثم ارفع الملف.
-            </p>
-          </div>
-        </div>
-
-        <!-- Steps -->
-        <div class="steps-row">
-          <div class="step-card">
-            <div class="step-num">1</div>
-            <div class="step-body">
-              <strong>حمّل القالب</strong>
-              <span>فيه كل المنتجات جاهزة — كود + اسم + مخزون حالي</span>
-            </div>
-          </div>
-          <div class="step-arrow">←</div>
-          <div class="step-card">
-            <div class="step-num">2</div>
-            <div class="step-body">
-              <strong>اكتب الكمية</strong>
-              <span>في عمود "كمية_الاسترداد" فقط — اترك الباقي فارغاً</span>
-            </div>
-          </div>
-          <div class="step-arrow">←</div>
-          <div class="step-card">
-            <div class="step-num">3</div>
-            <div class="step-body">
-              <strong>افحص ثم ارفع</strong>
-              <span>افحص الملف أولاً للتأكد، ثم ارفعه للتنفيذ</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Actions -->
-        <div class="card actions-card">
-          <div class="action-group">
-            <div class="action-label">
-              <span class="action-num">1</span>
-              <strong>تحميل القالب</strong>
-              <small>اختر المخزن لتصفية المنتجات (اختياري)</small>
-            </div>
-            <div class="action-controls">
-              <select v-model="returnWarehouseId" class="warehouse-select">
-                <option value="">كل المخازن</option>
-                <option v-for="w in warehouses" :key="w.id" :value="w.id">{{ w.name_ar }}</option>
-              </select>
-              <button
-                class="btn btn-primary"
-                :disabled="downloadingTemplate"
-                @click="downloadTemplate"
-              >
-                {{ downloadingTemplate ? '⏳ جاري التحميل...' : '📥 تحميل القالب' }}
-              </button>
-            </div>
-          </div>
-
-          <div class="action-divider"></div>
-
-          <div class="action-group">
-            <div class="action-label">
-              <span class="action-num">2</span>
-              <strong>فحص الملف قبل الرفع</strong>
-              <small>تحقق من صحة البيانات بدون تنفيذ</small>
-            </div>
-            <div class="action-controls">
-              <label class="btn btn-outline file-btn">
-                🔍 فحص الملف
-                <input type="file" accept=".xlsx,.xls" hidden @change="onValidate" />
-              </label>
-            </div>
-          </div>
-
-          <div class="action-divider"></div>
-
-          <div class="action-group">
-            <div class="action-label">
-              <span class="action-num">3</span>
-              <strong>رفع وتنفيذ الاسترداد</strong>
-              <small>سيتم إضافة الكميات للمخزون فوراً</small>
-            </div>
-            <div class="action-controls">
-              <label class="btn btn-success file-btn">
-                📤 رفع وتنفيذ
-                <input type="file" accept=".xlsx,.xls" hidden @change="onImport" />
-              </label>
-            </div>
-          </div>
-        </div>
-
-        <!-- Result -->
-        <div
-          v-if="excelResult"
-          class="card result-card"
-          :class="excelResult.ok === false ? 'result-err' : 'result-ok'"
-        >
-          <div class="result-header">
-            <span class="result-icon">{{
-              excelResult.ok === false ? '❌' : excelResult.success !== undefined ? '✅' : '🔍'
-            }}</span>
-            <div>
-              <strong>{{ excelResult.title }}</strong>
-              <p>{{ excelResult.summary }}</p>
-            </div>
-          </div>
-
-          <!-- معاينة الفحص -->
-          <div v-if="excelResult.preview?.length" class="result-preview">
-            <h4>معاينة (أول 5 منتجات صالحة):</h4>
-            <table class="inv-table">
-              <thead>
-                <tr>
-                  <th>الكود</th>
-                  <th>المنتج</th>
-                  <th>المخزن</th>
-                  <th>الكمية</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="(p, idx) in excelResult.preview" :key="`${p.sku}-${idx}`">
-                  <td class="mono">{{ p.sku }}</td>
-                  <td>{{ p.product_name }}</td>
-                  <td>{{ p.warehouse_name || '—' }}</td>
-                  <td class="qty">+{{ p.quantity }}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          <!-- نتائج الاستيراد -->
-          <div v-if="excelResult.details?.length" class="result-preview">
-            <h4>المنتجات التي تم استردادها ({{ excelResult.details.length }}):</h4>
-            <table class="inv-table">
-              <thead>
-                <tr>
-                  <th>الكود</th>
-                  <th>المنتج</th>
-                  <th>المخزن</th>
-                  <th>الكمية المُستردة</th>
-                  <th>المخزون الجديد</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="(d, idx) in excelResult.details" :key="`${d.sku}-${idx}`">
-                  <td class="mono">{{ d.sku }}</td>
-                  <td>{{ d.product_name }}</td>
-                  <td>{{ d.warehouse_name || '—' }}</td>
-                  <td class="qty success-text">+{{ d.quantity }}</td>
-                  <td class="qty">{{ d.new_stock }}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          <!-- الأخطاء -->
-          <div
-            v-if="excelResult.errors?.length || excelResult.failed?.length"
-            class="result-errors"
-          >
-            <h4>⚠️ مشاكل ({{ (excelResult.errors || excelResult.failed || []).length }}):</h4>
-            <ul>
-              <li v-for="(e, i) in excelResult.errors || excelResult.failed || []" :key="i">
-                {{ typeof e === 'string' ? e : `سطر ${e.row} — ${e.sku}: ${e.message}` }}
-              </li>
-            </ul>
-          </div>
-        </div>
-      </div>
-    </template>
+    <ReturnTab
+      :warehouses="warehouses"
+      v-model:return-warehouse-id="returnWarehouseId"
+      :downloading-template="downloadingTemplate"
+      :excel-result="excelResult"
+      @download="downloadTemplate"
+      @validate="onValidate"
+      @import="onImport"
+    />
 
     <!-- ===== MOVEMENTS TAB ===== -->
-    <template v-if="tab === 'movements'">
-      <div class="card table-wrap">
-        <div
-          style="
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 14px;
-            flex-wrap: wrap;
-            gap: 10px;
-          "
-        >
-          <h3 style="margin: 0">📋 سجل حركة المخزون</h3>
-          <div style="display: flex; align-items: center; gap: 8px">
-            <label style="font-size: 0.84rem; font-weight: 700">تصفية الحركات:</label>
-            <select
-              v-model="movementTypeFilter"
-              class="warehouse-select"
-              style="font-size: 0.85rem"
-            >
-              <option value="">كل الحركات</option>
-              <option value="transfer">🔄 التحويلات فقط</option>
-              <option value="sale">🛒 مبيعات</option>
-              <option value="purchase">📥 مشتريات</option>
-              <option value="wastage">🗑️ هالك</option>
-              <option value="adjustment">✏️ تعديل مخزون</option>
-            </select>
-          </div>
-        </div>
-
-        <BaseTable
-          :items="filteredMovements"
-          :columns="movementsColumns"
-          empty-message="لا توجد حركات"
-        >
-          <template #cell-product_name="{ item }">
-            <div style="display: flex; flex-direction: column">
-              <strong style="font-size: 0.9rem">{{ item.product_name }}</strong>
-              <small class="mono" style="color: #888" v-if="item.product_sku">{{
-                item.product_sku
-              }}</small>
-            </div>
-          </template>
-          <template #cell-movement_type="{ item }">
-            <span :class="['move-badge', item.movement_type]">{{
-              movementLabel(item.movement_type)
-            }}</span>
-          </template>
-          <template #cell-quantity="{ item }">
-            <span class="qty">{{ fmtQty(item.quantity) }}</span>
-          </template>
-          <template #cell-from_warehouse="{ item }">
-            {{ item.from_warehouse || '—' }}
-          </template>
-          <template #cell-to_warehouse="{ item }">
-            {{ item.to_warehouse || '—' }}
-          </template>
-          <template #cell-user_name="{ item }">
-            {{ item.user_name || '—' }}
-          </template>
-          <template #cell-created_at="{ item }">
-            {{ new Date(item.created_at).toLocaleString('en-GB') }}
-          </template>
-          <template #cell-actions="{ item }">
-            <button
-              v-if="item.movement_type === 'transfer'"
-              class="icon-btn"
-              title="طباعة إذن التحويل المخزني"
-              @click="printTransferVoucherFromMovement(item)"
-            >
-              🖨️
-            </button>
-          </template>
-        </BaseTable>
-      </div>
-    </template>
+    <MovementsTab
+      :items="filteredMovements"
+      :columns="movementsColumns"
+      v-model:movement-type-filter="movementTypeFilter"
+      :movement-label="movementLabel"
+      :fmt-qty="fmtQty"
+      @print-voucher="printTransferVoucherFromMovement"
+    />
 
     <!-- Edit Modal -->
     <div v-if="showEdit" class="modal" @click.self="showEdit = false">
@@ -957,8 +596,10 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { inventory as inventoryApi } from '@/api';
-import BaseTable from '@/components/ui/BaseTable.vue';
 import AppIcon from '@/components/AppIcon.vue';
+import StockTab from '@/components/inventory/StockTab.vue';
+import ReturnTab from '@/components/inventory/ReturnTab.vue';
+import MovementsTab from '@/components/inventory/MovementsTab.vue';
 import { formatMoney } from '@/utils/currency';
 import { formatDateTime } from '@/utils/formatters';
 import { useInventoryStock } from '@/composables/useInventoryStock';
@@ -1137,10 +778,7 @@ onMounted(load);
   font-size: 0.9rem;
 }
 
-/* Table */
-.table-wrap {
-  overflow-x: auto;
-}
+/* Voucher table (inside the view's modal) */
 .inv-table {
   width: 100%;
   border-collapse: collapse;
@@ -1163,308 +801,14 @@ onMounted(load);
   tr:last-child td {
     border-bottom: 0;
   }
-  tr:hover td {
-    background: color-mix(in srgb, var(--primary) 3%, var(--bg-elevated));
-  }
-  .row-low td {
-    background: color-mix(in srgb, var(--danger) 4%, var(--bg-elevated));
-  }
-}
-.product-name {
-  font-weight: 700;
-}
-.recipe-chip {
-  display: inline-flex;
-  align-items: center;
-  margin-inline-start: 8px;
-  padding: 2px 8px;
-  border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--info) 25%, transparent);
-  background: color-mix(in srgb, var(--info) 10%, transparent);
-  color: var(--info);
-  font-size: 0.72rem;
-  font-weight: 800;
 }
 .mono {
   font-family: monospace;
   font-size: 0.82rem;
   color: var(--text-muted);
 }
-.qty {
-  font-weight: 700;
-}
-.qty-low {
-  color: var(--danger);
-}
-.success-text {
-  color: #2e7d4f;
-}
-.empty {
-  text-align: center;
-  padding: 32px;
-  color: var(--text-muted);
-}
 
-/* Movement badges */
-.move-badge {
-  padding: 3px 8px;
-  border-radius: 20px;
-  font-size: 0.75rem;
-  font-weight: 700;
-  &.sale {
-    background: rgba(46, 125, 79, 0.12);
-    color: #2e7d4f;
-  }
-  &.purchase {
-    background: rgba(99, 102, 241, 0.12);
-    color: #4f46e5;
-  }
-  &.purchase_reversal {
-    background: rgba(180, 35, 24, 0.12);
-    color: #b42318;
-  }
-  &.transfer {
-    background: rgba(8, 145, 178, 0.12);
-    color: #0891b2;
-  }
-  &.adjustment {
-    background: rgba(180, 83, 9, 0.12);
-    color: #b45309;
-  }
-  &.return {
-    background: rgba(46, 125, 79, 0.12);
-    color: #2e7d4f;
-  }
-  &.consumption {
-    background: rgba(180, 35, 24, 0.12);
-    color: #b42318;
-  }
-  &.production {
-    background: rgba(46, 125, 79, 0.12);
-    color: #2e7d4f;
-  }
-  &.opening_production {
-    background: rgba(180, 83, 9, 0.12);
-    color: #b45309;
-  }
-}
-
-/* Excel Return Page */
-.excel-return-page {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.info-card {
-  display: flex;
-  align-items: flex-start;
-  gap: 16px;
-  .info-icon {
-    font-size: 2.5rem;
-    flex-shrink: 0;
-  }
-  h3 {
-    margin: 0 0 6px;
-    color: var(--primary-dark);
-  }
-  p {
-    margin: 0;
-    color: var(--text-muted);
-    font-size: 0.9rem;
-    line-height: 1.6;
-  }
-}
-
-.steps-row {
-  display: flex;
-  align-items: center;
-  gap: 0;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  .step-card {
-    flex: 1;
-    display: flex;
-    align-items: flex-start;
-    gap: 12px;
-    padding: 16px 18px;
-    background: var(--bg-card);
-    .step-num {
-      width: 28px;
-      height: 28px;
-      border-radius: 50%;
-      background: var(--primary);
-      color: #fff;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 800;
-      font-size: 0.9rem;
-      flex-shrink: 0;
-    }
-    strong {
-      display: block;
-      font-size: 0.9rem;
-      color: var(--primary-dark);
-      margin-bottom: 3px;
-    }
-    span {
-      font-size: 0.8rem;
-      color: var(--text-muted);
-    }
-  }
-  .step-arrow {
-    padding: 0 8px;
-    color: var(--text-muted);
-    font-size: 1.2rem;
-    flex-shrink: 0;
-  }
-}
-
-.actions-card {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  padding: 0;
-  overflow: hidden;
-}
-.action-group {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 16px;
-  padding: 18px 20px;
-  flex-wrap: wrap;
-  .action-label {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex-wrap: wrap;
-    .action-num {
-      width: 26px;
-      height: 26px;
-      border-radius: 50%;
-      background: var(--primary);
-      color: #fff;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 800;
-      font-size: 0.82rem;
-      flex-shrink: 0;
-    }
-    strong {
-      font-size: 0.95rem;
-      color: var(--text-strong);
-    }
-    small {
-      display: block;
-      font-size: 0.78rem;
-      color: var(--text-muted);
-      margin-top: 2px;
-    }
-  }
-  .action-controls {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-    flex-wrap: wrap;
-  }
-}
-.action-divider {
-  height: 1px;
-  background: var(--border);
-  margin: 0;
-}
-
-.file-btn {
-  cursor: pointer;
-  position: relative;
-  overflow: hidden;
-  input {
-    position: absolute;
-    inset: 0;
-    opacity: 0;
-    cursor: pointer;
-  }
-}
-.btn-success {
-  background: linear-gradient(135deg, #2e7d4f, #1a5c38);
-  color: #fff;
-  border: none;
-  padding: 9px 18px;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  font-weight: 700;
-  font-size: 0.9rem;
-  transition: var(--transition);
-  &:hover {
-    opacity: 0.9;
-  }
-}
-
-/* Result Card */
-.result-card {
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  &.result-ok {
-    border: 1px solid rgba(46, 125, 79, 0.3);
-    background: rgba(46, 125, 79, 0.04);
-  }
-  &.result-err {
-    border: 1px solid rgba(180, 35, 24, 0.3);
-    background: rgba(180, 35, 24, 0.04);
-  }
-  .result-header {
-    display: flex;
-    align-items: flex-start;
-    gap: 14px;
-    padding: 18px 20px;
-    .result-icon {
-      font-size: 1.8rem;
-      flex-shrink: 0;
-    }
-    strong {
-      display: block;
-      font-size: 1rem;
-      color: var(--text-strong);
-      margin-bottom: 4px;
-    }
-    p {
-      margin: 0;
-      font-size: 0.88rem;
-      color: var(--text-muted);
-    }
-  }
-  .result-preview {
-    padding: 0 20px 16px;
-    h4 {
-      margin: 0 0 10px;
-      font-size: 0.9rem;
-      color: var(--text-strong);
-    }
-  }
-  .result-errors {
-    padding: 0 20px 16px;
-    h4 {
-      margin: 0 0 8px;
-      font-size: 0.9rem;
-      color: var(--danger);
-    }
-    ul {
-      margin: 0;
-      padding-right: 20px;
-      li {
-        font-size: 0.85rem;
-        color: var(--danger);
-        margin: 4px 0;
-      }
-    }
-  }
-}
-
-/* Modals */
+/* Modals (owned by the view) */
 .modal {
   position: fixed;
   inset: 0;
@@ -1533,62 +877,5 @@ onMounted(load);
   color: var(--danger);
   background: color-mix(in srgb, var(--danger) 8%, transparent);
   border: 1px solid color-mix(in srgb, var(--danger) 20%, transparent);
-}
-
-@media (max-width: 768px) {
-  .steps-row {
-    flex-direction: column;
-    .step-arrow {
-      transform: rotate(90deg);
-    }
-  }
-  .action-group {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-}
-
-/* Highlight produced row briefly */
-.row-highlight td {
-  animation: inv-highlight 1s ease-in-out 0s 3;
-}
-@keyframes inv-highlight {
-  0% {
-    background: color-mix(in srgb, var(--success) 35%, transparent);
-  }
-  100% {
-    background: transparent;
-  }
-}
-
-.breakdown-pills {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  align-items: center;
-}
-.pill {
-  font-size: 0.78rem;
-  padding: 3px 8px;
-  border-radius: 6px;
-  background: var(--bg-elevated, rgba(255, 255, 255, 0.06));
-  border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
-  color: var(--text, #ccc);
-  white-space: nowrap;
-}
-.pill-main {
-  background: rgba(59, 130, 246, 0.1);
-  border-color: rgba(59, 130, 246, 0.25);
-  color: #3b82f6;
-}
-.pill-branch {
-  background: rgba(16, 185, 129, 0.1);
-  border-color: rgba(16, 185, 129, 0.25);
-  color: #10b981;
-}
-.qty-total {
-  font-size: 1.05rem;
-  font-weight: 900;
-  color: var(--accent, #c77a2f);
 }
 </style>

@@ -1,0 +1,224 @@
+/* أنماط الجدول المشتركة بين تبويبات التكاليف (غير scoped) */
+.table-card {
+  overflow: hidden;
+}
+.table-wrap {
+  overflow-x: auto;
+}
+.costs-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+.costs-table th {
+  background: var(--bg);
+  padding: 11px 12px;
+  text-align: right;
+  font-weight: 700;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  border-bottom: 2px solid var(--border);
+  white-space: nowrap;
+}
+.costs-table td {
+  padding: 11px 12px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+.costs-table tr:hover td {
+  background: rgba(0, 0, 0, 0.01);
+}
+.costs-table .product-name-cell .product-name {
+  font-weight: 600;
+}
+.costs-table .product-name-cell .product-sku {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-family: monospace;
+}
+.costs-table .price-cell {
+  font-weight: 600;
+  white-space: nowrap;
+}
+.costs-table .number-cell {
+  text-align: center;
+}
+.costs-table .muted {
+  color: var(--text-muted);
+  font-weight: 400;
+}
+.costs-table .profit-positive {
+  color: #2e7d4f;
+}
+.costs-table .profit-negative {
+  color: #b42318;
+}
+.costs-table .row-no-recipe td {
+  background: rgba(241, 196, 15, 0.03);
+}
+
+.category-badge {
+  background: var(--bg);
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-size: 0.78rem;
+  border: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+/* Margin bar */
+.margin-bar-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 100px;
+}
+.margin-bar {
+  height: 6px;
+  border-radius: 3px;
+  transition: width 0.3s;
+  min-width: 4px;
+}
+.margin-label {
+  font-size: 0.82rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.margin-high {
+  background: #2e7d4f;
+  color: #2e7d4f;
+}
+.margin-mid {
+  background: #f59e0b;
+  color: #b45309;
+}
+.margin-low {
+  background: #b42318;
+  color: #b42318;
+}
+
+/* Recipe badge & buttons */
+.recipe-badge {
+  padding: 3px 8px;
+  border-radius: 20px;
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+.has-recipe {
+  background: rgba(46, 125, 79, 0.1);
+  color: #2e7d4f;
+  border: 1px solid rgba(46, 125, 79, 0.2);
+}
+.no-recipe {
+  background: var(--bg);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+}
+
+.recipe-btn {
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.2s;
+}
+.recipe-btn.has-recipe {
+  background: rgba(46, 125, 79, 0.08);
+  color: #2e7d4f;
+  border-color: rgba(46, 125, 79, 0.2);
+}
+.recipe-btn.has-recipe:hover {
+  background: rgba(46, 125, 79, 0.15);
+}
+
+.row-alert {
+  background: rgba(180, 35, 24, 0.02) !important;
+}
+
+.product-name-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.product-name-wrap .alert-indicator {
+  font-size: 1.1rem;
+  cursor: help;
+}
+
+.btn-edit-price {
+  padding: 4px 10px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--primary-dark);
+  transition: all 0.2s;
+}
+.btn-edit-price:hover {
+  background: var(--border);
+}
+
+/* Cost Source Badge */
+.cost-source-badge {
+  display: inline-block;
+  font-size: 0.68rem;
+  padding: 1px 4px;
+  border-radius: 3px;
+  margin-right: 4px;
+  font-weight: 600;
+}
+.cost-source-badge.recipe {
+  background: rgba(46, 125, 79, 0.1);
+  color: #2e7d4f;
+}
+.cost-source-badge.purchase_price,
+.cost-source-badge.purchase {
+  background: rgba(30, 41, 59, 0.08);
+  color: var(--text-muted);
+}
+
+/* Totals row */
+.totals-row td {
+  background: var(--bg);
+  border-top: 2px solid var(--border);
+}
+
+.text-bold {
+  font-weight: 700;
+}
+
+.badge-recipe,
+.badge-raw {
+  display: inline-block;
+  padding: 2px 6px;
+  font-size: 0.72rem;
+  border-radius: 4px;
+  font-weight: 600;
+}
+.badge-recipe {
+  background: rgba(46, 125, 79, 0.1);
+  color: #2e7d4f;
+}
+.badge-raw {
+  background: rgba(30, 41, 59, 0.08);
+  color: var(--text-muted);
+}
+
+.loading-state,
+.empty-state,
+.error-state {
+  text-align: center;
+  padding: 48px;
+  color: var(--text-muted);
+}
+.loading-state span,
+.empty-state span,
+.error-state span {
+  font-size: 2rem;
+  display: block;
+  margin-bottom: 8px;
+}

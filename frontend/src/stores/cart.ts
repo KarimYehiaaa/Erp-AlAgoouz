@@ -22,11 +22,11 @@ export const useCartStore = defineStore('cart', () => {
 
   // Computed properties
   const itemCount = computed(() =>
-    items.value.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0),
+    items.value.reduce((sum: any, item: any) => sum + (Number(item.quantity) || 0), 0),
   );
 
   const subtotal = computed(() =>
-    items.value.reduce((sum, item) => {
+    items.value.reduce((sum: any, item: any) => {
       const price = Number(item.price || item.sale_price || 0);
       const qty = Number(item.quantity || 0);
       return sum + price * qty;
@@ -43,7 +43,9 @@ export const useCartStore = defineStore('cart', () => {
 
   // Cart actions
   const addItem = (product: any, qty: number | string = 1) => {
-    const existing = items.value.find((i) => i.product_id === product.id || i.id === product.id);
+    const existing = items.value.find(
+      (i: any) => i.product_id === product.id || i.id === product.id,
+    );
     if (existing) {
       existing.quantity = Math.max(0.001, (Number(existing.quantity) || 0) + Number(qty));
     } else {
@@ -62,7 +64,7 @@ export const useCartStore = defineStore('cart', () => {
   };
 
   const updateQuantity = (productId: number | string, qty: number | string) => {
-    const item = items.value.find((i) => i.product_id === productId || i.id === productId);
+    const item = items.value.find((i: any) => i.product_id === productId || i.id === productId);
     if (item) {
       const newQty = Number(qty);
       if (newQty <= 0) {
@@ -74,14 +76,14 @@ export const useCartStore = defineStore('cart', () => {
   };
 
   const updatePrice = (productId: number | string, newPrice: number | string) => {
-    const item = items.value.find((i) => i.product_id === productId || i.id === productId);
+    const item = items.value.find((i: any) => i.product_id === productId || i.id === productId);
     if (item) {
       item.price = Math.max(0, Number(newPrice));
     }
   };
 
   const removeItem = (productId: number | string) => {
-    items.value = items.value.filter((i) => i.product_id !== productId && i.id !== productId);
+    items.value = items.value.filter((i: any) => i.product_id !== productId && i.id !== productId);
   };
 
   const clearCart = () => {

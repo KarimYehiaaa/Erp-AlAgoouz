@@ -7,7 +7,7 @@ import {
   updateStocktakeItems, 
   completeStocktake,
   deleteStocktake
-} from '../src/services/stocktakeService.js';
+} from '../src/services/stocktakeService.ts';
 
 test.after(async () => {
   await pool.end();

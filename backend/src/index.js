@@ -3,24 +3,25 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
-import './services/loggerService.js';
+import './services/loggerService.ts';
+import { resolveFrontendDist } from './utils/frontendDist.ts';
 import rateLimit from 'express-rate-limit';
 import path from 'path';
 import fs from 'fs';
 import https from 'https';
 import { fileURLToPath } from 'url';
-import config from './config/index.js';
-import routes from './routes/index.js';
-import { authenticate } from './middleware/auth.js';
-import { errorHandler, notFound } from './middleware/errorHandler.js';
-import { requestId } from './middleware/requestId.js';
+import config from './config/index.ts';
+import routes from './routes/index.ts';
+import { authenticate } from './middleware/auth.ts';
+import { errorHandler, notFound } from './middleware/errorHandler.ts';
+import { requestId } from './middleware/requestId.ts';
 import cookieParser from 'cookie-parser';
-import { checkHealth, closePool } from './database/pool.js';
-import { initAutoBackupScheduler } from './services/autoBackupService.js';
-import { initWebSocket } from './services/websocketService.js';
-import { initSentry } from './services/sentry.js';
+import { checkHealth, closePool } from './database/pool.ts';
+import { initAutoBackupScheduler } from './services/autoBackupService.ts';
+import { initWebSocket } from './services/websocketService.ts';
+import { initSentry } from './services/sentry.ts';
 if (!process.env.VERCEL && process.env.REDIS_URL) {
-  import('./jobs/queue.js').catch((err) => {
+  import('./jobs/queue.ts').catch((err) => {
     console.warn(`[Queue] ⚠️ فشل تحميل نظام الطوابير: ${err.message}`);
   });
 } else if (!process.env.VERCEL) {
@@ -139,14 +140,7 @@ app.get('/health', async (req, res) => {
     },
   });
 });
-const possibleDistPaths = [
-  path.join(process.cwd(), 'dist'),
-  path.join(process.cwd(), 'frontend/dist'),
-  path.join(__dirname, '../dist'),
-  path.join(__dirname, '../../frontend/dist'),
-  path.join(__dirname, '../../../frontend/dist'),
-];
-const frontendDist = possibleDistPaths.find((p) => fs.existsSync(p));
+const frontendDist = resolveFrontendDist();
 if (frontendDist) {
   console.log(`\u{1F4E6} Serving frontend from: ${frontendDist}`);
   app.use(express.static(frontendDist));
@@ -164,7 +158,7 @@ if (!process.env.VERCEL) {
     try {
       await runMigrations();
       const { syncStandaloneInvoicesToWholesaleSales } =
-        await import('./services/invoiceService.js');
+        await import('./services/invoiceService.ts');
       await syncStandaloneInvoicesToWholesaleSales();
     } catch (e) {
       console.error('Failed to run database migrations:', e);
@@ -179,7 +173,7 @@ if (!process.env.VERCEL) {
       initAutoBackupScheduler();
       try {
         const { initDatabaseMaintenanceScheduler } =
-          await import('./services/maintenanceService.js');
+          await import('./services/maintenanceService.ts');
         initDatabaseMaintenanceScheduler();
       } catch (e) {
         console.error('Failed to start maintenance scheduler:', e.message);
@@ -195,6 +189,15 @@ if (!process.env.VERCEL) {
         };
         const httpsServer = https.createServer(sslOptions, app);
         const httpsPort = process.env.HTTPS_PORT || 3443;
+        httpsServer.on('error', (err) => {
+          // EADDRINUSE يحدث كحدث غير متزامن ولا يلتقطه try/catch — لا نسمح له بإسقاط الخادم كله
+          const errCode = /** @type {NodeJS.ErrnoException} */ (err).code;
+          if (errCode === 'EADDRINUSE') {
+            console.warn(`\u26A0\uFE0F HTTPS port ${httpsPort} مشغول — تخطي خادم HTTPS الآمن`);
+          } else {
+            console.error(`\u26A0\uFE0F Failed to start HTTPS Server:`, err.message);
+          }
+        });
         httpsServer.listen(httpsPort, () => {
           console.log(`\u{1F512} Secure HTTPS Server \u2192 https://localhost:${httpsPort}`);
           initWebSocket(httpsServer);

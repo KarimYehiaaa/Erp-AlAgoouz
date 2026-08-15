@@ -114,7 +114,7 @@
   </header>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import AppIcon from '@/components/AppIcon.vue';
@@ -135,9 +135,9 @@ const authStore = useAuthStore();
 const search = ref('');
 const searchFocused = ref(false);
 const searchLoading = ref(false);
-const remoteResults = ref([]);
+const remoteResults = ref<any[]>([]);
 const mobileActionsOpen = ref(false);
-let searchTimer = null;
+let searchTimer: ReturnType<typeof setTimeout> | null = null;
 const triggerCommandPalette = () => {
   window.dispatchEvent(new CustomEvent('open-command-palette'));
 };
@@ -216,8 +216,12 @@ const pageResults = [
   { type: 'page', badge: 'صفحة', title: 'الإعدادات', subtitle: 'إعدادات النظام', to: '/settings' },
 ];
 
-const pageTitle = computed(() => titles[route.name]?.[0] || 'بن العجوز');
-const pageSub = computed(() => titles[route.name]?.[1] || 'نظام إدارة متكامل');
+const pageTitle = computed(
+  () => titles[String(route.name) as keyof typeof titles]?.[0] || 'بن العجوز',
+);
+const pageSub = computed(
+  () => titles[String(route.name) as keyof typeof titles]?.[1] || 'نظام إدارة متكامل',
+);
 const displayUserName = computed(
   () => authStore.user?.full_name || authStore.user?.username || 'مستخدم',
 );
@@ -226,7 +230,7 @@ const localResults = computed(() => {
   const q = normalizedSearch.value;
   if (!q) return [];
   return pageResults
-    .filter((item) => `${item.title} ${item.subtitle}`.toLowerCase().includes(q))
+    .filter((item: any) => `${item.title} ${item.subtitle}`.toLowerCase().includes(q))
     .slice(0, 5);
 });
 const searchResults = computed(() => [...localResults.value, ...remoteResults.value].slice(0, 8));
@@ -244,7 +248,7 @@ const clearSearch = () => {
   searchFocused.value = false;
 };
 
-const openSearchResult = (item) => {
+const openSearchResult = (item: any) => {
   router.push(item.to);
   clearSearch();
 };
@@ -253,8 +257,8 @@ const openFirstResult = () => {
   if (searchResults.value[0]) openSearchResult(searchResults.value[0]);
 };
 
-watch(search, (value) => {
-  clearTimeout(searchTimer);
+watch(search, (value: any) => {
+  clearTimeout(searchTimer ?? undefined);
   const q = value.trim();
   remoteResults.value = [];
   if (q.length < 2) {
@@ -273,7 +277,7 @@ watch(search, (value) => {
       const products = productsRes.status === 'fulfilled' ? productsRes.value.data || [] : [];
       const customers = customersRes.status === 'fulfilled' ? customersRes.value.data || [] : [];
       remoteResults.value = [
-        ...products.map((p) => ({
+        ...products.map((p: any) => ({
           type: 'product',
           badge: 'منتج',
           id: p.id,
@@ -281,7 +285,7 @@ watch(search, (value) => {
           subtitle: [p.sku, p.category_name].filter(Boolean).join(' - ') || 'فتح المنتجات',
           to: '/products',
         })),
-        ...customers.map((c) => ({
+        ...customers.map((c: any) => ({
           type: 'customer',
           badge: 'عميل',
           id: c.id,
@@ -296,7 +300,7 @@ watch(search, (value) => {
   }, 250);
 });
 
-const handleDocumentClick = (event) => {
+const handleDocumentClick = (event: any) => {
   const actionsToggle = document.querySelector('.mobile-actions-toggle');
   const actionsGroup = document.querySelector('.navbar-actions-group');
   if (
@@ -323,7 +327,7 @@ const syncOfflineSales = async () => {
       try {
         await salesApi.create(cleanSale);
         await localDb.deleteOfflineSale(offline_id);
-      } catch (err) {
+      } catch (err: any) {
         const isNetworkError = !navigator.onLine || !err.status || err.code === 'ERR_NETWORK';
         if (isNetworkError) {
           console.error(`Network error syncing ${offline_id}, stopping sync:`, err);
@@ -340,7 +344,7 @@ const syncOfflineSales = async () => {
     appStore.pendingSyncCount = remaining.length;
 
     appStore.triggerDataRefresh();
-  } catch (err) {
+  } catch (err: any) {
     console.error('Error during background sync:', err);
   }
 };
@@ -352,18 +356,18 @@ const updateOnlineStatus = () => {
   }
 };
 
-let alertsInterval = null;
+let alertsInterval: ReturnType<typeof setInterval> | null = null;
 const loadAlertsBackground = async () => {
   if (!navigator.onLine) return;
   try {
     const res = await operationsApi.alerts();
-    appStore.notifications = res.data?.alerts || res.alerts || [];
-  } catch (e) {
+    appStore.notifications = res.data?.alerts || [];
+  } catch (e: any) {
     console.warn('Failed to load background alerts:', e);
   }
 };
 
-let syncInterval = null;
+let syncInterval: ReturnType<typeof setInterval> | null = null;
 
 onMounted(() => {
   document.addEventListener('click', handleDocumentClick);
@@ -374,7 +378,7 @@ onMounted(() => {
 
   // Initial check and sync
   updateOnlineStatus();
-  localDb.getOfflineSales().then((sales) => {
+  localDb.getOfflineSales().then((sales: any) => {
     appStore.pendingSyncCount = sales.length;
     if (navigator.onLine && sales.length > 0) {
       syncOfflineSales();

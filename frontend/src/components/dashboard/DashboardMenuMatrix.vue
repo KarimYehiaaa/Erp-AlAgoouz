@@ -62,7 +62,7 @@
   </section>
 </template>
 
-<script setup>
+<script setup lang="ts">
 // Later we can pass dynamic `menuMatrix` stats from backend here.
 </script>
 

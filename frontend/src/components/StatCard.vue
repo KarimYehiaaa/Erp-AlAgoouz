@@ -11,7 +11,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed } from 'vue';
 import AppIcon from '@/components/AppIcon.vue';
 import { formatMoney } from '@/utils/currency';

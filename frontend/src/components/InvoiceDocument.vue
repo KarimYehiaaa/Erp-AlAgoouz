@@ -86,7 +86,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
 import { formatMoney, TAX_RATE } from '@/utils/currency';
@@ -105,25 +105,29 @@ const displayItems = computed(() =>
 
 const payLabel = computed(
   () =>
-    ({
-      paid: 'مدفوعة',
-      unpaid: 'غير مدفوعة',
-      partial: 'مدفوعة جزئيًا',
-      refunded: 'مستردة',
-    })[props.invoice.payment_status] || props.invoice.payment_status,
+    (
+      ({
+        paid: 'مدفوعة',
+        unpaid: 'غير مدفوعة',
+        partial: 'مدفوعة جزئيًا',
+        refunded: 'مستردة',
+      }) as Record<string, string>
+    )[props.invoice.payment_status] || props.invoice.payment_status,
 );
 
 const payClass = computed(
   () =>
-    ({
-      paid: 'paid',
-      unpaid: 'unpaid',
-      partial: 'partial',
-      refunded: 'refunded',
-    })[props.invoice.payment_status] || '',
+    (
+      ({
+        paid: 'paid',
+        unpaid: 'unpaid',
+        partial: 'partial',
+        refunded: 'refunded',
+      }) as Record<string, string>
+    )[props.invoice.payment_status] || '',
 );
 
-const formatDate = (d) =>
+const formatDate = (d: any) =>
   d
     ? new Date(d).toLocaleDateString('en-GB', { year: 'numeric', month: 'long', day: 'numeric' })
     : '—';

@@ -160,7 +160,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount } from 'vue';
 import api from '@/api/index';
 import SystemHealthCard from '@/components/admin/SystemHealthCard.vue';
@@ -177,15 +177,15 @@ const lastUpdate = ref(new Date());
 const lastUpdateStr = ref('');
 
 // Data refs
-const healthData = ref({});
-const dashboardData = ref({});
-const countsData = ref({});
-const activityData = ref([]);
-const sessionsData = ref([]);
-const failedLoginsData = ref([]);
-const alertsData = ref({});
-const riskRadarData = ref({});
-const revokingId = ref(null);
+const healthData = ref<Record<string, any>>({});
+const dashboardData = ref<Record<string, any>>({});
+const countsData = ref<Record<string, any>>({});
+const activityData = ref<any[]>([]);
+const sessionsData = ref<any[]>([]);
+const failedLoginsData = ref<any[]>([]);
+const alertsData = ref<Record<string, any>>({});
+const riskRadarData = ref<Record<string, any>>({});
+const revokingId = ref<any>(null);
 const systemOk = ref(true);
 
 // Broadcast Modal
@@ -193,7 +193,7 @@ const showBroadcastModal = ref(false);
 const broadcastForm = ref({ title: '', message: '', level: 'info' });
 
 // Auto-refresh interval
-let refreshInterval = null;
+let refreshInterval: ReturnType<typeof setInterval> | null = null;
 
 // Update timestamp display
 const updateTimeStr = () => {
@@ -210,7 +210,7 @@ const loadHealth = async () => {
     const res = await api.get('/admin/health');
     healthData.value = res?.data !== undefined ? res.data : res;
     systemOk.value = true;
-  } catch (e) {
+  } catch (e: any) {
     console.error('[Admin] Health error:', e);
     systemOk.value = false;
   }
@@ -220,7 +220,7 @@ const loadDashboard = async () => {
   try {
     const res = await api.get('/dashboard', { params: { period: 'month' } });
     dashboardData.value = res.data !== undefined ? res.data : res || {};
-  } catch (e) {
+  } catch (e: any) {
     console.error('[Admin] Dashboard error:', e);
   }
 };
@@ -229,7 +229,7 @@ const loadCounts = async () => {
   try {
     const res = await api.get('/admin/counts');
     countsData.value = res.data !== undefined ? res.data : res || {};
-  } catch (e) {
+  } catch (e: any) {
     console.error('[Admin] Counts error:', e);
   }
 };
@@ -238,7 +238,7 @@ const loadRiskRadar = async () => {
   try {
     const res = await api.get('/admin/risk-radar');
     riskRadarData.value = res.data !== undefined ? res.data : res || {};
-  } catch (e) {
+  } catch (e: any) {
     console.error('[Admin] Risk radar error:', e);
   }
 };
@@ -247,7 +247,7 @@ const loadActivity = async () => {
   try {
     const res = await api.get('/admin/activity', { params: { limit: 50 } });
     activityData.value = res.data !== undefined ? res.data : res || [];
-  } catch (e) {
+  } catch (e: any) {
     console.error('[Admin] Activity error:', e);
   }
 };
@@ -256,7 +256,7 @@ const loadSessions = async () => {
   try {
     const res = await api.get('/admin/sessions');
     sessionsData.value = res.data !== undefined ? res.data : res || [];
-  } catch (e) {
+  } catch (e: any) {
     console.error('[Admin] Sessions error:', e);
     sessionsData.value = [];
   }
@@ -266,7 +266,7 @@ const loadFailedLogins = async () => {
   try {
     const res = await api.get('/admin/failed-logins', { params: { hours: 24 } });
     failedLoginsData.value = res.data !== undefined ? res.data : res || [];
-  } catch (e) {
+  } catch (e: any) {
     console.error('[Admin] Failed logins error:', e);
     failedLoginsData.value = [];
   }
@@ -276,7 +276,7 @@ const loadAlerts = async () => {
   try {
     const res = await api.get('/operations/alerts');
     alertsData.value = res.data || {};
-  } catch (e) {
+  } catch (e: any) {
     console.error('[Admin] Alerts error:', e);
   }
 };
@@ -303,13 +303,13 @@ const refreshAll = async () => {
 };
 
 // Actions
-const handleRevokeSession = async (sessionId) => {
+const handleRevokeSession = async (sessionId: any) => {
   if (!confirm('هل تريد إنهاء هذه الجلسة؟')) return;
   revokingId.value = sessionId;
   try {
     await api.delete(`/admin/sessions/${sessionId}`);
-    sessionsData.value = sessionsData.value.filter((s) => s.id !== sessionId);
-  } catch (e) {
+    sessionsData.value = sessionsData.value.filter((s: any) => s.id !== sessionId);
+  } catch (e: any) {
     alert('فشل إنهاء الجلسة: ' + (e.response?.data?.message || e.message));
   } finally {
     revokingId.value = null;
@@ -318,7 +318,7 @@ const handleRevokeSession = async (sessionId) => {
 
 const handleBackup = async () => {
   try {
-    const res = await api.get('/admin/backup', { responseType: 'blob' });
+    const res = (await api.get('/admin/backup', { responseType: 'blob' })) as unknown as Blob;
     const url = window.URL.createObjectURL(new Blob([res]));
     const link = document.createElement('a');
     link.href = url;
@@ -330,7 +330,7 @@ const handleBackup = async () => {
     link.click();
     link.remove();
     alert('✅ تم تنزيل نسخة احتياطية كاملة لقاعدة البيانات بنجاح');
-  } catch (e) {
+  } catch (e: any) {
     alert('❌ فشل تنزيل النسخة الاحتياطية: ' + (e.response?.data?.message || e.message));
   }
 };
@@ -339,7 +339,7 @@ const handleRepairSequences = async () => {
   try {
     const res = await api.post('/admin/repair-sequences');
     alert(`✅ ${res.data?.message || 'تم إصلاح متسلسلات قاعدة البيانات بنجاح'}`);
-  } catch (e) {
+  } catch (e: any) {
     alert('❌ فشل إصلاح المتسلسلات: ' + (e.response?.data?.message || e.message));
   }
 };
@@ -350,7 +350,7 @@ const handlePurgeLogs = async () => {
     const res = await api.post('/admin/purge-logs', { days: 90 });
     alert(`✅ تم حذف ${res.data?.data?.deletedCount || 0} سجل نشاط قديم`);
     loadActivity();
-  } catch (e) {
+  } catch (e: any) {
     alert('❌ فشل تنظيف السجلات: ' + (e.response?.data?.message || e.message));
   }
 };
@@ -362,7 +362,7 @@ const submitBroadcast = async () => {
     alert('✅ تم نشر التنبيه العام لجميع المستخدمين بالنظام بنجاح');
     showBroadcastModal.value = false;
     broadcastForm.value = { title: '', message: '', level: 'info' };
-  } catch (e) {
+  } catch (e: any) {
     alert('❌ فشل إرسال التنبيه: ' + (e.response?.data?.message || e.message));
   }
 };

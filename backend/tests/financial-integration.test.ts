@@ -1,6 +1,6 @@
 import { test, afterAll, expect } from 'vitest';
 import assert from 'node:assert/strict';
-import { createExpense } from '../src/services/expenseService.js';
+import { createExpense } from '../src/services/expenseService.ts';
 import { roundMoney } from '../src/utils/money.js';
 import { AppError } from '../src/types/errors.js';
 import pool from '../src/database/pool.js';

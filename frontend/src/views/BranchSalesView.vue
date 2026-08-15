@@ -535,7 +535,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue';
 import StatCard from '@/components/StatCard.vue';
 import AppIcon from '@/components/AppIcon.vue';
@@ -559,7 +559,7 @@ const localTodayYmd = () => {
 };
 const today = localTodayYmd();
 
-const formatDate = (d) => {
+const formatDate = (d: any) => {
   const val = d?.split?.('T')?.[0] || d;
   if (!val) return '—';
   if (/^\d{4}-\d{2}-\d{2}$/.test(val)) {
@@ -585,9 +585,9 @@ const todayStr = today;
 const appStore = useAppStore();
 const autoPrint = ref(localStorage.getItem('auto_print_receipt') !== 'false');
 const printerName = ref(directPrinter.getSelectedPrinterName() || '');
-const lastSavedSale = ref(null);
+const lastSavedSale = ref<any>(null);
 
-const searchInputRef = ref(null);
+const searchInputRef = ref<any>(null);
 const companySettings = ref({
   name_ar: 'بن العجوز',
   phone: '',
@@ -601,7 +601,8 @@ const playBeep = (type = 'success') => {
   const soundVolume = parseFloat(localStorage.getItem('sound_volume') || '0.08');
 
   try {
-    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const AudioCtx: typeof AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+    const audioCtx = new AudioCtx();
     if (type === 'success') {
       const osc1 = audioCtx.createOscillator();
       const osc2 = audioCtx.createOscillator();
@@ -632,7 +633,7 @@ const playBeep = (type = 'success') => {
       const gain = audioCtx.createGain();
       gain.connect(audioCtx.destination);
       gain.gain.setValueAtTime(soundVolume * 2, audioCtx.currentTime);
-      const playTone = (freq, duration, delay) => {
+      const playTone = (freq: any, duration: any, delay: any) => {
         const osc = audioCtx.createOscillator();
         osc.type = 'sawtooth';
         osc.frequency.setValueAtTime(freq, audioCtx.currentTime + delay);
@@ -655,12 +656,12 @@ const playBeep = (type = 'success') => {
       osc.start();
       osc.stop(audioCtx.currentTime + 0.08);
     }
-  } catch (err) {
+  } catch (err: any) {
     console.error('Audio play failed:', err);
   }
 };
 
-const handleGlobalKeyDown = (e) => {
+const handleGlobalKeyDown = (e: any) => {
   const shortcutsEnabled = localStorage.getItem('shortcuts_enabled') !== 'false';
   if (!shortcutsEnabled) return;
 
@@ -680,16 +681,16 @@ const handleGlobalKeyDown = (e) => {
   }
 };
 
-watch(autoPrint, (val) => {
+watch(autoPrint, (val: any) => {
   localStorage.setItem('auto_print_receipt', String(val));
 });
 
-const allProducts = ref([]);
-const filteredProducts = ref([]);
+const allProducts = ref<any[]>([]);
+const filteredProducts = ref<any[]>([]);
 const productSearch = ref('');
 const selectedCategory = ref('');
 
-const cart = ref([]);
+const cart = ref<any[]>([]);
 const saleForm = ref({
   sale_date: today,
   payment_method: 'cash',
@@ -699,7 +700,7 @@ const saleForm = ref({
 });
 
 // AI complementary items states & actions
-const recommendedItems = ref([]);
+const recommendedItems = ref<any[]>([]);
 const loadingRecommendations = ref(false);
 
 const loadRecommendations = async () => {
@@ -709,14 +710,16 @@ const loadRecommendations = async () => {
   }
   loadingRecommendations.value = true;
   try {
-    const productIds = cart.value.map((i) => i.product_id);
+    const productIds = cart.value.map((i: any) => i.product_id);
     const res = await forecastingApi.getBasketAssociations({
       cart: productIds.join(','),
       warehouse_id: saleForm.value.warehouse_id || 1,
     });
     // Filter out recommendations that are already in the cart
-    recommendedItems.value = (res.data || []).filter((r) => !productIds.includes(r.product_id));
-  } catch (err) {
+    recommendedItems.value = (res.data || []).filter(
+      (r: any) => !productIds.includes(r.product_id),
+    );
+  } catch (err: any) {
     console.error('Failed to load basket recommendations:', err);
     recommendedItems.value = [];
   } finally {
@@ -732,8 +735,8 @@ watch(
   { deep: true },
 );
 
-const addRecommendedToCart = (rec) => {
-  const product = allProducts.value.find((p) => p.id === rec.product_id) || {
+const addRecommendedToCart = (rec: any) => {
+  const product = allProducts.value.find((p: any) => p.id === rec.product_id) || {
     id: rec.product_id,
     name_ar: rec.name_ar,
     sale_price: rec.sale_price,
@@ -742,19 +745,19 @@ const addRecommendedToCart = (rec) => {
   addToCart(product);
 };
 
-const salesHistory = ref([]);
+const salesHistory = ref<any[]>([]);
 const historyFilters = ref({ from_date: today.slice(0, 8) + '01', to_date: today });
 
 // Excel state
 const excelMsg = ref('');
 const excelErr = ref(false);
-const excelDetails = ref([]);
+const excelDetails = ref<any[]>([]);
 const countsModal = ref(false);
-const counts = ref({});
+const counts = ref<Record<string, any>>({});
 
 // ─── computed ──────────────────────────────────────────────────────────────
 const cartSubtotal = computed(() =>
-  cart.value.reduce((sum, item) => sum + item.quantity * item.unit_price, 0),
+  cart.value.reduce((sum: any, item: any) => sum + item.quantity * item.unit_price, 0),
 );
 const cartTotal = computed(() =>
   Math.max(0, cartSubtotal.value - (saleForm.value.discount_amount || 0)),
@@ -762,17 +765,17 @@ const cartTotal = computed(() =>
 
 const todayTotal = computed(() =>
   salesHistory.value
-    .filter((s) => s.status === 'completed' && (s.sale_date || '').startsWith(today))
-    .reduce((sum, s) => sum + parseFloat(s.total_amount || 0), 0),
+    .filter((s: any) => s.status === 'completed' && (s.sale_date || '').startsWith(today))
+    .reduce((sum: any, s: any) => sum + parseFloat(s.total_amount || 0), 0),
 );
 const todayCount = computed(
   () =>
     salesHistory.value.filter(
-      (s) => s.status === 'completed' && (s.sale_date || '').startsWith(today),
+      (s: any) => s.status === 'completed' && (s.sale_date || '').startsWith(today),
     ).length,
 );
 const lastSaleTime = computed(() => {
-  const todaySales = salesHistory.value.filter((s) => (s.sale_date || '').startsWith(today));
+  const todaySales = salesHistory.value.filter((s: any) => (s.sale_date || '').startsWith(today));
   if (!todaySales.length) return '—';
   const last = todaySales[0];
   const d = new Date(last.created_at);
@@ -780,16 +783,16 @@ const lastSaleTime = computed(() => {
 });
 
 // ─── product helpers ────────────────────────────────────────────────────────
-const hasLowIngredients = (product) => {
+const hasLowIngredients = (product: any) => {
   if (!product.has_recipe || !Array.isArray(product.recipe_items)) return false;
-  return product.recipe_items.some((ri) => {
+  return product.recipe_items.some((ri: any) => {
     const needed = Number(ri.quantity);
     const available = Number(ri.stock_available || 0);
     return available < needed;
   });
 };
 
-const getProductStockClass = (product) => {
+const getProductStockClass = (product: any) => {
   if (!product.has_recipe) {
     const qty = Number(product.stock_quantity || 0);
     if (qty <= 0) return 'out';
@@ -800,7 +803,7 @@ const getProductStockClass = (product) => {
     if (isMissing) return 'out';
 
     // Check if any ingredient has less than 5 servings left
-    const isClose = product.recipe_items?.some((ri) => {
+    const isClose = product.recipe_items?.some((ri: any) => {
       const needed = Number(ri.quantity);
       const available = Number(ri.stock_available || 0);
       return available < needed * 5;
@@ -810,16 +813,16 @@ const getProductStockClass = (product) => {
   }
 };
 
-const getProductStockTitle = (product) => {
+const getProductStockTitle = (product: any) => {
   const status = getProductStockClass(product);
   if (status === 'out') return 'المخزون غير كافٍ لعمل المشروب ⚠️';
   if (status === 'low') return 'المخزون منخفض (أقل من 5 أكواب متبقية) ⚡';
   return 'متوفر بكثرة في المخزن ✓';
 };
 
-const isInCart = (productId) => cart.value.some((i) => i.product_id === productId);
-const getCartQty = (productId) => {
-  const item = cart.value.find((i) => i.product_id === productId);
+const isInCart = (productId: any) => cart.value.some((i: any) => i.product_id === productId);
+const getCartQty = (productId: any) => {
+  const item = cart.value.find((i: any) => i.product_id === productId);
   return item ? item.quantity : 0;
 };
 
@@ -827,12 +830,12 @@ const getCartQty = (productId) => {
 const filterProducts = () => {
   let list = allProducts.value;
   if (selectedCategory.value) {
-    list = list.filter((p) => p.category_id == selectedCategory.value);
+    list = list.filter((p: any) => p.category_id == selectedCategory.value);
   }
   if (productSearch.value.trim()) {
     const q = productSearch.value.trim().toLowerCase();
     list = list.filter(
-      (p) => p.name_ar.toLowerCase().includes(q) || (p.sku || '').toLowerCase().includes(q),
+      (p: any) => p.name_ar.toLowerCase().includes(q) || (p.sku || '').toLowerCase().includes(q),
     );
   }
   filteredProducts.value = list;
@@ -841,7 +844,7 @@ const filterProducts = () => {
 const loadProducts = async () => {
   loadingProducts.value = true;
   try {
-    const params = {};
+    const params: Record<string, any> = {};
     if (saleForm.value.warehouse_id) params.warehouse_id = saleForm.value.warehouse_id;
 
     if (navigator.onLine) {
@@ -849,7 +852,7 @@ const loadProducts = async () => {
       allProducts.value = prodRes.data || [];
       try {
         await localDb.saveProducts(allProducts.value);
-      } catch (dbErr) {
+      } catch (dbErr: any) {
         console.warn('Failed to cache products to IndexedDB:', dbErr);
       }
     } else {
@@ -858,7 +861,7 @@ const loadProducts = async () => {
     }
     await loadMeta();
     filterProducts();
-  } catch (e) {
+  } catch (e: any) {
     console.error('فشل تحميل المنتجات:', e.message);
     try {
       const cached = await localDb.getProducts();
@@ -866,7 +869,7 @@ const loadProducts = async () => {
         allProducts.value = cached;
         filterProducts();
       }
-    } catch (dbErr) {
+    } catch (dbErr: any) {
       console.error('Failed to load products from IndexedDB fallback:', dbErr);
     }
   } finally {
@@ -877,15 +880,15 @@ const loadProducts = async () => {
 // reload products when selected warehouse for the sale changes
 watch(
   () => saleForm.value.warehouse_id,
-  (v, o) => {
+  (v: any, o: any) => {
     if (v !== o) loadProducts();
   },
 );
 
 // ─── cart actions ───────────────────────────────────────────────────────────
-const addToCart = (product) => {
+const addToCart = (product: any) => {
   playBeep('success');
-  const existing = cart.value.find((i) => i.product_id === product.id);
+  const existing = cart.value.find((i: any) => i.product_id === product.id);
   if (existing) {
     existing.quantity = parseFloat((existing.quantity + 1).toFixed(3));
   } else {
@@ -903,11 +906,11 @@ const addToCart = (product) => {
   }
 };
 
-const increaseQty = (idx) => {
+const increaseQty = (idx: any) => {
   playBeep('click');
   cart.value[idx].quantity = parseFloat((cart.value[idx].quantity + 1).toFixed(3));
 };
-const decreaseQty = (idx) => {
+const decreaseQty = (idx: any) => {
   playBeep('click');
   if (cart.value[idx].quantity > 0.1) {
     cart.value[idx].quantity = parseFloat((cart.value[idx].quantity - 1).toFixed(3));
@@ -915,11 +918,11 @@ const decreaseQty = (idx) => {
     cart.value.splice(idx, 1);
   }
 };
-const validateQty = (idx) => {
+const validateQty = (idx: any) => {
   const qty = parseFloat(cart.value[idx].quantity);
   if (!qty || qty <= 0) cart.value.splice(idx, 1);
 };
-const removeFromCart = (idx) => {
+const removeFromCart = (idx: any) => {
   playBeep('click');
   cart.value.splice(idx, 1);
 };
@@ -938,12 +941,12 @@ const selectPrinter = async () => {
     await directPrinter.selectPrinter();
     printerName.value = directPrinter.getSelectedPrinterName() || 'USB Printer';
     alert('تم تحديد الطابعة بنجاح: ' + printerName.value);
-  } catch (err) {
+  } catch (err: any) {
     alert('فشل تحديد الطابعة: ' + err.message);
   }
 };
 
-const printReceipt = async (saleRecord) => {
+const printReceipt = async (saleRecord: any) => {
   if (!saleRecord) return;
   try {
     const invoiceData = {
@@ -951,18 +954,18 @@ const printReceipt = async (saleRecord) => {
       invoice_number: saleRecord.sale_number,
       created_at: saleRecord.created_at || saleRecord.sale_date,
       subtotal: (saleRecord.items || []).reduce(
-        (sum, item) => sum + item.quantity * item.unit_price,
+        (sum: any, item: any) => sum + item.quantity * item.unit_price,
         0,
       ),
       total_amount: saleRecord.total_amount,
       discount_amount: saleRecord.discount_amount,
       user_name: 'كاشير الفرع',
       company: companySettings.value,
-      items: saleRecord.items.map((item) => ({
+      items: saleRecord.items.map((item: any) => ({
         product_name:
           item.product_name ||
           item.name_ar ||
-          allProducts.value.find((p) => p.id === item.product_id)?.name_ar ||
+          allProducts.value.find((p: any) => p.id === item.product_id)?.name_ar ||
           'منتج',
         quantity: item.quantity,
         unit_price: item.unit_price,
@@ -970,7 +973,7 @@ const printReceipt = async (saleRecord) => {
       })),
     };
     await directPrinter.print(invoiceData);
-  } catch (err) {
+  } catch (err: any) {
     console.error('Print failed:', err);
     alert('فشل الطباعة: ' + err.message);
   }
@@ -991,8 +994,8 @@ const submitManualSale = async () => {
     notes: saleForm.value.notes || null,
     total_amount: Number(cartTotal.value),
     items: cart.value
-      .filter((i) => i.product_id && parseLocalizedNumber(i.quantity) > 0)
-      .map((i) => ({
+      .filter((i: any) => i.product_id && parseLocalizedNumber(i.quantity) > 0)
+      .map((i: any) => ({
         product_id: i.product_id,
         product_name: i.name_ar,
         quantity: parseLocalizedNumber(i.quantity),
@@ -1028,7 +1031,7 @@ const submitManualSale = async () => {
     if (autoPrint.value && saleRecord) {
       await printReceipt(saleRecord);
     }
-  } catch (e) {
+  } catch (e: any) {
     // التفريق بين أخطاء الشبكة (حفظ أوفلاين) وأخطاء التحقق (عرض للمستخدم)
     const isNetworkError = !navigator.onLine || !e.status || e.code === 'ERR_NETWORK';
 
@@ -1049,7 +1052,7 @@ const submitManualSale = async () => {
         if (autoPrint.value) {
           await printReceipt(saleRecord);
         }
-      } catch (offlineErr) {
+      } catch (offlineErr: any) {
         playBeep('error');
         saleError.value = 'فشل تسجيل البيع: ' + (e.message || offlineErr.message);
       }
@@ -1064,7 +1067,7 @@ const submitManualSale = async () => {
 };
 
 // ─── history ────────────────────────────────────────────────────────────────
-const selectMonth = (event) => {
+const selectMonth = (event: any) => {
   const value = event.target.value;
   if (!value) return;
   const [year, month] = value.split('-').map(Number);
@@ -1093,12 +1096,12 @@ const loadHistory = async () => {
     }
     const offlineSales = await localDb.getOfflineSales();
     salesHistory.value = [...offlineSales, ...historyData];
-  } catch (e) {
+  } catch (e: any) {
     console.error('فشل تحميل السجل:', e.message);
     try {
       const offlineSales = await localDb.getOfflineSales();
       salesHistory.value = offlineSales;
-    } catch (dbErr) {
+    } catch (dbErr: any) {
       console.error('Failed to load offline sales for history:', dbErr);
     }
   } finally {
@@ -1106,25 +1109,32 @@ const loadHistory = async () => {
   }
 };
 
-const returnSale = async (sale) => {
+const returnSale = async (sale: any) => {
   if (!confirm(`تأكيد استرداد البيع ${sale.sale_number}؟ سيتم إرجاع المخزون.`)) return;
   try {
     await salesApi.return(sale.id, { notes: 'استرداد من شاشة مبيعات الفرع' });
     await Promise.all([loadHistory(), loadProducts()]);
-  } catch (e) {
+  } catch (e: any) {
     alert(e.message || 'فشل الاسترداد');
   }
 };
 
 // ─── badge helpers ──────────────────────────────────────────────────────────
-const statusLabel = (s) => ({ completed: 'مكتمل', returned: 'مسترد', cancelled: 'ملغي' })[s] || s;
-const statusBadge = (s) => [
+const statusLabel = (s: any) =>
+  (({ completed: 'مكتمل', returned: 'مسترد', cancelled: 'ملغي' }) as Record<string, string>)[s] ||
+  s;
+const statusBadge = (s: any) => [
   'badge',
   s === 'completed' ? 'badge-success' : s === 'returned' ? 'badge-danger' : 'badge-warning',
 ];
-const paymentLabel = (s) =>
-  ({ paid: 'مدفوع', unpaid: 'غير مدفوع', partial: 'جزئي', refunded: 'مسترد' })[s] || s;
-const paymentBadge = (s) => [
+const paymentLabel = (s: any) =>
+  (
+    ({ paid: 'مدفوع', unpaid: 'غير مدفوع', partial: 'جزئي', refunded: 'مسترد' }) as Record<
+      string,
+      string
+    >
+  )[s] || s;
+const paymentBadge = (s: any) => [
   'badge',
   s === 'paid' ? 'badge-success' : s === 'unpaid' ? 'badge-danger' : 'badge-warning',
 ];
@@ -1133,21 +1143,21 @@ const paymentBadge = (s) => [
 const downloadBranchTemplate = async () => {
   downloadingTemplate.value = true;
   try {
-    const blob = await salesApi.downloadBranchTemplate();
+    const blob = (await salesApi.downloadBranchTemplate()) as unknown as Blob;
     const url = URL.createObjectURL(new Blob([blob]));
     const a = document.createElement('a');
     a.href = url;
     a.download = 'branch-sales-template.xlsx';
     a.click();
     URL.revokeObjectURL(url);
-  } catch (e) {
+  } catch (e: any) {
     alert(e.message || 'فشل تحميل القالب');
   } finally {
     downloadingTemplate.value = false;
   }
 };
 
-const onValidateExcel = async (e) => {
+const onValidateExcel = async (e: any) => {
   const file = e.target.files?.[0];
   if (!file) return;
   excelMsg.value = 'جاري فحص الملف...';
@@ -1161,17 +1171,17 @@ const onValidateExcel = async (e) => {
       : '❌ الملف فيه أخطاء — راجع القائمة أدناه';
     excelErr.value = !d.ok;
     excelDetails.value = [
-      ...(d.parseErrors || []).map((err) => `سطر ${err.row}: ${err.message}`),
-      ...(d.preview || []).map((p) => `✓ ${p.sale_date} — ${p.items_count} منتج: ${p.sample}`),
+      ...(d.parseErrors || []).map((err: any) => `سطر ${err.row}: ${err.message}`),
+      ...(d.preview || []).map((p: any) => `✓ ${p.sale_date} — ${p.items_count} منتج: ${p.sample}`),
     ];
-  } catch (err) {
+  } catch (err: any) {
     excelErr.value = true;
     excelMsg.value = err.message || 'فشل فحص الملف';
   }
   e.target.value = '';
 };
 
-const onImportExcel = async (e) => {
+const onImportExcel = async (e: any) => {
   const file = e.target.files?.[0];
   if (!file) return;
   excelMsg.value = 'جاري الاستيراد...';
@@ -1184,12 +1194,12 @@ const onImportExcel = async (e) => {
       `✅ تم استيراد ${d.success} فاتورة (${d.itemsImported || 0} منتج)` +
       (d.failed?.length ? ` — فشل ${d.failed.length}` : '');
     excelDetails.value = [
-      ...(d.parseErrors || []).map((err) => `تحذير سطر ${err.row}: ${err.message}`),
-      ...(d.failed || []).map((err) => `❌ ${err.sale_date}: ${err.message}`),
+      ...(d.parseErrors || []).map((err: any) => `تحذير سطر ${err.row}: ${err.message}`),
+      ...(d.failed || []).map((err: any) => `❌ ${err.sale_date}: ${err.message}`),
     ];
     excelErr.value = d.success === 0;
     await Promise.all([loadHistory(), loadProducts()]);
-  } catch (err) {
+  } catch (err: any) {
     excelErr.value = true;
     excelMsg.value = err.message || 'فشل الاستيراد';
   }
@@ -1197,10 +1207,10 @@ const onImportExcel = async (e) => {
 };
 
 // ─── lifecycle & events ───
-const onInventoryUpdated = (e) => {
+const onInventoryUpdated = (e: any) => {
   try {
     loadProducts();
-  } catch (err) {
+  } catch (err: any) {
     console.warn('inventory-updated handler error', err);
   }
 };
@@ -1218,7 +1228,7 @@ onMounted(async () => {
       companySettings.value = res.data.company;
       localStorage.setItem('company_settings', JSON.stringify(res.data.company));
     }
-  } catch (e) {
+  } catch (e: any) {
     const cached = localStorage.getItem('company_settings');
     if (cached) companySettings.value = JSON.parse(cached);
   }
@@ -1249,7 +1259,7 @@ const submitCounts = async () => {
   for (const [pid, qty] of Object.entries(counts.value || {})) {
     const q = Number(qty || 0);
     if (q > 0) {
-      const prod = allProducts.value.find((x) => String(x.id) === String(pid));
+      const prod = allProducts.value.find((x: any) => String(x.id) === String(pid));
       items.push({
         product_id: Number(pid),
         quantity: q,
@@ -1277,7 +1287,7 @@ const submitCounts = async () => {
     });
     counts.value = {};
     await Promise.all([loadHistory(), loadProducts()]);
-  } catch (e) {
+  } catch (e: any) {
     alert(e.message || 'فشل تنفيذ الخصم من التعداد');
   } finally {
     saving.value = false;

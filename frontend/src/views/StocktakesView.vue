@@ -166,19 +166,19 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { stocktakes as stocktakeApi, warehouses as warehousesApi } from '@/api';
 
 const router = useRouter();
 
-const stocktakesList = ref([]);
-const warehousesList = ref([]);
+const stocktakesList = ref<any[]>([]);
+const warehousesList = ref<any[]>([]);
 const loading = ref(false);
 const submitting = ref(false);
 const showCreateModal = ref(false);
-const stocktakeToDelete = ref(null);
+const stocktakeToDelete = ref<any>(null);
 
 const msg = ref('');
 const err = ref(false);
@@ -188,7 +188,7 @@ const form = ref({
   notes: '',
 });
 
-const flashMsg = (text, isErr = false) => {
+const flashMsg = (text: any, isErr = false) => {
   msg.value = text;
   err.value = isErr;
   setTimeout(() => {
@@ -201,8 +201,8 @@ const loadData = async () => {
   try {
     const [stRes, whRes] = await Promise.all([stocktakeApi.list(), warehousesApi()]);
     stocktakesList.value = stRes.data || [];
-    warehousesList.value = (whRes.data || []).filter((w) => w.is_active);
-  } catch (e) {
+    warehousesList.value = (whRes.data || []).filter((w: any) => w.is_active);
+  } catch (e: any) {
     flashMsg(e.message || 'فشل في تحميل بيانات الجرد والمستودعات', true);
   } finally {
     loading.value = false;
@@ -226,14 +226,14 @@ const handleCreate = async () => {
     flashMsg('تم بدء مسودة جرد جديدة بنجاح.');
     // التحويل لصفحة الجرد الفعلي فوراً
     router.push(`/stocktakes/${res.data.id}`);
-  } catch (e) {
+  } catch (e: any) {
     flashMsg(e.message || 'فشل في بدء عملية الجرد', true);
   } finally {
     submitting.value = false;
   }
 };
 
-const confirmDelete = (stocktake) => {
+const confirmDelete = (stocktake: any) => {
   stocktakeToDelete.value = stocktake;
 };
 
@@ -245,18 +245,18 @@ const handleDelete = async () => {
     flashMsg('تم حذف مسودة الجرد بنجاح.');
     stocktakeToDelete.value = null;
     await loadData();
-  } catch (e) {
+  } catch (e: any) {
     flashMsg(e.message || 'فشل في حذف مسودة الجرد', true);
   } finally {
     submitting.value = false;
   }
 };
 
-const goToDetails = (id) => {
+const goToDetails = (id: any) => {
   router.push(`/stocktakes/${id}`);
 };
 
-const fmtDateTime = (isoStr) => {
+const fmtDateTime = (isoStr: any) => {
   if (!isoStr) return '-';
   const d = new Date(isoStr);
   return d.toLocaleDateString('ar-EG', {
@@ -268,7 +268,7 @@ const fmtDateTime = (isoStr) => {
   });
 };
 
-const fmtCurrency = (val) => {
+const fmtCurrency = (val: any) => {
   if (val === undefined || val === null) return '-';
   return Number(val).toLocaleString('ar-EG', {
     style: 'currency',

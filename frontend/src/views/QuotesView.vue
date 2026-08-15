@@ -166,16 +166,21 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
 import { quotes as quotesApi } from '@/api';
 import { formatMoney } from '@/utils/currency';
 
 const templateStorageKey = 'quote_template';
-const makeKey = () =>
-  globalThis.crypto?.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random());
-const makeItem = (seed = {}) => ({
+const makeKey = () => {
+  try {
+    return crypto.randomUUID();
+  } catch {
+    return String(Date.now() + Math.random());
+  }
+};
+const makeItem = (seed: Record<string, any> = {}) => ({
   key: seed.key || makeKey(),
   name: seed.name || '',
   unit: seed.unit || '',
@@ -197,9 +202,9 @@ const savedTemplate = ref({ items: [makeItem()] });
 
 // formatMoney is imported from @/utils/currency
 
-const normalizeTemplate = (source) => ({
+const normalizeTemplate = (source: any) => ({
   items: (Array.isArray(source?.items) ? source.items : [])
-    .map((item) =>
+    .map((item: any) =>
       makeItem({
         key: item.key,
         name: item.name || item.product_name || item.description || '',
@@ -207,16 +212,16 @@ const normalizeTemplate = (source) => ({
         price: item.price ?? item.unit_price ?? 0,
       }),
     )
-    .filter((item) => item.name.trim()),
+    .filter((item: any) => item.name.trim()),
 });
 
-const applyTemplate = (template) => {
+const applyTemplate = (template: any) => {
   const next = normalizeTemplate(template);
   savedTemplate.value = next.items.length ? next : { items: [makeItem()] };
-  form.items = savedTemplate.value.items.map((item) => ({ ...item }));
+  form.items = savedTemplate.value.items.map((item: any) => ({ ...item }));
 };
 
-const persistTemplateLocal = (template) => {
+const persistTemplateLocal = (template: any) => {
   try {
     localStorage.setItem(templateStorageKey, JSON.stringify(template));
   } catch {
@@ -238,7 +243,7 @@ const readTemplateLocal = () => {
 const loadTemplate = async () => {
   templateMessage.value = '';
   try {
-    const res = await quotesApi.template();
+    const res = (await quotesApi.template()) as any;
     const template = normalizeTemplate(res?.data || res || { items: [] });
     if (template.items.length) {
       applyTemplate(template);
@@ -262,7 +267,7 @@ const loadTemplate = async () => {
 };
 
 const addItem = () => form.items.push(makeItem());
-const removeItem = (index) => {
+const removeItem = (index: any) => {
   if (form.items.length === 1) return;
   form.items.splice(index, 1);
 };
@@ -270,7 +275,7 @@ const removeItem = (index) => {
 const resetForm = () => {
   form.customer_name = '';
   form.notes = '';
-  form.items = savedTemplate.value.items.map((item) => ({ ...item, key: makeKey() }));
+  form.items = savedTemplate.value.items.map((item: any) => ({ ...item, key: makeKey() }));
   error.value = '';
   success.value = '';
 };
@@ -279,8 +284,8 @@ const buildPayload = () => ({
   customer_name: form.customer_name.trim(),
   notes: form.notes.trim(),
   items: form.items
-    .filter((item) => item.name.trim())
-    .map((item) => ({
+    .filter((item: any) => item.name.trim())
+    .map((item: any) => ({
       product_name: item.name.trim(),
       description: item.name.trim(),
       unit: item.unit.trim(),
@@ -292,8 +297,8 @@ const saveTemplate = async () => {
   templateMessage.value = '';
   const template = normalizeTemplate({
     items: form.items
-      .filter((item) => item.name.trim())
-      .map((item) => ({
+      .filter((item: any) => item.name.trim())
+      .map((item: any) => ({
         name: item.name,
         unit: item.unit,
         price: item.price,
@@ -311,7 +316,7 @@ const saveTemplate = async () => {
     applyTemplate(saved);
     persistTemplateLocal(saved);
     templateMessage.value = 'تم حفظ البنود كقالب ثابت.';
-  } catch (e) {
+  } catch (e: any) {
     persistTemplateLocal(template);
     savedTemplate.value = template.items.length ? template : { items: [makeItem()] };
     error.value = e?.message || 'فشل حفظ القالب';
@@ -338,7 +343,7 @@ const downloadPdf = async () => {
   try {
     const el = document.querySelector('.preview-doc');
     const module = await import('html2pdf.js');
-    const html2pdf = module.default || module;
+    const html2pdf = (module.default || module) as any;
     await html2pdf()
       .set({
         margin: [8, 8, 8, 8],
@@ -350,7 +355,7 @@ const downloadPdf = async () => {
       .from(el)
       .save();
     success.value = 'تم تنزيل عرض السعر بنجاح.';
-  } catch (e) {
+  } catch (e: any) {
     error.value = e?.message || 'فشل إنشاء ملف PDF';
   } finally {
     saving.value = false;

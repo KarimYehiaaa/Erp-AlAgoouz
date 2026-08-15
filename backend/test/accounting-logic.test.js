@@ -5,15 +5,15 @@ import {
   calculateOutstandingAmount,
   calculatePaidAmount,
   calculateSaleTotals,
-} from '../src/services/salesService.js';
-import { CLEAR_DATA_TABLES } from '../src/services/backupService.js';
+} from '../src/services/salesService.ts';
+import { CLEAR_DATA_TABLES } from '../src/services/backupService.ts';
 import {
   calculateRecipeCost,
   getProductsEffectiveCosts,
   unitPriceFor,
-} from '../src/services/productCostService.js';
-import { parseInvoiceData } from '../src/services/invoiceService.js';
-import { parsePurchaseAmount } from '../src/services/purchaseService.js';
+} from '../src/services/productCostService.ts';
+import { parseInvoiceData } from '../src/services/invoiceService.ts';
+import { parsePurchaseAmount } from '../src/services/purchaseService.ts';
 import { parseLocalizedNumber } from '../src/utils/numberParsing.js';
 
 test.after(async () => {
@@ -29,7 +29,7 @@ test('parses purchase decimal amounts from common Arabic inputs', () => {
 
 test('purchase price refresh keeps weighted-average cost rule', async () => {
   const source = await import('node:fs/promises')
-    .then((fs) => fs.readFile(new URL('../src/services/purchaseService.js', import.meta.url), 'utf8'));
+    .then((fs) => fs.readFile(new URL('../src/services/purchaseService.ts', import.meta.url), 'utf8'));
   const refreshSource = source.slice(
     source.indexOf('const refreshPurchasePrices'),
     source.indexOf('export const listPurchaseInvoices')

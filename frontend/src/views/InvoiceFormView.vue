@@ -436,7 +436,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { invoices as invoicesApi, customers as customersApi, products as productsApi } from '@/api';
@@ -445,14 +445,14 @@ import { parseLocalizedNumber } from '@/utils/numberParsing';
 
 const router = useRouter();
 const route = useRoute();
-const customers = ref([]);
-const products = ref([]);
+const customers = ref<any[]>([]);
+const products = ref<any[]>([]);
 const saving = ref(false);
 const error = ref('');
 const showPreview = ref(false);
 
 const getCustomerName = () => {
-  const c = customers.value.find((x) => x.id === form.value.customer_id);
+  const c = customers.value.find((x: any) => x.id === form.value.customer_id);
   return c ? c.name_ar : 'عميل نقدي (بدون تسجيل)';
 };
 
@@ -486,14 +486,14 @@ const form = ref({
   items: [emptyLine()],
 });
 
-const lineTotal = (line) => {
+const lineTotal = (line: any) => {
   const qty = parseLocalizedNumber(line.quantity);
   const price = parseLocalizedNumber(line.unit_price);
   const disc = parseLocalizedNumber(line.discount_amount);
   return Math.max(0, qty * price - disc);
 };
 
-const subtotal = computed(() => form.value.items.reduce((s, l) => s + lineTotal(l), 0));
+const subtotal = computed(() => form.value.items.reduce((s: any, l: any) => s + lineTotal(l), 0));
 const discountTotal = computed(() => {
   const pct = (subtotal.value * parseLocalizedNumber(form.value.discount_percent)) / 100;
   const amt = parseLocalizedNumber(form.value.discount_amount);
@@ -505,8 +505,8 @@ const taxAmount = computed(() =>
 );
 const grandTotal = computed(() => afterDiscount.value + taxAmount.value);
 
-const onProductSelect = (line) => {
-  const p = products.value.find((x) => Number(x.id) === Number(line.product_id));
+const onProductSelect = (line: any) => {
+  const p = products.value.find((x: any) => Number(x.id) === Number(line.product_id));
   if (p) {
     line.description = p.name_ar;
     line.unit_price = Number(p.sale_price) || 0;
@@ -514,11 +514,11 @@ const onProductSelect = (line) => {
 };
 
 const addLine = () => form.value.items.push(emptyLine());
-const removeLine = (i) => form.value.items.splice(i, 1);
+const removeLine = (i: any) => form.value.items.splice(i, 1);
 
 const loadInvoice = async () => {
   try {
-    const res = await invoicesApi.get(route.params.id);
+    const res = await invoicesApi.get(String(route.params.id));
     const inv = res.data;
     if (!inv) throw new Error('لم يتم العثور على الفاتورة');
     invoiceNumber.value = inv.invoice_number || '';
@@ -533,7 +533,7 @@ const loadInvoice = async () => {
       notes: inv.notes || '',
       items:
         inv.items && inv.items.length
-          ? inv.items.map((item) => ({
+          ? inv.items.map((item: any) => ({
               product_id: item.product_id,
               description: item.description,
               quantity: Number(item.quantity) || 1,
@@ -542,14 +542,14 @@ const loadInvoice = async () => {
             }))
           : [emptyLine()],
     };
-  } catch (e) {
+  } catch (e: any) {
     error.value = e.message || 'فشل تحميل الفاتورة';
   }
 };
 
 const submit = async () => {
   error.value = '';
-  const invalidItem = form.value.items.find((l) => !l.product_id || lineTotal(l) <= 0);
+  const invalidItem = form.value.items.find((l: any) => !l.product_id || lineTotal(l) <= 0);
   if (invalidItem) {
     error.value = 'يرجى اختيار منتج مسجل من القائمة لجميع البنود، وتأكد من أن المبلغ أكبر من صفر';
     return;
@@ -567,8 +567,8 @@ const submit = async () => {
       discount_percent: form.value.discount_percent || 0,
       discount_amount: form.value.discount_amount || 0,
       notes: form.value.notes || null,
-      items: form.value.items.map((l) => {
-        const p = products.value.find((x) => Number(x.id) === Number(l.product_id));
+      items: form.value.items.map((l: any) => {
+        const p = products.value.find((x: any) => Number(x.id) === Number(l.product_id));
         return {
           product_id: Number(l.product_id),
           description: p ? p.name_ar : l.description || 'منتج مسجل',
@@ -579,13 +579,13 @@ const submit = async () => {
       }),
     };
     if (isEdit.value) {
-      await invoicesApi.update(route.params.id, payload);
+      await invoicesApi.update(String(route.params.id), payload);
       router.push(`/invoices/${route.params.id}`);
     } else {
       const res = await invoicesApi.create(payload);
       router.push(`/invoices/${res.data.id}`);
     }
-  } catch (e) {
+  } catch (e: any) {
     error.value = e.message || (isEdit.value ? 'فشل تحديث الفاتورة' : 'فشل إنشاء الفاتورة');
   } finally {
     saving.value = false;

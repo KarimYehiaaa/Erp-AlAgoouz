@@ -84,8 +84,13 @@ export const useAppStore = defineStore('app', () => {
   applyDataDensity();
 
   const toasts = ref<Toast[]>([]);
-  
-  const addToast = (message: any, type: string = 'info', duration: number = 4000, onUndo: (() => void) | null = null) => {
+
+  const addToast = (
+    message: any,
+    type: string = 'info',
+    duration: number = 4000,
+    onUndo: (() => void) | null = null,
+  ) => {
     let msgText = message;
     let msgType = type;
     if (typeof message === 'object' && message !== null) {
@@ -101,9 +106,9 @@ export const useAppStore = defineStore('app', () => {
     }
     return id;
   };
-  
+
   const removeToast = (id: string) => {
-    toasts.value = toasts.value.filter((t) => t.id !== id);
+    toasts.value = toasts.value.filter((t: any) => t.id !== id);
   };
 
   return {

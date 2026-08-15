@@ -1,4 +1,4 @@
-import { query } from './src/database/pool.js';
+import { query } from './src/database/pool.ts';
 
 async function main() {
   try {

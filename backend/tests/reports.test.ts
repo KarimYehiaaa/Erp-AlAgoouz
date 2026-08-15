@@ -54,7 +54,9 @@ describe('Financial Reports (P&L)', () => {
   });
 
   it('should correctly calculate revenue, COGS, and profit in P&L report', async () => {
-    const today = new Date().toISOString().split('T')[0];
+    // "اليوم" من القاعدة نفسها (CURRENT_DATE) — وليس من toISOString() (UTC) —
+    // حتى يطابق sale_date دائمًا مهما كانت المنطقة الزمنية للخادم.
+    const today = (await query(`SELECT CURRENT_DATE::text AS d`)).rows[0].d as string;
     const pl = await getProfitAndLoss(today, today);
     
     expect(pl).toBeDefined();
@@ -69,4 +71,29 @@ describe('Financial Reports (P&L)', () => {
     const expenses = pl.operating_expenses?.total || pl.summary?.expenses || 0;
     expect(expenses).toBeGreaterThanOrEqual(50);
   });
+});
+
+describe('P&L كاملًا على قاعدة فارغة', () => {
+  it(
+    'ينجز التقرير كاملًا خلال مهلة قصيرة ويعيد أصفارًا على نافذة قديمة بلا بيانات',
+    async () => {
+      // نافذة 2005 فارغة تمامًا من أي بيانات (كل الاختبارات تستخدم تواريخ اليوم)
+      // — تختبر المسار الكامل: الاستعلامات المتوازية + تكرار رصيد الافتتاح.
+      const start = Date.now();
+      const pl = await getProfitAndLoss('2005-01-01', '2005-01-31');
+      const elapsed = Date.now() - start;
+
+      // قبل إصلاح تكرار رصيد الافتتاح كان التقرير يعلّق 30+ ثانية على قاعدة فارغة
+      expect(elapsed).toBeLessThan(5000);
+      expect(pl).toBeDefined();
+      expect(pl.period).toEqual({ from: '2005-01-01', to: '2005-01-31' });
+      expect(pl.revenue?.net ?? 0).toBe(0);
+      expect(pl.operating_expenses?.total ?? 0).toBe(0);
+      expect(pl.cogs?.total ?? 0).toBe(0);
+      expect(pl.purchases?.total ?? 0).toBe(0);
+      expect(pl.opening_balance ?? 0).toBe(0);
+      expect(pl.net_profit?.amount ?? 0).toBe(0);
+    },
+    10000, // مهلة صريحة: لو عاد التكرار اللانهائي يفشل الاختبار بالتأكيد
+  );
 });

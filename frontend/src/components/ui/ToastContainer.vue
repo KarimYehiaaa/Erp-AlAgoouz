@@ -52,22 +52,22 @@
   </teleport>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed } from 'vue';
 import { useAppStore } from '@/stores/app';
 
 const appStore = useAppStore();
 const toasts = computed(() => appStore.toasts);
-const removeToast = (id) => appStore.removeToast(id);
+const removeToast = (id: any) => appStore.removeToast(id);
 
-const toastIcon = (type) => {
+const toastIcon = (type: any) => {
   const map = {
     success: 'check',
     error: 'warning',
     warning: 'warning',
     info: 'copilot',
   };
-  return map[type] || 'copilot';
+  return map[type as keyof typeof map] || 'copilot';
 };
 </script>
 

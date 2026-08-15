@@ -853,7 +853,7 @@
           </thead>
           <tbody>
             <tr
-              v-for="(it, idx) in currentVoucher?.items || []"
+              v-for="(it, idx) in (currentVoucher?.items as any[]) || []"
               :key="idx"
               style="border-bottom: 1px solid rgba(0, 0, 0, 0.05)"
             >
@@ -954,18 +954,19 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { onMounted, ref, watch, computed } from 'vue';
 import { onBeforeUnmount } from 'vue';
 import { inventory as inventoryApi, products as productsApi } from '@/api';
 import BaseTable from '@/components/ui/BaseTable.vue';
 import { formatMoney } from '@/utils/currency';
+import { formatDateTime } from '@/utils/formatters';
 
 const tab = ref('stock');
-const items = ref([]);
+const items = ref<any[]>([]);
 const loading = ref(false);
-const movements = ref([]);
-const warehouses = ref([]);
+const movements = ref<any[]>([]);
+const warehouses = ref<any[]>([]);
 const warehouseId = ref('');
 const returnWarehouseId = ref('');
 const showTransfer = ref(false);
@@ -976,8 +977,8 @@ const savingWastage = ref(false);
 const downloadingTemplate = ref(false);
 const msg = ref('');
 const err = ref(false);
-const excelResult = ref(null);
-const highlighted = ref({});
+const excelResult = ref<any>(null);
+const highlighted = ref<Record<string, any>>({});
 
 const stockColumns = [
   { key: 'name_ar', label: 'المنتج' },
@@ -992,18 +993,18 @@ const stockColumns = [
   { key: 'actions', label: '', align: 'right' },
 ];
 
-const getItemStockValue = (item) => {
+const getItemStockValue = (item: any) => {
   const qty = Number(item.total_quantity !== undefined ? item.total_quantity : item.quantity || 0);
   const cost = Number(item.purchase_price || 0);
   return qty * cost;
 };
 
 const totalInventoryValue = computed(() => {
-  return items.value.reduce((sum, i) => sum + getItemStockValue(i), 0);
+  return items.value.reduce((sum: any, i: any) => sum + getItemStockValue(i), 0);
 });
 
 const mainWarehouseValue = computed(() => {
-  return items.value.reduce((sum, i) => {
+  return items.value.reduce((sum: any, i: any) => {
     const qty = Number(getMainQty(i) || 0);
     const cost = Number(i.purchase_price || 0);
     return sum + qty * cost;
@@ -1011,18 +1012,18 @@ const mainWarehouseValue = computed(() => {
 });
 
 const branchWarehouseValue = computed(() => {
-  return items.value.reduce((sum, i) => {
+  return items.value.reduce((sum: any, i: any) => {
     const qty = Number(getBranchQty(i) || 0);
     const cost = Number(i.purchase_price || 0);
     return sum + qty * cost;
   }, 0);
 });
 
-const getMainQty = (item) => {
+const getMainQty = (item: any) => {
   if (item.main_quantity !== undefined && item.main_quantity !== null) return item.main_quantity;
   if (item.warehouse_breakdown && Array.isArray(item.warehouse_breakdown)) {
     const mainW = item.warehouse_breakdown.find(
-      (w) =>
+      (w: any) =>
         w.warehouse_type === 'main' || (w.warehouse_name && w.warehouse_name.includes('رئيسي')),
     );
     if (mainW) return mainW.quantity;
@@ -1030,12 +1031,12 @@ const getMainQty = (item) => {
   return item.warehouse_name && item.warehouse_name.includes('رئيسي') ? item.quantity : 0;
 };
 
-const getBranchQty = (item) => {
+const getBranchQty = (item: any) => {
   if (item.branch_quantity !== undefined && item.branch_quantity !== null)
     return item.branch_quantity;
   if (item.warehouse_breakdown && Array.isArray(item.warehouse_breakdown)) {
     const branchW = item.warehouse_breakdown.find(
-      (w) =>
+      (w: any) =>
         w.warehouse_type !== 'main' && (!w.warehouse_name || !w.warehouse_name.includes('رئيسي')),
     );
     if (branchW) return branchW.quantity;
@@ -1059,7 +1060,7 @@ const editForm = ref({
   product_id: null,
   name_ar: '',
   min_stock: 0,
-  warehouse_stocks: {},
+  warehouse_stocks: {} as Record<string, number>,
 });
 const wastageForm = ref({
   product_id: null,
@@ -1080,27 +1081,29 @@ const transfer = ref({
 const transferMode = ref('single'); // 'single' | 'batch'
 const batchItems = ref([{ product_id: null, to_product_id: null, quantity: 1, notes: '' }]);
 const showVoucherModal = ref(false);
-const currentVoucher = ref(null);
+const currentVoucher = ref<Record<string, any> | null>(null);
 const movementTypeFilter = ref('');
 
 const filteredMovements = computed(() => {
   if (!movementTypeFilter.value) return movements.value;
-  return movements.value.filter((m) => m.movement_type === movementTypeFilter.value);
+  return movements.value.filter((m: any) => m.movement_type === movementTypeFilter.value);
 });
 
-const transferProducts = ref([]);
-const transferDestProducts = ref([]);
-const allProducts = ref([]);
+const transferProducts = ref<any[]>([]);
+const transferDestProducts = ref<any[]>([]);
+const allProducts = ref<any[]>([]);
 const loadingTransferProducts = ref(false);
 
 const selectedTransferProduct = computed(() => {
-  return transferProducts.value.find((p) => p.product_id === transfer.value.product_id);
+  return transferProducts.value.find((p: any) => p.product_id === transfer.value.product_id);
 });
 
 const selectedTransferDestProduct = computed(() => {
   if (!transfer.value.to_product_id) return null;
   const targetId = Number(transfer.value.to_product_id);
-  const found = transferDestProducts.value.find((p) => Number(p.product_id || p.id) === targetId);
+  const found = transferDestProducts.value.find(
+    (p: any) => Number(p.product_id || p.id) === targetId,
+  );
   return found || { quantity: 0 };
 });
 
@@ -1108,9 +1111,9 @@ const loadAllProducts = async () => {
   try {
     const res = await productsApi.list({ limit: 1000 });
     allProducts.value = (res.data || []).filter(
-      (p) => p.is_active !== false && !p.has_active_recipe,
+      (p: any) => p.is_active !== false && !p.has_active_recipe,
     );
-  } catch (e) {
+  } catch (e: any) {
     console.error('Error loading products list:', e);
   }
 };
@@ -1126,18 +1129,18 @@ const loadTransferProducts = async () => {
     const invMap = new Map();
     if (fromWhId) {
       const res = await inventoryApi.list({ warehouse_id: fromWhId });
-      (res.data || []).forEach((inv) => {
+      (res.data || []).forEach((inv: any) => {
         invMap.set(Number(inv.product_id), Number(inv.quantity || 0));
       });
     }
 
-    transferProducts.value = allProducts.value.map((prod) => {
+    transferProducts.value = allProducts.value.map((prod: any) => {
       let qty = 0;
       if (invMap.has(prod.id)) {
         qty = invMap.get(prod.id);
       } else if (prod.warehouse_breakdown && Array.isArray(prod.warehouse_breakdown)) {
         const wh = prod.warehouse_breakdown.find(
-          (w) => Number(w.warehouse_id) === Number(fromWhId),
+          (w: any) => Number(w.warehouse_id) === Number(fromWhId),
         );
         if (wh) qty = Number(wh.quantity || 0);
       }
@@ -1149,9 +1152,9 @@ const loadTransferProducts = async () => {
         quantity: qty,
       };
     });
-  } catch (e) {
+  } catch (e: any) {
     console.error('Error loading transfer products:', e);
-    transferProducts.value = allProducts.value.map((prod) => ({
+    transferProducts.value = allProducts.value.map((prod: any) => ({
       product_id: prod.id,
       id: prod.id,
       name_ar: prod.name_ar,
@@ -1173,16 +1176,16 @@ const loadTransferDestProducts = async () => {
   try {
     const res = await inventoryApi.list({ warehouse_id: toWhId });
     transferDestProducts.value = res.data || [];
-  } catch (e) {
+  } catch (e: any) {
     console.error('Error loading destination products:', e);
   }
 };
 
 watch(
   () => transfer.value.from_warehouse_id,
-  (newVal) => {
+  (newVal: any) => {
     if (newVal && warehouses.value.length === 2) {
-      const otherWh = warehouses.value.find((w) => w.id !== newVal);
+      const otherWh = warehouses.value.find((w: any) => w.id !== newVal);
       if (otherWh) {
         transfer.value.to_warehouse_id = otherWh.id;
       }
@@ -1203,7 +1206,7 @@ watch(
 
 watch(
   () => transfer.value.product_id,
-  (newVal) => {
+  (newVal: any) => {
     transfer.value.to_product_id = newVal;
   },
 );
@@ -1214,15 +1217,15 @@ const swapTransferDirection = () => {
   transfer.value.to_warehouse_id = temp;
 };
 
-const setTransferDirection = (fromType, toType) => {
-  const fromW = warehouses.value.find((w) =>
+const setTransferDirection = (fromType: any, toType: any) => {
+  const fromW = warehouses.value.find((w: any) =>
     fromType === 'main'
       ? w.type === 'main' || w.code === 'MAIN' || (w.name_ar && w.name_ar.includes('رئيسي'))
       : w.type === 'store' ||
         w.code === 'STORE' ||
         (w.name_ar && (w.name_ar.includes('فرع') || w.name_ar.includes('محل'))),
   );
-  const toW = warehouses.value.find((w) =>
+  const toW = warehouses.value.find((w: any) =>
     toType === 'main'
       ? w.type === 'main' || w.code === 'MAIN' || (w.name_ar && w.name_ar.includes('رئيسي'))
       : w.type === 'store' ||
@@ -1235,7 +1238,7 @@ const setTransferDirection = (fromType, toType) => {
   }
 };
 
-const openTransferProduct = (item) => {
+const openTransferProduct = (item: any) => {
   openTransferModal();
   setTimeout(() => {
     transfer.value.product_id = item.product_id;
@@ -1260,27 +1263,29 @@ const openTransferModal = () => {
   }
 };
 
-const fmtQty = (v) => {
+const fmtQty = (v: any) => {
   const n = Number(v || 0);
   return n % 1 === 0 ? n.toLocaleString('en-GB') : n.toFixed(3);
 };
-const movementLabel = (t) =>
-  ({
-    sale: 'بيع',
-    purchase: 'شراء',
-    purchase_reversal: 'عكس شراء',
-    transfer: 'تحويل',
-    adjustment: 'تعديل',
-    wastage: 'هالك',
-    return: 'استرداد',
-    consumption: 'استهلاك',
-    production: 'إنتاج',
-    opening_production: 'رصيد افتتاحي إنتاجي',
-  })[t] ||
+const movementLabel = (t: any) =>
+  (
+    ({
+      sale: 'بيع',
+      purchase: 'شراء',
+      purchase_reversal: 'عكس شراء',
+      transfer: 'تحويل',
+      adjustment: 'تعديل',
+      wastage: 'هالك',
+      return: 'استرداد',
+      consumption: 'استهلاك',
+      production: 'إنتاج',
+      opening_production: 'رصيد افتتاحي إنتاجي',
+    }) as Record<string, string>
+  )[t] ||
   t ||
   '—';
 
-const setMsg = (text, isErr = false) => {
+const setMsg = (text: any, isErr = false) => {
   msg.value = text;
   err.value = isErr;
 };
@@ -1302,7 +1307,7 @@ const load = async () => {
       transfer.value.to_warehouse_id = wh.data[1]?.id || wh.data[0].id;
     }
     setMsg('', false);
-  } catch (e) {
+  } catch (e: any) {
     items.value = [];
     movements.value = [];
     setMsg(e.message || 'فشل تحميل بيانات المخزون.', true);
@@ -1312,7 +1317,7 @@ const load = async () => {
 };
 
 // Listen for cross-view inventory updates (e.g., after producing a recipe)
-const onInventoryUpdated = (ev) => {
+const onInventoryUpdated = (ev: any) => {
   try {
     const wid = ev?.detail?.warehouse_id;
     const pid = ev?.detail?.product_id;
@@ -1330,7 +1335,7 @@ const onInventoryUpdated = (ev) => {
         highlighted.value = { ...highlighted.value };
       }, 5000);
     }
-  } catch (e) {
+  } catch (e: any) {
     console.warn('inventory-updated handler error', e);
   }
 };
@@ -1338,18 +1343,18 @@ const onInventoryUpdated = (ev) => {
 onMounted(() => window.addEventListener('inventory-updated', onInventoryUpdated));
 onBeforeUnmount(() => window.removeEventListener('inventory-updated', onInventoryUpdated));
 
-const openEdit = async (row) => {
+const openEdit = async (row: any) => {
   if (!warehouses.value.length) {
     try {
       const wh = await inventoryApi.warehouses();
       warehouses.value = wh.data || [];
-    } catch (e) {
+    } catch (e: any) {
       console.error('Failed to load warehouses:', e);
     }
   }
 
-  const stocksObj = {};
-  warehouses.value.forEach((w) => {
+  const stocksObj: Record<string, number> = {};
+  warehouses.value.forEach((w: any) => {
     stocksObj[w.id] = 0;
   });
 
@@ -1360,7 +1365,7 @@ const openEdit = async (row) => {
       : [];
 
   if (breakdownList.length > 0) {
-    breakdownList.forEach((wb) => {
+    breakdownList.forEach((wb: any) => {
       if (wb.warehouse_id) {
         stocksObj[wb.warehouse_id] = Number(wb.quantity || 0);
       }
@@ -1379,7 +1384,7 @@ const openEdit = async (row) => {
   showEdit.value = true;
 };
 
-const isHighlighted = (row) => {
+const isHighlighted = (row: any) => {
   const key = `${row.product_id}-${row.warehouse_id}`;
   return Boolean(highlighted.value[key]);
 };
@@ -1394,7 +1399,7 @@ const saveEdit = async () => {
   try {
     const whEntries = Object.entries(editForm.value.warehouse_stocks || {});
     for (let i = 0; i < whEntries.length; i++) {
-      const [whIdStr, qtyVal] = whEntries[i];
+      const [whIdStr, qtyVal] = whEntries[i]!;
       const whId = Number(whIdStr);
       const targetQty = Number(qtyVal || 0);
       await inventoryApi.adjust({
@@ -1408,14 +1413,14 @@ const saveEdit = async () => {
     showEdit.value = false;
     setMsg(`تم حفظ تعديل مخزون ${editForm.value.name_ar} بنجاح.`);
     await load();
-  } catch (e) {
+  } catch (e: any) {
     setMsg(e.message || 'فشل حفظ التعديل.', true);
   } finally {
     savingEdit.value = false;
   }
 };
 
-const openWastage = (row) => {
+const openWastage = (row: any) => {
   wastageForm.value = {
     product_id: row.product_id,
     warehouse_id: row.warehouse_id,
@@ -1446,7 +1451,7 @@ const saveWastage = async () => {
     showWastage.value = false;
     setMsg(`تم تسجيل هالك لـ ${wastageForm.value.name_ar} بنجاح.`);
     await load();
-  } catch (e) {
+  } catch (e: any) {
     setMsg(e.message || 'فشل تسجيل الهالك.', true);
   } finally {
     savingWastage.value = false;
@@ -1457,7 +1462,7 @@ const addBatchRow = () => {
   batchItems.value.push({ product_id: null, to_product_id: null, quantity: 1, notes: '' });
 };
 
-const removeBatchRow = (idx) => {
+const removeBatchRow = (idx: any) => {
   if (batchItems.value.length > 1) {
     batchItems.value.splice(idx, 1);
   }
@@ -1467,7 +1472,7 @@ const printVoucher = () => {
   window.print();
 };
 
-const printTransferVoucherFromMovement = (item) => {
+const printTransferVoucherFromMovement = (item: any) => {
   const matchCode = item.notes?.match(/TRF-\d{4}-\d+/);
   const code = matchCode ? matchCode[0] : `TRF-${item.id}`;
   currentVoucher.value = {
@@ -1496,7 +1501,7 @@ const doTransfer = async () => {
     return;
   }
 
-  let payload = {};
+  let payload: Record<string, any> = {};
 
   if (transferMode.value === 'single') {
     const selectedProd = selectedTransferProduct.value;
@@ -1522,7 +1527,9 @@ const doTransfer = async () => {
     };
   } else {
     // Batch Mode
-    const validItems = batchItems.value.filter((it) => it.product_id && Number(it.quantity) > 0);
+    const validItems = batchItems.value.filter(
+      (it: any) => it.product_id && Number(it.quantity) > 0,
+    );
     if (!validItems.length) {
       setMsg('يرجى تحديد منتج واحد على الأقل بكمية صحيحة.', true);
       return;
@@ -1530,7 +1537,7 @@ const doTransfer = async () => {
     payload = {
       from_warehouse_id: transfer.value.from_warehouse_id,
       to_warehouse_id: transfer.value.to_warehouse_id,
-      items: validItems.map((it) => ({
+      items: validItems.map((it: any) => ({
         product_id: it.product_id,
         to_product_id: it.to_product_id || it.product_id,
         quantity: Number(it.quantity),
@@ -1541,8 +1548,8 @@ const doTransfer = async () => {
 
   try {
     const res = await inventoryApi.transfer(payload);
-    const fromW = warehouses.value.find((w) => w.id === transfer.value.from_warehouse_id);
-    const toW = warehouses.value.find((w) => w.id === transfer.value.to_warehouse_id);
+    const fromW = warehouses.value.find((w: any) => w.id === transfer.value.from_warehouse_id);
+    const toW = warehouses.value.find((w: any) => w.id === transfer.value.to_warehouse_id);
 
     const voucherItems =
       transferMode.value === 'single'
@@ -1553,10 +1560,10 @@ const doTransfer = async () => {
               quantity: transfer.value.quantity,
             },
           ]
-        : payload.items.map((it) => {
+        : payload.items.map((it: any) => {
             const p =
-              transferProducts.value.find((x) => x.product_id === it.product_id) ||
-              allProducts.value.find((x) => x.id === it.product_id);
+              transferProducts.value.find((x: any) => x.product_id === it.product_id) ||
+              allProducts.value.find((x: any) => x.id === it.product_id);
             return {
               product_name: p?.name_ar || `منتج ${it.product_id}`,
               sku: p?.sku || '',
@@ -1565,7 +1572,7 @@ const doTransfer = async () => {
           });
 
     currentVoucher.value = {
-      transfer_number: res?.data?.transfer_number || res?.transfer_number || `TRF-${Date.now()}`,
+      transfer_number: (res?.data as any)?.transfer_number || `TRF-${Date.now()}`,
       from_warehouse_name: fromW?.name_ar || 'المخزن المصدر',
       to_warehouse_name: toW?.name_ar || 'مخزن الوجهة',
       created_at: res?.data?.created_at || new Date().toISOString(),
@@ -1576,7 +1583,7 @@ const doTransfer = async () => {
     showVoucherModal.value = true;
     setMsg('تم تنفيذ إذن التحويل بنجاح.');
     await load();
-  } catch (e) {
+  } catch (e: any) {
     setMsg(e.message || 'فشل تحويل المخزون.', true);
   }
 };
@@ -1585,21 +1592,23 @@ const doTransfer = async () => {
 const downloadTemplate = async () => {
   downloadingTemplate.value = true;
   try {
-    const blob = await inventoryApi.downloadReturnTemplate(returnWarehouseId.value || null);
+    const blob = (await inventoryApi.downloadReturnTemplate(
+      returnWarehouseId.value ?? undefined,
+    )) as unknown as Blob;
     const url = URL.createObjectURL(new Blob([blob]));
     const a = document.createElement('a');
     a.href = url;
     a.download = 'inventory-return-template.xlsx';
     a.click();
     URL.revokeObjectURL(url);
-  } catch (e) {
+  } catch (e: any) {
     setMsg(e.message || 'فشل تحميل القالب.', true);
   } finally {
     downloadingTemplate.value = false;
   }
 };
 
-const onValidate = async (e) => {
+const onValidate = async (e: any) => {
   const file = e.target.files?.[0];
   if (!file) return;
   excelResult.value = null;
@@ -1618,7 +1627,7 @@ const onValidate = async (e) => {
       setMsg(`تم استرداد ${success} منتج للمخزون.`);
       await load();
     }
-  } catch (e) {
+  } catch (e: any) {
     excelResult.value = {
       ok: false,
       title: 'فشل فحص الملف',
@@ -1629,12 +1638,12 @@ const onValidate = async (e) => {
   e.target.value = '';
 };
 
-const onImport = async (e) => {
+const onImport = async (e: any) => {
   const file = e.target.files?.[0];
   if (!file) return;
   excelResult.value = null;
   try {
-    const res = await inventoryApi.importReturnExcel(file, returnWarehouseId.value || null);
+    const res = await inventoryApi.importReturnExcel(file, returnWarehouseId.value ?? undefined);
     const d = res?.data || res;
     excelResult.value = {
       ok: true,
@@ -1647,7 +1656,7 @@ const onImport = async (e) => {
       setMsg(`تم استرداد ${d.success} منتج للمخزون.`);
       await load();
     }
-  } catch (e) {
+  } catch (e: any) {
     excelResult.value = {
       ok: false,
       title: 'فشل الاستيراد',

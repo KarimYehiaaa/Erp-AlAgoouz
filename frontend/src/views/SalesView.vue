@@ -636,12 +636,12 @@ const localTodayYmd = () => {
 };
 const today = localTodayYmd();
 const activeTab = ref(route.query.tab || 'branch');
-const sales = ref([]);
+const sales = ref<any[]>([]);
 const loadingSales = ref(false);
 
 watch(
   () => route.query.tab,
-  (newTab) => {
+  (newTab: any) => {
     if (newTab && newTab !== activeTab.value) {
       activeTab.value = String(newTab);
       load();
@@ -675,16 +675,16 @@ const activeColumns = computed(() => {
     { key: 'actions', label: 'إجراء', align: 'center' },
   ];
 });
-const wholesaleCustomers = ref([]);
-const allCustomers = ref([]);
+const wholesaleCustomers = ref<any[]>([]);
+const allCustomers = ref<any[]>([]);
 const totalCustomerDebts = computed(() => {
-  return allCustomers.value.reduce((sum, cust) => {
+  return allCustomers.value.reduce((sum: any, cust: any) => {
     const bal = Number((cust.total_balance ?? cust.balance) || 0);
     return sum + (bal > 0 ? bal : 0);
   }, 0);
 });
 const totalOpeningBalanceDebts = computed(() => {
-  return allCustomers.value.reduce((sum, cust) => {
+  return allCustomers.value.reduce((sum: any, cust: any) => {
     return sum + Number(cust.opening_balance || 0);
   }, 0);
 });
@@ -701,15 +701,15 @@ const openingBalanceForm = ref({
 });
 const importMsg = ref('');
 const importErr = ref(false);
-const importDetails = ref([]);
+const importDetails = ref<any[]>([]);
 const monthlyImportMsg = ref('');
 const monthlyImportErr = ref(false);
-const monthlyImportDetails = ref([]);
+const monthlyImportDetails = ref<any[]>([]);
 const monthlyValidating = ref(false);
 const monthlyImporting = ref(false);
 const customerCodesHint = ref('C-001, C-002, C-003, C-004 (أو اترك فارغاً)');
 const deleteDate = ref(today);
-const editingSaleId = ref(null);
+const editingSaleId = ref<any>(null);
 const editingSaleNumber = ref('');
 
 const filters = ref({
@@ -743,13 +743,13 @@ const calcRemaining = () => {
 
 const periodTotal = computed(() =>
   sales.value
-    .filter((s) => s.status === 'completed')
-    .reduce((sum, s) => sum + parseFloat(s.total_amount || 0), 0),
+    .filter((s: any) => s.status === 'completed')
+    .reduce((sum: any, s: any) => sum + parseFloat(s.total_amount || 0), 0),
 );
-const completedSales = computed(() => sales.value.filter((s) => s.status === 'completed'));
-const isOpenPayment = (sale) => ['partial', 'unpaid'].includes(sale?.payment_status);
+const completedSales = computed(() => sales.value.filter((s: any) => s.status === 'completed'));
+const isOpenPayment = (sale: any) => ['partial', 'unpaid'].includes(sale?.payment_status);
 const collectedTotal = computed(() =>
-  completedSales.value.reduce((sum, sale) => {
+  completedSales.value.reduce((sum: any, sale: any) => {
     if (sale.payment_status === 'paid') return sum + Number(sale.total_amount || 0);
     return sum;
   }, 0),
@@ -758,13 +758,13 @@ const openCreditTotal = computed(() => {
   if (activeTab.value === 'wholesale') {
     return totalCustomerDebts.value;
   }
-  return completedSales.value.reduce((sum, sale) => {
+  return completedSales.value.reduce((sum: any, sale: any) => {
     if (isOpenPayment(sale)) return sum + Number(sale.total_amount || 0);
     return sum;
   }, 0);
 });
 const openPaymentCount = computed(
-  () => completedSales.value.filter((sale) => isOpenPayment(sale)).length,
+  () => completedSales.value.filter((sale: any) => isOpenPayment(sale)).length,
 );
 const periodCashTotal = computed(
   () => Number(openingBalanceForm.value.amount || 0) + collectedTotal.value,
@@ -810,7 +810,7 @@ const salesHealth = computed(() => {
     message: 'كل المبيعات المكتملة في الفترة مدفوعة بالكامل حسب حالة الدفع المسجلة.',
   };
 });
-const formatDate = (d) => {
+const formatDate = (d: any) => {
   const val = d?.split?.('T')?.[0] || d;
   if (!val) return '—';
   // Keep DATE values as plain text to avoid any timezone conversion.
@@ -821,9 +821,9 @@ const formatDate = (d) => {
   return new Date(val).toLocaleDateString('en-GB');
 };
 
-const paymentStatusLabel = (s) =>
+const paymentStatusLabel = (s: any) =>
   ({ paid: 'مدفوع', partial: 'جزئي', unpaid: 'آجل', refunded: 'مسترد' })[s] || s || '—';
-const paymentBadge = (s) => [
+const paymentBadge = (s: any) => [
   'badge',
   s === 'paid'
     ? 'badge-success'
@@ -834,7 +834,7 @@ const paymentBadge = (s) => [
         : 'badge-danger',
 ];
 
-const switchTab = (tab) => {
+const switchTab = (tab: any) => {
   activeTab.value = tab;
   router.replace({ query: { ...route.query, tab } }).catch(() => {});
   cancelEdit();
@@ -871,7 +871,7 @@ const loadOpeningBalance = async () => {
       to_date: res.data?.to_date || filters.value.to_date,
       amount: Number(res.data?.amount || 0),
     };
-  } catch (e) {
+  } catch (e: any) {
     openingBalanceErr.value = true;
     openingBalanceMsg.value = e.message || 'فشل تحميل بداية المدة';
   } finally {
@@ -899,7 +899,7 @@ const saveOpeningBalance = async () => {
     openingBalanceEditing.value = false;
     openingBalanceMsg.value = 'تم حفظ بداية المدة بنجاح';
     await load();
-  } catch (e) {
+  } catch (e: any) {
     openingBalanceErr.value = true;
     openingBalanceMsg.value = e.message || 'فشل حفظ بداية المدة';
   } finally {
@@ -907,7 +907,7 @@ const saveOpeningBalance = async () => {
   }
 };
 
-const startEdit = async (sale) => {
+const startEdit = async (sale: any) => {
   saving.value = true;
   try {
     const res = await salesApi.get(sale.id);
@@ -915,7 +915,10 @@ const startEdit = async (sale) => {
     editingSaleId.value = detail.id;
     editingSaleNumber.value = detail.sale_number;
     activeTab.value = detail.sale_type || activeTab.value;
-    const paidAmount = (detail.payments || []).reduce((sum, p) => sum + Number(p.amount || 0), 0);
+    const paidAmount = (detail.payments || []).reduce(
+      (sum: any, p: any) => sum + Number(p.amount || 0),
+      0,
+    );
     form.value = {
       sale_date: String(detail.sale_date || today).split('T')[0],
       total_amount: Number(detail.total_amount || 0),
@@ -925,14 +928,14 @@ const startEdit = async (sale) => {
       paid_amount: detail.payment_status === 'partial' ? paidAmount : null,
       notes: detail.notes || '',
     };
-  } catch (e) {
+  } catch (e: any) {
     alert(e.message || 'فشل تحميل الفاتورة للتعديل');
   } finally {
     saving.value = false;
   }
 };
 
-const selectMonth = (event) => {
+const selectMonth = (event: any) => {
   const value = event.target.value;
   if (!value) return;
   const [year, month] = value.split('-').map(Number);
@@ -961,7 +964,9 @@ const load = async () => {
     sales.value = salesRes.data;
     if (customersRes?.data) {
       allCustomers.value = customersRes.data;
-      wholesaleCustomers.value = customersRes.data.filter((x) => x.customer_type === 'wholesale');
+      wholesaleCustomers.value = customersRes.data.filter(
+        (x: any) => x.customer_type === 'wholesale',
+      );
     }
     if (openingRes?.data) {
       openingBalanceForm.value = {
@@ -970,7 +975,7 @@ const load = async () => {
         amount: Number(openingRes.data.amount || 0),
       };
     }
-  } catch (err) {
+  } catch (err: any) {
     console.error('Failed to load sales:', err);
   } finally {
     loadingSales.value = false;
@@ -1007,7 +1012,7 @@ const submitSale = async () => {
       form.value.paid_amount = null;
     }
     await load();
-  } catch (e) {
+  } catch (e: any) {
     alert(e.message);
   } finally {
     saving.value = false;
@@ -1027,7 +1032,7 @@ const deleteAllSales = async () => {
     importMsg.value = `تم حذف كل بيانات المبيعات بنجاح (${count} سجل)`;
     importDetails.value = [];
     await load();
-  } catch (e) {
+  } catch (e: any) {
     importErr.value = true;
     importMsg.value = e.message || 'فشل حذف بيانات المبيعات';
   } finally {
@@ -1035,7 +1040,7 @@ const deleteAllSales = async () => {
   }
 };
 
-const deleteSalesByType = async (saleType) => {
+const deleteSalesByType = async (saleType: any) => {
   const label = saleType === 'branch' ? 'مبيعات الفرع 🏪' : 'مبيعات الجملة 📦';
   const confirmed = window.confirm(`تأكيد نهائي: سيتم حذف كل ${label} بشكل دائم.\nهل أنت متأكد؟`);
   if (!confirmed) return;
@@ -1047,7 +1052,7 @@ const deleteSalesByType = async (saleType) => {
     importMsg.value = `✅ تم حذف ${count} سجل من ${label} بنجاح`;
     importDetails.value = [];
     await load();
-  } catch (e) {
+  } catch (e: any) {
     importErr.value = true;
     importMsg.value = e.message || 'فشل الحذف';
   } finally {
@@ -1068,7 +1073,7 @@ const deleteSalesForOneDay = async () => {
     importMsg.value = `تم حذف مبيعات يوم ${deleteDate.value} بنجاح (${count} سجل)`;
     importDetails.value = [];
     await load();
-  } catch (e) {
+  } catch (e: any) {
     importErr.value = true;
     importMsg.value = e.message || 'فشل حذف مبيعات اليوم المحدد';
   } finally {
@@ -1085,7 +1090,7 @@ const downloadTemplate = async () => {
     a.download = 'bin-al-ajouz-sales-template.xlsx';
     a.click();
     URL.revokeObjectURL(url);
-  } catch (e) {
+  } catch (e: any) {
     alert(e.message || 'فشل تحميل القالب');
   }
 };
@@ -1096,11 +1101,12 @@ const showImportResult = (d, isValidate = false) => {
       ? `الملف سليم: ${d.validCount} سطر جاهز للاستيراد${d.hasDeleteAll ? ' + أمر حذف كل المبيعات' : ''}`
       : 'الملف فيه أخطاء — راجع القائمة أدناه';
     importErr.value = !d.ok;
-    importDetails.value = (d.parseErrors || []).map((e) => `سطر ${e.row}: ${e.message}`);
+    importDetails.value = (d.parseErrors || []).map((e: any) => `سطر ${e.row}: ${e.message}`);
     if (d.ok && d.preview?.length) {
       importDetails.value.unshift(
         ...d.preview.map(
-          (r, i) => `✓ مثال سطر ${i + 2}: ${r.sale_date} | ${r.sale_type} | ${r.total_amount} ج.م`,
+          (r: any, i: any) =>
+            `✓ مثال سطر ${i + 2}: ${r.sale_date} | ${r.sale_type} | ${r.total_amount} ج.م`,
         ),
       );
     }
@@ -1112,8 +1118,8 @@ const showImportResult = (d, isValidate = false) => {
     (d.failed?.length ? ` — فشل ${d.failed.length}` : '') +
     (d.parseErrors?.length ? ` — تحذيرات: ${d.parseErrors.length}` : '');
   importDetails.value = [
-    ...(d.parseErrors || []).map((e) => `تحذير سطر ${e.row}: ${e.message}`),
-    ...(d.failed || []).map((e) => `فشل سطر ${e.row}: ${e.message}`),
+    ...(d.parseErrors || []).map((e: any) => `تحذير سطر ${e.row}: ${e.message}`),
+    ...(d.failed || []).map((e: any) => `فشل سطر ${e.row}: ${e.message}`),
   ];
   importErr.value = d.success === 0 && importDetails.value.length > 0;
 };
@@ -1124,11 +1130,13 @@ const showMonthlyImportResult = (d, isValidate = false) => {
       ? `الملف جاهز: ${d.groupCount || 0} يوم/دفعة و ${d.itemCount || 0} صنف سيتم خصمهم من مخزون المحل`
       : 'الملف يحتاج مراجعة قبل الاستيراد';
     monthlyImportErr.value = !d.ok;
-    monthlyImportDetails.value = (d.parseErrors || []).map((e) => `سطر ${e.row}: ${e.message}`);
+    monthlyImportDetails.value = (d.parseErrors || []).map(
+      (e: any) => `سطر ${e.row}: ${e.message}`,
+    );
     if (d.ok && d.preview?.length) {
       monthlyImportDetails.value.unshift(
         ...d.preview.map(
-          (r) => `✓ ${r.sale_date} | ${r.payment_method} | ${r.items_count} صنف | ${r.sample}`,
+          (r: any) => `✓ ${r.sale_date} | ${r.payment_method} | ${r.items_count} صنف | ${r.sample}`,
         ),
       );
     }
@@ -1140,8 +1148,8 @@ const showMonthlyImportResult = (d, isValidate = false) => {
     Boolean((d.failed || []).length) ||
     ((d.success || 0) === 0 && Boolean((d.parseErrors || []).length));
   monthlyImportDetails.value = [
-    ...(d.parseErrors || []).map((e) => `تحذير سطر ${e.row}: ${e.message}`),
-    ...(d.failed || []).map((e) => `فشل ${e.sale_date || ''}: ${e.message}`),
+    ...(d.parseErrors || []).map((e: any) => `تحذير سطر ${e.row}: ${e.message}`),
+    ...(d.failed || []).map((e: any) => `فشل ${e.sale_date || ''}: ${e.message}`),
   ];
 };
 
@@ -1154,13 +1162,13 @@ const downloadMonthlyTemplate = async () => {
     a.download = 'monthly-store-sales-template.xlsx';
     a.click();
     URL.revokeObjectURL(url);
-  } catch (e) {
+  } catch (e: any) {
     monthlyImportErr.value = true;
     monthlyImportMsg.value = e.message || 'فشل تحميل قالب المبيعات الشهرية';
   }
 };
 
-const onValidateMonthly = async (e) => {
+const onValidateMonthly = async (e: any) => {
   const file = e.target.files?.[0];
   if (!file) return;
   monthlyValidating.value = true;
@@ -1170,12 +1178,12 @@ const onValidateMonthly = async (e) => {
   try {
     const res = await salesApi.branchValidateExcel(file);
     showMonthlyImportResult(res.data, true);
-  } catch (err) {
+  } catch (err: any) {
     monthlyImportErr.value = true;
     monthlyImportMsg.value = err.message || 'فشل فحص ملف المبيعات الشهرية';
     monthlyImportDetails.value = String(err.message || '')
       .split('|')
-      .map((s) => s.trim())
+      .map((s: any) => s.trim())
       .filter(Boolean);
   } finally {
     monthlyValidating.value = false;
@@ -1183,7 +1191,7 @@ const onValidateMonthly = async (e) => {
   }
 };
 
-const onImportMonthly = async (e) => {
+const onImportMonthly = async (e: any) => {
   const file = e.target.files?.[0];
   if (!file) return;
   monthlyImporting.value = true;
@@ -1199,7 +1207,7 @@ const onImportMonthly = async (e) => {
     const res = await salesApi.branchImportExcel(file);
     showMonthlyImportResult(res.data, false);
     await load();
-  } catch (err) {
+  } catch (err: any) {
     monthlyImportErr.value = true;
     monthlyImportMsg.value = err.message || 'فشل استيراد المبيعات الشهرية';
   } finally {
@@ -1208,7 +1216,7 @@ const onImportMonthly = async (e) => {
   }
 };
 
-const onValidate = async (e) => {
+const onValidate = async (e: any) => {
   const file = e.target.files?.[0];
   if (!file) return;
   importMsg.value = 'جاري فحص الملف...';
@@ -1217,18 +1225,18 @@ const onValidate = async (e) => {
   try {
     const res = await salesApi.validateExcel(file);
     showImportResult(res.data, true);
-  } catch (err) {
+  } catch (err: any) {
     importErr.value = true;
     importMsg.value = err.message || 'فشل فحص الملف';
     importDetails.value = String(err.message || '')
       .split('|')
-      .map((s) => s.trim())
+      .map((s: any) => s.trim())
       .filter(Boolean);
   }
   e.target.value = '';
 };
 
-const onImport = async (e) => {
+const onImport = async (e: any) => {
   const file = e.target.files?.[0];
   if (!file) return;
   importMsg.value = '';
@@ -1248,7 +1256,7 @@ const onImport = async (e) => {
     });
     showImportResult(res.data, false);
     await load();
-  } catch (err) {
+  } catch (err: any) {
     importErr.value = true;
     importMsg.value = err.message || 'فشل الاستيراد';
   }
@@ -1257,8 +1265,8 @@ const onImport = async (e) => {
 
 onMounted(async () => {
   const c = await customersApi.list({ limit: 200 });
-  wholesaleCustomers.value = c.data.filter((x) => x.customer_type === 'wholesale');
-  const codes = c.data.map((x) => x.code).filter(Boolean);
+  wholesaleCustomers.value = c.data.filter((x: any) => x.customer_type === 'wholesale');
+  const codes = c.data.map((x: any) => x.code).filter(Boolean);
   if (codes.length) customerCodesHint.value = codes.join('، ');
   load();
 });

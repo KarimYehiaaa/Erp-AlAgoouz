@@ -587,7 +587,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted, watch, nextTick } from 'vue';
 import { forecasting as forecastingApi, warehouses as warehousesApi } from '@/api';
 import { formatMoney } from '@/utils/currency';
@@ -613,37 +613,37 @@ const loading = ref(false);
 const activeTab = ref('runway');
 const searchTerm = ref('');
 const selectedWarehouse = ref(1);
-const warehouseList = ref([]);
+const warehouseList = ref<any[]>([]);
 const nextDaysLabels = getNext7DaysLabels();
 
 // API data response
-const salesForecast = ref([]);
-const ingredientsForecast = ref([]);
-const inventoryRunway = ref([]);
+const salesForecast = ref<any[]>([]);
+const ingredientsForecast = ref<any[]>([]);
+const inventoryRunway = ref<any[]>([]);
 
 // New AI and statistics states
-const weeklyDensity = ref({});
-const peakHours = ref([]);
-const pricingAlerts = ref([]);
+const weeklyDensity = ref<Record<string, any>>({});
+const peakHours = ref<any[]>([]);
+const pricingAlerts = ref<any[]>([]);
 const selectedStaffDay = ref(new Date().getDay());
 
 // Cash flow states
-const cashflowData = ref(null);
-const cashFlowChartCanvas = ref(null);
-let cashFlowChartInstance = null;
-let ChartLib = null;
+const cashflowData = ref<any>(null);
+const cashFlowChartCanvas = ref<any>(null);
+let cashFlowChartInstance: any = null;
+let ChartLib: any = null;
 
 // --- computed stats ---
 const criticalAlerts = computed(() =>
-  inventoryRunway.value.filter((item) => item.runway_days <= 7),
+  inventoryRunway.value.filter((item: any) => item.runway_days <= 7),
 );
 
 const warningAlerts = computed(() =>
-  inventoryRunway.value.filter((item) => item.runway_days > 7 && item.runway_days <= 15),
+  inventoryRunway.value.filter((item: any) => item.runway_days > 7 && item.runway_days <= 15),
 );
 
 const safeCount = computed(
-  () => inventoryRunway.value.filter((item) => item.runway_days > 15).length,
+  () => inventoryRunway.value.filter((item: any) => item.runway_days > 15).length,
 );
 
 // --- search filters ---
@@ -651,7 +651,7 @@ const filteredRunway = computed(() => {
   const q = searchTerm.value.trim().toLowerCase();
   if (!q) return inventoryRunway.value;
   return inventoryRunway.value.filter(
-    (item) =>
+    (item: any) =>
       item.name_ar.toLowerCase().includes(q) ||
       (item.sku || '').toLowerCase().includes(q) ||
       (item.category_name || '').toLowerCase().includes(q),
@@ -662,7 +662,7 @@ const filteredSales = computed(() => {
   const q = searchTerm.value.trim().toLowerCase();
   if (!q) return salesForecast.value;
   return salesForecast.value.filter(
-    (item) =>
+    (item: any) =>
       item.name_ar.toLowerCase().includes(q) ||
       (item.sku || '').toLowerCase().includes(q) ||
       (item.category_name || '').toLowerCase().includes(q),
@@ -673,7 +673,7 @@ const filteredIngredients = computed(() => {
   const q = searchTerm.value.trim().toLowerCase();
   if (!q) return ingredientsForecast.value;
   return ingredientsForecast.value.filter(
-    (item) =>
+    (item: any) =>
       item.name_ar.toLowerCase().includes(q) ||
       (item.sku || '').toLowerCase().includes(q) ||
       (item.category_name || '').toLowerCase().includes(q),
@@ -684,7 +684,7 @@ const filteredPricingAlerts = computed(() => {
   const q = searchTerm.value.trim().toLowerCase();
   if (!q) return pricingAlerts.value;
   return pricingAlerts.value.filter(
-    (item) =>
+    (item: any) =>
       item.name_ar.toLowerCase().includes(q) ||
       (item.sku || '').toLowerCase().includes(q) ||
       (item.category_name || '').toLowerCase().includes(q),
@@ -696,31 +696,31 @@ const filteredCashflowPoints = computed(() => {
   const q = searchTerm.value.trim().toLowerCase();
   if (!q) return points;
   return points.filter(
-    (p) => p.day_name.toLowerCase().includes(q) || p.date.toLowerCase().includes(q),
+    (p: any) => p.day_name.toLowerCase().includes(q) || p.date.toLowerCase().includes(q),
   );
 });
 
 // --- helper UI styling functions ---
-const getRowClass = (days) => {
+const getRowClass = (days: any) => {
   if (days <= 3) return 'row-critical';
   if (days <= 7) return 'row-warning';
   return '';
 };
 
-const getProgressWidth = (days) => {
+const getProgressWidth = (days: any) => {
   if (days >= 30) return 100;
   if (days <= 0) return 5;
   return Math.min(100, Math.ceil((days / 30) * 100));
 };
 
-const getProgressBarClass = (days) => {
+const getProgressBarClass = (days: any) => {
   if (days <= 3) return 'progress-danger';
   if (days <= 7) return 'progress-warning';
   if (days <= 15) return 'progress-info';
   return 'progress-success';
 };
 
-const getRunwayText = (days) => {
+const getRunwayText = (days: any) => {
   if (days === 999) return 'مستقر (أكثر من شهر)';
   if (days === 0) return 'منفد حالياً 🚨';
   if (days === 1) return 'يوم واحد فقط';
@@ -729,13 +729,13 @@ const getRunwayText = (days) => {
   return `${days} يوم`;
 };
 
-const getOosDateText = (date, days) => {
+const getOosDateText = (date: any, days: any) => {
   if (days === 999) return 'مستقر';
   if (days === 0) return 'منفد';
   return date;
 };
 
-const getBadgeClass = (days) => {
+const getBadgeClass = (days: any) => {
   if (days <= 3) return 'badge-danger';
   if (days <= 7) return 'badge-warning';
   if (days <= 15) return 'badge-info';
@@ -743,7 +743,7 @@ const getBadgeClass = (days) => {
 };
 
 // Staffing specific helpers
-const getStaffDayData = (dayIdx) => {
+const getStaffDayData = (dayIdx: any) => {
   const data = [];
   const dayDensity = weeklyDensity.value[dayIdx];
   if (!dayDensity) return [];
@@ -764,30 +764,30 @@ const getStaffDayData = (dayIdx) => {
   return data;
 };
 
-const getTrafficBadgeClass = (level) => {
+const getTrafficBadgeClass = (level: any) => {
   if (level === 'مرتفع') return 'badge-danger';
   if (level === 'متوسط') return 'badge-warning';
   return 'badge-success';
 };
 
-const getPricingBadgeClass = (status) => {
+const getPricingBadgeClass = (status: any) => {
   if (status === 'critical') return 'badge-danger';
   if (status === 'warning') return 'badge-warning';
   return 'badge-success';
 };
 
-const getMarginClass = (status) => {
+const getMarginClass = (status: any) => {
   if (status === 'critical') return 'text-danger font-bold';
   if (status === 'warning') return 'text-warning font-bold';
   return 'text-success font-bold';
 };
 
-const getPriceDiffClass = (alert) => {
+const getPriceDiffClass = (alert: any) => {
   if (alert.status === 'healthy') return 'text-muted';
   return 'text-danger font-bold';
 };
 
-const getPriceDiffText = (alert) => {
+const getPriceDiffText = (alert: any) => {
   const diff = alert.suggested_price - alert.current_price;
   if (diff <= 0) return 'سعر مناسب';
   return `+${formatMoney(diff)}`;
@@ -809,7 +809,7 @@ const loadForecast = async () => {
       });
       weeklyDensity.value = staffingRes.data?.weeklyDensity || {};
       peakHours.value = staffingRes.data?.peakHours || [];
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to load staffing forecast:', err);
     }
 
@@ -817,7 +817,7 @@ const loadForecast = async () => {
     try {
       const pricingRes = await forecastingApi.getSmartPricingAlerts();
       pricingAlerts.value = pricingRes.data || [];
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to load pricing alerts:', err);
     }
 
@@ -832,10 +832,10 @@ const loadForecast = async () => {
           renderCashFlowChart();
         });
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to load cashflow projection:', err);
     }
-  } catch (err) {
+  } catch (err: any) {
     console.error('Failed to load forecasting data:', err);
     alert('فشل سحب توقعات المبيعات والمخزون: ' + (err.message || 'خطأ سيرفر'));
   } finally {
@@ -850,21 +850,21 @@ const loadWarehouses = async () => {
     if (warehouseList.value.length > 0) {
       // Find default warehouse STORE or choose the first one
       const storeWh = warehouseList.value.find(
-        (w) => w.code === 'STORE' || w.name_ar.includes('فرع') || w.name_ar.includes('محل'),
+        (w: any) => w.code === 'STORE' || w.name_ar.includes('فرع') || w.name_ar.includes('محل'),
       );
       selectedWarehouse.value = storeWh ? storeWh.id : warehouseList.value[0].id;
     }
-  } catch (err) {
+  } catch (err: any) {
     console.error('Failed to load warehouses:', err);
   }
 };
 
 // Date formatter helper
-const formatDate = (value) => {
+const formatDate = (value: any) => {
   if (!value) return 'غير محدد';
-  const raw = String(value).split('T')[0];
+  const raw = String(value).split('T')[0]!;
   if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
-    const [year, month, day] = raw.split('-');
+    const [year, month, day] = raw.split('-') as [string, string, string];
     return `${day}/${month}/${year}`;
   }
   return new Date(value).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
@@ -892,8 +892,8 @@ const renderCashFlowChart = async () => {
   const ctx = cashFlowChartCanvas.value.getContext('2d');
 
   const points = cashflowData.value.dailyPoints || [];
-  const labels = points.map((p) => formatDate(p.date));
-  const balances = points.map((p) => p.balance);
+  const labels = points.map((p: any) => formatDate(p.date));
+  const balances = points.map((p: any) => p.balance);
 
   const colors = {
     primary:
@@ -901,7 +901,7 @@ const renderCashFlowChart = async () => {
     grid: 'rgba(102,112,133,0.18)',
   };
 
-  const makeGradient = (canvas, color, opacityStart = 0.35, opacityEnd = 0.01) => {
+  const makeGradient = (canvas: any, color: any, opacityStart = 0.35, opacityEnd = 0.01) => {
     if (!canvas) return color;
     const grad = ctx.createLinearGradient(0, 0, 0, canvas.clientHeight || 250);
     grad.addColorStop(0, colorMix(color, opacityStart));
@@ -909,7 +909,7 @@ const renderCashFlowChart = async () => {
     return grad;
   };
 
-  const colorMix = (color, opacity) => {
+  const colorMix = (color: any, opacity: any) => {
     if (color.startsWith('#')) {
       const r = parseInt(color.slice(1, 3), 16);
       const g = parseInt(color.slice(3, 5), 16);
@@ -963,7 +963,7 @@ const renderCashFlowChart = async () => {
           rtl: true,
           textDirection: 'rtl',
           callbacks: {
-            label: (context) => `${context.dataset.label}: ${formatMoney(context.parsed.y)}`,
+            label: (context: any) => `${context.dataset.label}: ${formatMoney(context.parsed.y)}`,
           },
         },
       },
@@ -987,7 +987,7 @@ const renderCashFlowChart = async () => {
             font: {
               family: 'Outfit, Cairo, sans-serif',
             },
-            callback: (val) => formatMoney(val),
+            callback: (val: any) => formatMoney(val),
           },
         },
       },
@@ -995,7 +995,7 @@ const renderCashFlowChart = async () => {
   });
 };
 
-watch(activeTab, (newTab) => {
+watch(activeTab, (newTab: any) => {
   if (newTab === 'cashflow') {
     nextTick(() => {
       renderCashFlowChart();

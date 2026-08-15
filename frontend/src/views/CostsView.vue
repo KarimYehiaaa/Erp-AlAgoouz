@@ -648,7 +648,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
 import { products as productsApi, recipes as recipesApi, reports as reportsApi } from '@/api';
 import { formatMoney } from '@/utils/currency';
@@ -661,9 +661,9 @@ const activeTab = ref('analysis'); // 'analysis' | 'simulator' | 'bulk_adjust' |
 
 // ─── State ───────────────────────────────────────────────────────────────────
 const loading = ref(false);
-const products = ref([]);
-const recipesList = ref([]);
-const wastageReport = ref([]);
+const products = ref<any[]>([]);
+const recipesList = ref<any[]>([]);
+const wastageReport = ref<any[]>([]);
 const loadingWastage = ref(false);
 
 const search = ref('');
@@ -674,13 +674,13 @@ const sortBy = ref('name');
 const showLowMarginOnly = ref(false);
 
 // Edit Price Modal
-const editingProduct = ref(null);
+const editingProduct = ref<any>(null);
 const editForm = ref({ purchase_price: 0, sale_price: 0 });
 const savingPrice = ref(false);
 const priceError = ref('');
 
 // Recipe Breakdown Modal
-const selectedRecipe = ref(null);
+const selectedRecipe = ref<any>(null);
 const loadingRecipe = ref(false);
 const recipeError = ref('');
 
@@ -726,14 +726,14 @@ const UNIT_ALIASES = {
   قطعة: 'count',
 };
 
-const normalizeUnitLocal = (u) =>
-  UNIT_ALIASES[
-    String(u || '')
-      .trim()
-      .toLowerCase()
-  ] || null;
+const normalizeUnitLocal = (u: any) => {
+  const key = String(u || '')
+    .trim()
+    .toLowerCase() as keyof typeof UNIT_ALIASES;
+  return UNIT_ALIASES[key] || null;
+};
 
-const convertQtyLocal = (qty, fromUnit, toUnit) => {
+const convertQtyLocal = (qty: any, fromUnit: any, toUnit: any) => {
   if (fromUnit === toUnit) return qty;
   if (fromUnit === 'kg' && toUnit === 'g') return qty * 1000;
   if (fromUnit === 'g' && toUnit === 'kg') return qty / 1000;
@@ -742,7 +742,7 @@ const convertQtyLocal = (qty, fromUnit, toUnit) => {
   return null;
 };
 
-const unitPriceForLocal = (purchasePrice, productUnit, wantedUnit) => {
+const unitPriceForLocal = (purchasePrice: any, productUnit: any, wantedUnit: any) => {
   const fromUnit = normalizeUnitLocal(productUnit);
   const toUnit = normalizeUnitLocal(wantedUnit);
   if (!fromUnit || !toUnit) return 0;
@@ -752,26 +752,26 @@ const unitPriceForLocal = (purchasePrice, productUnit, wantedUnit) => {
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-const marginPct = (p) => {
+const marginPct = (p: any) => {
   const buy = Number(p.purchase_price || 0);
   const sell = Number(p.sale_price || 0);
   if (!sell) return 0;
   return ((sell - buy) / sell) * 100;
 };
 
-const marginClass = (p) => {
+const marginClass = (p: any) => {
   const m = marginPct(p);
   if (m >= 40) return 'margin-high';
   if (m >= 20) return 'margin-mid';
   return 'margin-low';
 };
 
-const rowClass = (p) => {
+const rowClass = (p: any) => {
   if (!p.has_recipe && p.total_qty_sold > 0) return 'row-no-recipe';
   return '';
 };
 
-const formatQty = (v) => {
+const formatQty = (v: any) => {
   const n = Number(v || 0);
   return n % 1 === 0 ? n.toLocaleString('en-GB') : n.toFixed(3);
 };
@@ -779,17 +779,18 @@ const formatQty = (v) => {
 // ─── Computed Properties ──────────────────────────────────────────────────────
 const filteredProducts = computed(() => {
   let list = products.value;
-  if (selectedCategory.value) list = list.filter((p) => p.category_id == selectedCategory.value);
+  if (selectedCategory.value)
+    list = list.filter((p: any) => p.category_id == selectedCategory.value);
   if (search.value.trim()) {
     const q = search.value.trim().toLowerCase();
     list = list.filter(
-      (p) => p.name_ar.toLowerCase().includes(q) || (p.sku || '').toLowerCase().includes(q),
+      (p: any) => p.name_ar.toLowerCase().includes(q) || (p.sku || '').toLowerCase().includes(q),
     );
   }
   if (showLowMarginOnly.value) {
-    list = list.filter((p) => marginPct(p) < 25);
+    list = list.filter((p: any) => marginPct(p) < 25);
   }
-  return [...list].sort((a, b) => {
+  return [...list].sort((a: any, b: any) => {
     if (sortBy.value === 'margin_desc') return marginPct(b) - marginPct(a);
     if (sortBy.value === 'margin_asc') return marginPct(a) - marginPct(b);
     if (sortBy.value === 'sales_desc')
@@ -801,20 +802,20 @@ const filteredProducts = computed(() => {
 });
 
 const totalSales = computed(() =>
-  filteredProducts.value.reduce((s, p) => s + Number(p.total_revenue || 0), 0),
+  filteredProducts.value.reduce((s: any, p: any) => s + Number(p.total_revenue || 0), 0),
 );
 const totalCost = computed(() =>
-  filteredProducts.value.reduce((s, p) => s + Number(p.total_cost_sold || 0), 0),
+  filteredProducts.value.reduce((s: any, p: any) => s + Number(p.total_cost_sold || 0), 0),
 );
 const totalProfit = computed(() =>
-  filteredProducts.value.reduce((s, p) => s + Number(p.net_profit || 0), 0),
+  filteredProducts.value.reduce((s: any, p: any) => s + Number(p.net_profit || 0), 0),
 );
 const totalUnitsSold = computed(() =>
-  filteredProducts.value.reduce((s, p) => s + Number(p.total_qty_sold || 0), 0),
+  filteredProducts.value.reduce((s: any, p: any) => s + Number(p.total_qty_sold || 0), 0),
 );
 const avgMargin = computed(() => {
   if (!filteredProducts.value.length) return '0.0';
-  const sum = filteredProducts.value.reduce((s, p) => s + marginPct(p), 0);
+  const sum = filteredProducts.value.reduce((s: any, p: any) => s + marginPct(p), 0);
   return (sum / filteredProducts.value.length).toFixed(1);
 });
 
@@ -838,7 +839,7 @@ const simulatedProducts = computed(() => {
 
   // Build a map of simulated purchase prices for raw materials (non-recipes)
   const simulatedPriceMap = new Map();
-  products.value.forEach((p) => {
+  products.value.forEach((p: any) => {
     let price = Number(p.purchase_price || 0);
     let isInflated = false;
 
@@ -854,16 +855,16 @@ const simulatedProducts = computed(() => {
   });
 
   // Now, calculate simulated costs for all products (dynamic recipes)
-  return products.value.map((p) => {
+  return products.value.map((p: any) => {
     let simulatedCost = Number(p.purchase_price || 0);
     let isInflated = false;
 
     if (p.has_recipe && p.recipe_id) {
       // Find the recipe
-      const recipe = recipesList.value.find((r) => r.id === p.recipe_id);
+      const recipe = recipesList.value.find((r: any) => r.id === p.recipe_id);
       if (recipe && recipe.items) {
         let totalRecipeCost = 0;
-        recipe.items.forEach((item) => {
+        recipe.items.forEach((item: any) => {
           const ingredientId = Number(item.ingredient_product_id);
           const ingredientSim = simulatedPriceMap.get(ingredientId);
           const ingredientPrice = ingredientSim
@@ -905,7 +906,7 @@ const simulatedProducts = computed(() => {
 
 const simulatedAvgMargin = computed(() => {
   if (!simulatedProducts.value.length) return '0.0';
-  const sum = simulatedProducts.value.reduce((s, p) => s + p.simulated_margin, 0);
+  const sum = simulatedProducts.value.reduce((s: any, p: any) => s + p.simulated_margin, 0);
   return (sum / simulatedProducts.value.length).toFixed(1);
 });
 
@@ -920,31 +921,31 @@ const simulatedAvgMarginClass = computed(() => {
   return 'margin-low';
 });
 
-const simulatedProductMarginClass = (m) => {
+const simulatedProductMarginClass = (m: any) => {
   if (m >= 40) return 'margin-high';
   if (m >= 20) return 'margin-mid';
   return 'margin-low';
 };
 
 // ─── Cost Breakdown Analyzer Modal Helpers ────────────────────────────────────
-const getProductSalePrice = (productId) => {
-  const p = products.value.find((prod) => prod.id === productId);
+const getProductSalePrice = (productId: any) => {
+  const p = products.value.find((prod: any) => prod.id === productId);
   return p ? Number(p.sale_price || 0) : 0;
 };
 
-const getRecipeMargin = (recipe) => {
+const getRecipeMargin = (recipe: any) => {
   const sell = getProductSalePrice(recipe.product_id);
   const cost = Number(recipe.estimated_total_cost || 0);
   if (!sell) return 0;
   return ((sell - cost) / sell) * 100;
 };
 
-const computeContributionPct = (itemCost, totalCost) => {
+const computeContributionPct = (itemCost: any, totalCost: any) => {
   if (!totalCost) return '0.0';
   return ((Number(itemCost) / Number(totalCost)) * 100).toFixed(1);
 };
 
-const contributionClass = (pctStr) => {
+const contributionClass = (pctStr: any) => {
   const pct = Number(pctStr);
   if (pct >= 50) return 'contrib-high';
   if (pct >= 20) return 'contrib-mid';
@@ -952,7 +953,7 @@ const contributionClass = (pctStr) => {
 };
 
 // ─── Wastage Report Helpers ──────────────────────────────────────────────────
-const computeWastePct = (row) => {
+const computeWastePct = (row: any) => {
   const theoretical = Number(row.theoretical_consumption || 0);
   const waste = Number(row.actual_waste || 0);
   const total = theoretical + waste;
@@ -960,14 +961,14 @@ const computeWastePct = (row) => {
   return (waste / total) * 100;
 };
 
-const wasteStatusLabel = (row) => {
+const wasteStatusLabel = (row: any) => {
   const pct = computeWastePct(row);
   if (pct < 5) return 'ممتاز (آمن)';
   if (pct < 15) return 'مقبول (متوسط)';
   return 'مرتفع (خطر ⚠️)';
 };
 
-const wasteStatusClass = (row) => {
+const wasteStatusClass = (row: any) => {
   const pct = computeWastePct(row);
   if (pct < 5) return 'waste-safe';
   if (pct < 15) return 'waste-warning';
@@ -975,7 +976,7 @@ const wasteStatusClass = (row) => {
 };
 
 const highWastageItems = computed(() => {
-  return wastageReport.value.filter((row) => computeWastePct(row) >= 15);
+  return wastageReport.value.filter((row: any) => computeWastePct(row) >= 15);
 });
 
 // ─── Data Loading ─────────────────────────────────────────────────────────────
@@ -989,7 +990,7 @@ const load = async () => {
     products.value = prodRes.data || [];
     recipesList.value = recRes.data || [];
     await loadMeta();
-  } catch (e) {
+  } catch (e: any) {
     console.error('فشل تحميل التكاليف والوصفات:', e.message);
   } finally {
     loading.value = false;
@@ -1004,7 +1005,7 @@ const loadWastageReport = async () => {
       to_date: wastageToDate.value || null,
     });
     wastageReport.value = res.data || [];
-  } catch (e) {
+  } catch (e: any) {
     console.error('فشل تحميل تقرير الهدر:', e.message);
   } finally {
     loadingWastage.value = false;
@@ -1012,7 +1013,7 @@ const loadWastageReport = async () => {
 };
 
 // Watch activeTab to load wastage report when entering wastage tab
-watch(activeTab, (newTab) => {
+watch(activeTab, (newTab: any) => {
   if (newTab === 'wastage' && !wastageReport.value.length) {
     loadWastageReport();
   }
@@ -1022,7 +1023,7 @@ watch(activeTab, (newTab) => {
 watch([wastageFromDate, wastageToDate], loadWastageReport);
 
 // ─── Edit Price Modal Actions ─────────────────────────────────────────────────
-const openEdit = (product) => {
+const openEdit = (product: any) => {
   editingProduct.value = product;
   editForm.value = {
     purchase_price: Number(product.purchase_price || 0),
@@ -1045,7 +1046,7 @@ const savePrice = async () => {
     });
     editingProduct.value = null;
     await load();
-  } catch (e) {
+  } catch (e: any) {
     priceError.value = e.message || 'فشل الحفظ';
   } finally {
     savingPrice.value = false;
@@ -1053,14 +1054,14 @@ const savePrice = async () => {
 };
 
 // ─── Cost Breakdown Analyzer Actions ──────────────────────────────────────────
-const openRecipeBreakdown = async (recipeId) => {
+const openRecipeBreakdown = async (recipeId: any) => {
   loadingRecipe.value = true;
   recipeError.value = '';
   selectedRecipe.value = {}; // Opens modal immediately in loading state
   try {
     const res = await recipesApi.getRecipe(recipeId);
     selectedRecipe.value = res.data;
-  } catch (e) {
+  } catch (e: any) {
     recipeError.value = e.message || 'فشل تحميل تفاصيل الوصفة';
   } finally {
     loadingRecipe.value = false;
@@ -1091,7 +1092,7 @@ const applyBulkAdjustment = async () => {
     adjustSuccess.value = `تم تعديل أسعار ${res.data?.updatedCount || 0} منتجات بنجاح.`;
     adjustValue.value = 0;
     await load();
-  } catch (e) {
+  } catch (e: any) {
     adjustError.value = e.message || 'فشل تعديل الأسعار جماعياً';
   } finally {
     adjustingPrices.value = false;

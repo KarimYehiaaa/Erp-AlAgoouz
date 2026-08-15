@@ -79,7 +79,7 @@
   </teleport>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, watch, onMounted, onBeforeUnmount, nextTick } from 'vue';
 
 const props = defineProps({
@@ -92,7 +92,7 @@ const props = defineProps({
   size: {
     type: String,
     default: 'md',
-    validator: (v) => ['xs', 'sm', 'md', 'lg', 'xl', 'full'].includes(v),
+    validator: (v: string) => ['xs', 'sm', 'md', 'lg', 'xl', 'full'].includes(v),
   },
   centered: { type: Boolean, default: false },
   closable: { type: Boolean, default: true },
@@ -113,8 +113,8 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue', 'close', 'confirm']);
 
-const overlayRef = ref(null);
-const boxRef = ref(null);
+const overlayRef = ref<any>(null);
+const boxRef = ref<any>(null);
 
 const close = (reason = 'close') => {
   emit('update:modelValue', false);
@@ -122,13 +122,13 @@ const close = (reason = 'close') => {
 };
 
 // Focus trap + keyboard
-const handleKeydown = (e) => {
+const handleKeydown = (e: any) => {
   if (!props.modelValue) return;
   if (e.key === 'Escape' && props.closeOnEsc) close('esc');
   if (e.key === 'Tab') trapFocus(e);
 };
 
-const trapFocus = (e) => {
+const trapFocus = (e: any) => {
   if (!boxRef.value) return;
   const focusable = boxRef.value.querySelectorAll(
     'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
@@ -150,7 +150,7 @@ const trapFocus = (e) => {
 
 watch(
   () => props.modelValue,
-  async (val) => {
+  async (val: any) => {
     if (val) {
       document.body.style.overflow = 'hidden';
       await nextTick();

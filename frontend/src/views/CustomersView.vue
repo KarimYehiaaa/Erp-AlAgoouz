@@ -110,10 +110,20 @@
               <button class="icon-btn" @click="openStatement(c)" title="الحساب الجاري">
                 <AppIcon name="reports" :size="16" />
               </button>
-              <button v-permission="'customers.edit'" class="icon-btn edit" @click="openForm(c)" title="تعديل">
+              <button
+                v-permission="'customers.edit'"
+                class="icon-btn edit"
+                @click="openForm(c)"
+                title="تعديل"
+              >
                 <AppIcon name="edit" :size="16" />
               </button>
-              <button v-permission="'customers.delete'" class="icon-btn danger" @click="removeCustomer(c)" title="حذف">
+              <button
+                v-permission="'customers.delete'"
+                class="icon-btn danger"
+                @click="removeCustomer(c)"
+                title="حذف"
+              >
                 <AppIcon name="delete" :size="16" />
               </button>
             </td>
@@ -192,14 +202,16 @@
               </div>
             </div>
             <div class="payment-actions">
-              <button v-permission="'customers.edit'"
+              <button
+                v-permission="'customers.edit'"
                 class="btn btn-outline"
                 type="button"
                 @click="payForm.amount = statement.summary.total_balance"
               >
                 سداد كامل الرصيد
               </button>
-              <button v-permission="'customers.edit'"
+              <button
+                v-permission="'customers.edit'"
                 class="btn btn-save"
                 :disabled="savingPayment || !payForm.amount"
                 @click="submitPayment"
@@ -426,49 +438,55 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { customers as api } from '@/api';
 import { formatMoney } from '@/utils/currency';
 
 // ─── state ──────────────────────────────────────────────────────────────────
-const customers = ref([]);
+const customers = ref<any[]>([]);
 const search = ref('');
 const typeFilter = ref('');
 const showForm = ref(false);
 const showStatement = ref(false);
 const loadingStatement = ref(false);
 const loading = ref(false);
-const statement = ref(null);
+const statement = ref<any>(null);
 const savingPayment = ref(false);
 const payMsg = ref('');
 const payErr = ref(false);
 
 // دفع على فاتورة محددة
-const activeSalePayment = ref(null);
+const activeSalePayment = ref<any>(null);
 const savingSalePay = ref(false);
 const salePayMsg = ref('');
 const salePayErr = ref(false);
-const salePayInput = ref(null);
+const salePayInput = ref<any>(null);
 const salePayForm = ref({ amount: null, payment_method: 'cash', notes: '' });
 
-const form = ref({ code: '', name_ar: '', phone: '', customer_type: 'retail', credit_limit: 0 });
+const form = ref<Record<string, any>>({
+  code: '',
+  name_ar: '',
+  phone: '',
+  customer_type: 'retail',
+  credit_limit: 0,
+});
 const payForm = ref({ amount: null, payment_method: 'cash', notes: '' });
-const getCustomerDue = (c) => {
+const getCustomerDue = (c: any) => {
   const hasComputed = c.total_balance !== undefined && c.total_balance !== null;
   if (hasComputed) return Number(c.total_balance || 0);
   return Number(c.balance || 0);
 };
 // ─── computed ─────────────────────────────────────────────────────────────────
 const wholesaleCount = computed(
-  () => customers.value.filter((c) => c.customer_type === 'wholesale').length,
+  () => customers.value.filter((c: any) => c.customer_type === 'wholesale').length,
 );
 const totalBalance = computed(() =>
-  customers.value.reduce((s, c) => s + Math.max(0, getCustomerDue(c)), 0),
+  customers.value.reduce((s: any, c: any) => s + Math.max(0, getCustomerDue(c)), 0),
 );
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
-const formatDate = (d) => {
+const formatDate = (d: any) => {
   const val = d?.split?.('T')?.[0] || d;
   if (!val) return '—';
   if (/^\d{4}-\d{2}-\d{2}$/.test(val)) {
@@ -478,22 +496,24 @@ const formatDate = (d) => {
   return new Date(val).toLocaleDateString('en-GB');
 };
 
-const statusLabel = (s) =>
-  ({
-    paid: 'مدفوع',
-    unpaid: 'غير مدفوع',
-    partial: 'جزئي',
-    refunded: 'مسترد',
-  })[s] || s;
+const statusLabel = (s: any) =>
+  (
+    ({
+      paid: 'مدفوع',
+      unpaid: 'غير مدفوع',
+      partial: 'جزئي',
+      refunded: 'مسترد',
+    }) as Record<string, string>
+  )[s] || s;
 
 // ─── data loading ─────────────────────────────────────────────────────────────
 const load = async () => {
   loading.value = true;
   try {
-    const params = { search: search.value };
+    const params: Record<string, any> = { search: search.value };
     if (typeFilter.value) params.customer_type = typeFilter.value;
     const res = await api.list(params);
-    customers.value = (res.data || []).map((c) => {
+    customers.value = (res.data || []).map((c: any) => {
       const totalBalance = getCustomerDue(c);
       const totalPaid = Number(c.total_paid || 0);
       const totalPurchased = Number(c.total_purchased || 0) || totalPaid + totalBalance;
@@ -504,7 +524,7 @@ const load = async () => {
         total_paid: totalPaid,
       };
     });
-  } catch (err) {
+  } catch (err: any) {
     console.error('Failed to load customers:', err);
   } finally {
     loading.value = false;
@@ -512,7 +532,7 @@ const load = async () => {
 };
 
 // ─── statement ────────────────────────────────────────────────────────────────
-const openStatement = async (customer) => {
+const openStatement = async (customer: any) => {
   showStatement.value = true;
   loadingStatement.value = true;
   statement.value = null;
@@ -522,7 +542,7 @@ const openStatement = async (customer) => {
   try {
     const res = await api.statement(customer.id);
     statement.value = res.data;
-  } catch (e) {
+  } catch (e: any) {
     console.error(e);
   } finally {
     loadingStatement.value = false;
@@ -548,7 +568,7 @@ const submitPayment = async () => {
     const res = await api.statement(statement.value.customer.id);
     statement.value = res.data;
     await load();
-  } catch (e) {
+  } catch (e: any) {
     payErr.value = true;
     payMsg.value = e.message || 'فشل تسجيل الدفعة';
   } finally {
@@ -556,7 +576,7 @@ const submitPayment = async () => {
   }
 };
 
-const openSalePayment = (transaction) => {
+const openSalePayment = (transaction: any) => {
   activeSalePayment.value = transaction;
   salePayForm.value = { amount: null, payment_method: 'cash', notes: '' };
   salePayMsg.value = '';
@@ -580,7 +600,7 @@ const submitSalePayment = async () => {
     setTimeout(() => {
       activeSalePayment.value = null;
     }, 1200);
-  } catch (e) {
+  } catch (e: any) {
     salePayErr.value = true;
     salePayMsg.value = e.message || 'فشل تسجيل الدفعة';
   } finally {
@@ -589,7 +609,7 @@ const submitSalePayment = async () => {
 };
 
 // ─── form ─────────────────────────────────────────────────────────────────────
-const openForm = (c = null) => {
+const openForm = (c: any = null) => {
   form.value = c
     ? {
         ...c,
@@ -613,7 +633,7 @@ const save = async () => {
   await load();
 };
 
-const removeCustomer = async (customer) => {
+const removeCustomer = async (customer: any) => {
   if (!confirm(`تأكيد حذف العميل: ${customer.name_ar}؟`)) return;
   await api.delete(customer.id);
   await load();

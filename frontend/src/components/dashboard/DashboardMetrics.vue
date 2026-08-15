@@ -21,7 +21,7 @@
   </section>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, ref, onMounted } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import { formatMoney, abbreviateNumber, formatPercent } from '@/utils/formatters';
@@ -33,9 +33,9 @@ const props = defineProps({
 const authStore = useAuthStore();
 
 // Helpers
-const money = (val) => formatMoney(val || 0);
-const number = (val) => abbreviateNumber(val || 0);
-const percent = (val) => formatPercent(val || 0);
+const money = (val: any) => formatMoney(val || 0);
+const number = (val: any) => abbreviateNumber(val || 0);
+const percent = (val: any) => formatPercent(val || 0);
 
 const monthCards = computed(() => props.stats?.monthCards || {});
 
@@ -168,10 +168,10 @@ const mainMetrics = computed(() => {
       to: '/customers',
     },
   ];
-  return metrics.filter((m) => !m.perm || authStore.hasPermission(m.perm));
+  return metrics.filter((m: any) => !m.perm || authStore.hasPermission(m.perm));
 });
 
-const metricsOrder = ref([]);
+const metricsOrder = ref<any[]>([]);
 
 onMounted(() => {
   const saved = localStorage.getItem('dashboard_metrics_order_keys');
@@ -187,31 +187,31 @@ onMounted(() => {
 const orderedMetrics = computed(() => {
   const base = mainMetrics.value;
   if (!metricsOrder.value.length) return base;
-  const sorted = [];
-  metricsOrder.value.forEach((key) => {
-    const found = base.find((m) => m.key === key);
+  const sorted: any[] = [];
+  metricsOrder.value.forEach((key: any) => {
+    const found = base.find((m: any) => m.key === key);
     if (found) sorted.push(found);
   });
-  base.forEach((m) => {
-    if (!sorted.find((x) => x.key === m.key)) sorted.push(m);
+  base.forEach((m: any) => {
+    if (!sorted.find((x: any) => x.key === m.key)) sorted.push(m);
   });
   return sorted;
 });
 
-const dragIndex = ref(null);
-const onDragStart = (event, index) => {
+const dragIndex = ref<any>(null);
+const onDragStart = (event: any, index: any) => {
   dragIndex.value = index;
   event.dataTransfer.effectAllowed = 'move';
 };
 
-const onDrop = (event, index) => {
+const onDrop = (event: any, index: any) => {
   if (dragIndex.value === null) return;
   const list = [...orderedMetrics.value];
   const temp = list[dragIndex.value];
   list[dragIndex.value] = list[index];
   list[index] = temp;
 
-  metricsOrder.value = list.map((m) => m.key);
+  metricsOrder.value = list.map((m: any) => m.key);
   localStorage.setItem('dashboard_metrics_order_keys', JSON.stringify(metricsOrder.value));
   dragIndex.value = null;
 };

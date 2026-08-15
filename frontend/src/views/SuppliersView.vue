@@ -1,7 +1,9 @@
 <template>
   <div>
     <div class="page-header">
-      <button v-permission="'suppliers.add'" class="btn btn-primary" @click="openCreate">+ مورد جديد</button>
+      <button v-permission="'suppliers.add'" class="btn btn-primary" @click="openCreate">
+        + مورد جديد
+      </button>
     </div>
 
     <!-- شبكة كروت الموردين -->
@@ -34,10 +36,22 @@
           <div class="supplier-head">
             <h3>{{ s.name_ar }}</h3>
             <div class="actions" @click.stop>
-              <button v-permission="'suppliers.edit'" type="button" class="icon-btn" @click="openEdit(s)" title="تعديل">
+              <button
+                v-permission="'suppliers.edit'"
+                type="button"
+                class="icon-btn"
+                @click="openEdit(s)"
+                title="تعديل"
+              >
                 <AppIcon name="edit" :size="16" />
               </button>
-              <button v-permission="'suppliers.delete'" type="button" class="icon-btn danger" @click="removeSupplier(s)" title="حذف">
+              <button
+                v-permission="'suppliers.delete'"
+                type="button"
+                class="icon-btn danger"
+                @click="removeSupplier(s)"
+                title="حذف"
+              >
                 <AppIcon name="delete" :size="16" />
               </button>
             </div>
@@ -120,7 +134,12 @@
         </div>
 
         <div class="modal-actions-bar">
-          <button v-permission="'suppliers.edit'" type="button" class="btn btn-primary btn-sm" @click="openPaymentForm">
+          <button
+            v-permission="'suppliers.edit'"
+            type="button"
+            class="btn btn-primary btn-sm"
+            @click="openPaymentForm"
+          >
             + تسجيل دفعة للمورد
           </button>
         </div>
@@ -257,35 +276,35 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
 import { suppliers as api } from '@/api';
 import { formatMoney } from '@/utils/currency';
 import AppIcon from '@/components/AppIcon.vue';
 
-const suppliers = ref([]);
+const suppliers = ref<any[]>([]);
 const loading = ref(false);
 const showForm = ref(false);
 const form = ref({ id: null, code: '', name_ar: '', phone: '', email: '', address: '', notes: '' });
 
 // كشف الحساب تفصيلياً
 const showDetails = ref(false);
-const selectedSupplier = ref(null);
+const selectedSupplier = ref<any>(null);
 const loadingDetails = ref(false);
-const supplierInvoices = ref([]);
-const supplierPayments = ref([]);
-const expandedMonths = ref({});
+const supplierInvoices = ref<any[]>([]);
+const supplierPayments = ref<any[]>([]);
+const expandedMonths = ref<Record<string, boolean>>({});
 
 // تسجيل سداد
 const showPaymentModal = ref(false);
 const submittingPayment = ref(false);
-const paymentForm = ref({ amount: '', payment_method: 'cash', notes: '' });
+const paymentForm = ref<Record<string, any>>({ amount: '', payment_method: 'cash', notes: '' });
 
 const load = async () => {
   loading.value = true;
   try {
     suppliers.value = (await api.list()).data || [];
-  } catch (err) {
+  } catch (err: any) {
     console.error('Failed to load suppliers:', err);
   } finally {
     loading.value = false;
@@ -297,7 +316,7 @@ const openCreate = () => {
   showForm.value = true;
 };
 
-const openEdit = (row) => {
+const openEdit = (row: any) => {
   form.value = {
     id: row.id,
     code: row.code || '',
@@ -316,23 +335,23 @@ const save = async () => {
     else await api.create(form.value);
     showForm.value = false;
     await load();
-  } catch (e) {
+  } catch (e: any) {
     window.alert(e?.message || 'تعذر حفظ المورد');
   }
 };
 
-const removeSupplier = async (supplier) => {
+const removeSupplier = async (supplier: any) => {
   if (!window.confirm(`تأكيد حذف المورد: ${supplier.name_ar} ؟`)) return;
   try {
     await api.delete(supplier.id);
     await load();
-  } catch (e) {
+  } catch (e: any) {
     window.alert(e?.message || 'تعذر حذف المورد');
   }
 };
 
 // تشغيل تفاصيل المورد وكشف الحساب الشهري
-const viewDetails = async (supplier) => {
+const viewDetails = async (supplier: any) => {
   selectedSupplier.value = supplier;
   showDetails.value = true;
   loadingDetails.value = true;
@@ -352,7 +371,7 @@ const viewDetails = async (supplier) => {
     if (transactionsByMonth.value.length > 0) {
       expandedMonths.value[transactionsByMonth.value[0].key] = true;
     }
-  } catch (err) {
+  } catch (err: any) {
     console.error('Failed to fetch supplier details:', err);
     window.alert('تعذر تحميل تفاصيل معاملات المورد');
   } finally {
@@ -365,16 +384,16 @@ const closeDetails = () => {
   selectedSupplier.value = null;
 };
 
-const toggleMonth = (key) => {
+const toggleMonth = (key: any) => {
   expandedMonths.value[key] = !expandedMonths.value[key];
 };
 
 // تجميع وترتيب الفواتير والمدفوعات بالأشهر
 const transactionsByMonth = computed(() => {
-  const list = [];
+  const list: any[] = [];
 
   // فواتير المشتريات
-  supplierInvoices.value.forEach((inv) => {
+  supplierInvoices.value.forEach((inv: any) => {
     const date = new Date(inv.created_at);
     list.push({
       id: 'inv-' + inv.id,
@@ -389,7 +408,7 @@ const transactionsByMonth = computed(() => {
   });
 
   // المدفوعات المسددة
-  supplierPayments.value.forEach((pay) => {
+  supplierPayments.value.forEach((pay: any) => {
     const date = new Date(pay.created_at);
     list.push({
       id: 'pay-' + pay.id,
@@ -405,11 +424,11 @@ const transactionsByMonth = computed(() => {
   });
 
   // الترتيب من الأحدث للأقدم
-  list.sort((a, b) => b.date - a.date);
+  list.sort((a: any, b: any) => b.date - a.date);
 
   // التجميع حسب الشهر والسنة
-  const groups = {};
-  list.forEach((t) => {
+  const groups: Record<string, any> = {};
+  list.forEach((t: any) => {
     const year = t.date.getFullYear();
     const monthIndex = t.date.getMonth();
 
@@ -449,7 +468,7 @@ const transactionsByMonth = computed(() => {
     }
   });
 
-  return Object.values(groups).sort((a, b) => b.key.localeCompare(a.key));
+  return Object.values(groups).sort((a: any, b: any) => b.key.localeCompare(a.key));
 });
 
 // نموذج تسجيل سداد
@@ -474,7 +493,7 @@ const submitPayment = async () => {
     await load();
 
     // تحديث المورد المحدد الحالي
-    const updated = suppliers.value.find((s) => s.id === selectedSupplier.value.id);
+    const updated = suppliers.value.find((s: any) => s.id === selectedSupplier.value.id);
     if (updated) {
       selectedSupplier.value = updated;
     }
@@ -483,7 +502,7 @@ const submitPayment = async () => {
     if (selectedSupplier.value) {
       await viewDetails(selectedSupplier.value);
     }
-  } catch (err) {
+  } catch (err: any) {
     console.error('Failed to submit payment:', err);
     window.alert(err?.message || 'تعذر تسجيل السداد');
   } finally {
@@ -491,19 +510,19 @@ const submitPayment = async () => {
   }
 };
 
-const formatDate = (dateStr) => {
+const formatDate = (dateStr: any) => {
   if (!dateStr) return '';
   const d = new Date(dateStr);
   return d.toLocaleDateString('ar-EG', { year: 'numeric', month: '2-digit', day: '2-digit' });
 };
 
-const translateMethod = (method) => {
+const translateMethod = (method: any) => {
   const m = {
     cash: 'نقدي',
     bank: 'تحويل بنكي',
     vodafone: 'فودافون كاش',
   };
-  return m[method] || method;
+  return m[method as keyof typeof m] || method;
 };
 
 onMounted(load);

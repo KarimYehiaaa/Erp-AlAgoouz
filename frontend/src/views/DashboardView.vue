@@ -416,7 +416,7 @@ const loadChartLib = async () => {
   return Chart;
 };
 
-const stats = ref(null);
+const stats = ref<any>(null);
 const loading = ref(true);
 const error = ref('');
 const selectedRange = ref('month');
@@ -439,7 +439,7 @@ const savedWidgets = localStorage.getItem('dashboard_widgets');
 if (savedWidgets) {
   try {
     Object.assign(widgetVisibility.value, JSON.parse(savedWidgets));
-  } catch (e) {}
+  } catch (e: any) {}
 }
 
 watch(
@@ -453,12 +453,12 @@ watch(
   { deep: true },
 );
 
-const warehousesList = ref([]);
+const warehousesList = ref<any[]>([]);
 const loadWarehouses = async () => {
   try {
     const res = await apiWarehouses();
     warehousesList.value = res.data || [];
-  } catch (err) {
+  } catch (err: any) {
     console.error('Failed to load warehouses:', err);
   }
 };
@@ -467,15 +467,15 @@ const customFrom = ref('');
 const customTo = ref('');
 const charts = [];
 
-const performanceChartRef = ref(null);
-const salesTypeChartRef = ref(null);
-const paymentChartRef = ref(null);
-const expenseChartRef = ref(null);
-const categoryProfitChartRef = ref(null);
-const topProductsChartRef = ref(null);
-const topCustomersChartRef = ref(null);
-const peakHoursChartRef = ref(null);
-const forecastingChartRef = ref(null);
+const performanceChartRef = ref<any>(null);
+const salesTypeChartRef = ref<any>(null);
+const paymentChartRef = ref<any>(null);
+const expenseChartRef = ref<any>(null);
+const categoryProfitChartRef = ref<any>(null);
+const topProductsChartRef = ref<any>(null);
+const topCustomersChartRef = ref<any>(null);
+const peakHoursChartRef = ref<any>(null);
+const forecastingChartRef = ref<any>(null);
 
 const rangeOptions = [
   { label: 'اليوم', value: 'today' },
@@ -486,14 +486,15 @@ const rangeOptions = [
   { label: 'مخصص', value: 'custom' },
 ];
 
-const money = (value) => formatMoney(value, { compact: true });
-const number = (value) => Number(value || 0).toLocaleString('en-GB', { maximumFractionDigits: 2 });
-const percent = (value) =>
+const money = (value: any) => formatMoney(value, { compact: true });
+const number = (value: any) =>
+  Number(value || 0).toLocaleString('en-GB', { maximumFractionDigits: 2 });
+const percent = (value: any) =>
   `${Number(value || 0).toLocaleString('en-GB', { maximumFractionDigits: 1 })}%`;
-const saleTypeLabel = (type) =>
+const saleTypeLabel = (type: any) =>
   ({ branch: 'فرع', wholesale: 'جملة', pos: 'نقطة بيع' })[type] || type || 'بيع';
 
-const moduleLabel = (mod) =>
+const moduleLabel = (mod: any) =>
   ({
     auth: 'الأمان',
     users: 'المستخدمين',
@@ -508,7 +509,7 @@ const moduleLabel = (mod) =>
   mod ||
   'عام';
 
-const formatTime = (value) => {
+const formatTime = (value: any) => {
   if (!value) return '';
   const date = new Date(value);
   return (
@@ -518,7 +519,7 @@ const formatTime = (value) => {
   );
 };
 
-const formatDate = (value) => {
+const formatDate = (value: any) => {
   if (!value) return 'غير محدد';
   const raw = String(value).split('T')[0];
   if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
@@ -528,7 +529,7 @@ const formatDate = (value) => {
   return new Date(value).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
 };
 
-const shortDate = (value) => {
+const shortDate = (value: any) => {
   if (!value) return '';
   const raw = String(value).split('T')[0];
   if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
@@ -538,7 +539,7 @@ const shortDate = (value) => {
   return new Date(value).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
 };
 
-const isoDate = (d) =>
+const isoDate = (d: any) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
 const dashboardParams = computed(() => {
@@ -599,20 +600,20 @@ const recentActivityRows = computed(() => (stats.value?.recentActivity || []).sl
 const lowStockRows = computed(() => stats.value?.lowStock || []);
 const peakHoursRows = computed(() => stats.value?.peakHours || []);
 
-const formatHour = (h) => {
+const formatHour = (h: any) => {
   const hour = Number(h);
   const ampm = hour >= 12 ? 'م' : 'ص';
   const display = hour % 12 || 12;
   return `${display}:00 ${ampm}`;
 };
 
-const setRange = async (range) => {
+const setRange = async (range: any) => {
   if (selectedRange.value === range) return;
   selectedRange.value = range;
   await loadDashboard();
 };
 
-const setPerformanceMode = async (mode) => {
+const setPerformanceMode = async (mode: any) => {
   if (performanceMode.value === mode) return;
   performanceMode.value = mode;
   await renderCharts();
@@ -657,7 +658,7 @@ const baseOptions = (moneyTooltip = true) => ({
       titleFont: { family: 'Cairo', size: 13, weight: 'bold' },
       bodyFont: { family: 'Cairo', size: 12 },
       callbacks: {
-        label: (ctx) =>
+        label: (ctx: any) =>
           `  ${ctx.dataset.label || ctx.label}: ${moneyTooltip ? money(ctx.parsed.y ?? ctx.parsed ?? 0) : number(ctx.parsed.y ?? ctx.parsed ?? 0)}`,
       },
     },
@@ -673,13 +674,13 @@ const baseOptions = (moneyTooltip = true) => ({
       ticks: {
         color: '#78716C',
         font: { family: 'Cairo', size: 11 },
-        callback: (value) => (moneyTooltip ? money(value) : number(value)),
+        callback: (value: any) => (moneyTooltip ? money(value) : number(value)),
       },
     },
   },
 });
 
-const createChart = (ChartLib, chartRef, config) => {
+const createChart = (ChartLib: any, chartRef: any, config: any) => {
   if (!chartRef.value) return;
   charts.push(new ChartLib(chartRef.value, config));
 };
@@ -693,7 +694,7 @@ const renderCharts = async () => {
   const trend = stats.value.salesTrend || [];
   const expenseTrend = stats.value.expenseTrend || [];
   const grouping = stats.value.period?.grouping || 'day';
-  const formatTrendLabel = (value) => {
+  const formatTrendLabel = (value: any) => {
     if (!value) return '';
     const date = new Date(value);
     if (grouping === 'month') {
@@ -701,9 +702,9 @@ const renderCharts = async () => {
     }
     return shortDate(value);
   };
-  const labels = trend.map((row) => formatTrendLabel(row.date));
+  const labels = trend.map((row: any) => formatTrendLabel(row.date));
   const expensesByDate = new Map(
-    expenseTrend.map((row) => [formatTrendLabel(row.date), Number(row.expenses || 0)]),
+    expenseTrend.map((row: any) => [formatTrendLabel(row.date), Number(row.expenses || 0)]),
   );
 
   // Helper to construct canvas gradients
@@ -720,7 +721,7 @@ const renderCharts = async () => {
   const performanceDatasets = [
     {
       label: 'المبيعات',
-      data: trend.map((row) => Number(row.sales || 0)),
+      data: trend.map((row: any) => Number(row.sales || 0)),
       type: 'bar',
       backgroundColor: makeGradient(performanceChartRef.value, colors.primary, 0.4, 0.1),
       borderColor: colors.primary,
@@ -737,7 +738,7 @@ const renderCharts = async () => {
     performanceDatasets.push(
       {
         label: 'الربح',
-        data: trend.map((row) => Number(row.profit || 0)),
+        data: trend.map((row: any) => Number(row.profit || 0)),
         type: 'line',
         borderColor: colors.accent,
         backgroundColor: makeGradient(performanceChartRef.value, colors.accent, 0.35, 0.01),
@@ -750,7 +751,7 @@ const renderCharts = async () => {
       },
       {
         label: 'المصروفات',
-        data: trend.map((row) => expensesByDate.get(formatTrendLabel(row.date)) || 0),
+        data: trend.map((row: any) => expensesByDate.get(formatTrendLabel(row.date)) || 0),
         type: 'line',
         borderColor: colors.danger,
         backgroundColor: makeGradient(performanceChartRef.value, colors.danger, 0.15, 0.01),
@@ -771,11 +772,11 @@ const renderCharts = async () => {
   createChart(ChartLib, salesTypeChartRef, {
     type: 'bar',
     data: {
-      labels: (stats.value.salesByType || []).map((row) => saleTypeLabel(row.sale_type)),
+      labels: (stats.value.salesByType || []).map((row: any) => saleTypeLabel(row.sale_type)),
       datasets: [
         {
           label: 'المبيعات',
-          data: (stats.value.salesByType || []).map((row) => Number(row.total || 0)),
+          data: (stats.value.salesByType || []).map((row: any) => Number(row.total || 0)),
           backgroundColor: [
             makeGradient(salesTypeChartRef.value, colors.primary, 0.7, 0.3),
             makeGradient(salesTypeChartRef.value, colors.accent, 0.7, 0.3),
@@ -796,13 +797,13 @@ const renderCharts = async () => {
   createChart(ChartLib, paymentChartRef, {
     type: 'doughnut',
     data: {
-      labels: (stats.value.paymentSummary || []).map((row) =>
+      labels: (stats.value.paymentSummary || []).map((row: any) =>
         paymentStatusLabel(row.payment_status),
       ),
       datasets: [
         {
           label: 'التحصيل',
-          data: (stats.value.paymentSummary || []).map((row) => Number(row.total || 0)),
+          data: (stats.value.paymentSummary || []).map((row: any) => Number(row.total || 0)),
           backgroundColor: [colors.accent, colors.warning, colors.danger, colors.primary],
           borderWidth: 0,
           hoverBackgroundColor: [
@@ -821,11 +822,11 @@ const renderCharts = async () => {
   createChart(ChartLib, expenseChartRef, {
     type: 'doughnut',
     data: {
-      labels: (stats.value.expenseByCategory || []).map((row) => row.name_ar),
+      labels: (stats.value.expenseByCategory || []).map((row: any) => row.name_ar),
       datasets: [
         {
           label: 'المصروفات',
-          data: (stats.value.expenseByCategory || []).map((row) => Number(row.total || 0)),
+          data: (stats.value.expenseByCategory || []).map((row: any) => Number(row.total || 0)),
           backgroundColor: [colors.warning, colors.danger, colors.primary, colors.accent],
           borderWidth: 0,
           hoverBackgroundColor: [
@@ -844,11 +845,13 @@ const renderCharts = async () => {
   createChart(ChartLib, categoryProfitChartRef, {
     type: 'doughnut',
     data: {
-      labels: (stats.value.categoryProfitability || []).map((row) => row.name_ar),
+      labels: (stats.value.categoryProfitability || []).map((row: any) => row.name_ar),
       datasets: [
         {
           label: 'أرباح الفئات',
-          data: (stats.value.categoryProfitability || []).map((row) => Number(row.profit || 0)),
+          data: (stats.value.categoryProfitability || []).map((row: any) =>
+            Number(row.profit || 0),
+          ),
           backgroundColor: [
             colors.accent,
             colors.primary,
@@ -880,11 +883,11 @@ const renderCharts = async () => {
   createChart(ChartLib, topProductsChartRef, {
     type: 'bar',
     data: {
-      labels: (stats.value.topProducts || []).map((row) => row.name_ar),
+      labels: (stats.value.topProducts || []).map((row: any) => row.name_ar),
       datasets: [
         {
           label: 'المبيعات',
-          data: (stats.value.topProducts || []).map((row) => Number(row.revenue || 0)),
+          data: (stats.value.topProducts || []).map((row: any) => Number(row.revenue || 0)),
           backgroundColor: makeGradient(topProductsChartRef.value, colors.primary, 0.75, 0.25),
           borderRadius: 4,
           maxBarThickness: 16,
@@ -899,7 +902,7 @@ const renderCharts = async () => {
         x: {
           beginAtZero: true,
           grid: { color: colors.grid },
-          ticks: { callback: (value) => money(value) },
+          ticks: { callback: (value: any) => money(value) },
         },
         y: { grid: { display: false } },
       },
@@ -909,11 +912,11 @@ const renderCharts = async () => {
   createChart(ChartLib, topCustomersChartRef, {
     type: 'bar',
     data: {
-      labels: (stats.value.topCustomers || []).map((row) => row.name_ar || 'عميل غير مسجل'),
+      labels: (stats.value.topCustomers || []).map((row: any) => row.name_ar || 'عميل غير مسجل'),
       datasets: [
         {
           label: 'إجمالي الشراء',
-          data: (stats.value.topCustomers || []).map((row) => Number(row.total_spent || 0)),
+          data: (stats.value.topCustomers || []).map((row: any) => Number(row.total_spent || 0)),
           backgroundColor: makeGradient(topCustomersChartRef.value, colors.accent, 0.75, 0.25),
           borderRadius: 4,
           maxBarThickness: 16,
@@ -928,7 +931,7 @@ const renderCharts = async () => {
         x: {
           beginAtZero: true,
           grid: { color: colors.grid },
-          ticks: { callback: (value) => money(value) },
+          ticks: { callback: (value: any) => money(value) },
         },
         y: { grid: { display: false } },
       },
@@ -938,11 +941,11 @@ const renderCharts = async () => {
   createChart(ChartLib, peakHoursChartRef, {
     type: 'line',
     data: {
-      labels: (stats.value.peakHours || []).map((row) => formatHour(row.hour)),
+      labels: (stats.value.peakHours || []).map((row: any) => formatHour(row.hour)),
       datasets: [
         {
           label: 'المبيعات',
-          data: (stats.value.peakHours || []).map((row) => Number(row.revenue || 0)),
+          data: (stats.value.peakHours || []).map((row: any) => Number(row.revenue || 0)),
           borderColor: colors.primary,
           backgroundColor: makeGradient(peakHoursChartRef.value, colors.primary, 0.3, 0.01),
           fill: true,
@@ -955,7 +958,7 @@ const renderCharts = async () => {
         },
         {
           label: 'الطلبات',
-          data: (stats.value.peakHours || []).map((row) => Number(row.orders_count || 0)),
+          data: (stats.value.peakHours || []).map((row: any) => Number(row.orders_count || 0)),
           borderColor: colors.warning,
           backgroundColor: makeGradient(peakHoursChartRef.value, colors.warning, 0.15, 0.01),
           fill: true,
@@ -977,14 +980,14 @@ const renderCharts = async () => {
           display: true,
           position: 'left',
           grid: { color: colors.grid },
-          ticks: { callback: (value) => money(value) },
+          ticks: { callback: (value: any) => money(value) },
         },
         y1: {
           type: 'linear',
           display: true,
           position: 'right',
           grid: { drawOnChartArea: false },
-          ticks: { callback: (value) => number(value) },
+          ticks: { callback: (value: any) => number(value) },
         },
       },
       plugins: {
@@ -993,7 +996,7 @@ const renderCharts = async () => {
           rtl: true,
           textDirection: 'rtl',
           callbacks: {
-            label: (ctx) => {
+            label: (ctx: any) => {
               if (ctx.datasetIndex === 0) {
                 return `المبيعات: ${money(ctx.parsed.y)}`;
               } else {
@@ -1009,12 +1012,12 @@ const renderCharts = async () => {
   // ─── Demand Forecasting Chart ───
   if (forecastingChartRef.value) {
     const last7 = trend.slice(-7);
-    const actualSales = last7.map((r) => Number(r.sales || 0));
+    const actualSales = last7.map((r: any) => Number(r.sales || 0));
     const chartLabels = [];
     const actualDataset = [];
     const forecastDataset = [];
 
-    last7.forEach((r) => {
+    last7.forEach((r: any) => {
       chartLabels.push(formatTrendLabel(r.date));
       actualDataset.push(Number(r.sales || 0));
       forecastDataset.push(null);
@@ -1073,14 +1076,14 @@ const renderCharts = async () => {
         ...baseOptions(true),
         scales: {
           x: { grid: { display: false } },
-          y: { grid: { color: colors.grid }, ticks: { callback: (value) => money(value) } },
+          y: { grid: { color: colors.grid }, ticks: { callback: (value: any) => money(value) } },
         },
       },
     });
   }
 };
 
-const colorMix = (hex, opacity) => {
+const colorMix = (hex: any, opacity: any) => {
   const color = hex.trim();
   if (!color.startsWith('#') || color.length < 7) return color;
   const r = parseInt(color.slice(1, 3), 16);
@@ -1089,7 +1092,7 @@ const colorMix = (hex, opacity) => {
   return `rgba(${r}, ${g}, ${b}, ${opacity})`;
 };
 
-const paymentStatusLabel = (status) =>
+const paymentStatusLabel = (status: any) =>
   ({
     paid: 'مدفوع',
     partial: 'جزئي',
@@ -1108,7 +1111,7 @@ const loadDashboard = async () => {
     loading.value = false;
     await nextTick();
     await renderCharts();
-  } catch (err) {
+  } catch (err: any) {
     error.value = err.message || 'حدث خطأ أثناء تحميل لوحة التحكم';
     destroyCharts();
     loading.value = false;

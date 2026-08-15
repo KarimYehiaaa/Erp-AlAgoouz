@@ -10,9 +10,10 @@
     "build": "echo Built",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "setup-db": "node src/database/setup.js",
-    "reset-admin": "node src/database/reset-admin.js",
-    "factory-reset": "node src/database/factoryReset.js",
+    "test:local": "node scripts/run-vitest-local.js",
+    "setup-db": "node src/database/setup.ts",
+    "reset-admin": "node src/database/reset-admin.ts",
+    "factory-reset": "node src/database/factoryReset.ts",
     "migrate-supabase": "node scripts/migrate-supabase.js"
   },
   "dependencies": {
@@ -33,7 +34,7 @@
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
-    "express": "^4.21.0",
+    "express": "^5.1.0",
     "express-rate-limit": "^7.4.0",
     "helmet": "^7.1.0",
     "jsonwebtoken": "^9.0.2",
@@ -43,7 +44,6 @@
     "pg": "^8.12.0",
     "selfsigned": "^5.5.0",
     "tsx": "^4.23.11",
-    "typescript": "^7.0.2",
     "uuid": "^11.1.1",
     "winston": "^3.19.0",
     "winston-daily-rotate-file": "^5.0.0",
@@ -65,7 +65,7 @@
     "@types/ws": "^8.18.1",
     "@vitest/coverage-v8": "^4.1.10",
     "tsx": "^4.23.11",
-    "typescript": "^7.0.2",
+    "typescript": "^6.0.3",
     "vitest": "^4.1.10"
   }
 }

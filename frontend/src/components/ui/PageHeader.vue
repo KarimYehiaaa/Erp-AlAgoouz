@@ -42,19 +42,29 @@
   </div>
 </template>
 
-<script setup>
-defineProps({
-  title: { type: String, required: true },
-  subtitle: { type: String, default: '' },
-  icon: { type: String, default: '' },
-  showBack: { type: Boolean, default: false },
-  border: { type: Boolean, default: true },
-  breadcrumbs: {
-    type: Array,
-    default: null,
-    // [{ label: 'الرئيسية', to: '/' }, { label: 'المنتجات' }]
+<script setup lang="ts">
+interface Breadcrumb {
+  label: string;
+  to?: string;
+}
+
+withDefaults(
+  defineProps<{
+    title: string;
+    subtitle?: string;
+    icon?: string;
+    showBack?: boolean;
+    border?: boolean;
+    breadcrumbs?: Breadcrumb[] | null;
+  }>(),
+  {
+    subtitle: '',
+    icon: '',
+    showBack: false,
+    border: true,
+    breadcrumbs: null,
   },
-});
+);
 </script>
 
 <style lang="scss" scoped>

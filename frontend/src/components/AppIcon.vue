@@ -2,13 +2,13 @@
   <component
     :is="IconComponent"
     class="app-icon"
-    :size="size"
+    :size="Number(size)"
     :stroke-width="strokeWidth"
     aria-hidden="true"
   />
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed } from 'vue';
 import {
   AlertTriangle,
@@ -141,8 +141,8 @@ const aliases = {
 };
 
 const IconComponent = computed(() => {
-  const key = aliases[props.name] || props.name;
-  return icons[key] || icons.dashboard;
+  const key = aliases[props.name as keyof typeof aliases] || props.name;
+  return icons[key as keyof typeof icons] || icons.dashboard;
 });
 </script>
 

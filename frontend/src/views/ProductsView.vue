@@ -440,7 +440,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, computed } from 'vue';
 import { products as api, warehouses as warehousesApi } from '@/api';
 import { formatMoney } from '@/utils/currency';
@@ -452,9 +452,9 @@ const { categories, units: productUnits, loadMeta, unitLabel, unitNames } = useP
 const tab = ref('list');
 const importMsg = ref('');
 const importErr = ref(false);
-const products = ref([]);
-const warehouses = ref([]);
-const returns = ref([]);
+const products = ref<any[]>([]);
+const warehouses = ref<any[]>([]);
+const returns = ref<any[]>([]);
 const showForm = ref(false);
 const showReturnModal = ref(false);
 const nextSkuPreview = ref('');
@@ -474,16 +474,16 @@ const productsColumns = [
   { key: 'actions', label: '', align: 'right' },
 ];
 
-const getCostPrice = (item) => Number(item.purchase_price || item.effective_cost || 0);
-const getSalePrice = (item) => Number(item.sale_price || 0);
+const getCostPrice = (item: any) => Number(item.purchase_price || item.effective_cost || 0);
+const getSalePrice = (item: any) => Number(item.sale_price || 0);
 
-const getProfitAmount = (item) => {
+const getProfitAmount = (item: any) => {
   const cost = getCostPrice(item);
   const sale = getSalePrice(item);
   return sale - cost;
 };
 
-const getMarginPercent = (item) => {
+const getMarginPercent = (item: any) => {
   const cost = getCostPrice(item);
   const profit = getProfitAmount(item);
   if (cost > 0) {
@@ -495,20 +495,20 @@ const getMarginPercent = (item) => {
   return 0;
 };
 
-const formatMargin = (item) => {
+const formatMargin = (item: any) => {
   const pct = getMarginPercent(item);
   const sign = pct > 0 ? '+' : '';
   return `${sign}${pct.toFixed(1)}%`;
 };
 
-const getMarginClass = (item) => {
+const getMarginClass = (item: any) => {
   const profit = getProfitAmount(item);
   if (profit > 0) return 'badge-success';
   if (profit < 0) return 'badge-danger';
   return 'badge-neutral';
 };
 
-const form = ref({
+const form = ref<Record<string, any>>({
   sku: '',
   barcode: '',
   name_ar: '',
@@ -521,8 +521,8 @@ const form = ref({
 
 const skuPrefix = 'AGoouz-';
 
-const buildNextSku = (rows = []) => {
-  const maxNumber = rows.reduce((max, product) => {
+const buildNextSku = (rows: any[] = []) => {
+  const maxNumber = rows.reduce((max: any, product: any) => {
     const match = String(product?.sku || '').match(/^AGoouz-(\d+)$/);
     if (!match) return max;
     return Math.max(max, Number(match[1] || 0));
@@ -564,10 +564,12 @@ const reasonLabels = {
 
 const availableUnits = computed(() => unitNames(form.value.unit));
 
-const formatDateTime = (d) => new Date(d).toLocaleString('en-GB');
-const activeProductsCount = computed(() => products.value.filter((p) => p.is_active).length);
+const formatDateTime = (d: any) => new Date(d).toLocaleString('en-GB');
+const activeProductsCount = computed(() => products.value.filter((p: any) => p.is_active).length);
 const lowStockCount = computed(
-  () => products.value.filter((p) => Number(p.total_stock || 0) <= Number(p.min_stock || 0)).length,
+  () =>
+    products.value.filter((p: any) => Number(p.total_stock || 0) <= Number(p.min_stock || 0))
+      .length,
 );
 
 const load = async () => {
@@ -580,7 +582,7 @@ const load = async () => {
     nextSkuPreview.value = buildNextSku(products.value);
     if (!returnForm.value.warehouse_id && w.data?.length)
       returnForm.value.warehouse_id = w.data[0].id;
-  } catch (e) {
+  } catch (e: any) {
     console.error('فشل تحميل المنتجات:', e);
   } finally {
     loading.value = false;
@@ -592,17 +594,17 @@ const loadReturns = async () => {
   returns.value = res?.data || [];
 };
 
-const openForm = (p = null) => {
+const openForm = (p: any = null) => {
   formMsg.value = '';
   formErr.value = false;
 
-  const stocksObj = {};
-  warehouses.value.forEach((w) => {
+  const stocksObj: Record<string, number> = {};
+  warehouses.value.forEach((w: any) => {
     stocksObj[w.id] = 0;
   });
   if (p && p.stock_details) {
     const list = Array.isArray(p.stock_details) ? p.stock_details : [];
-    list.forEach((item) => {
+    list.forEach((item: any) => {
       if (item.warehouse_id) {
         stocksObj[item.warehouse_id] = Number(item.quantity || 0);
       }
@@ -635,7 +637,7 @@ const openForm = (p = null) => {
   }
 };
 
-const editProduct = (p) => openForm(p);
+const editProduct = (p: any) => openForm(p);
 
 const saveProduct = async () => {
   if (savingProduct.value) return;
@@ -647,7 +649,7 @@ const saveProduct = async () => {
 
   savingProduct.value = true;
   try {
-    const payload = {
+    const payload: Record<string, any> = {
       ...form.value,
       primary_warehouse_id: primaryWarehouseId,
       warehouse_stocks: form.value.warehouse_stocks,
@@ -666,7 +668,7 @@ const saveProduct = async () => {
     importErr.value = false;
     importMsg.value = form.value.id ? 'تم حفظ تعديل المنتج بنجاح' : 'تم إضافة المنتج بنجاح';
     await load();
-  } catch (e) {
+  } catch (e: any) {
     formErr.value = true;
     formMsg.value = e.message || 'فشل حفظ المنتج';
   } finally {
@@ -674,7 +676,7 @@ const saveProduct = async () => {
   }
 };
 
-const openReturn = (p) => {
+const openReturn = (p: any) => {
   returnForm.value = {
     product_id: p.id,
     product_name: p.name_ar,
@@ -688,7 +690,8 @@ const openReturn = (p) => {
 
 const submitReturn = async () => {
   returning.value = true;
-  const reasonText = reasonLabels[returnForm.value.reason] || returnForm.value.reason;
+  const reasonText =
+    reasonLabels[returnForm.value.reason as keyof typeof reasonLabels] || returnForm.value.reason;
   const notes = [reasonText, returnForm.value.notes].filter(Boolean).join(' - ');
   try {
     const res = await api.returnStock({
@@ -701,7 +704,7 @@ const submitReturn = async () => {
     showReturnModal.value = false;
     await load();
     if (tab.value === 'return') await loadReturns();
-  } catch (e) {
+  } catch (e: any) {
     alert(e.message);
   } finally {
     returning.value = false;
@@ -710,14 +713,14 @@ const submitReturn = async () => {
 
 const downloadTemplate = async () => {
   try {
-    const blob = await api.downloadTemplate();
+    const blob = (await api.downloadTemplate()) as unknown as Blob;
     const url = URL.createObjectURL(new Blob([blob]));
     const a = document.createElement('a');
     a.href = url;
     a.download = 'bin-al-ajouz-products-template.xlsx';
     a.click();
     URL.revokeObjectURL(url);
-  } catch (e) {
+  } catch (e: any) {
     alert(e.message || 'فشل تحميل القالب');
   }
 };
@@ -725,21 +728,21 @@ const downloadTemplate = async () => {
 const exportProducts = async () => {
   try {
     loading.value = true;
-    const blob = await api.exportProducts();
+    const blob = (await api.exportProducts()) as unknown as Blob;
     const url = URL.createObjectURL(new Blob([blob]));
     const a = document.createElement('a');
     a.href = url;
     a.download = 'bin-al-ajouz-products-export.xlsx';
     a.click();
     URL.revokeObjectURL(url);
-  } catch (e) {
+  } catch (e: any) {
     alert(e.message || 'فشل تصدير المنتجات');
   } finally {
     loading.value = false;
   }
 };
 
-const onImport = async (e) => {
+const onImport = async (e: any) => {
   const file = e.target.files?.[0];
   if (!file) return;
   importMsg.value = '';
@@ -758,7 +761,7 @@ const onImport = async (e) => {
 
     importErr.value = failCount > 0 || parseCount > 0;
     await load();
-  } catch (err) {
+  } catch (err: any) {
     importErr.value = true;
     importMsg.value = err.message || 'فشل الاستيراد';
   }
@@ -776,13 +779,13 @@ const deleteAllProducts = async () => {
     importErr.value = false;
     importMsg.value = `تم حذف كل المنتجات بنجاح (${count} منتج)`;
     await load();
-  } catch (e) {
+  } catch (e: any) {
     importErr.value = true;
     importMsg.value = e.message || 'فشل حذف كل المنتجات';
   }
 };
 
-const deleteOneProduct = async (product) => {
+const deleteOneProduct = async (product: any) => {
   const confirmed = window.confirm(`تأكيد حذف المنتج: ${product?.name_ar || ''} ؟`);
   if (!confirmed) return;
 
@@ -791,17 +794,17 @@ const deleteOneProduct = async (product) => {
     importErr.value = false;
     importMsg.value = `تم حذف المنتج: ${product?.name_ar || product?.sku || product?.id}`;
     await load();
-  } catch (e) {
+  } catch (e: any) {
     importErr.value = true;
     importMsg.value = e.message || 'فشل حذف المنتج';
   }
 };
 
-const onInventoryUpdated = (e) => {
+const onInventoryUpdated = (e: any) => {
   try {
     // If detail provided, we could optimize to only refresh affected product
     load();
-  } catch (err) {
+  } catch (err: any) {
     console.warn('inventory-updated handler error', err);
   }
 };

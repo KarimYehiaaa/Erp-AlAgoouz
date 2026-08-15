@@ -2,8 +2,8 @@ import fs from 'fs/promises';
 import path from 'path';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { recordSupplierPayment, recalculateSupplierBalance } from '../src/services/supplierService.js';
-import { runAutoBackup } from '../src/services/autoBackupService.js';
+import { recordSupplierPayment, recalculateSupplierBalance } from '../src/services/supplierService.ts';
+import { runAutoBackup } from '../src/services/autoBackupService.ts';
 import pool from '../src/database/pool.js';
 
 test.after(async () => {
@@ -30,7 +30,7 @@ test('supplier balance recalculation query structure is correct', async () => {
 
 test('dangerous backup operations keep confirmation and replication-role reset guards', async () => {
   const routesSource = await fs.readFile(path.join(process.cwd(), 'src', 'routes', 'index.js'), 'utf8');
-  const backupSource = await fs.readFile(path.join(process.cwd(), 'src', 'services', 'backupService.js'), 'utf8');
+  const backupSource = await fs.readFile(path.join(process.cwd(), 'src', 'services', 'backupService.ts'), 'utf8');
 
   assert.match(routesSource, /\/backup\/clear[\s\S]*requireConfirmation\('CONFIRM_CLEAR'\)/);
   assert.match(backupSource, /finally\s*\{[\s\S]*session_replication_role = 'origin'[\s\S]*client\.release\(\)/);

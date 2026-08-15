@@ -24,11 +24,17 @@
   </div>
 </template>
 
-<script setup>
-defineProps({
-  sales: {
-    type: Array,
-    default: () => []
-  }
-})
+<script setup lang="ts">
+interface SaleRow {
+  id: number | string;
+  sale_number: string;
+  created_at: string;
+  customer_name?: string;
+  total_amount?: number;
+  [key: string]: any;
+}
+
+withDefaults(defineProps<{ sales?: SaleRow[] }>(), {
+  sales: () => [],
+});
 </script>

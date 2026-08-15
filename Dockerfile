@@ -1,27 +1,27 @@
-FROM node:22-alpine
+FROM node:24-alpine
 
 WORKDIR /app
 
-# نسخ ملفات الـ package.json لتثبيت المكتبات
-COPY --chown=node:node package.json ./
+# Copy package manifests (npm workspaces) before installing so layers cache well
+COPY --chown=node:node package.json package-lock.json ./
 COPY --chown=node:node backend/package.json ./backend/
+COPY --chown=node:node frontend/package.json ./frontend/
 
-# تثبيت المكتبات للـ backend والـ root
-RUN npm install
-RUN cd backend && npm install
-RUN cd frontend && npm install
+# Install all workspace dependencies from the root lockfile
+RUN npm ci
 
-# نسخ ملفات المشروع بالكامل
+# Copy the whole project
 COPY --chown=node:node . .
 
-# بناء الواجهة
+# Build the frontend
 RUN cd frontend && npm run build
 
-# دعم المنفذ المرن
+# Flexible port support
 ARG PORT=3000
 ENV PORT=${PORT}
 EXPOSE 3000
 
-# تشغيل السيرفر بصلاحيات مستخدم عادي (أمان أفضل)
+# Run the server as a non-root user (better security)
 USER node
+
 CMD ["npm", "start"]

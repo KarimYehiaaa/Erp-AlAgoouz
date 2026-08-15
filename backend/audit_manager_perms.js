@@ -1,4 +1,4 @@
-import { query } from './src/database/pool.js';
+import { query } from './src/database/pool.ts';
 import fs from 'fs';
 
 async function main() {
@@ -11,7 +11,7 @@ async function main() {
     console.log('--- Manager Permission Codes in DB ---');
     console.log(managerCodes);
     
-    const routesContent = fs.readFileSync('src/routes/index.js', 'utf8');
+    const routesContent = fs.readFileSync('src/routes/index.ts', 'utf8');
     const lines = routesContent.split('\n');
     
     console.log('\n--- Checking routes requiring permissions ---');

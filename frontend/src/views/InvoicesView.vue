@@ -6,11 +6,17 @@
         <p>هذا القسم مخصص لفواتير العملاء اليدوية فقط لإرسالها ومشاركتها.</p>
       </div>
       <div class="create-actions">
-        <router-link v-permission="'invoices.add'" to="/invoices/quotes" class="btn btn-outline quote-btn">
+        <router-link
+          v-permission="'invoices.add'"
+          to="/invoices/quotes"
+          class="btn btn-outline quote-btn"
+        >
           <AppIcon name="quote" />
           <span>عرض أسعار</span>
         </router-link>
-        <router-link v-permission="'invoices.add'" to="/invoices/create" class="btn btn-primary">+ إنشاء فاتورة</router-link>
+        <router-link v-permission="'invoices.add'" to="/invoices/create" class="btn btn-primary"
+          >+ إنشاء فاتورة</router-link
+        >
       </div>
     </div>
 
@@ -57,7 +63,12 @@
               <router-link :to="`/invoices/${inv.id}`" class="icon-btn" title="عرض">
                 <AppIcon name="search" :size="16" />
               </router-link>
-              <router-link v-permission="'invoices.edit'" :to="`/invoices/${inv.id}/edit`" class="icon-btn" title="تعديل">
+              <router-link
+                v-permission="'invoices.edit'"
+                :to="`/invoices/${inv.id}/edit`"
+                class="icon-btn"
+                title="تعديل"
+              >
                 <AppIcon name="edit" :size="16" />
               </router-link>
               <button
@@ -77,42 +88,44 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import AppIcon from '@/components/AppIcon.vue';
 import { invoices as api } from '@/api';
 import { formatMoney } from '@/utils/currency';
 
-const invoices = ref([]);
+const invoices = ref<any[]>([]);
 const filterStatus = ref('');
 
-const statusLabel = (s) =>
-  ({
-    paid: 'مدفوعة',
-    partial: 'جزئية',
-    unpaid: 'غير مدفوعة',
-    refunded: 'مستردة',
-  })[s] || s;
+const statusLabel = (s: any) =>
+  (
+    ({
+      paid: 'مدفوعة',
+      partial: 'جزئية',
+      unpaid: 'غير مدفوعة',
+      refunded: 'مستردة',
+    }) as Record<string, string>
+  )[s] || s;
 
-const statusClass = (s) => [
+const statusClass = (s: any) => [
   'badge',
   s === 'paid' ? 'badge-success' : s === 'unpaid' ? 'badge-danger' : 'badge-warning',
 ];
-const formatDate = (d) => (d ? new Date(d).toLocaleDateString('en-GB') : '—');
+const formatDate = (d: any) => (d ? new Date(d).toLocaleDateString('en-GB') : '—');
 
 const load = async () => {
-  const params = {};
+  const params: Record<string, any> = {};
   if (filterStatus.value) params.payment_status = filterStatus.value;
   const res = await api.list(params);
   invoices.value = res.data || [];
 };
 
-const deleteInvoice = async (id) => {
+const deleteInvoice = async (id: any) => {
   if (!window.confirm('هل أنت متأكد من حذف هذه الفاتورة؟')) return;
   try {
     await api.delete(id);
     await load();
-  } catch (e) {
+  } catch (e: any) {
     window.alert(e?.message || 'فشل حذف الفاتورة');
   }
 };

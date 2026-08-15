@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { unitPriceFor, calculateRecipeCost } from '../src/services/productCostService.js';
+import { unitPriceFor, calculateRecipeCost } from '../src/services/productCostService.ts';
 
 test('unitPriceFor handles common conversions and unknown units', () => {
     // kg -> g

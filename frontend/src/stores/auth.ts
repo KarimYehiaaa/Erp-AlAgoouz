@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { auth as authApi } from '@/api';
+import { ADMIN_ROLES, satisfiesPermission } from '../../../shared/permissions.js';
 
 export interface User {
   id: number;
@@ -54,49 +55,19 @@ export const useAuthStore = defineStore('auth', () => {
       user.value = JSON.parse(_stored);
       // Fetch fresh permissions asynchronously
       setTimeout(fetchProfile, 0);
-    } catch (_) {
+    } catch (_: any) {
       /* ignore corrupt data */
     }
   }
 
   const isAuthenticated = computed(() => !!token.value);
-  
-  const legacyMap: Record<string, string[]> = {
-    'sales.branch': ['pos.view', 'sales.view'],
-    'sales.wholesale': ['pos.view', 'sales.view'],
-    'sales.pos': ['pos.view', 'sales.view'],
-    'sales.return': ['pos.delete', 'sales.delete'],
-    'pos.view': ['pos.view', 'sales.view'],
-    'pos.add': ['pos.add', 'sales.add'],
-    'pos.edit': ['pos.edit', 'sales.edit'],
-    'pos.delete': ['pos.delete', 'sales.delete'],
-    'sales.view': ['sales.view', 'pos.view'],
-    'sales.add': ['sales.add', 'pos.add'],
-    'sales.edit': ['sales.edit', 'pos.edit'],
-    'sales.delete': ['sales.delete', 'pos.delete'],
-    'purchases.view': ['purchases.view', 'inventory.view', 'expenses.view'],
-    'recipes.view': ['recipes.view', 'products.view'],
-    'hr.view': ['hr.view', 'shifts.view'],
-    'products.manage': ['products.view', 'products.add', 'products.edit', 'products.delete'],
-    'inventory.manage': ['inventory.view', 'inventory.add', 'inventory.edit', 'inventory.delete'],
-    'customers.manage': ['customers.view', 'customers.add', 'customers.edit', 'customers.delete'],
-    'suppliers.manage': ['suppliers.view', 'suppliers.add', 'suppliers.edit', 'suppliers.delete'],
-    'invoices.manage': ['invoices.view', 'invoices.add', 'invoices.edit', 'invoices.delete'],
-    'expenses.manage': ['expenses.view', 'expenses.add', 'expenses.edit', 'expenses.delete'],
-    'reports.view': ['reports.view', 'reports.add', 'reports.edit', 'reports.delete'],
-    'users.manage': ['users.view', 'users.add', 'users.edit', 'users.delete'],
-    'settings.manage': ['settings.view', 'settings.add', 'settings.edit', 'settings.delete'],
-    'hr.manage': ['shifts.view', 'shifts.add', 'shifts.edit', 'shifts.delete', 'hr.view', 'hr.add', 'hr.edit', 'hr.delete']
-  };
 
   const hasPermission = (code: string) => {
-    if (user.value?.role_name === 'owner' || user.value?.role_name === 'admin' || user.value?.role_name === 'sys_admin') return true;
-    if (permissions.value.some((p) => p.code === code)) return true;
-    
-    if (legacyMap[code]) {
-      return legacyMap[code].some(mappedCode => permissions.value.some(p => p.code === mappedCode));
-    }
-    return false;
+    if (user.value?.role_name && ADMIN_ROLES.includes(user.value.role_name)) return true;
+    return satisfiesPermission(
+      permissions.value.map((p: any) => p.code),
+      code,
+    );
   };
 
   const login = async (username: string, password: string) => {
@@ -113,7 +84,7 @@ export const useAuthStore = defineStore('auth', () => {
   const logout = async () => {
     try {
       if (token.value) await authApi.logout();
-    } catch (e) {
+    } catch (e: any) {
       console.error('Logout API failed:', e);
     }
     token.value = null;

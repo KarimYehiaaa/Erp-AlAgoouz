@@ -1012,7 +1012,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue';
 import AppIcon from '@/components/AppIcon.vue';
 import { reports as reportsApi, pl as plApi } from '@/api';
@@ -1032,9 +1032,9 @@ const tabs = [
 const activeTab = ref('summary');
 const loading = ref(false);
 const error = ref('');
-const summary = ref({});
+const summary = ref<Record<string, any>>({});
 const salesFilter = ref('');
-const reportData = reactive({
+const reportData = reactive<Record<string, any>>({
   sales: [],
   inventory: {},
   profit: {},
@@ -1044,8 +1044,8 @@ const reportData = reactive({
 });
 
 // ── P&L state ──
-const plData = ref(null);
-const plTrend = ref([]);
+const plData = ref<any>(null);
+const plTrend = ref<any[]>([]);
 const plLoading = ref(false);
 const plError = ref('');
 
@@ -1055,7 +1055,7 @@ const firstOfMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padS
 const filters = reactive({ from_date: firstOfMonth, to_date: todayStr });
 
 // ── quick date helpers ──
-const selectMonth = (event) => {
+const selectMonth = (event: any) => {
   const value = event.target.value;
   if (!value) return;
   const [year, month] = value.split('-').map(Number);
@@ -1068,9 +1068,9 @@ const selectMonth = (event) => {
   loadActiveTab();
 };
 
-const setQuick = (range) => {
+const setQuick = (range: any) => {
   const now = new Date();
-  const fmt = (d) =>
+  const fmt = (d: any) =>
     `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   if (range === 'today') {
     filters.from_date = fmt(now);
@@ -1094,13 +1094,17 @@ const setQuick = (range) => {
 };
 
 // ── label helpers ──
-const saleTypeLabel = (t) => ({ branch: 'فرع', wholesale: 'جملة', pos: 'POS' })[t] || t || '—';
-const customerTypeLabel = (t) => ({ retail: 'تجزئة', wholesale: 'جملة' })[t] || t || '—';
-const purchaseStatusLabel = (s) =>
-  ({ paid: 'مدفوع', pending: 'معلق', partial: 'جزئي' })[s] || s || '—';
-const paymentStatusLabel = (s) =>
-  ({ unpaid: 'غير مدفوع', partial: 'جزئي', paid: 'مدفوع' })[s] || s || '—';
-const fmtQty = (v) => {
+const saleTypeLabel = (t: any) =>
+  (({ branch: 'فرع', wholesale: 'جملة', pos: 'POS' }) as Record<string, string>)[t] || t || '—';
+const customerTypeLabel = (t: any) =>
+  (({ retail: 'تجزئة', wholesale: 'جملة' }) as Record<string, string>)[t] || t || '—';
+const purchaseStatusLabel = (s: any) =>
+  (({ paid: 'مدفوع', pending: 'معلق', partial: 'جزئي' }) as Record<string, string>)[s] || s || '—';
+const paymentStatusLabel = (s: any) =>
+  (({ unpaid: 'غير مدفوع', partial: 'جزئي', paid: 'مدفوع' }) as Record<string, string>)[s] ||
+  s ||
+  '—';
+const fmtQty = (v: any) => {
   const n = Number(v || 0);
   return n % 1 === 0 ? n.toLocaleString('en-GB') : n.toFixed(2);
 };
@@ -1114,56 +1118,62 @@ const profitMarginPct = computed(() => {
 
 const filteredSalesRows = computed(() => {
   const rows = reportData.sales || [];
-  return salesFilter.value ? rows.filter((r) => r.sale_type === salesFilter.value) : rows;
+  return salesFilter.value ? rows.filter((r: any) => r.sale_type === salesFilter.value) : rows;
 });
 const salesTotal = computed(() =>
-  filteredSalesRows.value.reduce((s, r) => s + Number(r.total || 0), 0),
+  filteredSalesRows.value.reduce((s: any, r: any) => s + Number(r.total || 0), 0),
 );
 const salesProfit = computed(() =>
-  filteredSalesRows.value.reduce((s, r) => s + Number(r.profit || 0), 0),
+  filteredSalesRows.value.reduce((s: any, r: any) => s + Number(r.profit || 0), 0),
 );
 const salesCount = computed(() =>
-  filteredSalesRows.value.reduce((s, r) => s + Number(r.count || 0), 0),
+  filteredSalesRows.value.reduce((s: any, r: any) => s + Number(r.count || 0), 0),
 );
 
 const lowStockProducts = computed(() =>
-  (reportData.inventory?.products || []).filter((p) => p.is_low_stock),
+  (reportData.inventory?.products || []).filter((p: any) => p.is_low_stock),
 );
 const lowStockCount = computed(() => lowStockProducts.value.length);
 const totalInventoryValue = computed(() =>
-  (reportData.inventory?.warehouseValue || []).reduce((s, r) => s + Number(r.total_value || 0), 0),
+  (reportData.inventory?.warehouseValue || []).reduce(
+    (s: any, r: any) => s + Number(r.total_value || 0),
+    0,
+  ),
 );
 
 const profitTotalRevenue = computed(() =>
-  (reportData.profit?.daily || []).reduce((s, r) => s + Number(r.revenue || 0), 0),
+  (reportData.profit?.daily || []).reduce((s: any, r: any) => s + Number(r.revenue || 0), 0),
 );
 const profitTotalCost = computed(() =>
-  (reportData.profit?.daily || []).reduce((s, r) => s + Number(r.cost || 0), 0),
+  (reportData.profit?.daily || []).reduce((s: any, r: any) => s + Number(r.cost || 0), 0),
 );
 const profitTotalNet = computed(() =>
-  (reportData.profit?.daily || []).reduce((s, r) => s + Number(r.profit || 0), 0),
+  (reportData.profit?.daily || []).reduce((s: any, r: any) => s + Number(r.profit || 0), 0),
 );
 
 const expensesTotal = computed(() =>
-  (reportData.expenses?.byCategory || []).reduce((s, r) => s + Number(r.total || 0), 0),
+  (reportData.expenses?.byCategory || []).reduce((s: any, r: any) => s + Number(r.total || 0), 0),
 );
 const expensesCount = computed(() =>
-  (reportData.expenses?.byCategory || []).reduce((s, r) => s + Number(r.count || 0), 0),
+  (reportData.expenses?.byCategory || []).reduce((s: any, r: any) => s + Number(r.count || 0), 0),
 );
 
 const customersTotal = computed(() =>
-  (reportData.customers?.topCustomers || []).reduce((s, r) => s + Number(r.total_spent || 0), 0),
+  (reportData.customers?.topCustomers || []).reduce(
+    (s: any, r: any) => s + Number(r.total_spent || 0),
+    0,
+  ),
 );
 
 // ── data loading ──
 const buildParams = () => {
-  const p = {};
+  const p: Record<string, string> = {};
   if (filters.from_date) p.from_date = filters.from_date;
   if (filters.to_date) p.to_date = filters.to_date;
   return p;
 };
 
-const loadTab = async (tabId) => {
+const loadTab = async (tabId: any) => {
   activeTab.value = tabId;
   error.value = '';
 
@@ -1178,7 +1188,7 @@ const loadTab = async (tabId) => {
       ]);
       plData.value = reportRes?.data || reportRes || null;
       plTrend.value = trendRes?.data || trendRes || [];
-    } catch (e) {
+    } catch (e: any) {
       plError.value = e?.message || 'تعذر تحميل تقرير الربح والخسارة';
     } finally {
       plLoading.value = false;
@@ -1196,7 +1206,7 @@ const loadTab = async (tabId) => {
       const res = await reportsApi(tabId, params);
       reportData[tabId] = res?.data || res || {};
     }
-  } catch (e) {
+  } catch (e: any) {
     error.value = e?.message || 'تعذر تحميل التقرير';
   } finally {
     loading.value = false;

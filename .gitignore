@@ -5,6 +5,8 @@ dist/
 .env
 backend/.env
 frontend/.env
+*.env.recovered
+*.recovered
 .postgres.local
 backend/.postgres.local
 
@@ -30,6 +32,10 @@ frontend/certs/*.pem
 tmp_served_*.js
 *.tmp.js
 .tmp-*.vue
+vite.config.js.timestamp-*.mjs
+*.tsbuildinfo
+frontend/ast.txt
+eslint_output.txt
 
 # Test/coverage/temp output.
 tmp/

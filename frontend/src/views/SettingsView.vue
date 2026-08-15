@@ -71,7 +71,13 @@
 
             <div class="card-footer">
               <div class="info-value">📎 الشعار: استبدل الملف <code>public/logo.png</code></div>
-              <button v-permission="'settings.manage'" v-if="canEdit" class="btn btn-save" :disabled="saving" @click="saveCompany">
+              <button
+                v-permission="'settings.manage'"
+                v-if="canEdit"
+                class="btn btn-save"
+                :disabled="saving"
+                @click="saveCompany"
+              >
                 <AppIcon name="save" :size="16" />
                 {{ saving ? 'جاري الحفظ...' : 'حفظ البيانات' }}
               </button>
@@ -178,7 +184,9 @@
               </span>
               <div v-if="canEdit" class="col-actions row-actions">
                 <template v-if="categoryEditing === cat.id">
-                  <button v-permission="'settings.manage'" class="action-btn save"
+                  <button
+                    v-permission="'settings.manage'"
+                    class="action-btn save"
                     :disabled="categorySaving"
                     @click="saveCategory(cat)"
                   >
@@ -190,7 +198,9 @@
                   <button class="icon-btn edit" @click="startEditCategory(cat)">
                     <AppIcon name="edit" :size="14" />
                   </button>
-                  <button v-permission="'settings.manage'" class="icon-btn danger"
+                  <button
+                    v-permission="'settings.manage'"
+                    class="icon-btn danger"
                     :disabled="categorySaving"
                     @click="deleteCategory(cat.id)"
                   >
@@ -255,7 +265,12 @@
               </span>
               <div v-if="canEdit" class="col-actions row-actions">
                 <template v-if="unitEditing === unit.id">
-                  <button v-permission="'settings.manage'" class="action-btn save" :disabled="unitSaving" @click="saveUnit(unit)">
+                  <button
+                    v-permission="'settings.manage'"
+                    class="action-btn save"
+                    :disabled="unitSaving"
+                    @click="saveUnit(unit)"
+                  >
                     حفظ
                   </button>
                   <button class="action-btn" @click="cancelEditUnit">إلغاء</button>
@@ -264,7 +279,12 @@
                   <button class="icon-btn edit" @click="startEditUnit(unit)">
                     <AppIcon name="edit" :size="14" />
                   </button>
-                  <button v-permission="'settings.manage'" class="icon-btn danger" :disabled="unitSaving" @click="removeUnit(unit)">
+                  <button
+                    v-permission="'settings.manage'"
+                    class="icon-btn danger"
+                    :disabled="unitSaving"
+                    @click="removeUnit(unit)"
+                  >
                     <AppIcon name="delete" :size="14" />
                   </button>
                 </template>
@@ -588,7 +608,12 @@
         <div class="settings-card">
           <div class="backup-toolbar">
             <div class="toolbar-group">
-              <button v-permission="'settings.manage'" class="btn btn-add" @click="createBackup" :disabled="backuping || !canEdit">
+              <button
+                v-permission="'settings.manage'"
+                class="btn btn-add"
+                @click="createBackup"
+                :disabled="backuping || !canEdit"
+              >
                 <AppIcon name="add" :size="16" /> إنشاء نسخة
               </button>
               <button class="btn btn-outline" @click="refreshBackups">
@@ -623,7 +648,12 @@
                 <button class="btn btn-sm btn-outline" @click="download(b.name)">
                   <AppIcon name="download" :size="14" /> تحميل
                 </button>
-                <button v-permission="'settings.manage'" v-if="canEdit" class="btn btn-sm btn-edit" @click="restore(b.name)">
+                <button
+                  v-permission="'settings.manage'"
+                  v-if="canEdit"
+                  class="btn btn-sm btn-edit"
+                  @click="restore(b.name)"
+                >
                   <AppIcon name="arrowLeft" :size="14" /> استرداد
                 </button>
               </div>
@@ -787,7 +817,9 @@
           </div>
 
           <div class="cloud-actions">
-            <button v-permission="'settings.manage'" v-if="canEdit"
+            <button
+              v-permission="'settings.manage'"
+              v-if="canEdit"
               class="btn btn-save"
               @click="saveCloudBackupSettings"
               :disabled="cloudSaving"
@@ -848,7 +880,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, ref, onMounted } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
 import { users as userApi, products as productApi, backup as backupApi } from '@/api';
@@ -886,9 +918,10 @@ const saveSettingsLocally = () => {
   alert('✓ تم حفظ إعدادات النظام بنجاح!');
 };
 
-const playTestBeep = (type) => {
+const playTestBeep = (type: any) => {
   try {
-    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const AudioCtx: typeof AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+    const audioCtx = new AudioCtx();
     if (type === 'success') {
       const osc1 = audioCtx.createOscillator();
       const osc2 = audioCtx.createOscillator();
@@ -919,7 +952,7 @@ const playTestBeep = (type) => {
       const gain = audioCtx.createGain();
       gain.connect(audioCtx.destination);
       gain.gain.setValueAtTime(soundVolume.value * 2, audioCtx.currentTime);
-      const playTone = (freq, duration, delay) => {
+      const playTone = (freq: any, duration: any, delay: any) => {
         const osc = audioCtx.createOscillator();
         osc.type = 'sawtooth';
         osc.frequency.setValueAtTime(freq, audioCtx.currentTime + delay);
@@ -931,7 +964,7 @@ const playTestBeep = (type) => {
       playTone(130, 0.1, 0.12);
       playTone(130, 0.15, 0.24);
     }
-  } catch (err) {
+  } catch (err: any) {
     console.error('Audio play failed:', err);
   }
 };
@@ -951,7 +984,7 @@ const saveCompany = async () => {
     await userApi.updateSetting('company', settings.value.company);
     saveMsg.value = 'تم الحفظ — سيظهر على الفواتير';
     setTimeout(() => (saveMsg.value = ''), 3000);
-  } catch (e) {
+  } catch (e: any) {
     saveMsg.value = e.message || 'فشل الحفظ';
   } finally {
     saving.value = false;
@@ -959,9 +992,9 @@ const saveCompany = async () => {
 };
 
 // ───── Categories ─────
-const categories = ref([]);
+const categories = ref<any[]>([]);
 const newCategoryName = ref('');
-const categoryEditing = ref(null);
+const categoryEditing = ref<any>(null);
 const editCategoryName = ref('');
 const categorySaving = ref(false);
 
@@ -969,7 +1002,7 @@ const refreshCategories = async () => {
   try {
     categories.value = (await productApi.categories())?.data || [];
     await refreshMetaCache(true);
-  } catch (_) {
+  } catch (_: any) {
     categories.value = [];
   }
 };
@@ -980,13 +1013,13 @@ const addCategory = async () => {
     await productApi.createCategory({ name_ar: newCategoryName.value.trim() });
     newCategoryName.value = '';
     await refreshCategories();
-  } catch (e) {
+  } catch (e: any) {
     alert(e.message || 'فشل إضافة التصنيف');
   } finally {
     categorySaving.value = false;
   }
 };
-const startEditCategory = (c) => {
+const startEditCategory = (c: any) => {
   categoryEditing.value = c.id;
   editCategoryName.value = c.name_ar;
 };
@@ -994,7 +1027,7 @@ const cancelEditCategory = () => {
   categoryEditing.value = null;
   editCategoryName.value = '';
 };
-const saveCategory = async (c) => {
+const saveCategory = async (c: any) => {
   if (!editCategoryName.value.trim()) {
     cancelEditCategory();
     return;
@@ -1007,19 +1040,19 @@ const saveCategory = async (c) => {
     });
     cancelEditCategory();
     await refreshCategories();
-  } catch (e) {
+  } catch (e: any) {
     alert(e.message || 'فشل التعديل');
   } finally {
     categorySaving.value = false;
   }
 };
-const deleteCategory = async (id) => {
+const deleteCategory = async (id: any) => {
   if (!confirm('هل تريد حذف هذا التصنيف؟')) return;
   categorySaving.value = true;
   try {
     await productApi.deleteCategory(id);
     await refreshCategories();
-  } catch (e) {
+  } catch (e: any) {
     alert(e.message || 'فشل الحذف');
   } finally {
     categorySaving.value = false;
@@ -1027,17 +1060,17 @@ const deleteCategory = async (id) => {
 };
 
 // ───── Units ─────
-const productUnits = ref([]);
+const productUnits = ref<any[]>([]);
 const newUnit = ref('');
 const unitSaving = ref(false);
-const unitEditing = ref(null);
+const unitEditing = ref<any>(null);
 const editUnitName = ref('');
 
 const refreshProductUnits = async () => {
   try {
     productUnits.value = (await productApi.units())?.data || [];
     await refreshMetaCache(true);
-  } catch (_) {
+  } catch (_: any) {
     productUnits.value = [];
   }
 };
@@ -1048,13 +1081,13 @@ const addUnit = async () => {
     await productApi.createUnit({ name_ar: newUnit.value.trim() });
     newUnit.value = '';
     await refreshProductUnits();
-  } catch (e) {
+  } catch (e: any) {
     alert(e.message || 'فشل إضافة الوحدة');
   } finally {
     unitSaving.value = false;
   }
 };
-const startEditUnit = (u) => {
+const startEditUnit = (u: any) => {
   unitEditing.value = u.id;
   editUnitName.value = u.name_ar;
 };
@@ -1062,7 +1095,7 @@ const cancelEditUnit = () => {
   unitEditing.value = null;
   editUnitName.value = '';
 };
-const saveUnit = async (u) => {
+const saveUnit = async (u: any) => {
   if (!editUnitName.value.trim() || editUnitName.value === u.name_ar) {
     cancelEditUnit();
     return;
@@ -1072,19 +1105,19 @@ const saveUnit = async (u) => {
     await productApi.updateUnit(u.id, { name_ar: editUnitName.value.trim() });
     cancelEditUnit();
     await refreshProductUnits();
-  } catch (e) {
+  } catch (e: any) {
     alert(e.message || 'فشل التعديل');
   } finally {
     unitSaving.value = false;
   }
 };
-const removeUnit = async (u) => {
+const removeUnit = async (u: any) => {
   if (!confirm(`هل تريد حذف وحدة "${u.name_ar}"؟`)) return;
   unitSaving.value = true;
   try {
     await productApi.deleteUnit(u.id);
     await refreshProductUnits();
-  } catch (e) {
+  } catch (e: any) {
     alert(e.message || 'فشل الحذف');
   } finally {
     unitSaving.value = false;
@@ -1092,12 +1125,12 @@ const removeUnit = async (u) => {
 };
 
 // ───── Backup ─────
-const backups = ref([]);
+const backups = ref<any[]>([]);
 const backupView = ref('cards');
 const backuping = ref(false);
 const clearing = ref(false);
 const uploading = ref(false);
-const restoreFile = ref(null);
+const restoreFile = ref<any>(null);
 
 // ───── Cloud Backup ─────
 const cloudBackupSettings = ref({
@@ -1120,7 +1153,7 @@ const saveCloudBackupSettings = async () => {
   try {
     await userApi.updateSetting('cloud_backup', cloudBackupSettings.value);
     alert('تم حفظ إعدادات النسخ السحابي بنجاح');
-  } catch (e) {
+  } catch (e: any) {
     alert(e.message || 'فشل حفظ إعدادات النسخ السحابي');
   } finally {
     cloudSaving.value = false;
@@ -1130,13 +1163,13 @@ const saveCloudBackupSettings = async () => {
 const testCloudBackup = async () => {
   cloudTesting.value = true;
   try {
-    const res = await backupApi.cloudTest(cloudBackupSettings.value);
+    const res = (await backupApi.cloudTest(cloudBackupSettings.value)) as any;
     if (res?.data?.success || res?.success) {
       alert('✅ نجح الاتصال والرفع السحابي التجريبي!');
     } else {
       alert(`❌ فشل الرفع التجريبي: ${res?.message || 'خطأ غير معروف'}`);
     }
-  } catch (e) {
+  } catch (e: any) {
     alert(`❌ فشل الفحص: ${e.response?.data?.message || e.message}`);
   } finally {
     cloudTesting.value = false;
@@ -1144,10 +1177,12 @@ const testCloudBackup = async () => {
 };
 
 const sortedBackups = computed(() =>
-  [...backups.value].sort((a, b) => String(b.name).localeCompare(String(a.name))),
+  [...backups.value].sort((a: any, b: any) => String(b.name).localeCompare(String(a.name))),
 );
 const latestBackup = computed(() => sortedBackups.value[0] || null);
-const totalBackupSize = computed(() => backups.value.reduce((s, b) => s + Number(b.size || 0), 0));
+const totalBackupSize = computed(() =>
+  backups.value.reduce((s: any, b: any) => s + Number(b.size || 0), 0),
+);
 
 const formatBackupSize = (bytes = 0) => {
   const v = Number(bytes || 0);
@@ -1162,7 +1197,7 @@ const formatBackupDate = (name = '') => {
 const refreshBackups = async () => {
   try {
     backups.value = (await backupApi.list())?.data || [];
-  } catch (_) {
+  } catch (_: any) {
     backups.value = [];
   }
 };
@@ -1172,31 +1207,31 @@ const createBackup = async () => {
     await backupApi.create();
     await refreshBackups();
     alert('تم إنشاء النسخة الاحتياطية');
-  } catch (e) {
+  } catch (e: any) {
     alert(e.message || 'فشل إنشاء النسخة');
   } finally {
     backuping.value = false;
   }
 };
-const download = async (name) => {
+const download = async (name: any) => {
   try {
-    const res = await backupApi.download(name);
+    const res = (await backupApi.download(name)) as unknown as Blob;
     const url = URL.createObjectURL(res);
     const a = Object.assign(document.createElement('a'), { href: url, download: name });
     document.body.appendChild(a);
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
-  } catch (e) {
+  } catch (e: any) {
     alert(e.message || 'فشل التحميل');
   }
 };
-const restore = async (name) => {
+const restore = async (name: any) => {
   if (!confirm('استرداد نسخة سيستبدل بيانات النظام. استمر؟')) return;
   try {
     await backupApi.restore(name);
     alert('تم الاسترداد بنجاح');
-  } catch (e) {
+  } catch (e: any) {
     alert(e.message || 'فشل الاسترداد');
   }
 };
@@ -1207,13 +1242,13 @@ const clearSystem = async () => {
   try {
     await backupApi.clear({ confirm: 'CONFIRM_CLEAR' });
     alert('تم تصفير النظام');
-  } catch (e) {
+  } catch (e: any) {
     alert(e.message || 'فشل التصفير');
   } finally {
     clearing.value = false;
   }
 };
-const onFileChange = (e) => {
+const onFileChange = (e: any) => {
   restoreFile.value = e.target.files?.[0] || null;
 };
 const uploadRestore = async () => {
@@ -1224,7 +1259,7 @@ const uploadRestore = async () => {
     await backupApi.restoreFile(restoreFile.value);
     alert('تم الاسترداد من الملف');
     await refreshBackups();
-  } catch (e) {
+  } catch (e: any) {
     alert(e.message || 'فشل الاسترداد');
   } finally {
     uploading.value = false;
@@ -1255,7 +1290,7 @@ onMounted(async () => {
       dropbox_path: '/AlAgoouz-ERP-Backups',
       webhook_url: '',
     };
-  } catch (_) {
+  } catch (_: any) {
     /* offline */
   }
   await Promise.all([refreshCategories(), refreshProductUnits(), refreshBackups()]);

@@ -1,4 +1,5 @@
 import js from '@eslint/js';
+import tseslint from 'typescript-eslint';
 import prettierConfig from 'eslint-config-prettier';
 import globals from 'globals';
 
@@ -8,6 +9,9 @@ export default [
 
   // Base JS recommended rules
   js.configs.recommended,
+
+  // TypeScript recommended rules (applies to .ts/.tsx/.mts/.cts files only)
+  ...tseslint.configs.recommended,
 
   // Backend: Node.js files
   {
@@ -19,6 +23,9 @@ export default [
     },
     rules: {
       'no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-non-null-assertion': 'off',
       'no-console': 'off',
       'no-constant-condition': 'warn',
       'prefer-const': 'warn',
@@ -44,7 +51,7 @@ export default [
     },
   },
 
-  // Frontend: Vue + JS files
+  // Frontend: Vue + JS/TS files
   {
     files: ['frontend/src/**/*.{js,ts}'],
     languageOptions: {
@@ -54,6 +61,9 @@ export default [
     },
     rules: {
       'no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-non-null-assertion': 'off',
       'no-console': ['warn', { allow: ['warn', 'error'] }],
       'prefer-const': 'warn',
       // Transitional

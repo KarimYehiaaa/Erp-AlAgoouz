@@ -36,7 +36,7 @@ async function main() {
   try {
     // 2. Run the database setup to create and migrate bin_al_ajouz_test
     console.log('⏳ جاري تهيئة قاعدة بيانات الاختبارات (bin_al_ajouz_test)...');
-    execSync('node src/database/setup.js', {
+    execSync('node src/database/setup.ts', {
       cwd: path.join(__dirname, '..'),
       stdio: 'inherit',
       env: testEnv,

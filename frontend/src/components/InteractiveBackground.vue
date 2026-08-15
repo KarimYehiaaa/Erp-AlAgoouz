@@ -2,11 +2,11 @@
   <canvas ref="canvasRef" class="interactive-bg-canvas"></canvas>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount } from 'vue';
 
-const canvasRef = ref(null);
-let animationFrameId = null;
+const canvasRef = ref<any>(null);
+let animationFrameId: number | null = null;
 
 onMounted(() => {
   const canvas = canvasRef.value;
@@ -22,11 +22,11 @@ onMounted(() => {
   };
   window.addEventListener('resize', handleResize);
 
-  const particles = [];
+  const particles: any[] = [];
   const particleCount = 45;
   const mouse = { x: null, y: null, radius: 160 };
 
-  const handleMouseMove = (e) => {
+  const handleMouseMove = (e: any) => {
     mouse.x = e.clientX;
     mouse.y = e.clientY;
   };

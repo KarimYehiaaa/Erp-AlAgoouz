@@ -1,4 +1,4 @@
-import { getClient } from '../src/database/pool.js';
+import { getClient } from '../src/database/pool.ts';
 
 async function updateDb() {
   const client = await getClient();

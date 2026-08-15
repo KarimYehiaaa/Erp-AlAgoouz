@@ -1,13 +1,21 @@
 <template>
   <div class="roles-permissions-wrapper">
     <div class="roles-layout">
-      
       <!-- Permissions Matrix (Left Panel) -->
       <article class="card matrix-card">
         <div class="card-head">
-          <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-            <h3>صلاحيات دور: <span class="highlight">{{ selectedRole ? selectedRole.name_ar : '...' }}</span></h3>
-            <button class="btn btn-primary btn-save" @click="savePermissions" :disabled="loading || !selectedRole || isOwner(selectedRole)">
+          <div
+            style="display: flex; align-items: center; justify-content: space-between; width: 100%"
+          >
+            <h3>
+              صلاحيات دور:
+              <span class="highlight">{{ selectedRole ? selectedRole.name_ar : '...' }}</span>
+            </h3>
+            <button
+              class="btn btn-primary btn-save"
+              @click="savePermissions"
+              :disabled="loading || !selectedRole || isOwner(selectedRole)"
+            >
               <AppIcon name="save" :size="16" /> حفظ الصلاحيات
             </button>
           </div>
@@ -26,38 +34,88 @@
             </thead>
             <tbody>
               <tr v-for="mod in modules" :key="mod.id">
-                <td class="module-col">
-                  <AppIcon :name="mod.icon" :size="18" /> {{ mod.title }}
-                </td>
+                <td class="module-col"><AppIcon :name="mod.icon" :size="18" /> {{ mod.title }}</td>
                 <td class="action-col">
                   <label class="custom-check">
-                    <input type="checkbox" :disabled="isOwner(selectedRole)" v-model="selectedPermissions" :value="`${mod.id}.view`" />
+                    <input
+                      type="checkbox"
+                      :disabled="isOwner(selectedRole)"
+                      v-model="selectedPermissions"
+                      :value="`${mod.id}.view`"
+                    />
                     <span class="check-mark">
-                      <svg viewBox="0 0 12 10" fill="none"><polyline points="1.5 5 4.5 8 10.5 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                      <svg viewBox="0 0 12 10" fill="none">
+                        <polyline
+                          points="1.5 5 4.5 8 10.5 2"
+                          stroke="currentColor"
+                          stroke-width="2"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        />
+                      </svg>
                     </span>
                   </label>
                 </td>
                 <td class="action-col">
                   <label class="custom-check">
-                    <input type="checkbox" :disabled="isOwner(selectedRole)" v-model="selectedPermissions" :value="`${mod.id}.add`" />
+                    <input
+                      type="checkbox"
+                      :disabled="isOwner(selectedRole)"
+                      v-model="selectedPermissions"
+                      :value="`${mod.id}.add`"
+                    />
                     <span class="check-mark">
-                      <svg viewBox="0 0 12 10" fill="none"><polyline points="1.5 5 4.5 8 10.5 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                      <svg viewBox="0 0 12 10" fill="none">
+                        <polyline
+                          points="1.5 5 4.5 8 10.5 2"
+                          stroke="currentColor"
+                          stroke-width="2"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        />
+                      </svg>
                     </span>
                   </label>
                 </td>
                 <td class="action-col">
                   <label class="custom-check">
-                    <input type="checkbox" :disabled="isOwner(selectedRole)" v-model="selectedPermissions" :value="`${mod.id}.edit`" />
+                    <input
+                      type="checkbox"
+                      :disabled="isOwner(selectedRole)"
+                      v-model="selectedPermissions"
+                      :value="`${mod.id}.edit`"
+                    />
                     <span class="check-mark">
-                      <svg viewBox="0 0 12 10" fill="none"><polyline points="1.5 5 4.5 8 10.5 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                      <svg viewBox="0 0 12 10" fill="none">
+                        <polyline
+                          points="1.5 5 4.5 8 10.5 2"
+                          stroke="currentColor"
+                          stroke-width="2"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        />
+                      </svg>
                     </span>
                   </label>
                 </td>
                 <td class="action-col">
                   <label class="custom-check">
-                    <input type="checkbox" :disabled="isOwner(selectedRole)" v-model="selectedPermissions" :value="`${mod.id}.delete`" />
+                    <input
+                      type="checkbox"
+                      :disabled="isOwner(selectedRole)"
+                      v-model="selectedPermissions"
+                      :value="`${mod.id}.delete`"
+                    />
                     <span class="check-mark">
-                      <svg viewBox="0 0 12 10" fill="none"><polyline points="1.5 5 4.5 8 10.5 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                      <svg viewBox="0 0 12 10" fill="none">
+                        <polyline
+                          points="1.5 5 4.5 8 10.5 2"
+                          stroke="currentColor"
+                          stroke-width="2"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        />
+                      </svg>
                     </span>
                   </label>
                 </td>
@@ -82,10 +140,13 @@
           <h3>اختر الدور</h3>
         </div>
         <ul class="roles-list">
-          <li v-for="role in roles" :key="role.id" 
-              class="role-item" 
-              :class="{ active: selectedRole?.id === role.id, 'is-owner': isOwner(role) }"
-              @click="selectRole(role)">
+          <li
+            v-for="role in roles"
+            :key="role.id"
+            class="role-item"
+            :class="{ active: selectedRole?.id === role.id, 'is-owner': isOwner(role) }"
+            @click="selectRole(role)"
+          >
             <div class="role-icon">
               <AppIcon name="shield" :size="20" />
             </div>
@@ -99,7 +160,6 @@
           </li>
         </ul>
       </article>
-
     </div>
   </div>
 </template>
@@ -111,9 +171,9 @@ import api from '@/api/index';
 import { useAppStore } from '@/stores/app';
 
 const appStore = useAppStore();
-const toast = { 
-  success: (msg: string) => appStore.addToast(msg, 'success'), 
-  error: (msg: string) => appStore.addToast(msg, 'error') 
+const toast = {
+  success: (msg: string) => appStore.addToast(msg, 'success'),
+  error: (msg: string) => appStore.addToast(msg, 'error'),
 };
 
 const roles = ref<any[]>([]);
@@ -138,7 +198,7 @@ const modules = [
   { id: 'hr', title: 'الموارد البشرية والورديات', icon: 'badge' },
   { id: 'users', title: 'إدارة المستخدمين والصلاحيات', icon: 'manage_accounts' },
   { id: 'settings', title: 'إعدادات النظام والنسخ الاحتياطي', icon: 'settings' },
-  { id: 'promotions', title: 'العروض الترويجية والخصومات', icon: 'sell' }
+  { id: 'promotions', title: 'العروض الترويجية والخصومات', icon: 'sell' },
 ];
 
 const extractData = (res: any) => {
@@ -150,16 +210,13 @@ const extractData = (res: any) => {
 
 const loadData = async () => {
   try {
-    const [rolesRes, permsRes] = await Promise.all([
-      api.get('/roles'),
-      api.get('/permissions')
-    ]);
+    const [rolesRes, permsRes] = await Promise.all([api.get('/roles'), api.get('/permissions')]);
     roles.value = extractData(rolesRes);
     allPermissions.value = extractData(permsRes);
     if (roles.value.length) {
       selectRole(roles.value[0]);
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('loadData error:', error);
     toast.error('فشل في تحميل الأدوار والصلاحيات');
   }
@@ -170,18 +227,18 @@ const selectRole = async (role: any) => {
   try {
     const res = await api.get(`/roles/${role.id}/permissions`);
     const rawList = extractData(res);
-    
+
     // Map backend permission IDs or objects to string codes (e.g. 174 -> 'dashboard.view')
     selectedPermissions.value = rawList
       .map((item: any) => {
-        const id = typeof item === 'number' ? item : (item.permission_id || item.id);
+        const id = typeof item === 'number' ? item : item.permission_id || item.id;
         const found = allPermissions.value.find((ap: any) => ap.id === Number(id));
         if (found) return found.code;
         if (typeof item === 'string') return item;
         return null;
       })
       .filter(Boolean) as string[];
-  } catch (error) {
+  } catch (error: any) {
     console.error('selectRole error:', error);
     toast.error('فشل في تحميل صلاحيات الدور');
   }
@@ -193,7 +250,7 @@ const isOwner = (role: any) => {
 
 const savePermissions = async () => {
   if (!selectedRole.value || isOwner(selectedRole.value)) return;
-  
+
   loading.value = true;
   try {
     // Map string codes (e.g. 'dashboard.view') to integer IDs (e.g. 174)
@@ -206,7 +263,7 @@ const savePermissions = async () => {
 
     await api.post(`/roles/${selectedRole.value.id}/permissions`, { permissionIds: permIds });
     toast.success('تم حفظ الصلاحيات بنجاح!');
-  } catch (error) {
+  } catch (error: any) {
     console.error('savePermissions error:', error);
     toast.error('حدث خطأ أثناء حفظ الصلاحيات');
   } finally {
@@ -234,15 +291,15 @@ onMounted(() => {
 @media (max-width: 1024px) {
   .roles-layout {
     grid-template-columns: 1fr;
-    grid-template-areas: 
-      "sidebar"
-      "matrix";
+    grid-template-areas:
+      'sidebar'
+      'matrix';
   }
-  
+
   .sidebar-card {
     grid-area: sidebar;
   }
-  
+
   .matrix-card {
     grid-area: matrix;
   }
@@ -451,7 +508,10 @@ onMounted(() => {
 
 .overlay-lock {
   position: absolute;
-  top: 0; left: 0; right: 0; bottom: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   background: rgba(var(--bg-color-rgb), 0.7);
   backdrop-filter: blur(2px);
   display: flex;
@@ -467,7 +527,7 @@ onMounted(() => {
   border: 1px solid rgba(255, 100, 100, 0.3);
   color: #ff6464;
   font-weight: 600;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
 }
 .empty-state {
   text-align: center;

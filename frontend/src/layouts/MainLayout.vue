@@ -304,7 +304,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import AppSidebar from '@/components/AppSidebar.vue';
@@ -320,7 +320,7 @@ const router = useRouter();
 const route = useRoute();
 const showShortcutsHUD = ref(false);
 
-const handleGlobalShortcuts = (e) => {
+const handleGlobalShortcuts = (e: any) => {
   if (e.key === '?' || e.key === '؟') {
     if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
       e.preventDefault();

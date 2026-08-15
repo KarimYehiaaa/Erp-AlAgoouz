@@ -50,20 +50,46 @@
   </div>
 </template>
 
-<script setup>
-defineProps({
-  sessions: { type: Array, default: () => [] },
-  failedLogins: { type: Array, default: () => [] },
-  revoking: { type: [Number, null], default: null },
-});
+<script setup lang="ts">
+interface SessionRecord {
+  id: number | string;
+  full_name?: string;
+  username?: string;
+  ip_address?: string;
+  created_at?: string;
+  user_agent?: string;
+  [key: string]: any;
+}
+
+interface FailedLogin {
+  id: number | string;
+  username?: string;
+  action_ar?: string;
+  created_at?: string;
+  ip_address?: string;
+  [key: string]: any;
+}
+
+withDefaults(
+  defineProps<{
+    sessions?: SessionRecord[];
+    failedLogins?: FailedLogin[];
+    revoking?: number | string | null;
+  }>(),
+  {
+    sessions: () => [],
+    failedLogins: () => [],
+    revoking: null,
+  },
+);
 
 defineEmits(['revoke']);
 
-const formatTime = (ts) => {
+const formatTime = (ts: string | undefined) => {
   if (!ts) return '';
   const d = new Date(ts);
   const now = new Date();
-  const diff = (now - d) / 1000;
+  const diff = (now.getTime() - d.getTime()) / 1000;
   if (diff < 60) return 'الآن';
   if (diff < 3600) return `منذ ${Math.floor(diff / 60)} د`;
   if (diff < 86400) return `منذ ${Math.floor(diff / 3600)} س`;
@@ -75,7 +101,7 @@ const formatTime = (ts) => {
   });
 };
 
-const shortenAgent = (ua) => {
+const shortenAgent = (ua: any) => {
   if (!ua) return '';
   if (ua.includes('Chrome')) return '🌐 Chrome';
   if (ua.includes('Firefox')) return '🦊 Firefox';

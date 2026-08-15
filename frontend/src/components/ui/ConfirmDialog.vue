@@ -29,7 +29,7 @@
   </BaseModal>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import BaseModal from './BaseModal.vue';
 
 const props = defineProps({
@@ -40,7 +40,7 @@ const props = defineProps({
   tone: {
     type: String,
     default: 'danger',
-    validator: (v) => ['danger', 'warning', 'primary', 'success'].includes(v),
+    validator: (v: string) => ['danger', 'warning', 'primary', 'success'].includes(v),
   },
   confirmText: { type: String, default: 'تأكيد الحذف' },
   cancelText: { type: String, default: 'إلغاء' },

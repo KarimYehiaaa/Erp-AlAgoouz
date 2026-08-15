@@ -1,4 +1,4 @@
-import { getClient } from '../src/database/pool.js';
+import { getClient } from '../src/database/pool.ts';
 async function test() {
   const client = await getClient();
   try {

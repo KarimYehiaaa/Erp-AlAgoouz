@@ -19,21 +19,21 @@
   <div v-else class="card">الفاتورة غير موجودة</div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import InvoiceDocument from '@/components/InvoiceDocument.vue';
 import { invoices as api } from '@/api';
 
 const route = useRoute();
-const invoice = ref(null);
+const invoice = ref<any>(null);
 const loading = ref(true);
 const pdfLoading = ref(false);
 const pdfError = ref('');
 
 onMounted(async () => {
   try {
-    const res = await api.get(route.params.id);
+    const res = await api.get(String(route.params.id));
     invoice.value = res.data;
   } finally {
     loading.value = false;
@@ -52,7 +52,7 @@ const downloadPdf = async () => {
   } catch {
     try {
       await downloadServerPdf();
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
       pdfError.value = 'تعذر تحميل ملف PDF. يرجى المحاولة مرة أخرى أو استخدام أمر الطباعة.';
     }
@@ -61,9 +61,9 @@ const downloadPdf = async () => {
   }
 };
 
-const downloadClientPdf = async (el) => {
+const downloadClientPdf = async (el: any) => {
   const module = await import('html2pdf.js');
-  const html2pdf = module.default || module;
+  const html2pdf = (module.default || module) as any;
   await html2pdf()
     .set({
       margin: [8, 8, 8, 8],
@@ -77,7 +77,7 @@ const downloadClientPdf = async (el) => {
 };
 
 const downloadServerPdf = async () => {
-  const blob = await api.downloadPdf(route.params.id);
+  const blob = (await api.downloadPdf(String(route.params.id))) as unknown as Blob;
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;

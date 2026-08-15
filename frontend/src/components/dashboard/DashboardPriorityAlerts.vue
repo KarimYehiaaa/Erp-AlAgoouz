@@ -18,7 +18,7 @@
   </section>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed } from 'vue';
 import { formatMoney, abbreviateNumber } from '@/utils/formatters';
 
@@ -26,8 +26,8 @@ const props = defineProps({
   stats: { type: Object, required: true },
 });
 
-const money = (val) => formatMoney(val || 0);
-const number = (val) => abbreviateNumber(val || 0);
+const money = (val: any) => formatMoney(val || 0);
+const number = (val: any) => abbreviateNumber(val || 0);
 
 const monthCards = computed(() => props.stats?.monthCards || {});
 
@@ -63,7 +63,7 @@ const priorityActions = computed(() => [
 ]);
 
 const priorityHeadline = computed(() => {
-  const risky = priorityActions.value.filter((item) => item.tone !== 'success').length;
+  const risky = priorityActions.value.filter((item: any) => item.tone !== 'success').length;
   return risky ? `${risky} بند يحتاج متابعة` : 'الوضع مستقر';
 });
 </script>

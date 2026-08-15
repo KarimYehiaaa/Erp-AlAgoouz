@@ -73,7 +73,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { formatMoney } from '@/utils/currency';
 
 defineProps({
@@ -82,16 +82,16 @@ defineProps({
 
 defineEmits(['close', 'print']);
 
-const formatDate = (d) => (d ? new Date(d).toLocaleString('ar-EG') : '—');
+const formatDate = (d: any) => (d ? new Date(d).toLocaleString('ar-EG') : '—');
 
-const saleTypeLabel = (type) => {
+const saleTypeLabel = (type: any) => {
   const map = { branch: 'فرع/محل', wholesale: 'جملة', pos: 'POS' };
-  return map[type] || type || 'عام';
+  return map[type as keyof typeof map] || type || 'عام';
 };
 
-const paymentStatusLabel = (status) => {
+const paymentStatusLabel = (status: any) => {
   const map = { paid: 'مدفوع', partial: 'جزئي', unpaid: 'آجل' };
-  return map[status] || status || 'مدفوع';
+  return map[status as keyof typeof map] || status || 'مدفوع';
 };
 </script>
 

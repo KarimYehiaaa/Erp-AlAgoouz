@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { lockInventoryRow, ensureInventoryRow } from '../src/services/inventoryService.js';
-import { restoreRecipeConsumptionForReference } from '../src/services/recipesService.js';
+import { lockInventoryRow, ensureInventoryRow } from '../src/services/inventoryService.ts';
+import { restoreRecipeConsumptionForReference } from '../src/services/recipesService.ts';
 
 test('lockInventoryRow creates missing row and returns quantity', async () => {
     const store = {};

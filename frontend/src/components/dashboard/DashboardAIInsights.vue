@@ -24,7 +24,7 @@
   </section>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed } from 'vue';
 
 const props = defineProps({
@@ -32,7 +32,7 @@ const props = defineProps({
 });
 
 const aiInsights = computed(() => {
-  const insights = [];
+  const insights: any[] = [];
   if (!props.stats) return insights;
 
   const stockAlerts = Number(props.stats.stockAlerts || 0);

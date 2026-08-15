@@ -120,16 +120,16 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted, nextTick } from 'vue';
 import DOMPurify from 'dompurify';
 import { forecasting } from '@/api';
 
 const inputText = ref('');
 const loading = ref(false);
-const history = ref([]);
-const messagesArea = ref(null);
-const inputArea = ref(null);
+const history = ref<any[]>([]);
+const messagesArea = ref<any>(null);
+const inputArea = ref<any>(null);
 
 const suggestedPrompts = [
   {
@@ -168,19 +168,19 @@ onMounted(() => {
     try {
       history.value = JSON.parse(saved);
       scrollToBottom();
-    } catch (e) {
+    } catch (e: any) {
       localStorage.removeItem('alagoouz_copilot_history');
     }
   }
 });
 
-const formatTime = (ts) => {
+const formatTime = (ts: any) => {
   if (!ts) return '';
   const d = new Date(ts);
   return d.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
 };
 
-const formatMessage = (text) => {
+const formatMessage = (text: any) => {
   if (!text) return '';
 
   // Basic markdown parsing
@@ -213,7 +213,7 @@ const formatMessage = (text) => {
   return DOMPurify.sanitize(html);
 };
 
-const sendSuggestedPrompt = (text) => {
+const sendSuggestedPrompt = (text: any) => {
   inputText.value = text;
   submitMessage();
 };
@@ -241,7 +241,7 @@ const submitMessage = async () => {
   try {
     // Call the API endpoint
     // Prepare history payload for API (role & content)
-    const apiHistory = history.value.slice(0, -1).map((h) => ({
+    const apiHistory = history.value.slice(0, -1).map((h: any) => ({
       role: h.role,
       content: h.content,
     }));
@@ -260,7 +260,7 @@ const submitMessage = async () => {
     history.value.push(assistantMsg);
     // Save to local storage
     localStorage.setItem('alagoouz_copilot_history', JSON.stringify(history.value));
-  } catch (error) {
+  } catch (error: any) {
     console.error(error);
     history.value.push({
       role: 'model',

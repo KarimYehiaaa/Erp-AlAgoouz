@@ -30,7 +30,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed } from 'vue';
 
 const props = defineProps({
@@ -49,7 +49,7 @@ const groups = computed(() => {
       label: 'منتجات تحت حد الطلب',
       severity: 'critical',
       count: a.lowStockProducts.length,
-      items: a.lowStockProducts.map((p) => ({
+      items: a.lowStockProducts.map((p: any) => ({
         text: p.name || p.product_name,
         value: `${p.quantity ?? p.current_qty ?? '?'} / ${p.reorder_level ?? p.min_qty ?? '?'}`,
       })),
@@ -64,7 +64,7 @@ const groups = computed(() => {
       label: 'منتجات بدون سعر تكلفة',
       severity: 'warning',
       count: a.noCostProducts.length,
-      items: a.noCostProducts.map((p) => ({ text: p.name || p.product_name })),
+      items: a.noCostProducts.map((p: any) => ({ text: p.name || p.product_name })),
     });
   }
 
@@ -76,7 +76,7 @@ const groups = computed(() => {
       label: 'مديونيات عملاء',
       severity: 'warning',
       count: a.customerDebts.length,
-      items: a.customerDebts.map((c) => ({
+      items: a.customerDebts.map((c: any) => ({
         text: c.name || c.customer_name,
         value: `${new Intl.NumberFormat('ar-EG').format(c.balance || c.total_due || 0)} ج.م`,
       })),
@@ -91,7 +91,7 @@ const groups = computed(() => {
       label: 'أرصدة موردين مستحقة',
       severity: 'info',
       count: a.supplierBalances.length,
-      items: a.supplierBalances.map((s) => ({
+      items: a.supplierBalances.map((s: any) => ({
         text: s.name || s.supplier_name,
         value: `${new Intl.NumberFormat('ar-EG').format(s.balance || s.total_due || 0)} ج.م`,
       })),
@@ -106,7 +106,7 @@ const groups = computed(() => {
       label: 'مبيعات آجلة مفتوحة',
       severity: 'info',
       count: a.pendingCreditSales.length,
-      items: a.pendingCreditSales.map((s) => ({
+      items: a.pendingCreditSales.map((s: any) => ({
         text: s.customer_name || `فاتورة #${s.id}`,
         value: `${new Intl.NumberFormat('ar-EG').format(s.remaining || s.amount || 0)} ج.م`,
       })),
@@ -116,7 +116,7 @@ const groups = computed(() => {
   return result;
 });
 
-const totalAlerts = computed(() => groups.value.reduce((sum, g) => sum + g.count, 0));
+const totalAlerts = computed(() => groups.value.reduce((sum: any, g: any) => sum + g.count, 0));
 </script>
 
 <style scoped>

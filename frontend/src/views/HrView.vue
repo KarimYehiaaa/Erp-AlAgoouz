@@ -131,7 +131,12 @@
             </div>
           </div>
           <div style="margin-top: 16px; display: flex; gap: 8px">
-            <button v-permission="'hr.edit'" class="btn btn-primary" type="submit" :disabled="loading">
+            <button
+              v-permission="'hr.edit'"
+              class="btn btn-primary"
+              type="submit"
+              :disabled="loading"
+            >
               {{ editingEmployeeId ? 'تحديث البيانات' : 'إضافة الموظف' }}
             </button>
             <button
@@ -254,7 +259,12 @@
             </div>
           </div>
           <div style="margin-top: 16px">
-            <button v-permission="'hr.edit'" class="btn btn-primary" type="submit" :disabled="loading">
+            <button
+              v-permission="'hr.edit'"
+              class="btn btn-primary"
+              type="submit"
+              :disabled="loading"
+            >
               حفظ الحضور للأيام المحددة
             </button>
           </div>
@@ -365,7 +375,12 @@
             </div>
           </div>
           <div style="margin-top: 16px">
-            <button v-permission="'hr.edit'" class="btn btn-primary" type="submit" :disabled="loading">
+            <button
+              v-permission="'hr.edit'"
+              class="btn btn-primary"
+              type="submit"
+              :disabled="loading"
+            >
               صرف السلفة وتسجيل مصروف
             </button>
           </div>
@@ -636,7 +651,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import { hr } from '@/api';
 import StatCard from '@/components/StatCard.vue';
@@ -647,7 +662,7 @@ const today = new Date().toISOString().slice(0, 10);
 const periodMonth = ref(new Date().toISOString().slice(0, 7));
 
 // دالة مساعدة لحساب آخر يوم في الشهر المختار لمنع تداخل الحضور بين الشهور
-const getMonthEnd = (yearMonthStr) => {
+const getMonthEnd = (yearMonthStr: any) => {
   if (!yearMonthStr) return today;
   const [year, month] = yearMonthStr.split('-').map(Number);
   const end = new Date(year, month, 0); // يوم 0 من الشهر التالي يعطي آخر يوم في الشهر الحالي
@@ -659,24 +674,24 @@ const loading = ref(false);
 const error = ref('');
 const success = ref('');
 
-const summary = ref({});
-const shifts = ref([]);
-const employees = ref([]);
-const attendance = ref([]);
-const advances = ref([]);
-const payrollRuns = ref([]);
-const payrollItems = ref([]);
+const summary = ref<Record<string, any>>({});
+const shifts = ref<any[]>([]);
+const employees = ref<any[]>([]);
+const attendance = ref<any[]>([]);
+const advances = ref<any[]>([]);
+const payrollRuns = ref<any[]>([]);
+const payrollItems = ref<any[]>([]);
 const payrollTotals = ref({ gross: 0, deductions: 0, advances: 0, net: 0 });
-const selectedRun = ref(null);
-const editingEmployeeId = ref(null);
+const selectedRun = ref<any>(null);
+const editingEmployeeId = ref<any>(null);
 
 const blankEmployeeForm = () => ({
   full_name: '',
   job_title: '',
   phone: '',
   salary_type: 'monthly',
-  base_salary: null,
-  overtime_rate: null,
+  base_salary: null as number | null,
+  overtime_rate: null as number | null,
   work_days_per_month: 26,
   shift_id: null,
 });
@@ -735,7 +750,7 @@ const statCards = computed(() => [
   },
 ]);
 
-const runTask = async (task, message) => {
+const runTask = async (task: () => Promise<any>, message = '') => {
   loading.value = true;
   error.value = '';
   success.value = '';
@@ -743,7 +758,7 @@ const runTask = async (task, message) => {
     const result = await task();
     if (message) success.value = message;
     return result;
-  } catch (e) {
+  } catch (e: any) {
     error.value = e.message || 'حدث خطأ غير متوقع';
     return null;
   } finally {
@@ -789,7 +804,7 @@ const saveEmployee = async () => {
   );
 };
 
-const editEmployee = (employee) => {
+const editEmployee = (employee: any) => {
   editingEmployeeId.value = employee.id;
   employeeForm.value = {
     full_name: employee.full_name || '',
@@ -809,7 +824,7 @@ const resetEmployeeForm = () => {
   employeeForm.value = blankEmployeeForm();
 };
 
-const deleteEmployee = async (employee) => {
+const deleteEmployee = async (employee: any) => {
   const ok = window.confirm(
     `هل تريد حذف/إيقاف الموظف "${employee.full_name}"؟ سيظل تاريخ الحضور والمرتبات محفوظًا للمراجعة.`,
   );
@@ -845,7 +860,7 @@ const saveAttendance = async () => {
   }, 'تم حفظ الحضور للأيام المحددة بنجاح');
 };
 
-const deleteAttendance = async (row) => {
+const deleteAttendance = async (row: any) => {
   const ok = window.confirm(
     `هل أنت تأكد من حذف سجل حضور الموظف "${row.employee_name}" بتاريخ ${row.work_date}؟`,
   );
@@ -870,7 +885,7 @@ const createAdvance = async () => {
   }, 'تم صرف السلفة وتسجيلها كمصروف');
 };
 
-const deleteAdvance = async (advance) => {
+const deleteAdvance = async (advance: any) => {
   const ok = window.confirm(
     `هل أنت تأكد من حذف سلفة الموظف "${advance.employee_name}" بمبلغ ${advance.amount} جنيه؟`,
   );
@@ -905,7 +920,7 @@ const createPayroll = async () => {
   }, 'تم حساب مسير المرتبات');
 };
 
-const openRun = async (id) => {
+const openRun = async (id: any) => {
   await runTask(async () => {
     const res = await hr.getPayroll(id);
     selectedRun.value = res.data;
@@ -929,15 +944,17 @@ const payPayroll = async () => {
   }, 'تم صرف المرتبات وتسجيل مصروف الصافي');
 };
 
-const attendanceLabel = (status) =>
-  ({
-    present: 'حاضر',
-    absent: 'غائب',
-    paid_leave: 'إجازة مدفوعة',
-    unpaid_leave: 'إجازة غير مدفوعة',
-    half_day: 'نصف يوم',
-    weekly_off: 'عطلة أسبوعية',
-  })[status] || status;
+const attendanceLabel = (status: any) =>
+  (
+    ({
+      present: 'حاضر',
+      absent: 'غائب',
+      paid_leave: 'إجازة مدفوعة',
+      unpaid_leave: 'إجازة غير مدفوعة',
+      half_day: 'نصف يوم',
+      weekly_off: 'عطلة أسبوعية',
+    }) as Record<string, string>
+  )[status] || status;
 
 onMounted(refreshAll);
 </script>

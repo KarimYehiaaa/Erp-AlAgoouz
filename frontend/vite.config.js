@@ -3,7 +3,18 @@ import vue from '@vitejs/plugin-vue';
 import { fileURLToPath } from 'url';
 
 export default defineConfig({
-  plugins: [vue()],
+  plugins: [
+    vue({
+      template: {
+        // plugin-vue >=6 defaults includeAbsolute:true when no devServer is
+        // present, turning root-absolute public paths (e.g. "/logo.png") into
+        // asset imports that break under vitest on Windows. Restore Vite 5
+        // behaviour: keep absolute paths as plain strings, still transform
+        // relative asset URLs.
+        transformAssetUrls: { includeAbsolute: false },
+      },
+    }),
+  ],
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url))

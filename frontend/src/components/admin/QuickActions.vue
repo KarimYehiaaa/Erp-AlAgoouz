@@ -17,13 +17,13 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 
 const emit = defineEmits(['backup', 'clearCache', 'repairSequences', 'purgeLogs', 'broadcast']);
 const router = useRouter();
-const loading = ref(null);
+const loading = ref<any>(null);
 
 const actions = [
   { key: 'backup', icon: '💾', label: 'تنزيل نسخة احتياطية', colorClass: 'action-blue' },
@@ -34,7 +34,7 @@ const actions = [
   { key: 'operations', icon: '🔧', label: 'مركز التشغيل', colorClass: 'action-green' },
 ];
 
-const handleAction = async (action) => {
+const handleAction = async (action: any) => {
   if (loading.value) return;
 
   switch (action.key) {

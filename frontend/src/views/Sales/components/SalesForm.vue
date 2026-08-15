@@ -7,11 +7,11 @@
   </div>
 </template>
 
-<script setup>
-const emit = defineEmits(['saved', 'closed'])
+<script setup lang="ts">
+const emit = defineEmits(['saved', 'closed']);
 
 const saveSale = () => {
   // logic
-  emit('saved')
-}
+  emit('saved');
+};
 </script>

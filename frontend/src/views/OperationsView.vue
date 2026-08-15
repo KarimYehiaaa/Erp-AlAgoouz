@@ -116,49 +116,55 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import { operations } from '@/api';
 import { formatMoney } from '@/utils/currency';
 
 const loading = ref(false);
-const alertsSummary = ref({ total: 0, critical: 0 });
-const auditLogs = ref([]);
+const alertsSummary = ref<Record<string, any>>({ total: 0, critical: 0 });
+const auditLogs = ref<any[]>([]);
 const filters = ref({ entity_type: '', action: '' });
 
 const alerts = computed(() => alertsSummary.value.alerts || []);
 
-const severityLabel = (severity) =>
-  ({
-    danger: 'حرج',
-    warning: 'تحذير',
-    info: 'متابعة',
-  })[severity] || 'تنبيه';
+const severityLabel = (severity: any) =>
+  (
+    ({
+      danger: 'حرج',
+      warning: 'تحذير',
+      info: 'متابعة',
+    }) as Record<string, string>
+  )[severity] || 'تنبيه';
 
-const actionLabel = (action) =>
-  ({
-    user_create: 'إنشاء مستخدم',
-    user_update: 'تعديل مستخدم',
-    user_delete: 'حذف مستخدم',
-    sales_delete_type: 'حذف مبيعات نوع',
-    products_delete_all: 'حذف كل المنتجات',
-    inventory_clear_all: 'تصفير المخزون',
-    backup_create: 'إنشاء نسخة احتياطية',
-    backup_restore: 'استرجاع نسخة',
-  })[action] || action;
+const actionLabel = (action: any) =>
+  (
+    ({
+      user_create: 'إنشاء مستخدم',
+      user_update: 'تعديل مستخدم',
+      user_delete: 'حذف مستخدم',
+      sales_delete_type: 'حذف مبيعات نوع',
+      products_delete_all: 'حذف كل المنتجات',
+      inventory_clear_all: 'تصفير المخزون',
+      backup_create: 'إنشاء نسخة احتياطية',
+      backup_restore: 'استرجاع نسخة',
+    }) as Record<string, string>
+  )[action] || action;
 
-const entityLabel = (entity) =>
-  ({
-    users: 'المستخدمين',
-    sales: 'المبيعات',
-    products: 'المنتجات',
-    inventory: 'المخزون',
-    backup: 'النسخ الاحتياطي',
-  })[entity] ||
+const entityLabel = (entity: any) =>
+  (
+    ({
+      users: 'المستخدمين',
+      sales: 'المبيعات',
+      products: 'المنتجات',
+      inventory: 'المخزون',
+      backup: 'النسخ الاحتياطي',
+    }) as Record<string, string>
+  )[entity] ||
   entity ||
   '-';
 
-const formatDateTime = (value) => {
+const formatDateTime = (value: any) => {
   if (!value) return '-';
   return new Intl.DateTimeFormat('ar-EG', {
     dateStyle: 'medium',
@@ -166,12 +172,14 @@ const formatDateTime = (value) => {
   }).format(new Date(value));
 };
 
-const logSummary = (log) => {
+const logSummary = (log: any) => {
   const data = log.new_data || log.old_data || {};
   if (data.username) return `المستخدم: ${data.username}`;
   if (data.name_ar) return data.name_ar;
   if (data.invoice_number) return data.invoice_number;
-  const keys = Object.keys(data).filter((key) => data[key] !== undefined && data[key] !== null);
+  const keys = Object.keys(data).filter(
+    (key: any) => data[key] !== undefined && data[key] !== null,
+  );
   return keys.length ? keys.slice(0, 3).join('، ') : '-';
 };
 

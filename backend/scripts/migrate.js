@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
-import logger from '../src/services/loggerService.js';
+import logger from '../src/services/loggerService.ts';
 
 dotenv.config();
 

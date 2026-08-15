@@ -628,7 +628,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { costs as costsApi, products as productsApi, warehouses as warehousesApi } from '@/api';
 import { formatMoney } from '@/utils/currency';
@@ -638,16 +638,16 @@ const { units: dbUnits, loadMeta, unitLabel: metaUnitLabel, unitNames } = usePro
 
 // ─── state ──────────────────────────────────────────────────────────────────
 const loading = ref(false);
-const recipes = ref([]);
-const allProducts = ref([]);
-const warehouses = ref([]);
+const recipes = ref<any[]>([]);
+const allProducts = ref<any[]>([]);
+const warehouses = ref<any[]>([]);
 const showForm = ref(false);
 const saving = ref(false);
 const formError = ref('');
 const showProduceModal = ref(false);
 const producing = ref(false);
 const produceError = ref('');
-const produceForm = ref({
+const produceForm = ref<Record<string, any>>({
   recipe_id: null,
   product_name: '',
   unit: '',
@@ -692,13 +692,13 @@ const closeCalculator = () => {
 };
 
 const addCalcItem = () => calcForm.value.items.push(emptyCalcItem());
-const removeCalcItem = (i) => {
+const removeCalcItem = (i: any) => {
   if (calcForm.value.items.length > 1) calcForm.value.items.splice(i, 1);
   calcProfitMargin();
 };
 
-const autoSetCalcUnit = (item) => {
-  const p = allProducts.value.find((x) => x.id === item.ingredient_product_id);
+const autoSetCalcUnit = (item: any) => {
+  const p = allProducts.value.find((x: any) => x.id === item.ingredient_product_id);
   if (p) {
     const norm = normalizeUnit(p.unit);
     if (norm) item.unit_code = norm;
@@ -708,7 +708,7 @@ const autoSetCalcUnit = (item) => {
 
 // Calculations
 const calcTotalWeightGrams = computed(() => {
-  return calcForm.value.items.reduce((sum, item) => {
+  return calcForm.value.items.reduce((sum: any, item: any) => {
     const qty = Number(item.quantity || 0);
     const norm = normalizeUnit(item.unit_code);
     if (norm === 'kg') return sum + qty * 1000;
@@ -726,7 +726,7 @@ const calcTotalWeightText = computed(() => {
 });
 
 const calcTotalCost = computed(() => {
-  return calcForm.value.items.reduce((s, it) => s + itemCost(it), 0);
+  return calcForm.value.items.reduce((s: any, it: any) => s + itemCost(it), 0);
 });
 
 const calcCostPerKilo = computed(() => {
@@ -780,21 +780,21 @@ const calcProfitStatusText = computed(() => {
 
 const isCalcValid = computed(() => {
   const validItems = calcForm.value.items.filter(
-    (it) => it.ingredient_product_id && Number(it.quantity) > 0,
+    (it: any) => it.ingredient_product_id && Number(it.quantity) > 0,
   );
   return validItems.length > 0 && calcTotalWeightGrams.value > 0;
 });
 
 const convertToRecipe = () => {
   const validItems = calcForm.value.items.filter(
-    (it) => it.ingredient_product_id && Number(it.quantity) > 0,
+    (it: any) => it.ingredient_product_id && Number(it.quantity) > 0,
   );
   showCalculator.value = false;
   form.value = {
     id: null,
     product_id: null,
     name_ar: calcForm.value.name_ar?.trim() || 'توليفة محتسبة',
-    items: validItems.map((it) => ({
+    items: validItems.map((it: any) => ({
       ingredient_product_id: it.ingredient_product_id,
       quantity: Number(it.quantity),
       unit_code: it.unit_code || 'g',
@@ -810,7 +810,7 @@ function emptyItem() {
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 // unitLabel: يستخدم الـ composable أولاً ثم fallback للأكواد القديمة
-const unitLabel = (unit) => metaUnitLabel(unit);
+const unitLabel = (unit: any) => metaUnitLabel(unit);
 
 // الوحدات المتاحة للوصفات — تشمل الوحدات من الـ DB + الأكواد الفيزيائية دايماً
 const recipeUnitOptions = computed(() => {
@@ -841,12 +841,12 @@ const recipeUnitOptions = computed(() => {
   return units;
 });
 
-const formatQty = (v) => {
+const formatQty = (v: any) => {
   const n = Number(v || 0);
   return n % 1 === 0 ? n.toLocaleString('en-GB') : n.toFixed(3);
 };
 
-const normalizeUnit = (u) => {
+const normalizeUnit = (u: any) => {
   const map = {
     kg: 'kg',
     kilo: 'kg',
@@ -876,12 +876,12 @@ const normalizeUnit = (u) => {
     map[
       String(u || '')
         .trim()
-        .toLowerCase()
+        .toLowerCase() as keyof typeof map
     ] || null
   );
 };
 
-const convertQty = (qty, from, to) => {
+const convertQty = (qty: any, from: any, to: any) => {
   if (from === to) return qty;
   if (from === 'kg' && to === 'g') return qty * 1000;
   if (from === 'g' && to === 'kg') return qty / 1000;
@@ -890,7 +890,7 @@ const convertQty = (qty, from, to) => {
   return null;
 };
 
-const unitPriceFor = (basePrice, productUnit, wantedUnit) => {
+const unitPriceFor = (basePrice: any, productUnit: any, wantedUnit: any) => {
   const from = normalizeUnit(productUnit);
   const to = normalizeUnit(wantedUnit);
   if (!from || !to) return 0;
@@ -904,8 +904,8 @@ const unitPriceFor = (basePrice, productUnit, wantedUnit) => {
 const rawMaterials = computed(() => allProducts.value);
 
 const productsWithoutRecipe = computed(() => {
-  const withRecipe = new Set(recipes.value.map((r) => r.product_id));
-  return allProducts.value.filter((p) => !withRecipe.has(p.id));
+  const withRecipe = new Set(recipes.value.map((r: any) => r.product_id));
+  return allProducts.value.filter((p: any) => !withRecipe.has(p.id));
 });
 
 const lowStockIngredients = computed(() => {
@@ -919,7 +919,7 @@ const lowStockIngredients = computed(() => {
 });
 
 // stock bar helpers — مع تحويل الوحدات
-const getAvailableInRecipeUnit = (item) => {
+const getAvailableInRecipeUnit = (item: any) => {
   const availableRaw = Number(item.stock_available || 0);
   const recipeUnit = normalizeUnit(item.unit_code);
   const stockUnit = normalizeUnit(item.ingredient_unit);
@@ -928,14 +928,14 @@ const getAvailableInRecipeUnit = (item) => {
   return converted != null ? converted : availableRaw;
 };
 
-const stockBarWidth = (item) => {
+const stockBarWidth = (item: any) => {
   const needed = Number(item.quantity || 0);
   const available = getAvailableInRecipeUnit(item);
   if (!needed) return 100;
   return Math.min((available / needed) * 100, 100);
 };
 
-const stockBarClass = (item) => {
+const stockBarClass = (item: any) => {
   const pct = stockBarWidth(item);
   if (pct >= 100) return 'stock-ok';
   if (pct >= 50) return 'stock-warn';
@@ -943,9 +943,10 @@ const stockBarClass = (item) => {
 };
 
 // form cost calculation
-const getIngredient = (item) => allProducts.value.find((p) => p.id === item.ingredient_product_id);
+const getIngredient = (item: any) =>
+  allProducts.value.find((p: any) => p.id === item.ingredient_product_id);
 
-const itemCost = (item) => {
+const itemCost = (item: any) => {
   const p = getIngredient(item);
   if (!p) return 0;
 
@@ -961,10 +962,12 @@ const itemCost = (item) => {
   return Number(item.quantity || 0) * unitPrice;
 };
 
-const totalFormCost = computed(() => form.value.items.reduce((s, it) => s + itemCost(it), 0));
+const totalFormCost = computed(() =>
+  form.value.items.reduce((s: any, it: any) => s + itemCost(it), 0),
+);
 
 const selectedProductSalePrice = computed(() => {
-  const p = allProducts.value.find((x) => x.id === form.value.product_id);
+  const p = allProducts.value.find((x: any) => x.id === form.value.product_id);
   return Number(p?.sale_price || 0);
 });
 
@@ -1015,16 +1018,16 @@ const load = async () => {
           warehouse_id: produceForm.value.warehouse_id,
         });
         branchProds = bpRes.data || [];
-      } catch (e) {
+      } catch (e: any) {
         // fallback to initial result if re-fetch fails
         console.warn('Failed to re-fetch branchProducts with warehouse_id:', e.message || e);
       }
     }
 
-    recipes.value = rawRecipes.map((r) => {
-      const branchProd = branchProds.find((bp) => bp.id === r.product_id);
-      const enrichedItems = (r.items || []).map((item) => {
-        const p = allProducts.value.find((prod) => prod.id === item.ingredient_product_id);
+    recipes.value = rawRecipes.map((r: any) => {
+      const branchProd = branchProds.find((bp: any) => bp.id === r.product_id);
+      const enrichedItems = (r.items || []).map((item: any) => {
+        const p = allProducts.value.find((prod: any) => prod.id === item.ingredient_product_id);
         const globalStock = p ? Number(p.total_stock || 0) : null;
 
         // Use global stock across all warehouses to prevent false "insufficient stock" warnings
@@ -1061,7 +1064,7 @@ const load = async () => {
     if (!produceForm.value.warehouse_id && warehouses.value.length) {
       produceForm.value.warehouse_id = warehouses.value[0].id;
     }
-  } catch (e) {
+  } catch (e: any) {
     console.error('فشل تحميل الوصفات:', e.message);
   } finally {
     loading.value = false;
@@ -1075,7 +1078,7 @@ const openNewRecipe = () => {
   showForm.value = true;
 };
 
-const openNewRecipeFor = (product) => {
+const openNewRecipeFor = (product: any) => {
   form.value = {
     id: null,
     product_id: product.id,
@@ -1086,12 +1089,12 @@ const openNewRecipeFor = (product) => {
   showForm.value = true;
 };
 
-const openEdit = (recipe) => {
+const openEdit = (recipe: any) => {
   form.value = {
     id: recipe.id,
     product_id: recipe.product_id,
     name_ar: recipe.name_ar || '',
-    items: (recipe.items || []).map((it) => ({
+    items: (recipe.items || []).map((it: any) => ({
       ingredient_product_id: it.ingredient_product_id,
       quantity: Number(it.quantity),
       unit_code: it.unit_code || 'count',
@@ -1101,8 +1104,8 @@ const openEdit = (recipe) => {
   showForm.value = true;
 };
 
-const openProduce = (recipe) => {
-  const product = allProducts.value.find((x) => Number(x.id) === Number(recipe.product_id));
+const openProduce = (recipe: any) => {
+  const product = allProducts.value.find((x: any) => Number(x.id) === Number(recipe.product_id));
   produceForm.value = {
     recipe_id: recipe.id,
     product_name: recipe.product_name || '',
@@ -1130,12 +1133,12 @@ const closeProduce = () => {
 };
 
 const addItem = () => form.value.items.push(emptyItem());
-const removeItem = (i) => {
+const removeItem = (i: any) => {
   if (form.value.items.length > 1) form.value.items.splice(i, 1);
 };
 
-const autoSetUnit = (item) => {
-  const p = allProducts.value.find((x) => x.id === item.ingredient_product_id);
+const autoSetUnit = (item: any) => {
+  const p = allProducts.value.find((x: any) => x.id === item.ingredient_product_id);
   if (p) {
     const norm = normalizeUnit(p.unit);
     if (norm) item.unit_code = norm;
@@ -1152,7 +1155,9 @@ const saveRecipe = async () => {
     formError.value = 'اكتب اسم الوصفة';
     return;
   }
-  const items = form.value.items.filter((x) => x.ingredient_product_id && Number(x.quantity) > 0);
+  const items = form.value.items.filter(
+    (x: any) => x.ingredient_product_id && Number(x.quantity) > 0,
+  );
   if (!items.length) {
     formError.value = 'أضف مكوناً واحداً على الأقل';
     return;
@@ -1169,20 +1174,20 @@ const saveRecipe = async () => {
     else await costsApi.createRecipe(payload);
     closeForm();
     await load();
-  } catch (e) {
+  } catch (e: any) {
     formError.value = e.message || 'فشل الحفظ';
   } finally {
     saving.value = false;
   }
 };
 
-const deleteRecipe = async (id) => {
+const deleteRecipe = async (id: any) => {
   if (!confirm('تأكيد حذف الوصفة؟ بعد الحذف سيتم خصم المنتج نفسه مباشرة من المخزون عند البيع.'))
     return;
   try {
     await costsApi.deleteRecipe(id);
     await load();
-  } catch (e) {
+  } catch (e: any) {
     alert(e.message || 'فشل الحذف');
   }
 };
@@ -1222,10 +1227,10 @@ const saveProduce = async () => {
           },
         }),
       );
-    } catch (e) {
+    } catch (e: any) {
       console.warn('Failed to dispatch inventory-updated event', e);
     }
-  } catch (e) {
+  } catch (e: any) {
     produceError.value = e.message || 'فشل الإنتاج';
   } finally {
     producing.value = false;
@@ -1233,7 +1238,7 @@ const saveProduce = async () => {
 };
 
 // ─── Productions ──────────────────────────────────────────────────────────
-const productions = ref([]);
+const productions = ref<any[]>([]);
 const productionsLoading = ref(false);
 const prodFilter = ref({
   from_date: '',
@@ -1242,12 +1247,12 @@ const prodFilter = ref({
 
 // Reverse state
 const showReverseModal = ref(false);
-const reverseTarget = ref(null);
-const reverseQtyInput = ref(null);
+const reverseTarget = ref<any>(null);
+const reverseQtyInput = ref<any>(null);
 const reversing = ref(false); // movement_id of the one being reversed, or false
 const reverseError = ref('');
 
-const formatProdDate = (ts) => {
+const formatProdDate = (ts: any) => {
   if (!ts) return '—';
   const d = new Date(ts);
   return `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()} ${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
@@ -1256,18 +1261,18 @@ const formatProdDate = (ts) => {
 const loadProductions = async () => {
   productionsLoading.value = true;
   try {
-    const params = {};
+    const params: Record<string, any> = {};
     if (prodFilter.value.from_date) params.from_date = prodFilter.value.from_date;
     if (prodFilter.value.to_date) params.to_date = prodFilter.value.to_date;
     productions.value = (await costsApi.listProductions(params))?.data || [];
-  } catch (e) {
+  } catch (e: any) {
     productions.value = [];
   } finally {
     productionsLoading.value = false;
   }
 };
 
-const confirmReverse = (prod) => {
+const confirmReverse = (prod: any) => {
   reverseTarget.value = prod;
   reverseQtyInput.value = null;
   reverseError.value = '';
@@ -1279,7 +1284,7 @@ const doReverse = async () => {
   reverseError.value = '';
   reversing.value = reverseTarget.value.movement_id;
   try {
-    const body = {};
+    const body: Record<string, any> = {};
     if (reverseQtyInput.value && Number(reverseQtyInput.value) > 0) {
       body.reverse_qty = Number(reverseQtyInput.value);
     }
@@ -1287,7 +1292,7 @@ const doReverse = async () => {
     showReverseModal.value = false;
     await loadProductions();
     await load(); // تحديث المخزون في بطاقات الوصفات
-  } catch (e) {
+  } catch (e: any) {
     reverseError.value = e.message || 'فشل عكس العملية';
   } finally {
     reversing.value = false;

@@ -208,7 +208,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { stocktakes as stocktakeApi } from '@/api';
@@ -217,7 +217,7 @@ const route = useRoute();
 const router = useRouter();
 
 const stocktakeId = route.params.id;
-const stocktake = ref(null);
+const stocktake = ref<any>(null);
 const loading = ref(false);
 const saving = ref(false);
 const showConfirmModal = ref(false);
@@ -228,7 +228,7 @@ const filterStatus = ref('all');
 const msg = ref('');
 const err = ref(false);
 
-const flashMsg = (text, isErr = false) => {
+const flashMsg = (text: any, isErr = false) => {
   msg.value = text;
   err.value = isErr;
   setTimeout(() => {
@@ -242,7 +242,7 @@ const loadDetails = async () => {
     const res = await stocktakeApi.get(stocktakeId);
     // معالجة الكميات الفارغة (null) لتمثيلها بشكل صحيح في المدخلات
     if (res.data && res.data.items) {
-      res.data.items = res.data.items.map((item) => {
+      res.data.items = res.data.items.map((item: any) => {
         return {
           ...item,
           actual_quantity: item.actual_quantity === null ? null : Number(item.actual_quantity),
@@ -250,14 +250,14 @@ const loadDetails = async () => {
       });
     }
     stocktake.value = res.data;
-  } catch (e) {
+  } catch (e: any) {
     flashMsg(e.message || 'فشل تحميل تفاصيل عملية الجرد', true);
   } finally {
     loading.value = false;
   }
 };
 
-const calculateDiff = (item) => {
+const calculateDiff = (item: any) => {
   if (item.actual_quantity === null || item.actual_quantity === '') {
     item.actual_quantity = null;
     item.difference = null;
@@ -269,12 +269,12 @@ const calculateDiff = (item) => {
 // الحسابات المباشرة (Live Calculations) للفروقات والملخص المالي
 const countedCount = computed(() => {
   if (!stocktake.value) return 0;
-  return stocktake.value.items.filter((item) => item.actual_quantity !== null).length;
+  return stocktake.value.items.filter((item: any) => item.actual_quantity !== null).length;
 });
 
 const liveDeficitValue = computed(() => {
   if (!stocktake.value) return 0;
-  return stocktake.value.items.reduce((total, item) => {
+  return stocktake.value.items.reduce((total: any, item: any) => {
     if (item.actual_quantity !== null && item.difference < 0) {
       return total + Math.abs(item.difference) * item.unit_cost;
     }
@@ -284,7 +284,7 @@ const liveDeficitValue = computed(() => {
 
 const liveSurplusValue = computed(() => {
   if (!stocktake.value) return 0;
-  return stocktake.value.items.reduce((total, item) => {
+  return stocktake.value.items.reduce((total: any, item: any) => {
     if (item.actual_quantity !== null && item.difference > 0) {
       return total + item.difference * item.unit_cost;
     }
@@ -295,7 +295,7 @@ const liveSurplusValue = computed(() => {
 // تصفية وعرض البنود طبقاً للبحث والخيارات المحددة
 const filteredItems = computed(() => {
   if (!stocktake.value) return [];
-  return stocktake.value.items.filter((item) => {
+  return stocktake.value.items.filter((item: any) => {
     // 1. تصفية البحث بالاسم أو الرمز SKU
     const matchQuery =
       item.product_name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
@@ -323,7 +323,7 @@ const handleSave = async (silent = false) => {
   saving.value = true;
   try {
     // إرسال فقط المعرفات والكميات الفعلية المحدثة
-    const payloadItems = stocktake.value.items.map((item) => ({
+    const payloadItems = stocktake.value.items.map((item: any) => ({
       product_id: item.product_id,
       actual_quantity: item.actual_quantity,
     }));
@@ -335,7 +335,7 @@ const handleSave = async (silent = false) => {
 
     if (!silent) flashMsg('تم حفظ مسودة الجرد بنجاح.');
     return true;
-  } catch (e) {
+  } catch (e: any) {
     flashMsg(e.message || 'فشل في حفظ مسودة الجرد', true);
     return false;
   } finally {
@@ -354,37 +354,37 @@ const openConfirmModal = async () => {
 const handleComplete = async () => {
   saving.value = true;
   try {
-    const res = await stocktakeApi.complete(stocktakeId);
+    const res = (await stocktakeApi.complete(stocktakeId)) as any;
     showConfirmModal.value = false;
     flashMsg(res.message || 'تم اعتماد وتسوية الجرد بنجاح.');
     // إعادة تحميل التفاصيل لإظهار الوضع المعتمد (المغلق)
     await loadDetails();
-  } catch (e) {
+  } catch (e: any) {
     flashMsg(e.message || 'فشل في اعتماد وتسوية الجرد المالي والمخزني', true);
   } finally {
     saving.value = false;
   }
 };
 
-const getDiffClass = (diff) => {
+const getDiffClass = (diff: any) => {
   if (diff === null || diff === undefined) return '';
   if (diff < 0) return 'deficit-text';
   if (diff > 0) return 'surplus-text';
   return '';
 };
 
-const fmtQty = (val) => {
+const fmtQty = (val: any) => {
   if (val === null || val === undefined) return '-';
   return Number(val).toLocaleString('ar-EG', { maximumFractionDigits: 3 });
 };
 
-const fmtDiff = (diff) => {
+const fmtDiff = (diff: any) => {
   if (diff === null || diff === undefined) return '-';
   const prefix = diff > 0 ? '+' : '';
   return prefix + Number(diff).toLocaleString('ar-EG', { maximumFractionDigits: 3 });
 };
 
-const fmtCost = (val) => {
+const fmtCost = (val: any) => {
   if (val === undefined || val === null) return '-';
   return (
     Number(val).toLocaleString('ar-EG', { minimumFractionDigits: 2, maximumFractionDigits: 3 }) +
@@ -392,7 +392,7 @@ const fmtCost = (val) => {
   );
 };
 
-const fmtCurrency = (val) => {
+const fmtCurrency = (val: any) => {
   if (val === undefined || val === null) return '-';
   return Number(val).toLocaleString('ar-EG', {
     style: 'currency',
@@ -401,7 +401,7 @@ const fmtCurrency = (val) => {
   });
 };
 
-const fmtDateTime = (isoStr) => {
+const fmtDateTime = (isoStr: any) => {
   if (!isoStr) return '-';
   const d = new Date(isoStr);
   return d.toLocaleDateString('ar-EG', {

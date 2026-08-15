@@ -11,7 +11,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 defineProps({
   title: { type: String, default: 'لا توجد بيانات' },
   message: { type: String, default: '' },

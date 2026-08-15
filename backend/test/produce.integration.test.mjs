@@ -2,8 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { getClient, query } from '../src/database/pool.js';
 import pool from '../src/database/pool.js';
-import { produceRecipeBatch } from '../src/services/recipesService.js';
-import { adjustStock } from '../src/services/inventoryService.js';
+import { produceRecipeBatch } from '../src/services/recipesService.ts';
+import { adjustStock } from '../src/services/inventoryService.ts';
 
 // WARNING: This test modifies the DB. Enable it only for a disposable test database.
 

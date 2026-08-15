@@ -48,11 +48,22 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed } from 'vue';
 
-const props = defineProps({
-  items: { type: Array, default: () => [] },
+interface ActivityItem {
+  id: number | string;
+  module: string;
+  action_ar: string;
+  full_name?: string;
+  username?: string;
+  created_at?: string;
+  ip_address?: string;
+  [key: string]: any;
+}
+
+const props = withDefaults(defineProps<{ items?: ActivityItem[] }>(), {
+  items: () => [],
 });
 
 defineEmits(['refresh']);
@@ -61,7 +72,7 @@ const filterModule = ref('');
 
 const filteredItems = computed(() => {
   if (!filterModule.value) return props.items;
-  return props.items.filter((i) => i.module === filterModule.value);
+  return props.items.filter((i: any) => i.module === filterModule.value);
 });
 
 const moduleLabels = {
@@ -81,9 +92,9 @@ const moduleLabels = {
   settings: 'إعدادات',
 };
 
-const moduleLabel = (mod) => moduleLabels[mod] || mod || '—';
+const moduleLabel = (mod: any) => moduleLabels[mod as keyof typeof moduleLabels] || mod || '—';
 
-const moduleClass = (mod) => {
+const moduleClass = (mod: any) => {
   const map = {
     auth: 'mod-auth',
     sales: 'mod-sales',
@@ -96,14 +107,14 @@ const moduleClass = (mod) => {
     users: 'mod-users',
     admin: 'mod-admin',
   };
-  return map[mod] || 'mod-default';
+  return map[mod as keyof typeof map] || 'mod-default';
 };
 
-const formatTime = (ts) => {
+const formatTime = (ts: string | undefined) => {
   if (!ts) return '';
   const d = new Date(ts);
   const now = new Date();
-  const diff = (now - d) / 1000;
+  const diff = (now.getTime() - d.getTime()) / 1000;
   if (diff < 60) return 'الآن';
   if (diff < 3600) return `منذ ${Math.floor(diff / 60)} دقيقة`;
   if (diff < 86400) return `منذ ${Math.floor(diff / 3600)} ساعة`;

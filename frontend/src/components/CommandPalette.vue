@@ -45,7 +45,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, computed, watch, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAppStore } from '@/stores/app';
@@ -56,7 +56,7 @@ const appStore = useAppStore();
 const isOpen = ref(false);
 const query = ref('');
 const activeIndex = ref(0);
-const searchInput = ref(null);
+const searchInput = ref<any>(null);
 
 const allItems = [
   {
@@ -149,7 +149,7 @@ const filteredItems = computed(() => {
   const q = query.value.trim().toLowerCase();
   if (!q) return allItems;
   return allItems.filter(
-    (item) => item.title.toLowerCase().includes(q) || item.desc.toLowerCase().includes(q),
+    (item: any) => item.title.toLowerCase().includes(q) || item.desc.toLowerCase().includes(q),
   );
 });
 
@@ -189,12 +189,12 @@ const selectItem = () => {
   }
 };
 
-const executeItem = (item) => {
+const executeItem = (item: any) => {
   item.action();
   close();
 };
 
-const handleKeyDown = (e) => {
+const handleKeyDown = (e: any) => {
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
     e.preventDefault();
     if (isOpen.value) close();

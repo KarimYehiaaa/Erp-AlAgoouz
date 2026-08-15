@@ -75,7 +75,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { formatMoney } from '@/utils/currency';
 
 defineProps({

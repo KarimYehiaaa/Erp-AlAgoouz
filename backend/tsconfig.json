@@ -6,22 +6,23 @@
     "esModuleInterop": true,
     "allowImportingTsExtensions": true,
     "outDir": "./dist",
-    "rootDir": "./src",
-    "strict": false,
+    "rootDir": "..",
+    "strict": true,
     "noImplicitAny": false,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "sourceMap": true,
     "allowJs": true,
-    "checkJs": false,
+    "checkJs": true,
     "incremental": true,
     "noEmit": true,
     "isolatedModules": true,
     "types": ["node"],
     "paths": {
       "@/*": ["./src/*"]
-    }
+    },
+    "useUnknownInCatchVariables": false
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "test"]

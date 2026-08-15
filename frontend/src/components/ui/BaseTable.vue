@@ -231,7 +231,7 @@
       <select
         class="bt-per-page"
         :value="perPage"
-        @change="$emit('per-page-change', Number($event.target.value))"
+        @change="$emit('per-page-change', Number(($event.target as HTMLSelectElement).value))"
       >
         <option v-for="n in [10, 25, 50, 100]" :key="n" :value="n">{{ n }} / صفحة</option>
       </select>
@@ -239,64 +239,115 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, useSlots, onMounted, onBeforeUnmount } from 'vue';
 import DataEmptyState from './DataEmptyState.vue';
 
-const props = defineProps({
-  /** مصفوفة الصفوف الحالية (بعد الـ pagination من الـ parent أو الـ composable) */
-  rows: { type: Array, default: () => [] },
-  /** اسم بديل للـ rows لضمان التوافق مع الشاشات التي تعتمد على :items */
-  items: { type: Array, default: null },
+/** نوع صف الجدول (كائن بأي مفاتيح، المعرف اختياري). */
+type TableRow = Record<string, any> & { id?: any };
 
-  /** تعريف الأعمدة:
-   * { key, label, sortable?, align?, width?, format?: (val, row) => string, cellClass?: (row) => string }
-   */
-  columns: { type: Array, required: true },
+/**
+ * تعريف عمود الجدول:
+ * { key, label, sortable?, align?, width?, format?: (val: any, row: any) => string, cellClass?: (row: any) => string }
+ */
+interface TableColumn {
+  key: string;
+  label: string;
+  sortable?: boolean;
+  align?: string;
+  width?: string;
+  toggleable?: boolean;
+  format?: (val: any, row: TableRow) => string;
+  cellClass?: (row: TableRow) => string;
+}
 
-  loading: { type: Boolean, default: false },
-  selectable: { type: Boolean, default: false },
-  clickable: { type: Boolean, default: false },
-  sortable: { type: Boolean, default: true },
-  searchable: { type: Boolean, default: false },
-  paginated: { type: Boolean, default: false },
-  compact: { type: Boolean, default: false },
-  showColumnToggle: { type: Boolean, default: false },
+const props = withDefaults(
+  defineProps<{
+    /** مصفوفة الصفوف الحالية (بعد الـ pagination من الـ parent أو الـ composable) */
+    rows?: TableRow[];
+    /** اسم بديل للـ rows لضمان التوافق مع الشاشات التي تعتمد على :items */
+    items?: TableRow[] | null;
+    /** تعريف الأعمدة */
+    columns: TableColumn[];
+    loading?: boolean;
+    selectable?: boolean;
+    clickable?: boolean;
+    sortable?: boolean;
+    searchable?: boolean;
+    paginated?: boolean;
+    compact?: boolean;
+    showColumnToggle?: boolean;
+    // Pagination props (لو الـ pagination من الـ parent)
+    currentPage?: number;
+    totalRows?: number;
+    perPage?: number;
+    totalPages?: number;
+    // Sort
+    activeSortKey?: string;
+    activeSortDir?: string;
+    // Selection (من useTable composable)
+    selectedCount?: number;
+    selectedItems?: TableRow[];
+    allSelected?: boolean;
+    isSelected?: (id: any) => boolean;
+    toggleRow?: (id: any) => void;
+    toggleAll?: () => void;
+    clearSelection?: () => void;
+    // Search (يمكن ربطه بـ v-model:search)
+    search?: string;
+    searchPlaceholder?: string;
+    // Misc
+    maxHeight?: string;
+    tableClass?: string;
+    rowClass?: ((row: TableRow) => string | Record<string, any>[]) | null;
+    skeletonRows?: number;
+    emptyTitle?: string;
+    emptyMessage?: string;
+    emptyIcon?: string;
+  }>(),
+  {
+    rows: () => [],
+    items: null,
+    loading: false,
+    selectable: false,
+    clickable: false,
+    sortable: true,
+    searchable: false,
+    paginated: false,
+    compact: false,
+    showColumnToggle: false,
+    currentPage: 1,
+    totalRows: 0,
+    perPage: 25,
+    totalPages: 1,
+    activeSortKey: '',
+    activeSortDir: 'asc',
+    selectedCount: 0,
+    selectedItems: () => [],
+    allSelected: false,
+    isSelected: () => false,
+    toggleRow: () => {},
+    toggleAll: () => {},
+    clearSelection: () => {},
+    search: '',
+    searchPlaceholder: '',
+    maxHeight: '',
+    tableClass: '',
+    rowClass: null,
+    skeletonRows: 6,
+    emptyTitle: 'لا توجد بيانات',
+    emptyMessage: 'لم يتم العثور على نتائج مطابقة.',
+    emptyIcon: 'inventory',
+  },
+);
 
-  // Pagination props (لو الـ pagination من الـ parent)
-  currentPage: { type: Number, default: 1 },
-  totalRows: { type: Number, default: 0 },
-  perPage: { type: Number, default: 25 },
-  totalPages: { type: Number, default: 1 },
-
-  // Sort
-  activeSortKey: { type: String, default: '' },
-  activeSortDir: { type: String, default: 'asc' },
-
-  // Selection (من useTable composable)
-  selectedCount: { type: Number, default: 0 },
-  selectedItems: { type: Array, default: () => [] },
-  allSelected: { type: Boolean, default: false },
-  isSelected: { type: Function, default: () => false },
-  toggleRow: { type: Function, default: () => {} },
-  toggleAll: { type: Function, default: () => {} },
-  clearSelection: { type: Function, default: () => {} },
-
-  // Search (يمكن ربطه بـ v-model:search)
-  search: { type: String, default: '' },
-  searchPlaceholder: { type: String, default: '' },
-
-  // Misc
-  maxHeight: { type: String, default: '' },
-  tableClass: { type: String, default: '' },
-  rowClass: { type: Function, default: null },
-  skeletonRows: { type: Number, default: 6 },
-  emptyTitle: { type: String, default: 'لا توجد بيانات' },
-  emptyMessage: { type: String, default: 'لم يتم العثور على نتائج مطابقة.' },
-  emptyIcon: { type: String, default: 'inventory' },
-});
-
-const emit = defineEmits(['update:search', 'sort', 'row-click', 'page-change', 'per-page-change']);
+const emit = defineEmits<{
+  (e: 'update:search', value: string): void;
+  (e: 'sort', key: string): void;
+  (e: 'row-click', row: TableRow): void;
+  (e: 'page-change', page: number): void;
+  (e: 'per-page-change', perPage: number): void;
+}>();
 const slots = useSlots();
 
 const displayRows = computed(() =>
@@ -305,15 +356,15 @@ const displayRows = computed(() =>
 
 const internalSearch = ref(props.search);
 const colMenuOpen = ref(false);
-const colToggleRoot = ref(null);
-const hiddenCols = ref([]);
+const colToggleRoot = ref<HTMLElement | null>(null);
+const hiddenCols = ref<string[]>([]);
 
 const showToolbar = computed(() => props.searchable || props.showColumnToggle || slots.toolbar);
 const hasActionsSlot = computed(() => !!slots.actions);
 
-const toggleableColumns = computed(() => props.columns.filter((c) => c.toggleable !== false));
+const toggleableColumns = computed(() => props.columns.filter((c: any) => c.toggleable !== false));
 const visibleColumns = computed(() =>
-  props.columns.filter((c) => !hiddenCols.value.includes(c.key)),
+  props.columns.filter((c: any) => !hiddenCols.value.includes(c.key)),
 );
 const colSpan = computed(
   () => visibleColumns.value.length + (props.selectable ? 1 : 0) + (hasActionsSlot.value ? 1 : 0),
@@ -327,7 +378,7 @@ const pageEnd = computed(() => Math.min(props.currentPage * props.perPage, props
 const pagesToShow = computed(() => {
   const total = props.totalPages;
   const cur = props.currentPage;
-  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  if (total <= 7) return Array.from({ length: total }, (_: any, i: any) => i + 1);
   const pages = [];
   if (cur > 3) {
     pages.push(1, '...');
@@ -339,11 +390,11 @@ const pagesToShow = computed(() => {
   return pages;
 });
 
-const getCellValue = (row, col) => {
-  return col.key.split('.').reduce((obj, k) => obj?.[k], row);
+const getCellValue = (row: any, col: any) => {
+  return col.key.split('.').reduce((obj: any, k: any) => obj?.[k], row);
 };
 
-const formatCell = (row, col) => {
+const formatCell = (row: any, col: any) => {
   const val = getCellValue(row, col);
   if (col.format) return col.format(val, row);
   if (val === null || val === undefined || val === '') return '<span class="text-muted">—</span>';
@@ -351,7 +402,7 @@ const formatCell = (row, col) => {
 };
 
 // Close col menu on outside click
-const handleOutsideClick = (e) => {
+const handleOutsideClick = (e: any) => {
   if (colToggleRoot.value && !colToggleRoot.value.contains(e.target)) {
     colMenuOpen.value = false;
   }

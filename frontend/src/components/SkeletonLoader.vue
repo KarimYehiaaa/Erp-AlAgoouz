@@ -54,14 +54,15 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed } from 'vue';
 
 const props = defineProps({
   type: {
     type: String,
     default: 'line', // 'line' | 'circle' | 'card' | 'table' | 'list' | 'box'
-    validator: (value) => ['line', 'circle', 'card', 'table', 'list', 'box'].includes(value),
+    validator: (value: string) =>
+      ['line', 'circle', 'card', 'table', 'list', 'box'].includes(value),
   },
   count: {
     type: Number,
@@ -94,7 +95,7 @@ const props = defineProps({
 });
 
 const customStyle = computed(() => {
-  const styles = {};
+  const styles: Record<string, string> = {};
   if (props.width) styles.width = props.width;
   if (props.height) styles.height = props.height;
   if (props.radius) styles.borderRadius = props.radius;

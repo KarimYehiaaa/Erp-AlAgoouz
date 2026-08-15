@@ -18,7 +18,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed } from 'vue';
 
 const props = defineProps({
@@ -26,7 +26,7 @@ const props = defineProps({
   counts: { type: Object, default: () => ({}) },
 });
 
-const formatNumber = (n) => {
+const formatNumber = (n: any) => {
   if (n === null || n === undefined) return '—';
   if (typeof n === 'string') return n;
   return new Intl.NumberFormat('ar-EG', { maximumFractionDigits: 0 }).format(n);

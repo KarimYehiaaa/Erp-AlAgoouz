@@ -160,14 +160,14 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed } from 'vue';
 
 const props = defineProps({
   health: { type: Object, default: () => ({}) },
 });
 
-const getPropData = (obj) => {
+const getPropData = (obj: any) => {
   if (!obj) return {};
   if (obj.server && obj.database) return obj;
   if (obj.data && typeof obj.data === 'object') return getPropData(obj.data);

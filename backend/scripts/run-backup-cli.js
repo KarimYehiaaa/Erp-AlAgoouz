@@ -1,4 +1,4 @@
-import { createBackup } from '../src/services/backupService.js';
+import { createBackup } from '../src/services/backupService.ts';
 
 (async () => {
   try {

@@ -11,7 +11,7 @@ const api = axios.create({
   },
 });
 
-api.interceptors.request.use((config) => {
+api.interceptors.request.use((config: any) => {
   const token = localStorage.getItem('token');
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
@@ -19,10 +19,11 @@ api.interceptors.request.use((config) => {
 
 // Track refresh state to prevent multiple simultaneous refresh attempts
 let isRefreshing = false;
-let failedQueue = [];
+let failedQueue: Array<{ resolve: (value: unknown) => void; reject: (reason?: unknown) => void }> =
+  [];
 
-const processQueue = (error, token = null) => {
-  failedQueue.forEach((prom) => {
+const processQueue = (error: any, token: any = null) => {
+  failedQueue.forEach((prom: any) => {
     if (error) prom.reject(error);
     else prom.resolve(token);
   });
@@ -45,9 +46,9 @@ api.interceptors.response.use(
     ) {
       if (isRefreshing) {
         // Queue this request until refresh completes
-        return new Promise((resolve, reject) => {
+        return new Promise((resolve: any, reject: any) => {
           failedQueue.push({ resolve, reject });
-        }).then((token) => {
+        }).then((token: any) => {
           originalRequest.headers.Authorization = `Bearer ${token}`;
           return api.request(originalRequest);
         });
@@ -73,7 +74,7 @@ api.interceptors.response.use(
           originalRequest.headers.Authorization = `Bearer ${newToken}`;
           return api.request(originalRequest);
         }
-      } catch (refreshErr) {
+      } catch (refreshErr: any) {
         processQueue(refreshErr, null);
         // Refresh failed — clear tokens and redirect
         localStorage.removeItem('token');
@@ -121,15 +122,15 @@ api.interceptors.response.use(
 export default api;
 
 export const auth = {
-  login: (data) => api.post('/auth/login', data),
+  login: (data: any) => api.post('/auth/login', data),
   profile: () => api.get('/auth/profile'),
   logout: () => api.post('/auth/logout'),
 };
 
-export const dashboard = (params) => api.get('/dashboard', { params });
+export const dashboard = (params: any) => api.get('/dashboard', { params });
 export const operations = {
   alerts: () => api.get('/operations/alerts'),
-  auditLogs: (params) => api.get('/operations/audit-logs', { params }),
+  auditLogs: (params: any) => api.get('/operations/audit-logs', { params }),
 };
 export const hr = {
   summary: (params?: any) => api.get('/hr/summary', { params }),
@@ -155,30 +156,31 @@ export const hr = {
 export { sales } from './sales.api';
 
 export const products = {
-  list: (params) => api.get('/products', { params }),
-  branchProducts: (params) => api.get('/products/branch', { params }),
-  costsReport: (params) => api.get('/products/costs-report', { params }),
-  get: (id) => api.get(`/products/${id}`),
+  list: (params: any = {}) => api.get('/products', { params }),
+  branchProducts: (params: any = {}) => api.get('/products/branch', { params }),
+  costsReport: (params: any = {}) => api.get('/products/costs-report', { params }),
+  get: (id: any) => api.get(`/products/${id}`),
   nextSku: () => api.get('/products/next-sku'),
-  create: (data) => api.post('/products', data),
+  create: (data: any) => api.post('/products', data),
   deleteAll: () => api.post('/products/delete-all', { confirm: 'CONFIRM_DELETE_ALL_PRODUCTS' }),
-  update: (id, data) => api.put(`/products/${id}`, data),
-  bulkAdjustPrices: (data) => api.put('/products/bulk-price', data),
-  setWarehouse: (id, warehouse_id) => api.put(`/products/${id}/warehouse`, { warehouse_id }),
-  delete: (id) => api.delete(`/products/${id}`),
+  update: (id: any, data: any) => api.put(`/products/${id}`, data),
+  bulkAdjustPrices: (data: any) => api.put('/products/bulk-price', data),
+  setWarehouse: (id: any, warehouse_id: any) =>
+    api.put(`/products/${id}/warehouse`, { warehouse_id }),
+  delete: (id: any) => api.delete(`/products/${id}`),
   categories: () => api.get('/products/categories'),
-  createCategory: (data) => api.post('/products/categories', data),
-  updateCategory: (id, data) => api.put(`/products/categories/${id}`, data),
-  deleteCategory: (id) => api.delete(`/products/categories/${id}`),
+  createCategory: (data: any) => api.post('/products/categories', data),
+  updateCategory: (id: any, data: any) => api.put(`/products/categories/${id}`, data),
+  deleteCategory: (id: any) => api.delete(`/products/categories/${id}`),
   units: () => api.get('/products/units'),
-  createUnit: (data) => api.post('/products/units', data),
-  updateUnit: (id, data) => api.put(`/products/units/${id}`, data),
-  deleteUnit: (id) => api.delete(`/products/units/${id}`),
-  returnStock: (data) => api.post('/products/return', data),
-  returns: (params) => api.get('/products/returns/list', { params }),
+  createUnit: (data: any) => api.post('/products/units', data),
+  updateUnit: (id: any, data: any) => api.put(`/products/units/${id}`, data),
+  deleteUnit: (id: any) => api.delete(`/products/units/${id}`),
+  returnStock: (data: any) => api.post('/products/return', data),
+  returns: (params: any) => api.get('/products/returns/list', { params }),
   downloadTemplate: async () => api.get('/products/template', { responseType: 'blob' }),
   exportProducts: async () => api.get('/products/export', { responseType: 'blob' }),
-  importExcel: (file) => {
+  importExcel: (file: any) => {
     const form = new FormData();
     form.append('file', file);
     return api.post('/products/import', form, {
@@ -189,89 +191,90 @@ export const products = {
 export const warehouses = () => api.get('/warehouses');
 export { inventory } from './inventory.api';
 export const purchases = {
-  list: (params) => api.get('/purchases', { params }),
-  create: (data) => api.post('/purchases', data),
-  update: (id, data) => api.put(`/purchases/${id}`, data),
-  delete: (id) => api.delete(`/purchases/${id}`),
+  list: (params: any) => api.get('/purchases', { params }),
+  create: (data: any) => api.post('/purchases', data),
+  update: (id: any, data: any) => api.put(`/purchases/${id}`, data),
+  delete: (id: any) => api.delete(`/purchases/${id}`),
 };
 const recipeApi = {
   listRecipes: () => api.get('/costs/recipes'),
-  getRecipe: (id) => api.get(`/costs/recipes/${id}`),
-  createRecipe: (data) => api.post('/costs/recipes', data),
-  updateRecipe: (id, data) => api.put(`/costs/recipes/${id}`, data),
-  deleteRecipe: (id) => api.delete(`/costs/recipes/${id}`),
-  produceRecipe: (id, data) => api.post(`/costs/recipes/${id}/produce`, data),
+  getRecipe: (id: any) => api.get(`/costs/recipes/${id}`),
+  createRecipe: (data: any) => api.post('/costs/recipes', data),
+  updateRecipe: (id: any, data: any) => api.put(`/costs/recipes/${id}`, data),
+  deleteRecipe: (id: any) => api.delete(`/costs/recipes/${id}`),
+  produceRecipe: (id: any, data: any) => api.post(`/costs/recipes/${id}/produce`, data),
   // عمليات الإنتاج
-  listProductions: (params) => api.get('/costs/productions', { params }),
-  reverseProduction: (movementId, data) =>
+  listProductions: (params: any = {}) => api.get('/costs/productions', { params }),
+  reverseProduction: (movementId: any, data: any) =>
     api.post(`/costs/productions/${movementId}/reverse`, data || {}),
 };
 
 export const recipes = recipeApi;
 export const costs = recipeApi;
 export const customers = {
-  list: (params) => api.get('/customers', { params }),
-  get: (id) => api.get(`/customers/${id}`),
-  create: (data) => api.post('/customers', data),
-  update: (id, data) => api.put(`/customers/${id}`, data),
-  delete: (id) => api.delete(`/customers/${id}`),
-  statement: (id) => api.get(`/customers/${id}/statement`),
-  recordPayment: (id, data) => api.post(`/customers/${id}/payment`, data),
-  recordSalePayment: (saleId, data) => api.post(`/customers/sales/${saleId}/payment`, data),
+  list: (params: any) => api.get('/customers', { params }),
+  get: (id: any) => api.get(`/customers/${id}`),
+  create: (data: any) => api.post('/customers', data),
+  update: (id: any, data: any) => api.put(`/customers/${id}`, data),
+  delete: (id: any) => api.delete(`/customers/${id}`),
+  statement: (id: any) => api.get(`/customers/${id}/statement`),
+  recordPayment: (id: any, data: any) => api.post(`/customers/${id}/payment`, data),
+  recordSalePayment: (saleId: any, data: any) =>
+    api.post(`/customers/sales/${saleId}/payment`, data),
 };
 export const expenses = {
-  list: (params) => api.get('/expenses', { params }),
-  create: (data) => api.post('/expenses', data),
-  update: (id, data) => api.put(`/expenses/${id}`, data),
-  delete: (id) => api.delete(`/expenses/${id}`),
+  list: (params: any) => api.get('/expenses', { params }),
+  create: (data: any) => api.post('/expenses', data),
+  update: (id: any, data: any) => api.put(`/expenses/${id}`, data),
+  delete: (id: any) => api.delete(`/expenses/${id}`),
   categories: () => api.get('/expenses/categories'),
-  report: (params) => api.get('/expenses/report', { params }),
-  suggestCategory: (title) => api.get('/expenses/suggest-category', { params: { title } }),
+  report: (params: any) => api.get('/expenses/report', { params }),
+  suggestCategory: (title: any) => api.get('/expenses/suggest-category', { params: { title } }),
 };
 export const suppliers = {
   list: () => api.get('/suppliers'),
-  invoices: (id) => api.get(`/suppliers/${id}/invoices`),
-  payments: (id) => api.get(`/suppliers/${id}/payments`),
-  recordPayment: (id, data) => api.post(`/suppliers/${id}/payments`, data),
-  create: (data) => api.post('/suppliers', data),
-  update: (id, data) => api.put(`/suppliers/${id}`, data),
-  delete: (id) => api.delete(`/suppliers/${id}`),
+  invoices: (id: any) => api.get(`/suppliers/${id}/invoices`),
+  payments: (id: any) => api.get(`/suppliers/${id}/payments`),
+  recordPayment: (id: any, data: any) => api.post(`/suppliers/${id}/payments`, data),
+  create: (data: any) => api.post('/suppliers', data),
+  update: (id: any, data: any) => api.put(`/suppliers/${id}`, data),
+  delete: (id: any) => api.delete(`/suppliers/${id}`),
 };
 export { invoices } from './invoices.api';
 export const quotes = {
-  template: (params) => api.get('/quotes/template', { params }),
-  saveTemplate: (data) => api.put('/quotes/template', data),
-  downloadPdf: (data) => api.post('/quotes/pdf', data, { responseType: 'blob' }),
+  template: (params: any = {}) => api.get('/quotes/template', { params }),
+  saveTemplate: (data: any) => api.put('/quotes/template', data),
+  downloadPdf: (data: any) => api.post('/quotes/pdf', data, { responseType: 'blob' }),
 };
 export const users = {
   list: () => api.get('/users'),
   roles: () => api.get('/roles'),
-  create: (data) => api.post('/users', data),
-  update: (id, data) => api.put(`/users/${id}`, data),
-  delete: (id) => api.delete(`/users/${id}`),
+  create: (data: any) => api.post('/users', data),
+  update: (id: any, data: any) => api.put(`/users/${id}`, data),
+  delete: (id: any) => api.delete(`/users/${id}`),
   settings: () => api.get('/settings'),
-  updateSetting: (key, value) => api.put(`/settings/${key}`, { value }),
+  updateSetting: (key: any, value: any) => api.put(`/settings/${key}`, { value }),
   permissions: () => api.get('/permissions'),
-  rolePermissions: (roleId) => api.get(`/roles/${roleId}/permissions`),
-  updateRolePermissions: (roleId, permissionIds) =>
+  rolePermissions: (roleId: any) => api.get(`/roles/${roleId}/permissions`),
+  updateRolePermissions: (roleId: any, permissionIds: any) =>
     api.post(`/roles/${roleId}/permissions`, { permissionIds }),
-  createRole: (data) => api.post('/roles', data),
-  updateRole: (id, data) => api.put(`/roles/${id}`, data),
-  deleteRole: (id) => api.delete(`/roles/${id}`),
+  createRole: (data: any) => api.post('/roles', data),
+  updateRole: (id: any, data: any) => api.put(`/roles/${id}`, data),
+  deleteRole: (id: any) => api.delete(`/roles/${id}`),
 };
-export const reports = (type, params) => api.get(`/reports/${type}`, { params });
+export const reports = (type: any, params: any) => api.get(`/reports/${type}`, { params });
 
 export const pl = {
-  monthly: (params) => api.get('/reports/pl/monthly', { params }),
-  trend: (months) => api.get('/reports/pl/trend', { params: { months } }),
+  monthly: (params: any) => api.get('/reports/pl/monthly', { params }),
+  trend: (months: any) => api.get('/reports/pl/trend', { params: { months } }),
 };
 
 export const backup = {
   create: () => api.get('/backup/create'),
   list: () => api.get('/backup/list'),
-  download: (name) => api.get(`/backup/download/${name}`, { responseType: 'blob' }),
-  restore: (name) => api.post('/backup/restore', { name, confirm: 'CONFIRM_RESTORE_BACKUP' }),
-  restoreFile: (file) => {
+  download: (name: any) => api.get(`/backup/download/${name}`, { responseType: 'blob' }),
+  restore: (name: any) => api.post('/backup/restore', { name, confirm: 'CONFIRM_RESTORE_BACKUP' }),
+  restoreFile: (file: any) => {
     const fd = new FormData();
     fd.append('file', file);
     fd.append('confirm', 'CONFIRM_RESTORE_BACKUP');
@@ -279,24 +282,24 @@ export const backup = {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
   },
-  clear: (body) => api.post('/backup/clear', body),
-  cloudTest: (config) => api.post('/backup/cloud-test', config),
+  clear: (body: any) => api.post('/backup/clear', body),
+  cloudTest: (config: any) => api.post('/backup/cloud-test', config),
 };
 
 export const stocktakes = {
   list: () => api.get('/stocktakes'),
-  get: (id) => api.get(`/stocktakes/${id}`),
-  create: (data) => api.post('/stocktakes', data),
-  updateItems: (id, data) => api.put(`/stocktakes/${id}/items`, data),
-  complete: (id) => api.post(`/stocktakes/${id}/complete`),
-  delete: (id) => api.delete(`/stocktakes/${id}`),
+  get: (id: any) => api.get(`/stocktakes/${id}`),
+  create: (data: any) => api.post('/stocktakes', data),
+  updateItems: (id: any, data: any) => api.put(`/stocktakes/${id}/items`, data),
+  complete: (id: any) => api.post(`/stocktakes/${id}/complete`),
+  delete: (id: any) => api.delete(`/stocktakes/${id}`),
 };
 
 export const forecasting = {
-  get: (params) => api.get('/forecasting', { params }),
-  getBasketAssociations: (params) => api.get('/forecasting/basket-associations', { params }),
-  askCopilot: (data) => api.post('/forecasting/copilot', data),
-  getStaffingForecast: (params) => api.get('/forecasting/staffing', { params }),
+  get: (params: any) => api.get('/forecasting', { params }),
+  getBasketAssociations: (params: any) => api.get('/forecasting/basket-associations', { params }),
+  askCopilot: (data: any) => api.post('/forecasting/copilot', data),
+  getStaffingForecast: (params: any) => api.get('/forecasting/staffing', { params }),
   getSmartPricingAlerts: () => api.get('/forecasting/pricing-alerts'),
-  getCashFlowProjection: (params) => api.get('/forecasting/cashflow-projection', { params }),
+  getCashFlowProjection: (params: any) => api.get('/forecasting/cashflow-projection', { params }),
 };

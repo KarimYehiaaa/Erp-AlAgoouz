@@ -36,7 +36,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref } from 'vue';
 
 defineEmits(['reset-system']);
@@ -58,7 +58,7 @@ const downloadBackup = async () => {
     a.download = `backup_alagoouz_${new Date().toISOString().slice(0, 10)}.sql`;
     a.click();
     window.URL.revokeObjectURL(url);
-  } catch (err) {
+  } catch (err: any) {
     alert(err.message || 'حدث خطأ أثناء تنزيل النسخة الاحتياطية');
   } finally {
     loading.value = false;

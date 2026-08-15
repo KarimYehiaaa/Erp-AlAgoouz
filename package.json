@@ -8,8 +8,11 @@
     "backend"
   ],
   "scripts": {
-    "start": "tsx backend/src/index.ts",
-    "start:prod": "node backend/src/index.js",
+    "start": "npm run start -w backend",
+    "start:prod": "npm run start -w backend",
+    "typecheck": "npm run typecheck -w backend && npm run typecheck -w frontend",
+    "test": "npm test -w backend && npm run test:unit -w frontend",
+    "check:local": "npm run typecheck -w backend && npm run test:local -w backend",
     "build": "cd frontend && npx vite build --outDir ../dist",
     "setup": "node scripts/setup-project.js",
     "backup": "node scripts/backup-system.js",
@@ -47,7 +50,7 @@
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
-    "express": "^4.21.0",
+    "express": "^5.1.0",
     "express-rate-limit": "^7.4.0",
     "helmet": "^7.1.0",
     "ioredis": "^6.0.0",
@@ -66,7 +69,7 @@
     "zod": "^3.23.8"
   },
   "engines": {
-    "node": ">=22.0.0"
+    "node": ">=24.0.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

@@ -41,7 +41,7 @@
   </aside>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
 import AppIcon from '@/components/AppIcon.vue';
@@ -111,17 +111,17 @@ const rawMenuGroups = [
 
 const menuGroups = computed(() => {
   return rawMenuGroups
-    .map((group) => {
-      const filteredItems = group.items.filter((item) => {
+    .map((group: any) => {
+      const filteredItems = group.items.filter((item: any) => {
         if (!item.perm) return true;
         if (Array.isArray(item.perm)) {
-          return item.perm.some((p) => authStore.hasPermission(p));
+          return item.perm.some((p: any) => authStore.hasPermission(p));
         }
         return authStore.hasPermission(item.perm);
       });
       return { ...group, items: filteredItems };
     })
-    .filter((group) => group.items.length > 0);
+    .filter((group: any) => group.items.length > 0);
 });
 </script>
 

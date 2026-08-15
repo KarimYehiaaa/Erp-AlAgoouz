@@ -92,7 +92,7 @@
   </article>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed } from 'vue';
 import { formatPercent, abbreviateNumber } from '@/utils/formatters';
 
@@ -100,8 +100,8 @@ const props = defineProps({
   stats: { type: Object, required: true },
 });
 
-const percent = (val) => formatPercent(val || 0);
-const number = (val) => abbreviateNumber(val || 0);
+const percent = (val: any) => formatPercent(val || 0);
+const number = (val: any) => abbreviateNumber(val || 0);
 
 const healthItems = computed(() => [
   { label: 'نسبة التحصيل', value: percent(props.stats?.month?.collectionRate), tone: 'success' },

@@ -6,7 +6,13 @@
         <p>عدّل بيانات المستخدمين، وحساباتهم والأدوار والصلاحيات المخصصة لهم من هنا.</p>
       </div>
       <div class="header-actions">
-        <button v-permission="'users.add'" v-if="activeTab === 'users'" type="button" class="btn btn-add" @click="startCreate">
+        <button
+          v-permission="'users.add'"
+          v-if="activeTab === 'users'"
+          type="button"
+          class="btn btn-add"
+          @click="startCreate"
+        >
           <AppIcon name="add" :size="16" /> إضافة مستخدم جديد
         </button>
         <button type="button" class="btn btn-outline" @click="refreshUsers" :disabled="loading">
@@ -16,657 +22,682 @@
     </section>
 
     <div class="tabs-container">
-      <button class="tab-btn" :class="{ active: activeTab === 'users' }" @click="activeTab = 'users'">
+      <button
+        class="tab-btn"
+        :class="{ active: activeTab === 'users' }"
+        @click="activeTab = 'users'"
+      >
         <AppIcon name="users" :size="18" /> المستخدمون
       </button>
-      <button class="tab-btn" :class="{ active: activeTab === 'roles' }" @click="activeTab = 'roles'">
+      <button
+        class="tab-btn"
+        :class="{ active: activeTab === 'roles' }"
+        @click="activeTab = 'roles'"
+      >
         <AppIcon name="shield" :size="18" /> الأدوار والصلاحيات
       </button>
     </div>
 
     <div v-show="activeTab === 'users'">
       <section class="users-layout">
-      <!-- قائمة المستخدمين -->
-      <article class="card table-card">
-        <div class="card-head search-head">
-          <div class="title-info">
-            <h3>قائمة المستخدمين</h3>
-            <span>{{ filteredUsers.length }} مستخدم</span>
-          </div>
-          <div class="search-box">
-            <input
-              v-model="searchQuery"
-              type="text"
-              placeholder="البحث باسم المستخدم أو الاسم..."
-              class="search-input"
-            />
-          </div>
-        </div>
-
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>المستخدم</th>
-                <th>البريد والهاتف</th>
-                <th>الدور</th>
-                <th>الحالة</th>
-                <th>الإجراءات</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr
-                v-for="u in filteredUsers"
-                :key="u.id"
-                :class="{ active: selectedUser?.id === u.id }"
-              >
-                <td>
-                  <div class="user-info-cell">
-                    <div
-                      class="user-avatar"
-                      :style="{ backgroundColor: getAvatarColor(u.full_name) }"
-                    >
-                      {{ getInitials(u.full_name) }}
-                    </div>
-                    <div class="user-names">
-                      <strong>{{ u.full_name }}</strong>
-                      <small>@{{ u.username }}</small>
-                    </div>
-                  </div>
-                </td>
-                <td>
-                  <div class="contact-info-cell">
-                    <div>{{ u.email || '—' }}</div>
-                    <small v-if="u.phone">{{ u.phone }}</small>
-                  </div>
-                </td>
-                <td>
-                  <span class="role-badge">{{ roleLabel(u.role_id) }}</span>
-                </td>
-                <td>
-                  <span style="display: inline-flex; align-items: center; gap: 8px">
-                    <span :class="['status-dot-pulse', u.is_active ? 'success' : 'danger']"></span>
-                    <span style="font-size: 0.82rem; font-weight: 800; color: var(--text-strong)">
-                      {{ u.is_active ? 'نشط' : 'معطل' }}
-                    </span>
-                  </span>
-                </td>
-                <td class="actions-cell">
-                  <button v-permission="'users.edit'" type="button" class="btn btn-sm btn-edit" @click="selectUser(u)">
-                    <AppIcon name="edit" :size="14" /> تعديل
-                  </button>
-                  <button
-                    v-permission="'users.delete'"
-                    type="button"
-                    class="btn btn-sm btn-delete"
-                    @click="deleteUser(u)"
-                    :disabled="u.id === currentUserId"
-                    :title="u.id === currentUserId ? 'لا يمكنك حذف نفسك' : 'حذف المستخدم'"
-                  >
-                    <AppIcon name="delete" :size="14" /> حذف
-                  </button>
-                </td>
-              </tr>
-              <tr v-if="!filteredUsers.length">
-                <td colspan="5" class="empty">
-                  {{ searchQuery ? 'لا توجد نتائج بحث مطابقة' : 'لا يوجد مستخدمين' }}
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </article>
-
-      <!-- نموذج الإضافة والتعديل -->
-      <article class="card form-card">
-        <div class="card-head">
-          <h3>
-            {{
-              isCreateMode
-                ? 'إنشاء مستخدم جديد'
-                : form.id
-                  ? `تعديل: ${form.full_name || form.username}`
-                  : 'إدارة المستخدمين'
-            }}
-          </h3>
-          <span v-if="form.id && !isCreateMode">ID: {{ form.id }}</span>
-        </div>
-
-        <p v-if="!form.id && !isCreateMode" class="hint-state">
-          💡 اضغط على زر "تعديل" بجانب أي مستخدم لفتح وتعديل بياناته، أو انقر على "+ إضافة مستخدم
-          جديد" لإنشاء مستخدم.
-        </p>
-
-        <form v-else class="user-form" @submit.prevent="saveUser">
-          <div class="grid grid-2">
-            <div class="form-group">
-              <label>اسم الدخول *</label>
+        <!-- قائمة المستخدمين -->
+        <article class="card table-card">
+          <div class="card-head search-head">
+            <div class="title-info">
+              <h3>قائمة المستخدمين</h3>
+              <span>{{ filteredUsers.length }} مستخدم</span>
+            </div>
+            <div class="search-box">
               <input
-                v-model="form.username"
+                v-model="searchQuery"
                 type="text"
-                required
-                placeholder="مثال: karim"
-                @blur="validateUsername"
-                :style="
-                  validations.username.valid === false
-                    ? 'border-color: var(--danger);'
-                    : validations.username.valid === true
-                      ? 'border-color: #16a34a;'
-                      : ''
-                "
+                placeholder="البحث باسم المستخدم أو الاسم..."
+                class="search-input"
               />
-              <span
-                v-if="validations.username.msg"
-                :style="{
-                  color: validations.username.valid ? '#16a34a' : 'var(--danger)',
-                  fontSize: '0.74rem',
-                  fontWeight: '800',
-                  marginTop: '4px',
-                  display: 'block',
-                }"
-              >
-                {{ validations.username.msg }}
-              </span>
-            </div>
-            <div class="form-group">
-              <label>الاسم الكامل *</label>
-              <input v-model="form.full_name" type="text" required placeholder="مثال: كريم يحيى" />
             </div>
           </div>
 
-          <!-- Progressive Disclosure Toggle -->
-          <button
-            type="button"
-            @click="showAdvancedOptions = !showAdvancedOptions"
-            style="
-              border: none;
-              background: transparent;
-              color: var(--accent);
-              cursor: pointer;
-              font-size: 0.84rem;
-              font-weight: 800;
-              display: flex;
-              align-items: center;
-              gap: 4px;
-              margin: 12px 0;
-              padding: 0;
-            "
-          >
-            <span>{{
-              showAdvancedOptions ? '⚙️ إخفاء الخيارات الإضافية' : '⚙️ إظهار الخيارات الإضافية'
-            }}</span>
-          </button>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>المستخدم</th>
+                  <th>البريد والهاتف</th>
+                  <th>الدور</th>
+                  <th>الحالة</th>
+                  <th>الإجراءات</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="u in filteredUsers"
+                  :key="u.id"
+                  :class="{ active: selectedUser?.id === u.id }"
+                >
+                  <td>
+                    <div class="user-info-cell">
+                      <div
+                        class="user-avatar"
+                        :style="{ backgroundColor: getAvatarColor(u.full_name) }"
+                      >
+                        {{ getInitials(u.full_name) }}
+                      </div>
+                      <div class="user-names">
+                        <strong>{{ u.full_name }}</strong>
+                        <small>@{{ u.username }}</small>
+                      </div>
+                    </div>
+                  </td>
+                  <td>
+                    <div class="contact-info-cell">
+                      <div>{{ u.email || '—' }}</div>
+                      <small v-if="u.phone">{{ u.phone }}</small>
+                    </div>
+                  </td>
+                  <td>
+                    <span class="role-badge">{{ roleLabel(u.role_id) }}</span>
+                  </td>
+                  <td>
+                    <span style="display: inline-flex; align-items: center; gap: 8px">
+                      <span
+                        :class="['status-dot-pulse', u.is_active ? 'success' : 'danger']"
+                      ></span>
+                      <span style="font-size: 0.82rem; font-weight: 800; color: var(--text-strong)">
+                        {{ u.is_active ? 'نشط' : 'معطل' }}
+                      </span>
+                    </span>
+                  </td>
+                  <td class="actions-cell">
+                    <button
+                      v-permission="'users.edit'"
+                      type="button"
+                      class="btn btn-sm btn-edit"
+                      @click="selectUser(u)"
+                    >
+                      <AppIcon name="edit" :size="14" /> تعديل
+                    </button>
+                    <button
+                      v-permission="'users.delete'"
+                      type="button"
+                      class="btn btn-sm btn-delete"
+                      @click="deleteUser(u)"
+                      :disabled="u.id === currentUserId"
+                      :title="u.id === currentUserId ? 'لا يمكنك حذف نفسك' : 'حذف المستخدم'"
+                    >
+                      <AppIcon name="delete" :size="14" /> حذف
+                    </button>
+                  </td>
+                </tr>
+                <tr v-if="!filteredUsers.length">
+                  <td colspan="5" class="empty">
+                    {{ searchQuery ? 'لا توجد نتائج بحث مطابقة' : 'لا يوجد مستخدمين' }}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </article>
 
-          <!-- Advanced/Secondary Fields (Progressive Disclosure) -->
-          <div
-            v-show="showAdvancedOptions"
-            style="
-              display: grid;
-              gap: 14px;
-              margin-bottom: 14px;
-              border: 1px dashed var(--border);
-              padding: 12px;
-              border-radius: var(--radius-md);
-            "
-          >
+        <!-- نموذج الإضافة والتعديل -->
+        <article class="card form-card">
+          <div class="card-head">
+            <h3>
+              {{
+                isCreateMode
+                  ? 'إنشاء مستخدم جديد'
+                  : form.id
+                    ? `تعديل: ${form.full_name || form.username}`
+                    : 'إدارة المستخدمين'
+              }}
+            </h3>
+            <span v-if="form.id && !isCreateMode">ID: {{ form.id }}</span>
+          </div>
+
+          <p v-if="!form.id && !isCreateMode" class="hint-state">
+            💡 اضغط على زر "تعديل" بجانب أي مستخدم لفتح وتعديل بياناته، أو انقر على "+ إضافة مستخدم
+            جديد" لإنشاء مستخدم.
+          </p>
+
+          <form v-else class="user-form" @submit.prevent="saveUser">
             <div class="grid grid-2">
               <div class="form-group">
-                <label>البريد الإلكتروني</label>
+                <label>اسم الدخول *</label>
                 <input
-                  v-model="form.email"
-                  type="email"
-                  placeholder="example@domain.com"
-                  @blur="validateEmail"
+                  v-model="form.username"
+                  type="text"
+                  required
+                  placeholder="مثال: karim"
+                  @blur="validateUsername"
                   :style="
-                    validations.email.valid === false
+                    validations.username.valid === false
                       ? 'border-color: var(--danger);'
-                      : validations.email.valid === true
+                      : validations.username.valid === true
                         ? 'border-color: #16a34a;'
                         : ''
                   "
                 />
                 <span
-                  v-if="validations.email.msg"
+                  v-if="validations.username.msg"
                   :style="{
-                    color: validations.email.valid ? '#16a34a' : 'var(--danger)',
+                    color: validations.username.valid ? '#16a34a' : 'var(--danger)',
                     fontSize: '0.74rem',
                     fontWeight: '800',
                     marginTop: '4px',
                     display: 'block',
                   }"
                 >
-                  {{ validations.email.msg }}
+                  {{ validations.username.msg }}
                 </span>
               </div>
               <div class="form-group">
-                <label>الهاتف</label>
-                <input v-model="form.phone" type="text" placeholder="01XXXXXXXXX" />
+                <label>الاسم الكامل *</label>
+                <input
+                  v-model="form.full_name"
+                  type="text"
+                  required
+                  placeholder="مثال: كريم يحيى"
+                />
               </div>
             </div>
 
-            <div class="grid grid-2">
-              <div class="form-group">
-                <label>الدور *</label>
-                <select v-model.number="form.role_id" required>
-                  <option v-for="role in roles" :key="role.id" :value="role.id">
-                    {{ role.name_ar }}
-                  </option>
-                </select>
-              </div>
-              <div class="form-group checkbox-group">
-                <label class="checkbox-label">
-                  <input v-model="form.is_active" type="checkbox" />
-                  الحساب نشط (تمكين تسجيل الدخول)
-                </label>
-              </div>
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label>{{ isCreateMode ? 'كلمة المرور *' : 'كلمة المرور الجديدة' }}</label>
-            <div class="password-input-wrapper" style="position: relative">
-              <input
-                v-model="form.password"
-                :type="showPassword ? 'text' : 'password'"
-                :required="isCreateMode"
-                :placeholder="
-                  isCreateMode ? 'ادخل كلمة المرور' : 'اتركها فارغة إذا لا تريد التغيير'
-                "
-                style="padding-left: 42px"
-                @input="evaluatePasswordStrength"
-              />
-              <button
-                type="button"
-                class="password-toggle-btn"
-                @click="showPassword = !showPassword"
-                tabindex="-1"
-                style="
-                  position: absolute;
-                  left: 10px;
-                  top: 50%;
-                  transform: translateY(-50%);
-                  border: none;
-                  background: transparent;
-                  color: var(--text-muted);
-                  cursor: pointer;
-                  padding: 4px;
-                  display: flex;
-                  align-items: center;
-                  justify-content: center;
-                  z-index: 5;
-                "
-              >
-                <AppIcon :name="showPassword ? 'eyeOff' : 'eye'" :size="16" />
-              </button>
-            </div>
-            <!-- Password Strength Bar Indicator -->
-            <div
-              v-if="form.password"
-              class="password-strength-bar-container"
-              style="margin-top: 8px"
+            <!-- Progressive Disclosure Toggle -->
+            <button
+              type="button"
+              @click="showAdvancedOptions = !showAdvancedOptions"
+              style="
+                border: none;
+                background: transparent;
+                color: var(--accent);
+                cursor: pointer;
+                font-size: 0.84rem;
+                font-weight: 800;
+                display: flex;
+                align-items: center;
+                gap: 4px;
+                margin: 12px 0;
+                padding: 0;
+              "
             >
+              <span>{{
+                showAdvancedOptions ? '⚙️ إخفاء الخيارات الإضافية' : '⚙️ إظهار الخيارات الإضافية'
+              }}</span>
+            </button>
+
+            <!-- Advanced/Secondary Fields (Progressive Disclosure) -->
+            <div
+              v-show="showAdvancedOptions"
+              style="
+                display: grid;
+                gap: 14px;
+                margin-bottom: 14px;
+                border: 1px dashed var(--border);
+                padding: 12px;
+                border-radius: var(--radius-md);
+              "
+            >
+              <div class="grid grid-2">
+                <div class="form-group">
+                  <label>البريد الإلكتروني</label>
+                  <input
+                    v-model="form.email"
+                    type="email"
+                    placeholder="example@domain.com"
+                    @blur="validateEmail"
+                    :style="
+                      validations.email.valid === false
+                        ? 'border-color: var(--danger);'
+                        : validations.email.valid === true
+                          ? 'border-color: #16a34a;'
+                          : ''
+                    "
+                  />
+                  <span
+                    v-if="validations.email.msg"
+                    :style="{
+                      color: validations.email.valid ? '#16a34a' : 'var(--danger)',
+                      fontSize: '0.74rem',
+                      fontWeight: '800',
+                      marginTop: '4px',
+                      display: 'block',
+                    }"
+                  >
+                    {{ validations.email.msg }}
+                  </span>
+                </div>
+                <div class="form-group">
+                  <label>الهاتف</label>
+                  <input v-model="form.phone" type="text" placeholder="01XXXXXXXXX" />
+                </div>
+              </div>
+
+              <div class="grid grid-2">
+                <div class="form-group">
+                  <label>الدور *</label>
+                  <select v-model.number="form.role_id" required>
+                    <option v-for="role in roles" :key="role.id" :value="role.id">
+                      {{ role.name_ar }}
+                    </option>
+                  </select>
+                </div>
+                <div class="form-group checkbox-group">
+                  <label class="checkbox-label">
+                    <input v-model="form.is_active" type="checkbox" />
+                    الحساب نشط (تمكين تسجيل الدخول)
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label>{{ isCreateMode ? 'كلمة المرور *' : 'كلمة المرور الجديدة' }}</label>
+              <div class="password-input-wrapper" style="position: relative">
+                <input
+                  v-model="form.password"
+                  :type="showPassword ? 'text' : 'password'"
+                  :required="isCreateMode"
+                  :placeholder="
+                    isCreateMode ? 'ادخل كلمة المرور' : 'اتركها فارغة إذا لا تريد التغيير'
+                  "
+                  style="padding-left: 42px"
+                  @input="evaluatePasswordStrength"
+                />
+                <button
+                  type="button"
+                  class="password-toggle-btn"
+                  @click="showPassword = !showPassword"
+                  tabindex="-1"
+                  style="
+                    position: absolute;
+                    left: 10px;
+                    top: 50%;
+                    transform: translateY(-50%);
+                    border: none;
+                    background: transparent;
+                    color: var(--text-muted);
+                    cursor: pointer;
+                    padding: 4px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    z-index: 5;
+                  "
+                >
+                  <AppIcon :name="showPassword ? 'eyeOff' : 'eye'" :size="16" />
+                </button>
+              </div>
+              <!-- Password Strength Bar Indicator -->
               <div
-                style="
-                  background: var(--border);
-                  height: 4px;
-                  border-radius: 2px;
-                  overflow: hidden;
-                  width: 100%;
-                "
+                v-if="form.password"
+                class="password-strength-bar-container"
+                style="margin-top: 8px"
               >
                 <div
-                  class="password-strength-bar"
-                  :style="{ width: strengthPercent + '%', backgroundColor: strengthColor }"
-                  style="height: 100%; transition: all 0.3s ease"
-                ></div>
+                  style="
+                    background: var(--border);
+                    height: 4px;
+                    border-radius: 2px;
+                    overflow: hidden;
+                    width: 100%;
+                  "
+                >
+                  <div
+                    class="password-strength-bar"
+                    :style="{ width: strengthPercent + '%', backgroundColor: strengthColor }"
+                    style="height: 100%; transition: all 0.3s ease"
+                  ></div>
+                </div>
+                <span
+                  style="
+                    font-size: 0.72rem;
+                    font-weight: 700;
+                    color: var(--text-muted);
+                    margin-top: 4px;
+                    display: block;
+                  "
+                  >قوة كلمة المرور:
+                  <span :style="{ color: strengthColor }">{{ strengthText }}</span></span
+                >
               </div>
-              <span
-                style="
-                  font-size: 0.72rem;
-                  font-weight: 700;
-                  color: var(--text-muted);
-                  margin-top: 4px;
-                  display: block;
-                "
-                >قوة كلمة المرور:
-                <span :style="{ color: strengthColor }">{{ strengthText }}</span></span
+            </div>
+
+            <div v-if="message" class="message" :class="{ error: error }">{{ message }}</div>
+
+            <div class="form-actions">
+              <button type="button" class="btn btn-outline" @click="resetForm" :disabled="saving">
+                إلغاء
+              </button>
+              <button
+                type="submit"
+                class="btn btn-save"
+                :class="{ 'btn-loading': saving }"
+                :disabled="saving"
+              >
+                <AppIcon v-if="!saving" name="save" :size="16" />
+                {{ saving ? 'جاري الحفظ...' : isCreateMode ? 'إنشاء حساب جديد' : 'حفظ التعديلات' }}
+              </button>
+            </div>
+          </form>
+        </article>
+      </section>
+
+      <!-- Roles Management Section -->
+      <section class="card" style="margin-top: 24px">
+        <div
+          class="card-head"
+          style="
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 12px;
+            margin-bottom: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+          "
+        >
+          <div class="title-info">
+            <h3 style="margin: 0; font-size: 1.1rem; font-weight: 850; color: var(--text-strong)">
+              🏷️ إدارة المناصب والأدوار
+            </h3>
+            <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: var(--text-muted)">
+              أنشئ وعدّل وحذف المناصب في النظام
+            </p>
+          </div>
+          <button
+            v-if="!showRoleForm"
+            type="button"
+            class="btn btn-add"
+            @click="startCreateRole"
+            style="
+              min-width: 140px;
+              display: inline-flex;
+              align-items: center;
+              gap: 6px;
+              font-size: 0.85rem;
+            "
+          >
+            <AppIcon name="add" :size="15" /> إضافة منصب جديد
+          </button>
+        </div>
+
+        <!-- Role Form (create / edit) -->
+        <div
+          v-if="showRoleForm"
+          class="role-form-card"
+          style="
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 20px;
+            margin-bottom: 18px;
+          "
+        >
+          <h4
+            style="
+              margin: 0 0 16px 0;
+              font-size: 0.95rem;
+              font-weight: 800;
+              color: var(--primary-dark);
+            "
+          >
+            {{ editingRole ? '✏️ تعديل منصب: ' + editingRole.name_ar : '➕ إنشاء منصب جديد' }}
+          </h4>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px">
+            <div class="form-group" v-if="!editingRole">
+              <label class="form-label"
+                >الاسم الإنجليزي <span style="color: var(--danger)">*</span></label
+              >
+              <input
+                v-model="roleForm.name"
+                type="text"
+                class="form-input"
+                placeholder="مثال: supervisor"
+                style="direction: ltr; font-family: monospace"
+              />
+              <small style="color: var(--text-muted); font-size: 0.72rem"
+                >حروف إنجليزية وأرقام وشرطة سفلية فقط</small
               >
             </div>
+            <div class="form-group">
+              <label class="form-label"
+                >الاسم العربي <span style="color: var(--danger)">*</span></label
+              >
+              <input
+                v-model="roleForm.name_ar"
+                type="text"
+                class="form-input"
+                placeholder="مثال: مشرف"
+              />
+            </div>
+            <div class="form-group" :style="editingRole ? 'grid-column: span 2' : ''">
+              <label class="form-label">الوصف (اختياري)</label>
+              <input
+                v-model="roleForm.description"
+                type="text"
+                class="form-input"
+                placeholder="وصف مختصر لصلاحيات هذا المنصب"
+              />
+            </div>
           </div>
-
-          <div v-if="message" class="message" :class="{ error: error }">{{ message }}</div>
-
-          <div class="form-actions">
-            <button type="button" class="btn btn-outline" @click="resetForm" :disabled="saving">
+          <div
+            class="form-actions"
+            style="margin-top: 14px; display: flex; justify-content: flex-end; gap: 10px"
+          >
+            <button
+              type="button"
+              class="btn btn-outline"
+              @click="cancelRoleForm"
+              :disabled="savingRole"
+            >
               إلغاء
             </button>
             <button
-              type="submit"
+              type="button"
               class="btn btn-save"
-              :class="{ 'btn-loading': saving }"
-              :disabled="saving"
-            >
-              <AppIcon v-if="!saving" name="save" :size="16" />
-              {{ saving ? 'جاري الحفظ...' : isCreateMode ? 'إنشاء حساب جديد' : 'حفظ التعديلات' }}
-            </button>
-          </div>
-        </form>
-      </article>
-    </section>
-
-    <!-- Roles Management Section -->
-    <section class="card" style="margin-top: 24px">
-      <div
-        class="card-head"
-        style="
-          border-bottom: 1px solid var(--border);
-          padding-bottom: 12px;
-          margin-bottom: 18px;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-        "
-      >
-        <div class="title-info">
-          <h3 style="margin: 0; font-size: 1.1rem; font-weight: 850; color: var(--text-strong)">
-            🏷️ إدارة المناصب والأدوار
-          </h3>
-          <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: var(--text-muted)">
-            أنشئ وعدّل وحذف المناصب في النظام
-          </p>
-        </div>
-        <button
-          v-if="!showRoleForm"
-          type="button"
-          class="btn btn-add"
-          @click="startCreateRole"
-          style="
-            min-width: 140px;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            font-size: 0.85rem;
-          "
-        >
-          <AppIcon name="add" :size="15" /> إضافة منصب جديد
-        </button>
-      </div>
-
-      <!-- Role Form (create / edit) -->
-      <div
-        v-if="showRoleForm"
-        class="role-form-card"
-        style="
-          background: var(--bg-elevated);
-          border: 1px solid var(--border);
-          border-radius: var(--radius-lg);
-          padding: 20px;
-          margin-bottom: 18px;
-        "
-      >
-        <h4
-          style="
-            margin: 0 0 16px 0;
-            font-size: 0.95rem;
-            font-weight: 800;
-            color: var(--primary-dark);
-          "
-        >
-          {{ editingRole ? '✏️ تعديل منصب: ' + editingRole.name_ar : '➕ إنشاء منصب جديد' }}
-        </h4>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px">
-          <div class="form-group" v-if="!editingRole">
-            <label class="form-label"
-              >الاسم الإنجليزي <span style="color: var(--danger)">*</span></label
-            >
-            <input
-              v-model="roleForm.name"
-              type="text"
-              class="form-input"
-              placeholder="مثال: supervisor"
-              style="direction: ltr; font-family: monospace"
-            />
-            <small style="color: var(--text-muted); font-size: 0.72rem"
-              >حروف إنجليزية وأرقام وشرطة سفلية فقط</small
-            >
-          </div>
-          <div class="form-group">
-            <label class="form-label"
-              >الاسم العربي <span style="color: var(--danger)">*</span></label
-            >
-            <input
-              v-model="roleForm.name_ar"
-              type="text"
-              class="form-input"
-              placeholder="مثال: مشرف"
-            />
-          </div>
-          <div class="form-group" :style="editingRole ? 'grid-column: span 2' : ''">
-            <label class="form-label">الوصف (اختياري)</label>
-            <input
-              v-model="roleForm.description"
-              type="text"
-              class="form-input"
-              placeholder="وصف مختصر لصلاحيات هذا المنصب"
-            />
-          </div>
-        </div>
-        <div
-          class="form-actions"
-          style="margin-top: 14px; display: flex; justify-content: flex-end; gap: 10px"
-        >
-          <button
-            type="button"
-            class="btn btn-outline"
-            @click="cancelRoleForm"
-            :disabled="savingRole"
-          >
-            إلغاء
-          </button>
-          <button
-            type="button"
-            class="btn btn-save"
-            @click="saveRole"
-            :disabled="savingRole"
-            style="
-              min-width: 130px;
-              display: inline-flex;
-              align-items: center;
-              justify-content: center;
-              gap: 6px;
-            "
-          >
-            <AppIcon v-if="!savingRole" name="save" :size="15" />
-            {{ savingRole ? 'جاري الحفظ...' : editingRole ? 'حفظ التعديلات' : 'إنشاء المنصب' }}
-          </button>
-        </div>
-      </div>
-
-      <!-- Roles Table -->
-      <div style="overflow-x: auto">
-        <table
-          class="data-table"
-          style="width: 100%; border-collapse: collapse; font-size: 0.85rem"
-        >
-          <thead>
-            <tr
+              @click="saveRole"
+              :disabled="savingRole"
               style="
-                background: var(--bg-elevated);
-                color: var(--text-muted);
-                font-size: 0.78rem;
-                font-weight: 800;
-                text-transform: uppercase;
-                letter-spacing: 0.04em;
+                min-width: 130px;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                gap: 6px;
               "
             >
-              <th
+              <AppIcon v-if="!savingRole" name="save" :size="15" />
+              {{ savingRole ? 'جاري الحفظ...' : editingRole ? 'حفظ التعديلات' : 'إنشاء المنصب' }}
+            </button>
+          </div>
+        </div>
+
+        <!-- Roles Table -->
+        <div style="overflow-x: auto">
+          <table
+            class="data-table"
+            style="width: 100%; border-collapse: collapse; font-size: 0.85rem"
+          >
+            <thead>
+              <tr
                 style="
-                  padding: 10px 14px;
-                  text-align: right;
-                  border-bottom: 2px solid var(--border);
-                "
-              >
-                #
-              </th>
-              <th
-                style="
-                  padding: 10px 14px;
-                  text-align: right;
-                  border-bottom: 2px solid var(--border);
-                "
-              >
-                المنصب
-              </th>
-              <th
-                style="
-                  padding: 10px 14px;
-                  text-align: right;
-                  border-bottom: 2px solid var(--border);
-                "
-              >
-                الاسم الإنجليزي
-              </th>
-              <th
-                style="
-                  padding: 10px 14px;
-                  text-align: right;
-                  border-bottom: 2px solid var(--border);
-                "
-              >
-                الوصف
-              </th>
-              <th
-                style="
-                  padding: 10px 14px;
-                  text-align: right;
-                  border-bottom: 2px solid var(--border);
-                "
-              >
-                عدد المستخدمين
-              </th>
-              <th
-                style="
-                  padding: 10px 14px;
-                  text-align: center;
-                  border-bottom: 2px solid var(--border);
-                "
-              >
-                الإجراءات
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr
-              v-for="role in roles"
-              :key="role.id"
-              style="border-bottom: 1px solid var(--border); transition: background 0.15s"
-              @mouseover="$event.currentTarget.style.background = 'var(--bg-elevated)'"
-              @mouseleave="$event.currentTarget.style.background = 'transparent'"
-            >
-              <td style="padding: 12px 14px; color: var(--text-muted); font-size: 0.78rem">
-                {{ role.id }}
-              </td>
-              <td style="padding: 12px 14px">
-                <span style="font-weight: 850; color: var(--text-strong)">{{ role.name_ar }}</span>
-                <span
-                  v-if="role.name === 'admin'"
-                  style="
-                    display: inline-block;
-                    background: var(--danger);
-                    color: #fff;
-                    font-size: 0.65rem;
-                    padding: 1px 6px;
-                    border-radius: 20px;
-                    font-weight: 800;
-                    margin-right: 6px;
-                  "
-                  >محمي</span
-                >
-              </td>
-              <td
-                style="
-                  padding: 12px 14px;
-                  direction: ltr;
-                  font-family: monospace;
+                  background: var(--bg-elevated);
                   color: var(--text-muted);
-                  font-size: 0.8rem;
+                  font-size: 0.78rem;
+                  font-weight: 800;
+                  text-transform: uppercase;
+                  letter-spacing: 0.04em;
                 "
               >
-                {{ role.name }}
-              </td>
-              <td style="padding: 12px 14px; color: var(--text-muted); font-size: 0.82rem">
-                {{ role.description || '—' }}
-              </td>
-              <td style="padding: 12px 14px; text-align: center">
-                <span
+                <th
                   style="
-                    background: var(--primary-soft);
-                    color: var(--primary-dark);
-                    padding: 2px 10px;
-                    border-radius: 20px;
-                    font-weight: 800;
+                    padding: 10px 14px;
+                    text-align: right;
+                    border-bottom: 2px solid var(--border);
+                  "
+                >
+                  #
+                </th>
+                <th
+                  style="
+                    padding: 10px 14px;
+                    text-align: right;
+                    border-bottom: 2px solid var(--border);
+                  "
+                >
+                  المنصب
+                </th>
+                <th
+                  style="
+                    padding: 10px 14px;
+                    text-align: right;
+                    border-bottom: 2px solid var(--border);
+                  "
+                >
+                  الاسم الإنجليزي
+                </th>
+                <th
+                  style="
+                    padding: 10px 14px;
+                    text-align: right;
+                    border-bottom: 2px solid var(--border);
+                  "
+                >
+                  الوصف
+                </th>
+                <th
+                  style="
+                    padding: 10px 14px;
+                    text-align: right;
+                    border-bottom: 2px solid var(--border);
+                  "
+                >
+                  عدد المستخدمين
+                </th>
+                <th
+                  style="
+                    padding: 10px 14px;
+                    text-align: center;
+                    border-bottom: 2px solid var(--border);
+                  "
+                >
+                  الإجراءات
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="role in roles"
+                :key="role.id"
+                style="border-bottom: 1px solid var(--border); transition: background 0.15s"
+                @mouseover="
+                  ($event.currentTarget as HTMLElement).style.background = 'var(--bg-elevated)'
+                "
+                @mouseleave="($event.currentTarget as HTMLElement).style.background = 'transparent'"
+              >
+                <td style="padding: 12px 14px; color: var(--text-muted); font-size: 0.78rem">
+                  {{ role.id }}
+                </td>
+                <td style="padding: 12px 14px">
+                  <span style="font-weight: 850; color: var(--text-strong)">{{
+                    role.name_ar
+                  }}</span>
+                  <span
+                    v-if="role.name === 'admin'"
+                    style="
+                      display: inline-block;
+                      background: var(--danger);
+                      color: #fff;
+                      font-size: 0.65rem;
+                      padding: 1px 6px;
+                      border-radius: 20px;
+                      font-weight: 800;
+                      margin-right: 6px;
+                    "
+                    >محمي</span
+                  >
+                </td>
+                <td
+                  style="
+                    padding: 12px 14px;
+                    direction: ltr;
+                    font-family: monospace;
+                    color: var(--text-muted);
                     font-size: 0.8rem;
                   "
                 >
-                  {{ users.filter((u) => u.role_id === role.id).length }}
-                </span>
-              </td>
-              <td style="padding: 12px 14px; text-align: center">
-                <div style="display: inline-flex; gap: 8px">
-                  <button
-                    type="button"
-                    class="btn btn-outline"
-                    @click="startEditRole(role)"
-                    :disabled="role.name === 'admin'"
-                    style="padding: 4px 10px; font-size: 0.78rem; border-radius: var(--radius-sm)"
-                    :style="role.name === 'admin' ? 'opacity: 0.4; cursor: not-allowed;' : ''"
-                    title="تعديل المنصب"
-                  >
-                    ✏️ تعديل
-                  </button>
-                  <button
-                    type="button"
-                    class="btn btn-danger"
-                    @click="confirmDeleteRole(role)"
-                    :disabled="
-                      role.name === 'admin' || users.filter((u) => u.role_id === role.id).length > 0
-                    "
-                    style="padding: 4px 10px; font-size: 0.78rem; border-radius: var(--radius-sm)"
-                    :style="
-                      role.name === 'admin' || users.filter((u) => u.role_id === role.id).length > 0
-                        ? 'opacity: 0.4; cursor: not-allowed;'
-                        : ''
-                    "
-                    :title="
-                      users.filter((u) => u.role_id === role.id).length > 0
-                        ? 'لا يمكن حذف منصب مرتبط بمستخدمين'
-                        : 'حذف المنصب'
+                  {{ role.name }}
+                </td>
+                <td style="padding: 12px 14px; color: var(--text-muted); font-size: 0.82rem">
+                  {{ role.description || '—' }}
+                </td>
+                <td style="padding: 12px 14px; text-align: center">
+                  <span
+                    style="
+                      background: var(--primary-soft);
+                      color: var(--primary-dark);
+                      padding: 2px 10px;
+                      border-radius: 20px;
+                      font-weight: 800;
+                      font-size: 0.8rem;
                     "
                   >
-                    🗑️ حذف
-                  </button>
-                </div>
-              </td>
-            </tr>
-            <tr v-if="!roles.length">
-              <td colspan="6" style="text-align: center; padding: 32px; color: var(--text-muted)">
-                لا توجد مناصب
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
+                    {{ users.filter((u) => u.role_id === role.id).length }}
+                  </span>
+                </td>
+                <td style="padding: 12px 14px; text-align: center">
+                  <div style="display: inline-flex; gap: 8px">
+                    <button
+                      type="button"
+                      class="btn btn-outline"
+                      @click="startEditRole(role)"
+                      :disabled="role.name === 'admin'"
+                      style="padding: 4px 10px; font-size: 0.78rem; border-radius: var(--radius-sm)"
+                      :style="role.name === 'admin' ? 'opacity: 0.4; cursor: not-allowed;' : ''"
+                      title="تعديل المنصب"
+                    >
+                      ✏️ تعديل
+                    </button>
+                    <button
+                      type="button"
+                      class="btn btn-danger"
+                      @click="confirmDeleteRole(role)"
+                      :disabled="
+                        role.name === 'admin' ||
+                        users.filter((u) => u.role_id === role.id).length > 0
+                      "
+                      style="padding: 4px 10px; font-size: 0.78rem; border-radius: var(--radius-sm)"
+                      :style="
+                        role.name === 'admin' ||
+                        users.filter((u) => u.role_id === role.id).length > 0
+                          ? 'opacity: 0.4; cursor: not-allowed;'
+                          : ''
+                      "
+                      :title="
+                        users.filter((u) => u.role_id === role.id).length > 0
+                          ? 'لا يمكن حذف منصب مرتبط بمستخدمين'
+                          : 'حذف المنصب'
+                      "
+                    >
+                      🗑️ حذف
+                    </button>
+                  </div>
+                </td>
+              </tr>
+              <tr v-if="!roles.length">
+                <td colspan="6" style="text-align: center; padding: 32px; color: var(--text-muted)">
+                  لا توجد مناصب
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
     </div>
     <!-- New Advanced RBAC UI -->
     <div v-if="activeTab === 'roles'">
       <RolesPermissions />
     </div>
-
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import { users as api } from '@/api';
 import { useAuthStore } from '@/stores/auth';
@@ -679,8 +710,8 @@ const authStore = useAuthStore();
 const appStore = useAppStore();
 const currentUserId = computed(() => authStore.user?.id);
 
-const users = ref([]);
-const roles = ref([]);
+const users = ref<any[]>([]);
+const roles = ref<any[]>([]);
 const loading = ref(false);
 const saving = ref(false);
 const showPassword = ref(false);
@@ -690,20 +721,20 @@ const strengthText = ref('ضعيفة جداً ⚠️');
 const strengthColor = ref('#dc2626');
 
 // permissions matrix state
-const permissions = ref([]);
-const selectedPermissionRole = ref(null);
-const selectedPermissionIds = ref([]);
+const permissions = ref<any[]>([]);
+const selectedPermissionRole = ref<any>(null);
+const selectedPermissionIds = ref<any[]>([]);
 const savingPermissions = ref(false);
 
 // roles management state
 const showRoleForm = ref(false);
-const editingRole = ref(null);
+const editingRole = ref<any>(null);
 const savingRole = ref(false);
 const roleForm = ref({ name: '', name_ar: '', description: '' });
 
 const validations = ref({
-  username: { valid: null, msg: '' },
-  email: { valid: null, msg: '' },
+  username: { valid: null as boolean | null, msg: '' },
+  email: { valid: null as boolean | null, msg: '' },
 });
 
 const validateUsername = () => {
@@ -759,7 +790,7 @@ const evaluatePasswordStrength = () => {
   }
 };
 
-const selectedUser = ref(null);
+const selectedUser = ref<any>(null);
 const isCreateMode = ref(false);
 const searchQuery = ref('');
 const message = ref('');
@@ -780,16 +811,16 @@ const filteredUsers = computed(() => {
   const query = searchQuery.value.trim().toLowerCase();
   if (!query) return users.value;
   return users.value.filter(
-    (u) =>
+    (u: any) =>
       u.username?.toLowerCase().includes(query) ||
       u.full_name?.toLowerCase().includes(query) ||
       u.email?.toLowerCase().includes(query),
   );
 });
 
-const roleLabel = (roleId) => roles.value.find((r) => r.id === roleId)?.name_ar || '—';
+const roleLabel = (roleId: any) => roles.value.find((r: any) => r.id === roleId)?.name_ar || '—';
 
-const getInitials = (name) => {
+const getInitials = (name: any) => {
   if (!name) return 'U';
   const parts = name.trim().split(/\s+/);
   if (parts.length >= 2) {
@@ -798,7 +829,7 @@ const getInitials = (name) => {
   return name.slice(0, 2).toUpperCase();
 };
 
-const getAvatarColor = (name) => {
+const getAvatarColor = (name: any) => {
   if (!name) return '#5c3517';
   let hash = 0;
   for (let i = 0; i < name.length; i++) {
@@ -809,12 +840,12 @@ const getAvatarColor = (name) => {
 };
 
 const selectedPermissionRoleName = computed(
-  () => roles.value.find((r) => r.id === selectedPermissionRole.value)?.name,
+  () => roles.value.find((r: any) => r.id === selectedPermissionRole.value)?.name,
 );
 
 const groupedPermissions = computed(() => {
-  const groups = {};
-  permissions.value.forEach((p) => {
+  const groups: Record<string, any[]> = {};
+  permissions.value.forEach((p: any) => {
     const mod = p.module || 'general';
     if (!groups[mod]) groups[mod] = [];
     groups[mod].push(p);
@@ -822,7 +853,7 @@ const groupedPermissions = computed(() => {
   return groups;
 });
 
-const getModuleLabel = (mod) => {
+const getModuleLabel = (mod: any) => {
   const labels = {
     dashboard: 'لوحة التحكم',
     sales: 'المبيعات والكاشير',
@@ -836,20 +867,20 @@ const getModuleLabel = (mod) => {
     users: 'المستخدمين والصلاحيات',
     settings: 'إعدادات النظام',
   };
-  return labels[mod] || mod;
+  return labels[mod as keyof typeof labels] || mod;
 };
 
 const handleRolePermissionChange = async () => {
   if (!selectedPermissionRole.value) return;
-  const role = roles.value.find((r) => r.id === selectedPermissionRole.value);
+  const role = roles.value.find((r: any) => r.id === selectedPermissionRole.value);
   if (role?.name === 'admin') {
-    selectedPermissionIds.value = permissions.value.map((p) => p.id);
+    selectedPermissionIds.value = permissions.value.map((p: any) => p.id);
     return;
   }
   try {
     const res = await api.rolePermissions(selectedPermissionRole.value);
     selectedPermissionIds.value = res.data || [];
-  } catch (e) {
+  } catch (e: any) {
     console.error('Failed to load role permissions:', e);
     appStore.addToast('فشل تحميل صلاحيات هذا الدور', 'error');
   }
@@ -867,7 +898,7 @@ const saveRolePermissions = async () => {
         'warning',
       );
     }
-  } catch (e) {
+  } catch (e: any) {
     console.error('Failed to save permissions:', e);
     appStore.addToast('فشل حفظ الصلاحيات', 'error');
   } finally {
@@ -882,7 +913,7 @@ const startCreateRole = () => {
   showRoleForm.value = true;
 };
 
-const startEditRole = (role) => {
+const startEditRole = (role: any) => {
   editingRole.value = role;
   roleForm.value = { name: role.name, name_ar: role.name_ar, description: role.description || '' };
   showRoleForm.value = true;
@@ -921,21 +952,21 @@ const saveRole = async () => {
     }
     cancelRoleForm();
     await refreshUsers();
-  } catch (e) {
+  } catch (e: any) {
     appStore.addToast(e?.response?.data?.message || e?.message || 'فشل حفظ المنصب', 'error');
   } finally {
     savingRole.value = false;
   }
 };
 
-const confirmDeleteRole = async (role) => {
+const confirmDeleteRole = async (role: any) => {
   if (!confirm(`هل أنت متأكد من حذف منصب "${role.name_ar}"؟\nلا يمكن التراجع عن هذا الإجراء.`))
     return;
   try {
     await api.deleteRole(role.id);
     appStore.addToast('تم حذف المنصب بنجاح', 'success');
     await refreshUsers();
-  } catch (e) {
+  } catch (e: any) {
     appStore.addToast(e?.response?.data?.message || e?.message || 'فشل حذف المنصب', 'error');
   }
 };
@@ -954,11 +985,11 @@ const refreshUsers = async () => {
     permissions.value = permsRes.data || [];
 
     if (!selectedPermissionRole.value && roles.value.length) {
-      const firstNonAdmin = roles.value.find((r) => r.name !== 'admin') || roles.value[0];
+      const firstNonAdmin = roles.value.find((r: any) => r.name !== 'admin') || roles.value[0];
       selectedPermissionRole.value = firstNonAdmin.id;
       handleRolePermissionChange();
     }
-  } catch (e) {
+  } catch (e: any) {
     console.error('Failed to load users:', e);
   } finally {
     loading.value = false;
@@ -982,7 +1013,7 @@ const startCreate = () => {
   error.value = false;
 };
 
-const selectUser = (user) => {
+const selectUser = (user: any) => {
   isCreateMode.value = false;
   selectedUser.value = user;
   form.value = {
@@ -1031,7 +1062,7 @@ const saveUser = async () => {
   message.value = '';
   error.value = false;
   try {
-    const payload = {
+    const payload: Record<string, any> = {
       username: form.value.username?.trim() || null,
       full_name: form.value.full_name?.trim() || null,
       email: form.value.email?.trim() || null,
@@ -1057,12 +1088,12 @@ const saveUser = async () => {
     await refreshUsers();
 
     if (!isCreateMode.value) {
-      const updated = users.value.find((u) => u.id === form.value.id);
+      const updated = users.value.find((u: any) => u.id === form.value.id);
       if (updated) selectUser(updated);
     } else {
       resetForm();
     }
-  } catch (e) {
+  } catch (e: any) {
     error.value = true;
     message.value = e.message || 'فشل حفظ التغييرات';
   } finally {
@@ -1070,7 +1101,7 @@ const saveUser = async () => {
   }
 };
 
-const deleteUser = async (user) => {
+const deleteUser = async (user: any) => {
   if (user.id === currentUserId.value) {
     appStore.addToast('لا يمكنك حذف الحساب الحالي الذي تسجل به الدخول.', 'error');
     return;
@@ -1113,12 +1144,12 @@ const deleteUser = async (user) => {
             8000,
           );
           await refreshUsers();
-        } catch (err) {
+        } catch (err: any) {
           appStore.addToast('فشل استعادة المستخدم: ' + err.message, 'error');
         }
       },
     );
-  } catch (e) {
+  } catch (e: any) {
     appStore.addToast(e.message || 'فشل حذف المستخدم', 'error');
   } finally {
     saving.value = false;

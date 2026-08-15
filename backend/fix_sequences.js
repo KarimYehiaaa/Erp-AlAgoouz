@@ -1,4 +1,4 @@
-import pool from './src/database/pool.js';
+import pool from './src/database/pool.ts';
 
 const sql = `
 DO $$

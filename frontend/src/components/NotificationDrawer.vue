@@ -60,7 +60,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAppStore } from '@/stores/app';
@@ -75,19 +75,19 @@ const fetchAlerts = async () => {
   loading.value = true;
   try {
     const res = await operations.alerts();
-    appStore.notifications = res.data?.alerts || res.alerts || [];
+    appStore.notifications = res.data?.alerts || [];
     lastChecked.value = new Date().toLocaleTimeString('ar-EG', {
       hour: '2-digit',
       minute: '2-digit',
     });
-  } catch (e) {
+  } catch (e: any) {
     console.error('❌ Error fetching alerts:', e);
   } finally {
     loading.value = false;
   }
 };
 
-const handleAction = (alert) => {
+const handleAction = (alert: any) => {
   if (alert.action_to) {
     router.push(alert.action_to);
   }
@@ -97,7 +97,7 @@ const handleAction = (alert) => {
 // Fetch alerts whenever drawer is opened
 watch(
   () => appStore.notificationDrawerOpen,
-  (open) => {
+  (open: any) => {
     if (open) {
       fetchAlerts();
     }

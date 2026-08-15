@@ -2,57 +2,124 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ['main']
   pull_request:
-    branches: [ "main" ]
+    branches: ['main']
 
 jobs:
-  backend-ci:
+  ci:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./backend
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # اختبارات الباك تعمل ضد قاعدة محلية معزولة (وليس Supabase من .env)
+      DB_HOST: localhost
+      DB_PORT: '5432'
+      DB_NAME: bin_al_ajouz_test
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_SSL: 'false'
+      DATABASE_URL: ''
+      NODE_ENV: test
 
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Use Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20.x'
-        cache: 'npm'
-        cache-dependency-path: './backend/package-lock.json'
-        
-    - name: Install dependencies
-      run: npm ci
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # مطلوب لمقارنة التغييرات مع قاعدة الـ PR (لكشف تغييرات backend فقط)
 
-    - name: Type Check
-      run: npm run typecheck
+      # cache: 'npm' يخزّن اعتماديات npm (بمفتاح حسب package-lock.json) فيكون
+      # npm ci سريعًا على كل push. كل الخطوات لاحقًا (اختبارات + دخان) تشترك في
+      # نفس node_modules المُثبَّت — لا إعادة تثبيت لخطوة الدخان.
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24.x'
+          cache: 'npm'
+          cache-dependency-path: './package-lock.json'
 
-    - name: Run Tests
-      run: npm test
+      - name: Install dependencies (workspaces)
+        run: npm ci
 
-  frontend-ci:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./frontend
+      # كشف هل غيّر الـ PR ملفات backend (أو مشتركة/اعتماديات) — حتى لا نُشغّل
+      # تحقق الباك على PRs تغيّر الواجهة فقط (توفير وقت).
+      - name: Detect backend changes (PR)
+        id: backend-changed
+        if: github.event_name == 'pull_request'
+        run: |
+          BASE="${{ github.event.pull_request.base.sha }}"
+          if git diff --name-only "${BASE}...${{ github.sha }}" 2>/dev/null | grep -qE '^(backend|shared)/|^package(-lock)?\.json$'; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
 
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Use Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20.x'
-        cache: 'npm'
-        cache-dependency-path: './frontend/package-lock.json'
-        
-    - name: Install dependencies
-      run: npm install --legacy-peer-deps
+      # تحقق الباك الموحّد — أمر واحد يشمل ما كانت تفعله 3 خطوات سابقًا:
+      # ① tsc ② إعداد قاعدة الاختبارات المحلية المعزولة (setup+migrate)
+      # ③ كل اختبارات vitest (بما فيها الدخان: POST JSON + اختيار dist).
+      # يعمل على كل push، وفي الـ PR فقط عند تغيّر backend.
+      - name: Backend check:local (tsc + isolated tests)
+        if: github.event_name == 'push' || (github.event_name == 'pull_request' && steps.backend-changed.outputs.changed == 'true')
+        run: npm run check:local
 
-    - name: Type Check
-      run: npm run typecheck
+      - name: Frontend Type Check
+        run: npm run typecheck -w frontend
 
-    - name: Build
-      run: npm run build
+      - name: Frontend Tests
+        run: npm run test:unit -w frontend
+
+      - name: Frontend Build
+        run: npm run build -w frontend
+
+      # دخان تشغيلي ضد الخادم الحقيقي: يضمن أن body-parser يستقبل POST فعليًا
+      # وأن الواجهة تُقدَّم من frontend/dist (وليس مجلد dist مزيفًا بلا index.html)
+      - name: Smoke — boot server, real POST + GET /
+        working-directory: backend
+        run: |
+          set -e
+          PORT=3100 HTTPS_PORT=3443 node src/index.js > /tmp/smoke-server.log 2>&1 &
+          SERVER_PID=$!
+
+          # انتظار جاهزية الخادم عبر /health (يتحقق من اتصال قاعدة البيانات)
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:3100/health > /dev/null 2>&1; then break; fi
+            sleep 1
+          done
+          if ! curl -sf http://localhost:3100/health > /dev/null 2>&1; then
+            echo "❌ الخادم لم يجهز خلال 30 ثانية:"
+            tail -20 /tmp/smoke-server.log
+            kill "$SERVER_PID" 2>/dev/null || true
+            exit 1
+          fi
+
+          # 1) body-parser: POST JSON عبر الخادم الحقيقي يجب أن يعيد استجابة أعمال
+          #    (وليس 500 بسبب "Cannot find module '../encodings'")
+          BODY=$(curl -s -X POST http://localhost:3100/api/v1/auth/login \
+            -H "Content-Type: application/json" \
+            -d '{"username":"admin","password":"wrong"}' || true)
+          echo "$BODY" | grep -q '"success":' || {
+            echo "❌ POST smoke فشل (body-parser/iconv-lite):"
+            echo "$BODY" | head -c 400
+            kill "$SERVER_PID" 2>/dev/null || true
+            exit 1
+          }
+
+          # 2) الواجهة تُقدَّم من frontend/dist الحقيقي (index.html فعلي)
+          curl -sf http://localhost:3100/ | grep -q '<!DOCTYPE html>' || {
+            echo "❌ GET / فشل (الواجهة لم تُقدَّم — dist مزيف بلا index.html؟)"
+            kill "$SERVER_PID" 2>/dev/null || true
+            exit 1
+          }
+
+          echo "✅ Smoke OK: POST JSON يعمل + الواجهة تُقدَّم من frontend/dist"
+          kill "$SERVER_PID" 2>/dev/null || true

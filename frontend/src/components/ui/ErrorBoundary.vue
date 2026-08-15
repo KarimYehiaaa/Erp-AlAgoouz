@@ -19,13 +19,13 @@
   <slot v-else />
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, onErrorCaptured } from 'vue';
 
 const hasError = ref(false);
 const errorMessage = ref('');
 
-onErrorCaptured((err, _instance, info) => {
+onErrorCaptured((err: any, _instance: any, info: any) => {
   console.error('[ErrorBoundary caught error]:', err, info);
   hasError.value = true;
   errorMessage.value = err?.message || 'حدث خطأ في عرض الشاشة';

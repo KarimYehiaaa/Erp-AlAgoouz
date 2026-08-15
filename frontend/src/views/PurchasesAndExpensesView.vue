@@ -536,7 +536,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import {
@@ -569,7 +569,7 @@ if (!canManagePurchases.value && canManageExpenses.value) {
   activeTab.value = 'purchases';
 }
 
-const switchTab = (tab) => {
+const switchTab = (tab: any) => {
   activeTab.value = tab;
   window.history.replaceState({}, '', `/purchases?tab=${tab}`);
   if (tab === 'purchases') loadPurchasesOnly();
@@ -577,16 +577,16 @@ const switchTab = (tab) => {
 };
 
 // Common Date Handlers
-const todayStr = new Date().toISOString().split('T')[0];
+const todayStr = new Date().toISOString().split('T')[0]!;
 const firstDayOfMonth = todayStr.slice(0, 8) + '01';
 
 // Number normalization helpers
-const normalizeDigits = (value) =>
+const normalizeDigits = (value: any) =>
   String(value ?? '')
-    .replace(/[٠-٩]/g, (digit) => '0123456789'['٠١٢٣٤٥٦٧٨٩'.indexOf(digit)])
-    .replace(/[۰-۹]/g, (digit) => '0123456789'['۰۱۲۳۴۵٦۷۸۹'.indexOf(digit)]);
+    .replace(/[٠-٩]/g, (digit: any) => '0123456789'['٠١٢٣٤٥٦٧٨٩'.indexOf(digit)] || digit)
+    .replace(/[۰-۹]/g, (digit: any) => '0123456789'['۰۱۲۳۴۵٦۷۸۹'.indexOf(digit)] || digit);
 
-const toDecimal = (value, fallback = 0) => {
+const toDecimal = (value: any, fallback = 0) => {
   if (typeof value === 'number') return Number.isFinite(value) ? value : fallback;
   const text = normalizeDigits(value).trim().replace(/[٫,]/g, '.');
   const parsed = Number(text);
@@ -598,13 +598,13 @@ const toDecimal = (value, fallback = 0) => {
 // ====================================================
 const { loadMeta, unitLabel, unitNames } = useProductMeta();
 
-const products = ref([]);
-const invoices = ref([]);
-const suppliersList = ref([]);
+const products = ref<any[]>([]);
+const invoices = ref<any[]>([]);
+const suppliersList = ref<any[]>([]);
 const purchasesSaving = ref(false);
 const purchasesMsg = ref('');
 const purchasesErr = ref(false);
-const editingInvoiceId = ref(null);
+const editingInvoiceId = ref<any>(null);
 
 const purchasesFilters = ref({
   from_date: firstDayOfMonth,
@@ -627,18 +627,21 @@ const purchaseForm = ref({
 });
 
 const purchaseTotalAmount = computed(() =>
-  purchaseForm.value.items.reduce((s, x) => s + toDecimal(x.quantity) * toDecimal(x.unit_price), 0),
+  purchaseForm.value.items.reduce(
+    (s: any, x: any) => s + toDecimal(x.quantity) * toDecimal(x.unit_price),
+    0,
+  ),
 );
 
 const periodPurchasesTotal = computed(() => {
-  return invoices.value.reduce((sum, inv) => sum + Number(inv.total_amount || 0), 0);
+  return invoices.value.reduce((sum: any, inv: any) => sum + Number(inv.total_amount || 0), 0);
 });
 
 const periodPurchasesCount = computed(() => {
   return invoices.value.length;
 });
 
-const selectPurchasesMonth = (event) => {
+const selectPurchasesMonth = (event: any) => {
   const value = event.target.value;
   if (!value) return;
   const [year, month] = value.split('-').map(Number);
@@ -668,15 +671,15 @@ const loadPurchasesOnly = async () => {
     invoices.value = inv.data || [];
     suppliersList.value = sup.data || [];
     await loadMeta();
-  } catch (err) {
+  } catch (err: any) {
     console.error('Failed to load purchases:', err);
   } finally {
     loadingPurchases.value = false;
   }
 };
 
-const onProductChange = (item) => {
-  const p = products.value.find((x) => x.id === item.product_id);
+const onProductChange = (item: any) => {
+  const p = products.value.find((x: any) => x.id === item.product_id);
   if (!p) return;
   item.warehouse_name = p.primary_warehouse_name || '';
   item.unit = p.unit || 'count';
@@ -684,7 +687,7 @@ const onProductChange = (item) => {
 };
 
 const addPurchaseItem = () => purchaseForm.value.items.push(emptyItem());
-const removePurchaseItem = (i) => purchaseForm.value.items.splice(i, 1);
+const removePurchaseItem = (i: any) => purchaseForm.value.items.splice(i, 1);
 
 const resetPurchasesForm = () => {
   editingInvoiceId.value = null;
@@ -696,13 +699,13 @@ const resetPurchasesForm = () => {
   };
 };
 
-const editInvoice = (invoice) => {
+const editInvoice = (invoice: any) => {
   editingInvoiceId.value = invoice.id;
   purchaseForm.value = {
     invoice_date: String(invoice.invoice_date || '').slice(0, 10),
     supplier_id: invoice.supplier_id || null,
     notes: invoice.notes || '',
-    items: (invoice.items || []).map((item) => ({
+    items: (invoice.items || []).map((item: any) => ({
       product_id: item.product_id,
       warehouse_name: item.warehouse_name || '',
       unit: item.unit || 'count',
@@ -721,7 +724,7 @@ const cancelPurchaseEdit = () => {
   purchasesErr.value = false;
 };
 
-const deleteInvoice = async (id, invoiceNumber) => {
+const deleteInvoice = async (id: any, invoiceNumber: any) => {
   if (!id) return;
   const ok = confirm(`هل تريد حذف فاتورة المشتريات ${invoiceNumber}?`);
   if (!ok) return;
@@ -733,7 +736,7 @@ const deleteInvoice = async (id, invoiceNumber) => {
     await purchasesApi.delete(id);
     purchasesMsg.value = 'تم حذف فاتورة المشتريات وتحديث المخزون';
     await loadPurchasesOnly();
-  } catch (e) {
+  } catch (e: any) {
     purchasesErr.value = true;
     purchasesMsg.value = e.message || 'فشل الحذف';
   } finally {
@@ -748,8 +751,8 @@ const savePurchaseInvoice = async () => {
   purchasesSaving.value = true;
   try {
     const items = purchaseForm.value.items
-      .filter((x) => x.product_id && toDecimal(x.quantity) > 0)
-      .map((x) => ({
+      .filter((x: any) => x.product_id && toDecimal(x.quantity) > 0)
+      .map((x: any) => ({
         ...x,
         quantity: toDecimal(x.quantity),
         unit_price: toDecimal(x.unit_price),
@@ -773,7 +776,7 @@ const savePurchaseInvoice = async () => {
     }
     resetPurchasesForm();
     await loadPurchasesOnly();
-  } catch (e) {
+  } catch (e: any) {
     purchasesErr.value = true;
     purchasesMsg.value = e.message || 'فشل الحفظ';
   } finally {
@@ -784,25 +787,25 @@ const savePurchaseInvoice = async () => {
 // ====================================================
 // EXPENSES LOGIC
 // ====================================================
-const expensesList = ref([]);
-const expenseCategories = ref([]);
+const expensesList = ref<any[]>([]);
+const expenseCategories = ref<any[]>([]);
 const expensesSaving = ref(false);
 const expenseTypeFilter = ref('all');
 
 const periodExpensesTotal = computed(() => {
-  return expensesList.value.reduce((sum, e) => sum + Number(e.amount || 0), 0);
+  return expensesList.value.reduce((sum: any, e: any) => sum + Number(e.amount || 0), 0);
 });
 
 const periodFixedExpensesTotal = computed(() => {
   return expensesList.value
-    .filter((e) => e.is_fixed)
-    .reduce((sum, e) => sum + Number(e.amount || 0), 0);
+    .filter((e: any) => e.is_fixed)
+    .reduce((sum: any, e: any) => sum + Number(e.amount || 0), 0);
 });
 
 const periodVariableExpensesTotal = computed(() => {
   return expensesList.value
-    .filter((e) => !e.is_fixed)
-    .reduce((sum, e) => sum + Number(e.amount || 0), 0);
+    .filter((e: any) => !e.is_fixed)
+    .reduce((sum: any, e: any) => sum + Number(e.amount || 0), 0);
 });
 
 const periodExpensesCount = computed(() => {
@@ -811,10 +814,10 @@ const periodExpensesCount = computed(() => {
 
 const filteredExpensesList = computed(() => {
   if (expenseTypeFilter.value === 'fixed') {
-    return expensesList.value.filter((e) => Boolean(e.is_fixed));
+    return expensesList.value.filter((e: any) => Boolean(e.is_fixed));
   }
   if (expenseTypeFilter.value === 'variable') {
-    return expensesList.value.filter((e) => !Boolean(e.is_fixed));
+    return expensesList.value.filter((e: any) => !Boolean(e.is_fixed));
   }
   return expensesList.value;
 });
@@ -848,7 +851,7 @@ const resetExpenseForm = () => {
 
 const onExpenseCategoryChange = () => {
   const cat = expenseCategories.value.find(
-    (c) => Number(c.id) === Number(expenseForm.value.category_id),
+    (c: any) => Number(c.id) === Number(expenseForm.value.category_id),
   );
   if (cat) {
     expenseForm.value.is_fixed = Boolean(cat.is_fixed);
@@ -860,7 +863,7 @@ const openExpenseCreate = () => {
   showExpenseForm.value = true;
 };
 
-const openExpenseEdit = (row) => {
+const openExpenseEdit = (row: any) => {
   expenseForm.value = {
     id: row.id,
     title: row.title,
@@ -872,7 +875,7 @@ const openExpenseEdit = (row) => {
   showExpenseForm.value = true;
 };
 
-const selectExpensesMonth = (event) => {
+const selectExpensesMonth = (event: any) => {
   const value = event.target.value;
   if (!value) return;
   const [year, month] = value.split('-').map(Number);
@@ -900,7 +903,7 @@ const loadExpensesOnly = async () => {
 
     expensesList.value = listRes.data || [];
     expenseCategories.value = c.data || [];
-  } catch (err) {
+  } catch (err: any) {
     console.error('Failed to load expenses:', err);
   } finally {
     loadingExpenses.value = false;
@@ -913,13 +916,13 @@ const suggestExpenseCategory = async () => {
   try {
     const res = await expensesApi.suggestCategory(title);
     if (res.data?.category_id) {
-      const exists = expenseCategories.value.some((c) => c.id === res.data.category_id);
+      const exists = expenseCategories.value.some((c: any) => c.id === res.data.category_id);
       if (exists) {
         expenseForm.value.category_id = res.data.category_id;
         onExpenseCategoryChange();
       }
     }
-  } catch (err) {
+  } catch (err: any) {
     console.error('Failed to suggest category:', err);
   }
 };
@@ -937,19 +940,19 @@ const saveExpense = async () => {
     showExpenseForm.value = false;
     resetExpenseForm();
     await loadExpensesOnly();
-  } catch (e) {
+  } catch (e: any) {
     window.alert(e.message || 'فشل حفظ المصروف');
   } finally {
     expensesSaving.value = false;
   }
 };
 
-const removeExpense = async (row) => {
+const removeExpense = async (row: any) => {
   if (!window.confirm(`تأكيد حذف المصروف: ${row.title} ؟`)) return;
   try {
     await expensesApi.delete(row.id);
     await loadExpensesOnly();
-  } catch (e) {
+  } catch (e: any) {
     window.alert(e.message || 'فشل حذف المصروف');
   }
 };

@@ -1,7 +1,7 @@
 import pg from 'pg';
 import dotenv from 'dotenv';
 import fs from 'fs';
-import { listPurchaseInvoices } from './src/services/purchaseService.js';
+import { listPurchaseInvoices } from './src/services/purchaseService.ts';
 
 dotenv.config();
 

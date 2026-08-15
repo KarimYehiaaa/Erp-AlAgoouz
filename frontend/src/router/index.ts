@@ -164,7 +164,8 @@ router.beforeEach(async (to: any, _from: any, next: any) => {
   const auth = useAuthStore();
 
   if (auth.isAuthenticated && !auth.profileLoaded) {
-    await auth.fetchProfile();
+    // إصلاح التجمّد: لا نسمح أبدًا لطلب profile عالق بمنع التنقل — مهلة قصوى 4 ثوانٍ
+    await Promise.race([auth.fetchProfile(), new Promise((resolve) => setTimeout(resolve, 4_000))]);
   }
 
   if (to.meta.requiresAuth && !auth.isAuthenticated) return next('/login');

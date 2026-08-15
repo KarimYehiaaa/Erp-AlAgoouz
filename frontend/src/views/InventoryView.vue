@@ -955,313 +955,49 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, watch, computed } from 'vue';
-import { onBeforeUnmount } from 'vue';
-import { inventory as inventoryApi, products as productsApi } from '@/api';
+import { ref, onMounted } from 'vue';
+import { inventory as inventoryApi } from '@/api';
 import BaseTable from '@/components/ui/BaseTable.vue';
+import AppIcon from '@/components/AppIcon.vue';
 import { formatMoney } from '@/utils/currency';
 import { formatDateTime } from '@/utils/formatters';
+import { useInventoryStock } from '@/composables/useInventoryStock';
+import { useInventoryTransfers } from '@/composables/useInventoryTransfers';
+import { useInventoryExcel } from '@/composables/useInventoryExcel';
 
 const tab = ref('stock');
-const items = ref<any[]>([]);
-const loading = ref(false);
-const movements = ref<any[]>([]);
-const warehouses = ref<any[]>([]);
 const warehouseId = ref('');
-const returnWarehouseId = ref('');
-const showTransfer = ref(false);
-const showEdit = ref(false);
-const showWastage = ref(false);
-const savingEdit = ref(false);
-const savingWastage = ref(false);
-const downloadingTemplate = ref(false);
 const msg = ref('');
 const err = ref(false);
-const excelResult = ref<any>(null);
-const highlighted = ref<Record<string, any>>({});
+const warehouses = ref<any[]>([]);
 
-const stockColumns = [
-  { key: 'name_ar', label: 'المنتج' },
-  { key: 'sku', label: 'الكود' },
-  { key: 'purchase_price', label: 'سعر الشراء' },
-  { key: 'total_quantity', label: 'إجمالي الكمية' },
-  { key: 'stock_value', label: 'قيمة المخزون' },
-  { key: 'main_quantity', label: 'المخزن الرئيسي' },
-  { key: 'branch_quantity', label: 'مخزن الفرع' },
-  { key: 'min_stock', label: 'الحد الأدنى' },
-  { key: 'status', label: 'الحالة' },
-  { key: 'actions', label: '', align: 'right' },
-];
-
-const getItemStockValue = (item: any) => {
-  const qty = Number(item.total_quantity !== undefined ? item.total_quantity : item.quantity || 0);
-  const cost = Number(item.purchase_price || 0);
-  return qty * cost;
+const setMsg = (text: string, isErr = false) => {
+  msg.value = text;
+  err.value = isErr;
 };
 
-const totalInventoryValue = computed(() => {
-  return items.value.reduce((sum: any, i: any) => sum + getItemStockValue(i), 0);
-});
-
-const mainWarehouseValue = computed(() => {
-  return items.value.reduce((sum: any, i: any) => {
-    const qty = Number(getMainQty(i) || 0);
-    const cost = Number(i.purchase_price || 0);
-    return sum + qty * cost;
-  }, 0);
-});
-
-const branchWarehouseValue = computed(() => {
-  return items.value.reduce((sum: any, i: any) => {
-    const qty = Number(getBranchQty(i) || 0);
-    const cost = Number(i.purchase_price || 0);
-    return sum + qty * cost;
-  }, 0);
-});
-
-const getMainQty = (item: any) => {
-  if (item.main_quantity !== undefined && item.main_quantity !== null) return item.main_quantity;
-  if (item.warehouse_breakdown && Array.isArray(item.warehouse_breakdown)) {
-    const mainW = item.warehouse_breakdown.find(
-      (w: any) =>
-        w.warehouse_type === 'main' || (w.warehouse_name && w.warehouse_name.includes('رئيسي')),
-    );
-    if (mainW) return mainW.quantity;
-  }
-  return item.warehouse_name && item.warehouse_name.includes('رئيسي') ? item.quantity : 0;
+const loadWarehouses = async () => {
+  const wh = await inventoryApi.warehouses();
+  warehouses.value = wh.data || [];
 };
 
-const getBranchQty = (item: any) => {
-  if (item.branch_quantity !== undefined && item.branch_quantity !== null)
-    return item.branch_quantity;
-  if (item.warehouse_breakdown && Array.isArray(item.warehouse_breakdown)) {
-    const branchW = item.warehouse_breakdown.find(
-      (w: any) =>
-        w.warehouse_type !== 'main' && (!w.warehouse_name || !w.warehouse_name.includes('رئيسي')),
-    );
-    if (branchW) return branchW.quantity;
-  }
-  return item.warehouse_name && !item.warehouse_name.includes('رئيسي') ? item.quantity : 0;
-};
-
-const movementsColumns = [
-  { key: 'product_name', label: 'المنتج' },
-  { key: 'movement_type', label: 'النوع' },
-  { key: 'quantity', label: 'الكمية' },
-  { key: 'from_warehouse', label: 'من' },
-  { key: 'to_warehouse', label: 'إلى' },
-  { key: 'user_name', label: 'بواسطة' },
-  { key: 'created_at', label: 'التاريخ' },
-  { key: 'actions', label: 'إذن', align: 'right' },
-];
-
-const editForm = ref({
-  id: null,
-  product_id: null,
-  name_ar: '',
-  min_stock: 0,
-  warehouse_stocks: {} as Record<string, number>,
-});
-const wastageForm = ref({
-  product_id: null,
-  warehouse_id: null,
-  name_ar: '',
-  current_qty: 0,
-  quantity: 0,
-  notes: '',
-});
-const transfer = ref({
-  product_id: null,
-  to_product_id: null,
-  from_warehouse_id: null,
-  to_warehouse_id: null,
-  quantity: 1,
-});
-
-const transferMode = ref('single'); // 'single' | 'batch'
-const batchItems = ref([{ product_id: null, to_product_id: null, quantity: 1, notes: '' }]);
-const showVoucherModal = ref(false);
-const currentVoucher = ref<Record<string, any> | null>(null);
-const movementTypeFilter = ref('');
-
-const filteredMovements = computed(() => {
-  if (!movementTypeFilter.value) return movements.value;
-  return movements.value.filter((m: any) => m.movement_type === movementTypeFilter.value);
-});
-
-const transferProducts = ref<any[]>([]);
-const transferDestProducts = ref<any[]>([]);
-const allProducts = ref<any[]>([]);
-const loadingTransferProducts = ref(false);
-
-const selectedTransferProduct = computed(() => {
-  return transferProducts.value.find((p: any) => p.product_id === transfer.value.product_id);
-});
-
-const selectedTransferDestProduct = computed(() => {
-  if (!transfer.value.to_product_id) return null;
-  const targetId = Number(transfer.value.to_product_id);
-  const found = transferDestProducts.value.find(
-    (p: any) => Number(p.product_id || p.id) === targetId,
-  );
-  return found || { quantity: 0 };
-});
-
-const loadAllProducts = async () => {
+const load = async () => {
   try {
-    const res = await productsApi.list({ limit: 1000 });
-    allProducts.value = (res.data || []).filter(
-      (p: any) => p.is_active !== false && !p.has_active_recipe,
-    );
+    await Promise.all([
+      stock.loadStock(warehouseId.value),
+      transfers.loadMovements(),
+      loadWarehouses(),
+    ]);
+    transfers.setDefaultWarehouses();
+    setMsg('', false);
   } catch (e: any) {
-    console.error('Error loading products list:', e);
+    setMsg(e.message || 'فشل تحميل بيانات المخزون.', true);
   }
 };
 
-const loadTransferProducts = async () => {
-  if (!showTransfer.value) return; // Guard: only load when modal is open
-  const fromWhId = transfer.value.from_warehouse_id;
-  loadingTransferProducts.value = true;
-  try {
-    if (!allProducts.value.length) {
-      await loadAllProducts();
-    }
-    const invMap = new Map();
-    if (fromWhId) {
-      const res = await inventoryApi.list({ warehouse_id: fromWhId });
-      (res.data || []).forEach((inv: any) => {
-        invMap.set(Number(inv.product_id), Number(inv.quantity || 0));
-      });
-    }
-
-    transferProducts.value = allProducts.value.map((prod: any) => {
-      let qty = 0;
-      if (invMap.has(prod.id)) {
-        qty = invMap.get(prod.id);
-      } else if (prod.warehouse_breakdown && Array.isArray(prod.warehouse_breakdown)) {
-        const wh = prod.warehouse_breakdown.find(
-          (w: any) => Number(w.warehouse_id) === Number(fromWhId),
-        );
-        if (wh) qty = Number(wh.quantity || 0);
-      }
-      return {
-        product_id: prod.id,
-        id: prod.id,
-        name_ar: prod.name_ar,
-        sku: prod.sku,
-        quantity: qty,
-      };
-    });
-  } catch (e: any) {
-    console.error('Error loading transfer products:', e);
-    transferProducts.value = allProducts.value.map((prod: any) => ({
-      product_id: prod.id,
-      id: prod.id,
-      name_ar: prod.name_ar,
-      sku: prod.sku,
-      quantity: 0,
-    }));
-  } finally {
-    loadingTransferProducts.value = false;
-  }
-};
-
-const loadTransferDestProducts = async () => {
-  if (!showTransfer.value) return;
-  const toWhId = transfer.value.to_warehouse_id;
-  if (!toWhId) {
-    transferDestProducts.value = [];
-    return;
-  }
-  try {
-    const res = await inventoryApi.list({ warehouse_id: toWhId });
-    transferDestProducts.value = res.data || [];
-  } catch (e: any) {
-    console.error('Error loading destination products:', e);
-  }
-};
-
-watch(
-  () => transfer.value.from_warehouse_id,
-  (newVal: any) => {
-    if (newVal && warehouses.value.length === 2) {
-      const otherWh = warehouses.value.find((w: any) => w.id !== newVal);
-      if (otherWh) {
-        transfer.value.to_warehouse_id = otherWh.id;
-      }
-    }
-    loadTransferProducts();
-    loadTransferDestProducts();
-    transfer.value.product_id = null;
-    transfer.value.to_product_id = null;
-  },
-);
-
-watch(
-  () => transfer.value.to_warehouse_id,
-  () => {
-    loadTransferDestProducts();
-  },
-);
-
-watch(
-  () => transfer.value.product_id,
-  (newVal: any) => {
-    transfer.value.to_product_id = newVal;
-  },
-);
-
-const swapTransferDirection = () => {
-  const temp = transfer.value.from_warehouse_id;
-  transfer.value.from_warehouse_id = transfer.value.to_warehouse_id;
-  transfer.value.to_warehouse_id = temp;
-};
-
-const setTransferDirection = (fromType: any, toType: any) => {
-  const fromW = warehouses.value.find((w: any) =>
-    fromType === 'main'
-      ? w.type === 'main' || w.code === 'MAIN' || (w.name_ar && w.name_ar.includes('رئيسي'))
-      : w.type === 'store' ||
-        w.code === 'STORE' ||
-        (w.name_ar && (w.name_ar.includes('فرع') || w.name_ar.includes('محل'))),
-  );
-  const toW = warehouses.value.find((w: any) =>
-    toType === 'main'
-      ? w.type === 'main' || w.code === 'MAIN' || (w.name_ar && w.name_ar.includes('رئيسي'))
-      : w.type === 'store' ||
-        w.code === 'STORE' ||
-        (w.name_ar && (w.name_ar.includes('فرع') || w.name_ar.includes('محل'))),
-  );
-  if (fromW && toW) {
-    transfer.value.from_warehouse_id = fromW.id;
-    transfer.value.to_warehouse_id = toW.id;
-  }
-};
-
-const openTransferProduct = (item: any) => {
-  openTransferModal();
-  setTimeout(() => {
-    transfer.value.product_id = item.product_id;
-    transfer.value.to_product_id = item.product_id;
-  }, 100);
-};
-
-const openTransferModal = () => {
-  if (warehouses.value.length) {
-    transfer.value.from_warehouse_id = warehouses.value[0].id;
-    transfer.value.to_warehouse_id = warehouses.value[1]?.id || warehouses.value[0].id;
-    transfer.value.product_id = null;
-    transfer.value.to_product_id = null;
-    transfer.value.quantity = 1;
-
-    showTransfer.value = true; // Set flag first so queries pass the guard
-    loadTransferProducts();
-    loadTransferDestProducts();
-    loadAllProducts();
-  } else {
-    showTransfer.value = true;
-  }
-};
+const stock = useInventoryStock({ warehouses, warehouseId, setMsg, reload: () => load() });
+const transfers = useInventoryTransfers({ warehouses, setMsg, reload: () => load() });
+const excel = useInventoryExcel({ setMsg, reload: () => load() });
 
 const fmtQty = (v: any) => {
   const n = Number(v || 0);
@@ -1285,387 +1021,66 @@ const movementLabel = (t: any) =>
   t ||
   '—';
 
-const setMsg = (text: any, isErr = false) => {
-  msg.value = text;
-  err.value = isErr;
-};
+// ── المخزون (جدول + تقييم + تعديل/هالك) ──
+const {
+  items,
+  loading,
+  stockColumns,
+  getItemStockValue,
+  totalInventoryValue,
+  mainWarehouseValue,
+  branchWarehouseValue,
+  getMainQty,
+  getBranchQty,
+  isHighlighted,
+  editForm,
+  showEdit,
+  savingEdit,
+  openEdit,
+  saveEdit,
+  wastageForm,
+  showWastage,
+  savingWastage,
+  openWastage,
+  saveWastage,
+} = stock;
 
-const load = async () => {
-  loading.value = true;
-  const params = warehouseId.value ? { warehouse_id: warehouseId.value } : {};
-  try {
-    const [inv, mov, wh] = await Promise.all([
-      inventoryApi.list(params),
-      inventoryApi.movements({ limit: 50 }),
-      inventoryApi.warehouses(),
-    ]);
-    items.value = inv.data || [];
-    movements.value = mov.data || [];
-    warehouses.value = wh.data || [];
-    if (!transfer.value.from_warehouse_id && wh.data?.length) {
-      transfer.value.from_warehouse_id = wh.data[0].id;
-      transfer.value.to_warehouse_id = wh.data[1]?.id || wh.data[0].id;
-    }
-    setMsg('', false);
-  } catch (e: any) {
-    items.value = [];
-    movements.value = [];
-    setMsg(e.message || 'فشل تحميل بيانات المخزون.', true);
-  } finally {
-    loading.value = false;
-  }
-};
+// ── التحويلات وحركة المخزون ──
+const {
+  filteredMovements,
+  movementsColumns,
+  movementTypeFilter,
+  showTransfer,
+  transfer,
+  transferMode,
+  batchItems,
+  showVoucherModal,
+  currentVoucher,
+  transferProducts,
+  allProducts,
+  loadingTransferProducts,
+  selectedTransferProduct,
+  selectedTransferDestProduct,
+  openTransferModal,
+  openTransferProduct,
+  setTransferDirection,
+  swapTransferDirection,
+  doTransfer,
+  addBatchRow,
+  removeBatchRow,
+  printVoucher,
+  printTransferVoucherFromMovement,
+} = transfers;
 
-// Listen for cross-view inventory updates (e.g., after producing a recipe)
-const onInventoryUpdated = (ev: any) => {
-  try {
-    const wid = ev?.detail?.warehouse_id;
-    const pid = ev?.detail?.product_id;
-    // if user has filtered to a specific warehouse, only reload when it matches
-    if (!warehouseId.value || !wid || Number(warehouseId.value) === Number(wid)) {
-      load();
-    }
-    // highlight the produced product row for visibility
-    if (pid && wid) {
-      const key = `${pid}-${wid}`;
-      highlighted.value[key] = Date.now();
-      // remove highlight after 5s
-      setTimeout(() => {
-        delete highlighted.value[key];
-        highlighted.value = { ...highlighted.value };
-      }, 5000);
-    }
-  } catch (e: any) {
-    console.warn('inventory-updated handler error', e);
-  }
-};
-
-onMounted(() => window.addEventListener('inventory-updated', onInventoryUpdated));
-onBeforeUnmount(() => window.removeEventListener('inventory-updated', onInventoryUpdated));
-
-const openEdit = async (row: any) => {
-  if (!warehouses.value.length) {
-    try {
-      const wh = await inventoryApi.warehouses();
-      warehouses.value = wh.data || [];
-    } catch (e: any) {
-      console.error('Failed to load warehouses:', e);
-    }
-  }
-
-  const stocksObj: Record<string, number> = {};
-  warehouses.value.forEach((w: any) => {
-    stocksObj[w.id] = 0;
-  });
-
-  const breakdownList = Array.isArray(row.warehouse_breakdown)
-    ? row.warehouse_breakdown
-    : typeof row.warehouse_breakdown === 'string'
-      ? JSON.parse(row.warehouse_breakdown)
-      : [];
-
-  if (breakdownList.length > 0) {
-    breakdownList.forEach((wb: any) => {
-      if (wb.warehouse_id) {
-        stocksObj[wb.warehouse_id] = Number(wb.quantity || 0);
-      }
-    });
-  } else if (row.warehouse_id) {
-    stocksObj[row.warehouse_id] = Number(row.quantity || 0);
-  }
-
-  editForm.value = {
-    id: row.id,
-    product_id: row.product_id,
-    name_ar: row.name_ar,
-    min_stock: Number(row.min_stock || 0),
-    warehouse_stocks: stocksObj,
-  };
-  showEdit.value = true;
-};
-
-const isHighlighted = (row: any) => {
-  const key = `${row.product_id}-${row.warehouse_id}`;
-  return Boolean(highlighted.value[key]);
-};
-
-const saveEdit = async () => {
-  const min_stock = Number(editForm.value.min_stock);
-  if (isNaN(min_stock) || min_stock < 0) {
-    setMsg('أدخل حد أدنى صحيح للمخزون.', true);
-    return;
-  }
-  savingEdit.value = true;
-  try {
-    const whEntries = Object.entries(editForm.value.warehouse_stocks || {});
-    for (let i = 0; i < whEntries.length; i++) {
-      const [whIdStr, qtyVal] = whEntries[i]!;
-      const whId = Number(whIdStr);
-      const targetQty = Number(qtyVal || 0);
-      await inventoryApi.adjust({
-        product_id: editForm.value.product_id,
-        warehouse_id: whId,
-        quantity: targetQty,
-        min_stock: i === 0 ? min_stock : undefined,
-        notes: 'تعديل يدوي من شاشة المخزون',
-      });
-    }
-    showEdit.value = false;
-    setMsg(`تم حفظ تعديل مخزون ${editForm.value.name_ar} بنجاح.`);
-    await load();
-  } catch (e: any) {
-    setMsg(e.message || 'فشل حفظ التعديل.', true);
-  } finally {
-    savingEdit.value = false;
-  }
-};
-
-const openWastage = (row: any) => {
-  wastageForm.value = {
-    product_id: row.product_id,
-    warehouse_id: row.warehouse_id,
-    name_ar: row.name_ar,
-    current_qty: Number(row.quantity || 0),
-    quantity: 0,
-    notes: '',
-  };
-  showWastage.value = true;
-};
-
-const saveWastage = async () => {
-  const qty = Number(wastageForm.value.quantity);
-  if (isNaN(qty) || qty <= 0 || qty > wastageForm.value.current_qty) {
-    setMsg('الكمية غير صحيحة أو أكبر من المتاح.', true);
-    return;
-  }
-  savingWastage.value = true;
-  try {
-    const targetQty = wastageForm.value.current_qty - qty;
-    await inventoryApi.adjust({
-      product_id: wastageForm.value.product_id,
-      warehouse_id: wastageForm.value.warehouse_id,
-      quantity: targetQty,
-      movement_type: 'wastage',
-      notes: wastageForm.value.notes,
-    });
-    showWastage.value = false;
-    setMsg(`تم تسجيل هالك لـ ${wastageForm.value.name_ar} بنجاح.`);
-    await load();
-  } catch (e: any) {
-    setMsg(e.message || 'فشل تسجيل الهالك.', true);
-  } finally {
-    savingWastage.value = false;
-  }
-};
-
-const addBatchRow = () => {
-  batchItems.value.push({ product_id: null, to_product_id: null, quantity: 1, notes: '' });
-};
-
-const removeBatchRow = (idx: any) => {
-  if (batchItems.value.length > 1) {
-    batchItems.value.splice(idx, 1);
-  }
-};
-
-const printVoucher = () => {
-  window.print();
-};
-
-const printTransferVoucherFromMovement = (item: any) => {
-  const matchCode = item.notes?.match(/TRF-\d{4}-\d+/);
-  const code = matchCode ? matchCode[0] : `TRF-${item.id}`;
-  currentVoucher.value = {
-    transfer_number: code,
-    from_warehouse_name: item.from_warehouse || 'المخزن المصدر',
-    to_warehouse_name: item.to_warehouse || 'مخزن الوجهة',
-    created_at: item.created_at,
-    items: [
-      {
-        product_name: item.product_name,
-        sku: item.product_sku || '',
-        quantity: item.quantity,
-      },
-    ],
-  };
-  showVoucherModal.value = true;
-};
-
-const doTransfer = async () => {
-  if (!transfer.value.from_warehouse_id || !transfer.value.to_warehouse_id) {
-    setMsg('يرجى تحديد المخزن المصدر والوجهة.', true);
-    return;
-  }
-  if (transfer.value.from_warehouse_id === transfer.value.to_warehouse_id) {
-    setMsg('لا يمكن التحويل لنفس المخزن.', true);
-    return;
-  }
-
-  let payload: Record<string, any>;
-
-  if (transferMode.value === 'single') {
-    const selectedProd = selectedTransferProduct.value;
-    if (!selectedProd) {
-      setMsg('يرجى اختيار منتج المصدر أولاً.', true);
-      return;
-    }
-    if (!transfer.value.to_product_id) {
-      setMsg('يرجى اختيار منتج الوجهة.', true);
-      return;
-    }
-    if (transfer.value.quantity > Number(selectedProd.quantity)) {
-      setMsg('الكمية المراد تحويلها أكبر من الكمية المتوفرة في المخزن المحدد.', true);
-      return;
-    }
-    payload = {
-      from_warehouse_id: transfer.value.from_warehouse_id,
-      to_warehouse_id: transfer.value.to_warehouse_id,
-      product_id: transfer.value.product_id,
-      to_product_id: transfer.value.to_product_id,
-      quantity: transfer.value.quantity,
-      notes: 'تحويل يدوي بين المخازن',
-    };
-  } else {
-    // Batch Mode
-    const validItems = batchItems.value.filter(
-      (it: any) => it.product_id && Number(it.quantity) > 0,
-    );
-    if (!validItems.length) {
-      setMsg('يرجى تحديد منتج واحد على الأقل بكمية صحيحة.', true);
-      return;
-    }
-    payload = {
-      from_warehouse_id: transfer.value.from_warehouse_id,
-      to_warehouse_id: transfer.value.to_warehouse_id,
-      items: validItems.map((it: any) => ({
-        product_id: it.product_id,
-        to_product_id: it.to_product_id || it.product_id,
-        quantity: Number(it.quantity),
-        notes: it.notes || '',
-      })),
-    };
-  }
-
-  try {
-    const res = await inventoryApi.transfer(payload);
-    const fromW = warehouses.value.find((w: any) => w.id === transfer.value.from_warehouse_id);
-    const toW = warehouses.value.find((w: any) => w.id === transfer.value.to_warehouse_id);
-
-    const voucherItems =
-      transferMode.value === 'single'
-        ? [
-            {
-              product_name: selectedTransferProduct.value?.name_ar || 'منتج',
-              sku: selectedTransferProduct.value?.sku || '',
-              quantity: transfer.value.quantity,
-            },
-          ]
-        : payload.items.map((it: any) => {
-            const p =
-              transferProducts.value.find((x: any) => x.product_id === it.product_id) ||
-              allProducts.value.find((x: any) => x.id === it.product_id);
-            return {
-              product_name: p?.name_ar || `منتج ${it.product_id}`,
-              sku: p?.sku || '',
-              quantity: it.quantity,
-            };
-          });
-
-    currentVoucher.value = {
-      transfer_number: (res?.data as any)?.transfer_number || `TRF-${Date.now()}`,
-      from_warehouse_name: fromW?.name_ar || 'المخزن المصدر',
-      to_warehouse_name: toW?.name_ar || 'مخزن الوجهة',
-      created_at: res?.data?.created_at || new Date().toISOString(),
-      items: voucherItems,
-    };
-
-    showTransfer.value = false;
-    showVoucherModal.value = true;
-    setMsg('تم تنفيذ إذن التحويل بنجاح.');
-    await load();
-  } catch (e: any) {
-    setMsg(e.message || 'فشل تحويل المخزون.', true);
-  }
-};
-
-// ── Excel Return ──
-const downloadTemplate = async () => {
-  downloadingTemplate.value = true;
-  try {
-    const blob = (await inventoryApi.downloadReturnTemplate(
-      returnWarehouseId.value ?? undefined,
-    )) as unknown as Blob;
-    const url = URL.createObjectURL(new Blob([blob]));
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'inventory-return-template.xlsx';
-    a.click();
-    URL.revokeObjectURL(url);
-  } catch (e: any) {
-    setMsg(e.message || 'فشل تحميل القالب.', true);
-  } finally {
-    downloadingTemplate.value = false;
-  }
-};
-
-const onValidate = async (e: any) => {
-  const file = e.target.files?.[0];
-  if (!file) return;
-  excelResult.value = null;
-  try {
-    const res = await inventoryApi.validateReturnExcel(file);
-    const d = res?.data || res;
-    const success = Number(d.success || 0);
-    excelResult.value = {
-      ok: success > 0,
-      title: success > 0 ? `✅ تم استرداد ${success} منتج بنجاح` : `❌ لم يتم تطبيق أي صف صالح`,
-      summary: `${d.skipped || 0} صف تم تخطيه · ${d.failed?.length || 0} فشل`,
-      details: d.details || [],
-      failed: d.failed || [],
-    };
-    if (success > 0) {
-      setMsg(`تم استرداد ${success} منتج للمخزون.`);
-      await load();
-    }
-  } catch (e: any) {
-    excelResult.value = {
-      ok: false,
-      title: 'فشل فحص الملف',
-      summary: e.message,
-      errors: [e.message],
-    };
-  }
-  e.target.value = '';
-};
-
-const onImport = async (e: any) => {
-  const file = e.target.files?.[0];
-  if (!file) return;
-  excelResult.value = null;
-  try {
-    const res = await inventoryApi.importReturnExcel(file, returnWarehouseId.value ?? undefined);
-    const d = res?.data || res;
-    excelResult.value = {
-      ok: true,
-      title: `✅ تم استرداد ${d.success} منتج بنجاح`,
-      summary: `${d.skipped || 0} صف تم تخطيه · ${d.failed?.length || 0} فشل`,
-      details: d.details || [],
-      failed: d.failed || [],
-    };
-    if (d.success > 0) {
-      setMsg(`تم استرداد ${d.success} منتج للمخزون.`);
-      await load();
-    }
-  } catch (e: any) {
-    excelResult.value = {
-      ok: false,
-      title: 'فشل الاستيراد',
-      summary: e.message,
-      errors: [e.message],
-    };
-  }
-  e.target.value = '';
-};
+// ── الاسترداد عبر Excel ──
+const {
+  returnWarehouseId,
+  downloadingTemplate,
+  excelResult,
+  downloadTemplate,
+  onValidate,
+  onImport,
+} = excel;
 
 onMounted(load);
 </script>

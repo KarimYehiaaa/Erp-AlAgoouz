@@ -13,8 +13,12 @@ onMounted(() => {
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
 
+  // احترام تفضيل تقليل الحركة: رسم ثابت واحد فقط (بدون حلقة) أو إيقاف كامل
+  const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+
   let width = (canvas.width = window.innerWidth);
   let height = (canvas.height = window.innerHeight);
+  let running = false;
 
   const handleResize = () => {
     width = canvas.width = window.innerWidth;
@@ -23,7 +27,7 @@ onMounted(() => {
   window.addEventListener('resize', handleResize);
 
   const particles: any[] = [];
-  const particleCount = 45;
+  const particleCount = prefersReducedMotion.matches ? 12 : 45;
   const mouse = { x: null, y: null, radius: 160 };
 
   const handleMouseMove = (e: any) => {
@@ -53,6 +57,7 @@ onMounted(() => {
   }
 
   const animate = () => {
+    if (!running) return; // أوقفت أثناء إخفاء التبويب
     ctx.clearRect(0, 0, width, height);
 
     for (let i = 0; i < particles.length; i++) {
@@ -95,13 +100,37 @@ onMounted(() => {
     animationFrameId = requestAnimationFrame(animate);
   };
 
-  animate();
+  const startAnimation = () => {
+    if (running || prefersReducedMotion.matches) return;
+    running = true;
+    animate();
+  };
+
+  const stopAnimation = () => {
+    running = false;
+    if (animationFrameId) {
+      cancelAnimationFrame(animationFrameId);
+      animationFrameId = null;
+    }
+  };
+
+  // إيقاف كامل للحلقة عندما يكون التبويب مخفيًا (كانت تعمل 60fps على كل الصفحات بلا توقف)
+  const handleVisibility = () => {
+    if (document.hidden) stopAnimation();
+    else startAnimation();
+  };
+  document.addEventListener('visibilitychange', handleVisibility);
+
+  if (!prefersReducedMotion.matches) {
+    startAnimation();
+  }
 
   onBeforeUnmount(() => {
     window.removeEventListener('resize', handleResize);
     window.removeEventListener('mousemove', handleMouseMove);
     document.removeEventListener('mouseleave', handleMouseLeave);
-    if (animationFrameId) cancelAnimationFrame(animationFrameId);
+    document.removeEventListener('visibilitychange', handleVisibility);
+    stopAnimation();
   });
 });
 </script>

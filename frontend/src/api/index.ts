@@ -14,6 +14,9 @@ const api = axios.create({
 api.interceptors.request.use((config: any) => {
   const token = localStorage.getItem('token');
   if (token) config.headers.Authorization = `Bearer ${token}`;
+  // إصلاح التجمّد: مهلة لكل طلب — الطلب العالق كان يجمّد الـ router guard للأبد
+  config.timeout = config.timeout || 20_000;
+  config.timeoutErrorMessage = 'انتهت مهلة الاتصال بالخادم. حاول مرة أخرى';
   return config;
 });
 
@@ -78,10 +81,11 @@ api.interceptors.response.use(
         }
       } catch (refreshErr: any) {
         processQueue(refreshErr, null);
-        // Refresh failed — clear tokens and redirect
+        // Refresh failed — clear tokens and redirect (replace بدل href لتجنّب تلويث التاريخ)
         localStorage.removeItem('token');
+        localStorage.removeItem('user');
         if (!window.location.pathname.includes('/login')) {
-          window.location.href = '/login';
+          window.location.replace('/login');
         }
         return Promise.reject({ message: 'انتهت الجلسة. يرجى تسجيل الدخول مرة أخرى', status: 401 });
       } finally {
@@ -300,7 +304,8 @@ export const stocktakes = {
 export const forecasting = {
   get: (params: any) => api.get('/forecasting', { params }),
   getBasketAssociations: (params: any) => api.get('/forecasting/basket-associations', { params }),
-  askCopilot: (data: any) => api.post('/forecasting/copilot', data),
+  // الكوبايلت يستغرق وقتًا أطول (جلب سياق النظام + استدعاء Gemini) — مهلة أطول صراحة
+  askCopilot: (data: any) => api.post('/forecasting/copilot', data, { timeout: 90_000 }),
   getStaffingForecast: (params: any) => api.get('/forecasting/staffing', { params }),
   getSmartPricingAlerts: () => api.get('/forecasting/pricing-alerts'),
   getCashFlowProjection: (params: any) => api.get('/forecasting/cashflow-projection', { params }),

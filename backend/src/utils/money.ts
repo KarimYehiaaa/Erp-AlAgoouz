@@ -19,11 +19,14 @@ const toNumber = (value, fallback = 0) => {
 
 /**
  * تحليل مبلغ مالي إلى رقم (مع قيمة بديلة).
+ * القيم الفارغة (null/undefined/'') تُرجع البديل — بخلاف `Number(null)` الذي
+ * كان يتحول إلى 0 ويمسح القيم الحالية عند التحديث (parseAmount(x, existing)).
  * @param {any} value القيمة
  * @param {number} [fallback] القيمة البديلة (افتراضي 0)
  * @returns {number} المبلغ
  */
 const parseAmount = (value, fallback = 0) => {
+  if (value === null || value === void 0 || value === '') return fallback;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
 };
@@ -40,4 +43,32 @@ const sanitizeLimit = (value, fallback = 100, max = 500) => {
   if (!Number.isFinite(n) || n <= 0) return fallback;
   return Math.min(n, max);
 };
-export { parseAmount, roundMoney, sanitizeLimit, toNumber };
+
+/**
+ * جمع مبالغ مالية بدقة (تحصين الفاصلة العائمة):
+ * تُكمَّم كل قيمة إلى قرش (×100) كعدد صحيح ثم تُجمع كأعداد صحيحة —
+ * فيتجنب انحرافات 0.1+0.2=0.30000000000000004 في المجاميع المتراكمة.
+ * @param {(number | string | null | undefined)[]} values المبالغ
+ * @returns {number} المجموع مقرّبًا إلى قرشين
+ */
+const sumMoney = (...values: (number | string | null | undefined)[]) => {
+  let cents = 0;
+  for (const v of values) {
+    cents += Math.round((Number(v) || 0) * 100);
+  }
+  return cents / 100;
+};
+
+/**
+ * قسمة آمنة مع بديل افتراضي — تمنع Infinity/NaN عند قسمة صفر.
+ * @param {number} numerator البسط
+ * @param {number} denominator المقام
+ * @param {number} [fallback] القيمة عند صفر المقام (افتراضي 0)
+ * @returns {number} الناتج أو البديل
+ */
+const safeDivide = (numerator: number, denominator: number, fallback = 0) => {
+  const den = Number(denominator) || 0;
+  if (den === 0) return fallback;
+  return (Number(numerator) || 0) / den;
+};
+export { parseAmount, roundMoney, safeDivide, sanitizeLimit, sumMoney, toNumber };

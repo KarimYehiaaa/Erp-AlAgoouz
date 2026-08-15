@@ -92,8 +92,8 @@ describe('SQL parameter numbering (regression)', () => {
     for (const [name, fn] of cases) {
       try {
         await fn();
-      } catch (e: any) {
-        errors.push(`${name}: ${e.message}`);
+      } catch (e) {
+        errors.push(`${name}: ${e instanceof Error ? e.message : String(e)}`);
       }
     }
     expect(errors, errors.join('\n')).toEqual([]);

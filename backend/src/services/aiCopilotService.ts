@@ -5,6 +5,7 @@ import { query } from '../database/pool.ts';
  */
 const getErpContext = async () => {
   try {
+    // تنفيذ الاستعلامات الخمسة بالتوازي (Promise.all) بدل التسلسل — يخفض زمن الرد بشكل كبير
     // 1. مبيعات آخر 30 يوم
     const salesSql = `
       SELECT 
@@ -15,7 +16,6 @@ const getErpContext = async () => {
       WHERE status = 'completed' AND deleted_at IS NULL
         AND sale_date >= CURRENT_DATE - INTERVAL '30 days'
     `;
-    const salesStats = (await query(salesSql)).rows[0];
 
     // 2. المنتجات الأكثر مبيعاً
     const topProdSql = `
@@ -29,11 +29,6 @@ const getErpContext = async () => {
       ORDER BY qty DESC
       LIMIT 5
     `;
-    const topProducts = (await query(topProdSql)).rows;
-    const topProductsText =
-      topProducts.length > 0
-        ? topProducts.map((p) => `${p.name_ar} (${Number(p.qty)} ${p.unit})`).join('، ')
-        : 'لا توجد مبيعات مسجلة في آخر 30 يوماً';
 
     // 3. المنتجات منخفضة المخزون
     const lowStockSql = `
@@ -46,11 +41,6 @@ const getErpContext = async () => {
       ORDER BY stock ASC
       LIMIT 5
     `;
-    const lowStock = (await query(lowStockSql)).rows;
-    const lowStockText =
-      lowStock.length > 0
-        ? lowStock.map((p) => `${p.name_ar} (الرصيد: ${Number(p.stock)} ${p.unit})`).join('، ')
-        : 'جميع السلع مخزونها مستقر وآمن';
 
     // 4. مصروفات آخر 30 يوم
     const expSql = `
@@ -58,7 +48,6 @@ const getErpContext = async () => {
       FROM expenses
       WHERE deleted_at IS NULL AND expense_date >= CURRENT_DATE - INTERVAL '30 days'
     `;
-    const expenseStats = (await query(expSql)).rows[0];
 
     // 5. إجمالي ديون ومستحقات العملاء
     const custSql = `
@@ -66,7 +55,24 @@ const getErpContext = async () => {
       FROM customers
       WHERE deleted_at IS NULL
     `;
-    const customerStats = (await query(custSql)).rows[0];
+
+    const [salesStats, topProdRows, lowStockRows, expenseStats, customerStats] = await Promise.all([
+      query(salesSql).then((r) => r.rows[0]),
+      query(topProdSql).then((r) => r.rows),
+      query(lowStockSql).then((r) => r.rows),
+      query(expSql).then((r) => r.rows[0]),
+      query(custSql).then((r) => r.rows[0]),
+    ]);
+
+    const topProductsText =
+      topProdRows.length > 0
+        ? topProdRows.map((p) => `${p.name_ar} (${Number(p.qty)} ${p.unit})`).join('، ')
+        : 'لا توجد مبيعات مسجلة في آخر 30 يوماً';
+
+    const lowStockText =
+      lowStockRows.length > 0
+        ? lowStockRows.map((p) => `${p.name_ar} (الرصيد: ${Number(p.stock)} ${p.unit})`).join('، ')
+        : 'جميع السلع مخزونها مستقر وآمن';
 
     return {
       sales: salesStats,
@@ -92,9 +98,11 @@ const getErpContext = async () => {
  */
 export const askCopilot = async (userPrompt: string, chatHistory: any[] = []) => {
   const apiKey = process.env.GEMINI_API_KEY;
+  // gemini-2.5 أُوقف للحسابات الجديدة — الافتراضي نموذج متاح وموثوق للحسابات الجديدة
+  const model = process.env.GEMINI_MODEL || 'gemini-3.5-flash';
 
   if (!apiKey || apiKey.trim() === '' || apiKey === 'YOUR_GEMINI_API_KEY') {
-    return 'عذراً، لم يتم العثور على مفتاح الربط للذكاء الاصطناعي (GEMINI_API_KEY) في إعدادات ملف `.env`. يرجى إضافة المفتاح المناسب لتفعيل المساعد الذكي والدردشة التفاعلية.';
+    return '⚠️ لم يتم تفعيل المساعد الذكي بعد: مفتاح GEMINI_API_KEY غير موجود في ملف backend/.env. احصل على مفتاح مجاني من https://aistudio.google.com/apikey ثم أضف السطر GEMINI_API_KEY=مفتاحك في backend/.env وأعد تشغيل الخادم.';
   }
 
   // 1. جلب مؤشرات النظام اللحظية
@@ -135,7 +143,7 @@ export const askCopilot = async (userPrompt: string, chatHistory: any[] = []) =>
 
   try {
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

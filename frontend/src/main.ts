@@ -34,16 +34,37 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
 }
 
 // 🔌 Connect Real-time WebSocket Channel
+// ── إصلاح التجمّد: نفس host الصفحة (يعمل DEV + PROD)، backoff تصاعدي،
+//    إيقاف كامل عند إخفاء التبويب، وإزالة الإغلاق المزدوج في onerror.
 import { useAppStore } from './stores/app';
 const appStore = useAppStore(pinia);
 
 const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-const wsHost = import.meta.env.DEV ? 'localhost:3000' : window.location.host;
-const wsUrl = `${wsProtocol}//${wsHost}`;
+// الباك يخدم الـ WebSocket على نفس host/port الصفحة — لا نكتب المنفذ يدويًا بعد الآن.
+const wsUrl = `${wsProtocol}//${window.location.host}`;
 
-let ws: WebSocket;
+let ws: WebSocket | null = null;
+let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+let reconnectAttempts = 0;
+const MAX_RECONNECT_ATTEMPTS = 12;
+
+const scheduleReconnect = () => {
+  if (document.hidden || reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) return;
+  // backoff تصاعدي: 5s → 10s → 20s → 40s (بحد أقصى 60s)
+  const delay = Math.min(60_000, 5_000 * 2 ** reconnectAttempts);
+  reconnectAttempts++;
+  reconnectTimer = setTimeout(connectWebSocket, delay);
+};
+
 const connectWebSocket = () => {
+  if (document.hidden) return; // لا نتواصل والتبويب مخفي
+  if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return;
+
   ws = new WebSocket(wsUrl);
+
+  ws.onopen = () => {
+    reconnectAttempts = 0; // اتصال ناجح — إعادة تعيين العدّاد
+  };
 
   ws.onmessage = (event: any) => {
     try {
@@ -57,12 +78,35 @@ const connectWebSocket = () => {
   };
 
   ws.onclose = () => {
-    setTimeout(connectWebSocket, 5000);
+    ws = null;
+    scheduleReconnect();
   };
 
-  ws.onerror = () => {
-    ws.close();
-  };
+  // على الخطأ يغلق المتصفح الاتصال تلقائيًا ويُطلق onclose — لا حاجة لـ ws.close() المزدوج
+  ws.onerror = () => {};
 };
+
+// إيقاف/استئناف عند إخفاء/إظهار التبويب — يمنع حلقة الاتصال أثناء عدم الاستخدام
+const handleVisibility = () => {
+  if (document.hidden) {
+    if (reconnectTimer) {
+      clearTimeout(reconnectTimer);
+      reconnectTimer = null;
+    }
+    if (ws) {
+      try {
+        ws.close();
+      } catch {
+        // تجاهل
+      }
+      ws = null;
+    }
+  } else if (!ws && reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+    reconnectAttempts = 0;
+    connectWebSocket();
+  }
+};
+
+document.addEventListener('visibilitychange', handleVisibility);
 
 connectWebSocket();

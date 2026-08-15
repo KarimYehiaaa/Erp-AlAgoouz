@@ -1,6 +1,8 @@
 node_modules/
+# Build artifacts — untracked; files stay on disk (Glitch serves frontend/dist from the working copy).
 dist/
-# frontend/dist/ -- مش محتاج نحذفه عشان Glitch يشغل الـ frontend
+frontend/dist/
+backend/api/
 
 .env
 backend/.env

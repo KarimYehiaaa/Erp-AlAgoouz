@@ -6,73 +6,106 @@
  *    إلى أرشيف tar.gz في مجلد `full-backups/`.
  *
  * التشغيل: `npm run backup` (من الجذر) أو `node scripts/backup-system.ts`
+ *
+ * قابلية الاختبار: المنطق كله داخل `runBackup(deps)` — التبعيات (execSync/fs)
+ * تُحقن كمعاملات، فيُختبر السكربت بمحاكاة كاملة دون لمس قاعدة البيانات أو
+ * تشغيل tar فعلي. حارس `import.meta` يضمن أن الاستيراد للاختبار لا ينفّذ شيئًا.
  */
 import { execSync } from 'child_process';
 import path from 'path';
 import fs from 'fs';
-import { fileURLToPath } from 'url';
+import { fileURLToPath, pathToFileURL } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, '..');
 const destinationFolder = path.join(rootDir, 'full-backups');
 
-console.log('==================================================');
-console.log('   AlAgoouz ERP - Full System Backup (Node.js)    ');
-console.log('==================================================');
-
-// 1. تصدير قاعدة البيانات إلى JSON
-console.log('\x1b[33m1. Exporting database to JSON...\x1b[0m');
-const dbBackupScript = path.join(rootDir, 'backend', 'scripts', 'run-manual-backup.ts');
-
-try {
-  // تشغيل سكربت نسخ قاعدة البيانات كعملية فرعية
-  execSync(`node "${dbBackupScript}"`, { cwd: path.join(rootDir, 'backend'), stdio: 'inherit' });
-} catch {
-  console.error('\x1b[31mERROR: Database backup failed!\x1b[0m');
-  process.exit(1);
+/** تبعيات قابلة للحقن — افتراضيًا التنفيذ الفعلي. */
+export interface BackupDeps {
+  execSync: (cmd: string, opts?: { cwd?: string; stdio?: unknown }) => void;
+  fs: Pick<typeof fs, 'existsSync' | 'mkdirSync' | 'statSync'>;
 }
 
-// 2. تجهيز مجلدات الأرشفة
-const timestamp = new Date()
-  .toISOString()
-  .replace(/T/, '_')
-  .replace(/\..+/, '')
-  .replace(/:/g, '-');
-const archiveName = `AlAgoouz-ERP-Full-Backup-${timestamp}`;
-const zipPath = path.join(destinationFolder, `${archiveName}.tar.gz`);
-
-if (!fs.existsSync(destinationFolder)) {
-  fs.mkdirSync(destinationFolder, { recursive: true });
+/** تنسيق الطابع الزمني للأرشيف: YYYY-MM-DD_HH-MM-SS (آمن لملفات كل المنصات). */
+export function buildArchiveName(now: Date = new Date()): string {
+  return `AlAgoouz-ERP-Full-Backup-${now.toISOString().replace(/T/, '_').replace(/\..+/, '').replace(/:/g, '-')}`;
 }
 
-console.log('\x1b[33m2. Compressing files to tar.gz archive...\x1b[0m');
+/**
+ * نبني أمر tar النهائي — **بمسار نسبي** من جذر المشروع وليس مطلقًا.
+ * على Windows (GNU tar من Git for Windows) يفسّر `D:` في المعاملات المطلقة
+ * كـ hostname اتصال بعيد فيفشل بـ "Cannot connect to D: resolve failed"،
+ * لذلك يُنفَّذ الأمر بـ cwd: rootDir مع `full-backups/...` النسبي — يعمل على كل المنصات.
+ */
+export function buildTarCommand(excludes: string[], archiveNameRelative: string): string {
+  const excludeArgs = excludes.map((exp) => `--exclude="${exp}"`).join(' ');
+  return `tar ${excludeArgs} -czf "${archiveNameRelative}" .`;
+}
 
-// نستخدم أمر tar النظامي (متوفر على Windows 10/11 وmacOS وLinux) — عبر المنصات وبدون اعتماديات npm.
-const excludes = ['node_modules', '.git', 'full-backups', '.kiro', 'backups', '*.log', '.env', '.postgres.local'];
+/**
+ * تنفيذ النسخة الاحتياطية الكاملة. معرّضة للاختبارات عبر حقن التبعيات —
+ * في الاختبار نمرر execSync/fs محاكاة فنثبت شكل الأمر والعملية دون آثار جانبية.
+ */
+export function runBackup(deps: BackupDeps): { archivePath: string; archiveName: string } {
+  const { execSync: run, fs: fops } = deps;
 
-const excludeArgs = excludes.map((exp) => `--exclude="${exp}"`).join(' ');
+  console.log('==================================================');
+  console.log('   AlAgoouz ERP - Full System Backup (Node.js)    ');
+  console.log('==================================================');
 
-try {
-  console.log(`Creating archive: ${zipPath}`);
-  // -c: create, -z: gzip, -f: file
-  // ملاحظة Windows (GNU tar من Git for Windows): يفسّر `D:` في المعاملات المطلقة كـ
-  // hostname اتصال بعيد فيفشل بـ "Cannot connect to D: resolve failed". الحل: تشغيل tar
-  // من جذر المشروع (cwd: rootDir) مع مسارات نسبية — يعمل على كل المنصات.
+  // 1. تصدير قاعدة البيانات إلى JSON
+  console.log('\x1b[33m1. Exporting database to JSON...\x1b[0m');
+  const dbBackupScript = path.join(rootDir, 'backend', 'scripts', 'run-manual-backup.ts');
+
+  try {
+    // تشغيل سكربت نسخ قاعدة البيانات كعملية فرعية
+    run(`node "${dbBackupScript}"`, { cwd: path.join(rootDir, 'backend'), stdio: 'inherit' });
+  } catch {
+    console.error('\x1b[31mERROR: Database backup failed!\x1b[0m');
+    process.exit(1);
+  }
+
+  // 2. تجهيز مجلدات الأرشفة
+  const archiveName = buildArchiveName();
+  const zipPath = path.join(destinationFolder, `${archiveName}.tar.gz`);
+
+  if (!fops.existsSync(destinationFolder)) {
+    fops.mkdirSync(destinationFolder, { recursive: true });
+  }
+
+  console.log('\x1b[33m2. Compressing files to tar.gz archive...\x1b[0m');
+
+  // نستخدم أمر tar النظامي (متوفر على Windows 10/11 وmacOS وLinux) — عبر المنصات وبدون اعتماديات npm.
+  const excludes = ['node_modules', '.git', 'full-backups', '.kiro', 'backups', '*.log', '.env', '.postgres.local'];
   const archiveNameRelative = path.join('full-backups', `${archiveName}.tar.gz`);
-  execSync(`tar ${excludeArgs} -czf "${archiveNameRelative}" .`, {
-    cwd: rootDir,
-    stdio: 'inherit',
-  });
 
-  const stats = fs.statSync(zipPath);
-  const fileSizeInMB = (stats.size / (1024 * 1024)).toFixed(2);
+  try {
+    console.log(`Creating archive: ${zipPath}`);
+    // -c: create, -z: gzip, -f: file
+    // مسار نسبي + cwd: rootDir — يمنع فشل GNU tar على Windows مع المسارات المطلقة.
+    run(buildTarCommand(excludes, archiveNameRelative), {
+      cwd: rootDir,
+      stdio: 'inherit',
+    });
 
-  console.log('==================================================');
-  console.log('\x1b[32mSUCCESS: Full backup completed successfully!\x1b[0m');
-  console.log(`Saved to: ${zipPath}`);
-  console.log(`Archive Size: ${fileSizeInMB} MB`);
-  console.log('==================================================');
-} catch (error) {
-  console.error('\x1b[31mERROR: Archiving failed!\x1b[0m', (error as Error).message);
-  process.exit(1);
+    const stats = fops.statSync(zipPath);
+    const fileSizeInMB = (stats.size / (1024 * 1024)).toFixed(2);
+
+    console.log('==================================================');
+    console.log('\x1b[32mSUCCESS: Full backup completed successfully!\x1b[0m');
+    console.log(`Saved to: ${zipPath}`);
+    console.log(`Archive Size: ${fileSizeInMB} MB`);
+    console.log('==================================================');
+    return { archivePath: zipPath, archiveName };
+  } catch (error) {
+    console.error('\x1b[31mERROR: Archiving failed!\x1b[0m', (error as Error).message);
+    process.exit(1);
+  }
+}
+
+// حارس التشغيل المباشر: عند `node scripts/backup-system.ts` يُنفَّذ،
+// وعند الاستيراد (اختبارات) لا يُنفَّذ شيء.
+const isMain = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
+if (isMain) {
+  runBackup({ execSync, fs });
 }

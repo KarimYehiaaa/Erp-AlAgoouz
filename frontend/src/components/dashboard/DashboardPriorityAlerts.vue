@@ -69,5 +69,5 @@ const priorityHeadline = computed(() => {
 </script>
 
 <style lang="scss" scoped>
-/* Scoped styles will be inherited from global dashboard CSS or can be moved here eventually */
+@use './dashboardShared.scss';
 </style>

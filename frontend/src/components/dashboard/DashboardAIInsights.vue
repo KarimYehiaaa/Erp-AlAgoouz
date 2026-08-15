@@ -94,6 +94,8 @@ const aiInsights = computed(() => {
 </script>
 
 <style lang="scss" scoped>
+@use './dashboardShared.scss';
+
 /* Insights List */
 .insights-list {
   display: flex;

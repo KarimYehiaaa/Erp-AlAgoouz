@@ -218,5 +218,5 @@ const onDrop = (event: any, index: any) => {
 </script>
 
 <style lang="scss" scoped>
-/* Inherit styles from parent or keep global metric grid styles */
+@use './dashboardShared.scss';
 </style>

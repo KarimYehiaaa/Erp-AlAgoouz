@@ -79,6 +79,8 @@ const props = defineProps<{
 </script>
 
 <style lang="scss" scoped>
+@use './dashboardShared.scss';
+
 /* 🔋 Branch Liquidity Battery Indicators */
 .branch-liquidity-grid {
   display: grid;

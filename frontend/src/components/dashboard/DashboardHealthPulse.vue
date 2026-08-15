@@ -119,3 +119,11 @@ const healthItems = computed(() => [
   { label: 'مخازن', value: number(props.stats?.inventoryStats?.warehouses), tone: 'info' },
 ]);
 </script>
+
+<style lang="scss" scoped>
+@use './dashboardShared.scss';
+
+.health-panel {
+  /* البطاقة تعتمد على .panel/.panel-head المشتركة — تُستورد من dashboardShared */
+}
+</style>

@@ -1,0 +1,189 @@
+// ── أنماط التنبؤ المشتركة ──
+// يُستورد هذا الملف داخل <style scoped> لكل مكوّنات components/forecasting/
+// ليحصل كل مكوّن على نسخة خاصة به من الأنماط دون تسريب عام.
+
+/* Table cards */
+.table-card {
+  padding: 20px;
+  h3 {
+    margin: 0 0 6px;
+    color: var(--primary-dark);
+    font-size: 1.1rem;
+  }
+  .section-desc {
+    margin: 0 0 16px;
+    font-size: 0.82rem;
+    color: var(--text-muted);
+  }
+}
+.table-wrap {
+  overflow-x: auto;
+}
+
+/* Forecast table */
+.forecast-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.86rem;
+
+  th,
+  td {
+    padding: 12px 14px;
+    text-align: right;
+    border-bottom: 1px solid var(--border);
+  }
+
+  th {
+    background: var(--bg);
+    font-weight: 700;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    white-space: nowrap;
+  }
+
+  td.font-bold {
+    font-weight: 700;
+    color: var(--text-strong);
+  }
+  td.muted {
+    color: var(--text-muted);
+  }
+  td.amount {
+    color: var(--primary-dark);
+  }
+
+  .center-col {
+    text-align: center;
+  }
+  .total-col {
+    text-align: center;
+    background: color-mix(in srgb, var(--primary) 3%, transparent);
+  }
+
+  .primary-color {
+    color: var(--primary-dark);
+  }
+  .secondary-color {
+    color: var(--accent);
+  }
+
+  tr.row-critical {
+    background: rgba(180, 35, 24, 0.02);
+    td {
+      color: var(--danger);
+    }
+    code {
+      background: rgba(180, 35, 24, 0.08);
+      color: var(--danger);
+    }
+  }
+  tr.row-warning {
+    background: rgba(217, 119, 6, 0.02);
+  }
+
+  code {
+    font-family: monospace;
+    font-size: 0.78rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: var(--bg);
+    color: var(--text-muted);
+  }
+
+  .empty {
+    text-align: center;
+    color: var(--text-muted);
+    padding: 36px;
+    font-size: 0.9rem;
+  }
+}
+
+/* Badges */
+.badge {
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+.badge-danger {
+  background: rgba(180, 35, 24, 0.12);
+  color: var(--danger);
+}
+.badge-warning {
+  background: rgba(217, 119, 6, 0.12);
+  color: var(--warning);
+}
+.badge-info {
+  background: rgba(29, 111, 164, 0.12);
+  color: #1d6fa4;
+}
+.badge-success {
+  background: rgba(46, 125, 79, 0.12);
+  color: var(--success);
+}
+
+/* Text helpers */
+.text-danger {
+  color: var(--danger) !important;
+}
+.text-warning {
+  color: var(--warning) !important;
+}
+.text-success {
+  color: var(--success) !important;
+}
+.text-muted {
+  color: var(--text-muted) !important;
+}
+
+/* Runway progress bar */
+.runway-progress-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  .progress-bar-bg {
+    flex: 1;
+    height: 8px;
+    background: var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    min-width: 80px;
+  }
+  .progress-bar-fill {
+    height: 100%;
+    border-radius: 10px;
+    transition: width 0.3s ease;
+  }
+  .progress-danger {
+    background: var(--danger);
+  }
+  .progress-warning {
+    background: var(--warning);
+  }
+  .progress-info {
+    background: var(--primary);
+  }
+  .progress-success {
+    background: var(--success);
+  }
+  .runway-days-text {
+    font-size: 0.78rem;
+    white-space: nowrap;
+    min-width: 90px;
+  }
+}
+
+/* Pricing row states */
+tr.pricing-row-critical {
+  background: rgba(220, 38, 38, 0.01);
+  td {
+    border-bottom-color: rgba(220, 38, 38, 0.1);
+  }
+}
+tr.pricing-row-warning {
+  background: rgba(182, 106, 44, 0.01);
+  td {
+    border-bottom-color: rgba(182, 106, 44, 0.1);
+  }
+}

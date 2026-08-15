@@ -67,6 +67,8 @@
 </script>
 
 <style lang="scss" scoped>
+@use './dashboardShared.scss';
+
 /* Menu Matrix (BCG Matrix style for restaurant engineering) */
 .menu-engineering-grid {
   display: grid;

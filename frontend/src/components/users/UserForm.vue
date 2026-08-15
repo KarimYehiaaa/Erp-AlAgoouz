@@ -27,7 +27,7 @@
             type="text"
             required
             placeholder="مثال: karim"
-            @blur="$emit('validateUsername')"
+            @blur="$emit('validateUsername', form.username)"
             :style="
               validations.username.valid === false
                 ? 'border-color: var(--danger);'
@@ -97,7 +97,7 @@
               v-model="form.email"
               type="email"
               placeholder="example@domain.com"
-              @blur="$emit('validateEmail')"
+              @blur="$emit('validateEmail', form.email)"
               :style="
                 validations.email.valid === false
                   ? 'border-color: var(--danger);'
@@ -152,7 +152,7 @@
             :required="isCreateMode"
             :placeholder="isCreateMode ? 'ادخل كلمة المرور' : 'اتركها فارغة إذا لا تريد التغيير'"
             style="padding-left: 42px"
-            @input="$emit('passwordInput')"
+            @input="$emit('passwordInput', form.password)"
           />
           <button
             type="button"
@@ -274,9 +274,9 @@ defineEmits<{
   cancel: [];
   toggleAdvanced: [];
   togglePassword: [];
-  validateUsername: [];
-  validateEmail: [];
-  passwordInput: [];
+  validateUsername: [username: string];
+  validateEmail: [email: string];
+  passwordInput: [password: string];
 }>();
 </script>
 

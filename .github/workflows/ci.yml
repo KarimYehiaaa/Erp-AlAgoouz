@@ -86,8 +86,29 @@ jobs:
       - name: Frontend Tests
         run: npm run test:unit -w frontend
 
-      - name: Frontend Build
-        run: npm run build -w frontend
+      # بناء الواجهة بالأمر الموحّد (نفس ما يستخدمه المطور محليًا) + دخان يثبت
+      # أن الناتج يذهب إلى frontend/dist (الذي يقدّمه الخادم) وليس dist/ جذر زائد.
+      # أي انتكاس في --outDir أو في مسار resolveFrontendDist يكسر هذه الخطوة.
+      - name: Frontend Build — must write to frontend/dist (not root dist/)
+        run: |
+          set -e
+          # تبقى فارغة في checkout نظيف؛ ننظفها حتى يكون الفحص حاسمًا لو وُجدت أثر قديم
+          rm -rf dist
+          npm run build
+
+          # 1) الوجهة الصحيحة: frontend/dist/index.html يجب أن يُبنى فعليًا
+          test -f frontend/dist/index.html || {
+            echo "❌ frontend/dist/index.html غير موجود — البناء لم يكتب إلى الوجهة الصحيحة"
+            exit 1
+          }
+
+          # 2) لا وجهة زائدة: dist/ الجذر يجب ألا يحوي index.html (كان يخدع الفحص سابقًا)
+          if [ -f dist/index.html ]; then
+            echo "❌ أمر البناء كتب إلى dist الجذر بدل frontend/dist — راجع --outDir في package.json"
+            exit 1
+          fi
+
+          echo "✅ Build OK: npm run build → frontend/dist فقط (لا dist جذر زائد)"
 
       # دخان تشغيلي ضد الخادم الحقيقي: يضمن أن body-parser يستقبل POST فعليًا
       # وأن الواجهة تُقدَّم من frontend/dist (وليس مجلد dist مزيفًا بلا index.html)

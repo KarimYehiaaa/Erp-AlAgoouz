@@ -13,7 +13,7 @@
     "typecheck": "npm run typecheck -w backend && npm run typecheck -w frontend",
     "test": "npm test -w backend && npm run test:unit -w frontend",
     "check:local": "npm run typecheck -w backend && npm run check:scripts -w backend && npm run test:local -w backend",
-    "build": "cd frontend && npx vite build --outDir ../dist",
+    "build": "npm run build -w frontend",
     "setup": "node scripts/setup-project.ts",
     "backup": "node scripts/backup-system.ts",
     "update": "node scripts/update-project.ts",

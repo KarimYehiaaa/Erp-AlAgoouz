@@ -68,6 +68,34 @@
         >
           <AppIcon :name="appStore.dataDensity === 'compact' ? 'maximize' : 'minimize'" />
         </button>
+
+        <!-- Dark Mode Toggle (Espresso) -->
+        <button
+          class="icon-btn"
+          type="button"
+          @click="appStore.toggleDarkMode"
+          :title="
+            appStore.darkMode ? 'الوضع الداكن مفعل (تبديل للفاتح)' : 'تفعيل الوضع الداكن (إسبريسو)'
+          "
+          :class="{ active: appStore.darkMode }"
+        >
+          <AppIcon :name="appStore.darkMode ? 'sun' : 'moon'" />
+        </button>
+
+        <!-- Cashier Focus Mode (F4) -->
+        <button
+          class="icon-btn"
+          type="button"
+          @click="appStore.toggleFocusMode"
+          :title="
+            appStore.focusMode
+              ? 'الخروج من وضع تركيز الكاشير (Esc)'
+              : 'وضع تركيز الكاشير — إخفاء كل شيء إلا شاشة البيع (F4)'
+          "
+          :class="{ active: appStore.focusMode }"
+        >
+          <AppIcon :name="appStore.focusMode ? 'dashboard' : 'coffee'" />
+        </button>
       </div>
 
       <!-- مؤشر حالة الاتصال بالإنترنت والمزامنة الخلفية -->
@@ -133,7 +161,6 @@ const router = useRouter();
 const appStore = useAppStore();
 const authStore = useAuthStore();
 const search = ref('');
-const searchFocused = ref(false);
 const searchLoading = ref(false);
 const remoteResults = ref<any[]>([]);
 const mobileActionsOpen = ref(false);
@@ -163,59 +190,6 @@ const titles = {
   Settings: ['الإعدادات', 'إعدادات النظام والواجهة'],
 };
 
-const pageResults = [
-  { type: 'page', badge: 'صفحة', title: 'لوحة التحكم', subtitle: 'مؤشرات التشغيل', to: '/' },
-  {
-    type: 'page',
-    badge: 'صفحة',
-    title: 'شاشة المبيعات',
-    subtitle: 'إدخال مبيعات الفرع',
-    to: '/branch-sales',
-  },
-  { type: 'page', badge: 'صفحة', title: 'المبيعات', subtitle: 'سجل المبيعات', to: '/sales' },
-  { type: 'page', badge: 'صفحة', title: 'المنتجات', subtitle: 'إدارة المنتجات', to: '/products' },
-  {
-    type: 'page',
-    badge: 'صفحة',
-    title: 'المشتريات',
-    subtitle: 'فواتير الموردين',
-    to: '/purchases',
-  },
-  {
-    type: 'page',
-    badge: 'صفحة',
-    title: 'المخزون',
-    subtitle: 'أرصدة وحركة المخزون',
-    to: '/inventory',
-  },
-  {
-    type: 'page',
-    badge: 'صفحة',
-    title: 'التكاليف',
-    subtitle: 'تحليل الأسعار والأرباح',
-    to: '/costs',
-  },
-  { type: 'page', badge: 'صفحة', title: 'الوصفات', subtitle: 'مكونات المنتجات', to: '/recipes' },
-  {
-    type: 'page',
-    badge: 'صفحة',
-    title: 'العملاء',
-    subtitle: 'بيانات ومديونيات العملاء',
-    to: '/customers',
-  },
-  {
-    type: 'page',
-    badge: 'صفحة',
-    title: 'الفواتير',
-    subtitle: 'الفواتير والمدفوعات',
-    to: '/invoices',
-  },
-  { type: 'page', badge: 'صفحة', title: 'المصروفات', subtitle: 'تتبع المصروفات', to: '/expenses' },
-  { type: 'page', badge: 'صفحة', title: 'الموردين', subtitle: 'إدارة الموردين', to: '/suppliers' },
-  { type: 'page', badge: 'صفحة', title: 'التقارير', subtitle: 'تحليلات النظام', to: '/reports' },
-  { type: 'page', badge: 'صفحة', title: 'الإعدادات', subtitle: 'إعدادات النظام', to: '/settings' },
-];
-
 const pageTitle = computed(
   () => titles[String(route.name) as keyof typeof titles]?.[0] || 'بن العجوز',
 );
@@ -225,36 +199,11 @@ const pageSub = computed(
 const displayUserName = computed(
   () => authStore.user?.full_name || authStore.user?.username || 'مستخدم',
 );
-const normalizedSearch = computed(() => search.value.trim().toLowerCase());
-const localResults = computed(() => {
-  const q = normalizedSearch.value;
-  if (!q) return [];
-  return pageResults
-    .filter((item: any) => `${item.title} ${item.subtitle}`.toLowerCase().includes(q))
-    .slice(0, 5);
-});
-const searchResults = computed(() => [...localResults.value, ...remoteResults.value].slice(0, 8));
-const showSearchResults = computed(() => searchFocused.value && normalizedSearch.value.length >= 2);
 const userInitial = computed(() => (displayUserName.value || 'م').charAt(0));
 
 const handleLogout = () => {
   authStore.logout();
   router.push('/login');
-};
-
-const clearSearch = () => {
-  search.value = '';
-  remoteResults.value = [];
-  searchFocused.value = false;
-};
-
-const openSearchResult = (item: any) => {
-  router.push(item.to);
-  clearSearch();
-};
-
-const openFirstResult = () => {
-  if (searchResults.value[0]) openSearchResult(searchResults.value[0]);
 };
 
 watch(search, (value: any) => {
@@ -321,9 +270,11 @@ const syncOfflineSales = async () => {
     appStore.pendingSyncCount = offlineSales.length;
     if (!offlineSales.length) return;
 
-    console.log(`Starting sync of ${offlineSales.length} offline sales...`);
+    console.warn(`Starting sync of ${offlineSales.length} offline sales...`);
     for (const sale of offlineSales) {
       const { offline_id, sale_number, created_at, ...cleanSale } = sale;
+      void sale_number;
+      void created_at;
       try {
         await salesApi.create(cleanSale);
         await localDb.deleteOfflineSale(offline_id);

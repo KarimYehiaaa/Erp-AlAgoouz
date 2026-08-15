@@ -79,7 +79,7 @@ async function main() {
     console.log(`✅ القاعدة موجودة ومعدّة (${check.rows[0].count} مستخدمين)`);
     await app.end();
     return;
-  } catch (_) {
+  } catch {
     console.log('ℹ️  القاعدة تحتاج إعداد...\n');
   }
 

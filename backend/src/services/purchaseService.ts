@@ -293,7 +293,7 @@ export const listPurchaseInvoices = async (filters: Record<string, any> = {}) =>
     params.push(finalFilters.to_date);
   }
 
-  sql += ` ORDER BY pi.id DESC LIMIT $${idx++}`;
+  sql += ` ORDER BY pi.id DESC LIMIT $${idx}`;
   params.push(limit);
 
   const rows = await query(sql, params);

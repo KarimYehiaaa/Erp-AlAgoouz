@@ -17,7 +17,7 @@ Write-Host '==================================================' -ForegroundColor
 Write-Host '1. Exporting database to JSON...' -ForegroundColor Yellow
 cd "$rootFolder\backend"
 
-$backupOutput = node scripts/run-backup-cli.js
+$backupOutput = node scripts/run-backup-cli.ts
 
 if ($LASTEXITCODE -ne 0 -or !$backupOutput.StartsWith('SUCCESS:')) {
     Write-Host 'ERROR: Database backup failed!' -ForegroundColor Red

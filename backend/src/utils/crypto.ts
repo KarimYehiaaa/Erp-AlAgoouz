@@ -11,8 +11,6 @@ const ENCRYPTION_KEY = crypto.scryptSync(
   'salt_al_ajouz_v2', // Changed salt for GCM
   32,
 );
-const IV_LENGTH = 16; // 12 is standard for GCM, but 16 is acceptable. We use 12 for GCM.
-
 /**
  * تشفير نص باستخدام AES-256-GCM مع IV عشوائي ورمز مصادقة.
  * @param {string} text النص الصريح

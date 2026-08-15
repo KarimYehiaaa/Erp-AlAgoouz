@@ -6,4 +6,4 @@ Set objShell = CreateObject("WScript.Shell")
 
 ' تشغيل السيرفر الموحد (Backend + Frontend) في الخلفية على البورت 3000
 objShell.CurrentDirectory = "d:\AlAgoouz System\AlAgoouz-erp\backend"
-objShell.Run "cmd /c node src/index.js", 0, False
+objShell.Run "cmd /c node src/index.ts", 0, False

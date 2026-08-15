@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { ref, watch } from 'vue';
+import { ref } from 'vue';
 
 export interface Toast {
   id: string;
@@ -68,10 +68,44 @@ export const useAppStore = defineStore('app', () => {
     }
   };
 
+  // ── الوضع الداكن (Espresso) — يُخزَّن في localStorage ويُطبَّق عبر data-theme ──
+  const darkMode = ref(localStorage.getItem('darkMode') === 'true');
+
+  const toggleDarkMode = () => {
+    darkMode.value = !darkMode.value;
+    localStorage.setItem('darkMode', String(darkMode.value));
+    applyDarkMode();
+  };
+
+  const applyDarkMode = () => {
+    if (darkMode.value) {
+      document.documentElement.setAttribute('data-theme', 'dark');
+    } else {
+      document.documentElement.removeAttribute('data-theme');
+    }
+  };
+
+  // ── وضع تركيز الكاشير: إخفاء كل شيء إلا شاشة العمل (البيع) ──
+  const focusMode = ref(false);
+
+  const toggleFocusMode = () => {
+    focusMode.value = !focusMode.value;
+    applyFocusMode();
+  };
+
+  const applyFocusMode = () => {
+    if (focusMode.value) {
+      document.documentElement.classList.add('cashier-focus');
+    } else {
+      document.documentElement.classList.remove('cashier-focus');
+    }
+  };
+
   const initTheme = () => {
     syncSidebarWidth();
     applyPrivacyMode();
     applyDataDensity();
+    applyDarkMode();
 
     // Cleanup old theme values from local storage if they exist
     localStorage.removeItem('colorMode');
@@ -82,6 +116,7 @@ export const useAppStore = defineStore('app', () => {
   syncSidebarWidth();
   applyPrivacyMode();
   applyDataDensity();
+  applyDarkMode();
 
   const toasts = ref<Toast[]>([]);
 
@@ -130,5 +165,11 @@ export const useAppStore = defineStore('app', () => {
     dataDensity,
     toggleDataDensity,
     applyDataDensity,
+    darkMode,
+    toggleDarkMode,
+    applyDarkMode,
+    focusMode,
+    toggleFocusMode,
+    applyFocusMode,
   };
 });

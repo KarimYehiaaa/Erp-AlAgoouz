@@ -1,19 +1,8 @@
 import { AppError } from '../types/errors.ts';
 import { getClient, query } from '../database/pool.ts';
-import {
-  calculateRecipeCost,
-  unitPriceFor,
-  UNIT_ALIASES,
-  normalizeUnit,
-  convertQty,
-} from './productCostService.ts';
+import { calculateRecipeCost, unitPriceFor, normalizeUnit } from './productCostService.ts';
 import { consumeRecipeForSale as _consumeRecipe } from './recipesService.ts';
 import { invalidateDashboardCache } from './dashboardService.ts';
-
-const WEIGHT_UNITS = new Set(['g', 'kg']);
-const VOLUME_UNITS = new Set(['ml', 'l']);
-const unitGroup = (u) =>
-  WEIGHT_UNITS.has(u) ? 'weight' : VOLUME_UNITS.has(u) ? 'volume' : u === 'count' ? 'count' : null;
 
 const enrichRecipeCost = (recipe, effectiveIngredientCostsMap) => {
   const items = Array.isArray(recipe.items) ? recipe.items : [];

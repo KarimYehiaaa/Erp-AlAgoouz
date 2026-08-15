@@ -142,6 +142,7 @@ const login = async (username: string, password: string, meta: Record<string, an
     );
   }
   const { password_hash, ...safeUser } = user;
+  void password_hash;
   return {
     user: {
       ...safeUser,

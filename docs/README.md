@@ -4,23 +4,58 @@
 
 ## المتطلبات
 
-- Node.js 18 أو أحدث
+- Node.js 22 أو أحدث (يُشغّل TypeScript مباشرة عبر type stripping)
 - PostgreSQL 14 أو أحدث
-- npm
+- npm (المشروع npm workspace — الاعتماديات في جذر المشروع)
 
 ## التشغيل السريع
 
 ```bash
+cp .env.example .env        # في جذر المشروع (أو backend/.env.example داخل backend)
+npm install                 # من جذر المشروع (workspace)
+
 cd backend
-cp .env.example .env
-npm install
-npm run setup-db
-npm run dev
+npm run dev                 # الخادم على http://localhost:3001 (يعرض الواجهة المبنية من frontend/dist)
 
 cd ../frontend
-npm install
-npm run dev
+npm run dev                 # (اختياري) خادم تطوير Vite للواجهة
 ```
+
+**ملاحظة مهمة**: المشروع **npm workspace** — لا تثبّت داخل `backend/` أو `frontend/` منفردةً، بل من جذر المشروع (`npm install`).
+
+## TypeScript 100% مع strict
+
+- **الباك-إند والواجهة محوّلان بالكامل إلى TypeScript** (بما فيها services وcontrollers وviews وcomposables وstores) مع JSDoc وافٍ لكل التصديرات.
+- `strict: true` مفعّل في الجانبين، مع `noUncheckedIndexedAccess` على الواجهة — صفر أخطاء.
+
+## أوامر الفحص والتشغيل (من جذر المشروع)
+
+```bash
+npm run typecheck    # فحص الأنواع في الجانبين (باك + واجهة)
+npm test             # كل الاختبارات (باك + واجهة)
+npm run check:local  # الفحص المحلي الموحّد: tsc للباك + اختبارات معزولة (موصى به قبل كل PR)
+```
+
+### اختبارات الباك-إند وقاعدة البيانات
+
+```bash
+npm run check:local -w backend    # tsc + اختبارات معزولة (نفس `npm run check:local` من الجذر)
+npm run test:local -w backend     # اختبارات على قاعدة محلية معزولة (bin_al_ajouz_test)
+npm test -w backend               # اختبارات (محمية بالحارس — انظر أدناه)
+```
+
+**حماية قاعدة الإنتاج 🔒**: الاختبارات محمية بحارس أمان (`backend/tests/setup-env.ts`) يقرأ الإعداد المحلول من `config` — إذا كان هدف القاعدة **بعيدًا** (Supabase/إنتاج) يتوقف `npm test` فورًا برسالة واضحة قبل أي اتصال. المسار المعتمد محليًا هو `npm run test:local` الذي يجهّز قاعدة معزولة على `localhost` تلقائيًا (setup + migrate) ثم يشغّل vitest.
+
+### اختبار الدخان التشغيلي
+
+`backend/tests/smoke.test.ts` يضمن أمرين كانا يتعطلان من قبل:
+
+- **POST JSON حقيقي** عبر `express.json()` — يلتقط فورًا عطل `body-parser`/`iconv-lite` الناتج عن `node_modules` مكسور.
+- **اختيار dist الصحيح** — لا يُقبل أي مجلد dist ما لم يحتوِ على `index.html`، فيُقدَّم `frontend/dist` الحقيقي بدل بقايا builds خاطئة (404 سابقًا).
+
+### CI (GitHub Actions)
+
+`.github/workflows/ci.yml` يشغّل على كل push وPR: تثبيت معتمديات + `check:local` (tsc + اختبارات معزولة ضد خدمة Postgres مدمجة) + فحص الواجهة (typecheck + tests + build) + دخان تشغيلي (تشغيل الخادم الفعلي مع POST وGET /).
 
 ## Docker
 
@@ -49,7 +84,7 @@ docker compose up -d
 
 ```bash
 cd backend
-node src/database/reset-admin.js admin "NewStrongPasswordHere"
+npm run reset-admin -- admin "NewStrongPasswordHere"
 ```
 
 ## هيكل المشروع
@@ -57,8 +92,8 @@ node src/database/reset-admin.js admin "NewStrongPasswordHere"
 ```text
 AlAgoouz-erp/
 ├── assets/       # الشعار والموارد العامة
-├── backend/      # Express API و PostgreSQL
-├── frontend/     # Vue 3 + Vite
+├── backend/      # Express API و PostgreSQL (TypeScript)
+├── frontend/     # Vue 3 + Vite (TypeScript)
 ├── docs/         # التوثيق
 └── scripts/      # سكربتات تشغيل وصيانة
 ```
@@ -67,5 +102,6 @@ AlAgoouz-erp/
 
 - لا تستخدم كلمات مرور افتراضية في الإنتاج.
 - استخدم `JWT_SECRET` طويل وعشوائي.
-- شغل اختبارات التكامل على قاعدة اختبار منفصلة فقط.
+- الاختبارات **لا تلمس قاعدة الإنتاج أبدًا** — استخدم `npm run test:local` محليًا، والـ CI يستخدم قاعدة معزولة.
 - لا تضع ملفات `.env` أو النسخ الاحتياطية داخل Git.
+- نتاجات البناء (`dist/`, `frontend/dist/`, `backend/api/`) غير متتبَّعة في Git — الملفات تبقى على القرص وتُبنى محليًا أو عبر CI.

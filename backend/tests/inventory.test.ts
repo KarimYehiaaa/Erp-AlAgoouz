@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { inventoryRepository } from '../src/repositories/inventory.repository';
-import { query, getClient } from '../src/database/pool';
+import { query } from '../src/database/pool';
 import { roundMoney } from '../src/utils/money';
 
 describe('Inventory Calculations', () => {

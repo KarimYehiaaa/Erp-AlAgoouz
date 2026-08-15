@@ -8,7 +8,9 @@ try {
   if (typeof import.meta !== 'undefined' && import.meta.url) {
     __dirname = path.dirname(fileURLToPath(import.meta.url));
   }
-} catch (e: any) {}
+} catch {
+  // تجاهل مقصود: الفشل في التحميل ليس حرجًا هنا
+}
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────

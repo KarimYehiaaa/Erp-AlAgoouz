@@ -286,7 +286,7 @@ export const uploadBackupToCloud = async (
     let urlObj;
     try {
       urlObj = new URL(decryptedConfig.webhook_url?.trim());
-    } catch (e: any) {
+    } catch {
       throw new AppError('Webhook URL is invalid', 400);
     }
 
@@ -350,7 +350,7 @@ export const testCloudBackup = async (config: Record<string, any>) => {
   try {
     const content = await fs.readFile(backupRes.path, 'utf8');
     backupData = JSON.parse(content);
-  } catch (e: any) {
+  } catch {
     throw new AppError('فشل قراءة النسخة الاحتياطية لاختبارها', 500);
   }
 

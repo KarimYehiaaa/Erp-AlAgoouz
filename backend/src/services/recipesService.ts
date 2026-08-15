@@ -1,6 +1,6 @@
 import { AppError } from '../types/errors.ts';
 import { getClient, query } from '../database/pool.ts';
-import { UNIT_ALIASES, normalizeUnit, convertQty } from './productCostService.ts';
+import { normalizeUnit, convertQty } from './productCostService.ts';
 import * as inventoryService from './inventoryService.ts';
 import { getDefaultWarehouseId, getWarehouseIdByCode } from './warehouseService.ts';
 import { invalidateDashboardCache } from './dashboardService.ts';
@@ -812,7 +812,7 @@ export const listProductionBatches = async (filters: Record<string, any> = {}) =
     params.push(filters.from_date);
   }
   if (filters.to_date) {
-    where += ` AND sm.created_at < ($${idx++}::date + INTERVAL '1 day')`;
+    where += ` AND sm.created_at < ($${idx}::date + INTERVAL '1 day')`;
     params.push(filters.to_date);
   }
 

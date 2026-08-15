@@ -4,7 +4,7 @@ module.exports = {
     {
       name: 'bin-al-ajouz-api',
       cwd: './backend',
-      script: 'src/index.js',
+      script: 'src/index.ts',
       interpreter: 'node',
       watch: false,
       autorestart: true,

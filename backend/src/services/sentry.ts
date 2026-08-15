@@ -1,5 +1,4 @@
 import * as Sentry from '@sentry/node';
-import config from '../config/index.ts';
 
 /**
  * تهيئة Sentry لمراقبة الأخطاء (إذا توفر DSN).

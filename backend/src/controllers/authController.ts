@@ -60,7 +60,8 @@ const refresh = async (req, res, next) => {
       sameSite: 'strict',
       maxAge: 7 * 24 * 60 * 60 * 1e3,
     });
-    const { refreshToken: _, ...responseData } = data;
+    const { refreshToken: _ignoredRefreshToken, ...responseData } = data;
+    void _ignoredRefreshToken;
     res.json({ success: true, data: responseData });
   } catch (err: any) {
     next(err);

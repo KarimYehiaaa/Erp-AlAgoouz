@@ -132,7 +132,9 @@ const RESTORE_ORDER = [
 const ensureDir = async () => {
   try {
     await fs.mkdir(BACKUP_DIR, { recursive: true });
-  } catch (_) {}
+  } catch {
+    // تجاهل مقصود
+  }
 };
 
 /**
@@ -227,7 +229,7 @@ export const downloadBackupPath = async (name: string) => {
   try {
     await fs.access(p);
     return p;
-  } catch (e: any) {
+  } catch {
     throw new AppError('النسخة غير موجودة', 404);
   }
 };
@@ -239,7 +241,6 @@ export const downloadBackupPath = async (name: string) => {
 export const clearAllData = async () => {
   // destructive: truncate operational data (keep settings, users, products, and recipes)
   const client = await getClient();
-  const replicationRoleChanged = false;
   try {
     await client.query('BEGIN');
     // Temporarily disable triggers/constraints that are enforced by triggers
@@ -247,7 +248,7 @@ export const clearAllData = async () => {
     // during a direct restore. Will be automatically reset when transaction ends.
     try {
       await client.query("SET LOCAL session_replication_role = 'replica'");
-    } catch (e: any) {
+    } catch {
       // If we cannot change role, continue and rely on careful ordering
       console.warn(
         '[Restore] could not set session_replication_role, continuing with triggers enabled',
@@ -276,7 +277,7 @@ export const restoreBackup = async (name: string) => {
   let content;
   try {
     content = await fs.readFile(p, 'utf8');
-  } catch (e: any) {
+  } catch {
     throw new AppError('النسخة غير موجودة', 404);
   }
   let parsed = JSON.parse(content);
@@ -284,7 +285,7 @@ export const restoreBackup = async (name: string) => {
     try {
       const decrypted = decrypt(parsed.payload);
       parsed = JSON.parse(decrypted);
-    } catch (err: any) {
+    } catch {
       throw new AppError('فشل فك تشفير النسخة الاحتياطية. قد يكون مفتاح التشفير غير صحيح.', 400);
     }
   }
@@ -302,12 +303,11 @@ export const restoreBackup = async (name: string) => {
     }
   }
   const client = await getClient();
-  const replicationRoleChanged = false;
   try {
     await client.query('BEGIN');
     try {
       await client.query("SET LOCAL session_replication_role = 'replica'");
-    } catch (e: any) {
+    } catch {
       console.warn(
         '[Restore] could not set session_replication_role, continuing with triggers enabled',
       );

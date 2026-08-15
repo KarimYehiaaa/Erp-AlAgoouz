@@ -11,7 +11,9 @@ const getAutoBackupDir = () =>
 const ensureDir = async () => {
   try {
     await fs.mkdir(getAutoBackupDir(), { recursive: true });
-  } catch (_) {}
+  } catch {
+    // تجاهل مقصود
+  }
 };
 
 /**

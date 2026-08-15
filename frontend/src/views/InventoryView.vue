@@ -1501,7 +1501,7 @@ const doTransfer = async () => {
     return;
   }
 
-  let payload: Record<string, any> = {};
+  let payload: Record<string, any>;
 
   if (transferMode.value === 'single') {
     const selectedProd = selectedTransferProduct.value;

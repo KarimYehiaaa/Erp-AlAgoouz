@@ -22,7 +22,7 @@ export interface TableOptions {
   /** حقول البحث المحلي ['name_ar', 'code'] */
   searchFields?: string[];
   /** فلتر إضافي (row: any) => boolean */
-  customFilter?: ((row: TableRow) => boolean) | null;
+  customFilter?: ((_row: TableRow) => boolean) | null;
 }
 
 /**

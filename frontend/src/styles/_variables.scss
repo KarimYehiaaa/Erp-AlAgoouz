@@ -102,3 +102,57 @@
   --transition: 220ms cubic-bezier(0.16, 1, 0.3, 1);
   --transition-spring: 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
+
+/* ── Dark Mode (Espresso Roast) ────────────────────────────────────────────────
+ * نفس الهوية البصرية لكن بدرجات قهوة داكنة — للاستخدام الليلي ولشاشة الكاشير.
+ * يُفعَّل عبر data-theme="dark" على <html> (يُدار من stores/app.ts).
+ */
+[data-theme='dark'] {
+  --bg: #16100c;
+  --bg-elevated: #201712;
+  --bg-card: #1e1611;
+  --bg-soft: #251b14;
+
+  --surface-1: #221914;
+  --surface-2: #2a1f18;
+  --surface-3: #32251c;
+
+  --text: #ece1d6;
+  --text-strong: #faf3ea;
+  --text-muted: #a89888;
+
+  --primary: #d9a86c;
+  --primary-strong: #e8bd85;
+  --primary-dark: #b98a52;
+  --primary-soft: #3a2c20;
+  --accent: #c8956e;
+  --accent-dark: #b98a52;
+  --accent-light: #6b4a2e;
+  --accent-soft: rgba(200, 149, 110, 0.16);
+  --accent-glow: rgba(200, 149, 110, 0.24);
+  --focus-ring: rgba(200, 149, 110, 0.3);
+
+  --border: #352a21;
+  --border-strong: #4a3a2d;
+
+  --shadow-xs: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-sm: 0 4px 14px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 10px 28px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 20px 48px rgba(0, 0, 0, 0.55);
+
+  --glass-bg: rgba(32, 23, 18, 0.88);
+  --glass-border: rgba(74, 58, 45, 0.85);
+
+  --app-bg:
+    radial-gradient(circle at 12% 8%, rgba(200, 149, 110, 0.07), transparent 30rem),
+    radial-gradient(circle at 86% 0%, rgba(217, 168, 108, 0.05), transparent 26rem), var(--bg);
+
+  --card-bg: #1e1611;
+  --card-border: var(--border);
+
+  --header-bg:
+    linear-gradient(135deg, rgba(200, 149, 110, 0.08), transparent 52%),
+    linear-gradient(225deg, rgba(217, 168, 108, 0.06), transparent 48%), var(--bg-elevated);
+
+  --metric-bg: linear-gradient(180deg, rgba(37, 27, 20, 0.6), transparent 74%), var(--bg-elevated);
+}

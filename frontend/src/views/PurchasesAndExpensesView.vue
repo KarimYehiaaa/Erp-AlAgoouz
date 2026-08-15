@@ -817,7 +817,7 @@ const filteredExpensesList = computed(() => {
     return expensesList.value.filter((e: any) => Boolean(e.is_fixed));
   }
   if (expenseTypeFilter.value === 'variable') {
-    return expensesList.value.filter((e: any) => !Boolean(e.is_fixed));
+    return expensesList.value.filter((e: any) => !e.is_fixed);
   }
   return expensesList.value;
 });

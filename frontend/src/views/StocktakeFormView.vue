@@ -210,11 +210,10 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { useRoute } from 'vue-router';
 import { stocktakes as stocktakeApi } from '@/api';
 
 const route = useRoute();
-const router = useRouter();
 
 const stocktakeId = route.params.id;
 const stocktake = ref<any>(null);

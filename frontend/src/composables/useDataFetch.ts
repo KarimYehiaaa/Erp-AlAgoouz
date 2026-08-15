@@ -8,7 +8,7 @@
  * - loading / error / data state موحدة
  * - دعم params ديناميكية (reactive)
  */
-import { ref, watch, onMounted, onUnmounted, isRef, computed } from 'vue';
+import { ref, watch, onMounted, onUnmounted, isRef } from 'vue';
 import type { Ref } from 'vue';
 import { useAppStore } from '@/stores/app';
 
@@ -23,7 +23,10 @@ export interface UseDataFetchOptions {
   params?: any | Ref<any>;
 }
 
-export function useDataFetch<T = any>(fetcher: (params?: any) => Promise<any>, options: UseDataFetchOptions = {}) {
+export function useDataFetch<T = any>(
+  fetcher: (_params?: any) => Promise<any>,
+  options: UseDataFetchOptions = {},
+) {
   const {
     cacheKey = null,
     cacheTtlMs = 60_000,
@@ -175,4 +178,3 @@ export function clearDataCache(keyPattern: string | null = null) {
     if (k.startsWith(keyPattern)) _cache.delete(k);
   }
 }
-

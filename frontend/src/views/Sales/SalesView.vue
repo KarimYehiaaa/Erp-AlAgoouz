@@ -21,7 +21,7 @@ const salesData = ref<any[]>([]);
 const showForm = ref(false);
 const editingSale = ref<any>(null);
 
-const onFilter = (filters: any) => {
+const onFilter = (__filters: any) => {
   // Fetch sales based on filters
 };
 
@@ -30,7 +30,7 @@ const onEdit = (sale: any) => {
   showForm.value = true;
 };
 
-const onDelete = (id: any) => {
+const onDelete = (__id: any) => {
   // Delete logic
 };
 

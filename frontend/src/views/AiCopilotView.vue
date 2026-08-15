@@ -168,7 +168,7 @@ onMounted(() => {
     try {
       history.value = JSON.parse(saved);
       scrollToBottom();
-    } catch (e: any) {
+    } catch {
       localStorage.removeItem('alagoouz_copilot_history');
     }
   }

@@ -133,55 +133,11 @@
       </section>
 
       <!-- Branch Liquidity Battery Indicators -->
-      <section
+      <BranchLiquidity
         v-if="stats && widgetVisibility.branchLiquidity"
-        class="overview-grid"
-        style="margin-top: var(--space-5)"
-      >
-        <article class="panel chart-panel wide">
-          <div class="panel-head">
-            <div>
-              <h2>
-                <AppIcon name="gauge" style="margin-left: 8px; color: var(--primary)" />
-                مؤشر سيولة واحتياطي الصندوق للفروع (Branch Liquidity)
-              </h2>
-              <p>
-                تقييم المخزون المالي الاحتياطي لتغطية المصاريف التشغيلية (المعيار: تغطية 15 يوماً)
-              </p>
-            </div>
-            <span class="badge badge-success">مؤشر نشط</span>
-          </div>
-          <div class="branch-liquidity-grid">
-            <div
-              v-for="branch in branchLiquidityList"
-              :key="branch.name"
-              class="branch-liquidity-card"
-            >
-              <div class="branch-info">
-                <h3>{{ branch.name }}</h3>
-                <span class="cash-value">{{ formatMoney(branch.cash) }}</span>
-              </div>
-              <div class="battery-wrapper">
-                <div class="battery-body">
-                  <div
-                    class="battery-level"
-                    :style="{ width: branch.percent + '%', backgroundColor: branch.color }"
-                  ></div>
-                </div>
-                <div class="battery-tip"></div>
-              </div>
-              <div class="branch-meta">
-                <span class="days-label"
-                  >يغطي: <strong>{{ branch.days }} يوم</strong></span
-                >
-                <span class="status-badge" :style="{ color: branch.color }">{{
-                  branch.status
-                }}</span>
-              </div>
-            </div>
-          </div>
-        </article>
-      </section>
+        :branches="branchLiquidityList"
+        :format-money="formatMoney"
+      />
 
       <section v-if="widgetVisibility.distributionCharts" class="analytics-grid">
         <article class="panel chart-panel">
@@ -395,7 +351,6 @@
 </template>
 
 <script setup lang="ts">
-// @ts-nocheck
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import AppIcon from '@/components/AppIcon.vue';
@@ -406,8 +361,9 @@ import DashboardPriorityAlerts from '@/components/dashboard/DashboardPriorityAle
 import DashboardAIInsights from '@/components/dashboard/DashboardAIInsights.vue';
 import DashboardMenuMatrix from '@/components/dashboard/DashboardMenuMatrix.vue';
 import DashboardHealthPulse from '@/components/dashboard/DashboardHealthPulse.vue';
+import BranchLiquidity from '@/components/dashboard/BranchLiquidity.vue';
 
-let Chart;
+let Chart: any;
 const loadChartLib = async () => {
   if (Chart) return Chart;
   const mod = await import('chart.js');
@@ -417,6 +373,8 @@ const loadChartLib = async () => {
 };
 
 const stats = ref<any>(null);
+// بيانات مؤشر السيولة للفروع — تُملأ من stats عند توفرها (القسم يعرض فارغًا حاليًا)
+const branchLiquidityList = ref<any[]>([]);
 const loading = ref(true);
 const error = ref('');
 const selectedRange = ref('month');
@@ -439,7 +397,9 @@ const savedWidgets = localStorage.getItem('dashboard_widgets');
 if (savedWidgets) {
   try {
     Object.assign(widgetVisibility.value, JSON.parse(savedWidgets));
-  } catch (e: any) {}
+  } catch {
+    // تجاهل: JSON غير صالح من localStorage
+  }
 }
 
 watch(
@@ -465,7 +425,7 @@ const loadWarehouses = async () => {
 const performanceMode = ref('full');
 const customFrom = ref('');
 const customTo = ref('');
-const charts = [];
+const charts: any[] = [];
 
 const performanceChartRef = ref<any>(null);
 const salesTypeChartRef = ref<any>(null);
@@ -489,23 +449,25 @@ const rangeOptions = [
 const money = (value: any) => formatMoney(value, { compact: true });
 const number = (value: any) =>
   Number(value || 0).toLocaleString('en-GB', { maximumFractionDigits: 2 });
-const percent = (value: any) =>
-  `${Number(value || 0).toLocaleString('en-GB', { maximumFractionDigits: 1 })}%`;
 const saleTypeLabel = (type: any) =>
-  ({ branch: 'فرع', wholesale: 'جملة', pos: 'نقطة بيع' })[type] || type || 'بيع';
+  (({ branch: 'فرع', wholesale: 'جملة', pos: 'نقطة بيع' }) as Record<string, string>)[type] ||
+  type ||
+  'بيع';
 
 const moduleLabel = (mod: any) =>
-  ({
-    auth: 'الأمان',
-    users: 'المستخدمين',
-    products: 'المنتجات',
-    sales: 'المبيعات',
-    inventory: 'المخزون',
-    expenses: 'المصروفات',
-    purchases: 'المشتريات',
-    hr: 'الرواتب والموظفين',
-    settings: 'الإعدادات',
-  })[mod] ||
+  (
+    ({
+      auth: 'الأمان',
+      users: 'المستخدمين',
+      products: 'المنتجات',
+      sales: 'المبيعات',
+      inventory: 'المخزون',
+      expenses: 'المصروفات',
+      purchases: 'المشتريات',
+      hr: 'الرواتب والموظفين',
+      settings: 'الإعدادات',
+    }) as Record<string, string>
+  )[mod] ||
   mod ||
   'عام';
 
@@ -521,7 +483,7 @@ const formatTime = (value: any) => {
 
 const formatDate = (value: any) => {
   if (!value) return 'غير محدد';
-  const raw = String(value).split('T')[0];
+  const raw = String(value).split('T')[0] ?? '';
   if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
     const [year, month, day] = raw.split('-');
     return `${day}/${month}/${year}`;
@@ -531,7 +493,7 @@ const formatDate = (value: any) => {
 
 const shortDate = (value: any) => {
   if (!value) return '';
-  const raw = String(value).split('T')[0];
+  const raw = String(value).split('T')[0] ?? '';
   if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
     const [, month, day] = raw.split('-');
     return `${day}/${month}`;
@@ -543,7 +505,7 @@ const isoDate = (d: any) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
 const dashboardParams = computed(() => {
-  const params = { range: selectedRange.value };
+  const params: Record<string, any> = { range: selectedRange.value };
   if (selectedRange.value === 'custom') {
     if (customFrom.value) params.from_date = customFrom.value;
     if (customTo.value) params.to_date = customTo.value;
@@ -593,12 +555,8 @@ const alertItems = computed(() => [
   },
 ]);
 
-const topProductsRows = computed(() => stats.value?.topProducts || []);
-const topCustomersRows = computed(() => stats.value?.topCustomers || []);
-const recentSalesRows = computed(() => stats.value?.recentSales || []);
 const recentActivityRows = computed(() => (stats.value?.recentActivity || []).slice(0, 4));
 const lowStockRows = computed(() => stats.value?.lowStock || []);
-const peakHoursRows = computed(() => stats.value?.peakHours || []);
 
 const formatHour = (h: any) => {
   const hour = Number(h);
@@ -708,7 +666,7 @@ const renderCharts = async () => {
   );
 
   // Helper to construct canvas gradients
-  const makeGradient = (canvas, color, opacityStart = 0.4, opacityEnd = 0.02) => {
+  const makeGradient = (canvas: any, color: string, opacityStart = 0.4, opacityEnd = 0.02) => {
     if (!canvas) return colorMix(color, opacityStart);
     const ctx = canvas.getContext('2d');
     if (!ctx) return colorMix(color, opacityStart);
@@ -718,7 +676,7 @@ const renderCharts = async () => {
     return grad;
   };
 
-  const performanceDatasets = [
+  const performanceDatasets: any[] = [
     {
       label: 'المبيعات',
       data: trend.map((row: any) => Number(row.sales || 0)),
@@ -1028,7 +986,7 @@ const renderCharts = async () => {
     }
 
     const baseDate = last7.length > 0 ? new Date(last7[last7.length - 1].date) : new Date();
-    let lastVal = actualSales[actualSales.length - 1] || 1500;
+    const lastVal = actualSales[actualSales.length - 1] || 1500;
 
     for (let i = 1; i <= 7; i++) {
       const nextDate = new Date(baseDate);
@@ -1093,12 +1051,14 @@ const colorMix = (hex: any, opacity: any) => {
 };
 
 const paymentStatusLabel = (status: any) =>
-  ({
-    paid: 'مدفوع',
-    partial: 'جزئي',
-    unpaid: 'غير مدفوع',
-    refunded: 'مسترد',
-  })[status] ||
+  (
+    ({
+      paid: 'مدفوع',
+      partial: 'جزئي',
+      unpaid: 'غير مدفوع',
+      refunded: 'مسترد',
+    }) as Record<string, string>
+  )[status] ||
   status ||
   'غير محدد';
 
@@ -2380,103 +2340,6 @@ onBeforeUnmount(() => {
         content: '•';
         color: var(--text-muted);
       }
-    }
-  }
-  /* 🔋 Branch Liquidity Battery Indicators */
-  .branch-liquidity-grid {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 16px;
-    margin-top: 16px;
-  }
-  @media (max-width: 1024px) {
-    .branch-liquidity-grid {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-  }
-  @media (max-width: 640px) {
-    .branch-liquidity-grid {
-      grid-template-columns: 1fr;
-    }
-  }
-
-  .branch-liquidity-card {
-    padding: 16px;
-    border-radius: var(--radius-lg, 12px);
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    transition: all 0.3s ease;
-
-    &:hover {
-      transform: translateY(-2px);
-      box-shadow: var(--shadow-sm);
-    }
-  }
-
-  .branch-info {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    h3 {
-      font-size: 0.9rem;
-      font-weight: 700;
-      color: var(--text-strong);
-    }
-    .cash-value {
-      font-size: 0.95rem;
-      font-weight: 800;
-      color: var(--primary);
-    }
-  }
-
-  .battery-wrapper {
-    display: flex;
-    align-items: center;
-    width: 100%;
-    height: 24px;
-    padding-right: 4px;
-  }
-
-  .battery-body {
-    flex-grow: 1;
-    height: 100%;
-    border: 2px solid var(--border-strong);
-    border-radius: 5px;
-    padding: 2px;
-    background: color-mix(in srgb, var(--border) 40%, transparent);
-    overflow: hidden;
-  }
-
-  .battery-level {
-    height: 100%;
-    border-radius: 2px;
-    transition: width 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
-  }
-
-  .battery-tip {
-    width: 4px;
-    height: 8px;
-    background: var(--border-strong);
-    border-radius: 0 3px 3px 0;
-    margin-right: -1px;
-  }
-
-  .branch-meta {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 0.76rem;
-    color: var(--text-muted);
-    font-weight: 700;
-
-    strong {
-      color: var(--text-strong);
-    }
-    .status-badge {
-      font-weight: 800;
     }
   }
 }

@@ -16,7 +16,7 @@ pm2 describe alagoouz-backend >nul 2>&1
 if %errorlevel% == 0 (
     pm2 restart alagoouz-backend
 ) else (
-    pm2 start src/index.js --name "alagoouz-backend" --cwd "%~dp0backend"
+    pm2 start src/index.ts --name "alagoouz-backend" --cwd "%~dp0backend"
 )
 
 pm2 save --force

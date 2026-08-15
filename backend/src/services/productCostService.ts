@@ -107,7 +107,10 @@ const normalizeId = (value) => Number(value);
  */
 export const getProductsEffectiveCosts = async (
   db: {
-    query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }>;
+    query: (
+      _text: string,
+      _params?: unknown[],
+    ) => Promise<{ rows: any[]; rowCount: number | null }>;
   },
   productIds: any[] = [],
 ) => {
@@ -227,7 +230,10 @@ export const getProductsEffectiveCosts = async (
  */
 export const getProductEffectiveCost = async (
   db: {
-    query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }>;
+    query: (
+      _text: string,
+      _params?: unknown[],
+    ) => Promise<{ rows: any[]; rowCount: number | null }>;
   },
   productId: number,
 ) => {

@@ -38,7 +38,7 @@ const normalizeText = (value) =>
   String(value ?? '')
     .trim()
     .toLowerCase()
-    .replace(/[\s_\-]+/g, '');
+    .replace(/[\s_-]+/g, '');
 
 const normalizeDigits = (value) =>
   String(value ?? '')
@@ -91,7 +91,7 @@ const parseDate = (value) => {
     return isValidDateParts(y, m, d) ? formatYmd(y, m, d) : null;
   }
 
-  const delimited = text.match(/^(\d{1,4})[\/\-.](\d{1,2})[\/\-.](\d{1,4})$/);
+  const delimited = text.match(/^(\d{1,4})[/.-](\d{1,2})[/.-](\d{1,4})$/);
   if (delimited) {
     if (delimited[1].length === 4) {
       const y = Number(delimited[1]);

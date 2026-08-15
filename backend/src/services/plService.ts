@@ -198,9 +198,6 @@ export const getProfitAndLoss = async (fromDate: string, toDate: string) => {
   const grossRevenue = roundMoney(revenue + returns); // المبيعات الإجمالية
   const grossProfit = roundMoney(netRevenue - cogsUsed);
   const grossProfitMargin = netRevenue > 0 ? roundMoney((grossProfit / netRevenue) * 100) : 0;
-  const operatingProfit = roundMoney(grossProfit - variableExpenses);
-  const operatingProfitMargin =
-    netRevenue > 0 ? roundMoney((operatingProfit / netRevenue) * 100) : 0;
   const netProfit = roundMoney(grossProfit - expensesTotal);
   const netProfitMargin = netRevenue > 0 ? roundMoney((netProfit / netRevenue) * 100) : 0;
   const breakEvenRevenue =

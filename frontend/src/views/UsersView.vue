@@ -724,7 +724,6 @@ const strengthColor = ref('#dc2626');
 const permissions = ref<any[]>([]);
 const selectedPermissionRole = ref<any>(null);
 const selectedPermissionIds = ref<any[]>([]);
-const savingPermissions = ref(false);
 
 // roles management state
 const showRoleForm = ref(false);
@@ -839,37 +838,6 @@ const getAvatarColor = (name: any) => {
   return `hsl(${h}, 60%, 42%)`;
 };
 
-const selectedPermissionRoleName = computed(
-  () => roles.value.find((r: any) => r.id === selectedPermissionRole.value)?.name,
-);
-
-const groupedPermissions = computed(() => {
-  const groups: Record<string, any[]> = {};
-  permissions.value.forEach((p: any) => {
-    const mod = p.module || 'general';
-    if (!groups[mod]) groups[mod] = [];
-    groups[mod].push(p);
-  });
-  return groups;
-});
-
-const getModuleLabel = (mod: any) => {
-  const labels = {
-    dashboard: 'لوحة التحكم',
-    sales: 'المبيعات والكاشير',
-    products: 'المنتجات والوصفات',
-    inventory: 'المخزون والجرد',
-    customers: 'العملاء والمدفوعات',
-    suppliers: 'الموردين والمشتريات',
-    invoices: 'الفواتير والتحصيل',
-    expenses: 'المصروفات والتكاليف',
-    reports: 'التقارير والإحصائيات',
-    users: 'المستخدمين والصلاحيات',
-    settings: 'إعدادات النظام',
-  };
-  return labels[mod as keyof typeof labels] || mod;
-};
-
 const handleRolePermissionChange = async () => {
   if (!selectedPermissionRole.value) return;
   const role = roles.value.find((r: any) => r.id === selectedPermissionRole.value);
@@ -883,26 +851,6 @@ const handleRolePermissionChange = async () => {
   } catch (e: any) {
     console.error('Failed to load role permissions:', e);
     appStore.addToast('فشل تحميل صلاحيات هذا الدور', 'error');
-  }
-};
-
-const saveRolePermissions = async () => {
-  if (!selectedPermissionRole.value || selectedPermissionRoleName.value === 'admin') return;
-  savingPermissions.value = true;
-  try {
-    await api.updateRolePermissions(selectedPermissionRole.value, selectedPermissionIds.value);
-    appStore.addToast('تم حفظ صلاحيات الدور بنجاح', 'success');
-    if (authStore.user?.role_id === selectedPermissionRole.value) {
-      appStore.addToast(
-        'تم تحديث صلاحيات دورك الحالي، يرجى تحديث الصفحة لتفعيل التغييرات.',
-        'warning',
-      );
-    }
-  } catch (e: any) {
-    console.error('Failed to save permissions:', e);
-    appStore.addToast('فشل حفظ الصلاحيات', 'error');
-  } finally {
-    savingPermissions.value = false;
   }
 };
 
@@ -943,7 +891,7 @@ const saveRole = async () => {
       });
       appStore.addToast('تم تعديل المنصب بنجاح ✅', 'success');
     } else {
-      const newRole = await api.createRole({
+      await api.createRole({
         name: roleForm.value.name,
         name_ar: roleForm.value.name_ar,
         description: roleForm.value.description,

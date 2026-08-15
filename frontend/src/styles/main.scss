@@ -715,6 +715,30 @@ table {
   }
 }
 
+/* ── Cashier Focus Mode — إخفاء كل شيء إلا شاشة العمل (F4) ── */
+.cashier-focus {
+  .app-sidebar,
+  .app-navbar,
+  aside,
+  .notification-drawer,
+  .command-palette,
+  .toast-container {
+    display: none !important;
+  }
+
+  .layout-content,
+  .main-content {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* تقييد التنقل بين التبويبات داخل شاشة البيع */
+  .page-toolbar,
+  .tabs.inline-tabs {
+    display: none !important;
+  }
+}
+
 /* Privacy Mode Blurring */
 .privacy-enabled {
   .money,

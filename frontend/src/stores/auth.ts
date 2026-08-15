@@ -2,21 +2,9 @@ import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { auth as authApi } from '@/api';
 import { ADMIN_ROLES, satisfiesPermission } from '../../../shared/permissions.js';
+import type { User, Permission } from '../../../shared/types.ts';
 
-export interface User {
-  id: number;
-  username: string;
-  full_name?: string;
-  role_id?: number;
-  role_name?: string;
-  [key: string]: any;
-}
-
-export interface Permission {
-  code: string;
-  name_ar?: string;
-  module?: string;
-}
+export type { User, Permission };
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null);
@@ -55,7 +43,7 @@ export const useAuthStore = defineStore('auth', () => {
       user.value = JSON.parse(_stored);
       // Fetch fresh permissions asynchronously
       setTimeout(fetchProfile, 0);
-    } catch (_: any) {
+    } catch {
       /* ignore corrupt data */
     }
   }

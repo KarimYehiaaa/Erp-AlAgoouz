@@ -3,7 +3,6 @@ import { createPinia } from 'pinia';
 import App from './App.vue';
 import router from './router';
 import AppIcon from './components/AppIcon.vue';
-import SkeletonLoader from './components/SkeletonLoader.vue';
 import './styles/main.scss';
 import { initSentry } from './sentry';
 
@@ -52,7 +51,9 @@ const connectWebSocket = () => {
       if (['sales_changed', 'expenses_changed'].includes(msg.event)) {
         appStore.triggerDataRefresh();
       }
-    } catch (err: any) {}
+    } catch {
+      // تجاهل: فشل إشعار WebSocket غير حرج
+    }
   };
 
   ws.onclose = () => {

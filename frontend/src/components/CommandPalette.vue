@@ -48,10 +48,8 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, computed, watch, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
-import { useAppStore } from '@/stores/app';
 
 const router = useRouter();
-const appStore = useAppStore();
 
 const isOpen = ref(false);
 const query = ref('');

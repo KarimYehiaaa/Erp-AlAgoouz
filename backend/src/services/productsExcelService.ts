@@ -50,7 +50,7 @@ const normalizeText = (value) =>
   String(value ?? '')
     .trim()
     .toLowerCase()
-    .replace(/[\s_\-]+/g, '');
+    .replace(/[\s_-]+/g, '');
 
 const normalizeDigits = (value) =>
   String(value ?? '')
@@ -277,7 +277,7 @@ export const importProductsFromExcel = async (buffer: Buffer) => {
     total: rows.length,
     parseErrors: errors,
   };
-  const { categoryMap, warehouseMap } = await loadLookups();
+  const { categoryMap } = await loadLookups();
 
   for (const data of rows) {
     try {
@@ -297,6 +297,7 @@ export const importProductsFromExcel = async (buffer: Buffer) => {
           );
         }
         const { initial_stock, category_raw, ...updateData } = data;
+        void category_raw;
         await updateProduct(existing.rows[0].id, updateData);
         if (initial_stock) {
           for (const [warehouseId, qty] of Object.entries(initial_stock)) {
@@ -312,6 +313,7 @@ export const importProductsFromExcel = async (buffer: Buffer) => {
         results.updated++;
       } else {
         const { category_raw, initial_stock, ...createData } = data;
+        void category_raw;
         const created = await createProduct(createData);
         if (initial_stock) {
           for (const [warehouseId, qty] of Object.entries(initial_stock)) {

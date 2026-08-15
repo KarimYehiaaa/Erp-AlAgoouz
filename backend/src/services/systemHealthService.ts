@@ -9,10 +9,10 @@ export const getSystemHealth = async () => {
   const uptime = process.uptime();
   const uptimeStr = `${Math.floor(uptime / 3600)}h ${Math.floor((uptime % 3600) / 60)}m`;
 
-  let cpuUsage = 0;
+  let cpuUsage: number;
   if (os.platform() === 'linux') {
     const loadavg = os.loadavg();
-    cpuUsage = loadavg[0];
+    cpuUsage = loadavg[0] || 0;
   } else {
     const cpus = os.cpus();
     cpuUsage = cpus.reduce((acc, cpu) => acc + cpu.speed, 0) / cpus.length; // rough estimate
@@ -89,7 +89,7 @@ export const getActiveSessions = async () => {
       ORDER BY rt.created_at DESC
     `);
     return res.rows;
-  } catch (err: any) {
+  } catch {
     return [];
   }
 };
@@ -113,7 +113,7 @@ export const getFailedLogins = async (hours = 24) => {
       [String(safeHours)],
     );
     return res.rows;
-  } catch (err: any) {
+  } catch {
     return [];
   }
 };
@@ -162,7 +162,7 @@ export const getRecentActivity = async (limit = 50) => {
       [limit],
     );
     return res.rows;
-  } catch (err: any) {
+  } catch {
     return [];
   }
 };
@@ -237,7 +237,7 @@ export const repairSequences = async () => {
         `SELECT setval(pg_get_serial_sequence('${table}', 'id'), COALESCE(MAX(id), 1)) FROM "${table}";`,
       );
       results.push({ table, status: 'repaired' });
-    } catch (err: any) {
+    } catch {
       results.push({ table, status: 'skipped' });
     }
   }
@@ -273,7 +273,7 @@ export const generateBackupSnapshot = async () => {
     try {
       const res = await query(`SELECT * FROM "${table}" LIMIT 5000`);
       snapshot.data[table] = res.rows;
-    } catch (err: any) {
+    } catch {
       snapshot.data[table] = [];
     }
   }

@@ -1,3 +1,15 @@
+/**
+ * migrate-supabase.ts — ترحيل قاعدة البيانات إلى Supabase
+ * ═══════════════════════════════════════════════════════════════
+ * يتصل بقاعدة Supabase (من متغيرات البيئة) وينفّذ جميع ملفات الهجرات
+ * (`migrations/*.sql`) بالترتيب دون تتبع schema_migrations — يُستخدم
+ * لتهيئة قاعدة سحابية جديدة من الصفر.
+ *
+ * ⚠️ تحذير: يعمل على قاعدة الإنتاج إن وُجدت إعداداتها في .env — لا تشغّله
+ * إلا وأنت متأكد من الوجهة المطلوبة.
+ *
+ * التشغيل: `npm run migrate-supabase` (من backend)
+ */
 import pg from 'pg';
 import fs from 'fs';
 import path from 'path';
@@ -16,21 +28,32 @@ const DB_USER = process.env.DB_USER || 'postgres';
 const DB_PASSWORD = process.env.DB_PASSWORD;
 const DB_SSL = process.env.DB_SSL === 'true';
 
-async function runSqlFile(client, filePath) {
+/**
+ * تنفيذ ملف SQL كامل على العميل المتصل.
+ * @param {pg.Client} client عميل PostgreSQL
+ * @param {string} filePath مسار ملف SQL
+ * @returns {Promise<void>}
+ */
+async function runSqlFile(client: pg.Client, filePath: string): Promise<void> {
   const sql = fs.readFileSync(filePath, 'utf8');
   console.log(`  → تنفيذ: ${path.basename(filePath)}`);
   await client.query(sql);
 }
 
-function getMigrationFiles() {
+/**
+ * جمع ملفات الهجرات مرتبة أبجديًا.
+ * @returns {string[]} مسارات ملفات SQL
+ */
+function getMigrationFiles(): string[] {
   const migrationsDir = path.join(__dirname, '../migrations');
-  return fs.readdirSync(migrationsDir)
+  return fs
+    .readdirSync(migrationsDir)
     .filter((file) => file.endsWith('.sql'))
     .sort((a, b) => a.localeCompare(b))
     .map((file) => path.join(migrationsDir, file));
 }
 
-async function main() {
+async function main(): Promise<void> {
   console.log('\n☕ بن العجوز — ترحيل قاعدة البيانات إلى Supabase\n');
 
   if (!DB_PASSWORD || !DB_HOST) {
@@ -40,7 +63,7 @@ async function main() {
   }
 
   console.log(`محاولة الاتصال بقاعدة البيانات على: ${DB_HOST}:${DB_PORT}/${DB_NAME}`);
-  
+
   const client = new Client({
     host: DB_HOST,
     port: DB_PORT,
@@ -54,7 +77,7 @@ async function main() {
     await client.connect();
     console.log('✅ تم الاتصال بنجاح بقاعدة بيانات Supabase!');
   } catch (err) {
-    console.error('❌ فشل الاتصال بقاعدة البيانات:', err.message);
+    console.error('❌ فشل الاتصال بقاعدة البيانات:', (err as Error).message);
     process.exit(1);
   }
 
@@ -69,7 +92,7 @@ async function main() {
 
     console.log('\n🎉 تم ترحيل وتجهيز قاعدة البيانات بنجاح على Supabase!');
   } catch (err) {
-    console.error('\n❌ فشل ترحيل قاعدة البيانات:', err.message);
+    console.error('\n❌ فشل ترحيل قاعدة البيانات:', (err as Error).message);
   } finally {
     await client.end();
   }

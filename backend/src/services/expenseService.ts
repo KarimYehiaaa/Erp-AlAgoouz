@@ -28,7 +28,7 @@ export const getExpenses = async (filters: Record<string, any> = {}) => {
     params.push(filters.category_id);
   }
   if (filters.is_fixed !== undefined && filters.is_fixed !== null && filters.is_fixed !== '') {
-    sql += ` AND COALESCE(e.is_fixed, ec.is_fixed, FALSE) = $${i++}`;
+    sql += ` AND COALESCE(e.is_fixed, ec.is_fixed, FALSE) = $${i}`;
     params.push(filters.is_fixed === 'true' || filters.is_fixed === true);
   }
   sql += ` ORDER BY e.expense_date DESC LIMIT ${sanitizeLimit(filters.limit)}`;

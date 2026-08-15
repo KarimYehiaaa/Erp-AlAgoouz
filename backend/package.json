@@ -2,19 +2,20 @@
   "name": "bin-al-ajouz-erp-backend",
   "version": "1.0.0",
   "description": "بن العجوز ERP - Backend API",
-  "main": "src/index.js",
+  "main": "src/index.ts",
   "type": "module",
   "scripts": {
-    "start": "node src/index.js",
-    "dev": "node --watch-path=src src/index.js",
+    "start": "node src/index.ts",
+    "dev": "node --watch-path=src src/index.ts",
     "build": "echo Built",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:local": "node scripts/run-vitest-local.js",
+    "test:local": "node scripts/run-vitest-local.ts",
+    "check:scripts": "node scripts/check-scripts.ts",
     "setup-db": "node src/database/setup.ts",
     "reset-admin": "node src/database/reset-admin.ts",
     "factory-reset": "node src/database/factoryReset.ts",
-    "migrate-supabase": "node scripts/migrate-supabase.js"
+    "migrate-supabase": "node scripts/migrate-supabase.ts"
   },
   "dependencies": {
     "@sentry/node": "^10.69.0",

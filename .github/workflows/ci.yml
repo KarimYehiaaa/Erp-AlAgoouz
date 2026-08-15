@@ -72,6 +72,14 @@ jobs:
         if: github.event_name == 'push' || (github.event_name == 'pull_request' && steps.backend-changed.outputs.changed == 'true')
         run: npm run check:local
 
+      # دخان سكربتات الصيانة (TS): نفس الأمر الموحّد check:scripts المستخدم محليًا في
+      # check:local — يضمن أن Node 24 يقرأ كل ملفات backend/scripts/*.ts (node --check)
+      # وأن migrate.ts يتصل بالقاعدة المعزولة وينفّذ فعليًا. أي انتكاس في تحويل
+      # السكربتات إلى TS يكسر هذه الخطوة (ومحليًا يكسر check:local أيضًا).
+      - name: Smoke — maintenance scripts check (check:scripts)
+        if: github.event_name == 'push' || (github.event_name == 'pull_request' && steps.backend-changed.outputs.changed == 'true')
+        run: npm run check:scripts -w backend
+
       - name: Frontend Type Check
         run: npm run typecheck -w frontend
 
@@ -87,7 +95,7 @@ jobs:
         working-directory: backend
         run: |
           set -e
-          PORT=3100 HTTPS_PORT=3443 node src/index.js > /tmp/smoke-server.log 2>&1 &
+          PORT=3100 HTTPS_PORT=3443 node src/index.ts > /tmp/smoke-server.log 2>&1 &
           SERVER_PID=$!
 
           # انتظار جاهزية الخادم عبر /health (يتحقق من اتصال قاعدة البيانات)

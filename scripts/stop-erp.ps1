@@ -11,7 +11,7 @@ if ($pm2) {
 }
 
 Get-CimInstance Win32_Process -Filter "Name = 'node.exe'" | Where-Object {
-    $_.CommandLine -like "*src/index.js*" -or $_.CommandLine -like "*vite*" -or $_.CommandLine -like "*AlAgoouz*"
+    $_.CommandLine -like "*src/index.ts*" -or $_.CommandLine -like "*src/index.js*" -or $_.CommandLine -like "*vite*" -or $_.CommandLine -like "*AlAgoouz*"
 } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
 
 Write-Host "ERP Stopped Successfully" -ForegroundColor Green

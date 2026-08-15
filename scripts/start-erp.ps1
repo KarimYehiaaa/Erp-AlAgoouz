@@ -12,7 +12,7 @@ if (-not $pg) {
 
 Write-Host "Starting Unified Node Server (Port 3000)..." -ForegroundColor Yellow
 
-$backendCmd = "Set-Location '$Root\backend'; node src/index.js"
+$backendCmd = "Set-Location '$Root\backend'; node src/index.ts"
 
 Start-Process powershell -ArgumentList "-NoExit", "-Command", $backendCmd -WindowStyle Minimized
 

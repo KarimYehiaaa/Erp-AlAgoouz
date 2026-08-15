@@ -257,8 +257,8 @@ interface TableColumn {
   align?: string;
   width?: string;
   toggleable?: boolean;
-  format?: (val: any, row: TableRow) => string;
-  cellClass?: (row: TableRow) => string;
+  format?: (_val: any, _row: TableRow) => string;
+  cellClass?: (_row: TableRow) => string;
 }
 
 const props = withDefaults(
@@ -289,8 +289,8 @@ const props = withDefaults(
     selectedCount?: number;
     selectedItems?: TableRow[];
     allSelected?: boolean;
-    isSelected?: (id: any) => boolean;
-    toggleRow?: (id: any) => void;
+    isSelected?: (_id: any) => boolean;
+    toggleRow?: (_id: any) => void;
     toggleAll?: () => void;
     clearSelection?: () => void;
     // Search (يمكن ربطه بـ v-model:search)
@@ -299,7 +299,7 @@ const props = withDefaults(
     // Misc
     maxHeight?: string;
     tableClass?: string;
-    rowClass?: ((row: TableRow) => string | Record<string, any>[]) | null;
+    rowClass?: ((_row: TableRow) => string | Record<string, any>[]) | null;
     skeletonRows?: number;
     emptyTitle?: string;
     emptyMessage?: string;
@@ -341,12 +341,12 @@ const props = withDefaults(
   },
 );
 
-const emit = defineEmits<{
-  (e: 'update:search', value: string): void;
-  (e: 'sort', key: string): void;
-  (e: 'row-click', row: TableRow): void;
-  (e: 'page-change', page: number): void;
-  (e: 'per-page-change', perPage: number): void;
+defineEmits<{
+  (_e: 'update:search', _value: string): void;
+  (_e: 'sort', _key: string): void;
+  (_e: 'row-click', _row: TableRow): void;
+  (_e: 'page-change', _page: number): void;
+  (_e: 'per-page-change', _perPage: number): void;
 }>();
 const slots = useSlots();
 

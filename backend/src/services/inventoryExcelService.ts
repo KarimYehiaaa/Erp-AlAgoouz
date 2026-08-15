@@ -30,11 +30,10 @@ const isPlaceholderWarehouse = (value) => {
   const text = String(value || '').trim();
   return !text || ['-', '—', '0'].includes(text);
 };
-const countNonEmptyCells = (row) => row.reduce((count, cell) => count + (isBlank(cell) ? 0 : 1), 0);
 const normalizeHeaderText = (value) =>
   normalizeDigits(value)
     .toLowerCase()
-    .replace(/[\s_\-]+/g, '')
+    .replace(/[\s_-]+/g, '')
     .replace(/[^\w\u0600-\u06ff]/g, '');
 const headerMatches = (value, aliases) => {
   const normalized = normalizeHeaderText(value);

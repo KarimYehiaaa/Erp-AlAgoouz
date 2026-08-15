@@ -102,7 +102,7 @@ class InventoryRepository extends BaseRepository {
       i++;
     }
     if (filters.movement_type) {
-      sql += ` AND sm.movement_type = $${i++}`;
+      sql += ` AND sm.movement_type = $${i}`;
       params.push(filters.movement_type);
     }
     sql += ` ORDER BY sm.created_at DESC LIMIT ${sanitizeLimit(filters.limit)}`;

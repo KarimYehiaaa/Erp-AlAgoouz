@@ -1,5 +1,4 @@
 import { query } from '../database/pool.ts';
-import config from '../config/index.ts';
 
 /**
  * جلب مؤشرات النظام وتوليد سياق للذكاء الاصطناعي

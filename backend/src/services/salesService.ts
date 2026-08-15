@@ -677,7 +677,7 @@ const getSalesSummary = async (filters: Record<string, any> = {}) => {
     params.push(filters.from_date);
   }
   if (filters.to_date) {
-    sql += ` AND sale_date <= $${idx++}`;
+    sql += ` AND sale_date <= $${idx}`;
     params.push(filters.to_date);
   }
   sql += ` GROUP BY sale_type, sale_date ORDER BY sale_date DESC`;

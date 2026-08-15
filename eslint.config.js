@@ -1,11 +1,13 @@
 import js from '@eslint/js';
 import tseslint from 'typescript-eslint';
+import pluginVue from 'eslint-plugin-vue';
+import vueParser from 'vue-eslint-parser';
 import prettierConfig from 'eslint-config-prettier';
 import globals from 'globals';
 
 export default [
   // Global ignores
-  { ignores: ['**/dist/', '**/node_modules/', 'logs/', 'backups/', '.gemini/'] },
+  { ignores: ['**/dist/', '**/node_modules/', 'logs/', 'backups/', '.gemini/', 'backend/scripts/archive/'] },
 
   // Base JS recommended rules
   js.configs.recommended,
@@ -51,6 +53,38 @@ export default [
     },
   },
 
+  // Frontend: Vue files (.vue) — parsed with vue-eslint-parser + TS parser inside
+  {
+    files: ['frontend/src/**/*.vue'],
+    languageOptions: {
+      parser: vueParser,
+      parserOptions: {
+        ecmaVersion: 2024,
+        sourceType: 'module',
+        parser: tseslint.parser,
+        extraFileExtensions: ['.vue'],
+      },
+      globals: { ...globals.browser },
+    },
+    plugins: {
+      vue: pluginVue,
+    },
+    rules: {
+      // Transitional (matches the rest of the project)
+      'no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-non-null-assertion': 'off',
+      // Transitional: @ts-nocheck موجود في ملفات كبيرة (Dashboard/Sales) لم تُفحص نوعيًا بعد
+      '@typescript-eslint/ban-ts-comment': 'off',
+      'no-console': ['warn', { allow: ['warn', 'error'] }],
+      'prefer-const': 'warn',
+      'no-empty': 'warn',
+      'no-useless-escape': 'warn',
+      'no-useless-assignment': 'warn',
+    },
+  },
+
   // Frontend: Vue + JS/TS files
   {
     files: ['frontend/src/**/*.{js,ts}'],
@@ -73,9 +107,9 @@ export default [
     },
   },
 
-  // Scripts
+  // Scripts (الجذر + backend — أدوات صيانة تعمل بـ Node مباشرة)
   {
-    files: ['scripts/**/*.{js,mjs}'],
+    files: ['scripts/**/*.{js,mjs,ts}', 'backend/*.{js,mjs,ts}', 'backend/scripts/**/*.{js,mjs,ts}'],
     languageOptions: {
       ecmaVersion: 2024,
       sourceType: 'module',

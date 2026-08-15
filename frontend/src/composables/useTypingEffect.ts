@@ -1,4 +1,4 @@
-import { ref, onUnmounted, type Ref } from 'vue';
+import { ref, onUnmounted } from 'vue';
 
 /** خيارات تأثير الكتابة. */
 export interface TypingOptions {

@@ -28,7 +28,7 @@ const pool = new Pool({
   query_timeout: 30000,
   allowExitOnIdle: true,
 });
-pool.on('error', (err, client) => {
+pool.on('error', (err, __client) => {
   console.error('[DB Pool] خطأ غير متوقع في اتصال قاعدة البيانات:', err.message);
 });
 pool.on('connect', (_client) => {

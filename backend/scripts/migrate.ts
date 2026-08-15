@@ -1,3 +1,16 @@
+/**
+ * migrate.ts — تشغيل هجرات قاعدة البيانات
+ * ════════════════════════════════════════════
+ * يفحص مجلد `migrations/*.sql` ويطبّق الملفات غير المنفذة بعد، مع تتبع
+ * التنفيذ في جدول `schema_migrations`. يتعرف تلقائيًا على الهجرات المطبقة
+ * مسبقًا في قواعد البيانات القديمة (عندما يكون الجدول فارغًا) عبر فحص جداول
+ * مميزة (stocktake_items/payroll_runs/purchase_invoices).
+ *
+ * يُستخدم من:
+ *  - `src/index.ts` عند بدء التشغيل المحلي (استيراد ديناميكي)
+ *  - `run-vitest-local.ts` و `run-tests.ts` (تهيئة قاعدة الاختبارات)
+ *  - سطر الأوامر مباشرة: `node scripts/migrate.ts`
+ */
 import pg from 'pg';
 import fs from 'fs';
 import path from 'path';
@@ -15,7 +28,15 @@ if (!process.env.POSTGRES_PASSWORD && fs.existsSync(localPgFile)) {
 
 const { Client } = pg;
 
-export async function runMigrations() {
+/**
+ * تطبيق جميع الهجرات المعلقة على قاعدة البيانات المتصلة.
+ *
+ * يُستدعى عند إقلاع الخادم (index.ts) وعند تهيئة قاعدة الاختبارات.
+ * يقرأ إعدادات الاتصال من DATABASE_URL أو متغيرات DB_* (مع دعم SSL للقواعد السحابية).
+ *
+ * @returns {Promise<void>} يكتمل بعد تطبيق كل الهجرات أو التحقق من تحديث القاعدة
+ */
+export async function runMigrations(): Promise<void> {
   const connectionOptions = process.env.DATABASE_URL
     ? { connectionString: process.env.DATABASE_URL }
     : {
@@ -26,10 +47,11 @@ export async function runMigrations() {
         database: process.env.DB_NAME || 'bin_al_ajouz',
       };
 
-  const isSsl = process.env.DB_SSL === 'true' || 
-                !!process.env.DATABASE_URL || 
-                (connectionOptions.host && typeof connectionOptions.host === 'string' && 
-                 (connectionOptions.host.includes('supabase') || connectionOptions.host.includes('neon')));
+  const isSsl =
+    process.env.DB_SSL === 'true' ||
+    !!process.env.DATABASE_URL ||
+    (typeof connectionOptions.host === 'string' &&
+      (connectionOptions.host.includes('supabase') || connectionOptions.host.includes('neon')));
 
   const client = new Client({
     ...connectionOptions,
@@ -40,7 +62,7 @@ export async function runMigrations() {
     await client.connect();
     logger.info('🔄 [بن العجوز ERP] جاري فحص وتحديث جداول قاعدة البيانات (Migrations)...');
 
-    // Create schema_migrations table if not exists
+    // إنشاء جدول تتبع الهجرات إن لم يوجد
     await client.query(`
       CREATE TABLE IF NOT EXISTS schema_migrations (
         version VARCHAR(255) PRIMARY KEY,
@@ -48,7 +70,7 @@ export async function runMigrations() {
       );
     `);
 
-    // Check if users table exists (indicates db is already setup)
+    // فحص وجود جدول users (يعني أن القاعدة مهيأة مسبقًا)
     const usersTableExists = await client.query(`
       SELECT EXISTS (
         SELECT FROM information_schema.tables 
@@ -58,27 +80,31 @@ export async function runMigrations() {
 
     const dbIsSetup = usersTableExists.rows[0].exists;
 
-    // Read migrations directory
+    // قراءة ملفات الهجرات من مجلد migrations
     const migrationsDir = path.join(__dirname, '../migrations');
-    const files = fs.readdirSync(migrationsDir)
+    const files = fs
+      .readdirSync(migrationsDir)
       .filter((file) => file.endsWith('.sql'))
       .sort((a, b) => a.localeCompare(b));
 
-    // Get applied migrations
+    // الحصول على الهجرات المنفذة مسبقًا
     const appliedRes = await client.query(`SELECT version FROM schema_migrations`);
     const applied = new Set(appliedRes.rows.map((row) => row.version));
 
-    // If db is setup but schema_migrations is empty, detect which migrations are already in the DB
+    // إذا كانت القاعدة مهيأة لكن جدول التتبع فارغ — كشف الهجرات المطبقة فعليًا
     if (dbIsSetup && applied.size === 0) {
       logger.info('[بن العجوز ERP] قاعدة البيانات مهيأة مسبقاً. جاري فحص الهجرات المطبقة بالفعل...');
-      
-      const checkTable = async (tableName) => {
-        const res = await client.query(`
+
+      const checkTable = async (tableName: string): Promise<boolean> => {
+        const res = await client.query(
+          `
           SELECT EXISTS (
             SELECT FROM information_schema.tables 
             WHERE table_schema = 'public' AND table_name = $1
           )
-        `, [tableName]);
+        `,
+          [tableName],
+        );
         return res.rows[0].exists;
       };
 
@@ -95,11 +121,16 @@ export async function runMigrations() {
         maxMigrationToMark = '011_';
       }
 
-      logger.info(`[بن العجوز ERP] تم تحديد الهجرات المطبقة بالفعل تلقائياً حتى: ${maxMigrationToMark}`);
+      logger.info(
+        `[بن العجوز ERP] تم تحديد الهجرات المطبقة بالفعل تلقائياً حتى: ${maxMigrationToMark}`,
+      );
 
       for (const file of files) {
         if (file <= maxMigrationToMark || file.startsWith(maxMigrationToMark)) {
-          await client.query(`INSERT INTO schema_migrations (version) VALUES ($1) ON CONFLICT DO NOTHING`, [file]);
+          await client.query(
+            `INSERT INTO schema_migrations (version) VALUES ($1) ON CONFLICT DO NOTHING`,
+            [file],
+          );
           applied.add(file);
           logger.info(`  → تم تسجيل الهجرة كمنفذة مسبقاً: ${file}`);
         }
@@ -108,13 +139,13 @@ export async function runMigrations() {
 
     let appliedCount = 0;
 
-    // Apply pending migrations
+    // تطبيق الهجرات المعلقة
     for (const file of files) {
       if (!applied.has(file)) {
         logger.info(`[بن العجوز ERP] جاري تطبيق الهجرة: ${file}`);
         const filePath = path.join(migrationsDir, file);
         const sql = fs.readFileSync(filePath, 'utf8');
-        
+
         try {
           await client.query('BEGIN');
           await client.query(sql);
@@ -123,7 +154,9 @@ export async function runMigrations() {
           appliedCount++;
         } catch (err) {
           await client.query('ROLLBACK');
-          throw new Error(`فشلت الهجرة ${file}: ${err.message}`);
+          throw new Error(`فشلت الهجرة ${file}: ${(err as Error).message}`, {
+            cause: err,
+          });
         }
       }
     }
@@ -134,15 +167,18 @@ export async function runMigrations() {
       logger.info('✅ [بن العجوز ERP] قاعدة البيانات محدثة بالكامل ولا توجد هجرات معلقة.');
     }
   } catch (err) {
-    logger.error('❌ [بن العجوز ERP] فشل تحديث قاعدة البيانات: %s', err.message);
+    logger.error('❌ [بن العجوز ERP] فشل تحديث قاعدة البيانات: %s', (err as Error).message);
     throw err;
   } finally {
     await client.end().catch(() => {});
   }
 }
 
-// Run directly if executed from command line
-const isCLI = process.argv[1] && process.argv[1] !== '' ? path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url)) : false;
+// التشغيل المباشر من سطر الأوامر
+const isCLI =
+  process.argv[1] && process.argv[1] !== ''
+    ? path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url))
+    : false;
 
 if (isCLI) {
   runMigrations().catch((err) => {

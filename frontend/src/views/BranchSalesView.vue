@@ -1207,7 +1207,7 @@ const onImportExcel = async (e: any) => {
 };
 
 // ─── lifecycle & events ───
-const onInventoryUpdated = (e: any) => {
+const onInventoryUpdated = (_e: any) => {
   try {
     loadProducts();
   } catch (err: any) {
@@ -1228,7 +1228,7 @@ onMounted(async () => {
       companySettings.value = res.data.company;
       localStorage.setItem('company_settings', JSON.stringify(res.data.company));
     }
-  } catch (e: any) {
+  } catch {
     const cached = localStorage.getItem('company_settings');
     if (cached) companySettings.value = JSON.parse(cached);
   }

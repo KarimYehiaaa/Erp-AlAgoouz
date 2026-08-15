@@ -46,7 +46,9 @@ async function probeRedis() {
       .catch(() => {
         try {
           probe.disconnect();
-        } catch (_) {}
+        } catch {
+          // تجاهل مقصود
+        }
         resolve(false);
       });
   });

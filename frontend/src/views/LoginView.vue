@@ -324,7 +324,7 @@ const STORAGE_KEY = 'erp_remembered_username';
 // ─── Composables ──────────────────────────────────────────
 const { offset } = useMouseParallax(12);
 const { strength, evaluate } = usePasswordStrength();
-const { activeField, onFocusField, onBlurField, isFieldActive } = useInputAnimations();
+const { onFocusField, onBlurField, isFieldActive } = useInputAnimations();
 
 const {
   displayedText,

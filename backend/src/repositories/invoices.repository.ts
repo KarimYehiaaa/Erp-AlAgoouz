@@ -23,7 +23,7 @@ class InvoicesRepository extends BaseRepository {
       params.push(filters.payment_status);
     }
     if (filters.customer_id) {
-      sql += ` AND i.customer_id = $${idx++}`;
+      sql += ` AND i.customer_id = $${idx}`;
       params.push(filters.customer_id);
     }
     sql += ` ORDER BY i.created_at DESC LIMIT ${sanitizeLimit(filters.limit)}`;

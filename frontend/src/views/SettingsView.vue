@@ -884,14 +884,12 @@
 import { computed, ref, onMounted } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
 import { users as userApi, products as productApi, backup as backupApi } from '@/api';
-import { useAppStore } from '@/stores/app';
 import { CURRENCY } from '@/utils/currency';
 import { useProductMeta } from '@/composables/useProductMeta';
 
 import { useAuthStore } from '@/stores/auth';
 
 const { loadMeta: refreshMetaCache } = useProductMeta();
-const appStore = useAppStore();
 const authStore = useAuthStore();
 const canEdit = computed(() => authStore.hasPermission('settings.manage'));
 
@@ -1002,7 +1000,7 @@ const refreshCategories = async () => {
   try {
     categories.value = (await productApi.categories())?.data || [];
     await refreshMetaCache(true);
-  } catch (_: any) {
+  } catch {
     categories.value = [];
   }
 };
@@ -1070,7 +1068,7 @@ const refreshProductUnits = async () => {
   try {
     productUnits.value = (await productApi.units())?.data || [];
     await refreshMetaCache(true);
-  } catch (_: any) {
+  } catch {
     productUnits.value = [];
   }
 };
@@ -1197,7 +1195,7 @@ const formatBackupDate = (name = '') => {
 const refreshBackups = async () => {
   try {
     backups.value = (await backupApi.list())?.data || [];
-  } catch (_: any) {
+  } catch {
     backups.value = [];
   }
 };
@@ -1290,7 +1288,7 @@ onMounted(async () => {
       dropbox_path: '/AlAgoouz-ERP-Backups',
       webhook_url: '',
     };
-  } catch (_: any) {
+  } catch {
     /* offline */
   }
   await Promise.all([refreshCategories(), refreshProductUnits(), refreshBackups()]);

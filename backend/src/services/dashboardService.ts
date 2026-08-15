@@ -97,7 +97,6 @@ const _setCached = (key, data) => {
 };
 
 // استدعاء هذه الدالة من أي مكان لمسح الـ cache فوراً بعد أي تغيير
-let _lastInvalidated = 0;
 /**
  * مسح كاش لوحة التحكم فوراً بعد أي تغيير (مبيعات/مشتريات/مصاريف).
  */
@@ -105,7 +104,6 @@ export const invalidateDashboardCache = () => {
   _dashboardCache.clear();
   appCache.invalidateByTag('pl_report');
   appCache.invalidateByTag('product_cost');
-  _lastInvalidated = Date.now();
 };
 
 const _computeDashboardStats = async (filters: Record<string, any> = {}) => {

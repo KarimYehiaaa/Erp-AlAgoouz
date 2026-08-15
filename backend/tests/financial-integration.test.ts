@@ -1,4 +1,4 @@
-import { test, afterAll, expect } from 'vitest';
+import { test, afterAll } from 'vitest';
 import assert from 'node:assert/strict';
 import { createExpense } from '../src/services/expenseService.ts';
 import { roundMoney } from '../src/utils/money.js';

@@ -16,11 +16,11 @@ export const sales = {
     api.delete(`/sales/type/${saleType}`, { data: { confirm: 'CONFIRM_DELETE_SALES_TYPE' } }),
   downloadTemplate: async () => {
     const res = await api.get('/sales/template', { responseType: 'blob' });
-    return res instanceof Blob ? res : res;
+    return res instanceof Blob ? res : res.data;
   },
   downloadBranchTemplate: async () => {
     const res = await api.get('/sales/branch/template', { responseType: 'blob' });
-    return res instanceof Blob ? res : res;
+    return res instanceof Blob ? res : res.data;
   },
   importExcel: (file: File, options: any = {}) => {
     const form = new FormData();

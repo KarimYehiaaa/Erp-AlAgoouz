@@ -32,7 +32,7 @@
 <script setup lang="ts">
 import BaseModal from './BaseModal.vue';
 
-const props = defineProps({
+defineProps({
   modelValue: { type: Boolean, default: false },
   title: { type: String, default: 'تأكيد الإجراء' },
   message: { type: String, default: 'هل أنت متأكد من تنفيذ هذا الإجراء؟' },
@@ -47,7 +47,7 @@ const props = defineProps({
   loading: { type: Boolean, default: false },
 });
 
-const emit = defineEmits(['update:modelValue', 'confirm']);
+defineEmits(['update:modelValue', 'confirm']);
 </script>
 
 <style lang="scss" scoped>

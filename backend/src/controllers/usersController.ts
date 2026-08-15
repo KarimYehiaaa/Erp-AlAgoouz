@@ -22,7 +22,6 @@ const users = {
    */
   create: async (req, res, next) => {
     try {
-      const userId = req.user?.id || req.user?.userId;
       ok(
         res,
         await userService.createUser(req.body),

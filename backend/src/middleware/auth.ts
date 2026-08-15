@@ -3,6 +3,7 @@ import config from '../config/index.ts';
 import { query } from '../database/pool.ts';
 import { AppError } from '../types/errors.ts';
 import { ADMIN_ROLES, expandPermissionCodes } from '../../../shared/permissions.js';
+import type { User } from '../../../shared/types.ts';
 /**
  * التحقق من صحة توكن JWT في رأس Authorization وتحميل بيانات المستخدم على req.user.
  * @param {import('express').Request} req طلب HTTP
@@ -35,7 +36,7 @@ const authenticate = async (req, res, next) => {
         'UNAUTHORIZED',
       );
     }
-    const user = result.rows[0];
+    const user = result.rows[0] as User;
     if (user.password_changed_at) {
       const changedAtSec = Math.floor(new Date(user.password_changed_at).getTime() / 1e3);
       if ((decoded.iat ?? 0) < changedAtSec) {

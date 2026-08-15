@@ -634,7 +634,7 @@ import { costs as costsApi, products as productsApi, warehouses as warehousesApi
 import { formatMoney } from '@/utils/currency';
 import { useProductMeta } from '@/composables/useProductMeta';
 
-const { units: dbUnits, loadMeta, unitLabel: metaUnitLabel, unitNames } = useProductMeta();
+const { units: dbUnits, loadMeta, unitLabel: metaUnitLabel } = useProductMeta();
 
 // ─── state ──────────────────────────────────────────────────────────────────
 const loading = ref(false);
@@ -999,33 +999,21 @@ const produceModeHelp = computed(() =>
 const load = async () => {
   loading.value = true;
   try {
-    const [recRes, prodRes, allProdRes, whRes] = await Promise.all([
+    const [recRes, allProdRes, whRes] = await Promise.all([
       costsApi.listRecipes(),
-      productsApi.branchProducts(),
       productsApi.list({ limit: 1000 }),
       warehousesApi(),
     ]);
     const rawRecipes = recRes.data || [];
-    let branchProds = prodRes.data || [];
     allProducts.value = allProdRes.data || [];
     warehouses.value = whRes.data || [];
 
-    // Ensure branchProducts reflects the selected/default warehouse.
+    // Ensure produceForm has a default warehouse selected.
     if (warehouses.value.length) {
       if (!produceForm.value.warehouse_id) produceForm.value.warehouse_id = warehouses.value[0].id;
-      try {
-        const bpRes = await productsApi.branchProducts({
-          warehouse_id: produceForm.value.warehouse_id,
-        });
-        branchProds = bpRes.data || [];
-      } catch (e: any) {
-        // fallback to initial result if re-fetch fails
-        console.warn('Failed to re-fetch branchProducts with warehouse_id:', e.message || e);
-      }
     }
 
     recipes.value = rawRecipes.map((r: any) => {
-      const branchProd = branchProds.find((bp: any) => bp.id === r.product_id);
       const enrichedItems = (r.items || []).map((item: any) => {
         const p = allProducts.value.find((prod: any) => prod.id === item.ingredient_product_id);
         const globalStock = p ? Number(p.total_stock || 0) : null;
@@ -1265,7 +1253,7 @@ const loadProductions = async () => {
     if (prodFilter.value.from_date) params.from_date = prodFilter.value.from_date;
     if (prodFilter.value.to_date) params.to_date = prodFilter.value.to_date;
     productions.value = (await costsApi.listProductions(params))?.data || [];
-  } catch (e: any) {
+  } catch {
     productions.value = [];
   } finally {
     productionsLoading.value = false;

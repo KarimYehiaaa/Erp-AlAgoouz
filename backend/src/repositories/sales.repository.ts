@@ -38,19 +38,20 @@ class SalesRepository extends BaseRepository {
       params.push(filters.from_date);
     }
     if (filters.to_date) {
-      sql += ` AND s.sale_date <= $${idx++}`;
+      sql += ` AND s.sale_date <= $${idx}`;
       params.push(filters.to_date);
     }
     if (filters.status) {
-      sql += ` AND s.status = $${idx++}`;
+      sql += ` AND s.status = $${params.length + 1}`;
       params.push(filters.status);
     }
-    sql += ` ORDER BY s.sale_date DESC, s.created_at DESC LIMIT $${idx++} OFFSET $${idx++}`;
+    sql += ` ORDER BY s.sale_date DESC, s.created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
     params.push(limit, offset);
     const rows = (await query(sql, params)).rows;
     const total = rows.length > 0 ? rows[0].full_count : 0;
     const cleanRows = rows.map((r) => {
       const { full_count, ...rest } = r;
+      void full_count;
       return rest;
     });
     return { data: cleanRows, meta: buildPaginationMeta(total, page, limit) };

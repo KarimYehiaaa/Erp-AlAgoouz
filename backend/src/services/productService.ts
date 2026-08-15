@@ -76,7 +76,7 @@ export const getProducts = async (filters: Record<string, any> = {}) => {
     sql += ` AND p.is_active = $${i++}`;
     params.push(filters.is_active);
   }
-  sql += ` ORDER BY p.name_ar LIMIT $${i++}`;
+  sql += ` ORDER BY p.name_ar LIMIT $${i}`;
   params.push(sanitizeLimit(filters.limit));
   const rows = (await query(sql, params)).rows;
 
@@ -563,7 +563,6 @@ export const getBranchProducts = async (filters: Record<string, any> = {}) => {
   if (filters.search) {
     sql += ` AND (p.name_ar ILIKE $${i} OR p.sku ILIKE $${i})`;
     params.push(`%${filters.search}%`);
-    i++;
   }
   if (filters.has_recipe === 'true' || filters.has_recipe === true) {
     sql += ` AND r.id IS NOT NULL`;
@@ -691,7 +690,7 @@ export const deleteUnit = async (id: number) => {
  * @param {number} userId معرف المستخدم المنفّذ
  * @returns {Promise<{ updated: number }>}
  */
-export const bulkAdjustPrices = async (data: Record<string, any>, userId: number) => {
+export const bulkAdjustPrices = async (data: Record<string, any>, __userId: number) => {
   const { category_id, type, value, adjust_type } = data; // type: 'sale' | 'purchase', adjust_type: 'percent' | 'fixed'
   const val = Number(value);
   if (isNaN(val)) throw new AppError('القيمة غير صالحة', 400);

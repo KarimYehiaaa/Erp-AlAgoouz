@@ -26,7 +26,7 @@ export const initWebSocket = (server: import('http').Server) => {
       const decoded = jwt.verify(token, config.jwt.secret) as import('jsonwebtoken').JwtPayload;
       ws.userId = decoded.userId;
       clients.add(ws);
-    } catch (err: any) {
+    } catch {
       ws.close(4001, 'Unauthorized: Invalid token');
       return;
     }
@@ -75,7 +75,7 @@ export const broadcast = (event: string, data: Record<string, any> = {}) => {
     if (client.readyState === 1 /* OPEN */) {
       try {
         client.send(payload);
-      } catch (err: any) {
+      } catch {
         clients.delete(client);
       }
     }

@@ -447,7 +447,7 @@ import { formatMoney } from '@/utils/currency';
 import { useProductMeta } from '@/composables/useProductMeta';
 import BaseTable from '@/components/ui/BaseTable.vue';
 
-const { categories, units: productUnits, loadMeta, unitLabel, unitNames } = useProductMeta();
+const { categories, loadMeta, unitLabel, unitNames } = useProductMeta();
 
 const tab = ref('list');
 const importMsg = ref('');
@@ -800,7 +800,7 @@ const deleteOneProduct = async (product: any) => {
   }
 };
 
-const onInventoryUpdated = (e: any) => {
+const onInventoryUpdated = (_e: any) => {
   try {
     // If detail provided, we could optimize to only refresh affected product
     load();

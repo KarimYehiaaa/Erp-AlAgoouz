@@ -1,6 +1,5 @@
 import * as quotePdfService from '../services/quotePdfService.ts';
 import * as userService from '../services/userService.ts';
-import { AppError } from '../types/errors.ts';
 import { ok } from './helper.ts';
 
 export const quotes = {

@@ -449,9 +449,9 @@ const getProductReturns = async (filters: Record<string, any> = {}) => {
     WHERE sm.movement_type = 'return'
       AND sm.reference_type = 'product_return'`;
   const params: any[] = [];
-  let i = 1;
+  const i = 1;
   if (filters.product_id) {
-    sql += ` AND sm.product_id = $${i++}`;
+    sql += ` AND sm.product_id = $${i}`;
     params.push(filters.product_id);
   }
   sql += ` ORDER BY sm.created_at DESC LIMIT ${sanitizeLimit(filters.limit, 50)}`;

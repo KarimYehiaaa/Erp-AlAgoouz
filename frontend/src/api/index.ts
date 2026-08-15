@@ -19,8 +19,10 @@ api.interceptors.request.use((config: any) => {
 
 // Track refresh state to prevent multiple simultaneous refresh attempts
 let isRefreshing = false;
-let failedQueue: Array<{ resolve: (value: unknown) => void; reject: (reason?: unknown) => void }> =
-  [];
+let failedQueue: Array<{
+  resolve: (_value: unknown) => void;
+  reject: (_reason?: unknown) => void;
+}> = [];
 
 const processQueue = (error: any, token: any = null) => {
   failedQueue.forEach((prom: any) => {
@@ -30,7 +32,7 @@ const processQueue = (error: any, token: any = null) => {
   failedQueue = [];
 };
 
-import type { AxiosError, AxiosRequestConfig } from 'axios';
+import type { AxiosError } from 'axios';
 
 api.interceptors.response.use(
   (res: any) => res.data,

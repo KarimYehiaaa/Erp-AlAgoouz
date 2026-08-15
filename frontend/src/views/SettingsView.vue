@@ -881,15 +881,18 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
-import { users as userApi, products as productApi, backup as backupApi } from '@/api';
+import { users as userApi } from '@/api';
 import { CURRENCY } from '@/utils/currency';
-import { useProductMeta } from '@/composables/useProductMeta';
-
 import { useAuthStore } from '@/stores/auth';
 
-const { loadMeta: refreshMetaCache } = useProductMeta();
+import { useAudioSettings } from '@/composables/useAudioSettings';
+import { useCompanySettings } from '@/composables/useCompanySettings';
+import { useCategorySettings } from '@/composables/useCategorySettings';
+import { useUnitSettings } from '@/composables/useUnitSettings';
+import { useBackupSettings } from '@/composables/useBackupSettings';
+
 const authStore = useAuthStore();
 const canEdit = computed(() => authStore.hasPermission('settings.manage'));
 
@@ -904,390 +907,69 @@ const tabs = [
 ];
 const activeTab = ref('company');
 
-// ───── Audio & Shortcuts settings ─────
-const soundEnabled = ref(localStorage.getItem('sound_enabled') !== 'false');
-const soundVolume = ref(parseFloat(localStorage.getItem('sound_volume') || '0.08'));
-const shortcutsEnabled = ref(localStorage.getItem('shortcuts_enabled') !== 'false');
-
-const saveSettingsLocally = () => {
-  localStorage.setItem('sound_enabled', String(soundEnabled.value));
-  localStorage.setItem('sound_volume', String(soundVolume.value));
-  localStorage.setItem('shortcuts_enabled', String(shortcutsEnabled.value));
-  alert('✓ تم حفظ إعدادات النظام بنجاح!');
-};
-
-const playTestBeep = (type: any) => {
-  try {
-    const AudioCtx: typeof AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-    const audioCtx = new AudioCtx();
-    if (type === 'success') {
-      const osc1 = audioCtx.createOscillator();
-      const osc2 = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      osc1.connect(gain);
-      osc2.connect(gain);
-      gain.connect(audioCtx.destination);
-      osc1.frequency.setValueAtTime(523.25, audioCtx.currentTime);
-      osc2.frequency.setValueAtTime(659.25, audioCtx.currentTime);
-      gain.gain.setValueAtTime(soundVolume.value, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.25);
-      osc1.start();
-      osc2.start();
-      osc1.stop(audioCtx.currentTime + 0.25);
-      osc2.stop(audioCtx.currentTime + 0.25);
-    } else if (type === 'warning') {
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      osc.connect(gain);
-      gain.connect(audioCtx.destination);
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(220, audioCtx.currentTime);
-      gain.gain.setValueAtTime(soundVolume.value * 1.5, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
-      osc.start();
-      osc.stop(audioCtx.currentTime + 0.2);
-    } else if (type === 'error') {
-      const gain = audioCtx.createGain();
-      gain.connect(audioCtx.destination);
-      gain.gain.setValueAtTime(soundVolume.value * 2, audioCtx.currentTime);
-      const playTone = (freq: any, duration: any, delay: any) => {
-        const osc = audioCtx.createOscillator();
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(freq, audioCtx.currentTime + delay);
-        osc.connect(gain);
-        osc.start(audioCtx.currentTime + delay);
-        osc.stop(audioCtx.currentTime + delay + duration);
-      };
-      playTone(130, 0.1, 0);
-      playTone(130, 0.1, 0.12);
-      playTone(130, 0.15, 0.24);
-    }
-  } catch (err: any) {
-    console.error('Audio play failed:', err);
-  }
-};
-
-// ───── Company ─────
-const settings = ref({
-  company: { name_ar: '', phone: '', address: '', tagline: '' },
-  tax: { enabled: false, rate: 14 },
-});
-const saving = ref(false);
-const saveMsg = ref('');
-
-const saveCompany = async () => {
-  saving.value = true;
-  saveMsg.value = '';
-  try {
-    await userApi.updateSetting('company', settings.value.company);
-    saveMsg.value = 'تم الحفظ — سيظهر على الفواتير';
-    setTimeout(() => (saveMsg.value = ''), 3000);
-  } catch (e: any) {
-    saveMsg.value = e.message || 'فشل الحفظ';
-  } finally {
-    saving.value = false;
-  }
-};
-
-// ───── Categories ─────
-const categories = ref<any[]>([]);
-const newCategoryName = ref('');
-const categoryEditing = ref<any>(null);
-const editCategoryName = ref('');
-const categorySaving = ref(false);
-
-const refreshCategories = async () => {
-  try {
-    categories.value = (await productApi.categories())?.data || [];
-    await refreshMetaCache(true);
-  } catch {
-    categories.value = [];
-  }
-};
-const addCategory = async () => {
-  if (!newCategoryName.value.trim()) return;
-  categorySaving.value = true;
-  try {
-    await productApi.createCategory({ name_ar: newCategoryName.value.trim() });
-    newCategoryName.value = '';
-    await refreshCategories();
-  } catch (e: any) {
-    alert(e.message || 'فشل إضافة التصنيف');
-  } finally {
-    categorySaving.value = false;
-  }
-};
-const startEditCategory = (c: any) => {
-  categoryEditing.value = c.id;
-  editCategoryName.value = c.name_ar;
-};
-const cancelEditCategory = () => {
-  categoryEditing.value = null;
-  editCategoryName.value = '';
-};
-const saveCategory = async (c: any) => {
-  if (!editCategoryName.value.trim()) {
-    cancelEditCategory();
-    return;
-  }
-  categorySaving.value = true;
-  try {
-    await productApi.updateCategory(c.id, {
-      name_ar: editCategoryName.value.trim(),
-      slug: editCategoryName.value.trim().replace(/\s+/g, '-'),
-    });
-    cancelEditCategory();
-    await refreshCategories();
-  } catch (e: any) {
-    alert(e.message || 'فشل التعديل');
-  } finally {
-    categorySaving.value = false;
-  }
-};
-const deleteCategory = async (id: any) => {
-  if (!confirm('هل تريد حذف هذا التصنيف؟')) return;
-  categorySaving.value = true;
-  try {
-    await productApi.deleteCategory(id);
-    await refreshCategories();
-  } catch (e: any) {
-    alert(e.message || 'فشل الحذف');
-  } finally {
-    categorySaving.value = false;
-  }
-};
-
-// ───── Units ─────
-const productUnits = ref<any[]>([]);
-const newUnit = ref('');
-const unitSaving = ref(false);
-const unitEditing = ref<any>(null);
-const editUnitName = ref('');
-
-const refreshProductUnits = async () => {
-  try {
-    productUnits.value = (await productApi.units())?.data || [];
-    await refreshMetaCache(true);
-  } catch {
-    productUnits.value = [];
-  }
-};
-const addUnit = async () => {
-  if (!newUnit.value.trim()) return;
-  unitSaving.value = true;
-  try {
-    await productApi.createUnit({ name_ar: newUnit.value.trim() });
-    newUnit.value = '';
-    await refreshProductUnits();
-  } catch (e: any) {
-    alert(e.message || 'فشل إضافة الوحدة');
-  } finally {
-    unitSaving.value = false;
-  }
-};
-const startEditUnit = (u: any) => {
-  unitEditing.value = u.id;
-  editUnitName.value = u.name_ar;
-};
-const cancelEditUnit = () => {
-  unitEditing.value = null;
-  editUnitName.value = '';
-};
-const saveUnit = async (u: any) => {
-  if (!editUnitName.value.trim() || editUnitName.value === u.name_ar) {
-    cancelEditUnit();
-    return;
-  }
-  unitSaving.value = true;
-  try {
-    await productApi.updateUnit(u.id, { name_ar: editUnitName.value.trim() });
-    cancelEditUnit();
-    await refreshProductUnits();
-  } catch (e: any) {
-    alert(e.message || 'فشل التعديل');
-  } finally {
-    unitSaving.value = false;
-  }
-};
-const removeUnit = async (u: any) => {
-  if (!confirm(`هل تريد حذف وحدة "${u.name_ar}"؟`)) return;
-  unitSaving.value = true;
-  try {
-    await productApi.deleteUnit(u.id);
-    await refreshProductUnits();
-  } catch (e: any) {
-    alert(e.message || 'فشل الحذف');
-  } finally {
-    unitSaving.value = false;
-  }
-};
-
-// ───── Backup ─────
-const backups = ref<any[]>([]);
-const backupView = ref('cards');
-const backuping = ref(false);
-const clearing = ref(false);
-const uploading = ref(false);
-const restoreFile = ref<any>(null);
-
-// ───── Cloud Backup ─────
-const cloudBackupSettings = ref({
-  provider: 'none',
-  gdrive_auth_type: 'service_account',
-  gdrive_key: '',
-  gdrive_folder_id: '',
-  gdrive_client_id: '',
-  gdrive_client_secret: '',
-  gdrive_refresh_token: '',
-  dropbox_token: '',
-  dropbox_path: '/AlAgoouz-ERP-Backups',
-  webhook_url: '',
-});
-const cloudSaving = ref(false);
-const cloudTesting = ref(false);
-
-const saveCloudBackupSettings = async () => {
-  cloudSaving.value = true;
-  try {
-    await userApi.updateSetting('cloud_backup', cloudBackupSettings.value);
-    alert('تم حفظ إعدادات النسخ السحابي بنجاح');
-  } catch (e: any) {
-    alert(e.message || 'فشل حفظ إعدادات النسخ السحابي');
-  } finally {
-    cloudSaving.value = false;
-  }
-};
-
-const testCloudBackup = async () => {
-  cloudTesting.value = true;
-  try {
-    const res = (await backupApi.cloudTest(cloudBackupSettings.value)) as any;
-    if (res?.data?.success || res?.success) {
-      alert('✅ نجح الاتصال والرفع السحابي التجريبي!');
-    } else {
-      alert(`❌ فشل الرفع التجريبي: ${res?.message || 'خطأ غير معروف'}`);
-    }
-  } catch (e: any) {
-    alert(`❌ فشل الفحص: ${e.response?.data?.message || e.message}`);
-  } finally {
-    cloudTesting.value = false;
-  }
-};
-
-const sortedBackups = computed(() =>
-  [...backups.value].sort((a: any, b: any) => String(b.name).localeCompare(String(a.name))),
-);
-const latestBackup = computed(() => sortedBackups.value[0] || null);
-const totalBackupSize = computed(() =>
-  backups.value.reduce((s: any, b: any) => s + Number(b.size || 0), 0),
-);
-
-const formatBackupSize = (bytes = 0) => {
-  const v = Number(bytes || 0);
-  return v >= 1024 * 1024 ? `${(v / 1024 / 1024).toFixed(1)} MB` : `${(v / 1024).toFixed(1)} KB`;
-};
-const formatBackupDate = (name = '') => {
-  const m = String(name).match(/(\d{4})[-_](\d{2})[-_](\d{2})[T_ -](\d{2})[-_:](\d{2})/);
-  if (!m) return 'غير محدد';
-  return `${m[3]}/${m[2]}/${m[1]} ${m[4]}:${m[5]}`;
-};
-
-const refreshBackups = async () => {
-  try {
-    backups.value = (await backupApi.list())?.data || [];
-  } catch {
-    backups.value = [];
-  }
-};
-const createBackup = async () => {
-  backuping.value = true;
-  try {
-    await backupApi.create();
-    await refreshBackups();
-    alert('تم إنشاء النسخة الاحتياطية');
-  } catch (e: any) {
-    alert(e.message || 'فشل إنشاء النسخة');
-  } finally {
-    backuping.value = false;
-  }
-};
-const download = async (name: any) => {
-  try {
-    const res = (await backupApi.download(name)) as unknown as Blob;
-    const url = URL.createObjectURL(res);
-    const a = Object.assign(document.createElement('a'), { href: url, download: name });
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-  } catch (e: any) {
-    alert(e.message || 'فشل التحميل');
-  }
-};
-const restore = async (name: any) => {
-  if (!confirm('استرداد نسخة سيستبدل بيانات النظام. استمر؟')) return;
-  try {
-    await backupApi.restore(name);
-    alert('تم الاسترداد بنجاح');
-  } catch (e: any) {
-    alert(e.message || 'فشل الاسترداد');
-  }
-};
-const clearSystem = async () => {
-  const token = prompt('اكتب CONFIRM_CLEAR للتأكيد — هذا الإجراء لا يمكن التراجع عنه');
-  if (token !== 'CONFIRM_CLEAR') return;
-  clearing.value = true;
-  try {
-    await backupApi.clear({ confirm: 'CONFIRM_CLEAR' });
-    alert('تم تصفير النظام');
-  } catch (e: any) {
-    alert(e.message || 'فشل التصفير');
-  } finally {
-    clearing.value = false;
-  }
-};
-const onFileChange = (e: any) => {
-  restoreFile.value = e.target.files?.[0] || null;
-};
-const uploadRestore = async () => {
-  if (!restoreFile.value) return;
-  if (!confirm('استرداد من ملف سيستبدل بيانات النظام. استمر؟')) return;
-  uploading.value = true;
-  try {
-    await backupApi.restoreFile(restoreFile.value);
-    alert('تم الاسترداد من الملف');
-    await refreshBackups();
-  } catch (e: any) {
-    alert(e.message || 'فشل الاسترداد');
-  } finally {
-    uploading.value = false;
-  }
-};
+// ───── Sub-modules (composables) ─────
+const { soundEnabled, soundVolume, shortcutsEnabled, saveSettingsLocally, playTestBeep } =
+  useAudioSettings();
+const { settings, saving, saveMsg, saveCompany, loadCompanySettings } = useCompanySettings();
+const {
+  categories,
+  newCategoryName,
+  categoryEditing,
+  editCategoryName,
+  categorySaving,
+  refreshCategories,
+  addCategory,
+  startEditCategory,
+  cancelEditCategory,
+  saveCategory,
+  deleteCategory,
+} = useCategorySettings();
+const {
+  productUnits,
+  newUnit,
+  unitSaving,
+  unitEditing,
+  editUnitName,
+  refreshProductUnits,
+  addUnit,
+  startEditUnit,
+  cancelEditUnit,
+  saveUnit,
+  removeUnit,
+} = useUnitSettings();
+const {
+  backups,
+  backupView,
+  backuping,
+  clearing,
+  uploading,
+  restoreFile,
+  cloudBackupSettings,
+  cloudSaving,
+  cloudTesting,
+  loadBackupSettings,
+  saveCloudBackupSettings,
+  testCloudBackup,
+  sortedBackups,
+  latestBackup,
+  totalBackupSize,
+  formatBackupSize,
+  formatBackupDate,
+  refreshBackups,
+  createBackup,
+  download,
+  restore,
+  clearSystem,
+  onFileChange,
+  uploadRestore,
+} = useBackupSettings();
 
 // ───── Init ─────
 onMounted(async () => {
   try {
-    const res = await userApi.settings();
-    const data = res?.data || {};
-    settings.value.company = data.company || {
-      name_ar: 'بن العجوز',
-      phone: '',
-      address: '',
-      tagline: 'للبن التركي',
-    };
-    settings.value.tax = data.tax || { enabled: false, rate: 14 };
-    cloudBackupSettings.value = data.cloud_backup || {
-      provider: 'none',
-      gdrive_auth_type: 'service_account',
-      gdrive_key: '',
-      gdrive_folder_id: '',
-      gdrive_client_id: '',
-      gdrive_client_secret: '',
-      gdrive_refresh_token: '',
-      dropbox_token: '',
-      dropbox_path: '/AlAgoouz-ERP-Backups',
-      webhook_url: '',
-    };
+    const data = (await userApi.settings())?.data || {};
+    loadCompanySettings(data);
+    loadBackupSettings(data);
   } catch {
     /* offline */
   }

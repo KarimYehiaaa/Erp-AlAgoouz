@@ -19,14 +19,19 @@
         </div>
         <div class="cart-item-controls">
           <button class="qty-btn" @click="emit('decreaseQty', idx)" title="تقليل الكمية">−</button>
-          <input
-            v-model.number="item.quantity"
-            type="number"
-            min="0.1"
-            step="0.1"
-            class="qty-input"
-            @change="emit('validateQty', idx)"
-          />
+
+          <!-- 🔢 زر تعديل الكمية التفاعلي لفتح لوحة الأرقام (Numpad) -->
+          <button
+            type="button"
+            class="qty-display-btn"
+            @click="openNumpad(idx)"
+            title="انقر لتعديل الكمية أو الوزن بالجرام عبر لوحة الأرقام"
+          >
+            <span class="qty-num">{{ item.quantity }}</span>
+            <span class="qty-unit">{{ getWeightLabel(item.quantity) }}</span>
+            <span class="qty-edit-icon">✏️</span>
+          </button>
+
           <button class="qty-btn" @click="emit('increaseQty', idx)" title="زيادة الكمية">+</button>
           <button
             class="remove-btn"
@@ -238,11 +243,107 @@
         </div>
       </div>
     </form>
+
+    <!-- 🔢 On-Screen Numeric Keypad Modal (لوحة أرقام اللمس السريعة للوزن والجرامات) -->
+    <div v-if="numpadModal" class="modal numpad-modal-backdrop" @click.self="closeNumpad">
+      <div class="card modal-content numpad-modal-card">
+        <!-- Header -->
+        <div class="numpad-header">
+          <div class="numpad-title-wrap">
+            <span class="numpad-icon">⚖️</span>
+            <div>
+              <h4>تعديل الكمية والوزن</h4>
+              <p v-if="activeNumpadItem" class="numpad-prod-name">
+                {{ activeNumpadItem.name_ar }}
+                <span class="unit-price-tag"
+                  >({{ formatMoney(activeNumpadItem.unit_price) }} / كجم)</span
+                >
+              </p>
+            </div>
+          </div>
+          <button type="button" class="close-numpad-btn" @click="closeNumpad">✕</button>
+        </div>
+
+        <!-- Live Display Screen -->
+        <div class="numpad-display-screen">
+          <div class="display-val-row">
+            <span class="display-qty">{{ numpadValue || '0' }}</span>
+            <span class="display-unit">كجم</span>
+          </div>
+          <div class="display-helper-row">
+            <span class="weight-meaning">{{ getDetailedWeightMeaning(Number(numpadValue)) }}</span>
+            <span class="live-calculated-total">
+              الإجمالي:
+              <strong>{{
+                formatMoney((Number(numpadValue) || 0) * (activeNumpadItem?.unit_price || 0))
+              }}</strong>
+            </span>
+          </div>
+        </div>
+
+        <!-- Quick Weight Presets (أزرار أوزان البن الشائعة) -->
+        <div class="numpad-presets">
+          <button type="button" class="preset-btn" @click="setPresetWeight(0.125)">
+            1/8 كجم (125g)
+          </button>
+          <button type="button" class="preset-btn" @click="setPresetWeight(0.25)">
+            1/4 كجم (250g)
+          </button>
+          <button type="button" class="preset-btn" @click="setPresetWeight(0.5)">
+            1/2 كجم (500g)
+          </button>
+          <button type="button" class="preset-btn" @click="setPresetWeight(0.75)">
+            3/4 كجم (750g)
+          </button>
+          <button type="button" class="preset-btn highlight" @click="setPresetWeight(1)">
+            1 كجم (1000g)
+          </button>
+          <button type="button" class="preset-btn" @click="setPresetWeight(2)">2 كجم</button>
+        </div>
+
+        <!-- Numeric Keypad Grid (3x4) -->
+        <div class="numpad-grid">
+          <button type="button" class="num-key" @click="numpadPress('7')">7</button>
+          <button type="button" class="num-key" @click="numpadPress('8')">8</button>
+          <button type="button" class="num-key" @click="numpadPress('9')">9</button>
+
+          <button type="button" class="num-key" @click="numpadPress('4')">4</button>
+          <button type="button" class="num-key" @click="numpadPress('5')">5</button>
+          <button type="button" class="num-key" @click="numpadPress('6')">6</button>
+
+          <button type="button" class="num-key" @click="numpadPress('1')">1</button>
+          <button type="button" class="num-key" @click="numpadPress('2')">2</button>
+          <button type="button" class="num-key" @click="numpadPress('3')">3</button>
+
+          <button type="button" class="num-key clear-key" @click="numpadPress('C')" title="مسح">
+            C
+          </button>
+          <button type="button" class="num-key" @click="numpadPress('0')">0</button>
+          <button type="button" class="num-key dot-key" @click="numpadPress('.')">.</button>
+          <button
+            type="button"
+            class="num-key backspace-key"
+            @click="numpadPress('⌫')"
+            title="حذف رقم"
+          >
+            ⌫
+          </button>
+        </div>
+
+        <!-- Confirmation Actions -->
+        <div class="numpad-actions">
+          <button type="button" class="btn btn-outline" @click="closeNumpad">إلغاء (Esc)</button>
+          <button type="button" class="btn btn-primary confirm-btn" @click="confirmNumpad">
+            ✓ تأكيد الكمية (Enter)
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 
 const props = defineProps<{
   cart: any[];
@@ -276,6 +377,117 @@ const emit = defineEmits<{
 const discountInputRef = ref<HTMLInputElement | null>(null);
 const receivedInputRef = ref<HTMLInputElement | null>(null);
 const receivedAmount = ref<number | null>(null);
+
+// ─── 🔢 Numpad State & Logic ───
+const numpadModal = ref(false);
+const editingIndex = ref<number | null>(null);
+const numpadValue = ref('1');
+
+const activeNumpadItem = computed(() => {
+  if (editingIndex.value === null || !props.cart[editingIndex.value]) return null;
+  return props.cart[editingIndex.value];
+});
+
+const openNumpad = (idx: number) => {
+  editingIndex.value = idx;
+  numpadValue.value = String(props.cart[idx].quantity || 1);
+  numpadModal.value = true;
+};
+
+const closeNumpad = () => {
+  numpadModal.value = false;
+  editingIndex.value = null;
+};
+
+const numpadPress = (char: string) => {
+  if (char === 'C') {
+    numpadValue.value = '0';
+    return;
+  }
+  if (char === '⌫') {
+    if (numpadValue.value.length <= 1) {
+      numpadValue.value = '0';
+    } else {
+      numpadValue.value = numpadValue.value.slice(0, -1);
+    }
+    return;
+  }
+  if (char === '.') {
+    if (!numpadValue.value.includes('.')) {
+      numpadValue.value += '.';
+    }
+    return;
+  }
+  // Numbers 0-9
+  if (numpadValue.value === '0') {
+    numpadValue.value = char;
+  } else {
+    // Avoid unrealistically long decimals
+    if (numpadValue.value.length < 8) {
+      numpadValue.value += char;
+    }
+  }
+};
+
+const setPresetWeight = (qty: number) => {
+  numpadValue.value = String(qty);
+};
+
+const confirmNumpad = () => {
+  if (editingIndex.value !== null && props.cart[editingIndex.value]) {
+    const val = Math.max(0.001, parseFloat(numpadValue.value) || 1);
+    // Round to max 3 decimal places (grams)
+    const rounded = Math.round(val * 1000) / 1000;
+    props.cart[editingIndex.value].quantity = rounded;
+    emit('validateQty', editingIndex.value);
+  }
+  closeNumpad();
+};
+
+const getWeightLabel = (qty: number) => {
+  if (!qty) return 'وحدة';
+  if (qty < 1) {
+    const grams = Math.round(qty * 1000);
+    return `${grams} جم`;
+  }
+  return 'كجم/عدد';
+};
+
+const getDetailedWeightMeaning = (val: number) => {
+  if (!val || isNaN(val)) return '—';
+  if (val === 0.125) return '⚖️ 125 جرام (ثمن كيلو)';
+  if (val === 0.25) return '⚖️ 250 جرام (ربع كيلو)';
+  if (val === 0.5) return '⚖️ 500 جرام (نصف كيلو)';
+  if (val === 0.75) return '⚖️ 750 جرام (ثلاثة أرباع كيلو)';
+  if (val < 1) return `⚖️ ${Math.round(val * 1000)} جرام`;
+  return `⚖️ ${val} كجم`;
+};
+
+const handleNumpadKey = (e: KeyboardEvent) => {
+  if (!numpadModal.value) return;
+  if (e.key >= '0' && e.key <= '9') {
+    numpadPress(e.key);
+  } else if (e.key === '.' || e.key === ',') {
+    numpadPress('.');
+  } else if (e.key === 'Backspace') {
+    numpadPress('⌫');
+  } else if (e.key === 'Delete' || e.key === 'c' || e.key === 'C') {
+    numpadPress('C');
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    confirmNumpad();
+  } else if (e.key === 'Escape') {
+    closeNumpad();
+  }
+};
+
+onMounted(() => {
+  window.addEventListener('keydown', handleNumpadKey);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleNumpadKey);
+});
 
 /** حساب فئات النقود السريعة المقترحة تلقائياً */
 const quickBills = computed(() => {
@@ -450,15 +662,40 @@ defineExpose({
     }
   }
 
-  .qty-input {
-    width: 54px;
-    text-align: center;
-    padding: 3px;
-    border: 1px solid var(--border);
+  /* 🔢 Interactive Quantity Button that opens Numpad */
+  .qty-display-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    background: rgba(16, 185, 129, 0.08);
+    border: 1px solid rgba(16, 185, 129, 0.3);
     border-radius: 6px;
-    font-size: 0.85rem;
-    background: var(--bg-card);
-    color: var(--text);
+    cursor: pointer;
+    transition: all 0.15s ease;
+
+    &:hover {
+      background: rgba(16, 185, 129, 0.2);
+      border-color: var(--primary, #10b981);
+      transform: scale(1.03);
+    }
+
+    .qty-num {
+      font-weight: 850;
+      font-size: 0.92rem;
+      color: var(--primary, #10b981);
+    }
+
+    .qty-unit {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .qty-edit-icon {
+      font-size: 0.68rem;
+      opacity: 0.7;
+    }
   }
 
   .remove-btn {
@@ -849,6 +1086,229 @@ defineExpose({
       font-weight: 750;
       color: var(--accent);
     }
+  }
+}
+
+/* ── 🔢 Numpad Modal ── */
+.numpad-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(6px);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.numpad-modal-card {
+  width: 90%;
+  max-width: 420px;
+  background: var(--bg-card, #1e1e2d);
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+  border-radius: 16px;
+  padding: 18px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.numpad-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+
+  .numpad-title-wrap {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+
+    .numpad-icon {
+      font-size: 1.5rem;
+    }
+
+    h4 {
+      margin: 0;
+      font-size: 1.1rem;
+      font-weight: 850;
+      color: var(--text-strong, #ffffff);
+    }
+
+    .numpad-prod-name {
+      margin: 2px 0 0 0;
+      font-size: 0.84rem;
+      color: var(--primary, #10b981);
+      font-weight: 750;
+
+      .unit-price-tag {
+        color: var(--text-muted);
+        font-size: 0.78rem;
+        font-weight: 600;
+      }
+    }
+  }
+
+  .close-numpad-btn {
+    background: none;
+    border: none;
+    font-size: 1.2rem;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 2px 8px;
+    border-radius: 6px;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.08);
+      color: #ffffff;
+    }
+  }
+}
+
+.numpad-display-screen {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  .display-val-row {
+    display: flex;
+    justify-content: flex-end;
+    align-items: baseline;
+    gap: 8px;
+
+    .display-qty {
+      font-size: 2.2rem;
+      font-weight: 900;
+      color: var(--primary, #10b981);
+      font-family: monospace;
+      letter-spacing: 1px;
+    }
+
+    .display-unit {
+      font-size: 0.95rem;
+      color: var(--text-muted);
+      font-weight: 700;
+    }
+  }
+
+  .display-helper-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 1px dashed rgba(255, 255, 255, 0.08);
+    padding-top: 6px;
+    font-size: 0.82rem;
+
+    .weight-meaning {
+      color: #f59e0b;
+      font-weight: 750;
+    }
+
+    .live-calculated-total {
+      color: var(--text-muted);
+
+      strong {
+        color: #ffffff;
+        font-weight: 800;
+      }
+    }
+  }
+}
+
+.numpad-presets {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+
+  .preset-btn {
+    padding: 8px 4px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    color: var(--text, #e2e8f0);
+    font-size: 0.78rem;
+    font-weight: 750;
+    cursor: pointer;
+    transition: all 0.15s ease;
+
+    &:hover {
+      background: rgba(16, 185, 129, 0.15);
+      border-color: var(--primary, #10b981);
+      color: var(--primary, #10b981);
+    }
+
+    &.highlight {
+      background: rgba(16, 185, 129, 0.1);
+      border-color: rgba(16, 185, 129, 0.3);
+      color: var(--primary, #10b981);
+    }
+  }
+}
+
+.numpad-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+
+  .num-key {
+    height: 48px;
+    background: var(--bg, #171723);
+    border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+    border-radius: 10px;
+    font-size: 1.3rem;
+    font-weight: 850;
+    color: #ffffff;
+    cursor: pointer;
+    transition: all 0.1s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.2);
+      transform: translateY(-1px);
+    }
+
+    &:active {
+      transform: translateY(1px);
+      background: var(--primary, #10b981);
+      color: #ffffff;
+    }
+
+    &.clear-key {
+      color: #ef4444;
+      background: rgba(239, 68, 68, 0.08);
+      border-color: rgba(239, 68, 68, 0.2);
+    }
+
+    &.backspace-key {
+      color: #f59e0b;
+      background: rgba(245, 158, 11, 0.08);
+      border-color: rgba(245, 158, 11, 0.2);
+    }
+
+    &.dot-key {
+      font-weight: 900;
+    }
+  }
+}
+
+.numpad-actions {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 10px;
+  margin-top: 4px;
+
+  .confirm-btn {
+    padding: 12px;
+    font-size: 0.95rem;
+    font-weight: 850;
+    border-radius: 10px;
   }
 }
 

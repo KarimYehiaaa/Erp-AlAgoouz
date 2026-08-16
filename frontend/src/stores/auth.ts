@@ -89,12 +89,18 @@ export const useAuthStore = defineStore('auth', () => {
     }
   };
 
+  const isCashier = computed(() => {
+    const role = user.value?.role_name || (user.value as any)?.role;
+    return role === 'cashier';
+  });
+
   return {
     user,
     token,
     permissions,
     profileLoaded,
     isAuthenticated,
+    isCashier,
     hasPermission,
     login,
     logout,

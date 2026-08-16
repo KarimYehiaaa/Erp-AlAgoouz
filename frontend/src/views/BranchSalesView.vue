@@ -1,7 +1,7 @@
 <template>
   <div class="branch-sales-page">
-    <!-- Header -->
-    <div class="page-header card">
+    <!-- Header (Admin/Manager only) -->
+    <div v-if="!authStore.isCashier" class="page-header card">
       <div class="header-title">
         <span class="header-icon">🏪</span>
         <div>
@@ -249,8 +249,11 @@ import { formatMoney } from '@/utils/currency';
 import { parseLocalizedNumber } from '@/utils/numberParsing';
 import { useProductMeta } from '@/composables/useProductMeta';
 import { useAppStore } from '@/stores/app';
+import { useAuthStore } from '@/stores/auth';
 import { localDb } from '@/services/localDb';
 import { directPrinter } from '@/services/directPrinter';
+
+const authStore = useAuthStore();
 
 // ─── helpers ───────────────────────────────────────────────────────────────
 const localTodayYmd = () => {

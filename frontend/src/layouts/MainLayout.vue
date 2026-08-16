@@ -1,14 +1,24 @@
 <template>
   <div
     class="layout"
-    :class="{ 'sidebar-collapsed': !appStore.sidebarOpen }"
+    :class="{
+      'sidebar-collapsed': !appStore.sidebarOpen,
+      'cashier-layout': authStore.isCashier,
+    }"
     :data-route="route.name"
   >
-    <AppSidebar />
-    <div v-if="appStore.sidebarOpen" class="sidebar-overlay" @click="appStore.toggleSidebar"></div>
-    <div class="layout-main">
-      <AppNavbar />
-      <main class="layout-content">
+    <template v-if="!authStore.isCashier">
+      <AppSidebar />
+      <div
+        v-if="appStore.sidebarOpen"
+        class="sidebar-overlay"
+        @click="appStore.toggleSidebar"
+      ></div>
+    </template>
+    <div class="layout-main" :class="{ 'cashier-main': authStore.isCashier }">
+      <CashierHeader v-if="authStore.isCashier" />
+      <AppNavbar v-else />
+      <main class="layout-content" :class="{ 'cashier-content': authStore.isCashier }">
         <ErrorBoundary>
           <router-view v-slot="{ Component }">
             <transition name="fade-slide" mode="out-in">
@@ -18,8 +28,8 @@
         </ErrorBoundary>
       </main>
     </div>
-    <CommandPalette />
-    <NotificationDrawer />
+    <CommandPalette v-if="!authStore.isCashier" />
+    <NotificationDrawer v-if="!authStore.isCashier" />
 
     <!-- Global Premium Toasts Container -->
     <ToastContainer />
@@ -309,13 +319,16 @@ import { ref, onMounted, onBeforeUnmount, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import AppSidebar from '@/components/AppSidebar.vue';
 import AppNavbar from '@/components/AppNavbar.vue';
+import CashierHeader from '@/components/CashierHeader.vue';
 import CommandPalette from '@/components/CommandPalette.vue';
 import NotificationDrawer from '@/components/NotificationDrawer.vue';
 import ToastContainer from '@/components/ui/ToastContainer.vue';
 import ErrorBoundary from '@/components/ui/ErrorBoundary.vue';
 import { useAppStore } from '@/stores/app';
+import { useAuthStore } from '@/stores/auth';
 
 const appStore = useAppStore();
+const authStore = useAuthStore();
 const router = useRouter();
 const route = useRoute();
 const showShortcutsHUD = ref(false);
@@ -524,6 +537,21 @@ onBeforeUnmount(() => {
   }
   to {
     opacity: 1;
+  }
+}
+
+/* ── Cashier Layout ── */
+.cashier-layout {
+  .layout-main.cashier-main {
+    margin-right: 0 !important;
+    width: 100vw !important;
+    max-width: 100vw !important;
+    min-height: 100vh;
+  }
+  .layout-content.cashier-content {
+    padding: 16px !important;
+    max-width: 100vw !important;
+    min-height: calc(100vh - 64px);
   }
 }
 </style>

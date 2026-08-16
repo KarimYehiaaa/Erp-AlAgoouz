@@ -169,14 +169,27 @@ router.beforeEach(async (to: any, _from: any, next: any) => {
   }
 
   if (to.meta.requiresAuth && !auth.isAuthenticated) return next('/login');
-  if (to.meta.guest && auth.isAuthenticated) return next('/');
+  if (to.meta.guest && auth.isAuthenticated) {
+    return next(auth.isCashier ? '/branch-sales' : '/');
+  }
+
+  // ─── حماية وتوجيه الكاشير التلقائي ───
+  if (auth.isAuthenticated && auth.isCashier) {
+    if (to.path === '/' || to.name === 'Dashboard') {
+      return next('/branch-sales');
+    }
+    // السماح فقط لشاشة مبيعات الفرع وتسجيل الدخول
+    if (to.path !== '/branch-sales') {
+      return next('/branch-sales');
+    }
+  }
 
   if (to.meta.permission && auth.isAuthenticated) {
     const hasPerm = Array.isArray(to.meta.permission)
       ? to.meta.permission.some((p: any) => auth.hasPermission(p))
       : auth.hasPermission(to.meta.permission as string);
     if (!hasPerm) {
-      return next('/');
+      return next(auth.isCashier ? '/branch-sales' : '/');
     }
   }
 

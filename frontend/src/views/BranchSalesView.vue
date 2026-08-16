@@ -45,6 +45,37 @@
         <span class="pill-label">آخر فاتورة:</span>
         <strong class="pill-val">{{ lastSaleTime }}</strong>
       </div>
+
+      <!-- Quick Action Tools -->
+      <div class="pos-quick-tools">
+        <button
+          type="button"
+          class="tool-pill-btn"
+          @click="returnsModal = true"
+          title="استعراض فواتير اليوم وعمل المرتجعات السريعة"
+        >
+          <span>↩️ فواتير ومرتجع اليوم</span>
+        </button>
+
+        <button
+          v-if="lastSavedSale || salesHistory.length"
+          type="button"
+          class="tool-pill-btn"
+          @click="reprintLastSale"
+          title="إعادة طباعة آخر فاتورة تم حفظها (F8)"
+        >
+          <span>🖨️ إعادة طباعة (F8)</span>
+        </button>
+
+        <button
+          type="button"
+          class="tool-pill-btn"
+          @click="shortcutsModal = true"
+          title="دليل اختصارات لوحة المفاتيح (F1)"
+        >
+          <span>⌨️ الاختصارات (F1)</span>
+        </button>
+      </div>
     </div>
 
     <!-- Stats Row (Admin/Manager) -->
@@ -52,6 +83,37 @@
       <StatCard label="مبيعات اليوم" :value="todayTotal" icon="coins" />
       <StatCard label="عدد الفواتير اليوم" :value="todayCount" icon="receipt" format="number" />
       <StatCard label="آخر عملية بيع" :value="lastSaleTime" icon="clock" format="text" />
+    </div>
+
+    <!-- ⏸️ Held Orders Ribbon (شريط الطلبات المعلقة) -->
+    <div v-if="heldOrders.length" class="held-orders-bar">
+      <div class="held-bar-header">
+        <span class="held-icon">⏸️</span>
+        <span class="held-title">الطلبات المعلقة ({{ heldOrders.length }}):</span>
+      </div>
+      <div class="held-orders-list">
+        <div
+          v-for="held in heldOrders"
+          :key="held.id"
+          class="held-card"
+          @click="resumeHeldOrder(held)"
+          title="اضغط لاستئناف هذا الطلب في السلة فوراً"
+        >
+          <div class="held-meta">
+            <span class="held-time">🕒 {{ held.time }}</span>
+            <span class="held-count">{{ held.items_count }} صنف</span>
+          </div>
+          <strong class="held-total">{{ formatMoney(held.total) }}</strong>
+          <button
+            type="button"
+            class="held-remove-btn"
+            @click.stop="deleteHeldOrder(held.id)"
+            title="حذف هذا الطلب المعلق نهائياً"
+          >
+            ✕
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- Manual Entry Mode -->
@@ -100,6 +162,7 @@
 
         <!-- Cart & Form Panel -->
         <CartPanel
+          ref="cartPanelRef"
           :cart="cart"
           :sale-form="saleForm"
           :recommended-items="recommendedItems"
@@ -119,6 +182,7 @@
           @add-recommended="addRecommendedToCart"
           @submit-sale="submitManualSale"
           @clear-cart="clearCart"
+          @hold-order="holdCurrentOrder"
           @select-printer="selectPrinter"
           @print-last="printReceipt"
         />
@@ -174,6 +238,139 @@
         <div class="modal-actions">
           <button class="btn btn-outline" @click="countsModal = false">إلغاء</button>
           <button class="btn btn-primary" @click="submitCounts">تنفيذ الخصم</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ⌨️ Shortcuts Help Modal (F1) -->
+    <div v-if="shortcutsModal" class="modal" @click.self="shortcutsModal = false">
+      <div class="card modal-content shortcuts-modal">
+        <div class="modal-header-row">
+          <h3>⌨️ دليل اختصارات لوحة المفاتيح للكاشير</h3>
+          <button type="button" class="close-modal-btn" @click="shortcutsModal = false">✕</button>
+        </div>
+        <div class="shortcuts-grid">
+          <div class="shortcut-item">
+            <kbd class="key-badge">F1</kbd>
+            <span>فتح وإغلاق دليل الاختصارات</span>
+          </div>
+          <div class="shortcut-item">
+            <kbd class="key-badge">F2</kbd>
+            <span>تعليق الطلب الحالي (Hold Order)</span>
+          </div>
+          <div class="shortcut-item">
+            <kbd class="key-badge">F4</kbd>
+            <span>التركيز على حقل الخصم</span>
+          </div>
+          <div class="shortcut-item">
+            <kbd class="key-badge">F7</kbd>
+            <span>التركيز على بحث المنتجات بالاسم أو الباركود</span>
+          </div>
+          <div class="shortcut-item">
+            <kbd class="key-badge">F8</kbd>
+            <span>إعادة طباعة آخر فاتورة تم حفظها</span>
+          </div>
+          <div class="shortcut-item">
+            <kbd class="key-badge">F9</kbd>
+            <span>تفعيل الدفع النقدي (كاش) وحاسبة الباقي</span>
+          </div>
+          <div class="shortcut-item">
+            <kbd class="key-badge">F10</kbd>
+            <span>تفعيل الدفع بالبطاقة (فيزا / شبكة)</span>
+          </div>
+          <div class="shortcut-item">
+            <kbd class="key-badge">F11</kbd>
+            <span>تبديل وضع ملء الشاشة (Kiosk Mode)</span>
+          </div>
+          <div class="shortcut-item">
+            <kbd class="key-badge">Enter</kbd>
+            <span>حفظ عملية البيع والطباعة الفورية</span>
+          </div>
+          <div class="shortcut-item">
+            <kbd class="key-badge">Esc</kbd>
+            <span>إغلاق النوافذ المنبثقة</span>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button class="btn btn-primary" @click="shortcutsModal = false">فهمت، إغلاق (Esc)</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ↩️ Returns & Today's Invoices Modal -->
+    <div v-if="returnsModal" class="modal" @click.self="returnsModal = false">
+      <div class="card modal-content returns-modal">
+        <div class="modal-header-row">
+          <h3>↩️ فواتير اليوم والمرتجع السريع</h3>
+          <button type="button" class="close-modal-btn" @click="returnsModal = false">✕</button>
+        </div>
+
+        <div class="returns-search-box">
+          <span class="search-icon">🔍</span>
+          <input
+            v-model="returnInvoiceSearch"
+            type="text"
+            placeholder="ابحث برقم الفاتورة أو المبلغ أو رقم البيع..."
+            class="returns-search-input"
+          />
+        </div>
+
+        <div class="returns-table-wrap">
+          <table class="history-table">
+            <thead>
+              <tr>
+                <th>رقم البيع</th>
+                <th>الوقت</th>
+                <th>الأصناف</th>
+                <th>الإجمالي</th>
+                <th>الدفع</th>
+                <th>الحالة</th>
+                <th>إجراءات</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="sale in filteredInvoicesForReturn" :key="sale.id">
+                <td class="sale-number">{{ sale.sale_number || `#${sale.id}` }}</td>
+                <td>{{ formatDate(sale.sale_date) }}</td>
+                <td>{{ sale.items_count || 0 }} منتج</td>
+                <td class="amount">{{ formatMoney(sale.total_amount) }}</td>
+                <td>
+                  <span :class="paymentBadge(sale.payment_status)">{{
+                    paymentLabel(sale.payment_status)
+                  }}</span>
+                </td>
+                <td>
+                  <span :class="statusBadge(sale.status)">{{ statusLabel(sale.status) }}</span>
+                </td>
+                <td class="actions-cell">
+                  <button
+                    type="button"
+                    class="btn-sm btn-outline"
+                    @click="printReceipt(sale)"
+                    title="طباعة إيصال الفاتورة"
+                  >
+                    🖨️ طباعة
+                  </button>
+                  <button
+                    v-if="sale.status === 'completed' && !sale.offline_id"
+                    type="button"
+                    class="btn-sm btn-danger"
+                    @click="returnSale(sale)"
+                    title="عمل استرداد / مرتجع وإعادة المخزون"
+                  >
+                    ↩️ مرتجع
+                  </button>
+                </td>
+              </tr>
+              <tr v-if="!filteredInvoicesForReturn.length">
+                <td colspan="7" class="empty">لا توجد فواتير مطابقة لبحثك</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="modal-actions">
+          <button class="btn btn-outline" @click="returnsModal = false">إغلاق</button>
         </div>
       </div>
     </div>
@@ -310,6 +507,7 @@ const printerName = ref(directPrinter.getSelectedPrinterName() || '');
 const lastSavedSale = ref<any>(null);
 
 const productsPanelRef = ref<InstanceType<typeof ProductsPanel> | null>(null);
+const cartPanelRef = ref<InstanceType<typeof CartPanel> | null>(null);
 const companySettings = ref({
   name_ar: 'بن العجوز',
   phone: '',
@@ -382,21 +580,149 @@ const playBeep = (type = 'success') => {
     console.error('Audio play failed:', err);
   }
 };
+const shortcutsModal = ref(false);
+const returnsModal = ref(false);
+const returnInvoiceSearch = ref('');
 
-const handleGlobalKeyDown = (e: any) => {
+// ─── ⏸️ Held Orders (الطلبات المعلقة) ───
+const HELD_ORDERS_KEY = 'pos_held_orders';
+const heldOrders = ref<any[]>([]);
+
+const loadHeldOrders = () => {
+  try {
+    const raw = localStorage.getItem(HELD_ORDERS_KEY);
+    if (raw) {
+      heldOrders.value = JSON.parse(raw);
+    }
+  } catch (err) {
+    console.error('Failed to load held orders', err);
+    heldOrders.value = [];
+  }
+};
+
+const saveHeldOrders = () => {
+  try {
+    localStorage.setItem(HELD_ORDERS_KEY, JSON.stringify(heldOrders.value));
+  } catch (err) {
+    console.error('Failed to save held orders', err);
+  }
+};
+
+const holdCurrentOrder = () => {
+  if (!cart.value.length) {
+    appStore.addToast('السلة فارغة، لا يوجد طلب لتعليقه', 'warning');
+    playBeep('warning');
+    return;
+  }
+  const now = new Date();
+  const heldItem = {
+    id: 'hold_' + Date.now(),
+    items: JSON.parse(JSON.stringify(cart.value)),
+    discount_amount: saleForm.value.discount_amount,
+    payment_method: saleForm.value.payment_method,
+    total: cartTotal.value,
+    items_count: cart.value.length,
+    time: now.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }),
+  };
+  heldOrders.value.unshift(heldItem);
+  saveHeldOrders();
+  clearCart();
+  playBeep('click');
+  appStore.addToast(`تم تعليق الطلب (${heldItem.items_count} صنف) بنجاح ⏸️`, 'success');
+};
+
+const resumeHeldOrder = (held: any) => {
+  if (cart.value.length > 0) {
+    if (!window.confirm('توجد أصناف حالية في السلة. هل تريد استبدالها بالطلب المعلق؟')) {
+      return;
+    }
+  }
+  cart.value = JSON.parse(JSON.stringify(held.items));
+  saleForm.value.discount_amount = held.discount_amount || 0;
+  saleForm.value.payment_method = held.payment_method || 'cash';
+  heldOrders.value = heldOrders.value.filter((h: any) => h.id !== held.id);
+  saveHeldOrders();
+  playBeep('success');
+  appStore.addToast('تم استرجاع الطلب المعلق للسلة بنجاح 🛒', 'success');
+};
+
+const deleteHeldOrder = (heldId: string) => {
+  if (window.confirm('هل أنت متأكد من حذف هذا الطلب المعلق نهائياً؟')) {
+    heldOrders.value = heldOrders.value.filter((h: any) => h.id !== heldId);
+    saveHeldOrders();
+    playBeep('warning');
+    appStore.addToast('تم حذف الطلب المعلق', 'info');
+  }
+};
+
+// ─── 🧾 Invoices Filter & Quick Reprint ───
+const filteredInvoicesForReturn = computed(() => {
+  if (!returnInvoiceSearch.value.trim()) return salesHistory.value;
+  const q = returnInvoiceSearch.value.trim().toLowerCase();
+  return salesHistory.value.filter(
+    (s: any) =>
+      String(s.id).includes(q) ||
+      String(s.sale_number || '')
+        .toLowerCase()
+        .includes(q) ||
+      String(s.total_amount || '').includes(q),
+  );
+});
+
+const reprintLastSale = () => {
+  if (lastSavedSale.value) {
+    printReceipt(lastSavedSale.value);
+    return;
+  }
+  if (salesHistory.value.length > 0) {
+    printReceipt(salesHistory.value[0]);
+    return;
+  }
+  appStore.addToast('لا توجد فاتورة سابقة لإعادة طباعتها', 'warning');
+  playBeep('warning');
+};
+
+// ─── ⌨️ Global POS Shortcuts Listener ───
+const handleGlobalKeyDown = (e: KeyboardEvent) => {
   const shortcutsEnabled = localStorage.getItem('shortcuts_enabled') !== 'false';
   if (!shortcutsEnabled) return;
 
-  if (e.key === 'F2') {
+  if (e.key === 'F1') {
     e.preventDefault();
-    submitManualSale();
+    shortcutsModal.value = !shortcutsModal.value;
+  } else if (e.key === 'F2') {
+    e.preventDefault();
+    if (cart.value.length > 0) {
+      holdCurrentOrder();
+    } else if (heldOrders.value.length > 0) {
+      resumeHeldOrder(heldOrders.value[0]);
+    } else {
+      appStore.addToast('السلة فارغة، ولا توجد طلبات معلقة', 'warning');
+    }
   } else if (e.key === 'F4') {
     e.preventDefault();
-    clearCart();
-    playBeep('warning');
+    cartPanelRef.value?.focusDiscount();
   } else if (e.key === 'F7') {
     e.preventDefault();
     productsPanelRef.value?.focusSearch();
+  } else if (e.key === 'F8') {
+    e.preventDefault();
+    reprintLastSale();
+  } else if (e.key === 'F9') {
+    e.preventDefault();
+    saleForm.value.payment_method = 'cash';
+    cartPanelRef.value?.focusReceived();
+    playBeep('click');
+  } else if (e.key === 'F10') {
+    e.preventDefault();
+    saleForm.value.payment_method = 'card';
+    playBeep('click');
+  } else if (e.key === 'Escape') {
+    if (shortcutsModal.value || returnsModal.value || countsModal.value) {
+      shortcutsModal.value = false;
+      returnsModal.value = false;
+      countsModal.value = false;
+    }
   }
 };
 
@@ -931,6 +1257,7 @@ const onInventoryUpdated = (_e: any) => {
 onMounted(async () => {
   loadProducts();
   loadHistory();
+  loadHeldOrders();
   window.addEventListener('inventory-updated', onInventoryUpdated);
   window.addEventListener('keydown', handleGlobalKeyDown);
 
@@ -1079,6 +1406,7 @@ const submitCounts = async () => {
   border-radius: var(--radius-md, 10px);
   margin-bottom: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  flex-wrap: wrap;
 
   .stat-pill {
     display: flex;
@@ -1107,6 +1435,117 @@ const submitCounts = async () => {
       }
     }
   }
+
+  .pos-quick-tools {
+    margin-right: auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+
+    .tool-pill-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 10px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 20px;
+      color: var(--text, #e2e8f0);
+      font-size: 0.78rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s ease;
+
+      &:hover {
+        background: rgba(16, 185, 129, 0.15);
+        border-color: var(--primary, #10b981);
+        color: var(--primary, #10b981);
+        transform: translateY(-1px);
+      }
+    }
+  }
+}
+
+/* ⏸️ Held Orders Ribbon */
+.held-orders-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px dashed rgba(245, 158, 11, 0.35);
+  padding: 8px 14px;
+  border-radius: var(--radius-md, 10px);
+  margin-bottom: 12px;
+
+  .held-bar-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.84rem;
+    font-weight: 800;
+    color: #f59e0b;
+    white-space: nowrap;
+  }
+
+  .held-orders-list {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    scrollbar-width: thin;
+    padding: 2px 0;
+
+    .held-card {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--bg-card);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      padding: 4px 10px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+
+      &:hover {
+        border-color: #f59e0b;
+        background: rgba(245, 158, 11, 0.15);
+        transform: translateY(-1px);
+      }
+
+      .held-meta {
+        display: flex;
+        flex-direction: column;
+        font-size: 0.72rem;
+        color: var(--text-muted);
+
+        .held-time {
+          font-weight: 600;
+        }
+      }
+
+      .held-total {
+        font-size: 0.88rem;
+        font-weight: 850;
+        color: var(--primary, #10b981);
+      }
+
+      .held-remove-btn {
+        background: none;
+        border: none;
+        color: var(--text-muted);
+        cursor: pointer;
+        font-size: 0.75rem;
+        padding: 2px 4px;
+        border-radius: 4px;
+
+        &:hover {
+          color: #ef4444;
+          background: rgba(239, 68, 68, 0.1);
+        }
+      }
+    }
+  }
 }
 
 /* Main grid — إعطاء الأولوية لمساحة المنتجات بنسبة واسعة وتنسيق السلة كشريط جانبي مدمج */
@@ -1128,6 +1567,112 @@ const submitCounts = async () => {
   .main-grid {
     grid-template-columns: 1fr;
     gap: 16px;
+  }
+}
+
+/* Modal Headers & Tools */
+.modal-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+
+  h3 {
+    margin: 0;
+    color: var(--primary-dark);
+    font-size: 1.1rem;
+    font-weight: 850;
+  }
+
+  .close-modal-btn {
+    background: none;
+    border: none;
+    font-size: 1.1rem;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 6px;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text);
+    }
+  }
+}
+
+.shortcuts-modal {
+  max-width: 600px;
+}
+
+.shortcuts-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 16px;
+
+  .shortcut-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--bg);
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 0.82rem;
+
+    .key-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 36px;
+      padding: 3px 6px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-family: monospace;
+      font-weight: 850;
+      color: var(--primary, #10b981);
+      box-shadow: 0 2px 0 rgba(0, 0, 0, 0.2);
+    }
+  }
+}
+
+.returns-modal {
+  max-width: 860px;
+
+  .returns-search-box {
+    position: relative;
+    margin-bottom: 12px;
+
+    .search-icon {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+    }
+
+    .returns-search-input {
+      width: 100%;
+      padding: 8px 36px 8px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--bg);
+      font-size: 0.88rem;
+    }
+  }
+
+  .returns-table-wrap {
+    max-height: 50vh;
+    overflow-y: auto;
+  }
+
+  .actions-cell {
+    display: flex;
+    gap: 6px;
+    align-items: center;
   }
 }
 

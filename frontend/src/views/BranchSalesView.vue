@@ -28,8 +28,27 @@
       </div>
     </div>
 
-    <!-- Stats Row -->
-    <div class="grid grid-3 stats-row">
+    <!-- Compact POS Ribbon for Cashier -->
+    <div v-if="authStore.isCashier" class="cashier-compact-bar">
+      <div class="stat-pill">
+        <span class="pill-icon">💰</span>
+        <span class="pill-label">مبيعات اليوم:</span>
+        <strong class="pill-val highlight">{{ formatMoney(todayTotal) }}</strong>
+      </div>
+      <div class="stat-pill">
+        <span class="pill-icon">🧾</span>
+        <span class="pill-label">الفواتير:</span>
+        <strong class="pill-val">{{ todayCount }}</strong>
+      </div>
+      <div v-if="lastSaleTime && lastSaleTime !== '—'" class="stat-pill">
+        <span class="pill-icon">⏰</span>
+        <span class="pill-label">آخر فاتورة:</span>
+        <strong class="pill-val">{{ lastSaleTime }}</strong>
+      </div>
+    </div>
+
+    <!-- Stats Row (Admin/Manager) -->
+    <div v-else class="grid grid-3 stats-row">
       <StatCard label="مبيعات اليوم" :value="todayTotal" icon="coins" />
       <StatCard label="عدد الفواتير اليوم" :value="todayCount" icon="receipt" format="number" />
       <StatCard label="آخر عملية بيع" :value="lastSaleTime" icon="clock" format="text" />
@@ -1047,6 +1066,47 @@ const submitCounts = async () => {
 /* Stats */
 .stats-row {
   margin-bottom: 4px;
+}
+
+/* Compact Cashier Stats Ribbon */
+.cashier-compact-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--bg-card, #1e1e2d);
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+  padding: 6px 14px;
+  border-radius: var(--radius-md, 10px);
+  margin-bottom: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+
+  .stat-pill {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 0.82rem;
+
+    .pill-icon {
+      font-size: 0.9rem;
+    }
+    .pill-label {
+      color: var(--text-muted, #94a3b8);
+      font-weight: 600;
+    }
+    .pill-val {
+      color: var(--text-strong, #ffffff);
+      font-weight: 750;
+
+      &.highlight {
+        color: var(--primary, #10b981);
+        font-weight: 850;
+      }
+    }
+  }
 }
 
 /* Main grid — إعطاء الأولوية لمساحة المنتجات بنسبة واسعة وتنسيق السلة كشريط جانبي مدمج */

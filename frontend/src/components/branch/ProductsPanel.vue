@@ -1,45 +1,52 @@
 <template>
   <div class="card products-panel" :class="{ 'mobile-hidden': activeTab !== 'products' }">
-    <div class="panel-header">
-      <h3>🛍️ منتجات الفرع</h3>
-      <div class="panel-filters">
+    <!-- Unified POS Filter & Category Ribbon -->
+    <div class="pos-filter-bar">
+      <div class="search-box">
+        <span class="search-icon">🔍</span>
         <input
           ref="searchInputRef"
           :value="productSearch"
           type="text"
-          placeholder="بحث عن منتج... (F7)"
+          placeholder="ابحث عن صنف بالاسم أو الباركود... (F7)"
           class="search-input"
           @input="onSearch"
         />
-        <select :value="selectedCategory" @change="onCategory($event)" class="category-select">
-          <option value="">كل التصنيفات</option>
-          <option v-for="cat in categories" :key="cat.id" :value="cat.id">
-            {{ cat.name_ar }}
-          </option>
-        </select>
+        <button
+          v-if="productSearch"
+          type="button"
+          class="clear-search-btn"
+          @click="
+            emit('update:productSearch', '');
+            emit('filter');
+          "
+          title="مسح البحث"
+        >
+          ✕
+        </button>
       </div>
-    </div>
 
-    <!-- Category Interactive Pills Bar -->
-    <div v-if="categories.length" class="category-pills-bar">
-      <button
-        type="button"
-        class="pill-btn"
-        :class="{ active: !selectedCategory }"
-        @click="selectCategory('')"
-      >
-        ✨ الكل
-      </button>
-      <button
-        v-for="cat in categories"
-        :key="cat.id"
-        type="button"
-        class="pill-btn"
-        :class="{ active: String(selectedCategory) === String(cat.id) }"
-        @click="selectCategory(cat.id)"
-      >
-        {{ cat.name_ar }}
-      </button>
+      <!-- Category Interactive Pills Bar -->
+      <div v-if="categories.length" class="category-pills-bar">
+        <button
+          type="button"
+          class="pill-btn"
+          :class="{ active: !selectedCategory }"
+          @click="selectCategory('')"
+        >
+          ✨ الكل
+        </button>
+        <button
+          v-for="cat in categories"
+          :key="cat.id"
+          type="button"
+          class="pill-btn"
+          :class="{ active: String(selectedCategory) === String(cat.id) }"
+          @click="selectCategory(cat.id)"
+        >
+          {{ cat.name_ar }}
+        </button>
+      </div>
     </div>
 
     <!-- Premium Skeletons for Product Grid Loading -->
@@ -181,30 +188,61 @@ defineExpose({
 <style lang="scss" scoped>
 /* Products Panel */
 .products-panel {
-  .panel-header {
+  .pos-filter-bar {
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    margin-bottom: 16px;
-    h3 {
-      margin: 0;
-      color: var(--primary-dark);
-    }
-    .panel-filters {
+    gap: 8px;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+
+    .search-box {
+      position: relative;
       display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
+      align-items: center;
+      width: 100%;
+
+      .search-icon {
+        position: absolute;
+        right: 12px;
+        font-size: 0.95rem;
+        color: var(--text-muted);
+        pointer-events: none;
+      }
+
+      .search-input {
+        width: 100%;
+        padding: 9px 36px 9px 32px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: var(--bg);
+        font-size: 0.9rem;
+        color: var(--text);
+        transition: all 0.2s ease;
+
+        &:focus {
+          border-color: var(--primary);
+          box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 15%, transparent);
+          outline: none;
+        }
+      }
+
+      .clear-search-btn {
+        position: absolute;
+        left: 10px;
+        background: none;
+        border: none;
+        color: var(--text-muted);
+        cursor: pointer;
+        font-size: 0.85rem;
+        padding: 4px;
+        border-radius: 50%;
+
+        &:hover {
+          color: var(--text);
+        }
+      }
     }
-  }
-  .search-input,
-  .category-select {
-    flex: 1;
-    min-width: 120px;
-    padding: 8px 12px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    background: var(--bg);
-    font-size: 0.9rem;
   }
 }
 

@@ -2,45 +2,62 @@
   <header class="cashier-header">
     <!-- Brand / Store Info -->
     <div class="header-brand">
-      <img src="/logo.png" alt="بن العجوز" class="brand-logo" />
-      <div class="brand-info">
-        <h1 class="brand-title">بن العجوز</h1>
-        <span class="brand-subtitle">نقطة البيع والكاشير</span>
+      <div class="logo-wrapper">
+        <img src="/logo.png" alt="بن العجوز" class="brand-logo" />
+      </div>
+      <div class="brand-text">
+        <div class="brand-title-wrap">
+          <span class="brand-title">بن العجوز</span>
+          <span class="brand-badge">POS</span>
+        </div>
+        <span class="shift-live-status">
+          <span class="status-dot"></span>
+          الشفت نشط
+        </span>
       </div>
     </div>
 
     <!-- Live Date & Clock -->
-    <div class="header-clock">
-      <div class="time-display">{{ currentTime }}</div>
-      <div class="date-display">{{ currentDate }}</div>
+    <div class="header-center">
+      <div class="clock-badge">
+        <span class="clock-icon">🕒</span>
+        <span class="time-display">{{ currentTime }}</span>
+        <span class="date-sep">|</span>
+        <span class="date-display">{{ currentDate }}</span>
+      </div>
     </div>
 
-    <!-- User & Actions -->
+    <!-- Cashier Info & Actions -->
     <div class="header-actions">
-      <div class="cashier-user">
-        <span class="user-avatar">👤</span>
-        <div class="user-info">
-          <span class="user-name">{{ cashierName }}</span>
-          <span class="shift-badge">🟢 الشفت الحالي نشط</span>
-        </div>
+      <div class="cashier-pill">
+        <span class="cashier-avatar">☕</span>
+        <span class="cashier-label">الكاشير:</span>
+        <span class="cashier-name">{{ cashierName }}</span>
       </div>
 
-      <!-- Fullscreen / Kiosk Button -->
-      <button
-        class="header-btn"
-        :class="{ active: isFullscreen }"
-        @click="toggleFullscreen"
-        :title="isFullscreen ? 'الخروج من ملء الشاشة' : 'ملء الشاشة (F11)'"
-      >
-        <span class="btn-icon">{{ isFullscreen ? '🗗' : '⛶' }}</span>
-        <span class="btn-text">{{ isFullscreen ? 'تصغير' : 'ملء الشاشة' }}</span>
-      </button>
+      <div class="action-buttons">
+        <!-- Fullscreen Button -->
+        <button
+          class="icon-action-btn"
+          :class="{ active: isFullscreen }"
+          @click="toggleFullscreen"
+          :title="isFullscreen ? 'الخروج من ملء الشاشة (Esc)' : 'ملء الشاشة (F11)'"
+          type="button"
+        >
+          <span>{{ isFullscreen ? '🗗' : '⛶' }}</span>
+        </button>
 
-      <!-- Logout Button -->
-      <button class="header-btn logout-btn" @click="handleLogout" title="تسجيل الخروج">
-        <span class="btn-icon">🚪</span>
-        <span class="btn-text">خروج</span>
-      </button>
+        <!-- Logout Button -->
+        <button
+          class="icon-action-btn logout-btn"
+          @click="handleLogout"
+          title="تسجيل الخروج وإنهاء الشفت"
+          type="button"
+        >
+          <span>🚪</span>
+          <span class="logout-text">خروج</span>
+        </button>
+      </div>
     </div>
   </header>
 </template>
@@ -71,10 +88,9 @@ const updateClock = () => {
     hour12: true,
   });
   currentDate.value = now.toLocaleDateString('ar-EG', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'short',
+    weekday: 'short',
     day: 'numeric',
+    month: 'short',
   });
 };
 
@@ -118,162 +134,222 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: var(--bg-card, #1e1e2d);
-  border-bottom: 1px solid var(--border, #2d2d3f);
-  padding: 10px 20px;
-  min-height: 64px;
+  background: rgba(26, 26, 39, 0.95);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 0 16px;
+  height: 52px;
+  min-height: 52px;
   user-select: none;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
   position: sticky;
   top: 0;
-  z-index: 100;
+  z-index: 1000;
 }
 
+/* ── Brand ── */
 .header-brand {
   display: flex;
   align-items: center;
-  gap: 12px;
-
-  .brand-logo {
-    width: 44px;
-    height: 44px;
-    object-fit: contain;
-    border-radius: 8px;
-    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
-  }
-
-  .brand-info {
-    display: flex;
-    flex-direction: column;
-
-    .brand-title {
-      font-size: 1.15rem;
-      font-weight: 900;
-      color: var(--primary, #10b981);
-      margin: 0;
-      line-height: 1.2;
-    }
-
-    .brand-subtitle {
-      font-size: 0.78rem;
-      color: var(--text-muted, #94a3b8);
-      font-weight: 600;
-    }
-  }
-}
-
-.header-clock {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0, 0, 0, 0.2);
-  padding: 6px 18px;
-  border-radius: 10px;
-  border: 1px solid var(--border, #2d2d3f);
-
-  .time-display {
-    font-size: 1.2rem;
-    font-weight: 800;
-    font-family: monospace;
-    color: var(--text-strong, #ffffff);
-    letter-spacing: 1px;
-    direction: ltr;
-  }
-
-  .date-display {
-    font-size: 0.76rem;
-    color: var(--text-muted, #94a3b8);
-    font-weight: 600;
-  }
-}
-
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-
-.cashier-user {
-  display: flex;
-  align-items: center;
   gap: 10px;
-  background: rgba(16, 185, 129, 0.08);
-  padding: 6px 14px;
-  border-radius: 8px;
-  border: 1px solid rgba(16, 185, 129, 0.2);
 
-  .user-avatar {
-    font-size: 1.2rem;
+  .logo-wrapper {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.04);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+
+    .brand-logo {
+      width: 28px;
+      height: 28px;
+      object-fit: contain;
+    }
   }
 
-  .user-info {
+  .brand-text {
     display: flex;
     flex-direction: column;
+    gap: 1px;
 
-    .user-name {
-      font-size: 0.88rem;
-      font-weight: 750;
-      color: var(--text-strong, #ffffff);
-      line-height: 1.2;
+    .brand-title-wrap {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+
+      .brand-title {
+        font-size: 0.95rem;
+        font-weight: 850;
+        color: #ffffff;
+        letter-spacing: -0.2px;
+      }
+
+      .brand-badge {
+        font-size: 0.65rem;
+        font-weight: 800;
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: #ffffff;
+        padding: 1px 5px;
+        border-radius: 4px;
+        letter-spacing: 0.5px;
+      }
     }
 
-    .shift-badge {
+    .shift-live-status {
+      display: flex;
+      align-items: center;
+      gap: 5px;
       font-size: 0.7rem;
       color: #10b981;
       font-weight: 600;
+
+      .status-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background-color: #10b981;
+        box-shadow: 0 0 8px #10b981;
+        animation: pulse-dot 2s infinite ease-in-out;
+      }
     }
   }
 }
 
-.header-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 14px;
-  background: var(--bg-hover, #2a2a3c);
-  color: var(--text, #e2e8f0);
-  border: 1px solid var(--border, #3b3b4f);
-  border-radius: 8px;
-  font-size: 0.86rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.2s ease;
+@keyframes pulse-dot {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.3);
+    opacity: 0.7;
+  }
+}
 
-  &:hover {
-    background: var(--bg-active, #373750);
-    border-color: var(--primary, #10b981);
-    transform: translateY(-1px);
+/* ── Center Clock ── */
+.header-center {
+  display: flex;
+  align-items: center;
+
+  .clock-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    padding: 4px 14px;
+    border-radius: 20px;
+
+    .clock-icon {
+      font-size: 0.85rem;
+    }
+
+    .time-display {
+      font-size: 0.92rem;
+      font-weight: 800;
+      font-family: monospace;
+      color: #ffffff;
+      direction: ltr;
+      letter-spacing: 0.5px;
+    }
+
+    .date-sep {
+      color: rgba(255, 255, 255, 0.2);
+      font-size: 0.8rem;
+    }
+
+    .date-display {
+      font-size: 0.78rem;
+      color: #94a3b8;
+      font-weight: 600;
+    }
+  }
+}
+
+/* ── Actions ── */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  .cashier-pill {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.82rem;
+
+    .cashier-avatar {
+      font-size: 0.85rem;
+    }
+    .cashier-label {
+      color: #94a3b8;
+      font-weight: 600;
+    }
+    .cashier-name {
+      color: #ffffff;
+      font-weight: 750;
+    }
   }
 
-  &.logout-btn {
-    background: rgba(239, 68, 68, 0.12);
-    color: #ef4444;
-    border-color: rgba(239, 68, 68, 0.3);
+  .action-buttons {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .icon-action-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    height: 32px;
+    padding: 0 10px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: #e2e8f0;
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
 
     &:hover {
-      background: rgba(239, 68, 68, 0.25);
-      border-color: #ef4444;
-      color: #ffffff;
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.2);
+      transform: translateY(-1px);
+    }
+
+    &.logout-btn {
+      background: rgba(239, 68, 68, 0.1);
+      border-color: rgba(239, 68, 68, 0.25);
+      color: #ef4444;
+
+      &:hover {
+        background: rgba(239, 68, 68, 0.2);
+        border-color: #ef4444;
+        color: #ffffff;
+      }
     }
   }
 }
 
 @media (max-width: 768px) {
-  .cashier-header {
-    padding: 8px 12px;
-  }
-
-  .header-clock {
+  .header-center {
     display: none;
   }
-
-  .btn-text {
+  .cashier-pill {
     display: none;
   }
-
-  .header-btn {
-    padding: 8px 10px;
+  .logout-text {
+    display: none;
   }
 }
 </style>

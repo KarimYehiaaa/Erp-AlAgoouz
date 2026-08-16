@@ -59,7 +59,7 @@
         </button>
       </div>
 
-      <div class="grid grid-2 main-grid">
+      <div class="main-grid">
         <!-- Products Panel -->
         <ProductsPanel
           ref="productsPanelRef"
@@ -1049,9 +1049,26 @@ const submitCounts = async () => {
   margin-bottom: 4px;
 }
 
-/* Main grid */
+/* Main grid — إعطاء الأولوية لمساحة المنتجات بنسبة واسعة وتنسيق السلة كشريط جانبي مدمج */
 .main-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 390px;
+  gap: 20px;
   align-items: start;
+}
+
+@media (max-width: 1280px) {
+  .main-grid {
+    grid-template-columns: minmax(0, 1fr) 350px;
+    gap: 16px;
+  }
+}
+
+@media (max-width: 992px) {
+  .main-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
 }
 
 /* Counts Modal */

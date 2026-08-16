@@ -246,10 +246,11 @@ defineExpose({
 .products-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 10px;
-  max-height: 520px;
+  gap: 12px;
+  max-height: calc(100vh - 250px);
+  min-height: 520px;
   overflow-y: auto;
-  padding: 4px;
+  padding: 6px;
 }
 
 .product-card {

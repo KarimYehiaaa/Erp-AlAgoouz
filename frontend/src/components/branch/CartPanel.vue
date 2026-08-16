@@ -206,9 +206,15 @@ const emit = defineEmits<{
 <style lang="scss" scoped>
 /* Cart Panel */
 .cart-panel {
+  position: sticky;
+  top: 80px;
+  max-height: calc(100vh - 100px);
+  overflow-y: auto;
   h3 {
-    margin-bottom: 16px;
+    margin-bottom: 12px;
     color: var(--primary-dark);
+    font-size: 1.1rem;
+    font-weight: 800;
   }
   .empty-cart {
     text-align: center;

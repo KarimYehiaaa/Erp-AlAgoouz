@@ -111,5 +111,5 @@ defineProps<{
 </script>
 
 <style lang="scss" scoped>
-@import './reportsShared.scss';
+@use './reportsShared.scss' as *;
 </style>

@@ -1,8 +1,8 @@
-﻿/** PM2 process definitions for Bin Al-Ajouz ERP */
+/** PM2 process definitions for Bin Al-Ajouz ERP — Unified on Port 3000 */
 module.exports = {
   apps: [
     {
-      name: 'bin-al-ajouz-api',
+      name: 'bin-al-ajouz-erp',
       cwd: './backend',
       script: 'src/index.ts',
       interpreter: 'node',
@@ -11,17 +11,8 @@ module.exports = {
       max_restarts: 20,
       env: {
         NODE_ENV: 'production',
+        PORT: 3000,
       },
-    },
-    {
-      name: 'bin-al-ajouz-web',
-      cwd: './frontend',
-      script: 'node_modules/vite/bin/vite.js',
-      args: '--host 0.0.0.0 --port 5173',
-      watch: false,
-      autorestart: true,
-      max_restarts: 20,
     },
   ],
 };
-

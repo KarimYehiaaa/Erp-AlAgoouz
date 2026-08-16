@@ -52,8 +52,8 @@ if (!process.env.VERCEL) {
     }
 
     const server = app.listen(config.port, async () => {
-      console.log(`بن العجوز ERP API → http://localhost:${config.port}`);
-      console.log(`= Dashboard API  http://localhost:${config.port}/api/v1/dashboard`);
+      console.log(`☕ بن العجوز ERP يعمل على البورت الموحد: http://localhost:${config.port}`);
+      console.log(`📊 Dashboard API: http://localhost:${config.port}/api/v1/dashboard`);
       initWebSocket(server);
       initAutoBackupScheduler();
       try {
@@ -62,6 +62,19 @@ if (!process.env.VERCEL) {
         initDatabaseMaintenanceScheduler();
       } catch (e) {
         console.error('Failed to start maintenance scheduler:', e.message);
+      }
+    });
+
+    server.on('error', (err: any) => {
+      if (err.code === 'EADDRINUSE') {
+        console.error(`\n❌ [خطأ تشغيل الخادم] البورت ${config.port} مشغول حالياً بعملية أخرى!`);
+        console.error(
+          `👉 لإيقاف العملية التي تشغل البورت ${config.port}، يمكنك تنفيذ: npm run kill:port أو استخدام scripts\\stop-erp.ps1\n`,
+        );
+        process.exit(1);
+      } else {
+        console.error('❌ [خطأ في الخادم]:', err);
+        process.exit(1);
       }
     });
 

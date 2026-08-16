@@ -214,8 +214,8 @@ export const repairSequences = async () => {
     'roles',
     'permissions',
     'products',
-    'categories',
-    'units',
+    'product_categories',
+    'product_units',
     'customers',
     'suppliers',
     'invoices',
@@ -253,8 +253,8 @@ export const generateBackupSnapshot = async () => {
     'users',
     'roles',
     'products',
-    'categories',
-    'units',
+    'product_categories',
+    'product_units',
     'customers',
     'suppliers',
     'expenses',
@@ -289,16 +289,16 @@ export const getRiskRadarReport = async () => {
     const [overdueCustomers, lowMarginProducts, outOfStockProducts, staleInvoices] =
       await Promise.all([
         query(`
-        SELECT c.id, c.name, c.phone, c.current_balance
+        SELECT c.id, c.name_ar, c.phone, c.current_balance
         FROM customers c
         WHERE c.deleted_at IS NULL AND c.current_balance > 0
         ORDER BY c.current_balance DESC LIMIT 5
       `),
         query(`
-        SELECT p.id, p.name_ar, p.selling_price, p.cost_price,
-               ROUND(CASE WHEN p.selling_price > 0 THEN ((p.selling_price - p.cost_price) / p.selling_price) * 100 ELSE 0 END, 1) as margin_percent
+        SELECT p.id, p.name_ar, p.sale_price, p.purchase_price,
+               ROUND(CASE WHEN p.sale_price > 0 THEN ((p.sale_price - p.purchase_price) / p.sale_price) * 100 ELSE 0 END, 1) as margin_percent
         FROM products p
-        WHERE p.deleted_at IS NULL AND p.cost_price > 0 AND p.selling_price <= p.cost_price * 1.10
+        WHERE p.deleted_at IS NULL AND p.purchase_price > 0 AND p.sale_price <= p.purchase_price * 1.10
         ORDER BY margin_percent ASC LIMIT 5
       `),
         query(`
@@ -309,12 +309,14 @@ export const getRiskRadarReport = async () => {
         ORDER BY p.id DESC LIMIT 5
       `),
         query(`
-        SELECT inv.id, inv.invoice_number, inv.total_amount, inv.paid_amount, inv.payment_status, inv.created_at, c.name as customer_name
+        SELECT inv.id, inv.invoice_number, inv.total_amount,
+               COALESCE((SELECT SUM(amount) FROM payments WHERE reference_type = 'invoice' AND reference_id = inv.id), 0) as paid_amount,
+               inv.payment_status, COALESCE(inv.issued_at, inv.created_at) as created_at, c.name_ar as customer_name
         FROM invoices inv
         LEFT JOIN customers c ON c.id = inv.customer_id
         WHERE inv.deleted_at IS NULL AND inv.payment_status IN ('unpaid', 'partial')
-        AND inv.created_at < NOW() - INTERVAL '30 days'
-        ORDER BY inv.created_at ASC LIMIT 5
+        AND COALESCE(inv.issued_at, inv.created_at) < NOW() - INTERVAL '30 days'
+        ORDER BY COALESCE(inv.issued_at, inv.created_at) ASC LIMIT 5
       `),
       ]);
 

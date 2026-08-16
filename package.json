@@ -8,6 +8,7 @@
     "backend"
   ],
   "scripts": {
+    "dev": "npm run dev -w backend",
     "start": "npm run start -w backend",
     "start:prod": "npm run start -w backend",
     "typecheck": "npm run typecheck -w backend && npm run typecheck -w frontend",
@@ -17,9 +18,10 @@
     "setup": "node scripts/setup-project.ts",
     "backup": "node scripts/backup-system.ts",
     "update": "node scripts/update-project.ts",
+    "kill:port": "node scripts/kill-port.ts",
     "pm2:start": "pm2 start ecosystem.config.cjs",
-    "pm2:stop": "pm2 stop bin-al-ajouz-api bin-al-ajouz-web",
-    "pm2:logs": "pm2 logs",
+    "pm2:stop": "pm2 stop bin-al-ajouz-erp",
+    "pm2:logs": "pm2 logs bin-al-ajouz-erp",
     "lint": "eslint backend/src frontend/src",
     "lint:fix": "eslint --fix backend/src frontend/src",
     "format": "prettier --write .",
@@ -69,7 +71,7 @@
     "zod": "^3.23.8"
   },
   "engines": {
-    "node": ">=24.0.0"
+    "node": ">=20.0.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

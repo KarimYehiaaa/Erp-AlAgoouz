@@ -56,58 +56,41 @@ if (-not $nodeExe) {
 $nodeMsg = "Node.js Path: " + $nodeExe
 Write-Host $nodeMsg -ForegroundColor Gray
 
-# 4. Install Backend Service
+# 4. Install Unified ERP Service (Port 3000)
 Write-Host "" -ForegroundColor Yellow
-Write-Host "[2] Installing Backend Service..." -ForegroundColor Yellow
-$backendService = "AlAgoouz-ERP-Backend"
+Write-Host "[2] Installing Unified ERP Service (Port 3000)..." -ForegroundColor Yellow
+$unifiedService = "AlAgoouz-ERP"
 
-# Remove existing service if any
-& $nssmExe stop $backendService 2>$null | Out-Null
-& $nssmExe remove $backendService confirm 2>$null | Out-Null
+# Clean up legacy separate services if any
+& $nssmExe stop "AlAgoouz-ERP-Backend" 2>$null | Out-Null
+& $nssmExe remove "AlAgoouz-ERP-Backend" confirm 2>$null | Out-Null
+& $nssmExe stop "AlAgoouz-ERP-Frontend" 2>$null | Out-Null
+& $nssmExe remove "AlAgoouz-ERP-Frontend" confirm 2>$null | Out-Null
 
-# Install new service (using [char]34 to wrap paths with spaces in double-quotes)
+# Remove existing unified service if reinstalling
+& $nssmExe stop $unifiedService 2>$null | Out-Null
+& $nssmExe remove $unifiedService confirm 2>$null | Out-Null
+
+# Install unified service (backend serves both API and Web UI on Port 3000)
 $quote = [char]34
-$backendPath = $quote + $projectRoot + "\backend\src\index.js" + $quote
+$serverPath = $quote + $projectRoot + "\backend\src\index.ts" + $quote
 $backendDir = $quote + $projectRoot + "\backend" + $quote
 
-& $nssmExe install $backendService $nodeExe $backendPath
-& $nssmExe set $backendService AppDirectory $backendDir
-& $nssmExe set $backendService DisplayName "AlAgoouz ERP - Backend API"
-& $nssmExe set $backendService Description "Backend API and database connection for AlAgoouz ERP"
-& $nssmExe set $backendService Start SERVICE_AUTO_START
+& $nssmExe install $unifiedService $nodeExe $serverPath
+& $nssmExe set $unifiedService AppDirectory $backendDir
+& $nssmExe set $unifiedService DisplayName "AlAgoouz ERP - Unified System (Port 3000)"
+& $nssmExe set $unifiedService Description "Unified Full-Stack Server (API + Web) for AlAgoouz ERP on Port 3000"
+& $nssmExe set $unifiedService Start SERVICE_AUTO_START
 
-Write-Host "OK: Backend service installed." -ForegroundColor Green
+Write-Host "OK: Unified ERP service installed on port 3000." -ForegroundColor Green
 
-# 5. Install Frontend Service
+# 5. Start Service
 Write-Host "" -ForegroundColor Yellow
-Write-Host "[3] Installing Frontend Service..." -ForegroundColor Yellow
-$frontendService = "AlAgoouz-ERP-Frontend"
-
-# Remove existing service if any
-& $nssmExe stop $frontendService 2>$null | Out-Null
-& $nssmExe remove $frontendService confirm 2>$null | Out-Null
-
-# Install new service (runs npx serve)
-$cmdExe = $env:SystemRoot + "\System32\cmd.exe"
-$frontendArgs = "/c npx serve -l 5173 --single " + $quote + $projectRoot + "\frontend\dist" + $quote
-$frontendDir = $quote + $projectRoot + "\frontend" + $quote
-
-& $nssmExe install $frontendService $cmdExe $frontendArgs
-& $nssmExe set $frontendService AppDirectory $frontendDir
-& $nssmExe set $frontendService DisplayName "AlAgoouz ERP - Frontend Web"
-& $nssmExe set $frontendService Description "Frontend web application for AlAgoouz ERP"
-& $nssmExe set $frontendService Start SERVICE_AUTO_START
-
-Write-Host "OK: Frontend service installed." -ForegroundColor Green
-
-# 6. Start Services
-Write-Host "" -ForegroundColor Yellow
-Write-Host "[4] Starting Services..." -ForegroundColor Yellow
-Start-Service -Name $backendService
-Start-Service -Name $frontendService
+Write-Host "[3] Starting Unified Service..." -ForegroundColor Yellow
+Start-Service -Name $unifiedService
 
 Write-Host "" -ForegroundColor Green
-Write-Host "=== AlAgoouz ERP Services Installed and Started Successfully! ===" -ForegroundColor Green
-Write-Host "The ERP system is now running silently in the background." -ForegroundColor Green
-Write-Host "Access URL: http://localhost:5173" -ForegroundColor Cyan
-Write-Host "To manage the services, open Windows Services and search for AlAgoouz ERP." -ForegroundColor Gray
+Write-Host "=== AlAgoouz ERP Service Installed and Started Successfully! ===" -ForegroundColor Green
+Write-Host "The ERP system is now running silently on unified port 3000." -ForegroundColor Green
+Write-Host "Access URL: http://localhost:3000" -ForegroundColor Cyan
+Write-Host "To manage the service, open Windows Services and search for AlAgoouz ERP." -ForegroundColor Gray

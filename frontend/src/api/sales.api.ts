@@ -1,4 +1,4 @@
-import api from './index';
+import api from './client';
 
 export const sales = {
   list: (params?: any) => api.get('/sales', { params }),

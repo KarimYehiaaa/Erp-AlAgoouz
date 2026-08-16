@@ -1,4 +1,4 @@
-import api from './index';
+import api from './client';
 
 export const inventory = {
   list: (params?: any) => api.get('/inventory', { params }),

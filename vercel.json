@@ -3,7 +3,8 @@
   "outputDirectory": "dist",
   "functions": {
     "api/**/*": {
-      "maxDuration": 30
+      "maxDuration": 30,
+      "includeFiles": "backend/**"
     }
   },
   "rewrites": [

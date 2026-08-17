@@ -318,15 +318,25 @@ button:disabled {
     border: 1px solid var(--border-strong);
     border-radius: var(--radius-sm);
     background: var(--bg-elevated);
-    color: var(--text);
+    color: var(--text-strong);
     transition:
       border-color var(--transition),
       box-shadow var(--transition);
+
+    &::placeholder {
+      color: var(--text-muted);
+      opacity: 0.85;
+    }
 
     &:focus {
       outline: none;
       border-color: var(--primary);
       box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 18%, transparent);
+    }
+
+    option {
+      background: var(--bg-card);
+      color: var(--text);
     }
   }
 
@@ -365,8 +375,12 @@ table {
     z-index: 1;
     color: var(--text-muted);
     background: var(--surface-2);
-    font-size: 0.78rem;
-    font-weight: 900;
+    font-size: 0.8rem;
+    font-weight: 850;
+  }
+
+  td {
+    color: var(--text);
   }
 
   tr:last-child td {
@@ -381,26 +395,36 @@ table {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 4px 9px;
+  padding: 4px 10px;
   border-radius: 999px;
-  font-size: 0.76rem;
+  font-size: 0.78rem;
   font-weight: 800;
+  line-height: 1.2;
 
   &-success {
-    background: color-mix(in srgb, var(--success) 13%, transparent);
+    background: color-mix(in srgb, var(--success) 16%, transparent);
     color: var(--success);
+    border: 1px solid color-mix(in srgb, var(--success) 30%, transparent);
   }
   &-warning {
-    background: color-mix(in srgb, var(--warning) 14%, transparent);
+    background: color-mix(in srgb, var(--warning) 16%, transparent);
     color: var(--warning);
+    border: 1px solid color-mix(in srgb, var(--warning) 30%, transparent);
   }
   &-danger {
-    background: color-mix(in srgb, var(--danger) 13%, transparent);
+    background: color-mix(in srgb, var(--danger) 16%, transparent);
     color: var(--danger);
+    border: 1px solid color-mix(in srgb, var(--danger) 30%, transparent);
   }
   &-info {
-    background: color-mix(in srgb, var(--info) 13%, transparent);
+    background: color-mix(in srgb, var(--info) 16%, transparent);
     color: var(--info);
+    border: 1px solid color-mix(in srgb, var(--info) 30%, transparent);
+  }
+  &-neutral {
+    background: color-mix(in srgb, var(--text-muted) 16%, transparent);
+    color: var(--text-muted);
+    border: 1px solid color-mix(in srgb, var(--text-muted) 30%, transparent);
   }
 }
 

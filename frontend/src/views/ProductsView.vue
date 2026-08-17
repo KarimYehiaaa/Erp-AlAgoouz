@@ -96,22 +96,10 @@
           </template>
           <template #cell-profit_margin="{ item }">
             <div class="margin-cell">
-              <span
-                :class="['badge', getMarginClass(item)]"
-                style="font-weight: 800; font-size: 0.82rem"
-              >
+              <span :class="['badge', getMarginClass(item)]" class="margin-badge">
                 {{ formatMargin(item) }}
               </span>
-              <small
-                style="
-                  display: block;
-                  font-size: 0.76rem;
-                  color: var(--text-muted, #888);
-                  margin-top: 2px;
-                  font-weight: 600;
-                "
-                v-if="getProfitAmount(item) !== 0"
-              >
+              <small v-if="getProfitAmount(item) !== 0" class="margin-profit-amount">
                 {{ getProfitAmount(item) > 0 ? '+' : '' }}{{ formatMoney(getProfitAmount(item)) }}
               </small>
             </div>
@@ -936,6 +924,7 @@ onBeforeUnmount(() => {
   font-size: 0.84rem;
   font-weight: 600;
   white-space: nowrap;
+  color: var(--text);
 }
 
 .product-name-cell {
@@ -951,23 +940,44 @@ onBeforeUnmount(() => {
 .product-name {
   font-size: 0.95rem;
   font-weight: 800;
+  color: var(--text-strong);
 }
 .product-sku {
-  font-size: 0.75rem;
+  font-size: 0.78rem;
   color: var(--text-muted);
   font-family: monospace;
   direction: ltr;
   text-align: right;
+  font-weight: 600;
 }
 
 .product-unit-badge {
-  font-size: 0.75rem;
-  font-weight: 700;
+  font-size: 0.76rem;
+  font-weight: 750;
   color: var(--info);
-  background: color-mix(in srgb, var(--info) 12%, transparent);
-  border: 1px solid color-mix(in srgb, var(--info) 25%, transparent);
+  background: color-mix(in srgb, var(--info) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--info) 30%, transparent);
   border-radius: 999px;
   padding: 2px 8px;
+}
+
+.margin-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+
+  .margin-badge {
+    font-weight: 850;
+    font-size: 0.82rem;
+  }
+
+  .margin-profit-amount {
+    display: block;
+    font-size: 0.76rem;
+    color: var(--text-muted);
+    font-weight: 700;
+  }
 }
 
 .field-hint {

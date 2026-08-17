@@ -532,13 +532,14 @@
             background: var(--bg-card);
             border: 1px solid var(--border);
             border-radius: var(--radius-md);
-            border-color: color-mix(in srgb, #c0392b 20%, var(--border));
+            border-color: color-mix(in srgb, var(--danger) 25%, var(--border));
           "
         >
           <span style="font-size: 0.8rem; color: var(--text-muted)">الخصومات والتأخير</span>
-          <strong style="font-size: 1.4rem; font-weight: 800; color: #c0392b; margin-top: 4px">{{
-            formatMoney(payrollTotals.deductions)
-          }}</strong>
+          <strong
+            style="font-size: 1.4rem; font-weight: 800; color: var(--danger); margin-top: 4px"
+            >{{ formatMoney(payrollTotals.deductions) }}</strong
+          >
         </div>
         <div
           class="kpi-card"
@@ -550,13 +551,14 @@
             background: var(--bg-card);
             border: 1px solid var(--border);
             border-radius: var(--radius-md);
-            border-color: color-mix(in srgb, #d35400 20%, var(--border));
+            border-color: color-mix(in srgb, var(--warning) 25%, var(--border));
           "
         >
           <span style="font-size: 0.8rem; color: var(--text-muted)">السلف المستقطعة</span>
-          <strong style="font-size: 1.4rem; font-weight: 800; color: #d35400; margin-top: 4px">{{
-            formatMoney(payrollTotals.advances)
-          }}</strong>
+          <strong
+            style="font-size: 1.4rem; font-weight: 800; color: var(--warning); margin-top: 4px"
+            >{{ formatMoney(payrollTotals.advances) }}</strong
+          >
         </div>
         <div
           class="kpi-card"
@@ -568,15 +570,16 @@
             background: var(--bg-card);
             border: 1px solid var(--border);
             border-radius: var(--radius-md);
-            border-color: color-mix(in srgb, #27ae60 20%, var(--border));
+            border-color: color-mix(in srgb, var(--success) 25%, var(--border));
           "
         >
           <span style="font-size: 0.8rem; color: var(--text-muted)"
             >صافي المبالغ المستحقة للدفع</span
           >
-          <strong style="font-size: 1.4rem; font-weight: 800; color: #27ae60; margin-top: 4px">{{
-            formatMoney(payrollTotals.net)
-          }}</strong>
+          <strong
+            style="font-size: 1.4rem; font-weight: 800; color: var(--success); margin-top: 4px"
+            >{{ formatMoney(payrollTotals.net) }}</strong
+          >
         </div>
       </section>
 

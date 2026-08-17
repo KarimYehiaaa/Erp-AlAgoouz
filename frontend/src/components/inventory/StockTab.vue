@@ -7,59 +7,22 @@
 -->
 <template>
   <!-- Inventory Valuation Summary Cards -->
-  <div class="grid grid-3" style="margin-bottom: 16px; gap: 12px">
-    <div
-      class="card"
-      style="
-        padding: 14px;
-        background: linear-gradient(
-          135deg,
-          rgba(59, 130, 246, 0.08) 0%,
-          rgba(59, 130, 246, 0.02) 100%
-        );
-        border: 1px solid rgba(59, 130, 246, 0.2);
-      "
-    >
-      <span style="font-size: 0.8rem; font-weight: 700; color: #64748b"
-        >💵 إجمالي تقييم رصيد المخزون (بالتكلفة)</span
-      >
-      <h3 style="margin: 4px 0 0 0; font-size: 1.25rem; font-weight: 800; color: #1e3a8a">
+  <div class="grid grid-3 valuation-cards-row">
+    <div class="card val-card val-total">
+      <span class="val-label">💵 إجمالي تقييم رصيد المخزون (بالتكلفة)</span>
+      <h3 class="val-amount">
         {{ formatMoney(totalInventoryValue) }}
       </h3>
     </div>
-    <div
-      class="card"
-      style="
-        padding: 14px;
-        background: linear-gradient(
-          135deg,
-          rgba(16, 185, 129, 0.08) 0%,
-          rgba(16, 185, 129, 0.02) 100%
-        );
-        border: 1px solid rgba(16, 185, 129, 0.2);
-      "
-    >
-      <span style="font-size: 0.8rem; font-weight: 700; color: #64748b">🏢 قيمة مخزون الرئيسي</span>
-      <h3 style="margin: 4px 0 0 0; font-size: 1.25rem; font-weight: 800; color: #065f46">
+    <div class="card val-card val-main">
+      <span class="val-label">🏢 قيمة مخزون الرئيسي</span>
+      <h3 class="val-amount">
         {{ formatMoney(mainWarehouseValue) }}
       </h3>
     </div>
-    <div
-      class="card"
-      style="
-        padding: 14px;
-        background: linear-gradient(
-          135deg,
-          rgba(245, 158, 11, 0.08) 0%,
-          rgba(245, 158, 11, 0.02) 100%
-        );
-        border: 1px solid rgba(245, 158, 11, 0.2);
-      "
-    >
-      <span style="font-size: 0.8rem; font-weight: 700; color: #64748b"
-        >🏪 قيمة مخزون الفرع / المحل</span
-      >
-      <h3 style="margin: 4px 0 0 0; font-size: 1.25rem; font-weight: 800; color: #92400e">
+    <div class="card val-card val-branch">
+      <span class="val-label">🏪 قيمة مخزون الفرع / المحل</span>
+      <h3 class="val-amount">
         {{ formatMoney(branchWarehouseValue) }}
       </h3>
     </div>
@@ -330,9 +293,54 @@ defineEmits<{
   border-color: rgba(16, 185, 129, 0.25);
   color: #10b981;
 }
-.qty-total {
-  font-size: 1.05rem;
-  font-weight: 900;
-  color: var(--accent, #c77a2f);
+.valuation-cards-row {
+  margin-bottom: 16px;
+  gap: 12px;
+}
+
+.val-card {
+  padding: 14px 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  transition: all 0.2s ease;
+
+  .val-label {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    display: block;
+    margin-bottom: 6px;
+  }
+
+  .val-amount {
+    margin: 0;
+    font-size: 1.3rem;
+    font-weight: 850;
+  }
+
+  &.val-total {
+    border-color: color-mix(in srgb, var(--info) 28%, var(--border));
+    background: color-mix(in srgb, var(--info) 6%, var(--bg-card));
+    .val-amount {
+      color: var(--info);
+    }
+  }
+
+  &.val-main {
+    border-color: color-mix(in srgb, var(--success) 28%, var(--border));
+    background: color-mix(in srgb, var(--success) 6%, var(--bg-card));
+    .val-amount {
+      color: var(--success);
+    }
+  }
+
+  &.val-branch {
+    border-color: color-mix(in srgb, var(--warning) 28%, var(--border));
+    background: color-mix(in srgb, var(--warning) 6%, var(--bg-card));
+    .val-amount {
+      color: var(--warning);
+    }
+  }
 }
 </style>

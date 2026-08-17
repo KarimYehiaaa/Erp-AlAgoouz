@@ -117,23 +117,29 @@
   --surface-2: #2a1f18;
   --surface-3: #32251c;
 
-  --text: #ece1d6;
-  --text-strong: #faf3ea;
-  --text-muted: #a89888;
+  --text: #f3ece4;
+  --text-strong: #ffffff;
+  --text-muted: #c8b9a9;
 
   --primary: #d9a86c;
   --primary-strong: #e8bd85;
-  --primary-dark: #b98a52;
+  --primary-dark: #f0cb9e;
   --primary-soft: #3a2c20;
   --accent: #c8956e;
-  --accent-dark: #b98a52;
+  --accent-dark: #e0ab84;
   --accent-light: #6b4a2e;
   --accent-soft: rgba(200, 149, 110, 0.16);
   --accent-glow: rgba(200, 149, 110, 0.24);
   --focus-ring: rgba(200, 149, 110, 0.3);
 
-  --border: #352a21;
-  --border-strong: #4a3a2d;
+  /* ── Bright & Readable Semantic Colors for Dark Mode ── */
+  --success: #34d399;
+  --warning: #fbbf24;
+  --danger: #f87171;
+  --info: #38bdf8;
+
+  --border: #382c23;
+  --border-strong: #524032;
 
   --shadow-xs: 0 1px 3px rgba(0, 0, 0, 0.4);
   --shadow-sm: 0 4px 14px rgba(0, 0, 0, 0.35);
@@ -141,7 +147,7 @@
   --shadow-lg: 0 20px 48px rgba(0, 0, 0, 0.55);
 
   --glass-bg: rgba(32, 23, 18, 0.88);
-  --glass-border: rgba(74, 58, 45, 0.85);
+  --glass-border: rgba(82, 64, 50, 0.85);
 
   --app-bg:
     radial-gradient(circle at 12% 8%, rgba(200, 149, 110, 0.07), transparent 30rem),

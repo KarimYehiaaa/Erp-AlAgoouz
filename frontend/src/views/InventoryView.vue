@@ -432,7 +432,7 @@
             >
               بن العجوز ERP
             </h2>
-            <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: #666">
+            <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: var(--text-muted)">
               إذن نقل وتحويل مخزني رسمي
             </p>
           </div>
@@ -442,7 +442,7 @@
               style="font-size: 0.9rem; font-weight: 800; padding: 4px 10px"
               >{{ currentVoucher?.transfer_number || 'TRF-VOUCHER' }}</span
             >
-            <small style="display: block; margin-top: 4px; color: #888">{{
+            <small style="display: block; margin-top: 4px; color: var(--text-muted)">{{
               formatDateTime(currentVoucher?.created_at || Date.now())
             }}</small>
           </div>
@@ -461,18 +461,18 @@
           "
         >
           <div>
-            <strong style="display: block; font-size: 0.8rem; color: #666"
+            <strong style="display: block; font-size: 0.8rem; color: var(--text-muted)"
               >من مخزن (المصدر):</strong
             >
-            <span style="color: #3b82f6; font-weight: 800; font-size: 1rem">{{
+            <span style="color: var(--info); font-weight: 800; font-size: 1rem">{{
               currentVoucher?.from_warehouse_name
             }}</span>
           </div>
           <div>
-            <strong style="display: block; font-size: 0.8rem; color: #666"
+            <strong style="display: block; font-size: 0.8rem; color: var(--text-muted)"
               >إلى مخزن (الوجهة):</strong
             >
-            <span style="color: #10b981; font-weight: 800; font-size: 1rem">{{
+            <span style="color: var(--success); font-weight: 800; font-size: 1rem">{{
               currentVoucher?.to_warehouse_name
             }}</span>
           </div>
@@ -494,12 +494,12 @@
             <tr
               v-for="(it, idx) in (currentVoucher?.items as any[]) || []"
               :key="idx"
-              style="border-bottom: 1px solid rgba(0, 0, 0, 0.05)"
+              style="border-bottom: 1px solid var(--border)"
             >
               <td style="padding: 8px">{{ idx + 1 }}</td>
               <td style="padding: 8px; font-weight: 700">{{ it.product_name }}</td>
               <td style="padding: 8px" class="mono">{{ it.sku || '—' }}</td>
-              <td style="padding: 8px; font-weight: 800; color: #2e7d4f">
+              <td style="padding: 8px; font-weight: 800; color: var(--success)">
                 {{ fmtQty(it.quantity) }}
               </td>
             </tr>
@@ -514,18 +514,18 @@
             gap: 20px;
             margin-top: 24px;
             padding-top: 16px;
-            border-top: 1px dashed #ccc;
+            border-top: 1px dashed var(--border);
             text-align: center;
           "
         >
           <div>
-            <small style="display: block; color: #666; margin-bottom: 24px"
+            <small style="display: block; color: var(--text-muted); margin-bottom: 24px"
               >توقيع المُسلّم (أمين مخزن المصدر)</small
             >
             <span>........................................</span>
           </div>
           <div>
-            <small style="display: block; color: #666; margin-bottom: 24px"
+            <small style="display: block; color: var(--text-muted); margin-bottom: 24px"
               >توقيع المستلم (مسؤول مخزن الوجهة)</small
             >
             <span>........................................</span>
@@ -550,7 +550,7 @@
     <div v-if="showWastage" class="modal" @click.self="showWastage = false">
       <div class="card modal-content border-danger">
         <h3 class="text-danger">🗑️ تسجيل إعدام / هالك</h3>
-        <p style="margin-bottom: 15px; font-size: 0.9em; color: #666">
+        <p style="margin-bottom: 15px; font-size: 0.9em; color: var(--text-muted)">
           سيتم إنقاص هذه الكمية من المخزون وتحميل تكلفتها على المصروفات (قسم الهالك).
         </p>
         <form @submit.prevent="saveWastage">

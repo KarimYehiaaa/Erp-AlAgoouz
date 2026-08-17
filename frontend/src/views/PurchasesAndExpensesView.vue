@@ -399,28 +399,14 @@
               <td>
                 <span
                   v-if="e.is_fixed"
-                  class="badge"
-                  style="
-                    background: rgba(59, 130, 246, 0.12);
-                    color: #3b82f6;
-                    font-size: 0.75rem;
-                    padding: 3px 8px;
-                    border-radius: 6px;
-                    font-weight: 800;
-                  "
+                  class="badge badge-info"
+                  style="font-size: 0.75rem; padding: 3px 8px"
                   >🏢 ثابت</span
                 >
                 <span
                   v-else
-                  class="badge"
-                  style="
-                    background: rgba(100, 116, 139, 0.12);
-                    color: #64748b;
-                    font-size: 0.75rem;
-                    padding: 3px 8px;
-                    border-radius: 6px;
-                    font-weight: 700;
-                  "
+                  class="badge badge-neutral"
+                  style="font-size: 0.75rem; padding: 3px 8px"
                   >🛒 متغير</span
                 >
               </td>
@@ -493,10 +479,10 @@
                 <span>طبيعة المصروف</span>
                 <span
                   v-if="expenseForm.is_fixed"
-                  style="color: #3b82f6; font-size: 0.78rem; font-weight: 800"
+                  style="color: var(--info); font-size: 0.78rem; font-weight: 800"
                   >🏢 مصروف ثابت (Overhead)</span
                 >
-                <span v-else style="color: #64748b; font-size: 0.78rem; font-weight: 700"
+                <span v-else style="color: var(--text-muted); font-size: 0.78rem; font-weight: 700"
                   >🛒 مصروف متغير / تشغيلي</span
                 >
               </label>

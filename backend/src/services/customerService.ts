@@ -287,8 +287,7 @@ export const recordPayment = async (customerId: number, data: Record<string, any
         AND i.sale_id IS NULL
         AND i.deleted_at IS NULL
 
-       ORDER BY entry_date, created_at, id
-       FOR UPDATE`,
+       ORDER BY entry_date, created_at, id`,
         [customerId],
       )
     ).rows;

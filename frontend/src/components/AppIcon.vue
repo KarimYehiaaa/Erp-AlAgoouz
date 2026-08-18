@@ -56,6 +56,9 @@ import {
   Coffee,
   Maximize2,
   Minimize2,
+  Timer,
+  TimerOff,
+  RefreshCw,
 } from '@lucide/vue';
 
 const props = defineProps({
@@ -115,6 +118,9 @@ const icons = {
   eyeOff: EyeOff,
   maximize: Maximize2,
   minimize: Minimize2,
+  timer: Timer,
+  timerOff: TimerOff,
+  refresh: RefreshCw,
 };
 
 const aliases = {

@@ -106,6 +106,23 @@ export const invalidateDashboardCache = () => {
   appCache.invalidateByTag('product_cost');
 };
 
+/**
+ * خوارزمية COGS الموحّدة مع تقرير الأرباح (plService):
+ * 1) cost_amount المخزّن على المبيعات (الأدق) ← 2) cost_price × quantity من sale_items ←
+ * 3) مشتريات الفترة كتقدير عندما لا تتوفر تكلفة مفصّلة.
+ * @param {any} cogsStored مجموع cost_amount على مبيعات الفترة
+ * @param {any} cogsItems مجموع cost_price × quantity من sale_items
+ * @param {any} purchases مجموع مشتريات الفترة
+ * @returns {{ value: number, basis: 'cost_stored' | 'sale_items' | 'purchases' }}
+ */
+export const resolveCogs = (cogsStored, cogsItems, purchases) => {
+  const stored = toNumber(cogsStored);
+  const items = toNumber(cogsItems);
+  if (stored > 0) return { value: stored, basis: 'cost_stored' };
+  if (items > 0) return { value: items, basis: 'sale_items' };
+  return { value: toNumber(purchases), basis: 'purchases' };
+};
+
 const _computeDashboardStats = async (filters: Record<string, any> = {}) => {
   const period = getPeriod(filters);
   const grouping = period.grouping || 'day';
@@ -142,6 +159,11 @@ const _computeDashboardStats = async (filters: Record<string, any> = {}) => {
     paymentSummary,
     unpaidInvoices,
     customersCount,
+    periodCogsItems,
+    previousCogsItems,
+    todayCogsItems,
+    customerCollections,
+    supplierPayments,
   ] = await Promise.all([
     query(
       `SELECT sale_type,
@@ -260,6 +282,62 @@ const _computeDashboardStats = async (filters: Record<string, any> = {}) => {
     ),
     query(
       `SELECT COUNT(*)::int AS count, COALESCE(SUM(opening_balance), 0) AS total_opening_balance FROM customers WHERE deleted_at IS NULL`,
+    ),
+    // ── تكلفة البضاعة من sale_items (للمبيعات POS التي تحتوي items) — المستوى الثاني في خوارزمية COGS ──
+    query(
+      `SELECT COALESCE(SUM(si.cost_price * si.quantity), 0) AS cogs_items
+       FROM sale_items si
+       JOIN sales s ON s.id = si.sale_id
+       WHERE s.deleted_at IS NULL
+         AND s.status = 'completed'
+         AND s.sale_date BETWEEN $1::date AND $2::date`,
+      [period.start, period.end],
+    ),
+    query(
+      `SELECT COALESCE(SUM(si.cost_price * si.quantity), 0) AS cogs_items
+       FROM sale_items si
+       JOIN sales s ON s.id = si.sale_id
+       WHERE s.deleted_at IS NULL
+         AND s.status = 'completed'
+         AND s.sale_date BETWEEN $1::date AND $2::date`,
+      [period.previousStart, period.previousEnd],
+    ),
+    query(
+      `SELECT COALESCE(SUM(si.cost_price * si.quantity), 0) AS cogs_items
+       FROM sale_items si
+       JOIN sales s ON s.id = si.sale_id
+       WHERE s.deleted_at IS NULL
+         AND s.status = 'completed'
+         AND s.sale_date = $1::date`,
+      [period.today],
+    ),
+    // ── تحصيلات العملاء الفعلية (نقد/كارت/تحويل فقط — يستثنى الآجل والمرتجع) ──
+    // تشمل سداد ديون سابقة وفواتير آجلة لأنها تسجل كمدفوعات على مبيعات/فواتير قديمة
+    query(
+      `SELECT COALESCE(SUM(p.amount), 0) AS total
+       FROM payments p
+       WHERE DATE(p.created_at) BETWEEN $1::date AND $2::date
+         AND p.reference_type IN ('sale', 'invoice')
+         AND COALESCE(p.payment_method, 'cash') != 'credit'
+         AND NOT EXISTS (
+           SELECT 1 FROM sales s2
+           WHERE p.reference_type = 'sale' AND s2.id = p.reference_id AND s2.status = 'returned'
+         )
+         AND NOT EXISTS (
+           SELECT 1 FROM invoices i2
+           WHERE p.reference_type = 'invoice' AND i2.id = p.reference_id AND i2.payment_status = 'refunded'
+         )`,
+      [period.start, period.end],
+    ),
+    // ── مدفوعات الموردين الفعلية في الفترة (نقد/بنك/محفظة) ──
+    // فواتير الشراء الآجلة غير المسددة لا تُخصم من السيولة لأنها لم تخرج نقدًا بعد
+    query(
+      `SELECT COALESCE(SUM(p.amount), 0) AS total
+       FROM payments p
+       WHERE DATE(p.created_at) BETWEEN $1::date AND $2::date
+         AND p.reference_type = 'supplier'
+         AND COALESCE(p.payment_method, 'cash') != 'credit'`,
+      [period.start, period.end],
     ),
   ]);
 
@@ -529,12 +607,25 @@ const _computeDashboardStats = async (filters: Record<string, any> = {}) => {
       [period.start, period.end],
     ),
     query(
+      // إصلاح: رسم طرق الدفع كان يستثني مدفوعات الفواتير الآجلة (reference_type='invoice')
+      // فكانت تحصيلات فواتير الآجل تختفي من التوزيع. الآن يشمل كل تحصيلات العملاء
+      // (مبيعات + فواتير) مع استثناء المدفوعات المرتجعة/المستردة لتطابق سجل المدفوعات الفعلي.
+      // ملاحظة: مدفوعات الموردين (reference_type='supplier') خروج نقد وليست طرق دفع للتحصيل
+      // لذلك تبقى خارج هذا الرسم وتظهر في سجل مورديها.
       `SELECT payment_method,
-              COALESCE(SUM(amount),0) AS total,
+              COALESCE(SUM(p.amount),0) AS total,
               COUNT(*)::int AS count
-       FROM payments
-       WHERE DATE(created_at) BETWEEN $1::date AND $2::date
-         AND reference_type != 'invoice'
+       FROM payments p
+       WHERE DATE(p.created_at) BETWEEN $1::date AND $2::date
+         AND p.reference_type IN ('sale', 'invoice')
+         AND NOT EXISTS (
+           SELECT 1 FROM sales s2
+           WHERE p.reference_type = 'sale' AND s2.id = p.reference_id AND s2.status = 'returned'
+         )
+         AND NOT EXISTS (
+           SELECT 1 FROM invoices i2
+           WHERE p.reference_type = 'invoice' AND i2.id = p.reference_id AND i2.payment_status = 'refunded'
+         )
        GROUP BY payment_method
        ORDER BY total DESC`,
       [period.start, period.end],
@@ -581,8 +672,8 @@ const _computeDashboardStats = async (filters: Record<string, any> = {}) => {
   const customersCountRow = customersCount.rows[0] || {};
   const totalCustomerOpeningBalances = toNumber(customersCountRow.total_opening_balance);
 
-  // Inject opening balances into total sales to satisfy the expected accounting cycle representation
-  periodSalesRow.total = toNumber(periodSalesRow.total) + totalCustomerOpeningBalances;
+  // ملاحظة محاسبية: أرصدة العملاء الافتتاحية ديون مستحقة (أصول) وليست إيرادات،
+  // لذلك لا تُضاف إلى المبيعات ولا تدخل في حساب الربح أو السيولة — تظهر كبند مستقل.
 
   const currentMonthBranchSales = toNumber(currentMonthSaleRow('branch').total);
   const currentMonthWholesaleSales = toNumber(currentMonthSaleRow('wholesale').total);
@@ -595,22 +686,28 @@ const _computeDashboardStats = async (filters: Record<string, any> = {}) => {
   const openingBalanceRow = await getOpeningBalanceForDate(currentMonthDate);
   const openingBalanceTotal = toNumber(openingBalanceRow.amount);
 
-  const periodCogs =
-    toNumber(periodSalesRow.cost) > 0
-      ? toNumber(periodSalesRow.cost)
-      : toNumber(periodPurchases.rows[0]?.total);
-  const previousCogs =
-    toNumber(previousSalesRow.cost) > 0
-      ? toNumber(previousSalesRow.cost)
-      : toNumber(previousPurchases.rows[0]?.total);
-  const todayCogs =
-    toNumber(todaySalesRow.cost) > 0
-      ? toNumber(todaySalesRow.cost)
-      : toNumber(todayPurchases.rows[0]?.total);
+  const periodCogsResolved = resolveCogs(
+    periodSalesRow.cost,
+    periodCogsItems.rows[0]?.cogs_items,
+    periodPurchases.rows[0]?.total,
+  );
+  const previousCogsResolved = resolveCogs(
+    previousSalesRow.cost,
+    previousCogsItems.rows[0]?.cogs_items,
+    previousPurchases.rows[0]?.total,
+  );
+  const todayCogsResolved = resolveCogs(
+    todaySalesRow.cost,
+    todayCogsItems.rows[0]?.cogs_items,
+    todayPurchases.rows[0]?.total,
+  );
+  const periodCogs = periodCogsResolved.value;
+  const previousCogs = previousCogsResolved.value;
+  const todayCogs = todayCogsResolved.value;
   const periodGrossProfit = roundMoney(toNumber(periodSalesRow.total) - periodCogs);
   const previousGrossProfit = roundMoney(toNumber(previousSalesRow.total) - previousCogs);
   const todayGrossProfit = roundMoney(toNumber(todaySalesRow.total) - todayCogs);
-  const cogsBasis = toNumber(periodSalesRow.cost) > 0 ? 'sales_cost' : 'purchases_estimate';
+  const cogsBasis = periodCogsResolved.basis;
 
   const netProfit = roundMoney(periodGrossProfit - toNumber(periodExpensesRow.total));
   const previousNetProfit = roundMoney(previousGrossProfit - toNumber(previousExpensesRow.total));
@@ -635,15 +732,30 @@ const _computeDashboardStats = async (filters: Record<string, any> = {}) => {
   // إجمالي مديونيات العملاء الكلية (تشمل الأرصدة السابقة والمرحلة + فواتير الأجل - المدفوعات)
   const unpaidAmount = roundMoney(unpaidInvoices.rows[0]?.amount);
 
-  // النقدية والمتحصلات الفعلية المتاحة بالخزينة
-  const actualCashCollected = roundMoney(toNumber(periodSalesRow.total) - periodUnpaidSales);
+  // ── السيولة المتوفرة (تقدير تدفق نقدي فعلي) ──
+  // المنهج الصحيح: رصيد أول المدة + تحصيلات العملاء الفعلية − مدفوعات الموردين الفعلية − المصاريف
+  // (فواتير المشتريات الآجلة غير المسددة لا تُخصم لأنها لم تخرج نقدًا — تظهر كبضاعة + مستحقات موردين)
+  const customerCollectionsTotal = toNumber(customerCollections.rows[0]?.total);
+  const supplierPaymentsTotal = toNumber(supplierPayments.rows[0]?.total);
+  const periodExpensesTotal = toNumber(periodExpensesRow.total);
+  const cashFromSales = roundMoney(toNumber(periodSalesRow.total) - periodUnpaidSales);
+  const oldDebtCollections = roundMoney(customerCollectionsTotal - cashFromSales);
+
   const realIncomeMonth = roundMoney(
-    openingBalanceTotal +
-      actualCashCollected -
-      toNumber(periodExpensesRow.total) -
-      toNumber(purchaseSummaryRow.total),
+    openingBalanceTotal + customerCollectionsTotal - supplierPaymentsTotal - periodExpensesTotal,
   );
   const cashFlowMonth = realIncomeMonth;
+  const cashDetails = {
+    openingBalance: roundMoney(openingBalanceTotal),
+    customerCollections: roundMoney(customerCollectionsTotal),
+    cashFromSales,
+    oldDebtCollections,
+    supplierPayments: roundMoney(supplierPaymentsTotal),
+    expenses: roundMoney(periodExpensesTotal),
+    isEstimate: true,
+    estimateNote:
+      'تقدير نقدي: رصيد أول المدة + تحصيلات العملاء الفعلية − مدفوعات الموردين − المصروفات. المشتريات الآجلة غير المسددة لا تُخصم من السيولة.',
+  };
 
   // إجمالي أصول المحل = النقدية بالخزينة + ديون العملاء المستحقة + بضاعة المخزن
   const totalAssets = roundMoney(
@@ -712,6 +824,7 @@ const _computeDashboardStats = async (filters: Record<string, any> = {}) => {
       amount: roundMoney(unpaidInvoices.rows[0]?.amount),
     },
     customersCount: toNumber(customersCount.rows[0]?.count),
+    customerOpeningBalances: roundMoney(totalCustomerOpeningBalances),
     inventoryStats: {
       products: toNumber(inventoryRow.products),
       total_qty: roundMoney(inventoryRow.total_qty),
@@ -764,6 +877,7 @@ const _computeDashboardStats = async (filters: Record<string, any> = {}) => {
     avgDailySalesMonth: periodPayload.avgDailySales,
     cashFlowMonth,
     realIncomeMonth,
+    cashDetails,
     totalAssets,
     salesChart: salesTrend.rows,
     profitChart: salesTrend.rows,

@@ -78,11 +78,19 @@ export const useAppStore = defineStore('app', () => {
   };
 
   const applyDarkMode = () => {
+    const root = document.documentElement;
     if (darkMode.value) {
-      document.documentElement.setAttribute('data-theme', 'dark');
+      root.setAttribute('data-theme', 'dark');
+      root.style.colorScheme = 'dark';
     } else {
-      document.documentElement.removeAttribute('data-theme');
+      root.removeAttribute('data-theme');
+      root.style.colorScheme = 'light';
     }
+    // مزامنة لون شريط المتصفح (theme-color) مع الثيم
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', darkMode.value ? '#16100c' : '#fdf8f3');
+    // إشعار الرسوم البيانية لإعادة الرسم بألوان الثيم الجديد
+    window.dispatchEvent(new CustomEvent('theme-changed', { detail: { dark: darkMode.value } }));
   };
 
   // ── وضع تركيز الكاشير: إخفاء كل شيء إلا شاشة العمل (البيع) ──

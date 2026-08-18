@@ -13,9 +13,25 @@
     >
       <RouterLink class="metric-card circular-card hover-lift" :class="metric.tone" :to="metric.to">
         <span class="metric-icon"><AppIcon :name="metric.icon" :size="18" /></span>
-        <span class="metric-label">{{ metric.label }}</span>
-        <strong>{{ metric.value }}</strong>
+        <span class="metric-label">
+          {{ metric.label }}
+          <span
+            v-if="metric.estimate"
+            class="estimate-pill"
+            :title="metric.estimateNote"
+            >≈ تقديري</span
+          >
+        </span>
+        <strong>
+          <AnimatedNumber :value="metric.raw" :format="metric.format" />
+        </strong>
         <small class="metric-sub">{{ metric.sub }}</small>
+        <Sparkline
+          v-if="metric.spark && metric.spark.length > 1"
+          :data="metric.spark"
+          :color="metric.sparkColor"
+          class="metric-spark"
+        />
       </RouterLink>
     </div>
   </section>
@@ -25,6 +41,8 @@
 import { computed, ref, onMounted } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import { formatMoney, abbreviateNumber, formatPercent } from '@/utils/formatters';
+import AnimatedNumber from '@/components/ui/AnimatedNumber.vue';
+import Sparkline from '@/components/ui/Sparkline.vue';
 
 const props = defineProps({
   stats: { type: Object, required: true },
@@ -32,8 +50,9 @@ const props = defineProps({
 
 const authStore = useAuthStore();
 
-// Helpers
+// Helpers (تستخدم كدوال تنسيق داخل العداد المتحرك)
 const money = (val: any) => formatMoney(val || 0);
+const moneyCompact = (val: any) => formatMoney(val || 0, { compact: true });
 const number = (val: any) => abbreviateNumber(val || 0);
 const percent = (val: any) => formatPercent(val || 0);
 
@@ -41,11 +60,19 @@ const monthCards = computed(() => props.stats?.monthCards || {});
 
 const mainMetrics = computed(() => {
   const s = props.stats;
+  // بيانات الاتجاه للـ Sparklines (آخر 7 نقاط في المخطط)
+  const salesTrend = (s?.salesTrend || []).map((r: any) => Number(r.sales || 0));
+  const profitTrend = (s?.salesTrend || []).map((r: any) => Number(r.profit || 0));
+  const expenseTrend = (s?.expenseTrend || []).map((r: any) => Number(r.expenses || 0));
+
   const metrics = [
     {
       key: 'sales',
       label: 'إجمالي المبيعات',
-      value: money(s?.month?.sales),
+      raw: Number(s?.month?.sales || 0),
+      format: money,
+      spark: salesTrend,
+      sparkColor: 'var(--primary)',
       sub: `${number(s?.month?.salesCount)} عملية`,
       icon: 'sales',
       tone: 'sales',
@@ -54,8 +81,11 @@ const mainMetrics = computed(() => {
     {
       key: 'profit',
       label: 'صافي الربح',
-      value: money(s?.month?.netProfit),
-      sub: `${s?.month?.cogsBasis === 'purchases_estimate' ? 'تقديري بناء على مشتريات الفترة - ' : ''}تحصيل ${percent(s?.month?.collectionRate)}`,
+      raw: Number(s?.month?.netProfit || 0),
+      format: money,
+      spark: profitTrend,
+      sparkColor: 'var(--success)',
+      sub: `${s?.month?.cogsBasis === 'purchases' ? 'تقديري بناء على مشتريات الفترة - ' : ''}تحصيل ${percent(s?.month?.collectionRate)}`,
       icon: 'reports',
       tone: 'profit',
       to: '/reports',
@@ -64,9 +94,8 @@ const mainMetrics = computed(() => {
     {
       key: 'margin',
       label: 'هامش الربح %',
-      value: percent(
-        (Number(s?.month?.netProfit || 0) / (Number(s?.month?.sales || 0) || 1)) * 100,
-      ),
+      raw: (Number(s?.month?.netProfit || 0) / (Number(s?.month?.sales || 0) || 1)) * 100,
+      format: percent,
       sub: 'صافي الأرباح المئوية',
       icon: 'reports',
       tone: 'profit',
@@ -76,7 +105,8 @@ const mainMetrics = computed(() => {
     {
       key: 'cogs',
       label: 'تكلفة البضاعة',
-      value: money(s?.month?.cost),
+      raw: Number(s?.month?.cost || 0),
+      format: money,
       sub: 'تكلفة تحضير المشروبات',
       icon: 'coffee',
       tone: 'warning',
@@ -86,9 +116,8 @@ const mainMetrics = computed(() => {
     {
       key: 'purchases_sales_ratio',
       label: 'نسبة الشراء للبيع',
-      value: percent(
-        (Number(monthCards.value.purchases || 0) / (Number(s?.month?.sales || 0) || 1)) * 100,
-      ),
+      raw: (Number(monthCards.value.purchases || 0) / (Number(s?.month?.sales || 0) || 1)) * 100,
+      format: percent,
       sub: 'المعدل الصحي 25% - 35%',
       icon: 'purchases',
       tone:
@@ -101,7 +130,8 @@ const mainMetrics = computed(() => {
     {
       key: 'unpaid',
       label: 'مديونيات العملاء',
-      value: money(s?.unpaidInvoices?.amount),
+      raw: Number(s?.unpaidInvoices?.amount || 0),
+      format: money,
       sub: `${number(s?.unpaidInvoices?.count)} عميل عليه مديونية`,
       icon: 'warning',
       tone: Number(s?.unpaidInvoices?.amount || 0) ? 'danger' : 'success',
@@ -111,7 +141,10 @@ const mainMetrics = computed(() => {
     {
       key: 'expenses',
       label: 'المصروفات',
-      value: money(s?.month?.expenses),
+      raw: Number(s?.month?.expenses || 0),
+      format: money,
+      spark: expenseTrend,
+      sparkColor: 'var(--danger)',
       sub: `${number(s?.month?.expensesCount)} حركة`,
       icon: 'expenses',
       tone: 'warning',
@@ -121,7 +154,8 @@ const mainMetrics = computed(() => {
     {
       key: 'purchases',
       label: 'المشتريات',
-      value: money(monthCards.value.purchases),
+      raw: Number(monthCards.value.purchases || 0),
+      format: money,
       sub: `${number(monthCards.value.purchasesCount)} فاتورة`,
       icon: 'purchases',
       tone: 'inventory',
@@ -131,7 +165,8 @@ const mainMetrics = computed(() => {
     {
       key: 'inventory',
       label: 'قيمة المخزون',
-      value: money(s?.inventoryStats?.inventory_value),
+      raw: Number(s?.inventoryStats?.inventory_value || 0),
+      format: money,
       sub: `${number(s?.inventoryStats?.products)} منتج`,
       icon: 'inventory',
       tone: 'inventory',
@@ -141,8 +176,17 @@ const mainMetrics = computed(() => {
     {
       key: 'cash',
       label: 'السيولة المتوفرة (الخزينة)',
-      value: money(s?.realIncomeMonth),
-      sub: 'الكاش الفعلي والمتوفر في الدرج/الخزينة',
+      raw: Number(s?.realIncomeMonth || 0),
+      format: money,
+      estimate: true,
+      estimateNote:
+        s?.cashDetails?.estimateNote ||
+        'تقدير نقدي: رصيد أول المدة + تحصيلات العملاء الفعلية − مدفوعات الموردين − المصروفات',
+      // إظهار تحصيل الديون القديمة إن كان موجبًا (سداد عملاء على مبيعات/فواتير من فترات سابقة)
+      sub:
+        Number(s?.cashDetails?.oldDebtCollections || 0) > 0
+          ? `منها ${moneyCompact(s?.cashDetails?.oldDebtCollections)} سداد ديون سابقة`
+          : 'رصيد + تحصيلات − سداد موردين − مصاريف',
       icon: 'money',
       tone: Number(s?.realIncomeMonth || 0) >= 0 ? 'profit' : 'danger',
       to: '/reports',
@@ -151,7 +195,8 @@ const mainMetrics = computed(() => {
     {
       key: 'total_assets',
       label: 'إجمالي أصول المحل',
-      value: money(s?.totalAssets),
+      raw: Number(s?.totalAssets || 0),
+      format: money,
       sub: 'الخزينة + المديونيات + المخزون',
       icon: 'reports',
       tone: Number(s?.totalAssets || 0) >= 0 ? 'success' : 'danger',
@@ -161,7 +206,8 @@ const mainMetrics = computed(() => {
     {
       key: 'active_customers',
       label: 'العملاء النشطون',
-      value: number(s?.customersCount),
+      raw: Number(s?.customersCount || 0),
+      format: number,
       sub: 'عميل متفاعل بالفترة',
       icon: 'customers',
       tone: 'info',
@@ -219,4 +265,30 @@ const onDrop = (event: any, index: any) => {
 
 <style lang="scss" scoped>
 @use './dashboardShared.scss';
+
+.metric-spark {
+  margin-top: 4px;
+  opacity: 0.92;
+  transition: opacity 0.2s ease;
+}
+
+.metric-card.circular-card:hover .metric-spark {
+  opacity: 1;
+}
+
+/* وسام التقدير على البطاقات التقريبية (السيولة) */
+.estimate-pill {
+  display: inline-block;
+  margin-right: 3px;
+  padding: 1px 5px;
+  border-radius: 999px;
+  font-size: 0.55rem;
+  font-weight: 900;
+  line-height: 1.3;
+  vertical-align: middle;
+  color: var(--warning);
+  background: color-mix(in srgb, var(--warning) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--warning) 30%, transparent);
+  cursor: help;
+}
 </style>

@@ -467,6 +467,13 @@ onMounted(async () => {
 }
 
 /* ════════════════════════════════════════════════════════════════════
+   DARK MODE (Espresso) — نفس هوية القهوة بدرجات داكنة
+   تُفعَّل عبر data-theme="dark" على <html> (يُدار من stores/app.ts)
+   ملاحظة: مُستخرجة في كتلة style غير معزولة في نهاية الملف لأن :global()
+   داخل النمط المعزول كان يُسقط جزء .login-page أثناء التجميع (Sass modern-compiler).
+   ════════════════════════════════════════════════════════════════════ */
+
+/* ════════════════════════════════════════════════════════════════════
    ROOT LAYOUT
    ════════════════════════════════════════════════════════════════════ */
 .login-page {
@@ -1324,5 +1331,28 @@ onMounted(async () => {
   .submit-btn:hover:not(:disabled) {
     transform: none;
   }
+}
+</style>
+
+<!-- ═══════════ كتلة غير معزولة: متغيرات صفحة الدخول في الوضع الداكن ═══════════ -->
+<style lang="scss">
+html[data-theme='dark'] .login-page {
+  --bg-cream: #16100c;
+  --bg-white: #201712;
+  --surface: #251b14;
+  --border-light: #382c23;
+  --border-medium: #524032;
+
+  --text-primary: #f3ece4;
+  --text-secondary: #c8b9a9;
+  --text-muted: #a08d7d;
+
+  --accent: #c8956e;
+  --accent-dark: #e0ab84;
+  --accent-light: #6b4a2e;
+  --accent-glow: rgba(200, 149, 110, 0.18);
+
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.4), 0 12px 40px rgba(0, 0, 0, 0.5);
+  --shadow-card-hover: 0 4px 12px rgba(0, 0, 0, 0.45), 0 20px 50px rgba(0, 0, 0, 0.55);
 }
 </style>

@@ -1,6 +1,9 @@
 @import url('https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@400;700&family=Cairo:wght@300;400;500;600;700;800&family=Outfit:wght@300;400;500;600;700;800&display=swap');
 
 :root {
+  /* ── Native Controls Follow Light Theme ── */
+  color-scheme: light;
+
   /* ── Typography ── */
   --font-ui: 'Cairo', 'Outfit', 'Segoe UI', Tahoma, Arial, sans-serif;
   --font-calligraphy: 'Aref Ruqaa', serif;
@@ -108,6 +111,9 @@
  * يُفعَّل عبر data-theme="dark" على <html> (يُدار من stores/app.ts).
  */
 [data-theme='dark'] {
+  /* ── Native Controls Follow Dark Theme (selects, date inputs, scrollbars, autofill) ── */
+  color-scheme: dark;
+
   --bg: #16100c;
   --bg-elevated: #201712;
   --bg-card: #1e1611;

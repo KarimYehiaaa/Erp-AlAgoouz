@@ -126,7 +126,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue';
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
 import { formatMoney } from '@/utils/currency';
 
 // تبويب التدفقات النقدية — إحصائيات مصغرة + شريط تنبيه + رسم Chart.js + جدول النقاط اليومية.
@@ -183,7 +183,15 @@ const renderChart = async () => {
   const colors = {
     primary:
       getComputedStyle(document.documentElement).getPropertyValue('--primary').trim() || '#176b5b',
-    grid: 'rgba(102,112,133,0.18)',
+    // ألوان ديناميكية تتكيف مع الوضع الفاتح/الداكن
+    text:
+      getComputedStyle(document.documentElement).getPropertyValue('--text-muted').trim() ||
+      '#78716C',
+    grid:
+      'color-mix(in srgb, ' +
+      (getComputedStyle(document.documentElement).getPropertyValue('--border').trim() ||
+        'rgba(102,112,133,0.18)') +
+      ' 80%, transparent)',
   };
 
   const colorMix = (color: any, opacity: any) => {
@@ -239,6 +247,7 @@ const renderChart = async () => {
           labels: {
             boxWidth: 10,
             usePointStyle: true,
+            color: colors.text,
             font: {
               family: 'Outfit, Cairo, sans-serif',
             },
@@ -269,6 +278,7 @@ const renderChart = async () => {
             color: colors.grid,
           },
           ticks: {
+            color: colors.text,
             font: {
               family: 'Outfit, Cairo, sans-serif',
             },
@@ -288,8 +298,16 @@ watch(
   { flush: 'post' },
 );
 
+// إعادة رسم المخطط عند تغيير الثيم حتى تأخذ الخطوط والألوان قيم الوضع الجديد
+const handleThemeChange = () => renderChart();
+
 onMounted(() => {
   renderChart();
+  window.addEventListener('theme-changed', handleThemeChange);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener('theme-changed', handleThemeChange);
 });
 </script>
 

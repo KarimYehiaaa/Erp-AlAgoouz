@@ -1,5 +1,15 @@
 <template>
   <div class="dashboard">
+    <!-- شريط تقدم رفيع: يعد تنازليًا حتى التحديث التلقائي الجاي، وينبض أثناء التحميل -->
+    <div
+      v-if="autoRefresh || refreshing"
+      class="auto-refresh-bar"
+      :class="{ refreshing }"
+      :style="{ width: refreshing ? '100%' : refreshProgress + '%' }"
+      role="progressbar"
+      :aria-label="refreshing ? 'جاري تحديث البيانات' : 'الوقت المتبقي حتى التحديث التلقائي التالي'"
+    ></div>
+
     <section class="dashboard-header">
       <div>
         <h1>لوحة التحكم</h1>
@@ -29,8 +39,33 @@
           :disabled="loading"
           @click="loadDashboard"
         >
+          <AppIcon
+            name="refresh"
+            :size="14"
+            style="margin-left: 6px"
+            :class="{ 'spin-icon': loading }"
+          />
           تحديث
         </button>
+
+        <!-- مؤشر آخر تحديث + زر التحديث التلقائي الدوري (60 ثانية) -->
+        <div class="auto-refresh-wrap" :class="{ active: autoRefresh }">
+          <span class="live-dot" :class="{ on: autoRefresh }" aria-hidden="true"></span>
+          <span class="last-updated">آخر تحديث: {{ lastUpdatedLabel }}</span>
+          <button
+            class="auto-refresh-toggle"
+            type="button"
+            :title="
+              autoRefresh
+                ? 'التحديث التلقائي مفعل — يتم التحديث كل 60 ثانية (اضغط للإيقاف)'
+                : 'التحديث التلقائي متوقف — اضغط للتفعيل كل 60 ثانية'
+            "
+            :aria-label="autoRefresh ? 'إيقاف التحديث التلقائي' : 'تفعيل التحديث التلقائي'"
+            @click="toggleAutoRefresh"
+          >
+            <AppIcon :name="autoRefresh ? 'timer' : 'timerOff'" :size="15" />
+          </button>
+        </div>
       </div>
     </section>
 
@@ -379,6 +414,58 @@ const loading = ref(true);
 const error = ref('');
 const selectedRange = ref('month');
 
+// ── التحديث التلقائي الدوري (كل 60 ثانية) + مؤشر آخر تحديث ──
+const AUTO_REFRESH_INTERVAL = 60 * 1000;
+const autoRefresh = ref(localStorage.getItem('dashboard_auto_refresh') !== 'false');
+const lastUpdated = ref<Date | null>(null);
+const nowTick = ref(Date.now());
+// شريط التقدم: نسبة الوقت المتبقي حتى التحديث القادم (0→100) + حالة التحميل الفعلي
+const refreshProgress = ref(0);
+const refreshing = ref(false);
+let autoRefreshTimer: ReturnType<typeof setInterval> | null = null;
+let tickTimer: ReturnType<typeof setInterval> | null = null;
+
+const lastUpdatedLabel = computed(() => {
+  if (!lastUpdated.value) return '—';
+  const diff = Math.max(0, Math.floor((nowTick.value - lastUpdated.value.getTime()) / 1000));
+  if (diff < 60) return `منذ ${diff} ثانية`;
+  const mins = Math.floor(diff / 60);
+  if (mins < 60) return `منذ ${mins} دقيقة`;
+  return lastUpdated.value.toLocaleTimeString('ar-EG', {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+});
+
+const startAutoRefresh = () => {
+  stopAutoRefresh();
+  autoRefreshTimer = setInterval(() => {
+    // لا نكدّس طلبات — نتخطى الدورة لو في طلب جارٍ
+    if (!loading.value) loadDashboard();
+  }, AUTO_REFRESH_INTERVAL);
+};
+
+const stopAutoRefresh = () => {
+  if (autoRefreshTimer) {
+    clearInterval(autoRefreshTimer);
+    autoRefreshTimer = null;
+  }
+};
+
+const toggleAutoRefresh = () => {
+  autoRefresh.value = !autoRefresh.value;
+  localStorage.setItem('dashboard_auto_refresh', String(autoRefresh.value));
+  if (autoRefresh.value) {
+    // نبدأ العد من جديد
+    refreshProgress.value = 0;
+    startAutoRefresh();
+  } else {
+    stopAutoRefresh();
+    refreshProgress.value = 0;
+  }
+};
+
+
 // 🎛️ تخصيص الودجت
 const showWidgetSettings = ref(false);
 const widgetVisibility = ref({
@@ -590,53 +677,67 @@ const chartColors = () => ({
     getComputedStyle(document.documentElement).getPropertyValue('--danger').trim() || '#dc2626',
   warning:
     getComputedStyle(document.documentElement).getPropertyValue('--warning').trim() || '#b45309',
-  grid: 'rgba(102,112,133,0.18)',
+  // ألوان ديناميكية تتكيف مع الوضع الفاتح/الداكن (تقرأ من متغيرات CSS)
+  text:
+    getComputedStyle(document.documentElement).getPropertyValue('--text-muted').trim() ||
+    '#78716C',
+  border:
+    getComputedStyle(document.documentElement).getPropertyValue('--border').trim() ||
+    'rgba(102,112,133,0.18)',
+  grid:
+    'color-mix(in srgb, ' +
+    (getComputedStyle(document.documentElement).getPropertyValue('--border').trim() ||
+      'rgba(102,112,133,0.18)') +
+    ' 80%, transparent)',
 });
 
-const baseOptions = (moneyTooltip = true) => ({
-  responsive: true,
-  maintainAspectRatio: false,
-  interaction: { mode: 'index', intersect: false },
-  plugins: {
-    legend: {
-      display: true,
-      position: 'bottom',
-      labels: { boxWidth: 10, usePointStyle: true, color: '#78716C', font: { family: 'Cairo' } },
-    },
-    tooltip: {
-      rtl: true,
-      textDirection: 'rtl',
-      backgroundColor: '#1C1917',
-      titleColor: '#FAFAF9',
-      bodyColor: '#FAFAF9',
-      borderColor: '#A16207',
-      borderWidth: 1,
-      cornerRadius: 8,
-      padding: 12,
-      titleFont: { family: 'Cairo', size: 13, weight: 'bold' },
-      bodyFont: { family: 'Cairo', size: 12 },
-      callbacks: {
-        label: (ctx: any) =>
-          `  ${ctx.dataset.label || ctx.label}: ${moneyTooltip ? money(ctx.parsed.y ?? ctx.parsed ?? 0) : number(ctx.parsed.y ?? ctx.parsed ?? 0)}`,
+const baseOptions = (moneyTooltip = true) => {
+  const colors = chartColors();
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: { mode: 'index', intersect: false },
+    plugins: {
+      legend: {
+        display: true,
+        position: 'bottom',
+        labels: { boxWidth: 10, usePointStyle: true, color: colors.text, font: { family: 'Cairo' } },
+      },
+      tooltip: {
+        rtl: true,
+        textDirection: 'rtl',
+        backgroundColor: '#1C1917',
+        titleColor: '#FAFAF9',
+        bodyColor: '#FAFAF9',
+        borderColor: '#A16207',
+        borderWidth: 1,
+        cornerRadius: 8,
+        padding: 12,
+        titleFont: { family: 'Cairo', size: 13, weight: 'bold' },
+        bodyFont: { family: 'Cairo', size: 12 },
+        callbacks: {
+          label: (ctx: any) =>
+            `  ${ctx.dataset.label || ctx.label}: ${moneyTooltip ? money(ctx.parsed.y ?? ctx.parsed ?? 0) : number(ctx.parsed.y ?? ctx.parsed ?? 0)}`,
+        },
       },
     },
-  },
-  scales: {
-    x: {
-      grid: { display: false },
-      ticks: { color: '#78716C', font: { family: 'Cairo', size: 11 } },
-    },
-    y: {
-      beginAtZero: true,
-      grid: { color: chartColors().grid },
-      ticks: {
-        color: '#78716C',
-        font: { family: 'Cairo', size: 11 },
-        callback: (value: any) => (moneyTooltip ? money(value) : number(value)),
+    scales: {
+      x: {
+        grid: { display: false },
+        ticks: { color: colors.text, font: { family: 'Cairo', size: 11 } },
+      },
+      y: {
+        beginAtZero: true,
+        grid: { color: colors.grid },
+        ticks: {
+          color: colors.text,
+          font: { family: 'Cairo', size: 11 },
+          callback: (value: any) => (moneyTooltip ? money(value) : number(value)),
+        },
       },
     },
-  },
-});
+  };
+};
 
 const createChart = (ChartLib: any, chartRef: any, config: any) => {
   if (!chartRef.value) return;
@@ -724,7 +825,15 @@ const renderCharts = async () => {
   createChart(ChartLib, performanceChartRef, {
     type: 'bar',
     data: { labels, datasets: performanceDatasets },
-    options: baseOptions(true),
+    options: {
+      ...baseOptions(true),
+      // أعمدة تظهر تباعًا (staggered) لحركة أكثر حيوية
+      animation: {
+        duration: 1000,
+        easing: 'easeOutQuart',
+        delay: (ctx: any) => ctx.dataIndex * 35,
+      },
+    },
   });
 
   createChart(ChartLib, salesTypeChartRef, {
@@ -749,7 +858,14 @@ const renderCharts = async () => {
         },
       ],
     },
-    options: baseOptions(true),
+    options: {
+      ...baseOptions(true),
+      animation: {
+        duration: 900,
+        easing: 'easeOutQuart',
+        delay: (ctx: any) => ctx.dataIndex * 70,
+      },
+    },
   });
 
   createChart(ChartLib, paymentChartRef, {
@@ -856,6 +972,12 @@ const renderCharts = async () => {
     options: {
       ...baseOptions(true),
       indexAxis: 'y',
+      // شريط سباق: كل شريط ينمو بعد اللي قبله
+      animation: {
+        duration: 1400,
+        easing: 'easeOutQuart',
+        delay: (ctx: any) => ctx.dataIndex * 85,
+      },
       scales: {
         x: {
           beginAtZero: true,
@@ -885,6 +1007,12 @@ const renderCharts = async () => {
     options: {
       ...baseOptions(true),
       indexAxis: 'y',
+      // شريط سباق: كل شريط ينمو بعد اللي قبله
+      animation: {
+        duration: 1400,
+        easing: 'easeOutQuart',
+        delay: (ctx: any) => ctx.dataIndex * 85,
+      },
       scales: {
         x: {
           beginAtZero: true,
@@ -931,6 +1059,7 @@ const renderCharts = async () => {
     },
     options: {
       ...baseOptions(true),
+      animation: { duration: 1200, easing: 'easeInOutCubic' },
       scales: {
         x: { grid: { display: false } },
         y: {
@@ -1032,6 +1161,7 @@ const renderCharts = async () => {
       },
       options: {
         ...baseOptions(true),
+        animation: { duration: 1200, easing: 'easeInOutCubic' },
         scales: {
           x: { grid: { display: false } },
           y: { grid: { color: colors.grid }, ticks: { callback: (value: any) => money(value) } },
@@ -1064,10 +1194,13 @@ const paymentStatusLabel = (status: any) =>
 
 const loadDashboard = async () => {
   loading.value = true;
+  refreshing.value = true;
   error.value = '';
   try {
     const res = await dashboardApi(dashboardParams.value);
     stats.value = res.data;
+    lastUpdated.value = new Date();
+    nowTick.value = Date.now();
     loading.value = false;
     await nextTick();
     await renderCharts();
@@ -1075,28 +1208,49 @@ const loadDashboard = async () => {
     error.value = err.message || 'حدث خطأ أثناء تحميل لوحة التحكم';
     destroyCharts();
     loading.value = false;
+  } finally {
+    // انتهى التحميل — يعود الشريط للعد من جديد
+    refreshing.value = false;
+    refreshProgress.value = 0;
   }
 };
 
 const handleWindowFocus = () => loadDashboard();
 const handleRealtimeUpdate = () => loadDashboard();
+const handleThemeChange = () => renderCharts();
 
 onMounted(() => {
   loadDashboard();
   loadWarehouses();
+  if (autoRefresh.value) startAutoRefresh();
+  // عدّاد عرض "منذ X ثانية" + تقدم شريط التحديث التلقائي
+  tickTimer = setInterval(() => {
+    nowTick.value = Date.now();
+    if (autoRefresh.value && !loading.value) {
+      // خطوة 1/60 من الدقيقة كل ثانية
+      refreshProgress.value = Math.min(
+        100,
+        refreshProgress.value + 100 / (AUTO_REFRESH_INTERVAL / 1000),
+      );
+    }
+  }, 1000);
   window.addEventListener('focus', handleWindowFocus);
   window.addEventListener('invoices-updated', handleRealtimeUpdate);
   window.addEventListener('sales-updated', handleRealtimeUpdate);
   window.addEventListener('inventory-updated', handleRealtimeUpdate);
   window.addEventListener('expenses-updated', handleRealtimeUpdate);
+  window.addEventListener('theme-changed', handleThemeChange);
 });
 
 onBeforeUnmount(() => {
+  stopAutoRefresh();
+  if (tickTimer) clearInterval(tickTimer);
   window.removeEventListener('focus', handleWindowFocus);
   window.removeEventListener('invoices-updated', handleRealtimeUpdate);
   window.removeEventListener('sales-updated', handleRealtimeUpdate);
   window.removeEventListener('inventory-updated', handleRealtimeUpdate);
   window.removeEventListener('expenses-updated', handleRealtimeUpdate);
+  window.removeEventListener('theme-changed', handleThemeChange);
   destroyCharts();
 });
 </script>
@@ -1105,9 +1259,48 @@ onBeforeUnmount(() => {
 @use '../components/dashboard/dashboardShared.scss';
 
 .dashboard {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+/* ── شريط تقدم التحديث التلقائي (رفيع أعلى اللوحة) ── */
+.auto-refresh-bar {
+  position: absolute;
+  top: 3px;
+  left: 10px;
+  right: 10px;
+  height: 3px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--primary), var(--accent));
+  box-shadow: 0 0 10px color-mix(in srgb, var(--primary) 50%, transparent);
+  transition: width 1s linear;
+  z-index: 6;
+  pointer-events: none;
+}
+
+/* أثناء التحميل الفعلي: تعبئة كاملة + انزلاق لا نهائي (نبض خلفية) */
+.auto-refresh-bar.refreshing {
+  transition: none;
+  background: linear-gradient(90deg, transparent, var(--accent), var(--primary), transparent);
+  background-size: 200% 100%;
+  animation: bar-slide 0.9s linear infinite;
+  box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 60%, transparent);
+}
+
+@keyframes bar-slide {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auto-refresh-bar,
+  .auto-refresh-bar.refreshing {
+    transition: none !important;
+    animation: none !important;
+  }
 }
 
 .dashboard-header {
@@ -1170,6 +1363,98 @@ onBeforeUnmount(() => {
   background: var(--bg-elevated);
   color: var(--primary-dark);
   box-shadow: var(--shadow-xs);
+}
+
+/* ── التحديث التلقائي الدوري + مؤشر آخر تحديث ── */
+.auto-refresh-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-size: 0.74rem;
+  font-weight: 800;
+  transition:
+    border-color var(--transition),
+    background var(--transition);
+
+  &.active {
+    border-color: color-mix(in srgb, var(--success) 35%, var(--border));
+    background: color-mix(in srgb, var(--success) 6%, var(--surface-2));
+  }
+
+  .live-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--text-muted);
+    opacity: 0.45;
+    transition: all 0.25s ease;
+    flex-shrink: 0;
+
+    &.on {
+      background: var(--success);
+      opacity: 1;
+      animation: live-pulse 2s infinite;
+    }
+  }
+
+  .last-updated {
+    white-space: nowrap;
+  }
+
+  .auto-refresh-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border: 1px solid var(--border-strong);
+    border-radius: 50%;
+    background: var(--bg-elevated);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.2s ease;
+
+    &:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+      transform: scale(1.08);
+    }
+  }
+}
+
+@keyframes live-pulse {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--success) 55%, transparent);
+  }
+  70% {
+    box-shadow: 0 0 0 6px transparent;
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
+/* دوران أيقونة التحديث أثناء التحميل */
+.spin-icon {
+  animation: icon-spin 0.9s linear infinite;
+}
+
+@keyframes icon-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .live-dot.on,
+  .spin-icon {
+    animation: none !important;
+  }
 }
 
 .custom-range {

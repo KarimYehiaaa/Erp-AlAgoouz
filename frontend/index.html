@@ -7,9 +7,25 @@
   <link rel="icon" type="image/png" href="/logo.png" />
   <link rel="apple-touch-icon" href="/logo.png" />
   <link rel="manifest" href="/manifest.json" />
-  <meta name="theme-color" content="#0f766e" />
+  <meta name="theme-color" content="#fdf8f3" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <script>
+    /* تطبيق الوضع الداكن قبل أول رسم لمنع الوميض الأبيض (FOUC) */
+    (function () {
+      try {
+        var dark = localStorage.getItem('darkMode') === 'true';
+        if (dark) {
+          document.documentElement.setAttribute('data-theme', 'dark');
+          document.documentElement.style.colorScheme = 'dark';
+        } else {
+          document.documentElement.style.colorScheme = 'light';
+        }
+        var meta = document.querySelector('meta[name="theme-color"]');
+        if (meta) meta.setAttribute('content', dark ? '#16100c' : '#fdf8f3');
+      } catch (e) {}
+    })();
+  </script>
 </head>
 <body>
   <div id="app"></div>

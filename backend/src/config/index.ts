@@ -15,12 +15,13 @@ dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 /**
- * الحصول على متغير بيئة أو استخدام قيمة افتراضية للإنتاج لضمان عمل Vercel تلقائياً
+ * الحصول على متغير بيئة إلزامي.
+ * لا توجد قيم افتراضية للأسرار (كلمة مرور DB / مفتاح JWT) —
+ * عند غيابها يتوقف التشغيل فورًا برسالة واضحة بدل استخدام قيم مضمّنة في الكود.
  */
-const requireEnv = (name, fallback = '') => {
+const requireEnv = (name) => {
   const value = process.env[name];
   if (value && value.trim()) return value.trim();
-  if (fallback) return fallback;
   throw new Error(`تعذر العثور على متغير البيئة المطلوب: ${name}`);
 };
 
@@ -62,13 +63,13 @@ if (process.env.DATABASE_URL) {
   };
 } else {
   let portNum = parseInt(optionalEnv('DB_PORT', '6543'), 10);
-  const dbHost = requireEnv('DB_HOST', 'aws-0-eu-north-1.pooler.supabase.com');
+  const dbHost = optionalEnv('DB_HOST', 'aws-0-eu-north-1.pooler.supabase.com');
   if (dbHost && dbHost.includes('pooler.supabase.com') && portNum === 5432) {
     portNum = 6543; // Switch to Transaction Mode (unlimited pooled clients)
   }
   dbConfig = {
-    user: requireEnv('DB_USER', 'postgres.agzcpybgcjxtkyszfhws'),
-    password: requireEnv('DB_PASSWORD', 'C@me#Cap0#1'),
+    user: requireEnv('DB_USER'),
+    password: requireEnv('DB_PASSWORD'),
     host: dbHost,
     port: portNum,
     database: optionalEnv('DB_NAME', 'postgres'),
@@ -90,15 +91,20 @@ const isCloudDB =
 
 const sslEnabled = process.env.DB_SSL === 'true' || !!isCloudDB;
 
-dbConfig.ssl = sslEnabled ? { rejectUnauthorized: false } : false;
+// التحقق من شهادة SSL: صارم في الإنتاج افتراضيًا (منع هجمات MITM)،
+// ويُمكن تعطيله صراحةً عبر DB_SSL_REJECT_UNAUTHORIZED=false عند الحاجة.
+const sslRejectUnauthorized = process.env.DB_SSL_REJECT_UNAUTHORIZED
+  ? process.env.DB_SSL_REJECT_UNAUTHORIZED === 'true'
+  : process.env.NODE_ENV === 'production';
+
+dbConfig.ssl = sslEnabled ? { rejectUnauthorized: sslRejectUnauthorized } : false;
 
 // ─── Export Configuration ──────────────────────────────────────────────────────
 /**
  * إعدادات التطبيق المركزية (الخادم، قاعدة البيانات، JWT، CORS، معدل الطلبات، الشركة، النسخ الاحتياطي).
- * تُقرأ من متغيرات البيئة مع قيم افتراضية مناسبة للإنتاج.
+ * تُقرأ من متغيرات البيئة؛ الأسرار (كلمة مرور DB وJWT) إلزامية وبدون قيم افتراضية.
  */
-const defaultJwtSecret = 'q1b2DoHuyqTNfjOM+BlV01Xl7NNaw+a0sgts3kbpYL4DKdy0VXqTnyA5HnwIgN6W';
-const jwtSecret = requireEnv('JWT_SECRET', defaultJwtSecret);
+const jwtSecret = requireEnv('JWT_SECRET');
 
 const config = {
   // ── Server ──

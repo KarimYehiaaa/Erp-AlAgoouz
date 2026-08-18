@@ -50,6 +50,11 @@ class InvoicesRepository extends BaseRepository {
     const result = await query(
       `SELECT i.*, c.name_ar as customer_name, c.phone as customer_phone, c.address as customer_address,
         c.tax_number as customer_tax, s.sale_number, s.sale_type, u.full_name as issued_by,
+        COALESCE((
+          SELECT SUM(p.amount) FROM payments p
+          WHERE (p.reference_type = 'invoice' AND p.reference_id = i.id)
+             OR (p.reference_type = 'sale' AND p.reference_id = i.sale_id)
+        ), 0) AS paid_amount,
         ${loadItemsJson}
        FROM invoices i
        LEFT JOIN customers c ON i.customer_id = c.id

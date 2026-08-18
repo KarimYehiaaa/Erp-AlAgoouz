@@ -456,6 +456,19 @@ export const restoreRecipeConsumptionForProduct = async (
         ],
       );
     }
+    // علّم حركات الاستهلاك كمستعادة حتى لا تُستعاد مرة أخرى عند تعديل/إرجاع لاحق
+    // (إصلاح: كانت تُستعاد مرتين بعد التعديل لأن الحركات القديمة تبقى 'consumption')
+    await client.query(
+      `UPDATE stock_movements SET movement_type = 'restored'
+       WHERE reference_type = 'sale' AND reference_id = $1
+         AND movement_type = 'consumption'
+         AND product_id IN (
+           SELECT pri.ingredient_product_id FROM product_recipe_items pri
+           JOIN product_recipes pr ON pr.id = pri.recipe_id
+           WHERE pr.product_id = $2 AND pr.deleted_at IS NULL
+         )`,
+      [saleId, productId],
+    );
     return;
   }
 

@@ -42,12 +42,12 @@ export const getCustomers = async (filters: Record<string, any> = {}) => {
                  ELSE COALESCE(p.total_paid, 0)
                END AS total_paid
         FROM sales s
-        LEFT JOIN (
-          SELECT reference_id, SUM(amount) AS total_paid
-          FROM payments
-          WHERE reference_type = 'sale'
-          GROUP BY reference_id
-        ) p ON p.reference_id = s.id
+        LEFT JOIN LATERAL (
+          SELECT COALESCE(SUM(p.amount), 0) AS total_paid
+          FROM payments p
+          WHERE (p.reference_type = 'sale' AND p.reference_id = s.id)
+             OR (p.reference_type = 'invoice' AND p.reference_id = (SELECT i.id FROM invoices i WHERE i.sale_id = s.id LIMIT 1))
+        ) p ON TRUE
         WHERE s.deleted_at IS NULL
           AND s.sale_type = 'wholesale'
           AND s.status = 'completed'
@@ -416,6 +416,8 @@ export const recordSalePayment = async (saleId: number, data: Record<string, any
       )
     ).rows[0];
     if (!sale) throw new AppError('العملية غير موجودة', 404);
+    if (sale.status === 'returned')
+      throw new AppError('لا يمكن تسجيل دفعة على عملية بيع مرتجعة');
 
     const amount = parseFloat(data.amount);
     if (!amount || amount <= 0) throw new AppError('المبلغ يجب أن يكون أكبر من صفر');
@@ -576,6 +578,11 @@ export const getCustomerStatement = async (id: number) => {
   const totalPurchased = rows.reduce((sum, r) => sum + Number(r.total_amount || 0), 0);
   const totalPaid = rows.reduce((sum, r) => sum + Number(r.paid_amount || 0), 0);
   const totalBalance = Math.max(0, totalPurchased - totalPaid);
+  // المستحق القابل للدفع من هذه الشاشة = المتبقي على المبيعات والفواتير الفعلية فقط
+  // (رصيد بداية المدة لا يدخل توزيع الدفعات — يُعدَّل من بيانات العميل مباشرة)
+  const payableTotal = rows
+    .filter((r) => r.entry_type !== 'opening_balance')
+    .reduce((sum, r) => sum + Math.max(0, Number(r.total_amount || 0) - Number(r.paid_amount || 0)), 0);
 
   return {
     customer,
@@ -583,6 +590,7 @@ export const getCustomerStatement = async (id: number) => {
       total_purchased: totalPurchased,
       total_paid: totalPaid,
       total_balance: totalBalance,
+      payable_total: payableTotal,
       sales_count: sales.rows.length,
       invoices_count: invoices.rows.length,
       total_entries: rows.length,

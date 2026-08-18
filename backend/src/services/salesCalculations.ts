@@ -56,11 +56,14 @@ const calculateSaleTotals = (items: any[] = [], data: Record<string, any> = {}) 
   if (items.length && discountAmount > itemsTotal) {
     throw new AppError('Invoice discount cannot exceed invoice total');
   }
-  const taxPercent = 0;
-  const taxAmount = 0;
+  // الضريبة: تُحسب بنفس منطق مسار الفواتير (tax_enabled + tax_percent) لتوحيد المعاملة
+  // عبر كل المسارات. عند عدم إرسال القيم تبقى صفرًا (السلوك السابق).
+  const taxPercent = Math.max(0, parseAmount(data.tax_percent ?? 0));
+  const taxableBase = Math.max(0, itemsTotal - discountAmount);
+  const taxAmount = data.tax_enabled ? roundMoney((taxableBase * taxPercent) / 100) : 0;
   const dailyTotal = roundMoney(parseAmount(data.total_amount));
   const totalAmount = items.length
-    ? roundMoney(Math.max(0, itemsTotal - discountAmount + taxAmount))
+    ? roundMoney(Math.max(0, taxableBase + taxAmount))
     : dailyTotal;
   return {
     items: normalizedItems,

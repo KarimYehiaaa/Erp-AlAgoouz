@@ -202,6 +202,11 @@ const restoreInvoiceInventory = async (client, invoiceId, userId, invoiceNumber)
         `إعادة مخزون إثر إلغاء/تعديل فاتورة ${invoiceNumber}`,
       ],
     );
+    // علّم الحركة كمستعادة حتى لا تُستعاد مرة أخرى عند تعديل/حذف لاحق
+    // (إصلاح: كانت الحركات القديمة تبقى 'sale' فتُستعاد مرتين بعد التعديل)
+    await client.query(`UPDATE stock_movements SET movement_type = 'restored' WHERE id = $1`, [
+      m.id,
+    ]);
   }
 };
 
@@ -350,7 +355,7 @@ const createInvoice = async (data: Record<string, any>, userId: number) => {
             item.product_id,
             item.quantity,
             item.unit_price,
-            costPrice,
+            roundMoney(costPrice * Number(item.quantity)),
             item.discount_amount,
             item.total_amount,
           ],
@@ -509,7 +514,7 @@ const updateInvoice = async (id: number, data: Record<string, any>, userId: numb
             item.product_id,
             item.quantity,
             item.unit_price,
-            costPrice,
+            roundMoney(costPrice * Number(item.quantity)),
             item.discount_amount,
             item.total_amount,
           ],
@@ -517,19 +522,46 @@ const updateInvoice = async (id: number, data: Record<string, any>, userId: numb
       }
     }
 
-    const existingPaid = (
-      await client.query(
-        `SELECT COALESCE(SUM(amount), 0) AS total FROM payments WHERE reference_type = 'invoice' AND reference_id = $1`,
-        [id],
-      )
-    ).rows[0].total;
-    if (paymentStatus === 'paid' && Number(existingPaid) < totalAmount - 0.01) {
-      const remainingToPay = totalAmount - Number(existingPaid);
-      const payNum = `PAY-INV${id}-${Date.now()}`;
+    // إعادة تسوية المدفوعات بالكامل مع الحالة/المبلغ الجديدين بدل الإضافة فوق القديمة،
+    // حتى لا تبقى دفعات قديمة بعد تقليل المبلغ أو تغيير حالة الدفع، ولا تتكرر الدفعات
+    // (سواء كانت الدفعة على الفاتورة أو على بيعها المرتبط)
+    const payRefType = invoice.sale_id ? 'sale' : 'invoice';
+    const payRefId = invoice.sale_id || invoice.id;
+    await client.query(
+      `DELETE FROM payments
+       WHERE (reference_type = 'invoice' AND reference_id = $1)
+          OR (reference_type = 'sale' AND reference_id = $2)`,
+      [invoice.id, invoice.sale_id || 0],
+    );
+    const stamp = Date.now();
+    if (paymentStatus === 'paid') {
       await client.query(
         `INSERT INTO payments (payment_number, reference_type, reference_id, amount, payment_method, notes, user_id)
-         VALUES ($1, 'invoice', $2, $3, $4, $5, $6)`,
-        [payNum, id, remainingToPay, data.payment_method || 'cash', data.notes || null, userId],
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          `PAY-INV${invoice.id}-${stamp}`,
+          payRefType,
+          payRefId,
+          totalAmount,
+          data.payment_method || 'cash',
+          data.notes || null,
+          userId,
+        ],
+      );
+    } else if (paymentStatus === 'partial' && Number(data.paid_amount) > 0) {
+      const paidAmt = Math.min(totalAmount, Number(data.paid_amount));
+      await client.query(
+        `INSERT INTO payments (payment_number, reference_type, reference_id, amount, payment_method, notes, user_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          `PAY-INV${invoice.id}-${stamp}`,
+          payRefType,
+          payRefId,
+          paidAmt,
+          data.payment_method || 'cash',
+          data.notes || null,
+          userId,
+        ],
       );
     }
     const oldCustomerId = invoice.customer_id;
@@ -584,6 +616,13 @@ const deleteInvoice = async (id: number, userId: number | null = null) => {
     }
     await restoreInvoiceInventory(client, invoice.id, userId, invoice.invoice_number);
     await client.query(`UPDATE invoices SET deleted_at = NOW() WHERE id = $1`, [invoice.id]);
+    // حذف مدفوعات الفاتورة (ومدفوعات بيعها المرتبط) حتى لا تُحتسب ضمن النقدية بعد الحذف
+    await client.query(
+      `DELETE FROM payments
+       WHERE (reference_type = 'invoice' AND reference_id = $1)
+          OR (reference_type = 'sale' AND reference_id = $2)`,
+      [invoice.id, invoice.sale_id || 0],
+    );
     if (invoice.customer_id) {
       await recalculateCustomerBalance(
         (text, params) => client.query(text, params),
@@ -673,7 +712,7 @@ const syncStandaloneInvoicesToWholesaleSales = async () => {
             it.product_id,
             it.quantity,
             it.unit_price,
-            cost,
+            roundMoney(cost * Number(it.quantity)),
             it.discount_amount || 0,
             it.total_amount,
           ],

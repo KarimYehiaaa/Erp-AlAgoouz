@@ -274,7 +274,7 @@ const restoreInventoryForSale = async (
   // استرجاع المنتجات غير المركبة بناءً على المخازن الفعلية التي خُصمت منها
   const originalMovements = (
     await client.query(
-      `SELECT product_id, from_warehouse_id, quantity 
+      `SELECT id, product_id, from_warehouse_id, quantity 
      FROM stock_movements 
      WHERE reference_type = 'sale' AND reference_id = $1 AND movement_type = 'sale' AND product_id != ALL($2::int[])`,
       [saleId, Array.from(recipeProductIds)],
@@ -297,6 +297,11 @@ const restoreInventoryForSale = async (
          ) VALUES ($1,$2,'return',$3,'sale',$4,$5,'\u0627\u0633\u062A\u0631\u062F\u0627\u062F \u0645\u062E\u0632\u0648\u0646 \u0639\u0645\u0644\u064A\u0629 \u0628\u064A\u0639')`,
         [mov.product_id, targetWh, mov.quantity, saleId, userId],
       );
+      // علّم الحركة كمستعادة حتى لا تُستعاد مرة أخرى عند تعديل/إرجاع لاحق
+      // (إصلاح: كانت الحركات القديمة تبقى 'sale' فتُستعاد مرتين بعد التعديل)
+      await client.query(`UPDATE stock_movements SET movement_type = 'restored' WHERE id = $1`, [
+        mov.id,
+      ]);
     }
   } else {
     // fallback إذا لم توجد حركات مخزنية مفصلة

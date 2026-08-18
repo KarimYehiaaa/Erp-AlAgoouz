@@ -68,7 +68,7 @@ export const getProfitAndLoss = async (fromDate: string, toDate: string) => {
 
     // ── 2. تكلفة البضاعة من sale_items (للمبيعات POS التي تحتوي items) ──
     query(
-      `SELECT COALESCE(SUM(si.cost_price * si.quantity), 0) AS cogs_items
+      `SELECT COALESCE(SUM(si.cost_price), 0) AS cogs_items
        FROM sale_items si
        JOIN sales s ON s.id = si.sale_id
        WHERE s.deleted_at IS NULL

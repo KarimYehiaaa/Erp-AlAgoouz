@@ -315,9 +315,12 @@ const updateSale = async (saleId: number, data: Record<string, any>, userId: num
         saleId,
       ],
     );
-    await client.query(`DELETE FROM payments WHERE reference_type = 'sale' AND reference_id = $1`, [
-      saleId,
-    ]);
+    await client.query(
+      `DELETE FROM payments
+       WHERE (reference_type = 'sale' AND reference_id = $1)
+          OR (reference_type = 'invoice' AND reference_id = (SELECT id FROM invoices WHERE sale_id = $1 LIMIT 1))`,
+      [saleId],
+    );
     if (effectivePaidAmount > 0) {
       await client.query(
         `INSERT INTO payments (payment_number, reference_type, reference_id, amount, payment_method, user_id)
@@ -421,8 +424,23 @@ const getSaleById = async (id: number) => {
         'discount_amount', si.discount_amount, 'tax_amount', si.tax_amount,
         'total_amount', si.total_amount
       )) FROM sale_items si JOIN products p ON si.product_id = p.id WHERE si.sale_id = s.id) as items,
-      (SELECT json_agg(json_build_object('method', payment_method, 'amount', amount))
-       FROM payments WHERE reference_type='sale' AND reference_id = s.id) as payments
+      (SELECT json_agg(json_build_object(
+         'method', p.payment_method, 'amount', p.amount,
+         'refunded', p.refunded_at IS NOT NULL, 'refunded_at', p.refunded_at
+       ))
+       FROM payments p
+       WHERE (p.reference_type='sale' AND p.reference_id = s.id)
+          OR (p.reference_type='invoice' AND p.reference_id = (SELECT i.id FROM invoices i WHERE i.sale_id = s.id LIMIT 1))) as payments,
+      COALESCE((
+        SELECT SUM(p.amount) FROM payments p
+        WHERE p.refunded_at IS NOT NULL
+          AND ((p.reference_type='sale' AND p.reference_id = s.id)
+            OR (p.reference_type='invoice' AND p.reference_id = (SELECT i.id FROM invoices i WHERE i.sale_id = s.id LIMIT 1)))
+      ), 0) AS refunded_amount,
+      (SELECT MAX(p.refunded_at) FROM payments p
+       WHERE p.refunded_at IS NOT NULL
+         AND ((p.reference_type='sale' AND p.reference_id = s.id)
+           OR (p.reference_type='invoice' AND p.reference_id = (SELECT i.id FROM invoices i WHERE i.sale_id = s.id LIMIT 1)))) AS returned_at
      FROM sales s
      LEFT JOIN customers c ON s.customer_id = c.id
      LEFT JOIN users u ON s.user_id = u.id
@@ -470,6 +488,15 @@ const returnSale = async (saleId: number, userId: number, notes?: string) => {
     await client.query(`UPDATE invoices SET payment_status = 'refunded' WHERE sale_id = $1`, [
       saleId,
     ]);
+    // تعليم المدفوعات المرتبطة بالبيع (سواء على البيع أو على فاتورته) كمستردة
+    // بدل حذفها: تُستبعد من التقارير النقدية عبر refunded_at مع بقائها في سجل الدفعات
+    await client.query(
+      `UPDATE payments SET refunded_at = NOW()
+       WHERE ((reference_type = 'sale' AND reference_id = $1)
+          OR (reference_type = 'invoice' AND reference_id = (SELECT id FROM invoices WHERE sale_id = $1 LIMIT 1)))
+         AND refunded_at IS NULL`,
+      [saleId],
+    );
     if (sale.customer_id) {
       await recalculateCustomerBalance(
         (text, params) => client.query(text, params),
@@ -519,6 +546,11 @@ const deleteAllSales = async (userId: number) => {
         `UPDATE invoices
          SET deleted_at = NOW()
          WHERE sale_id IN (SELECT id FROM sales WHERE deleted_at IS NOT NULL) AND deleted_at IS NULL`,
+      );
+      await client.query(
+        `DELETE FROM payments
+         WHERE (reference_type = 'sale' AND reference_id IN (SELECT id FROM sales WHERE deleted_at IS NOT NULL))
+            OR (reference_type = 'invoice' AND reference_id IN (SELECT id FROM invoices WHERE deleted_at IS NOT NULL))`,
       );
       for (const row of customersRes.rows) {
         await recalculateCustomerBalance(
@@ -595,6 +627,23 @@ const deleteSalesByDate = async (saleDate: string, userId: number) => {
            )`,
         [saleDate],
       );
+      await client.query(
+        `DELETE FROM payments
+         WHERE (reference_type = 'sale' AND reference_id IN (
+             SELECT id FROM sales WHERE deleted_at IS NOT NULL AND sale_date = $1::date
+         ))
+            OR (reference_type = 'invoice' AND reference_id IN (
+                SELECT i.id FROM invoices i
+                WHERE i.deleted_at IS NOT NULL
+                  AND EXISTS (
+                    SELECT 1 FROM sales s
+                    WHERE s.id = i.sale_id
+                      AND s.sale_date = $1::date
+                      AND s.deleted_at IS NOT NULL
+                  )
+            ))`,
+        [saleDate],
+      );
       for (const row of customersRes.rows) {
         await recalculateCustomerBalance(
           (text, params) => client.query(text, params),
@@ -660,6 +709,23 @@ const deleteSalesByType = async (saleType: string, userId: number) => {
          WHERE deleted_at IS NULL AND sale_id IN (
            SELECT id FROM sales WHERE sale_type = $1 AND deleted_at IS NOT NULL
          )`,
+        [saleType],
+      );
+      await client.query(
+        `DELETE FROM payments
+         WHERE (reference_type = 'sale' AND reference_id IN (
+             SELECT id FROM sales WHERE deleted_at IS NOT NULL AND sale_type = $1
+         ))
+            OR (reference_type = 'invoice' AND reference_id IN (
+                SELECT i.id FROM invoices i
+                WHERE i.deleted_at IS NOT NULL
+                  AND EXISTS (
+                    SELECT 1 FROM sales s
+                    WHERE s.id = i.sale_id
+                      AND s.sale_type = $1
+                      AND s.deleted_at IS NOT NULL
+                  )
+            ))`,
         [saleType],
       );
       for (const row of customersRes.rows) {

@@ -15,9 +15,16 @@ export const customerTypeLabel = (t: any) =>
 export const purchaseStatusLabel = (s: any) =>
   (({ paid: 'مدفوع', pending: 'معلق', partial: 'جزئي' }) as Record<string, string>)[s] || s || '—';
 
-/** تسمية حالة الدفع (unpaid/partial/paid) بالعربية. */
+/** تسمية حالة الدفع (unpaid/partial/paid/refunded) بالعربية. */
 export const paymentStatusLabel = (s: any) =>
-  (({ unpaid: 'غير مدفوع', partial: 'جزئي', paid: 'مدفوع' }) as Record<string, string>)[s] ||
+  ((
+    {
+      unpaid: 'غير مدفوع',
+      partial: 'جزئي',
+      paid: 'مدفوع',
+      refunded: 'مسترد (مرتجع)',
+    } as Record<string, string>
+  ))[s] ||
   s ||
   '—';
 

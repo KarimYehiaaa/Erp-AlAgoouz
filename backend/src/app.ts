@@ -51,16 +51,14 @@ app.use(cookieParser());
 app.use(
   cors({
     origin: (origin, callback) => {
+      // طلبات بدون Origin (خوادم/أدوات) مسموحة
       if (!origin) return callback(null, true);
-      if (
+      // النطاقات المعروفة فقط: من CORS_ORIGIN + localhost للتطوير
+      const allowed =
         config.corsOrigin.includes(origin) ||
-        origin.endsWith('.vercel.app') ||
         origin.startsWith('http://localhost:') ||
-        origin.startsWith('http://127.0.0.1:')
-      ) {
-        return callback(null, true);
-      }
-      return callback(null, true);
+        origin.startsWith('http://127.0.0.1:');
+      return callback(null, allowed);
     },
     credentials: true,
   }),

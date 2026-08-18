@@ -222,6 +222,9 @@ const saleSchema = z
     total_amount: optionalNonNegativeNumber,
     discount_amount: optionalNonNegativeNumber,
     profit_amount: optionalNonNegativeNumber,
+    // الضريبة: تُقبل من العميل لتوحيد المعاملة مع مسار الفواتير (تُهمل إذا لم تُرسل)
+    tax_enabled: optionalBool,
+    tax_percent: optionalNonNegativeNumber,
     payment_method: shortText(50).optional(),
     payment_status: z.enum(['paid', 'partial', 'unpaid']).optional(),
     paid_amount: optionalNonNegativeNumber,
@@ -319,6 +322,8 @@ const invoiceSchema = z
     tax_percent: optionalNonNegativeNumber,
     tax_enabled: optionalBool,
     payment_status: z.enum(['paid', 'partial', 'unpaid']).optional(),
+    // المبلغ المدفوع فعليًا عند الدفع الجزئي (كان مفقودًا فكانت الدفعات الجزئية تُفقد)
+    paid_amount: optionalNonNegativeNumber,
     notes: nullableText(2e3),
     items: z.array(invoiceItemSchema).min(1).max(500),
   })

@@ -173,8 +173,8 @@
             </div>
           </div>
 
-          <!-- Record Payment -->
-          <div v-if="statement.summary.total_balance > 0" class="payment-form card">
+          <!-- Record Payment (تظهر فقط لو فيه مستحق قابل للدفع على فواتير فعلية) -->
+          <div v-if="payableTotal > 0" class="payment-form card">
             <h4>💵 تسجيل دفعة</h4>
             <div class="payment-fields">
               <div class="form-group">
@@ -184,8 +184,8 @@
                   type="number"
                   min="0.01"
                   step="0.01"
-                  :max="statement.summary.total_balance"
-                  :placeholder="`الرصيد: ${formatMoney(statement.summary.total_balance)}`"
+                  :max="payableTotal"
+                  :placeholder="`المستحق: ${formatMoney(payableTotal)}`"
                 />
               </div>
               <div class="form-group">
@@ -206,9 +206,9 @@
                 v-permission="'customers.edit'"
                 class="btn btn-outline"
                 type="button"
-                @click="payForm.amount = statement.summary.total_balance"
+                @click="payForm.amount = payableTotal"
               >
-                سداد كامل الرصيد
+                سداد كامل المستحق
               </button>
               <button
                 v-permission="'customers.edit'"
@@ -220,6 +220,26 @@
                 {{ savingPayment ? 'جاري الحفظ...' : 'تسجيل الدفعة' }}
               </button>
               <p v-if="payMsg" class="pay-msg" :class="payErr ? 'err' : 'ok'">{{ payMsg }}</p>
+            </div>
+          </div>
+
+          <!-- نتيجة الدفعة وتوزيعها على الفواتير (تظهر حتى لو صفّر الرصيد واختفى النموذج) -->
+          <div v-if="payResult" class="pay-result card">
+            <div class="pay-result-head ok">
+              ✅ تم تسجيل دفعة {{ formatMoney(payResult.amount) }} بنجاح
+            </div>
+            <template v-if="payResult.allocations.length">
+              <div class="alloc-title">📊 توزيع الدفعة على الفواتير:</div>
+              <ul class="alloc-list">
+                <li v-for="(a, i) in payResult.allocations" :key="i" class="alloc-item">
+                  <code class="alloc-number">{{ a.number }}</code>
+                  <span class="alloc-amount">{{ formatMoney(a.amount) }}</span>
+                  <span class="status-badge" :class="a.new_status">{{ statusLabel(a.new_status) }}</span>
+                </li>
+              </ul>
+            </template>
+            <div>
+              <button class="btn btn-outline" type="button" @click="payResult = null">إغلاق</button>
             </div>
           </div>
 
@@ -455,6 +475,8 @@ const statement = ref<any>(null);
 const savingPayment = ref(false);
 const payMsg = ref('');
 const payErr = ref(false);
+// نتيجة آخر دفعة (المبلغ + توزيعه على الفواتير) — تُعرض خارج نموذج الدفع حتى تبقى ظاهرة بعد صفر الرصيد
+const payResult = ref<any>(null);
 
 // دفع على فاتورة محددة
 const activeSalePayment = ref<any>(null);
@@ -462,7 +484,11 @@ const savingSalePay = ref(false);
 const salePayMsg = ref('');
 const salePayErr = ref(false);
 const salePayInput = ref<any>(null);
-const salePayForm = ref({ amount: null, payment_method: 'cash', notes: '' });
+const salePayForm = ref<{ amount: number | null; payment_method: string; notes: string }>({
+  amount: null,
+  payment_method: 'cash',
+  notes: '',
+});
 
 const form = ref<Record<string, any>>({
   code: '',
@@ -471,13 +497,23 @@ const form = ref<Record<string, any>>({
   customer_type: 'retail',
   credit_limit: 0,
 });
-const payForm = ref({ amount: null, payment_method: 'cash', notes: '' });
+const payForm = ref<{ amount: number | null; payment_method: string; notes: string }>({
+  amount: null,
+  payment_method: 'cash',
+  notes: '',
+});
 const getCustomerDue = (c: any) => {
   const hasComputed = c.total_balance !== undefined && c.total_balance !== null;
   if (hasComputed) return Number(c.total_balance || 0);
   return Number(c.balance || 0);
 };
 // ─── computed ─────────────────────────────────────────────────────────────────
+// المستحق القابل للدفع من كشف الحساب (المتبقي على المبيعات والفواتير فقط — بدون رصيد بداية المدة)
+const payableTotal = computed(() =>
+  Number(
+    statement.value?.summary?.payable_total ?? statement.value?.summary?.total_balance ?? 0,
+  ),
+);
 const wholesaleCount = computed(
   () => customers.value.filter((c: any) => c.customer_type === 'wholesale').length,
 );
@@ -538,6 +574,7 @@ const openStatement = async (customer: any) => {
   statement.value = null;
   payMsg.value = '';
   payErr.value = false;
+  payResult.value = null;
   payForm.value = { amount: null, payment_method: 'cash', notes: '' };
   try {
     const res = await api.statement(customer.id);
@@ -551,17 +588,22 @@ const openStatement = async (customer: any) => {
 
 const submitPayment = async () => {
   if (!payForm.value.amount || payForm.value.amount <= 0) return;
-  if (payForm.value.amount > statement.value.summary.total_balance + 0.01) {
+  if (payForm.value.amount > payableTotal.value + 0.01) {
     payErr.value = true;
-    payMsg.value = 'المبلغ أكبر من الرصيد المتبقي على العميل';
+    payMsg.value = 'المبلغ أكبر من المستحق المتبقي على الفواتير';
     return;
   }
   savingPayment.value = true;
   payMsg.value = '';
   payErr.value = false;
   try {
-    await api.recordPayment(statement.value.customer.id, payForm.value);
-    payMsg.value = `✅ تم تسجيل دفعة ${formatMoney(payForm.value.amount)} بنجاح`;
+    const payRes: any = await api.recordPayment(statement.value.customer.id, payForm.value);
+    // عرض توزيع الدفعة على الفواتير كما وزّعها الخادم (FIFO)
+    payResult.value = {
+      amount: Number(payForm.value.amount),
+      allocations: Array.isArray(payRes?.data?.allocations) ? payRes.data.allocations : [],
+    };
+    payMsg.value = '';
     payForm.value.amount = null;
     payForm.value.notes = '';
     // إعادة تحميل الحساب
@@ -589,8 +631,12 @@ const submitSalePayment = async () => {
   salePayMsg.value = '';
   salePayErr.value = false;
   try {
-    await api.recordSalePayment(activeSalePayment.value.id, salePayForm.value);
-    salePayMsg.value = `✅ تم تسجيل ${formatMoney(salePayForm.value.amount)} بنجاح`;
+    const salePayRes: any = await api.recordSalePayment(activeSalePayment.value.id, salePayForm.value);
+    const remaining = Number(salePayRes?.data?.remaining ?? 0);
+    salePayMsg.value =
+      remaining > 0.01
+        ? `✅ تم تسجيل ${formatMoney(salePayForm.value.amount)} — المتبقي على الفاتورة: ${formatMoney(remaining)}`
+        : `✅ تم سداد الفاتورة بالكامل (${formatMoney(salePayForm.value.amount)})`;
     salePayForm.value.amount = null;
     // إعادة تحميل الحساب
     const res = await api.statement(statement.value.customer.id);
@@ -935,6 +981,51 @@ onMounted(load);
   }
   &.err {
     color: var(--danger);
+  }
+}
+.pay-result {
+  margin: 14px 20px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border-right: 4px solid var(--success);
+  .pay-result-head {
+    font-weight: 800;
+    font-size: 0.92rem;
+    &.ok {
+      color: var(--success);
+    }
+  }
+  .alloc-title {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--text-muted);
+  }
+  .alloc-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .alloc-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.88rem;
+    .alloc-number {
+      direction: ltr;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 2px 8px;
+    }
+    .alloc-amount {
+      font-weight: 700;
+      margin-inline-start: auto;
+    }
   }
 }
 

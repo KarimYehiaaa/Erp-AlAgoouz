@@ -462,6 +462,7 @@ const getCustomersReport = async (filters: Record<string, any> = {}) => {
          SELECT customer_id FROM sales WHERE id = p.reference_id LIMIT 1
        )
        WHERE p.reference_type = 'sale'
+         AND p.refunded_at IS NULL
        ORDER BY p.created_at DESC
        LIMIT 10`,
     ),

@@ -535,6 +535,7 @@ const _computeDashboardStats = async (filters: Record<string, any> = {}) => {
        FROM payments
        WHERE DATE(created_at) BETWEEN $1::date AND $2::date
          AND reference_type != 'invoice'
+         AND refunded_at IS NULL
        GROUP BY payment_method
        ORDER BY total DESC`,
       [period.start, period.end],
@@ -579,11 +580,9 @@ const _computeDashboardStats = async (filters: Record<string, any> = {}) => {
     currentMonthSaleRows.find((row) => row.sale_type === type) || {};
 
   const customersCountRow = customersCount.rows[0] || {};
-  const totalCustomerOpeningBalances = toNumber(customersCountRow.total_opening_balance);
 
-  // Inject opening balances into total sales to satisfy the expected accounting cycle representation
-  periodSalesRow.total = toNumber(periodSalesRow.total) + totalCustomerOpeningBalances;
-
+  // ملاحظة: أرصدة العملاء الافتتاحية ليست إيرادات للفترة — تُعرض عبر
+  // unpaidInvoices (مديونيات العملاء) وليس ضمن مبيعات/أرباح الفترة.
   const currentMonthBranchSales = toNumber(currentMonthSaleRow('branch').total);
   const currentMonthWholesaleSales = toNumber(currentMonthSaleRow('wholesale').total);
   const currentMonthBranchCount = toNumber(currentMonthSaleRow('branch').count);

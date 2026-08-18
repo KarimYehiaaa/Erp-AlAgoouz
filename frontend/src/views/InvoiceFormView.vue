@@ -36,6 +36,13 @@
               <option value="partial">مدفوعة جزئيًا</option>
             </select>
           </div>
+          <div v-if="form.payment_status === 'partial'" class="form-group">
+            <label>المبلغ المدفوع (ج.م) *</label>
+            <input v-model="form.paid_amount" type="text" inputmode="decimal" required />
+            <small class="field-hint"
+              >من الإجمالي {{ formatMoney(grandTotal) }} — الباقي يُسجل آجلًا على العميل</small
+            >
+          </div>
           <div class="form-group">
             <label class="checkbox-label">
               <input v-model="form.tax_enabled" type="checkbox" />
@@ -479,6 +486,7 @@ const form = ref({
   issued_at: today(),
   due_date: '',
   payment_status: 'paid',
+  paid_amount: 0,
   tax_enabled: true,
   discount_percent: 0,
   discount_amount: 0,
@@ -527,6 +535,7 @@ const loadInvoice = async () => {
       issued_at: inv.issued_at ? inv.issued_at.slice(0, 10) : today(),
       due_date: inv.due_date ? inv.due_date.slice(0, 10) : '',
       payment_status: inv.payment_status,
+      paid_amount: Number(inv.paid_amount || 0),
       tax_enabled: Number(inv.tax_amount) > 0,
       discount_percent: Number(inv.discount_percent) || 0,
       discount_amount: Number(inv.discount_amount) || 0,
@@ -562,6 +571,10 @@ const submit = async () => {
       issued_at: form.value.issued_at,
       due_date: form.value.due_date || null,
       payment_status: form.value.payment_status,
+      paid_amount:
+        form.value.payment_status === 'partial'
+          ? parseLocalizedNumber(form.value.paid_amount || 0)
+          : undefined,
       tax_enabled: form.value.tax_enabled,
       tax_percent: TAX_RATE,
       discount_percent: form.value.discount_percent || 0,

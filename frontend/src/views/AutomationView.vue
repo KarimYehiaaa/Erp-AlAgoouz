@@ -461,13 +461,16 @@
           <h3 class="text-lg font-black text-strong">
             سجل عمليات وتشغيل الأتمتة (Automation Logs)
           </h3>
+          <span v-if="logsList.length" class="logs-count-badge">{{ logsList.length }} سجل</span>
         </div>
-        <button type="button" class="btn btn-xs btn-outline" @click="fetchLogs">
-          <AppIcon name="refresh" :size="12" /> تحديث السجل
-        </button>
+        <div class="flex items-center gap-2">
+          <button type="button" class="btn btn-xs btn-outline" @click="fetchLogs">
+            <AppIcon name="refresh" :size="12" /> تحديث السجل
+          </button>
+        </div>
       </div>
 
-      <div class="table-responsive">
+      <div class="logs-table-wrapper">
         <table class="data-table">
           <thead>
             <tr>
@@ -484,7 +487,7 @@
                 لا توجد سجلات تشغيل بعد. جرب الضغط على "⚡ تشغيل تجريبي الآن" لأي أتمتة.
               </td>
             </tr>
-            <tr v-for="log in logsList" :key="log.id" class="log-row">
+            <tr v-for="log in visibleLogs" :key="log.id" class="log-row">
               <td class="text-xs font-bold text-muted">
                 {{ formatDateTime(log.created_at) }}
               </td>
@@ -516,6 +519,26 @@
             </tr>
           </tbody>
         </table>
+      </div>
+
+      <!-- أزرار التحكم في عرض المزيد -->
+      <div v-if="logsList.length > logsPageSize" class="logs-pagination-bar">
+        <button
+          v-if="!showAllLogs"
+          type="button"
+          class="btn btn-sm btn-outline logs-expand-btn"
+          @click="showAllLogs = true"
+        >
+          📋 عرض كل السجلات ({{ logsList.length }}) ↓
+        </button>
+        <button
+          v-else
+          type="button"
+          class="btn btn-sm btn-outline logs-expand-btn"
+          @click="showAllLogs = false"
+        >
+          🔼 تقليص العرض إلى آخر {{ logsPageSize }} سجلات
+        </button>
       </div>
     </div>
 
@@ -619,6 +642,12 @@ const showTelegramModal = ref(false);
 const isTestingTelegram = ref(false);
 const selectedLog = ref<any | null>(null);
 const isFiringAll = ref(false);
+
+const showAllLogs = ref(false);
+const logsPageSize = 15;
+const visibleLogs = computed(() =>
+  showAllLogs.value ? logsList.value : logsList.value.slice(0, logsPageSize),
+);
 
 const telegramForm = ref({
   botToken: '',
@@ -2174,8 +2203,40 @@ const formatRelativeTime = (dtStr?: string) => {
 }
 
 /* Logs Table */
-.table-responsive {
+.logs-table-wrapper {
   overflow-x: auto;
+  overflow-y: auto;
+  max-height: 520px;
+  scrollbar-width: thin;
+}
+
+.logs-count-badge {
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--accent-10, rgba(59, 130, 246, 0.1));
+  color: var(--accent, #3b82f6);
+}
+
+.logs-pagination-bar {
+  display: flex;
+  justify-content: center;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+}
+
+.logs-expand-btn {
+  font-weight: 700;
+  font-size: 0.82rem;
+  padding: 6px 20px;
+  border-radius: var(--radius-sm);
+  transition: all 0.2s ease;
+}
+
+.logs-expand-btn:hover {
+  background: var(--accent-10, rgba(59, 130, 246, 0.08));
+  color: var(--accent, #3b82f6);
 }
 
 .data-table {

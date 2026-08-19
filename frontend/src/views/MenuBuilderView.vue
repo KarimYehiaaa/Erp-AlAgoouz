@@ -315,14 +315,24 @@
                             placeholder="وصف ومكونات الصنف..."
                             class="form-input item-input-desc"
                           />
-                          <label class="featured-toggle">
-                            <input v-model="item.is_featured" type="checkbox" />
-                            <span>⭐ مميز</span>
-                          </label>
-                          <label class="featured-toggle">
-                            <input v-model="item.is_new" type="checkbox" />
-                            <span>جديد</span>
-                          </label>
+                          <button
+                            type="button"
+                            class="badge-toggle-btn"
+                            :class="{ active: item.is_featured }"
+                            :title="item.is_featured ? 'صنف مميز (انقر للإلغاء)' : 'تمييز الصنف'"
+                            @click="item.is_featured = !item.is_featured"
+                          >
+                            {{ item.is_featured ? '⭐ مميز' : '☆ عادي' }}
+                          </button>
+                          <button
+                            type="button"
+                            class="badge-toggle-btn green"
+                            :class="{ active: item.is_new }"
+                            :title="item.is_new ? 'صنف جديد (انقر للإلغاء)' : 'تحديد كصنف جديد'"
+                            @click="item.is_new = !item.is_new"
+                          >
+                            {{ item.is_new ? '✨ جديد' : 'قديم' }}
+                          </button>
                           <button
                             type="button"
                             class="item-delete-btn"
@@ -446,11 +456,16 @@
                   />
                 </div>
               </div>
-              <div class="form-check mt-3">
-                <label class="checkbox-label">
-                  <input v-model="menuForm.show_qr_code" type="checkbox" />
-                  <span>إظهار رمز الـ QR Code في تذييل المنيو</span>
-                </label>
+              <div
+                class="custom-toggle-row mt-3"
+                @click="menuForm.show_qr_code = !menuForm.show_qr_code"
+              >
+                <div class="toggle-track" :class="{ 'is-on': menuForm.show_qr_code }">
+                  <div class="toggle-knob"></div>
+                </div>
+                <span class="toggle-text font-bold text-xs"
+                  >إظهار رمز الـ QR Code في تذييل المنيو</span
+                >
               </div>
             </div>
           </div>
@@ -959,14 +974,121 @@ const addProductToMenu = (prod: any) => {
 }
 
 .theme-select {
-  padding: 4px 8px;
+  padding: 4px 10px;
   font-size: 0.82rem;
   font-weight: 700;
   border-radius: var(--radius-sm);
-  background: var(--bg-card);
+  background-color: var(--bg-elevated);
   border: 1px solid var(--border-strong);
-  color: var(--text);
+  color: var(--text-strong);
   outline: none;
+  box-shadow: none;
+  cursor: pointer;
+}
+
+.theme-select:focus,
+.form-select:focus,
+.form-input:focus {
+  border-color: var(--primary);
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 18%, transparent);
+}
+
+.form-select {
+  padding: 4px 8px;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--border-strong);
+  background-color: var(--bg-elevated);
+  color: var(--text-strong);
+  font-weight: 700;
+  outline: none;
+  box-shadow: none;
+  cursor: pointer;
+}
+
+.item-pricing-type-select {
+  font-size: 0.78rem;
+  padding: 4px 8px;
+  border-radius: var(--radius-xs);
+  background-color: var(--bg-elevated);
+  border: 1px solid var(--border-strong);
+  color: var(--text-strong);
+  font-weight: 700;
+  max-width: 190px;
+  outline: none;
+  box-shadow: none;
+  cursor: pointer;
+}
+
+.badge-toggle-btn {
+  padding: 2px 8px;
+  border-radius: var(--radius-xs);
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: var(--surface-3);
+  border: 1px solid var(--border-strong);
+  color: var(--text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--transition);
+  box-shadow: none;
+}
+
+.badge-toggle-btn.active {
+  background: #fef3c7;
+  color: #92400e;
+  border-color: #f59e0b;
+}
+
+.badge-toggle-btn.green.active {
+  background: #dcfce7;
+  color: #166534;
+  border-color: #22c55e;
+}
+
+.custom-toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.toggle-track {
+  width: 38px;
+  height: 20px;
+  background: var(--surface-3);
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  position: relative;
+  transition:
+    background 0.2s,
+    border-color 0.2s;
+}
+
+.toggle-track.is-on {
+  background: var(--primary);
+  border-color: var(--primary);
+}
+
+.toggle-knob {
+  width: 14px;
+  height: 14px;
+  background: #fff;
+  border-radius: 50%;
+  position: absolute;
+  top: 2px;
+  right: 3px;
+  transition: transform 0.2s;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+.toggle-track.is-on .toggle-knob {
+  transform: translateX(-16px);
+}
+
+.toggle-text {
+  color: var(--text-strong);
 }
 
 /* مساحة العمل (Layout) */

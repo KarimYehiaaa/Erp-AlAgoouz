@@ -190,6 +190,7 @@
 
                     <div class="items-list-wrap">
                       <div v-for="(item, iIdx) in cat.items" :key="iIdx" class="item-row-card">
+                        <!-- السطر الأول: الاسم ونوع التسعير -->
                         <div class="item-row-primary">
                           <input
                             v-model="item.name_ar"
@@ -197,7 +198,98 @@
                             placeholder="اسم الصنف..."
                             class="form-input item-input-name"
                           />
-                          <div class="price-inputs-group">
+                          <select
+                            v-model="item.pricing_type"
+                            class="form-select item-pricing-type-select"
+                          >
+                            <option value="single">سعر موحد</option>
+                            <option value="weights">⚖️ أوزان بن (ثمن/ربع/نص/كيلو)</option>
+                            <option value="dual">حجمين (سنجل/دبل)</option>
+                          </select>
+                        </div>
+
+                        <!-- السطر الثاني: خيارات الأسعار حسب نوع التسعير -->
+                        <div class="item-pricing-fields">
+                          <!-- 1. أوزان البن القياسية (ثمن، ربع، نصف، كيلو) -->
+                          <div v-if="item.pricing_type === 'weights'" class="weights-editor-grid">
+                            <div class="weight-input-box">
+                              <span class="w-input-label">ثمن (١٢٥ج):</span>
+                              <input
+                                v-model.number="item.price_eighth"
+                                type="number"
+                                step="0.5"
+                                placeholder="ثمن"
+                                class="form-input text-center"
+                              />
+                            </div>
+                            <div class="weight-input-box">
+                              <span class="w-input-label">ربع (٢٥٠ج):</span>
+                              <input
+                                v-model.number="item.price_quarter"
+                                type="number"
+                                step="0.5"
+                                placeholder="ربع"
+                                class="form-input text-center"
+                              />
+                            </div>
+                            <div class="weight-input-box">
+                              <span class="w-input-label">نصف (٥٠٠ج):</span>
+                              <input
+                                v-model.number="item.price_half"
+                                type="number"
+                                step="0.5"
+                                placeholder="نصف"
+                                class="form-input text-center"
+                              />
+                            </div>
+                            <div class="weight-input-box">
+                              <span class="w-input-label">كيلو (١كج):</span>
+                              <input
+                                v-model.number="item.price_kilo"
+                                type="number"
+                                step="0.5"
+                                placeholder="كيلو"
+                                class="form-input text-center font-bold text-primary"
+                                @input="onKiloPriceChange(item)"
+                              />
+                            </div>
+                            <button
+                              type="button"
+                              class="btn-calc-weights"
+                              title="حساب بقية الأوزان تلقائياً بناءً على سعر الكيلو"
+                              @click="autoFillWeights(item)"
+                            >
+                              ⚡ حساب تلقائي
+                            </button>
+                          </div>
+
+                          <!-- 2. حجمين (سنجل / دبل) -->
+                          <div v-else-if="item.pricing_type === 'dual'" class="dual-editor-flex">
+                            <div class="flex items-center gap-1">
+                              <span class="text-xs text-muted">سنجل:</span>
+                              <input
+                                v-model.number="item.price"
+                                type="number"
+                                step="0.5"
+                                placeholder="سنجل"
+                                class="form-input w-20 text-center text-primary font-bold"
+                              />
+                            </div>
+                            <div class="flex items-center gap-1">
+                              <span class="text-xs text-muted">دبل:</span>
+                              <input
+                                v-model.number="item.price_secondary"
+                                type="number"
+                                step="0.5"
+                                placeholder="دبل"
+                                class="form-input w-20 text-center"
+                              />
+                            </div>
+                            <span class="currency-tag">ج.م</span>
+                          </div>
+
+                          <!-- 3. سعر فردي موحد -->
+                          <div v-else class="single-editor-flex">
                             <input
                               v-model.number="item.price"
                               type="number"
@@ -207,17 +299,15 @@
                             />
                             <span class="currency-tag">ج.م</span>
                             <input
-                              v-if="cat.page_side === 'back'"
-                              v-model.number="item.price_secondary"
-                              type="number"
-                              step="0.5"
-                              placeholder="سعر دبل"
-                              class="form-input item-input-price secondary"
-                              title="سعر الحجم المضاعف / الدبل"
+                              v-model="item.unit_label_ar"
+                              type="text"
+                              placeholder="الوحدة (كوب/قطعة)"
+                              class="form-input w-28 text-xs text-muted"
                             />
                           </div>
                         </div>
 
+                        <!-- السطر الثالث: الوصف والشارات والحذف -->
                         <div class="item-row-secondary">
                           <input
                             v-model="item.description_ar"
@@ -228,6 +318,10 @@
                           <label class="featured-toggle">
                             <input v-model="item.is_featured" type="checkbox" />
                             <span>⭐ مميز</span>
+                          </label>
+                          <label class="featured-toggle">
+                            <input v-model="item.is_new" type="checkbox" />
+                            <span>جديد</span>
                           </label>
                           <button
                             type="button"
@@ -488,13 +582,23 @@ const initDefaultCategories = () => {
         {
           name_ar: 'توليفة العجوز الملكية',
           description_ar: 'خلطة أرابيكا ممتازة مع روبوستا معتقة وحبهان فستقي',
-          price: 180,
+          pricing_type: 'weights',
+          price: 720,
+          price_eighth: 90,
+          price_quarter: 180,
+          price_half: 360,
+          price_kilo: 720,
           is_featured: true,
         },
         {
           name_ar: 'توليفة السلطان الفاخرة',
           description_ar: 'مزيج كولومبي برازيلي غني بالكريما',
-          price: 160,
+          pricing_type: 'weights',
+          price: 640,
+          price_eighth: 80,
+          price_quarter: 160,
+          price_half: 320,
+          price_kilo: 640,
           is_featured: false,
         },
       ],
@@ -510,13 +614,23 @@ const initDefaultCategories = () => {
         {
           name_ar: 'بن كولومبي سوبريمو',
           description_ar: 'حموضة متوازنة وإيحاءات المكسرات والشوكولاتة',
-          price: 190,
+          pricing_type: 'weights',
+          price: 760,
+          price_eighth: 95,
+          price_quarter: 190,
+          price_half: 380,
+          price_kilo: 760,
           is_featured: true,
         },
         {
           name_ar: 'بن برازيلي سانتوس',
           description_ar: 'قوام كامل ونكهة كلاسيكية ناعمة وبدون مرارة',
-          price: 150,
+          pricing_type: 'weights',
+          price: 600,
+          price_eighth: 75,
+          price_quarter: 150,
+          price_half: 300,
+          price_kilo: 600,
           is_featured: false,
         },
       ],
@@ -532,6 +646,7 @@ const initDefaultCategories = () => {
         {
           name_ar: 'فنجان قهوة تركي سادة / محوج',
           description_ar: 'يُحضر على الرمالة بالطريقة التقليدية',
+          pricing_type: 'dual',
           price: 35,
           price_secondary: 45,
           is_featured: true,
@@ -539,6 +654,7 @@ const initDefaultCategories = () => {
         {
           name_ar: 'إسبريسو سينجل / دبل',
           description_ar: 'شوت مركز من حبوبنا الطازجة',
+          pricing_type: 'dual',
           price: 40,
           price_secondary: 55,
           is_featured: false,
@@ -554,6 +670,24 @@ const showFeedback = (msg: string, type: 'success' | 'error' = 'success') => {
   setTimeout(() => {
     feedbackMessage.value = '';
   }, 4000);
+};
+
+const onKiloPriceChange = (item: any) => {
+  if (item.price_kilo && !item.price_quarter) {
+    autoFillWeights(item);
+  }
+};
+
+const autoFillWeights = (item: any) => {
+  const kPrice = Number(item.price_kilo || item.price || 0);
+  if (kPrice > 0) {
+    item.price_kilo = kPrice;
+    item.price_half = Math.round(kPrice / 2);
+    item.price_quarter = Math.round(kPrice / 4);
+    item.price_eighth = Math.round(kPrice / 8);
+    item.price = kPrice;
+    showFeedback('تم احتساب أوزان (ثمن، ربع، نصف، كيلو) تلقائياً ⚡', 'success');
+  }
 };
 
 const handleSaveMenu = async () => {
@@ -635,10 +769,17 @@ const togglePageSide = (cat: any) => {
 
 const addNewItemToCat = (cat: any) => {
   if (!cat.items) cat.items = [];
+  const isCoffeeCat =
+    cat.name_ar?.includes('بن') || cat.name_ar?.includes('توليف') || cat.page_side === 'front';
   cat.items.push({
     name_ar: 'صنف جديد',
     description_ar: '',
-    price: 50,
+    pricing_type: isCoffeeCat ? 'weights' : 'single',
+    price: isCoffeeCat ? 600 : 50,
+    price_kilo: isCoffeeCat ? 600 : null,
+    price_half: isCoffeeCat ? 300 : null,
+    price_quarter: isCoffeeCat ? 150 : null,
+    price_eighth: isCoffeeCat ? 75 : null,
     price_secondary: null,
     is_featured: false,
     is_new: false,
@@ -679,11 +820,25 @@ const addProductToMenu = (prod: any) => {
   const targetCat = menuForm.categories[selectedTargetCatIdx.value] || menuForm.categories[0];
   if (!targetCat.items) targetCat.items = [];
 
+  const basePrice = Number(prod.sale_price || 0);
+  const isCoffee =
+    prod.unit?.includes('كجم') ||
+    prod.unit?.includes('كيلو') ||
+    prod.category_name?.includes('بن') ||
+    prod.category_name?.includes('توليف') ||
+    targetCat.name_ar?.includes('بن') ||
+    targetCat.name_ar?.includes('توليف');
+
   targetCat.items.push({
     product_id: prod.id,
     name_ar: prod.name_ar,
     description_ar: '',
-    price: prod.sale_price || 0,
+    pricing_type: isCoffee ? 'weights' : 'single',
+    price: basePrice,
+    price_kilo: isCoffee ? basePrice : null,
+    price_half: isCoffee ? Math.round(basePrice / 2) : null,
+    price_quarter: isCoffee ? Math.round(basePrice / 4) : null,
+    price_eighth: isCoffee ? Math.round(basePrice / 8) : null,
     unit_label_ar: prod.unit || null,
     is_featured: false,
     is_new: false,
@@ -976,7 +1131,7 @@ const addProductToMenu = (prod: any) => {
   justify-content: space-between;
   align-items: center;
   gap: var(--space-2);
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 }
 
 .item-input-name {
@@ -986,10 +1141,73 @@ const addProductToMenu = (prod: any) => {
   padding: 4px 8px;
 }
 
-.price-inputs-group {
+.item-pricing-type-select {
+  font-size: 0.78rem;
+  padding: 3px 6px;
+  border-radius: var(--radius-xs);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text-strong);
+  font-weight: 700;
+  max-width: 170px;
+}
+
+.item-pricing-fields {
+  margin-bottom: 6px;
+  background: var(--surface-2);
+  padding: 6px 8px;
+  border-radius: var(--radius-xs);
+  border: 1px dashed var(--border);
+}
+
+.weights-editor-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr) auto;
+  gap: 6px;
+  align-items: center;
+}
+
+.weight-input-box {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.w-input-label {
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: var(--text-muted);
+}
+
+.weight-input-box input {
+  padding: 3px 4px;
+  font-size: 0.8rem;
+}
+
+.btn-calc-weights {
+  background: var(--bg-card);
+  border: 1px solid var(--primary-soft);
+  color: var(--primary);
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 6px 8px;
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--transition);
+  margin-top: 14px;
+}
+
+.btn-calc-weights:hover {
+  background: var(--primary);
+  color: #fff;
+}
+
+.dual-editor-flex,
+.single-editor-flex {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-2);
 }
 
 .item-input-price {

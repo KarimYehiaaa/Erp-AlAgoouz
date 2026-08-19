@@ -15,6 +15,11 @@ export interface MenuItemData {
   description_ar?: string;
   price: number;
   price_secondary?: number | null;
+  pricing_type?: 'single' | 'weights' | 'dual';
+  price_eighth?: number | null;
+  price_quarter?: number | null;
+  price_half?: number | null;
+  price_kilo?: number | null;
   unit_label_ar?: string;
   is_featured?: boolean;
   is_new?: boolean;
@@ -97,8 +102,13 @@ export const getMenuById = async (menuId: number) => {
       }
       itemsByCategory.get(item.menu_category_id)!.push({
         ...item,
+        pricing_type: item.pricing_type || 'single',
         price: roundMoney(Number(item.price || 0)),
         price_secondary: item.price_secondary ? roundMoney(Number(item.price_secondary)) : null,
+        price_eighth: item.price_eighth ? roundMoney(Number(item.price_eighth)) : null,
+        price_quarter: item.price_quarter ? roundMoney(Number(item.price_quarter)) : null,
+        price_half: item.price_half ? roundMoney(Number(item.price_half)) : null,
+        price_kilo: item.price_kilo ? roundMoney(Number(item.price_kilo)) : null,
       });
     }
 
@@ -239,8 +249,9 @@ export const saveMenu = async (payload: MenuPayload, menuId?: number, userId?: n
             await client.query(
               `INSERT INTO menu_items (
                  menu_category_id, product_id, name_ar, description_ar, price,
-                 price_secondary, unit_label_ar, is_featured, is_new, sort_order
-               ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+                 price_secondary, pricing_type, price_eighth, price_quarter, price_half, price_kilo,
+                 unit_label_ar, is_featured, is_new, sort_order
+               ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
               [
                 newCatId,
                 item.product_id || null,
@@ -248,6 +259,11 @@ export const saveMenu = async (payload: MenuPayload, menuId?: number, userId?: n
                 item.description_ar || '',
                 roundMoney(Number(item.price || 0)),
                 item.price_secondary ? roundMoney(Number(item.price_secondary)) : null,
+                item.pricing_type || 'single',
+                item.price_eighth ? roundMoney(Number(item.price_eighth)) : null,
+                item.price_quarter ? roundMoney(Number(item.price_quarter)) : null,
+                item.price_half ? roundMoney(Number(item.price_half)) : null,
+                item.price_kilo ? roundMoney(Number(item.price_kilo)) : null,
                 item.unit_label_ar || null,
                 !!item.is_featured,
                 !!item.is_new,

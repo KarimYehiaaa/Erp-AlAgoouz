@@ -67,11 +67,68 @@
                   <div class="item-leader-dots"></div>
 
                   <div class="item-price-box">
-                    <span class="item-price">{{ formatPrice(item.price) }}</span>
-                    <span class="price-currency">ج.م</span>
-                    <span v-if="item.unit_label_ar" class="unit-label"
-                      >/ {{ item.unit_label_ar }}</span
+                    <template
+                      v-if="
+                        item.pricing_type === 'weights' ||
+                        item.price_eighth ||
+                        item.price_quarter ||
+                        item.price_half ||
+                        item.price_kilo
+                      "
                     >
+                      <div class="weights-pricing-matrix">
+                        <div
+                          v-if="item.price_eighth"
+                          class="weight-chip"
+                          title="سعر ثمن كيلو (125 جرام)"
+                        >
+                          <span class="w-label">ثمن:</span>
+                          <span class="w-val">{{ formatPrice(item.price_eighth) }}</span>
+                        </div>
+                        <div
+                          v-if="item.price_quarter"
+                          class="weight-chip"
+                          title="سعر ربع كيلو (250 جرام)"
+                        >
+                          <span class="w-label">ربع:</span>
+                          <span class="w-val">{{ formatPrice(item.price_quarter) }}</span>
+                        </div>
+                        <div
+                          v-if="item.price_half"
+                          class="weight-chip"
+                          title="سعر نصف كيلو (500 جرام)"
+                        >
+                          <span class="w-label">نصف:</span>
+                          <span class="w-val">{{ formatPrice(item.price_half) }}</span>
+                        </div>
+                        <div
+                          v-if="item.price_kilo"
+                          class="weight-chip highlight"
+                          title="سعر كيلو كامل (1000 جرام)"
+                        >
+                          <span class="w-label">كيلو:</span>
+                          <span class="w-val">{{ formatPrice(item.price_kilo) }}</span>
+                        </div>
+                        <span class="price-currency">ج.م</span>
+                      </div>
+                    </template>
+                    <template v-else-if="item.price_secondary">
+                      <div class="dual-price">
+                        <span class="price-val">{{ formatPrice(item.price) }}</span>
+                        <span class="price-slash">/</span>
+                        <span class="price-val secondary">{{
+                          formatPrice(item.price_secondary)
+                        }}</span>
+                        <span class="price-currency">ج.م</span>
+                      </div>
+                    </template>
+                    <template v-else>
+                      <span class="item-price">{{ formatPrice(item.price) }}</span>
+                      <span class="price-currency">ج.م</span>
+                      <span v-if="item.unit_label_ar" class="unit-label"
+                        >/ {{ item.unit_label_ar }}</span
+                      >
+                    </template>
                   </div>
                 </div>
               </div>
@@ -142,7 +199,36 @@
                   <div class="item-leader-dots"></div>
 
                   <div class="item-price-box">
-                    <template v-if="item.price_secondary">
+                    <template
+                      v-if="
+                        item.pricing_type === 'weights' ||
+                        item.price_eighth ||
+                        item.price_quarter ||
+                        item.price_half ||
+                        item.price_kilo
+                      "
+                    >
+                      <div class="weights-pricing-matrix">
+                        <div v-if="item.price_eighth" class="weight-chip">
+                          <span class="w-label">ثمن:</span>
+                          <span class="w-val">{{ formatPrice(item.price_eighth) }}</span>
+                        </div>
+                        <div v-if="item.price_quarter" class="weight-chip">
+                          <span class="w-label">ربع:</span>
+                          <span class="w-val">{{ formatPrice(item.price_quarter) }}</span>
+                        </div>
+                        <div v-if="item.price_half" class="weight-chip">
+                          <span class="w-label">نصف:</span>
+                          <span class="w-val">{{ formatPrice(item.price_half) }}</span>
+                        </div>
+                        <div v-if="item.price_kilo" class="weight-chip highlight">
+                          <span class="w-label">كيلو:</span>
+                          <span class="w-val">{{ formatPrice(item.price_kilo) }}</span>
+                        </div>
+                        <span class="price-currency">ج.م</span>
+                      </div>
+                    </template>
+                    <template v-else-if="item.price_secondary">
                       <div class="dual-price">
                         <span class="price-val">{{ formatPrice(item.price) }}</span>
                         <span class="price-slash">/</span>
@@ -238,6 +324,11 @@ const props = defineProps<{
         description_ar?: string;
         price: number;
         price_secondary?: number | null;
+        pricing_type?: 'single' | 'weights' | 'dual';
+        price_eighth?: number | null;
+        price_quarter?: number | null;
+        price_half?: number | null;
+        price_kilo?: number | null;
         unit_label_ar?: string;
         is_featured?: boolean;
         is_new?: boolean;
@@ -636,6 +727,39 @@ const getCatIcon = (iconName?: string) => {
 .dual-price .price-slash {
   color: var(--menu-accent);
   margin: 0 1px;
+}
+
+.weights-pricing-matrix {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--menu-badge-bg);
+  padding: 1.5px 5px;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--menu-border-outer);
+}
+
+.weight-chip {
+  display: flex;
+  align-items: baseline;
+  gap: 1.5px;
+}
+
+.weight-chip .w-label {
+  font-size: 8px;
+  font-weight: 700;
+  color: var(--menu-text-muted);
+}
+
+.weight-chip .w-val {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--menu-primary);
+}
+
+.weight-chip.highlight .w-val {
+  color: var(--menu-accent-dark);
+  font-weight: 900;
 }
 
 /* شريط سفلي للصفحة الأولى */

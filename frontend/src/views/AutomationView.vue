@@ -16,15 +16,15 @@
       </div>
 
       <div class="header-actions">
-        <!-- أزرار التبديل بين العرض الشبكي والمخطط البصري -->
+        <!-- أزرار التبديل بين وضع المخطط الشبكي Obsidian والوضع الكلاسيكي -->
         <div class="view-mode-toggle">
           <button
             type="button"
             class="mode-btn"
-            :class="{ active: viewMode === 'studio' }"
-            @click="viewMode = 'studio'"
+            :class="{ active: viewMode === 'graph' }"
+            @click="viewMode = 'graph'"
           >
-            <span>🌌 استوديو المخطط البصري</span>
+            <span>🌌 استوديو المخطط الشبكي (Obsidian Canvas)</span>
           </button>
           <button
             type="button"
@@ -68,7 +68,7 @@
           <span>⚡</span>
         </div>
         <div class="stat-info">
-          <span class="stat-label">المسارات النشطة</span>
+          <span class="stat-label">المسارات والعقد النشطة</span>
           <h3 class="stat-value">
             {{ activeCount }} <small>/ {{ automationsList.length }}</small>
           </h3>
@@ -110,172 +110,234 @@
       </div>
     </div>
 
-    <!-- ═══════════════════ العرض الأول: استوديو المخطط البصري التفاعلي (Visual Flow Studio) ═══════════════════ -->
-    <div v-if="viewMode === 'studio'" class="visual-studio-card card">
-      <div class="studio-header">
-        <div class="flex items-center gap-2">
-          <span class="pulse-beacon"></span>
-          <h3 class="text-lg font-black text-strong">
-            خريطة التدفق الحي للأتمتة (Live Workflow Engine)
-          </h3>
+    <!-- ═══════════════════ العرض الأول: استوديو المخطط الشبكي التفاعلي (Obsidian Graph & n8n Canvas) ═══════════════════ -->
+    <div v-if="viewMode === 'graph'" class="obsidian-graph-wrapper card">
+      <!-- شريط أدوات الكانفاس العلوي -->
+      <div class="graph-top-bar">
+        <div class="graph-title-group">
+          <div class="beacon-circle"></div>
+          <div>
+            <h3 class="graph-heading">خريطة المنظومة العصبية الحية (Interactive Node Graph)</h3>
+            <span class="graph-sub"
+              >✨ يمكنك سحب العقد بالماوس بحرية، والتحريك والتكبير لعرض مسارات البيانات</span
+            >
+          </div>
         </div>
-        <span class="text-xs text-muted font-bold"
-          >انقر على أي مسار لمعاينته وتجربة محاكاة سريان البيانات الحية (Data Packet Flow)</span
-        >
+
+        <div class="graph-controls">
+          <button type="button" class="graph-ctrl-btn" title="تكبير المنظور" @click="zoomIn">
+            ➕
+          </button>
+          <span class="zoom-level-text">{{ Math.round(zoomLevel * 100) }}%</span>
+          <button type="button" class="graph-ctrl-btn" title="تصغير المنظور" @click="zoomOut">
+            ➖
+          </button>
+          <button
+            type="button"
+            class="graph-ctrl-btn reset-btn"
+            title="إعادة ضبط المنظور"
+            @click="resetViewport"
+          >
+            🎯 إعادة الضبط
+          </button>
+          <button
+            type="button"
+            class="graph-ctrl-btn auto-layout-btn"
+            title="إعادة الترتيب التلقائي"
+            @click="autoLayoutNodes"
+          >
+            ✨ ترتيب ذكي
+          </button>
+          <button
+            type="button"
+            class="graph-ctrl-btn fire-all-btn"
+            :disabled="isFiringAll"
+            @click="simulateFullNetworkPulse"
+          >
+            <span>{{ isFiringAll ? '⚡ سريان الطاقة...' : '🚀 ضخ نبضة طاقة شاملة' }}</span>
+          </button>
+        </div>
       </div>
 
-      <!-- محدد المسار التفاعلي -->
-      <div class="pipeline-selector-tabs">
-        <button
-          v-for="item in automationsList"
-          :key="item.id"
-          type="button"
-          class="pipeline-tab-btn"
-          :class="{ active: selectedPipelineId === item.id }"
-          @click="selectedPipelineId = item.id"
-        >
-          <span>{{ getScenarioEmoji(item.key) }}</span>
-          <span>{{ item.name_ar }}</span>
-          <span class="badge-mini" :class="item.is_enabled ? 'on' : 'off'">
-            {{ item.is_enabled ? 'مفعل' : 'معطل' }}
-          </span>
-        </button>
-      </div>
-
-      <!-- مساحة العمل البصرية (The Visual Flow Canvas) -->
-      <div v-if="currentPipeline" class="flow-canvas">
-        <div class="canvas-grid-bg"></div>
-
+      <!-- مساحة الكانفاس التفاعلية (The Obsidian Canvas Area) -->
+      <div
+        ref="canvasContainerRef"
+        class="obsidian-canvas-viewport"
+        :class="{ dragging: isPanning }"
+        @mousedown="handleCanvasMouseDown"
+        @mousemove="handleCanvasMouseMove"
+        @mouseup="handleCanvasMouseUp"
+        @mouseleave="handleCanvasMouseUp"
+        @wheel.prevent="handleCanvasWheel"
+      >
+        <!-- خلفية الفضاء النقطي الشبكي (Obsidian Dot Grid) -->
         <div
-          class="flow-pipeline-container"
-          :class="{ 'is-executing': triggeringId === currentPipeline.id }"
+          class="obsidian-grid-pattern"
+          :style="{
+            transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoomLevel})`,
+          }"
+        ></div>
+
+        <!-- مساحة التحويل الرئيسية (Canvas Content Layer) -->
+        <div
+          class="canvas-transform-layer"
+          :style="{
+            transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoomLevel})`,
+          }"
         >
-          <!-- العقدة 1: المحفز (Trigger Node) -->
+          <!-- طبقة الأسلاك المنحنية التفاعلية SVG (Dynamic Bézier Wires) -->
+          <svg class="wires-svg-layer" width="3000" height="2000">
+            <defs>
+              <!-- تدرجات الألوان للأسلاك الضوئية -->
+              <linearGradient id="wire-amber-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#f59e0b" stop-opacity="0.8" />
+                <stop offset="50%" stop-color="#fbbf24" stop-opacity="1" />
+                <stop offset="100%" stop-color="#10b981" stop-opacity="0.8" />
+              </linearGradient>
+              <linearGradient id="wire-cyan-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#6366f1" stop-opacity="0.8" />
+                <stop offset="50%" stop-color="#38bdf8" stop-opacity="1" />
+                <stop offset="100%" stop-color="#22c55e" stop-opacity="0.8" />
+              </linearGradient>
+
+              <!-- مرشح التوهج النيوني للأسلاك -->
+              <filter id="glow-neon" x="-20%" y="-20%" width="140%" height="140%">
+                <feGaussianBlur stdDeviation="3" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+            </defs>
+
+            <!-- رسم الوصلات المنحنية لكل رابط -->
+            <g v-for="link in graphLinks" :key="link.id" class="wire-group">
+              <!-- سلك الخلفية الأساسي -->
+              <path :d="computeBezierPath(link)" class="bezier-wire-bg" />
+              <!-- السلك النبضي المتوهج المتحرك -->
+              <path
+                :d="computeBezierPath(link)"
+                class="bezier-wire-pulse"
+                :class="{ 'high-voltage': isFiringAll || triggeringId === link.automationId }"
+                filter="url(#glow-neon)"
+              />
+            </g>
+          </svg>
+
+          <!-- طبقة العقد التفاعلية (Draggable Nodes) -->
           <div
-            class="flow-node trigger-node"
-            :class="{ pulse: triggeringId === currentPipeline.id }"
+            v-for="node in graphNodes"
+            :key="node.id"
+            class="obsidian-node"
+            :class="[
+              node.category,
+              {
+                active: selectedNode?.id === node.id,
+                executing: isFiringAll || triggeringId === node.automationId,
+                dragging: draggedNodeId === node.id,
+              },
+            ]"
+            :style="{
+              left: `${node.x}px`,
+              top: `${node.y}px`,
+            }"
+            @mousedown.stop="handleNodeMouseDown(node, $event)"
+            @click.stop="selectNode(node)"
           >
-            <div class="node-badge">1. المحفّز (Trigger)</div>
-            <div class="node-icon-circle">
-              <span>{{ getScenarioEmoji(currentPipeline.key) }}</span>
+            <!-- مقبس الإدخال (Input Socket) -->
+            <div v-if="node.hasInput" class="node-socket socket-input" title="مدخل البيانات">
+              <span class="socket-dot"></span>
             </div>
-            <div class="node-content">
-              <h4>
-                {{ currentPipeline.trigger_type === 'cron' ? 'موعد زمني مجدول' : 'حدث نظام فوري' }}
-              </h4>
-              <p class="node-detail">
-                {{
-                  currentPipeline.trigger_type === 'cron'
-                    ? formatCronHuman(currentPipeline.cron_expression)
-                    : 'عند وقوع الحدث في POS أو المخزن'
-                }}
-              </p>
-            </div>
-            <div class="node-status-dot active"></div>
-          </div>
 
-          <!-- خط التدفق الكهربائي 1 (Animated Energy Beam 1) -->
-          <div class="flow-connector">
-            <svg class="connector-svg" width="100%" height="40" preserveAspectRatio="none">
-              <line x1="0" y1="20" x2="100%" y2="20" class="connector-line-bg" />
-              <line x1="0" y1="20" x2="100%" y2="20" class="connector-line-pulse" />
-            </svg>
-            <div class="data-packet" :class="{ traveling: triggeringId === currentPipeline.id }">
-              ⚡
-            </div>
-          </div>
-
-          <!-- العقدة 2: المعالجة والذكاء (Processing & Logic Node) -->
-          <div
-            class="flow-node logic-node"
-            :class="{ active: triggeringId === currentPipeline.id }"
-          >
-            <div class="node-badge logic">2. محرك الفحص والذكاء (Engine)</div>
-            <div class="node-icon-circle logic">
-              <span>🧠</span>
-            </div>
-            <div class="node-content">
-              <h4>تجميع وفحص البيانات</h4>
-              <p class="node-detail">
-                {{ getPipelineLogicDescription(currentPipeline.key) }}
-              </p>
-            </div>
-            <div class="node-tags">
-              <span class="node-tag">PostgreSQL 🗄️</span>
-              <span class="node-tag">Cairo Timezone 🕒</span>
-            </div>
-          </div>
-
-          <!-- خط التدفق الكهربائي 2 (Animated Energy Beam 2) -->
-          <div class="flow-connector">
-            <svg class="connector-svg" width="100%" height="40" preserveAspectRatio="none">
-              <line x1="0" y1="20" x2="100%" y2="20" class="connector-line-bg" />
-              <line x1="0" y1="20" x2="100%" y2="20" class="connector-line-pulse" />
-            </svg>
-            <div
-              class="data-packet step-2"
-              :class="{ traveling: triggeringId === currentPipeline.id }"
-            >
-              📦
-            </div>
-          </div>
-
-          <!-- العقدة 3: الإجراء والقنوات (Action & Dispatch Node) -->
-          <div
-            class="flow-node action-node"
-            :class="{ success: triggeringId === currentPipeline.id }"
-          >
-            <div class="node-badge action">3. الإجراء والتوصيل (Action)</div>
-            <div class="node-icon-circle action">
-              <span>📲</span>
-            </div>
-            <div class="node-content">
-              <h4>توصيل الإشعار والتقرير</h4>
-              <p class="node-detail">إرسال رسالة HTML منسقة إلى Telegram للمالك + حفظ السجل</p>
-            </div>
-            <div class="node-channels">
-              <span class="channel-pill" :class="{ on: currentPipeline.channels?.telegram }"
-                >📲 تليجرام المالك</span
-              >
-              <span class="channel-pill on">💾 سجل الأتمتة</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- شريط التحكم في المسار البصري -->
-        <div class="canvas-action-bar">
-          <div class="pipeline-info-text">
-            <span class="text-strong font-black">{{ currentPipeline.name_ar }}</span>
-            <span class="text-muted text-xs mr-2">{{ currentPipeline.description_ar }}</span>
-          </div>
-
-          <div class="flex items-center gap-3">
-            <div class="toggle-switch-wrap" @click.stop="toggleAutomation(currentPipeline)">
-              <div class="toggle-track" :class="{ 'is-on': currentPipeline.is_enabled }">
-                <div class="toggle-knob"></div>
+            <!-- رأس العقدة -->
+            <div class="node-header">
+              <div class="node-icon-bubble">
+                <span>{{ node.icon }}</span>
               </div>
-              <span class="toggle-status-text">{{
-                currentPipeline.is_enabled ? 'المسار مفعل 🟢' : 'المسار متوقف ⚪'
-              }}</span>
+              <div class="node-meta">
+                <span class="node-type-label">{{ node.typeLabel }}</span>
+                <h4 class="node-title">{{ node.title }}</h4>
+              </div>
             </div>
 
-            <button
-              type="button"
-              class="btn btn-primary btn-pulse-launch"
-              :disabled="triggeringId === currentPipeline.id"
-              @click="triggerTestRun(currentPipeline)"
-            >
-              <span class="rocket-icon">{{
-                triggeringId === currentPipeline.id ? '⏳' : '⚡'
-              }}</span>
-              <span>{{
-                triggeringId === currentPipeline.id
-                  ? 'جاري ضخ البيانات وتشغيل المسار...'
-                  : 'تشغيل محاكاة المسار الآن 🚀'
-              }}</span>
-            </button>
+            <!-- جسم العقدة وتفاصيلها -->
+            <p class="node-desc">{{ node.desc }}</p>
+
+            <!-- شريط حالة العقدة السفلي -->
+            <div class="node-footer">
+              <span class="node-status-badge" :class="node.status">
+                <span class="dot"></span>
+                <span>{{ node.statusLabel }}</span>
+              </span>
+
+              <button
+                v-if="node.automationId"
+                type="button"
+                class="node-quick-run-btn"
+                title="تشغيل تجريبي لهذا المسار"
+                @click.stop="triggerTestRunById(node.automationId)"
+              >
+                ⚡ تشغيل
+              </button>
+            </div>
+
+            <!-- مقبس الإخراج (Output Socket) -->
+            <div v-if="node.hasOutput" class="node-socket socket-output" title="مخرج البيانات">
+              <span class="socket-dot"></span>
+            </div>
           </div>
         </div>
+
+        <!-- اللوحة الجانبية لمستكشف العقدة المحددة (Node Inspector Glass Card) -->
+        <transition name="slide-left">
+          <div v-if="selectedNode" class="node-inspector-drawer">
+            <div class="inspector-header">
+              <div class="flex items-center gap-2">
+                <span class="text-xl">{{ selectedNode.icon }}</span>
+                <div>
+                  <h4 class="font-black text-sm text-strong">{{ selectedNode.title }}</h4>
+                  <span class="text-xs text-muted">{{ selectedNode.typeLabel }}</span>
+                </div>
+              </div>
+              <button type="button" class="btn-close-mini" @click="selectedNode = null">✕</button>
+            </div>
+
+            <div class="inspector-body">
+              <p class="text-xs text-muted mb-3">{{ selectedNode.desc }}</p>
+
+              <div class="inspector-stat-row">
+                <span class="text-xs font-bold text-muted">حالة التشغيل:</span>
+                <span class="badge-mini on">🟢 نشط ومتصل</span>
+              </div>
+
+              <div class="inspector-stat-row">
+                <span class="text-xs font-bold text-muted">بروتوكول النقل:</span>
+                <span class="font-mono text-xs text-strong">Event / Webhook / Cron</span>
+              </div>
+
+              <div v-if="selectedNode.cron" class="inspector-stat-row">
+                <span class="text-xs font-bold text-muted">الموعد الزمني:</span>
+                <span class="text-xs font-bold text-primary">{{ selectedNode.cron }}</span>
+              </div>
+
+              <div class="inspector-actions mt-3">
+                <button
+                  v-if="selectedNode.automationId"
+                  type="button"
+                  class="btn btn-primary btn-sm w-full"
+                  :disabled="triggeringId === selectedNode.automationId"
+                  @click="triggerTestRunById(selectedNode.automationId)"
+                >
+                  <span>{{
+                    triggeringId === selectedNode.automationId
+                      ? 'جاري الضخ...'
+                      : '⚡ تشغيل محاكاة العقدة'
+                  }}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </transition>
       </div>
     </div>
 
@@ -538,7 +600,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, reactive } from 'vue';
 import { automations as automationsApi } from '@/api';
 import AppIcon from '@/components/AppIcon.vue';
 
@@ -547,21 +609,292 @@ const logsList = ref<any[]>([]);
 const isLoading = ref(false);
 const triggeringId = ref<number | null>(null);
 
-const viewMode = ref<'studio' | 'cards'>('studio');
-const selectedPipelineId = ref<number | null>(null);
-
+const viewMode = ref<'graph' | 'cards'>('graph');
 const feedbackMessage = ref('');
 const feedbackType = ref<'success' | 'error'>('success');
 
 const showTelegramModal = ref(false);
 const isTestingTelegram = ref(false);
 const selectedLog = ref<any | null>(null);
+const isFiringAll = ref(false);
 
 const telegramForm = ref({
   botToken: '',
   chatId: '',
 });
 
+/* ═══════════════════ محرك الكانفاس والفيزياء التفاعلية (Obsidian Engine) ═══════════════════ */
+const canvasContainerRef = ref<HTMLElement | null>(null);
+const zoomLevel = ref(1.0);
+const panOffset = reactive({ x: 40, y: 30 });
+const isPanning = ref(false);
+const panStart = reactive({ x: 0, y: 0 });
+
+const draggedNodeId = ref<string | null>(null);
+const dragNodeStart = reactive({ x: 0, y: 0, nodeX: 0, nodeY: 0 });
+const selectedNode = ref<any | null>(null);
+
+// تعريف عقد الخريطة الشبكية التفاعلية
+const graphNodes = ref<any[]>([
+  {
+    id: 'node-pos',
+    typeLabel: 'Trigger • نقطة بيع',
+    category: 'trigger-cat',
+    icon: '☕',
+    title: 'كاشير الفروع (POS)',
+    desc: 'إصدار الفواتير، التحصيل، ومتابعة الورديات الحية',
+    x: 60,
+    y: 80,
+    hasInput: false,
+    hasOutput: true,
+    status: 'online',
+    statusLabel: 'متصل ولحظي',
+    automationId: null,
+  },
+  {
+    id: 'node-cron',
+    typeLabel: 'Trigger • جدول زمني',
+    category: 'trigger-cat',
+    icon: '⏰',
+    title: 'محرك الجدولة (Cron)',
+    desc: 'جدولة تقرير الإغلاق وفحص النواقص الدوري',
+    cron: 'يومياً 11:30 م',
+    x: 60,
+    y: 310,
+    hasInput: false,
+    hasOutput: true,
+    status: 'online',
+    statusLabel: 'مجدول ونشط',
+    automationId: null,
+  },
+  {
+    id: 'node-inv',
+    typeLabel: 'Trigger • مخازن البن',
+    category: 'trigger-cat',
+    icon: '🫘',
+    title: 'مخازن البن والتحميص',
+    desc: 'رصد كميات البن الأخضر والمحمص وحركات الصرف',
+    x: 60,
+    y: 530,
+    hasInput: false,
+    hasOutput: true,
+    status: 'online',
+    statusLabel: 'مراقبة حية',
+    automationId: null,
+  },
+  {
+    id: 'node-brain',
+    typeLabel: 'Engine • محرك التقارير',
+    category: 'logic-cat',
+    icon: '🧠',
+    title: 'عقل الأتمتة المركزي',
+    desc: 'تجميع إيرادات اليوم، صافي الأرباح، وأعلى الأصناف طلباً',
+    x: 480,
+    y: 190,
+    hasInput: true,
+    hasOutput: true,
+    status: 'online',
+    statusLabel: 'معالجة فورية',
+    automationId: null,
+  },
+  {
+    id: 'node-fraud',
+    typeLabel: 'Security • كشف التلاعب',
+    category: 'security-cat',
+    icon: '🛡️',
+    title: 'منظومة الرقابة والأمان',
+    desc: 'كشف فوري لإلغاء الفواتير والخصومات المشبوهة',
+    x: 480,
+    y: 430,
+    hasInput: true,
+    hasOutput: true,
+    status: 'online',
+    statusLabel: 'حماية 24/7',
+    automationId: null,
+  },
+  {
+    id: 'node-db',
+    typeLabel: 'Storage • قاعدة البيانات',
+    category: 'storage-cat',
+    icon: '🗄️',
+    title: 'سحابة بن العجوز (PostgreSQL)',
+    desc: 'حفظ الحركات المحاسبية والسجلات وسلسلة الجرد',
+    x: 900,
+    y: 110,
+    hasInput: true,
+    hasOutput: false,
+    status: 'online',
+    statusLabel: 'مستقرة وسريعة',
+    automationId: null,
+  },
+  {
+    id: 'node-tg',
+    typeLabel: 'Action • قناة تليجرام',
+    category: 'action-cat',
+    icon: '🤖',
+    title: 'بوت تليجرام المالك',
+    desc: 'توصيل التقرير اليومي الفوري وإنذارات الأمان لهاتفك',
+    x: 900,
+    y: 330,
+    hasInput: true,
+    hasOutput: false,
+    status: 'online',
+    statusLabel: 'إشعار مباشر',
+    automationId: null,
+  },
+  {
+    id: 'node-logs',
+    typeLabel: 'Audit • سجل المراقبة',
+    category: 'action-cat',
+    icon: '📜',
+    title: 'سجل الأتمتة (Audit Stream)',
+    desc: 'أرشفة كافة المهام المنفذة مع التوقيت والنتيجة',
+    x: 900,
+    y: 540,
+    hasInput: true,
+    hasOutput: false,
+    status: 'online',
+    statusLabel: 'أرشفة دائمة',
+    automationId: null,
+  },
+]);
+
+// شبكة الوصلات بين العقد (Bézier Links)
+const graphLinks = ref<any[]>([
+  { id: 'l1', from: 'node-pos', to: 'node-brain', automationId: null },
+  { id: 'l2', from: 'node-pos', to: 'node-fraud', automationId: null },
+  { id: 'l3', from: 'node-cron', to: 'node-brain', automationId: null },
+  { id: 'l4', from: 'node-inv', to: 'node-brain', automationId: null },
+  { id: 'l5', from: 'node-brain', to: 'node-db', automationId: null },
+  { id: 'l6', from: 'node-brain', to: 'node-tg', automationId: null },
+  { id: 'l7', from: 'node-brain', to: 'node-logs', automationId: null },
+  { id: 'l8', from: 'node-fraud', to: 'node-tg', automationId: null },
+  { id: 'l9', from: 'node-fraud', to: 'node-logs', automationId: null },
+]);
+
+const NODE_WIDTH = 260;
+const NODE_HEIGHT = 130;
+
+// حساب منحنى بيزييه الدقيق بين عقدتين
+const computeBezierPath = (link: any) => {
+  const fromNode = graphNodes.value.find((n) => n.id === link.from);
+  const toNode = graphNodes.value.find((n) => n.id === link.to);
+  if (!fromNode || !toNode) return '';
+
+  const x1 = fromNode.x + NODE_WIDTH;
+  const y1 = fromNode.y + NODE_HEIGHT / 2;
+  const x2 = toNode.x;
+  const y2 = toNode.y + NODE_HEIGHT / 2;
+
+  const dx = Math.abs(x2 - x1) * 0.55;
+  const cx1 = x1 + dx;
+  const cy1 = y1;
+  const cx2 = x2 - dx;
+  const cy2 = y2;
+
+  return `M ${x1} ${y1} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${x2} ${y2}`;
+};
+
+// تفاعلات الكانفاس والتحريك (Pan & Zoom)
+const handleCanvasMouseDown = (e: MouseEvent) => {
+  if (
+    e.target !== canvasContainerRef.value &&
+    !(e.target as HTMLElement).classList.contains('obsidian-grid-pattern')
+  ) {
+    return;
+  }
+  isPanning.value = true;
+  panStart.x = e.clientX - panOffset.x;
+  panStart.y = e.clientY - panOffset.y;
+};
+
+const handleCanvasMouseMove = (e: MouseEvent) => {
+  if (draggedNodeId.value) {
+    const node = graphNodes.value.find((n) => n.id === draggedNodeId.value);
+    if (node) {
+      const deltaX = (e.clientX - dragNodeStart.x) / zoomLevel.value;
+      const deltaY = (e.clientY - dragNodeStart.y) / zoomLevel.value;
+      node.x = Math.max(10, Math.round(dragNodeStart.nodeX + deltaX));
+      node.y = Math.max(10, Math.round(dragNodeStart.nodeY + deltaY));
+    }
+    return;
+  }
+
+  if (isPanning.value) {
+    panOffset.x = e.clientX - panStart.x;
+    panOffset.y = e.clientY - panStart.y;
+  }
+};
+
+const handleCanvasMouseUp = () => {
+  isPanning.value = false;
+  draggedNodeId.value = null;
+};
+
+const handleCanvasWheel = (e: WheelEvent) => {
+  const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
+  const newZoom = Math.min(1.8, Math.max(0.5, zoomLevel.value * zoomFactor));
+  zoomLevel.value = parseFloat(newZoom.toFixed(2));
+};
+
+const zoomIn = () => {
+  zoomLevel.value = Math.min(1.8, parseFloat((zoomLevel.value + 0.15).toFixed(2)));
+};
+
+const zoomOut = () => {
+  zoomLevel.value = Math.max(0.5, parseFloat((zoomLevel.value - 0.15).toFixed(2)));
+};
+
+const resetViewport = () => {
+  panOffset.x = 40;
+  panOffset.y = 30;
+  zoomLevel.value = 1.0;
+};
+
+const autoLayoutNodes = () => {
+  const layouts: Record<string, { x: number; y: number }> = {
+    'node-pos': { x: 60, y: 80 },
+    'node-cron': { x: 60, y: 310 },
+    'node-inv': { x: 60, y: 530 },
+    'node-brain': { x: 480, y: 190 },
+    'node-fraud': { x: 480, y: 430 },
+    'node-db': { x: 900, y: 110 },
+    'node-tg': { x: 900, y: 330 },
+    'node-logs': { x: 900, y: 540 },
+  };
+
+  for (const node of graphNodes.value) {
+    if (layouts[node.id]) {
+      node.x = layouts[node.id].x;
+      node.y = layouts[node.id].y;
+    }
+  }
+  showFeedback('تمت إعادة ترتيب العقد بذكاء! ✨');
+};
+
+const handleNodeMouseDown = (node: any, e: MouseEvent) => {
+  draggedNodeId.value = node.id;
+  dragNodeStart.x = e.clientX;
+  dragNodeStart.y = e.clientY;
+  dragNodeStart.nodeX = node.x;
+  dragNodeStart.nodeY = node.y;
+  selectedNode.value = node;
+};
+
+const selectNode = (node: any) => {
+  selectedNode.value = node;
+};
+
+const simulateFullNetworkPulse = async () => {
+  isFiringAll.value = true;
+  showFeedback('⚡ جاري ضخ نبضات الطاقة في جميع أسلاك المنظومة العصبية...');
+  setTimeout(() => {
+    isFiringAll.value = false;
+    showFeedback('تم سريان نبضات البيانات بنجاح في كامل المنظومة! ✨');
+  }, 2500);
+};
+
+/* ═══════════════════ منطق الـ API والتفاعل مع السيستم ═══════════════════ */
 const isTelegramConfigured = computed(() => {
   return (
     Boolean(telegramForm.value.botToken && telegramForm.value.chatId) ||
@@ -571,14 +904,6 @@ const isTelegramConfigured = computed(() => {
 
 const activeCount = computed(() => {
   return automationsList.value.filter((a) => a.is_enabled).length;
-});
-
-const currentPipeline = computed(() => {
-  if (!automationsList.value.length) return null;
-  if (!selectedPipelineId.value) return automationsList.value[0];
-  return (
-    automationsList.value.find((a) => a.id === selectedPipelineId.value) || automationsList.value[0]
-  );
 });
 
 onMounted(async () => {
@@ -600,9 +925,21 @@ const fetchAutomations = async () => {
     const res: any = await automationsApi.list();
     const list = res?.data?.automations || res?.automations || [];
     automationsList.value = list;
-    if (list.length && !selectedPipelineId.value) {
-      selectedPipelineId.value = list[0].id;
-    }
+
+    // ربط الأتمتة الحقيقية بالعقد التفاعلية
+    const dailyAuto = list.find((a: any) => a.key === 'daily_sales_report');
+    const voidAuto = list.find((a: any) => a.key === 'void_invoice_alert');
+    const stockAuto = list.find((a: any) => a.key === 'low_stock_alert');
+
+    const brainNode = graphNodes.value.find((n) => n.id === 'node-brain');
+    if (brainNode && dailyAuto) brainNode.automationId = dailyAuto.id;
+
+    const fraudNode = graphNodes.value.find((n) => n.id === 'node-fraud');
+    if (fraudNode && voidAuto) fraudNode.automationId = voidAuto.id;
+
+    const invNode = graphNodes.value.find((n) => n.id === 'node-inv');
+    if (invNode && stockAuto) invNode.automationId = stockAuto.id;
+
     // استخراج إعدادات تليجرام إن وجدت
     const firstWithTg = automationsList.value.find((a) => a.config?.bot_token);
     if (firstWithTg) {
@@ -636,15 +973,20 @@ const toggleAutomation = async (item: any) => {
     await automationsApi.update(item.id, { is_enabled: nextState });
     showFeedback(`تم ${nextState ? 'تفعيل' : 'إيقاف'} مسار "${item.name_ar}" بنجاح! ✨`, 'success');
   } catch (err: any) {
-    item.is_enabled = !nextState; // Revert
+    item.is_enabled = !nextState;
     showFeedback(err?.message || 'تعذر تحديث حالة الأتمتة', 'error');
   }
+};
+
+const triggerTestRunById = (autoId: number) => {
+  const item = automationsList.value.find((a) => a.id === autoId);
+  if (item) triggerTestRun(item);
 };
 
 const triggerTestRun = async (item: any) => {
   try {
     triggeringId.value = item.id;
-    showFeedback(`⚡ جاري ضخ البيانات وتشغيل مسار "${item.name_ar}"...`);
+    showFeedback(`⚡ جاري ضخ البيانات في الأسلاك وتشغيل مسار "${item.name_ar}"...`);
     const res: any = await automationsApi.trigger(item.id);
     if (res?.success || res?.data?.success) {
       showFeedback(`تم إطلاق مسار "${item.name_ar}" بنجاح وتوصيل الرسالة! 🎉`, 'success');
@@ -659,7 +1001,7 @@ const triggerTestRun = async (item: any) => {
   } finally {
     setTimeout(() => {
       triggeringId.value = null;
-    }, 1200);
+    }, 1500);
   }
 };
 
@@ -726,17 +1068,6 @@ const getCategoryLabel = (cat: string) => {
     system: 'صيانة وسيرفر',
   };
   return map[cat] || 'عام';
-};
-
-const getPipelineLogicDescription = (key: string) => {
-  const map: Record<string, string> = {
-    daily_sales_report: 'حساب مبيعات اليوم، صافي الأرباح، المصروفات، وأعلى 5 منتجات طلباً',
-    low_stock_alert: 'فحص أرصدة خامات التحميص والأصناف ومقارنتها بحد إعادة الطلب (Min Stock)',
-    void_invoice_alert: 'رصد فوري لإلغاء الفواتير بعد الطباعة وتحديد اسم الكاشير والمبلغ والسبب',
-    large_discount_alert: 'فحص نسبة الخصم المطبقة والتأكد إذا تجاوزت النسبة المصرح بها (15%)',
-    daily_backup_reminder: 'فحص اتصال قاعدة البيانات وعدد السجلات والتحقق من النسخة الاحتياطية',
-  };
-  return map[key] || 'معالجة الشروط وتجهيز مخرجات الأتمتة';
 };
 
 const formatCronHuman = (cronExpr?: string) => {
@@ -981,326 +1312,425 @@ const formatRelativeTime = (dtStr?: string) => {
   }
 }
 
-/* ═══════════════════ Visual Workflow Studio Canvas ═══════════════════ */
-.visual-studio-card {
-  padding: var(--space-4);
+/* ═══════════════════ Obsidian Graph & n8n Canvas Styles ═══════════════════ */
+.obsidian-graph-wrapper {
+  padding: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
-  border: 1px solid var(--border-strong);
+  border: 1px solid #3d352e;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.25);
 }
 
-.studio-header {
+.graph-top-bar {
+  background: #181512;
+  border-bottom: 1px solid #332b24;
+  padding: 12px 20px;
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: var(--space-2);
-  border-bottom: 1px solid var(--border);
-  padding-bottom: var(--space-3);
+  gap: 12px;
+  z-index: 10;
 }
 
-.pulse-beacon {
+.graph-title-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.beacon-circle {
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: var(--primary);
-  box-shadow: 0 0 10px var(--primary);
-  animation: beacon-glow 1.8s infinite;
+  background: #f59e0b;
+  box-shadow: 0 0 10px #f59e0b;
+  animation: beacon-pulse 1.8s infinite;
 }
 
-@keyframes beacon-glow {
+@keyframes beacon-pulse {
   0% {
-    opacity: 0.5;
+    opacity: 0.4;
   }
   50% {
     opacity: 1;
-    box-shadow: 0 0 14px var(--primary);
+    box-shadow: 0 0 16px #f59e0b;
   }
   100% {
-    opacity: 0.5;
+    opacity: 0.4;
   }
 }
 
-.pipeline-selector-tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding: 4px 0;
-}
-
-.pipeline-tab-btn {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  padding: 8px 14px;
-  border-radius: var(--radius-md);
-  font-size: 0.85rem;
-  font-weight: 800;
-  color: var(--text-strong);
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.pipeline-tab-btn:hover {
-  background: var(--surface-3);
-  border-color: var(--primary);
-}
-
-.pipeline-tab-btn.active {
-  background: linear-gradient(135deg, rgba(217, 119, 6, 0.12), rgba(217, 119, 6, 0.04));
-  border-color: var(--primary);
-  color: var(--primary);
-}
-
-.badge-mini {
-  font-size: 0.65rem;
-  padding: 1px 6px;
-  border-radius: 10px;
-  font-weight: 900;
-}
-
-.badge-mini.on {
-  background: #dcfce7;
-  color: #166534;
-}
-
-.badge-mini.off {
-  background: #f3f4f6;
-  color: #6b7280;
-}
-
-/* Flow Canvas Container */
-.flow-canvas {
-  background: #121110;
-  border-radius: var(--radius-lg);
-  border: 1px solid #332d27;
-  padding: 30px 24px;
-  position: relative;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
-
-.canvas-grid-bg {
-  position: absolute;
-  inset: 0;
-  background-image: radial-gradient(#3a322a 1px, transparent 1px);
-  background-size: 20px 20px;
-  opacity: 0.35;
-  pointer-events: none;
-}
-
-.flow-pipeline-container {
-  display: grid;
-  grid-template-columns: 1fr 90px 1.2fr 90px 1fr;
-  align-items: center;
-  position: relative;
-  z-index: 2;
-  gap: 8px;
-}
-
-@media (max-width: 900px) {
-  .flow-pipeline-container {
-    grid-template-columns: 1fr;
-    gap: 16px;
-  }
-}
-
-/* The Nodes */
-.flow-node {
-  background: rgba(26, 23, 20, 0.85);
-  backdrop-filter: blur(8px);
-  border: 1px solid #443c34;
-  border-radius: var(--radius-md);
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  position: relative;
-  transition: all 0.3s ease;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
-}
-
-.flow-node:hover {
-  border-color: #d97706;
-  transform: translateY(-2px);
-  box-shadow: 0 12px 30px rgba(217, 119, 6, 0.15);
-}
-
-.node-badge {
-  font-size: 0.68rem;
-  font-weight: 900;
-  padding: 2px 8px;
-  border-radius: 4px;
-  background: rgba(217, 119, 6, 0.2);
-  color: #fbbf24;
-  align-self: flex-start;
-}
-
-.node-badge.logic {
-  background: rgba(99, 102, 241, 0.2);
-  color: #a5b4fc;
-}
-
-.node-badge.action {
-  background: rgba(34, 197, 94, 0.2);
-  color: #86efac;
-}
-
-.node-icon-circle {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #2a241e, #1a1612);
-  border: 1px solid #5a4a3a;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.5rem;
-}
-
-.node-content h4 {
-  font-size: 0.92rem;
+.graph-heading {
+  font-size: 0.95rem;
   font-weight: 900;
   color: #fff;
   margin: 0;
 }
 
-.node-detail {
-  font-size: 0.78rem;
-  color: #a8a29e;
-  line-height: 1.4;
-  margin: 4px 0 0 0;
-}
-
-.node-tags,
-.node-channels {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin-top: 4px;
-}
-
-.node-tag {
-  font-size: 0.65rem;
-  font-weight: 800;
-  padding: 2px 6px;
-  border-radius: 4px;
-  background: #292524;
-  color: #d6d3d1;
-}
-
-.channel-pill {
-  font-size: 0.68rem;
-  font-weight: 800;
-  padding: 2px 8px;
-  border-radius: 4px;
-  background: #292524;
+.graph-sub {
+  font-size: 0.72rem;
   color: #a8a29e;
 }
 
-.channel-pill.on {
-  background: #14532d;
-  color: #86efac;
-}
-
-/* Connectors & Pulse Line */
-.flow-connector {
-  position: relative;
+.graph-controls {
   display: flex;
   align-items: center;
-  justify-content: center;
-  height: 40px;
+  gap: 6px;
 }
 
-.connector-line-bg {
-  stroke: #443c34;
+.graph-ctrl-btn {
+  background: #26211c;
+  border: 1px solid #443c34;
+  color: #f5f5f5;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 0.78rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.graph-ctrl-btn:hover {
+  background: #383028;
+  border-color: #f59e0b;
+  color: #fbbf24;
+}
+
+.zoom-level-text {
+  font-size: 0.75rem;
+  font-weight: 900;
+  color: #fbbf24;
+  padding: 0 4px;
+}
+
+.fire-all-btn {
+  background: linear-gradient(135deg, #d97706, #b45309);
+  border: none;
+  color: #fff;
+  padding: 6px 16px;
+  box-shadow: 0 2px 10px rgba(217, 119, 6, 0.4);
+}
+
+.fire-all-btn:hover {
+  box-shadow: 0 4px 16px rgba(217, 119, 6, 0.7);
+  transform: translateY(-1px);
+}
+
+/* Obsidian Canvas Viewport */
+.obsidian-canvas-viewport {
+  width: 100%;
+  height: 720px;
+  background: #0d0c0b;
+  position: relative;
+  overflow: hidden;
+  cursor: grab;
+  user-select: none;
+}
+
+.obsidian-canvas-viewport.dragging {
+  cursor: grabbing;
+}
+
+/* Background Dot Matrix Pattern */
+.obsidian-grid-pattern {
+  position: absolute;
+  width: 4000px;
+  height: 4000px;
+  left: -1000px;
+  top: -1000px;
+  background-image: radial-gradient(#3a322a 1.2px, transparent 1.2px);
+  background-size: 24px 24px;
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.canvas-transform-layer {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  transform-origin: 0 0;
+  pointer-events: none;
+}
+
+/* SVG Wires Layer */
+.wires-svg-layer {
+  position: absolute;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.bezier-wire-bg {
+  fill: none;
+  stroke: #383028;
   stroke-width: 3;
-  stroke-dasharray: 6 4;
 }
 
-.connector-line-pulse {
-  stroke: #f59e0b;
+.bezier-wire-pulse {
+  fill: none;
+  stroke: url(#wire-amber-grad);
   stroke-width: 3;
-  stroke-dasharray: 6 4;
-  animation: flow-beam 1s linear infinite;
+  stroke-dasharray: 8 6;
+  animation: wire-flow 1.2s linear infinite;
+  opacity: 0.85;
 }
 
-@keyframes flow-beam {
+.bezier-wire-pulse.high-voltage {
+  stroke: #fbbf24;
+  stroke-width: 4.5;
+  animation: wire-flow 0.4s linear infinite;
+  opacity: 1;
+}
+
+@keyframes wire-flow {
   from {
-    stroke-dashoffset: 20;
+    stroke-dashoffset: 28;
   }
   to {
     stroke-dashoffset: 0;
   }
 }
 
-.data-packet {
+/* Obsidian Nodes */
+.obsidian-node {
   position: absolute;
-  width: 24px;
-  height: 24px;
+  width: 260px;
+  background: rgba(26, 22, 19, 0.92);
+  backdrop-filter: blur(12px);
+  border: 1px solid #4a3e34;
+  border-radius: var(--radius-md);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  cursor: grab;
+  pointer-events: auto;
+  z-index: 2;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s,
+    transform 0.1s;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.obsidian-node:hover {
+  border-color: #f59e0b;
+  box-shadow: 0 12px 32px rgba(245, 158, 11, 0.2);
+  z-index: 5;
+}
+
+.obsidian-node.dragging {
+  cursor: grabbing;
+  border-color: #fbbf24;
+  box-shadow: 0 16px 40px rgba(251, 191, 36, 0.35);
+  z-index: 10;
+}
+
+.obsidian-node.active {
+  border-color: #fbbf24;
+  box-shadow:
+    0 0 0 2px rgba(251, 191, 36, 0.5),
+    0 12px 32px rgba(0, 0, 0, 0.5);
+}
+
+.obsidian-node.executing {
+  animation: node-pulse-glow 0.8s infinite alternate;
+}
+
+@keyframes node-pulse-glow {
+  0% {
+    border-color: #f59e0b;
+    box-shadow: 0 0 15px rgba(245, 158, 11, 0.3);
+  }
+  100% {
+    border-color: #10b981;
+    box-shadow: 0 0 25px rgba(16, 185, 129, 0.6);
+  }
+}
+
+/* Category Color Borders */
+.obsidian-node.trigger-cat {
+  border-right: 4px solid #f59e0b;
+}
+
+.obsidian-node.logic-cat {
+  border-right: 4px solid #6366f1;
+}
+
+.obsidian-node.storage-cat {
+  border-right: 4px solid #0ea5e9;
+}
+
+.obsidian-node.action-cat {
+  border-right: 4px solid #10b981;
+}
+
+/* Sockets */
+.node-socket {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
-  background: #d97706;
-  color: #fff;
-  font-size: 0.75rem;
+  background: #181512;
+  border: 2px solid #5a4c40;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 0 10px #f59e0b;
-  transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
-  opacity: 0.7;
+  z-index: 3;
 }
 
-.data-packet.traveling {
-  animation: packet-travel 1s infinite alternate ease-in-out;
-  transform: scale(1.3);
-  box-shadow: 0 0 16px #fbbf24;
+.socket-input {
+  right: -7px;
 }
 
-@keyframes packet-travel {
-  0% {
-    transform: translateX(20px) scale(1);
-  }
-  100% {
-    transform: translateX(-20px) scale(1.3);
-  }
+.socket-output {
+  left: -7px;
 }
 
-/* Action Bar inside Canvas */
-.canvas-action-bar {
-  background: rgba(26, 23, 20, 0.95);
-  border: 1px solid #443c34;
-  border-radius: var(--radius-md);
-  padding: 12px 18px;
+.socket-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #f59e0b;
+}
+
+/* Node Internal Styling */
+.node-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.node-icon-bubble {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  background: #2a231d;
+  border: 1px solid #524336;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+}
+
+.node-meta {
+  display: flex;
+  flex-direction: column;
+}
+
+.node-type-label {
+  font-size: 0.65rem;
+  font-weight: 800;
+  color: #a8a29e;
+  text-transform: uppercase;
+}
+
+.node-title {
+  font-size: 0.88rem;
+  font-weight: 900;
+  color: #fff;
+  margin: 0;
+}
+
+.node-desc {
+  font-size: 0.75rem;
+  color: #a8a29e;
+  line-height: 1.4;
+  margin: 0;
+}
+
+.node-footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 12px;
-  position: relative;
-  z-index: 2;
+  border-top: 1px solid #383028;
+  padding-top: 6px;
+  margin-top: 2px;
 }
 
-.btn-pulse-launch {
-  background: linear-gradient(135deg, #d97706, #b45309);
-  border: none;
-  font-weight: 900;
-  padding: 8px 18px;
-  box-shadow: 0 4px 14px rgba(217, 119, 6, 0.4);
+.node-status-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  color: #10b981;
+}
+
+.node-status-badge .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #10b981;
+}
+
+.node-quick-run-btn {
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  color: #fbbf24;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  cursor: pointer;
   transition: all 0.2s;
 }
 
-.btn-pulse-launch:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(217, 119, 6, 0.6);
+.node-quick-run-btn:hover {
+  background: #f59e0b;
+  color: #000;
 }
 
-.rocket-icon {
-  font-size: 1.1rem;
+/* Inspector Drawer Card */
+.node-inspector-drawer {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  width: 280px;
+  background: rgba(22, 19, 16, 0.95);
+  backdrop-filter: blur(16px);
+  border: 1px solid #4a3e34;
+  border-radius: var(--radius-md);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5);
+  z-index: 20;
+  overflow: hidden;
+}
+
+.inspector-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  background: #1a1612;
+  border-bottom: 1px solid #383028;
+}
+
+.btn-close-mini {
+  background: transparent;
+  border: none;
+  color: #a8a29e;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.inspector-body {
+  padding: 14px;
+}
+
+.inspector-stat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+  border-bottom: 1px dashed #2e2721;
 }
 
 /* Section Cards & Grid */
@@ -1686,6 +2116,17 @@ const formatRelativeTime = (dtStr?: string) => {
 .slide-fade-enter-from,
 .slide-fade-leave-to {
   transform: translateY(-10px);
+  opacity: 0;
+}
+
+.slide-left-enter-active,
+.slide-left-leave-active {
+  transition: all 0.25s ease;
+}
+
+.slide-left-enter-from,
+.slide-left-leave-to {
+  transform: translateX(-20px);
   opacity: 0;
 }
 </style>

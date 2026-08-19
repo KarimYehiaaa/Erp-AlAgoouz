@@ -63,6 +63,12 @@ if (!process.env.VERCEL) {
         console.error('Failed to start Automation Scheduler:', e.message);
       }
       try {
+        const { default: TelegramBotService } = await import('./services/telegramBotService.ts');
+        await TelegramBotService.startListening();
+      } catch (e: any) {
+        console.error('Failed to start Telegram Bot listener:', e.message);
+      }
+      try {
         const { initDatabaseMaintenanceScheduler } =
           await import('./services/maintenanceService.ts');
         initDatabaseMaintenanceScheduler();

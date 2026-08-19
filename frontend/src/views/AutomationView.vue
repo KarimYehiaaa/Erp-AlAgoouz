@@ -713,13 +713,43 @@ const graphNodes = ref<any[]>([
     automationId: null,
   },
   {
+    id: 'node-balancing',
+    typeLabel: 'Balancing • مناقلات الفروع',
+    category: 'logic-cat',
+    icon: '🔄',
+    title: 'المناقلات وتوازن الفروع',
+    desc: 'تحليل سرعة السحب واقتراح مناقلات لتفادي الشراء الجديد',
+    x: 480,
+    y: 370,
+    hasInput: true,
+    hasOutput: true,
+    status: 'online',
+    statusLabel: 'توازن ذكي',
+    automationId: null,
+  },
+  {
+    id: 'node-cashflow',
+    typeLabel: 'Shield • درع السيولة',
+    category: 'security-cat',
+    icon: '💰',
+    title: 'درع حماية السيولة النقدية',
+    desc: 'تنبؤ استباقي بالعجز المالي ومقارنة الالتزامات بالإيرادات',
+    x: 480,
+    y: 560,
+    hasInput: true,
+    hasOutput: true,
+    status: 'online',
+    statusLabel: 'حماية السيولة',
+    automationId: null,
+  },
+  {
     id: 'node-db',
     typeLabel: 'Storage • قاعدة البيانات',
     category: 'storage-cat',
     icon: '🗄️',
     title: 'سحابة بن العجوز (PostgreSQL)',
     desc: 'حفظ الحركات المحاسبية والسجلات وسلسلة الجرد',
-    x: 900,
+    x: 920,
     y: 110,
     hasInput: true,
     hasOutput: false,
@@ -729,17 +759,17 @@ const graphNodes = ref<any[]>([
   },
   {
     id: 'node-tg',
-    typeLabel: 'Action • قناة تليجرام',
+    typeLabel: 'Action • بوت تليجرام التفاعلي',
     category: 'action-cat',
     icon: '🤖',
-    title: 'بوت تليجرام المالك',
-    desc: 'توصيل التقرير اليومي الفوري وإنذارات الأمان لهاتفك',
-    x: 900,
+    title: 'بوت تليجرام (2-Way Bot)',
+    desc: 'إرسال التقارير والرد الفوري على أوامر المالك على تليجرام',
+    x: 920,
     y: 330,
     hasInput: true,
     hasOutput: false,
     status: 'online',
-    statusLabel: 'إشعار مباشر',
+    statusLabel: 'استماع لحظي 24/7',
     automationId: null,
   },
   {
@@ -749,7 +779,7 @@ const graphNodes = ref<any[]>([
     icon: '📜',
     title: 'سجل الأتمتة (Audit Stream)',
     desc: 'أرشفة كافة المهام المنفذة مع التوقيت والنتيجة',
-    x: 900,
+    x: 920,
     y: 540,
     hasInput: true,
     hasOutput: false,
@@ -764,12 +794,14 @@ const graphLinks = ref<any[]>([
   { id: 'l1', from: 'node-pos', to: 'node-brain', automationId: null },
   { id: 'l2', from: 'node-pos', to: 'node-fraud', automationId: null },
   { id: 'l3', from: 'node-cron', to: 'node-brain', automationId: null },
-  { id: 'l4', from: 'node-inv', to: 'node-brain', automationId: null },
-  { id: 'l5', from: 'node-brain', to: 'node-db', automationId: null },
-  { id: 'l6', from: 'node-brain', to: 'node-tg', automationId: null },
-  { id: 'l7', from: 'node-brain', to: 'node-logs', automationId: null },
+  { id: 'l4', from: 'node-inv', to: 'node-balancing', automationId: null },
+  { id: 'l5', from: 'node-cron', to: 'node-cashflow', automationId: null },
+  { id: 'l6', from: 'node-brain', to: 'node-db', automationId: null },
+  { id: 'l7', from: 'node-brain', to: 'node-tg', automationId: null },
   { id: 'l8', from: 'node-fraud', to: 'node-tg', automationId: null },
-  { id: 'l9', from: 'node-fraud', to: 'node-logs', automationId: null },
+  { id: 'l9', from: 'node-balancing', to: 'node-tg', automationId: null },
+  { id: 'l10', from: 'node-cashflow', to: 'node-tg', automationId: null },
+  { id: 'l11', from: 'node-brain', to: 'node-logs', automationId: null },
 ]);
 
 const NODE_WIDTH = 260;
@@ -856,17 +888,20 @@ const autoLayoutNodes = () => {
     'node-pos': { x: 60, y: 80 },
     'node-cron': { x: 60, y: 310 },
     'node-inv': { x: 60, y: 530 },
-    'node-brain': { x: 480, y: 190 },
-    'node-fraud': { x: 480, y: 430 },
-    'node-db': { x: 900, y: 110 },
-    'node-tg': { x: 900, y: 330 },
-    'node-logs': { x: 900, y: 540 },
+    'node-brain': { x: 480, y: 150 },
+    'node-balancing': { x: 480, y: 340 },
+    'node-fraud': { x: 480, y: 510 },
+    'node-cashflow': { x: 480, y: 680 },
+    'node-db': { x: 920, y: 110 },
+    'node-tg': { x: 920, y: 330 },
+    'node-logs': { x: 920, y: 540 },
   };
 
   for (const node of graphNodes.value) {
-    if (layouts[node.id]) {
-      node.x = layouts[node.id].x;
-      node.y = layouts[node.id].y;
+    const loc = layouts[node.id];
+    if (loc) {
+      node.x = loc.x;
+      node.y = loc.y;
     }
   }
   showFeedback('تمت إعادة ترتيب العقد بذكاء! ✨');
@@ -930,6 +965,8 @@ const fetchAutomations = async () => {
     const dailyAuto = list.find((a: any) => a.key === 'daily_sales_report');
     const voidAuto = list.find((a: any) => a.key === 'void_invoice_alert');
     const stockAuto = list.find((a: any) => a.key === 'low_stock_alert');
+    const balAuto = list.find((a: any) => a.key === 'branch_stock_balancing');
+    const cashAuto = list.find((a: any) => a.key === 'cashflow_risk_shield');
 
     const brainNode = graphNodes.value.find((n) => n.id === 'node-brain');
     if (brainNode && dailyAuto) brainNode.automationId = dailyAuto.id;
@@ -939,6 +976,12 @@ const fetchAutomations = async () => {
 
     const invNode = graphNodes.value.find((n) => n.id === 'node-inv');
     if (invNode && stockAuto) invNode.automationId = stockAuto.id;
+
+    const balNode = graphNodes.value.find((n) => n.id === 'node-balancing');
+    if (balNode && balAuto) balNode.automationId = balAuto.id;
+
+    const cashNode = graphNodes.value.find((n) => n.id === 'node-cashflow');
+    if (cashNode && cashAuto) cashNode.automationId = cashAuto.id;
 
     // استخراج إعدادات تليجرام إن وجدت
     const firstWithTg = automationsList.value.find((a) => a.config?.bot_token);
@@ -1056,6 +1099,8 @@ const getScenarioEmoji = (key: string) => {
     void_invoice_alert: '🛡️',
     large_discount_alert: '💸',
     daily_backup_reminder: '💾',
+    branch_stock_balancing: '🔄',
+    cashflow_risk_shield: '💰',
   };
   return map[key] || '⚡';
 };

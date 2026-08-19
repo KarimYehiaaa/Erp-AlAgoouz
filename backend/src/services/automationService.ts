@@ -228,6 +228,21 @@ export class AutomationService {
           break;
         }
 
+        case 'branch_stock_balancing': {
+          const { default: BranchBalancingService } = await import('./branchBalancingService.ts');
+          const bal = await BranchBalancingService.generateBalancingRecommendations();
+          resultTitle = `🔄 اقتراحات مناقلات الفروع (${bal.recommendations.length})`;
+          resultMessage = bal.htmlReport;
+          break;
+        }
+
+        case 'cashflow_risk_shield': {
+          const cashShield = await this.generateCashFlowRiskReport();
+          resultTitle = cashShield.title;
+          resultMessage = cashShield.htmlMessage;
+          break;
+        }
+
         default:
           resultMessage = `تم تشغيل أتمتة (${auto.name_ar}) بنجاح.`;
       }
@@ -420,6 +435,69 @@ ${itemsList}
 
     return {
       title: '🛡️ فحص سلامة النظام اليومي',
+      htmlMessage,
+    };
+  }
+
+  /**
+   * 💰 درع حماية التدفقات النقدية والتنبؤ بالعجز المالي
+   */
+  private static async generateCashFlowRiskReport() {
+    // جلب متوسط المبيعات اليومية لآخر 30 يوم
+    const avgSalesRes = await db.query(`
+      SELECT COALESCE(SUM(total_amount), 0) / 30.0 as avg_daily_sales
+      FROM sales
+      WHERE sale_date >= CURRENT_DATE - INTERVAL '30 days' AND status = 'completed' AND deleted_at IS NULL
+    `);
+    const avgDailySales = Number(avgSalesRes.rows[0]?.avg_daily_sales || 0);
+
+    // فواتير الموردين غير المسددة
+    const unpaidSuppliersRes = await db.query(`
+      SELECT COALESCE(SUM(total_amount - paid_amount), 0) as total_unpaid
+      FROM purchase_invoices
+      WHERE deleted_at IS NULL AND (total_amount - paid_amount) > 0
+    `);
+    const unpaidSupplierDebt = Number(unpaidSuppliersRes.rows[0]?.total_unpaid || 0);
+
+    // متوسط المصروفات الشهرية
+    const expRes = await db.query(`
+      SELECT COALESCE(SUM(amount), 0) as monthly_expenses
+      FROM expenses
+      WHERE expense_date >= CURRENT_DATE - INTERVAL '30 days' AND deleted_at IS NULL
+    `);
+    const monthlyExpenses = Number(expRes.rows[0]?.monthly_expenses || 0);
+
+    // تقدير إيرادات 14 يوماً
+    const projected14Rev = Math.round(avgDailySales * 14);
+    const projected14Outflow = Math.round(unpaidSupplierDebt * 0.5 + monthlyExpenses * 0.45);
+    const projected14Net = projected14Rev - projected14Outflow;
+
+    const isRisk = projected14Net < 0;
+
+    const htmlMessage = `
+💰 <b>درع حماية السيولة والتدفقات النقدية</b> 🛡️
+═════════════════════════
+📈 <b>متوسط المبيعات اليومية:</b> ${Math.round(avgDailySales).toLocaleString()} ج.م
+🧾 <b>إجمالي مستحقات الموردين الآجلة:</b> ${unpaidSupplierDebt.toLocaleString()} ج.م
+📉 <b>المصروفات الشهرية التشغيلية:</b> ${monthlyExpenses.toLocaleString()} ج.م
+
+📊 <b>توقعات التدفق النقدي (الـ 14 يوماً القادمة):</b>
+  💵 الإيرادات المتوقعة: <b>+${projected14Rev.toLocaleString()} ج.م</b>
+  💸 الالتزامات المتوقعة: <b>-${projected14Outflow.toLocaleString()} ج.م</b>
+  ⚖️ صافي الموقف المالي: <b>${projected14Net >= 0 ? '+' : ''}${projected14Net.toLocaleString()} ج.م</b>
+
+═════════════════════════
+${
+  isRisk
+    ? `🚨 <b>تحذير مخاطر:</b> يُتوقع ضغط سيولة بقيمة (${Math.abs(projected14Net).toLocaleString()} ج.م). يُوصى بتأجيل بعض المشتريات غير العاجلة أو تحصيل مديونيات العملاء الآجلين.`
+    : `✅ <b>موقف السيولة آمن ومستقر:</b> يتوفر فائض تشغيلي مريح يغطي كافة الالتزامات القادمة.`
+}
+    `.trim();
+
+    return {
+      title: isRisk
+        ? `⚠️ إنذار سيولة: متوقع ضغط مالي (${Math.abs(projected14Net).toLocaleString()} ج.م)`
+        : `✅ السيولة مستقرة وفائضة (+${projected14Net.toLocaleString()} ج.م)`,
       htmlMessage,
     };
   }

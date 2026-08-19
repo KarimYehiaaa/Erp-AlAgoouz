@@ -107,61 +107,45 @@
       </div>
     </div>
 
-    <!-- ═══════════════════ العرض الأول: مخطط أوبسيديان الفضائي الدوار (True Obsidian Force Graph) ═══════════════════ -->
+    <!-- ═══════════════════ العرض الأول: مخطط أوبسيديان العصبي (True Obsidian Graph) ═══════════════════ -->
     <div v-if="viewMode === 'graph'" class="obsidian-graph-wrapper card">
-      <!-- شريط أدوات الكانفاس الزجاجي العائم -->
+      <!-- شريط أدوات الكانفاس — بسيط وأنيق مثل Obsidian -->
       <div class="graph-top-bar">
         <div class="graph-title-group">
           <div class="live-status-pill">
             <span class="beacon-circle"></span>
-            <span class="live-text">ORBITAL PHYSICS</span>
+            <span class="live-text">LIVE</span>
           </div>
-          <div>
-            <h3 class="graph-heading">المنظومة الكونية الدوارة (Obsidian Orb Constellation)</h3>
-            <span class="graph-sub"
-              >✨ العقد تدور بفيزياء جاذبية حية. اسحب أي كوكب بالماوس، أو انقر عليه لمعاينته
-              وتشغيله</span
-            >
-          </div>
+          <span class="graph-heading">Graph View</span>
         </div>
 
         <div class="graph-controls">
           <button
             type="button"
-            class="graph-btn-secondary"
-            :class="{ 'is-active': isRotating }"
+            class="graph-ctrl-btn"
+            :class="{ active: isRotating }"
+            :title="isRotating ? 'إيقاف الدوران' : 'تشغيل الدوران'"
             @click="toggleRotation"
           >
-            <span>{{ isRotating ? '⏸️ إيقاف الدوران' : '▶️ تشغيل الدوران' }}</span>
+            {{ isRotating ? '⏸' : '▶' }}
           </button>
 
-          <div class="zoom-pill">
-            <button type="button" class="ctrl-btn-icon" title="تكبير" @click="zoomIn">➕</button>
-            <span class="zoom-value">{{ Math.round(zoomLevel * 100) }}%</span>
-            <button type="button" class="ctrl-btn-icon" title="تصغير" @click="zoomOut">➖</button>
-          </div>
+          <button type="button" class="graph-ctrl-btn" title="تصغير" @click="zoomOut">−</button>
+          <span class="zoom-value">{{ Math.round(zoomLevel * 100) }}%</span>
+          <button type="button" class="graph-ctrl-btn" title="تكبير" @click="zoomIn">+</button>
 
           <button
             type="button"
-            class="graph-btn-secondary"
-            title="إعادة ضبط وتمركز المنظومة"
+            class="graph-ctrl-btn"
+            title="إعادة التمركز"
             @click="resetPhysicsAndCenter"
           >
-            <span>🎯 إعادة التمركز</span>
-          </button>
-
-          <button
-            type="button"
-            class="graph-btn-laser"
-            :disabled="isFiringAll"
-            @click="simulateFullNetworkPulse"
-          >
-            <span>{{ isFiringAll ? '⚡ سريان الطاقة...' : '🚀 ضخ نبضة طاقة كونية' }}</span>
+            ⊙
           </button>
         </div>
       </div>
 
-      <!-- مساحة الكانفاس التفاعلية الفضائية -->
+      <!-- مساحة الكانفاس التفاعلية -->
       <div
         ref="canvasContainerRef"
         class="obsidian-canvas-viewport"
@@ -172,11 +156,6 @@
         @mouseleave="handleCanvasMouseUp"
         @wheel.prevent="handleCanvasWheel"
       >
-        <!-- سديم الإضاءة الكونية العميقة -->
-        <div class="nebula-glow glow-amber"></div>
-        <div class="nebula-glow glow-cyan"></div>
-        <div class="nebula-glow glow-purple"></div>
-
         <!-- شبكة الفضاء النقطية -->
         <div
           class="obsidian-grid-pattern"
@@ -185,6 +164,9 @@
           }"
         ></div>
 
+        <!-- وهج مركزي خافت جداً -->
+        <div class="center-ambient-glow"></div>
+
         <!-- مساحة التحويل الرئيسية (Transform Layer) -->
         <div
           class="canvas-transform-layer"
@@ -192,65 +174,37 @@
             transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoomLevel})`,
           }"
         >
-          <!-- طبقة الخيوط العصبية الشبكية SVG (Thin Neural Web Filaments) -->
+          <!-- طبقة الخيوط SVG -->
           <svg class="wires-svg-layer" width="3000" height="2000">
-            <defs>
-              <linearGradient id="orb-wire-amber" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stop-color="#f59e0b" stop-opacity="0.8" />
-                <stop offset="100%" stop-color="#38bdf8" stop-opacity="0.4" />
-              </linearGradient>
+            <!-- مدارات دائرية خافتة -->
+            <circle :cx="centerCoord.x" :cy="centerCoord.y" r="160" class="orbit-ring" />
+            <circle :cx="centerCoord.x" :cy="centerCoord.y" r="260" class="orbit-ring" />
 
-              <filter id="orb-wire-glow" x="-20%" y="-20%" width="140%" height="140%">
-                <feGaussianBlur stdDeviation="1.5" result="blur" />
-                <feMerge>
-                  <feMergeNode in="blur" />
-                  <feMergeNode in="SourceGraphic" />
-                </feMerge>
-              </filter>
-            </defs>
-
-            <!-- رسم الخيوط العصبية المستقيمة/المرنة بين الكواكب -->
-            <g v-for="link in graphLinks" :key="link.id" class="filament-group">
-              <!-- الخط العصبي الأساسي -->
-              <line
-                :x1="getNodePos(link.from).x"
-                :y1="getNodePos(link.from).y"
-                :x2="getNodePos(link.to).x"
-                :y2="getNodePos(link.to).y"
-                class="neural-filament-base"
-                :class="{
-                  highlighted:
-                    hoveredNodeId === link.from ||
-                    hoveredNodeId === link.to ||
-                    selectedNode?.id === link.from ||
-                    selectedNode?.id === link.to,
-                }"
-              />
-
-              <!-- نبضات الفوتون الضوئي المضيء المتحرك على الخيط -->
-              <line
-                :x1="getNodePos(link.from).x"
-                :y1="getNodePos(link.from).y"
-                :x2="getNodePos(link.to).x"
-                :y2="getNodePos(link.to).y"
-                class="neural-filament-laser"
-                :class="{
-                  active: isFiringAll || triggeringId === link.automationId,
-                }"
-                filter="url(#orb-wire-glow)"
-              />
-            </g>
-
-            <!-- مدارات الجاذبية الدائرية الخافتة في الخلفية -->
-            <circle :cx="centerCoord.x" :cy="centerCoord.y" r="140" class="orbit-ring ring-inner" />
-            <circle :cx="centerCoord.x" :cy="centerCoord.y" r="240" class="orbit-ring ring-outer" />
+            <!-- خيوط الشبكة العصبية -->
+            <line
+              v-for="link in graphLinks"
+              :key="link.id"
+              :x1="getNodePos(link.from).x"
+              :y1="getNodePos(link.from).y"
+              :x2="getNodePos(link.to).x"
+              :y2="getNodePos(link.to).y"
+              class="graph-edge"
+              :class="{
+                highlighted:
+                  hoveredNodeId === link.from ||
+                  hoveredNodeId === link.to ||
+                  selectedNode?.id === link.from ||
+                  selectedNode?.id === link.to,
+                dimmed: hoveredNodeId && hoveredNodeId !== link.from && hoveredNodeId !== link.to,
+              }"
+            />
           </svg>
 
-          <!-- طبقة الكواكب والعقد الدائرية المضيئة (Obsidian Glowing Orbs) -->
+          <!-- طبقة العقد الدائرية -->
           <div
             v-for="node in graphNodes"
             :key="node.id"
-            class="obsidian-orb-node"
+            class="obs-node"
             :class="[
               node.category,
               {
@@ -259,7 +213,6 @@
                 'is-hovered': hoveredNodeId === node.id,
                 'is-dimmed':
                   hoveredNodeId && hoveredNodeId !== node.id && !isNeighbor(hoveredNodeId, node.id),
-                'is-executing': isFiringAll || triggeringId === node.automationId,
                 'is-dragging': draggedNodeId === node.id,
               },
             ]"
@@ -273,24 +226,24 @@
             @mouseleave="hoveredNodeId = null"
             @click.stop="selectNode(node)"
           >
-            <!-- الهالة الضوئية الخارجية المتوهجة (Atmosphere Halo) -->
-            <div class="orb-halo"></div>
-
-            <!-- الكوكب الزجاجي الداخلي والمحتوى -->
-            <div class="orb-core">
-              <span class="orb-icon">{{ node.icon }}</span>
-              <span v-if="node.hasLed" class="orb-led"></span>
+            <!-- الدائرة المصمتة -->
+            <div class="obs-node-circle">
+              <span class="obs-node-icon">{{ node.icon }}</span>
             </div>
 
-            <!-- التسمية النصية العائمة تحت الكوكب (Obsidian Label) -->
-            <div class="orb-floating-label">
-              <span class="label-title">{{ node.title }}</span>
-              <span v-if="node.subLabel" class="label-sub">{{ node.subLabel }}</span>
+            <!-- التسمية العائمة -->
+            <div class="obs-node-label">
+              <span class="obs-label-text">{{ node.title }}</span>
+              <span
+                v-if="hoveredNodeId === node.id || selectedNode?.id === node.id"
+                class="obs-label-sub"
+                >{{ node.subLabel }}</span
+              >
             </div>
           </div>
         </div>
 
-        <!-- اللوحة الجانبية لمستكشف الكوكب المحدد (Glass Node Inspector) -->
+        <!-- لوحة تفاصيل العقدة المحددة -->
         <transition name="slide-left">
           <div v-if="selectedNode" class="node-inspector-drawer">
             <div class="inspector-header">
@@ -308,12 +261,12 @@
               <p class="text-xs text-muted mb-3">{{ selectedNode.desc }}</p>
 
               <div class="inspector-stat-row">
-                <span class="text-xs font-bold text-muted">الحالة في المنظومة:</span>
-                <span class="badge-mini on">🟢 مدار متصل ومستقر</span>
+                <span class="text-xs font-bold text-muted">الحالة:</span>
+                <span class="badge-mini on">🟢 متصل</span>
               </div>
 
               <div class="inspector-stat-row">
-                <span class="text-xs font-bold text-muted">طبيعة العقدة:</span>
+                <span class="text-xs font-bold text-muted">النوع:</span>
                 <span class="font-mono text-xs text-strong">{{ selectedNode.typeLabel }}</span>
               </div>
 
@@ -332,8 +285,8 @@
                 >
                   <span>{{
                     triggeringId === selectedNode.automationId
-                      ? '⚡ جاري إطلاق الطاقة...'
-                      : '⚡ تشغيل محاكاة العقدة'
+                      ? '⚡ جاري التشغيل...'
+                      : '⚡ تشغيل تجريبي'
                   }}</span>
                 </button>
               </div>
@@ -679,10 +632,10 @@ const graphNodes = ref<any[]>([
     typeLabel: 'Core Nucleus • العقل المركزي',
     category: 'core-cat',
     icon: '🧠',
-    title: 'عقل الأتمتة المركزي',
+    title: 'عقل الأتمتة',
     subLabel: 'محرك التقارير والقرارات',
     desc: 'تجميع إيرادات اليوم، صافي الأرباح، وأعلى الأصناف طلباً',
-    radius: 34,
+    radius: 26,
     x: 500,
     y: 320,
     vx: 0,
@@ -699,16 +652,16 @@ const graphNodes = ref<any[]>([
     typeLabel: 'Trigger • نقطة بيع',
     category: 'trigger-cat',
     icon: '☕',
-    title: 'كاشير الفروع (POS)',
+    title: 'كاشير الفروع',
     subLabel: 'مبيعات حية',
     desc: 'إصدار الفواتير، التحصيل، ومتابعة الورديات الحية',
-    radius: 24,
+    radius: 16,
     x: 340,
     y: 200,
     vx: 0,
     vy: 0,
-    orbitRadius: 170,
-    orbitSpeed: 0.0035,
+    orbitRadius: 160,
+    orbitSpeed: 0.0018,
     orbitAngle: 0,
     hasLed: true,
     automationId: null,
@@ -718,16 +671,16 @@ const graphNodes = ref<any[]>([
     typeLabel: 'Trigger • مخازن البن',
     category: 'trigger-cat',
     icon: '🫘',
-    title: 'مخازن البن والتحميص',
+    title: 'مخازن التحميص',
     subLabel: 'رصد الخامات',
     desc: 'رصد كميات البن الأخضر والمحمص وحركات الصرف',
-    radius: 24,
+    radius: 16,
     x: 660,
     y: 200,
     vx: 0,
     vy: 0,
-    orbitRadius: 190,
-    orbitSpeed: 0.0028,
+    orbitRadius: 175,
+    orbitSpeed: 0.0015,
     orbitAngle: 1.2,
     hasLed: true,
     automationId: null,
@@ -737,17 +690,17 @@ const graphNodes = ref<any[]>([
     typeLabel: 'Trigger • جدولة زمنية',
     category: 'trigger-cat',
     icon: '⏰',
-    title: 'محرك الجدولة (Cron)',
+    title: 'محرك الجدولة',
     subLabel: '11:30 م يومياً',
     desc: 'جدولة تقرير الإغلاق وفحص النواقص الدوري',
     cron: 'يومياً 11:30 م',
-    radius: 22,
+    radius: 14,
     x: 360,
     y: 440,
     vx: 0,
     vy: 0,
-    orbitRadius: 180,
-    orbitSpeed: 0.003,
+    orbitRadius: 170,
+    orbitSpeed: 0.0016,
     orbitAngle: 2.4,
     hasLed: true,
     automationId: null,
@@ -757,16 +710,16 @@ const graphNodes = ref<any[]>([
     typeLabel: 'Security • كشف التلاعب',
     category: 'security-cat',
     icon: '🛡️',
-    title: 'منظومة الرقابة والأمان',
+    title: 'منظومة الرقابة',
     subLabel: 'حماية 24/7',
     desc: 'كشف فوري لإلغاء الفواتير والخصومات المشبوهة',
-    radius: 25,
+    radius: 17,
     x: 640,
     y: 440,
     vx: 0,
     vy: 0,
-    orbitRadius: 185,
-    orbitSpeed: 0.0032,
+    orbitRadius: 175,
+    orbitSpeed: 0.0017,
     orbitAngle: 3.6,
     hasLed: true,
     automationId: null,
@@ -776,16 +729,16 @@ const graphNodes = ref<any[]>([
     typeLabel: 'Balancing • مناقلات الفروع',
     category: 'logic-cat',
     icon: '🔄',
-    title: 'توازن مخزون الفروع',
+    title: 'توازن المخزون',
     subLabel: 'مناقلات ذكية',
     desc: 'تحليل سرعة السحب واقتراح مناقلات لتفادي الشراء الجديد',
-    radius: 24,
+    radius: 16,
     x: 230,
     y: 320,
     vx: 0,
     vy: 0,
-    orbitRadius: 270,
-    orbitSpeed: -0.002,
+    orbitRadius: 260,
+    orbitSpeed: -0.001,
     orbitAngle: 4.8,
     hasLed: true,
     automationId: null,
@@ -795,16 +748,16 @@ const graphNodes = ref<any[]>([
     typeLabel: 'Shield • درع السيولة',
     category: 'security-cat',
     icon: '💰',
-    title: 'درع حماية السيولة',
+    title: 'درع السيولة',
     subLabel: 'توقعات 14 يوم',
     desc: 'تنبؤ استباقي بالعجز المالي ومقارنة الالتزامات بالإيرادات',
-    radius: 25,
+    radius: 17,
     x: 770,
     y: 320,
     vx: 0,
     vy: 0,
-    orbitRadius: 275,
-    orbitSpeed: -0.0022,
+    orbitRadius: 265,
+    orbitSpeed: -0.0012,
     orbitAngle: 0.6,
     hasLed: true,
     automationId: null,
@@ -817,32 +770,32 @@ const graphNodes = ref<any[]>([
     title: 'سحابة PostgreSQL',
     subLabel: 'أرشفة دائمة',
     desc: 'حفظ الحركات المحاسبية والسجلات وسلسلة الجرد',
-    radius: 22,
+    radius: 14,
     x: 500,
     y: 110,
     vx: 0,
     vy: 0,
-    orbitRadius: 220,
-    orbitSpeed: 0.0024,
+    orbitRadius: 210,
+    orbitSpeed: 0.0013,
     orbitAngle: 5.4,
     hasLed: true,
     automationId: null,
   },
   {
     id: 'node-tg',
-    typeLabel: 'Action • بوت تليجرام التفاعلي',
+    typeLabel: 'Action • بوت تليجرام',
     category: 'action-cat',
     icon: '🤖',
-    title: 'بوت تليجرام 2-Way',
+    title: 'بوت تليجرام',
     subLabel: 'استماع لحظي',
     desc: 'توصيل التقارير والرد الفوري على أوامر المالك على تليجرام',
-    radius: 28,
+    radius: 18,
     x: 500,
     y: 530,
     vx: 0,
     vy: 0,
-    orbitRadius: 230,
-    orbitSpeed: 0.0025,
+    orbitRadius: 220,
+    orbitSpeed: 0.0014,
     orbitAngle: 1.8,
     hasLed: true,
     automationId: null,
@@ -852,16 +805,16 @@ const graphNodes = ref<any[]>([
     typeLabel: 'Audit • سجل المراقبة',
     category: 'action-cat',
     icon: '📜',
-    title: 'سجل العمليات الحي',
+    title: 'سجل العمليات',
     subLabel: 'Audit Stream',
     desc: 'أرشفة كافة المهام المنفذة مع التوقيت والنتيجة',
-    radius: 22,
+    radius: 14,
     x: 280,
     y: 170,
     vx: 0,
     vy: 0,
-    orbitRadius: 260,
-    orbitSpeed: -0.0018,
+    orbitRadius: 250,
+    orbitSpeed: -0.001,
     orbitAngle: 3.0,
     hasLed: true,
     automationId: null,
@@ -909,8 +862,8 @@ const startPhysicsLoop = () => {
         const targetY = centerCoord.y + Math.sin(node.orbitAngle) * node.orbitRadius * 0.78; // إهليلجي ثلاثي الأبعاد
 
         // اقتراب ناعم وفيزيائي (Smooth Spring Easing)
-        node.x += (targetX - node.x) * 0.04;
-        node.y += (targetY - node.y) * 0.04;
+        node.x += (targetX - node.x) * 0.02;
+        node.y += (targetY - node.y) * 0.02;
       }
     }
     animationFrameId = requestAnimationFrame(step);
@@ -1457,27 +1410,26 @@ const formatRelativeTime = (dtStr?: string) => {
   }
 }
 
-/* ═══════════════════ True Obsidian Force Orbital Graph ═══════════════════ */
+/* ═══════════════════ True Obsidian Graph View ═══════════════════ */
 .obsidian-graph-wrapper {
   padding: 0;
   display: flex;
   flex-direction: column;
-  border: 1px solid #201c18;
+  border: 1px solid rgba(255, 255, 255, 0.06);
   overflow: hidden;
   border-radius: var(--radius-lg);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
-  background: #080706;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  background: #0d1117;
 }
 
 .graph-top-bar {
-  background: rgba(14, 12, 10, 0.88);
-  backdrop-filter: blur(20px);
+  background: rgba(13, 17, 23, 0.95);
+  backdrop-filter: blur(12px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  padding: 10px 18px;
+  padding: 8px 16px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  flex-wrap: wrap;
   gap: 12px;
   z-index: 10;
 }
@@ -1485,141 +1437,99 @@ const formatRelativeTime = (dtStr?: string) => {
 .graph-title-group {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 
 .live-status-pill {
   display: flex;
   align-items: center;
-  gap: 6px;
-  background: rgba(245, 158, 11, 0.1);
-  border: 1px solid rgba(245, 158, 11, 0.3);
-  padding: 3px 10px;
-  border-radius: 20px;
+  gap: 5px;
+  background: rgba(52, 211, 153, 0.08);
+  border: 1px solid rgba(52, 211, 153, 0.2);
+  padding: 2px 8px;
+  border-radius: 12px;
 }
 
 .beacon-circle {
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
-  background: #f59e0b;
-  box-shadow: 0 0 8px #f59e0b;
-  animation: beacon-pulse 1.8s infinite;
+  background: #34d399;
+  box-shadow: 0 0 6px #34d399;
+  animation: beacon-pulse 2s infinite;
 }
 
 @keyframes beacon-pulse {
-  0% {
+  0%,
+  100% {
     opacity: 0.4;
   }
   50% {
     opacity: 1;
-    box-shadow: 0 0 12px #f59e0b;
-  }
-  100% {
-    opacity: 0.4;
   }
 }
 
 .live-text {
-  font-size: 0.65rem;
-  font-weight: 900;
-  letter-spacing: 0.6px;
-  color: #fbbf24;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  color: #34d399;
 }
 
 .graph-heading {
-  font-size: 0.92rem;
-  font-weight: 900;
-  color: #f5f5f4;
-  margin: 0;
-}
-
-.graph-sub {
-  font-size: 0.7rem;
-  color: #78716c;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.5);
+  letter-spacing: 0.3px;
 }
 
 .graph-controls {
   display: flex;
   align-items: center;
-  gap: 8px;
-}
-
-.zoom-pill {
-  display: flex;
-  align-items: center;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: var(--radius-sm);
-  padding: 2px 6px;
   gap: 4px;
 }
 
-.ctrl-btn-icon {
+.graph-ctrl-btn {
   background: transparent;
-  border: none;
-  color: #a8a29e;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.45);
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  font-size: 0.8rem;
   cursor: pointer;
-  padding: 2px 6px;
-  font-size: 0.75rem;
-  transition: color 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
 }
 
-.ctrl-btn-icon:hover {
-  color: #fbbf24;
+.graph-ctrl-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.8);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.graph-ctrl-btn.active {
+  background: rgba(139, 92, 246, 0.12);
+  border-color: rgba(139, 92, 246, 0.3);
+  color: #a78bfa;
 }
 
 .zoom-value {
-  font-size: 0.72rem;
-  font-weight: 800;
-  color: #fbbf24;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.35);
   min-width: 34px;
   text-align: center;
-  font-family: monospace;
-}
-
-.graph-btn-secondary {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #d6d3d1;
-  padding: 5px 12px;
-  border-radius: var(--radius-sm);
-  font-size: 0.75rem;
-  font-weight: 800;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.graph-btn-secondary:hover,
-.graph-btn-secondary.is-active {
-  background: rgba(255, 255, 255, 0.12);
-  border-color: #fbbf24;
-  color: #fbbf24;
-}
-
-.graph-btn-laser {
-  background: linear-gradient(135deg, #d97706, #b45309);
-  border: 1px solid rgba(251, 191, 36, 0.4);
-  color: #fff;
-  padding: 5px 16px;
-  border-radius: var(--radius-sm);
-  font-size: 0.75rem;
-  font-weight: 900;
-  cursor: pointer;
-  box-shadow: 0 2px 12px rgba(217, 119, 6, 0.35);
-  transition: all 0.2s;
-}
-
-.graph-btn-laser:hover {
-  box-shadow: 0 4px 20px rgba(217, 119, 6, 0.6);
-  transform: translateY(-1px);
+  font-family: 'SF Mono', 'Fira Code', monospace;
 }
 
 /* Canvas Viewport */
 .obsidian-canvas-viewport {
   width: 100%;
   height: 640px;
-  background: #080706;
+  background: #0d1117;
   position: relative;
   overflow: hidden;
   cursor: grab;
@@ -1630,48 +1540,27 @@ const formatRelativeTime = (dtStr?: string) => {
   cursor: grabbing;
 }
 
-/* Ambient Cosmic Nebulae */
-.nebula-glow {
+/* Center Ambient Glow */
+.center-ambient-glow {
   position: absolute;
-  border-radius: 50%;
-  filter: blur(110px);
-  pointer-events: none;
-  opacity: 0.18;
-}
-
-.glow-amber {
-  width: 450px;
-  height: 450px;
-  background: #f59e0b;
-  left: 20%;
-  top: 15%;
-}
-
-.glow-cyan {
-  width: 500px;
-  height: 500px;
-  background: #38bdf8;
-  right: 15%;
-  bottom: 10%;
-}
-
-.glow-purple {
-  width: 380px;
-  height: 380px;
-  background: #818cf8;
+  width: 600px;
+  height: 600px;
   left: 50%;
-  top: 40%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.04) 0%, transparent 70%);
+  pointer-events: none;
 }
 
-/* Dot Grid */
+/* Dot Grid — finer and subtler */
 .obsidian-grid-pattern {
   position: absolute;
   width: 4000px;
   height: 4000px;
   left: -1000px;
   top: -1000px;
-  background-image: radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px);
-  background-size: 22px 22px;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.04) 0.5px, transparent 0.5px);
+  background-size: 32px 32px;
   pointer-events: none;
 }
 
@@ -1685,7 +1574,7 @@ const formatRelativeTime = (dtStr?: string) => {
   pointer-events: none;
 }
 
-/* Wires Layer (Obsidian Neural Filaments) */
+/* SVG Wires Layer */
 .wires-svg-layer {
   position: absolute;
   left: 0;
@@ -1696,51 +1585,32 @@ const formatRelativeTime = (dtStr?: string) => {
 
 .orbit-ring {
   fill: none;
-  stroke: rgba(255, 255, 255, 0.03);
-  stroke-width: 1;
-  stroke-dasharray: 4 6;
+  stroke: rgba(255, 255, 255, 0.02);
+  stroke-width: 0.5;
+  stroke-dasharray: 3 8;
 }
 
-.neural-filament-base {
-  stroke: rgba(255, 255, 255, 0.09);
-  stroke-width: 1.2;
+/* Graph Edges — ultra thin Obsidian style */
+.graph-edge {
+  stroke: rgba(255, 255, 255, 0.06);
+  stroke-width: 0.8;
   transition:
-    stroke 0.2s,
-    stroke-width 0.2s;
+    stroke 0.3s ease,
+    stroke-width 0.3s ease,
+    opacity 0.3s ease;
 }
 
-.neural-filament-base.highlighted {
-  stroke: #fbbf24;
-  stroke-width: 2.2;
-  opacity: 0.9;
+.graph-edge.highlighted {
+  stroke: rgba(192, 132, 252, 0.4);
+  stroke-width: 1.5;
 }
 
-.neural-filament-laser {
-  stroke: url(#orb-wire-amber);
-  stroke-width: 1.8;
-  stroke-dasharray: 4 14;
-  animation: laser-spark 1.4s linear infinite;
-  opacity: 0.6;
+.graph-edge.dimmed {
+  opacity: 0.15;
 }
 
-.neural-filament-laser.active {
-  stroke: #fbbf24;
-  stroke-width: 3;
-  animation: laser-spark 0.35s linear infinite;
-  opacity: 1;
-}
-
-@keyframes laser-spark {
-  from {
-    stroke-dashoffset: 36;
-  }
-  to {
-    stroke-dashoffset: 0;
-  }
-}
-
-/* ═══════════════════ Obsidian Glowing Orbs (Celestial Spheres) ═══════════════════ */
-.obsidian-orb-node {
+/* ═══════════════════ Obsidian Node Circles ═══════════════════ */
+.obs-node {
   position: absolute;
   left: 0;
   top: 0;
@@ -1752,151 +1622,131 @@ const formatRelativeTime = (dtStr?: string) => {
   align-items: center;
   justify-content: center;
   transition:
-    opacity 0.2s,
-    filter 0.2s;
+    opacity 0.3s ease,
+    filter 0.3s ease,
+    transform 0.1s ease;
 }
 
-.obsidian-orb-node.is-dimmed {
-  opacity: 0.25;
-  filter: grayscale(0.6);
+.obs-node.is-dimmed {
+  opacity: 0.15;
+  filter: grayscale(0.5) brightness(0.6);
 }
 
-.obsidian-orb-node.is-dragging {
+.obs-node.is-dragging {
   cursor: grabbing;
   z-index: 10;
 }
 
-/* Atmosphere Halo */
-.orb-halo {
-  position: absolute;
-  inset: -6px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(245, 158, 11, 0.25) 0%, transparent 70%);
-  opacity: 0.6;
-  transition: all 0.25s;
-  pointer-events: none;
-}
-
-.obsidian-orb-node:hover .orb-halo,
-.obsidian-orb-node.is-hovered .orb-halo {
-  inset: -12px;
-  opacity: 1;
-  background: radial-gradient(circle, rgba(245, 158, 11, 0.45) 0%, transparent 70%);
-}
-
-.obsidian-orb-node.is-center .orb-halo {
-  inset: -14px;
-  background: radial-gradient(circle, rgba(245, 158, 11, 0.4) 0%, transparent 75%);
-  animation: core-pulsar 2.4s infinite ease-in-out;
-}
-
-@keyframes core-pulsar {
-  0% {
-    transform: scale(0.95);
-    opacity: 0.5;
-  }
-  50% {
-    transform: scale(1.2);
-    opacity: 0.9;
-  }
-  100% {
-    transform: scale(0.95);
-    opacity: 0.5;
-  }
-}
-
-/* The Solid Orb Core */
-.orb-core {
+/* The solid circle */
+.obs-node-circle {
   position: relative;
   width: 100%;
   height: 100%;
   border-radius: 50%;
-  background: rgba(22, 19, 16, 0.94);
-  border: 1.5px solid rgba(255, 255, 255, 0.15);
-  box-shadow:
-    0 4px 16px rgba(0, 0, 0, 0.6),
-    inset 0 1px 1px rgba(255, 255, 255, 0.2);
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s;
+  transition: all 0.25s ease;
+  box-shadow: 0 0 12px rgba(0, 0, 0, 0.4);
 }
 
-.obsidian-orb-node:hover .orb-core,
-.obsidian-orb-node.is-active .orb-core {
-  border-color: #fbbf24;
-  box-shadow:
-    0 0 16px rgba(251, 191, 36, 0.6),
-    inset 0 1px 1px rgba(255, 255, 255, 0.4);
-  transform: scale(1.15);
+/* Category solid fills */
+.obs-node.core-cat .obs-node-circle {
+  background: #c084fc;
+  box-shadow: 0 0 20px rgba(192, 132, 252, 0.3);
 }
 
-.obsidian-orb-node.is-center .orb-core {
-  border: 2px solid #f59e0b;
-  background: radial-gradient(circle, #3d260f 0%, #17130f 100%);
-  box-shadow: 0 0 24px rgba(245, 158, 11, 0.5);
+.obs-node.trigger-cat .obs-node-circle {
+  background: #fbbf24;
+  box-shadow: 0 0 12px rgba(251, 191, 36, 0.2);
 }
 
-.obsidian-orb-node.is-executing .orb-core {
-  animation: orb-laser-pulse 0.6s infinite alternate;
+.obs-node.security-cat .obs-node-circle {
+  background: #f87171;
+  box-shadow: 0 0 12px rgba(248, 113, 113, 0.2);
 }
 
-@keyframes orb-laser-pulse {
-  0% {
-    border-color: #f59e0b;
-    box-shadow: 0 0 20px #f59e0b;
-  }
+.obs-node.logic-cat .obs-node-circle {
+  background: #818cf8;
+  box-shadow: 0 0 12px rgba(129, 140, 248, 0.2);
+}
+
+.obs-node.storage-cat .obs-node-circle {
+  background: #38bdf8;
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.2);
+}
+
+.obs-node.action-cat .obs-node-circle {
+  background: #34d399;
+  box-shadow: 0 0 12px rgba(52, 211, 153, 0.2);
+}
+
+/* Hover / Active — glow intensifies */
+.obs-node:hover .obs-node-circle,
+.obs-node.is-active .obs-node-circle {
+  transform: scale(1.25);
+}
+
+.obs-node.core-cat:hover .obs-node-circle,
+.obs-node.core-cat.is-active .obs-node-circle {
+  box-shadow: 0 0 28px rgba(192, 132, 252, 0.6);
+}
+
+.obs-node.trigger-cat:hover .obs-node-circle,
+.obs-node.trigger-cat.is-active .obs-node-circle {
+  box-shadow: 0 0 22px rgba(251, 191, 36, 0.5);
+}
+
+.obs-node.security-cat:hover .obs-node-circle,
+.obs-node.security-cat.is-active .obs-node-circle {
+  box-shadow: 0 0 22px rgba(248, 113, 113, 0.5);
+}
+
+.obs-node.logic-cat:hover .obs-node-circle,
+.obs-node.logic-cat.is-active .obs-node-circle {
+  box-shadow: 0 0 22px rgba(129, 140, 248, 0.5);
+}
+
+.obs-node.storage-cat:hover .obs-node-circle,
+.obs-node.storage-cat.is-active .obs-node-circle {
+  box-shadow: 0 0 22px rgba(56, 189, 248, 0.5);
+}
+
+.obs-node.action-cat:hover .obs-node-circle,
+.obs-node.action-cat.is-active .obs-node-circle {
+  box-shadow: 0 0 22px rgba(52, 211, 153, 0.5);
+}
+
+/* Center node pulse */
+.obs-node.is-center .obs-node-circle {
+  animation: center-breathe 3s ease-in-out infinite;
+}
+
+@keyframes center-breathe {
+  0%,
   100% {
-    border-color: #10b981;
-    box-shadow: 0 0 30px #10b981;
+    box-shadow: 0 0 18px rgba(192, 132, 252, 0.25);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(192, 132, 252, 0.5);
   }
 }
 
-.orb-icon {
-  font-size: 1.1rem;
+/* Icon inside node */
+.obs-node-icon {
+  font-size: 0.7rem;
   line-height: 1;
+  filter: brightness(1.5) saturate(0.3);
 }
 
-.obsidian-orb-node.is-center .orb-icon {
-  font-size: 1.45rem;
+.obs-node.is-center .obs-node-icon {
+  font-size: 1rem;
 }
 
-.orb-led {
+/* Floating Label */
+.obs-node-label {
   position: absolute;
-  top: 2px;
-  right: 2px;
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: #10b981;
-  box-shadow: 0 0 6px #10b981;
-}
-
-/* Category Colors */
-.obsidian-orb-node.trigger-cat .orb-core {
-  border-color: rgba(245, 158, 11, 0.5);
-}
-
-.obsidian-orb-node.logic-cat .orb-core {
-  border-color: rgba(99, 102, 241, 0.6);
-}
-
-.obsidian-orb-node.security-cat .orb-core {
-  border-color: rgba(239, 68, 68, 0.6);
-}
-
-.obsidian-orb-node.storage-cat .orb-core {
-  border-color: rgba(56, 189, 248, 0.6);
-}
-
-.obsidian-orb-node.action-cat .orb-core {
-  border-color: rgba(16, 185, 129, 0.6);
-}
-
-/* Floating Label Under Orb */
-.orb-floating-label {
-  position: absolute;
-  top: calc(100% + 6px);
+  top: calc(100% + 5px);
   left: 50%;
   transform: translateX(-50%);
   display: flex;
@@ -1904,26 +1754,34 @@ const formatRelativeTime = (dtStr?: string) => {
   align-items: center;
   pointer-events: none;
   white-space: nowrap;
+  opacity: 0.5;
+  transition: opacity 0.25s ease;
 }
 
-.label-title {
-  font-size: 0.72rem;
-  font-weight: 800;
-  color: #e7e5e4;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.9);
-  transition: color 0.15s;
+.obs-node:hover .obs-node-label,
+.obs-node.is-hovered .obs-node-label,
+.obs-node.is-active .obs-node-label {
+  opacity: 1;
 }
 
-.obsidian-orb-node:hover .label-title,
-.obsidian-orb-node.is-hovered .label-title {
-  color: #fbbf24;
+.obs-label-text {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.65);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9);
+  transition: color 0.2s;
 }
 
-.label-sub {
-  font-size: 0.58rem;
-  font-weight: 700;
-  color: #a8a29e;
-  opacity: 0.75;
+.obs-node:hover .obs-label-text,
+.obs-node.is-active .obs-label-text {
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.obs-label-sub {
+  font-size: 0.55rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.35);
+  margin-top: 1px;
 }
 
 /* Inspector Drawer Card */

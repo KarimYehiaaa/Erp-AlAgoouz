@@ -28,7 +28,7 @@ export class BranchBalancingService {
   }> {
     // 1. جلب الفروع والمستودعات النشطة
     const whRes = await query(
-      `SELECT id, name, type FROM warehouses WHERE deleted_at IS NULL AND is_active = TRUE ORDER BY id ASC`,
+      `SELECT id, name_ar, type FROM warehouses WHERE deleted_at IS NULL AND is_active = TRUE ORDER BY id ASC`,
     );
     const warehouses = whRes.rows;
 
@@ -66,7 +66,7 @@ export class BranchBalancingService {
         p.name_ar as product_name,
         p.unit,
         w.id as warehouse_id,
-        w.name as warehouse_name,
+        w.name_ar as warehouse_name,
         COALESCE(inv.quantity, 0) as current_stock
       FROM products p
       CROSS JOIN warehouses w

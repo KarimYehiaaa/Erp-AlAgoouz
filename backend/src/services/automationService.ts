@@ -283,7 +283,7 @@ export class AutomationService {
   /**
    * 📊 توليد تقرير الإغلاق اليومي الذكي للمبيعات
    */
-  private static async generateDailySalesReport(config: any) {
+  private static async generateDailySalesReport(_config: any) {
     const today = new Date().toISOString().slice(0, 10);
 
     // إجمالي المبيعات وعدد الفواتير
@@ -292,9 +292,10 @@ export class AutomationService {
          COUNT(id) as total_invoices,
          COALESCE(SUM(total_amount), 0) as total_sales,
          COALESCE(SUM(discount_amount), 0) as total_discounts,
-         COALESCE(SUM(paid_amount), 0) as total_paid
-       FROM invoices
-       WHERE DATE(created_at AT TIME ZONE 'Africa/Cairo') = $1 AND status != 'cancelled'`,
+         COALESCE(SUM(profit_amount), 0) as total_profit
+       FROM sales
+       WHERE (sale_date = $1 OR DATE(created_at AT TIME ZONE 'Africa/Cairo') = $1)
+         AND status = 'completed' AND deleted_at IS NULL`,
       [today],
     );
     const s = salesRes.rows[0];
@@ -303,25 +304,26 @@ export class AutomationService {
     const expRes = await db.query(
       `SELECT COALESCE(SUM(amount), 0) as total_expenses
        FROM expenses
-       WHERE DATE(expense_date) = $1`,
+       WHERE DATE(expense_date) = $1 AND deleted_at IS NULL`,
       [today],
     );
     const totalExpenses = Number(expRes.rows[0]?.total_expenses || 0);
 
     // أعلى 5 أصناف مبيعاً
     const topItemsRes = await db.query(
-      `SELECT p.name_ar, SUM(ii.quantity) as total_qty, SUM(ii.total) as total_rev
-       FROM invoice_items ii
-       JOIN invoices inv ON inv.id = ii.invoice_id
-       JOIN products p ON p.id = ii.product_id
-       WHERE DATE(inv.created_at AT TIME ZONE 'Africa/Cairo') = $1 AND inv.status != 'cancelled'
+      `SELECT p.name_ar, SUM(si.quantity) as total_qty, SUM(si.total_amount) as total_rev
+       FROM sale_items si
+       JOIN sales s ON s.id = si.sale_id
+       JOIN products p ON p.id = si.product_id
+       WHERE (s.sale_date = $1 OR DATE(s.created_at AT TIME ZONE 'Africa/Cairo') = $1)
+         AND s.status = 'completed' AND s.deleted_at IS NULL
        GROUP BY p.name_ar
        ORDER BY total_qty DESC
        LIMIT 5`,
       [today],
     );
 
-    const netIncome = Number(s.total_paid) - totalExpenses;
+    const netIncome = Number(s.total_sales) - totalExpenses;
 
     let topItemsText = '';
     if (topItemsRes.rows.length) {
@@ -341,7 +343,7 @@ export class AutomationService {
 📅 <b>التاريخ:</b> ${today}
 🕒 <b>الوقت:</b> ${new Date().toLocaleTimeString('ar-EG', { timeZone: 'Africa/Cairo' })}
 
-💰 <b>إجمالي الإيرادات المحصلة:</b> ${Number(s.total_paid).toLocaleString()} ج.م
+💰 <b>إجمالي المبيعات المحصلة:</b> ${Number(s.total_sales).toLocaleString()} ج.م
 🧾 <b>عدد الفواتير المنفذة:</b> ${s.total_invoices} فاتورة
 🏷️ <b>إجمالي الخصومات:</b> ${Number(s.total_discounts).toLocaleString()} ج.م
 📉 <b>إجمالي المصروفات اليومية:</b> ${totalExpenses.toLocaleString()} ج.م
@@ -363,12 +365,12 @@ ${topItemsText}
    */
   private static async generateLowStockAlert(_config: any) {
     const { rows } = await db.query(
-      `SELECT p.name_ar, p.sku, p.unit, COALESCE(SUM(sm.quantity), 0) as current_stock, p.min_stock_level
+      `SELECT p.name_ar, p.sku, p.unit, COALESCE(SUM(inv.quantity), 0) as current_stock, p.min_stock
        FROM products p
-       LEFT JOIN stock_movements sm ON sm.product_id = p.id
-       WHERE p.min_stock_level IS NOT NULL AND p.min_stock_level > 0
-       GROUP BY p.id, p.name_ar, p.sku, p.unit, p.min_stock_level
-       HAVING COALESCE(SUM(sm.quantity), 0) <= p.min_stock_level
+       LEFT JOIN inventory inv ON inv.product_id = p.id
+       WHERE p.min_stock IS NOT NULL AND p.min_stock > 0 AND p.deleted_at IS NULL
+       GROUP BY p.id, p.name_ar, p.sku, p.unit, p.min_stock
+       HAVING COALESCE(SUM(inv.quantity), 0) <= p.min_stock
        ORDER BY current_stock ASC
        LIMIT 10`,
     );
@@ -388,7 +390,7 @@ ${topItemsText}
     const itemsList = rows
       .map(
         (r, i) =>
-          `  ${i + 1}. <b>${r.name_ar}</b>\n     المتبقي: <b>${r.current_stock}</b> ${r.unit || 'وحدة'} (الحد الأدنى: ${r.min_stock_level})`,
+          `  ${i + 1}. <b>${r.name_ar}</b>\n     المتبقي: <b>${r.current_stock}</b> ${r.unit || 'وحدة'} (الحد الأدنى: ${r.min_stock})`,
       )
       .join('\n\n');
 
@@ -415,9 +417,9 @@ ${itemsList}
   private static async generateSystemHealthSummary() {
     const counts = await db.query(`
       SELECT
-        (SELECT COUNT(*) FROM products) as products_count,
-        (SELECT COUNT(*) FROM invoices) as invoices_count,
-        (SELECT COUNT(*) FROM users) as users_count
+        (SELECT COUNT(*) FROM products WHERE deleted_at IS NULL) as products_count,
+        (SELECT COUNT(*) FROM sales WHERE deleted_at IS NULL) as sales_count,
+        (SELECT COUNT(*) FROM users WHERE deleted_at IS NULL) as users_count
     `);
     const c = counts.rows[0];
 
@@ -426,7 +428,7 @@ ${itemsList}
 ═════════════════════════
 ✅ <b>حالة اتصال قاعدة البيانات:</b> متصل ومستقر (Active)
 📦 <b>إجمالي المنتجات:</b> ${c.products_count} صنف
-🧾 <b>إجمالي الفواتير المسجلة:</b> ${c.invoices_count} فاتورة
+🧾 <b>إجمالي حركات المبيعات:</b> ${c.sales_count} فاتورة
 👥 <b>عدد المستخدمين النشطين:</b> ${c.users_count} مستخدم
 🕒 <b>توقيت الفحص:</b> ${new Date().toLocaleString('ar-EG', { timeZone: 'Africa/Cairo' })}
 ═════════════════════════
@@ -451,11 +453,11 @@ ${itemsList}
     `);
     const avgDailySales = Number(avgSalesRes.rows[0]?.avg_daily_sales || 0);
 
-    // فواتير الموردين غير المسددة
+    // فواتير الموردين المسجلة
     const unpaidSuppliersRes = await db.query(`
-      SELECT COALESCE(SUM(total_amount - paid_amount), 0) as total_unpaid
+      SELECT COALESCE(SUM(total_amount), 0) as total_unpaid
       FROM purchase_invoices
-      WHERE deleted_at IS NULL AND (total_amount - paid_amount) > 0
+      WHERE deleted_at IS NULL
     `);
     const unpaidSupplierDebt = Number(unpaidSuppliersRes.rows[0]?.total_unpaid || 0);
 

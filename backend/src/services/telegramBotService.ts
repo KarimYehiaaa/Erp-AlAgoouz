@@ -128,32 +128,31 @@ export class TelegramBotService {
         const today = new Date().toISOString().slice(0, 10);
         const cashRes = await db.query(
           `SELECT
-             COALESCE(SUM(paid_amount), 0) as total_collected,
-             COALESCE(SUM(CASE WHEN payment_method = 'cash' THEN paid_amount ELSE 0 END), 0) as total_cash,
-             COALESCE(SUM(CASE WHEN payment_method = 'card' THEN paid_amount ELSE 0 END), 0) as total_card
-           FROM invoices
-           WHERE DATE(created_at AT TIME ZONE 'Africa/Cairo') = $1 AND status != 'cancelled'`,
+             COALESCE(SUM(total_amount), 0) as total_collected,
+             COALESCE(SUM(profit_amount), 0) as total_profit
+           FROM sales
+           WHERE (sale_date = $1 OR DATE(created_at AT TIME ZONE 'Africa/Cairo') = $1)
+             AND status = 'completed' AND deleted_at IS NULL`,
           [today],
         );
         const c = cashRes.rows[0];
 
         const expRes = await db.query(
-          `SELECT COALESCE(SUM(amount), 0) as exp_today FROM expenses WHERE DATE(expense_date) = $1`,
+          `SELECT COALESCE(SUM(amount), 0) as exp_today FROM expenses WHERE DATE(expense_date) = $1 AND deleted_at IS NULL`,
           [today],
         );
         const expToday = Number(expRes.rows[0]?.exp_today || 0);
-        const netCash = Number(c.total_cash) - expToday;
+        const netCash = Number(c.total_collected) - expToday;
 
         const cashMsg = `
 💵 <b>تقرير الخزينة والسيولة النقدية اليوم</b> 🏦
 ═════════════════════════
 📅 <b>التاريخ:</b> ${today}
 
-💰 <b>إجمالي المحصل:</b> ${Number(c.total_collected).toLocaleString()} ج.م
-💵 <b>نقدية كاش (خزينة):</b> ${Number(c.total_cash).toLocaleString()} ج.م
-💳 <b>مدفوعات فيزا/بطاقات:</b> ${Number(c.total_card).toLocaleString()} ج.م
+💰 <b>إجمالي المبيعات المحصلة:</b> ${Number(c.total_collected).toLocaleString()} ج.م
+📈 <b>أرباح اليوم التقديرية:</b> ${Number(c.total_profit).toLocaleString()} ج.م
 📉 <b>مصروفات نقدية خرجت اليوم:</b> ${expToday.toLocaleString()} ج.م
-⚖️ <b>صافي النقدية بالدرج:</b> <b>${netCash.toLocaleString()} ج.م</b>
+⚖️ <b>صافي السيولة النقدية:</b> <b>${netCash.toLocaleString()} ج.م</b>
         `.trim();
         await TelegramService.sendMessage(cashMsg, { chatId });
         break;

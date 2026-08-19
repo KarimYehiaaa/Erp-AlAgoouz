@@ -345,8 +345,51 @@
             <div class="form-section">
               <h3 class="form-section-title">
                 <AppIcon name="coffee" :size="16" />
-                <span>العلامة التجارية والترويسة</span>
+                <span>العلامة التجارية والشعار</span>
               </h3>
+              <div class="form-group mb-3">
+                <label class="form-label">شعار المحل (Logo):</label>
+                <div class="flex items-center gap-3">
+                  <div class="logo-preview-box">
+                    <img
+                      :src="menuForm.logo_url || '/logo-transparent.png'"
+                      alt="Logo"
+                      class="logo-thumb"
+                    />
+                  </div>
+                  <div class="flex-1">
+                    <input
+                      v-model="menuForm.logo_url"
+                      type="text"
+                      placeholder="/logo-transparent.png أو رابط الشعار..."
+                      class="form-input text-xs mb-1"
+                    />
+                    <div class="flex gap-1">
+                      <button
+                        type="button"
+                        class="btn btn-xs btn-outline"
+                        @click="menuForm.logo_url = '/logo-transparent.png'"
+                      >
+                        شعار شفاف
+                      </button>
+                      <button
+                        type="button"
+                        class="btn btn-xs btn-outline"
+                        @click="menuForm.logo_url = '/logo.png'"
+                      >
+                        شعار رسمي
+                      </button>
+                      <button
+                        type="button"
+                        class="btn btn-xs btn-outline"
+                        @click="menuForm.logo_url = '/logo.svg'"
+                      >
+                        شعار فكتور
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
               <div class="form-group">
                 <label class="form-label">عنوان المنيو:</label>
                 <input v-model="menuForm.title_ar" type="text" class="form-input" />
@@ -549,6 +592,7 @@ const menuForm = reactive({
   title_ar: 'بن العجوز',
   subtitle_ar: 'أصل القهوة والتوليفات الفاخرة منذ 1980',
   theme: 'coffee-gold',
+  logo_url: '/logo-transparent.png',
   phone_primary: '01012345678',
   phone_secondary: '01234567890',
   address_ar: 'الفرع الرئيسي - مصر',
@@ -1286,6 +1330,24 @@ const addProductToMenu = (prod: any) => {
   font-weight: 700;
   color: var(--text-muted);
   margin-bottom: 2px;
+}
+
+.logo-preview-box {
+  width: 52px;
+  height: 52px;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid var(--border-strong);
+  background: var(--surface-3);
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.logo-thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 
 /* عمود المعاينة */

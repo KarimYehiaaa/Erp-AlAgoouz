@@ -70,6 +70,12 @@ const routes: RouteRecordRaw[] = [
         meta: { permission: 'recipes.view' },
       },
       {
+        path: 'menu-builder',
+        name: 'MenuBuilder',
+        component: () => import('@/views/MenuBuilderView.vue'),
+        meta: { permission: 'products.view' },
+      },
+      {
         path: 'customers',
         name: 'Customers',
         component: () => import('@/views/CustomersView.vue'),

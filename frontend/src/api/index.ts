@@ -35,6 +35,7 @@ export const hr = {
 };
 
 export { sales } from './sales.api';
+export { menu } from './menu.api';
 
 export const products = {
   list: (params: any = {}) => api.get('/products', { params }),

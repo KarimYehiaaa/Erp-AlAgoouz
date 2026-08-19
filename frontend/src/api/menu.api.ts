@@ -1,0 +1,11 @@
+import api from './client';
+
+export const menu = {
+  list: () => api.get('/menus'),
+  get: (id: number | string) => api.get(`/menus/${id}`),
+  getActive: () => api.get('/menus/active'),
+  create: (data: any) => api.post('/menus', data),
+  update: (id: number | string, data: any) => api.put(`/menus/${id}`, data),
+  delete: (id: number | string) => api.delete(`/menus/${id}`),
+  getAvailableProducts: () => api.get('/menus/products'),
+};

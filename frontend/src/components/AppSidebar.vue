@@ -75,6 +75,7 @@ const rawMenuGroups = [
     label: 'المخزون والإنتاج',
     items: [
       { to: '/products', label: 'المنتجات', icon: 'products', perm: 'products.view' },
+      { to: '/menu-builder', label: 'تصميم المنيو', icon: 'quotes', perm: 'products.view' },
       { to: '/inventory', label: 'المخزون', icon: 'inventory', perm: 'inventory.view' },
       {
         to: '/stocktakes',

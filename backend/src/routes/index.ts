@@ -23,6 +23,7 @@ import costsRoutes from './costs.routes.ts';
 import hrRoutes from './hr.routes.ts';
 import reportsRoutes from './reports.routes.ts';
 import adminRoutes from './admin.routes.ts';
+import menuRoutes from './menu.routes.ts';
 
 const router = Router();
 
@@ -34,6 +35,7 @@ router.use(costsRoutes);
 router.use(hrRoutes);
 router.use(reportsRoutes);
 router.use(adminRoutes);
+router.use(menuRoutes);
 
 /**
  * موجّه API الرئيسي — يُسجَّل في التطبيق ويجمع كل مسارات النظام (المصادقة، المبيعات، المخزون، الموارد البشرية...).

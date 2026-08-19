@@ -390,18 +390,20 @@ const showFeedback = (msg: string, type: 'success' | 'error' = 'success') => {
 const fetchAutomations = async () => {
   try {
     isLoading.value = true;
-    const res = await automationsApi.list();
-    if (res.data?.data?.automations) {
-      automationsList.value = res.data.data.automations;
-      // استخراج إعدادات تليجرام إن وجدت
-      const firstWithTg = automationsList.value.find((a) => a.config?.bot_token);
-      if (firstWithTg) {
-        telegramForm.value.botToken = firstWithTg.config.bot_token;
-        telegramForm.value.chatId = firstWithTg.config.chat_id;
-      }
+    const res: any = await automationsApi.list();
+    const list = res?.data?.automations || res?.automations || [];
+    automationsList.value = list;
+    // استخراج إعدادات تليجرام إن وجدت
+    const firstWithTg = automationsList.value.find((a) => a.config?.bot_token);
+    if (firstWithTg) {
+      telegramForm.value.botToken = firstWithTg.config.bot_token;
+      telegramForm.value.chatId = firstWithTg.config.chat_id;
     }
   } catch (err: any) {
-    showFeedback(err?.response?.data?.message || 'تعذر تحميل إعدادات الأتمتة', 'error');
+    showFeedback(
+      err?.message || err?.response?.data?.message || 'تعذر تحميل إعدادات الأتمتة',
+      'error',
+    );
   } finally {
     isLoading.value = false;
   }
@@ -409,10 +411,9 @@ const fetchAutomations = async () => {
 
 const fetchLogs = async () => {
   try {
-    const res = await automationsApi.getLogs({ limit: 30 });
-    if (res.data?.data?.logs) {
-      logsList.value = res.data.data.logs;
-    }
+    const res: any = await automationsApi.getLogs({ limit: 30 });
+    const logs = res?.data?.logs || res?.logs || [];
+    logsList.value = logs;
   } catch {
     // Silent
   }
@@ -424,9 +425,9 @@ const toggleAutomation = async (item: any) => {
   try {
     await automationsApi.update(item.id, { is_enabled: nextState });
     showFeedback(`تم ${nextState ? 'تفعيل' : 'إيقاف'} أتمتة "${item.name_ar}" بنجاح!`, 'success');
-  } catch {
+  } catch (err: any) {
     item.is_enabled = !nextState; // Revert
-    showFeedback('تعذر تحديث حالة الأتمتة', 'error');
+    showFeedback(err?.message || 'تعذر تحديث حالة الأتمتة', 'error');
   }
 };
 
@@ -434,17 +435,17 @@ const triggerTestRun = async (item: any) => {
   try {
     triggeringId.value = item.id;
     showFeedback(`جاري تشغيل "${item.name_ar}" تجريبياً...`);
-    const res = await automationsApi.trigger(item.id);
-    if (res.data?.success) {
+    const res: any = await automationsApi.trigger(item.id);
+    if (res?.success || res?.data?.success) {
       showFeedback(`تم تشغيل "${item.name_ar}" بنجاح! 🎉`, 'success');
       item.last_run_at = new Date().toISOString();
       item.last_status = 'success';
       await fetchLogs();
     } else {
-      showFeedback(res.data?.message || 'فشل تشغيل الأتمتة', 'error');
+      showFeedback(res?.message || res?.data?.message || 'فشل تشغيل الأتمتة', 'error');
     }
   } catch (err: any) {
-    showFeedback(err?.response?.data?.message || 'حدث خطأ أثناء التشغيل', 'error');
+    showFeedback(err?.message || err?.response?.data?.message || 'حدث خطأ أثناء التشغيل', 'error');
   } finally {
     triggeringId.value = null;
   }
@@ -453,17 +454,23 @@ const triggerTestRun = async (item: any) => {
 const handleTestTelegram = async () => {
   try {
     isTestingTelegram.value = true;
-    const res = await automationsApi.testTelegram({
+    const res: any = await automationsApi.testTelegram({
       botToken: telegramForm.value.botToken,
       chatId: telegramForm.value.chatId,
     });
-    if (res.data?.success) {
-      showFeedback('تم إرسال رسالة الاختبار بنجاح إلى شات تليجرام! 📲', 'success');
+    if (res?.success || res?.data?.success) {
+      showFeedback(
+        res?.message || res?.data?.message || 'تم إرسال رسالة الاختبار بنجاح إلى شات تليجرام! 📲',
+        'success',
+      );
     } else {
-      showFeedback(res.data?.message || 'فشل إرسال رسالة الاختبار', 'error');
+      showFeedback(res?.message || res?.data?.message || 'فشل إرسال رسالة الاختبار', 'error');
     }
   } catch (err: any) {
-    showFeedback(err?.response?.data?.message || 'فشل الاتصال ببوت تليجرام', 'error');
+    showFeedback(
+      err?.message || err?.response?.data?.message || 'فشل الاتصال ببوت تليجرام',
+      'error',
+    );
   } finally {
     isTestingTelegram.value = false;
   }

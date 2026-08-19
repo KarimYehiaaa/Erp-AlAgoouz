@@ -16,7 +16,7 @@
       </div>
 
       <div class="header-actions">
-        <!-- أزرار التبديل بين وضع المخطط الشبكي Obsidian والوضع الكلاسيكي -->
+        <!-- أزرار التبديل بين وضع المخطط الشبكي الحديث والوضع الكلاسيكي -->
         <div class="view-mode-toggle">
           <button
             type="button"
@@ -24,7 +24,7 @@
             :class="{ active: viewMode === 'graph' }"
             @click="viewMode = 'graph'"
           >
-            <span>🌌 استوديو المخطط الشبكي (Obsidian Canvas)</span>
+            <span>🌌 استوديو المخطط الشبكي الفائق</span>
           </button>
           <button
             type="button"
@@ -61,7 +61,7 @@
       </div>
     </transition>
 
-    <!-- ═══════════════════ شريط الإحصائيات (Live Pulsing Bento) ═══════════════════ -->
+    <!-- ═══════════════════ شريط الإحصائيات (Modern Glass Bento) ═══════════════════ -->
     <div class="stats-grid">
       <div class="stat-card">
         <div class="stat-icon bg-primary-soft">
@@ -73,7 +73,6 @@
             {{ activeCount }} <small>/ {{ automationsList.length }}</small>
           </h3>
         </div>
-        <div class="sparkle-glow"></div>
       </div>
 
       <div class="stat-card">
@@ -84,7 +83,7 @@
           <span class="stat-label">حالة بوت تليجرام</span>
           <h3 class="stat-value text-success">
             <span class="status-pulse-dot" :class="{ active: isTelegramConfigured }"></span>
-            <span>{{ isTelegramConfigured ? 'متصل وحي' : 'بحاجة للضبط' }}</span>
+            <span>{{ isTelegramConfigured ? 'متصل ومستمع 24/7' : 'بحاجة للضبط' }}</span>
           </h3>
         </div>
       </div>
@@ -110,56 +109,58 @@
       </div>
     </div>
 
-    <!-- ═══════════════════ العرض الأول: استوديو المخطط الشبكي التفاعلي (Obsidian Graph & n8n Canvas) ═══════════════════ -->
+    <!-- ═══════════════════ العرض الأول: استوديو المخطط العصبي الفائق (Ultra-Modern Neural Canvas) ═══════════════════ -->
     <div v-if="viewMode === 'graph'" class="obsidian-graph-wrapper card">
-      <!-- شريط أدوات الكانفاس العلوي -->
+      <!-- شريط أدوات الكانفاس الزجاجي العائم -->
       <div class="graph-top-bar">
         <div class="graph-title-group">
-          <div class="beacon-circle"></div>
+          <div class="live-status-pill">
+            <span class="beacon-circle"></span>
+            <span class="live-text">LIVE STREAM</span>
+          </div>
           <div>
-            <h3 class="graph-heading">خريطة المنظومة العصبية الحية (Interactive Node Graph)</h3>
+            <h3 class="graph-heading">المنظومة العصبية التفاعلية للأتمتة</h3>
             <span class="graph-sub"
-              >✨ يمكنك سحب العقد بالماوس بحرية، والتحريك والتكبير لعرض مسارات البيانات</span
+              >اسحب العقد بحرية، أو اضغط على أي مسار لتشغيل نبضات البيانات الفورية</span
             >
           </div>
         </div>
 
         <div class="graph-controls">
-          <button type="button" class="graph-ctrl-btn" title="تكبير المنظور" @click="zoomIn">
-            ➕
-          </button>
-          <span class="zoom-level-text">{{ Math.round(zoomLevel * 100) }}%</span>
-          <button type="button" class="graph-ctrl-btn" title="تصغير المنظور" @click="zoomOut">
-            ➖
-          </button>
+          <div class="zoom-pill">
+            <button type="button" class="ctrl-btn-icon" title="تكبير" @click="zoomIn">➕</button>
+            <span class="zoom-value">{{ Math.round(zoomLevel * 100) }}%</span>
+            <button type="button" class="ctrl-btn-icon" title="تصغير" @click="zoomOut">➖</button>
+          </div>
+
           <button
             type="button"
-            class="graph-ctrl-btn reset-btn"
+            class="graph-btn-secondary"
             title="إعادة ضبط المنظور"
             @click="resetViewport"
           >
-            🎯 إعادة الضبط
+            <span>🎯 ضبط</span>
           </button>
           <button
             type="button"
-            class="graph-ctrl-btn auto-layout-btn"
+            class="graph-btn-secondary"
             title="إعادة الترتيب التلقائي"
             @click="autoLayoutNodes"
           >
-            ✨ ترتيب ذكي
+            <span>✨ ترتيب ذكي</span>
           </button>
           <button
             type="button"
-            class="graph-ctrl-btn fire-all-btn"
+            class="graph-btn-laser"
             :disabled="isFiringAll"
             @click="simulateFullNetworkPulse"
           >
-            <span>{{ isFiringAll ? '⚡ سريان الطاقة...' : '🚀 ضخ نبضة طاقة شاملة' }}</span>
+            <span>{{ isFiringAll ? '⚡ سريان النبضات...' : '🚀 إطلاق نبضة بيانات' }}</span>
           </button>
         </div>
       </div>
 
-      <!-- مساحة الكانفاس التفاعلية (The Obsidian Canvas Area) -->
+      <!-- مساحة الكانفاس التفاعلية -->
       <div
         ref="canvasContainerRef"
         class="obsidian-canvas-viewport"
@@ -170,7 +171,12 @@
         @mouseleave="handleCanvasMouseUp"
         @wheel.prevent="handleCanvasWheel"
       >
-        <!-- خلفية الفضاء النقطي الشبكي (Obsidian Dot Grid) -->
+        <!-- سديم الإضاءة العميقة بالخلفية -->
+        <div class="nebula-glow glow-amber"></div>
+        <div class="nebula-glow glow-cyan"></div>
+        <div class="nebula-glow glow-purple"></div>
+
+        <!-- شبكة النقاط الهندسية الدقيقة -->
         <div
           class="obsidian-grid-pattern"
           :style="{
@@ -178,33 +184,31 @@
           }"
         ></div>
 
-        <!-- مساحة التحويل الرئيسية (Canvas Content Layer) -->
+        <!-- مساحة التحويل الرئيسية (Transform Layer) -->
         <div
           class="canvas-transform-layer"
           :style="{
             transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoomLevel})`,
           }"
         >
-          <!-- طبقة الأسلاك المنحنية التفاعلية SVG (Dynamic Bézier Wires) -->
+          <!-- طبقة الأسلاك الليزرية الحديثة SVG (Ultra-Thin Laser Splines) -->
           <svg class="wires-svg-layer" width="3000" height="2000">
             <defs>
-              <!-- تدرجات الألوان للأسلاك الضوئية -->
-              <linearGradient id="wire-amber-grad" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stop-color="#f59e0b" stop-opacity="0.8" />
-                <stop offset="50%" stop-color="#fbbf24" stop-opacity="1" />
-                <stop offset="100%" stop-color="#10b981" stop-opacity="0.8" />
-              </linearGradient>
-              <linearGradient id="wire-cyan-grad" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stop-color="#6366f1" stop-opacity="0.8" />
-                <stop offset="50%" stop-color="#38bdf8" stop-opacity="1" />
-                <stop offset="100%" stop-color="#22c55e" stop-opacity="0.8" />
+              <!-- تدرج ليزري فائق الانسيابية -->
+              <linearGradient id="laser-stream-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#f59e0b" stop-opacity="0.3" />
+                <stop offset="30%" stop-color="#fbbf24" stop-opacity="0.9" />
+                <stop offset="70%" stop-color="#38bdf8" stop-opacity="0.9" />
+                <stop offset="100%" stop-color="#10b981" stop-opacity="0.3" />
               </linearGradient>
 
-              <!-- مرشح التوهج النيوني للأسلاك -->
-              <filter id="glow-neon" x="-20%" y="-20%" width="140%" height="140%">
-                <feGaussianBlur stdDeviation="3" result="blur" />
+              <!-- مرشح توهج ألياف الضوء -->
+              <filter id="fiber-glow" x="-30%" y="-30%" width="160%" height="160%">
+                <feGaussianBlur stdDeviation="2" result="blur1" />
+                <feGaussianBlur stdDeviation="5" result="blur2" />
                 <feMerge>
-                  <feMergeNode in="blur" />
+                  <feMergeNode in="blur2" />
+                  <feMergeNode in="blur1" />
                   <feMergeNode in="SourceGraphic" />
                 </feMerge>
               </filter>
@@ -212,23 +216,26 @@
 
             <!-- رسم الوصلات المنحنية لكل رابط -->
             <g v-for="link in graphLinks" :key="link.id" class="wire-group">
-              <!-- سلك الخلفية الأساسي -->
-              <path :d="computeBezierPath(link)" class="bezier-wire-bg" />
-              <!-- السلك النبضي المتوهج المتحرك -->
+              <!-- سلك العمود الفقري الرفيع الأنيق -->
+              <path :d="computeBezierPath(link)" class="fiber-wire-base" />
+
+              <!-- شعاع الليزر الضوئي المتحرك -->
               <path
                 :d="computeBezierPath(link)"
-                class="bezier-wire-pulse"
-                :class="{ 'high-voltage': isFiringAll || triggeringId === link.automationId }"
-                filter="url(#glow-neon)"
+                class="fiber-wire-laser"
+                :class="{
+                  active: isFiringAll || triggeringId === link.automationId,
+                }"
+                filter="url(#fiber-glow)"
               />
             </g>
           </svg>
 
-          <!-- طبقة العقد التفاعلية (Draggable Nodes) -->
+          <!-- طبقة العقد الذكية المدمجة (Compact Micro-Chip Nodes) -->
           <div
             v-for="node in graphNodes"
             :key="node.id"
-            class="obsidian-node"
+            class="compact-node"
             :class="[
               node.category,
               {
@@ -244,51 +251,44 @@
             @mousedown.stop="handleNodeMouseDown(node, $event)"
             @click.stop="selectNode(node)"
           >
-            <!-- مقبس الإدخال (Input Socket) -->
-            <div v-if="node.hasInput" class="node-socket socket-input" title="مدخل البيانات">
-              <span class="socket-dot"></span>
+            <!-- مقبس الإدخال الدائري الرفيع -->
+            <div v-if="node.hasInput" class="compact-socket socket-in">
+              <span class="socket-inner-ring"></span>
             </div>
 
-            <!-- رأس العقدة -->
-            <div class="node-header">
-              <div class="node-icon-bubble">
+            <!-- محتوى العقدة المصغر الأنيق -->
+            <div class="compact-node-content">
+              <div class="node-icon-box" :class="node.category">
                 <span>{{ node.icon }}</span>
               </div>
-              <div class="node-meta">
-                <span class="node-type-label">{{ node.typeLabel }}</span>
-                <h4 class="node-title">{{ node.title }}</h4>
+
+              <div class="node-text-group">
+                <div class="node-meta-line">
+                  <span class="node-badge-tag">{{ node.typeLabel }}</span>
+                  <span class="node-mini-led" :class="node.status"></span>
+                </div>
+                <h4 class="node-compact-title">{{ node.title }}</h4>
               </div>
-            </div>
-
-            <!-- جسم العقدة وتفاصيلها -->
-            <p class="node-desc">{{ node.desc }}</p>
-
-            <!-- شريط حالة العقدة السفلي -->
-            <div class="node-footer">
-              <span class="node-status-badge" :class="node.status">
-                <span class="dot"></span>
-                <span>{{ node.statusLabel }}</span>
-              </span>
 
               <button
                 v-if="node.automationId"
                 type="button"
-                class="node-quick-run-btn"
-                title="تشغيل تجريبي لهذا المسار"
+                class="node-trigger-pill"
+                title="تشغيل فوري"
                 @click.stop="triggerTestRunById(node.automationId)"
               >
-                ⚡ تشغيل
+                <span>⚡</span>
               </button>
             </div>
 
-            <!-- مقبس الإخراج (Output Socket) -->
-            <div v-if="node.hasOutput" class="node-socket socket-output" title="مخرج البيانات">
-              <span class="socket-dot"></span>
+            <!-- مقبس الإخراج الدائري الرفيع -->
+            <div v-if="node.hasOutput" class="compact-socket socket-out">
+              <span class="socket-inner-ring"></span>
             </div>
           </div>
         </div>
 
-        <!-- اللوحة الجانبية لمستكشف العقدة المحددة (Node Inspector Glass Card) -->
+        <!-- اللوحة الجانبية لمستكشف العقدة المحددة (Glass Node Inspector) -->
         <transition name="slide-left">
           <div v-if="selectedNode" class="node-inspector-drawer">
             <div class="inspector-header">
@@ -306,17 +306,17 @@
               <p class="text-xs text-muted mb-3">{{ selectedNode.desc }}</p>
 
               <div class="inspector-stat-row">
-                <span class="text-xs font-bold text-muted">حالة التشغيل:</span>
+                <span class="text-xs font-bold text-muted">حالة العقدة:</span>
                 <span class="badge-mini on">🟢 نشط ومتصل</span>
               </div>
 
               <div class="inspector-stat-row">
-                <span class="text-xs font-bold text-muted">بروتوكول النقل:</span>
-                <span class="font-mono text-xs text-strong">Event / Webhook / Cron</span>
+                <span class="text-xs font-bold text-muted">نوع المحفز:</span>
+                <span class="font-mono text-xs text-strong">Event / Realtime</span>
               </div>
 
               <div v-if="selectedNode.cron" class="inspector-stat-row">
-                <span class="text-xs font-bold text-muted">الموعد الزمني:</span>
+                <span class="text-xs font-bold text-muted">الجدولة:</span>
                 <span class="text-xs font-bold text-primary">{{ selectedNode.cron }}</span>
               </div>
 
@@ -623,10 +623,10 @@ const telegramForm = ref({
   chatId: '',
 });
 
-/* ═══════════════════ محرك الكانفاس والفيزياء التفاعلية (Obsidian Engine) ═══════════════════ */
+/* ═══════════════════ محرك الكانفاس والفيزياء التفاعلية الفائقة ═══════════════════ */
 const canvasContainerRef = ref<HTMLElement | null>(null);
 const zoomLevel = ref(1.0);
-const panOffset = reactive({ x: 40, y: 30 });
+const panOffset = reactive({ x: 50, y: 40 });
 const isPanning = ref(false);
 const panStart = reactive({ x: 0, y: 0 });
 
@@ -634,7 +634,11 @@ const draggedNodeId = ref<string | null>(null);
 const dragNodeStart = reactive({ x: 0, y: 0, nodeX: 0, nodeY: 0 });
 const selectedNode = ref<any | null>(null);
 
-// تعريف عقد الخريطة الشبكية التفاعلية
+// أبعاد العقد المصغرة الأنيقة (Sleek Micro-Chip Dimensions)
+const NODE_WIDTH = 210;
+const NODE_HEIGHT = 68;
+
+// تعريف عقد الخريطة الشبكية المدمجة
 const graphNodes = ref<any[]>([
   {
     id: 'node-pos',
@@ -644,7 +648,7 @@ const graphNodes = ref<any[]>([
     title: 'كاشير الفروع (POS)',
     desc: 'إصدار الفواتير، التحصيل، ومتابعة الورديات الحية',
     x: 60,
-    y: 80,
+    y: 60,
     hasInput: false,
     hasOutput: true,
     status: 'online',
@@ -660,7 +664,7 @@ const graphNodes = ref<any[]>([
     desc: 'جدولة تقرير الإغلاق وفحص النواقص الدوري',
     cron: 'يومياً 11:30 م',
     x: 60,
-    y: 310,
+    y: 190,
     hasInput: false,
     hasOutput: true,
     status: 'online',
@@ -675,7 +679,7 @@ const graphNodes = ref<any[]>([
     title: 'مخازن البن والتحميص',
     desc: 'رصد كميات البن الأخضر والمحمص وحركات الصرف',
     x: 60,
-    y: 530,
+    y: 320,
     hasInput: false,
     hasOutput: true,
     status: 'online',
@@ -689,12 +693,27 @@ const graphNodes = ref<any[]>([
     icon: '🧠',
     title: 'عقل الأتمتة المركزي',
     desc: 'تجميع إيرادات اليوم، صافي الأرباح، وأعلى الأصناف طلباً',
-    x: 480,
-    y: 190,
+    x: 370,
+    y: 70,
     hasInput: true,
     hasOutput: true,
     status: 'online',
     statusLabel: 'معالجة فورية',
+    automationId: null,
+  },
+  {
+    id: 'node-balancing',
+    typeLabel: 'Balancing • مناقلات الفروع',
+    category: 'logic-cat',
+    icon: '🔄',
+    title: 'توازن مخزون الفروع',
+    desc: 'تحليل سرعة السحب واقتراح مناقلات لتفادي الشراء الجديد',
+    x: 370,
+    y: 180,
+    hasInput: true,
+    hasOutput: true,
+    status: 'online',
+    statusLabel: 'توازن ذكي',
     automationId: null,
   },
   {
@@ -704,8 +723,8 @@ const graphNodes = ref<any[]>([
     icon: '🛡️',
     title: 'منظومة الرقابة والأمان',
     desc: 'كشف فوري لإلغاء الفواتير والخصومات المشبوهة',
-    x: 480,
-    y: 430,
+    x: 370,
+    y: 290,
     hasInput: true,
     hasOutput: true,
     status: 'online',
@@ -713,29 +732,14 @@ const graphNodes = ref<any[]>([
     automationId: null,
   },
   {
-    id: 'node-balancing',
-    typeLabel: 'Balancing • مناقلات الفروع',
-    category: 'logic-cat',
-    icon: '🔄',
-    title: 'المناقلات وتوازن الفروع',
-    desc: 'تحليل سرعة السحب واقتراح مناقلات لتفادي الشراء الجديد',
-    x: 480,
-    y: 370,
-    hasInput: true,
-    hasOutput: true,
-    status: 'online',
-    statusLabel: 'توازن ذكي',
-    automationId: null,
-  },
-  {
     id: 'node-cashflow',
     typeLabel: 'Shield • درع السيولة',
     category: 'security-cat',
     icon: '💰',
-    title: 'درع حماية السيولة النقدية',
+    title: 'درع حماية السيولة',
     desc: 'تنبؤ استباقي بالعجز المالي ومقارنة الالتزامات بالإيرادات',
-    x: 480,
-    y: 560,
+    x: 370,
+    y: 400,
     hasInput: true,
     hasOutput: true,
     status: 'online',
@@ -747,10 +751,10 @@ const graphNodes = ref<any[]>([
     typeLabel: 'Storage • قاعدة البيانات',
     category: 'storage-cat',
     icon: '🗄️',
-    title: 'سحابة بن العجوز (PostgreSQL)',
+    title: 'سحابة PostgreSQL',
     desc: 'حفظ الحركات المحاسبية والسجلات وسلسلة الجرد',
-    x: 920,
-    y: 110,
+    x: 690,
+    y: 60,
     hasInput: true,
     hasOutput: false,
     status: 'online',
@@ -759,13 +763,13 @@ const graphNodes = ref<any[]>([
   },
   {
     id: 'node-tg',
-    typeLabel: 'Action • بوت تليجرام التفاعلي',
+    typeLabel: 'Action • بوت تليجرام 2-Way',
     category: 'action-cat',
     icon: '🤖',
-    title: 'بوت تليجرام (2-Way Bot)',
-    desc: 'إرسال التقارير والرد الفوري على أوامر المالك على تليجرام',
-    x: 920,
-    y: 330,
+    title: 'بوت تليجرام المالك',
+    desc: 'توصيل التقارير والرد الفوري على أوامر المالك على تليجرام',
+    x: 690,
+    y: 190,
     hasInput: true,
     hasOutput: false,
     status: 'online',
@@ -777,10 +781,10 @@ const graphNodes = ref<any[]>([
     typeLabel: 'Audit • سجل المراقبة',
     category: 'action-cat',
     icon: '📜',
-    title: 'سجل الأتمتة (Audit Stream)',
+    title: 'سجل الأتمتة الحي',
     desc: 'أرشفة كافة المهام المنفذة مع التوقيت والنتيجة',
-    x: 920,
-    y: 540,
+    x: 690,
+    y: 320,
     hasInput: true,
     hasOutput: false,
     status: 'online',
@@ -804,10 +808,7 @@ const graphLinks = ref<any[]>([
   { id: 'l11', from: 'node-brain', to: 'node-logs', automationId: null },
 ]);
 
-const NODE_WIDTH = 260;
-const NODE_HEIGHT = 130;
-
-// حساب منحنى بيزييه الدقيق بين عقدتين
+// حساب مسار بيزييه فائق النعومة والجمال
 const computeBezierPath = (link: any) => {
   const fromNode = graphNodes.value.find((n) => n.id === link.from);
   const toNode = graphNodes.value.find((n) => n.id === link.to);
@@ -818,7 +819,7 @@ const computeBezierPath = (link: any) => {
   const x2 = toNode.x;
   const y2 = toNode.y + NODE_HEIGHT / 2;
 
-  const dx = Math.abs(x2 - x1) * 0.55;
+  const dx = Math.abs(x2 - x1) * 0.5;
   const cx1 = x1 + dx;
   const cy1 = y1;
   const cx2 = x2 - dx;
@@ -864,37 +865,37 @@ const handleCanvasMouseUp = () => {
 };
 
 const handleCanvasWheel = (e: WheelEvent) => {
-  const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
-  const newZoom = Math.min(1.8, Math.max(0.5, zoomLevel.value * zoomFactor));
+  const zoomFactor = e.deltaY < 0 ? 1.08 : 0.92;
+  const newZoom = Math.min(1.6, Math.max(0.6, zoomLevel.value * zoomFactor));
   zoomLevel.value = parseFloat(newZoom.toFixed(2));
 };
 
 const zoomIn = () => {
-  zoomLevel.value = Math.min(1.8, parseFloat((zoomLevel.value + 0.15).toFixed(2)));
+  zoomLevel.value = Math.min(1.6, parseFloat((zoomLevel.value + 0.12).toFixed(2)));
 };
 
 const zoomOut = () => {
-  zoomLevel.value = Math.max(0.5, parseFloat((zoomLevel.value - 0.15).toFixed(2)));
+  zoomLevel.value = Math.max(0.6, parseFloat((zoomLevel.value - 0.12).toFixed(2)));
 };
 
 const resetViewport = () => {
-  panOffset.x = 40;
-  panOffset.y = 30;
+  panOffset.x = 50;
+  panOffset.y = 40;
   zoomLevel.value = 1.0;
 };
 
 const autoLayoutNodes = () => {
   const layouts: Record<string, { x: number; y: number }> = {
-    'node-pos': { x: 60, y: 80 },
-    'node-cron': { x: 60, y: 310 },
-    'node-inv': { x: 60, y: 530 },
-    'node-brain': { x: 480, y: 150 },
-    'node-balancing': { x: 480, y: 340 },
-    'node-fraud': { x: 480, y: 510 },
-    'node-cashflow': { x: 480, y: 680 },
-    'node-db': { x: 920, y: 110 },
-    'node-tg': { x: 920, y: 330 },
-    'node-logs': { x: 920, y: 540 },
+    'node-pos': { x: 60, y: 60 },
+    'node-cron': { x: 60, y: 190 },
+    'node-inv': { x: 60, y: 320 },
+    'node-brain': { x: 370, y: 70 },
+    'node-balancing': { x: 370, y: 180 },
+    'node-fraud': { x: 370, y: 290 },
+    'node-cashflow': { x: 370, y: 400 },
+    'node-db': { x: 690, y: 60 },
+    'node-tg': { x: 690, y: 190 },
+    'node-logs': { x: 690, y: 320 },
   };
 
   for (const node of graphNodes.value) {
@@ -922,11 +923,11 @@ const selectNode = (node: any) => {
 
 const simulateFullNetworkPulse = async () => {
   isFiringAll.value = true;
-  showFeedback('⚡ جاري ضخ نبضات الطاقة في جميع أسلاك المنظومة العصبية...');
+  showFeedback('⚡ سريان نبضات الليزر والبيانات في كافة فروع المنظومة...');
   setTimeout(() => {
     isFiringAll.value = false;
-    showFeedback('تم سريان نبضات البيانات بنجاح في كامل المنظومة! ✨');
-  }, 2500);
+    showFeedback('تم وصول إشارات البيانات بنجاح! ✨');
+  }, 2200);
 };
 
 /* ═══════════════════ منطق الـ API والتفاعل مع السيستم ═══════════════════ */
@@ -1029,10 +1030,10 @@ const triggerTestRunById = (autoId: number) => {
 const triggerTestRun = async (item: any) => {
   try {
     triggeringId.value = item.id;
-    showFeedback(`⚡ جاري ضخ البيانات في الأسلاك وتشغيل مسار "${item.name_ar}"...`);
+    showFeedback(`⚡ جاري إطلاق مسار "${item.name_ar}"...`);
     const res: any = await automationsApi.trigger(item.id);
     if (res?.success || res?.data?.success) {
-      showFeedback(`تم إطلاق مسار "${item.name_ar}" بنجاح وتوصيل الرسالة! 🎉`, 'success');
+      showFeedback(`تم تشغيل مسار "${item.name_ar}" بنجاح! 🎉`, 'success');
       item.last_run_at = new Date().toISOString();
       item.last_status = 'success';
       await fetchLogs();
@@ -1170,8 +1171,8 @@ const formatRelativeTime = (dtStr?: string) => {
 
 .header-icon-wrap {
   position: relative;
-  width: 46px;
-  height: 46px;
+  width: 44px;
+  height: 44px;
   background: linear-gradient(135deg, #fef3c7, #fde68a);
   border-radius: var(--radius-md);
   display: flex;
@@ -1181,7 +1182,7 @@ const formatRelativeTime = (dtStr?: string) => {
 }
 
 .header-icon {
-  font-size: 1.6rem;
+  font-size: 1.5rem;
   line-height: 1;
   z-index: 2;
 }
@@ -1206,14 +1207,14 @@ const formatRelativeTime = (dtStr?: string) => {
 }
 
 .header-title h2 {
-  font-size: 1.35rem;
+  font-size: 1.3rem;
   font-weight: 900;
   color: var(--text-strong);
   margin: 0;
 }
 
 .header-title p {
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   color: var(--text-muted);
   margin: 2px 0 0 0;
 }
@@ -1272,13 +1273,13 @@ const formatRelativeTime = (dtStr?: string) => {
 }
 
 .stat-icon {
-  width: 44px;
-  height: 44px;
+  width: 42px;
+  height: 42px;
   border-radius: var(--radius-md);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.3rem;
+  font-size: 1.25rem;
 }
 
 .bg-primary-soft {
@@ -1313,7 +1314,7 @@ const formatRelativeTime = (dtStr?: string) => {
 }
 
 .stat-value {
-  font-size: 1.25rem;
+  font-size: 1.2rem;
   font-weight: 900;
   color: var(--text-strong);
   margin: 2px 0 0 0;
@@ -1357,21 +1358,24 @@ const formatRelativeTime = (dtStr?: string) => {
   }
 }
 
-/* ═══════════════════ Obsidian Graph & n8n Canvas Styles ═══════════════════ */
+/* ═══════════════════ Ultra-Modern Obsidian Neural Canvas ═══════════════════ */
 .obsidian-graph-wrapper {
   padding: 0;
   display: flex;
   flex-direction: column;
-  border: 1px solid #3d352e;
+  border: 1px solid #27221e;
   overflow: hidden;
   border-radius: var(--radius-lg);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+  background: #090807;
 }
 
+/* Floating Glass Top Bar */
 .graph-top-bar {
-  background: #181512;
-  border-bottom: 1px solid #332b24;
-  padding: 12px 20px;
+  background: rgba(18, 15, 13, 0.85);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  padding: 10px 18px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -1383,15 +1387,25 @@ const formatRelativeTime = (dtStr?: string) => {
 .graph-title-group {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
+}
+
+.live-status-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  padding: 3px 10px;
+  border-radius: 20px;
 }
 
 .beacon-circle {
-  width: 10px;
-  height: 10px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   background: #f59e0b;
-  box-shadow: 0 0 10px #f59e0b;
+  box-shadow: 0 0 8px #f59e0b;
   animation: beacon-pulse 1.8s infinite;
 }
 
@@ -1401,74 +1415,112 @@ const formatRelativeTime = (dtStr?: string) => {
   }
   50% {
     opacity: 1;
-    box-shadow: 0 0 16px #f59e0b;
+    box-shadow: 0 0 12px #f59e0b;
   }
   100% {
     opacity: 0.4;
   }
 }
 
-.graph-heading {
-  font-size: 0.95rem;
+.live-text {
+  font-size: 0.65rem;
   font-weight: 900;
-  color: #fff;
+  letter-spacing: 0.5px;
+  color: #fbbf24;
+}
+
+.graph-heading {
+  font-size: 0.92rem;
+  font-weight: 900;
+  color: #f5f5f4;
   margin: 0;
 }
 
 .graph-sub {
-  font-size: 0.72rem;
-  color: #a8a29e;
+  font-size: 0.7rem;
+  color: #78716c;
 }
 
 .graph-controls {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 }
 
-.graph-ctrl-btn {
-  background: #26211c;
-  border: 1px solid #443c34;
-  color: #f5f5f5;
-  padding: 6px 12px;
+.zoom-pill {
+  display: flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: var(--radius-sm);
-  font-size: 0.78rem;
+  padding: 2px 6px;
+  gap: 4px;
+}
+
+.ctrl-btn-icon {
+  background: transparent;
+  border: none;
+  color: #a8a29e;
+  cursor: pointer;
+  padding: 2px 6px;
+  font-size: 0.75rem;
+  transition: color 0.15s;
+}
+
+.ctrl-btn-icon:hover {
+  color: #fbbf24;
+}
+
+.zoom-value {
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #fbbf24;
+  min-width: 34px;
+  text-align: center;
+  font-family: monospace;
+}
+
+.graph-btn-secondary {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #d6d3d1;
+  padding: 5px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
   font-weight: 800;
   cursor: pointer;
   transition: all 0.2s;
 }
 
-.graph-ctrl-btn:hover {
-  background: #383028;
-  border-color: #f59e0b;
-  color: #fbbf24;
+.graph-btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: #fbbf24;
+  color: #fff;
 }
 
-.zoom-level-text {
+.graph-btn-laser {
+  background: linear-gradient(135deg, #d97706, #b45309);
+  border: 1px solid rgba(251, 191, 36, 0.4);
+  color: #fff;
+  padding: 5px 16px;
+  border-radius: var(--radius-sm);
   font-size: 0.75rem;
   font-weight: 900;
-  color: #fbbf24;
-  padding: 0 4px;
+  cursor: pointer;
+  box-shadow: 0 2px 12px rgba(217, 119, 6, 0.35);
+  transition: all 0.2s;
 }
 
-.fire-all-btn {
-  background: linear-gradient(135deg, #d97706, #b45309);
-  border: none;
-  color: #fff;
-  padding: 6px 16px;
-  box-shadow: 0 2px 10px rgba(217, 119, 6, 0.4);
-}
-
-.fire-all-btn:hover {
-  box-shadow: 0 4px 16px rgba(217, 119, 6, 0.7);
+.graph-btn-laser:hover {
+  box-shadow: 0 4px 20px rgba(217, 119, 6, 0.6);
   transform: translateY(-1px);
 }
 
-/* Obsidian Canvas Viewport */
+/* Canvas Viewport */
 .obsidian-canvas-viewport {
   width: 100%;
-  height: 720px;
-  background: #0d0c0b;
+  height: 600px;
+  background: #080706;
   position: relative;
   overflow: hidden;
   cursor: grab;
@@ -1479,16 +1531,48 @@ const formatRelativeTime = (dtStr?: string) => {
   cursor: grabbing;
 }
 
-/* Background Dot Matrix Pattern */
+/* Ambient Cosmic Nebulae */
+.nebula-glow {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(100px);
+  pointer-events: none;
+  opacity: 0.18;
+}
+
+.glow-amber {
+  width: 400px;
+  height: 400px;
+  background: #f59e0b;
+  left: 10%;
+  top: 10%;
+}
+
+.glow-cyan {
+  width: 450px;
+  height: 450px;
+  background: #38bdf8;
+  right: 10%;
+  bottom: 10%;
+}
+
+.glow-purple {
+  width: 350px;
+  height: 350px;
+  background: #818cf8;
+  left: 45%;
+  top: 30%;
+}
+
+/* Dot Grid */
 .obsidian-grid-pattern {
   position: absolute;
   width: 4000px;
   height: 4000px;
   left: -1000px;
   top: -1000px;
-  background-image: radial-gradient(#3a322a 1.2px, transparent 1.2px);
-  background-size: 24px 24px;
-  opacity: 0.45;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px);
+  background-size: 20px 20px;
   pointer-events: none;
 }
 
@@ -1502,7 +1586,7 @@ const formatRelativeTime = (dtStr?: string) => {
   pointer-events: none;
 }
 
-/* SVG Wires Layer */
+/* Wires Layer (Ultra-Thin Laser Splines) */
 .wires-svg-layer {
   position: absolute;
   left: 0;
@@ -1511,240 +1595,244 @@ const formatRelativeTime = (dtStr?: string) => {
   z-index: 1;
 }
 
-.bezier-wire-bg {
+.fiber-wire-base {
   fill: none;
-  stroke: #383028;
-  stroke-width: 3;
+  stroke: rgba(255, 255, 255, 0.08);
+  stroke-width: 1.5;
 }
 
-.bezier-wire-pulse {
+.fiber-wire-laser {
   fill: none;
-  stroke: url(#wire-amber-grad);
-  stroke-width: 3;
-  stroke-dasharray: 8 6;
-  animation: wire-flow 1.2s linear infinite;
-  opacity: 0.85;
+  stroke: url(#laser-stream-grad);
+  stroke-width: 2;
+  stroke-dasharray: 6 12;
+  animation: laser-dash-flow 1.5s linear infinite;
+  opacity: 0.7;
 }
 
-.bezier-wire-pulse.high-voltage {
+.fiber-wire-laser.active {
+  stroke-width: 3;
   stroke: #fbbf24;
-  stroke-width: 4.5;
-  animation: wire-flow 0.4s linear infinite;
+  animation: laser-dash-flow 0.4s linear infinite;
   opacity: 1;
 }
 
-@keyframes wire-flow {
+@keyframes laser-dash-flow {
   from {
-    stroke-dashoffset: 28;
+    stroke-dashoffset: 36;
   }
   to {
     stroke-dashoffset: 0;
   }
 }
 
-/* Obsidian Nodes */
-.obsidian-node {
+/* Compact Micro-Chip Nodes (Modern Sleek Dimensions) */
+.compact-node {
   position: absolute;
-  width: 260px;
-  background: rgba(26, 22, 19, 0.92);
-  backdrop-filter: blur(12px);
-  border: 1px solid #4a3e34;
-  border-radius: var(--radius-md);
-  padding: 14px;
+  width: 210px;
+  height: 68px;
+  background: rgba(18, 16, 14, 0.92);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 8px 12px;
   display: flex;
-  flex-direction: column;
-  gap: 8px;
+  align-items: center;
   cursor: grab;
   pointer-events: auto;
   z-index: 2;
   transition:
     border-color 0.2s,
     box-shadow 0.2s,
-    transform 0.1s;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    transform 0.15s;
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
-.obsidian-node:hover {
-  border-color: #f59e0b;
-  box-shadow: 0 12px 32px rgba(245, 158, 11, 0.2);
+.compact-node:hover {
+  border-color: rgba(245, 158, 11, 0.7);
+  box-shadow:
+    0 12px 30px rgba(245, 158, 11, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  transform: translateY(-2px);
   z-index: 5;
 }
 
-.obsidian-node.dragging {
+.compact-node.dragging {
   cursor: grabbing;
   border-color: #fbbf24;
   box-shadow: 0 16px 40px rgba(251, 191, 36, 0.35);
+  transform: scale(1.03);
   z-index: 10;
 }
 
-.obsidian-node.active {
+.compact-node.active {
   border-color: #fbbf24;
   box-shadow:
     0 0 0 2px rgba(251, 191, 36, 0.5),
-    0 12px 32px rgba(0, 0, 0, 0.5);
+    0 12px 32px rgba(0, 0, 0, 0.6);
 }
 
-.obsidian-node.executing {
-  animation: node-pulse-glow 0.8s infinite alternate;
+.compact-node.executing {
+  animation: node-chip-laser 0.6s infinite alternate;
 }
 
-@keyframes node-pulse-glow {
+@keyframes node-chip-laser {
   0% {
     border-color: #f59e0b;
-    box-shadow: 0 0 15px rgba(245, 158, 11, 0.3);
+    box-shadow: 0 0 15px rgba(245, 158, 11, 0.4);
   }
   100% {
     border-color: #10b981;
-    box-shadow: 0 0 25px rgba(16, 185, 129, 0.6);
+    box-shadow: 0 0 22px rgba(16, 185, 129, 0.7);
   }
 }
 
-/* Category Color Borders */
-.obsidian-node.trigger-cat {
-  border-right: 4px solid #f59e0b;
+/* Category Color Indicator Accent */
+.compact-node.trigger-cat {
+  border-right: 3px solid #f59e0b;
 }
 
-.obsidian-node.logic-cat {
-  border-right: 4px solid #6366f1;
+.compact-node.logic-cat {
+  border-right: 3px solid #6366f1;
 }
 
-.obsidian-node.storage-cat {
-  border-right: 4px solid #0ea5e9;
+.compact-node.security-cat {
+  border-right: 3px solid #ef4444;
 }
 
-.obsidian-node.action-cat {
-  border-right: 4px solid #10b981;
+.compact-node.storage-cat {
+  border-right: 3px solid #38bdf8;
+}
+
+.compact-node.action-cat {
+  border-right: 3px solid #10b981;
 }
 
 /* Sockets */
-.node-socket {
+.compact-socket {
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  width: 14px;
-  height: 14px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
-  background: #181512;
-  border: 2px solid #5a4c40;
+  background: #0d0b0a;
+  border: 1.5px solid rgba(255, 255, 255, 0.25);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 3;
 }
 
-.socket-input {
-  right: -7px;
+.socket-in {
+  right: -5px;
 }
 
-.socket-output {
-  left: -7px;
+.socket-out {
+  left: -5px;
 }
 
-.socket-dot {
-  width: 6px;
-  height: 6px;
+.socket-inner-ring {
+  width: 4px;
+  height: 4px;
   border-radius: 50%;
-  background: #f59e0b;
+  background: #fbbf24;
 }
 
-/* Node Internal Styling */
-.node-header {
+/* Node Inner Content */
+.compact-node-content {
   display: flex;
   align-items: center;
   gap: 10px;
+  width: 100%;
 }
 
-.node-icon-bubble {
-  width: 36px;
-  height: 36px;
-  border-radius: var(--radius-sm);
-  background: #2a231d;
-  border: 1px solid #524336;
+.node-icon-box {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.25rem;
+  font-size: 1.15rem;
+  flex-shrink: 0;
 }
 
-.node-meta {
+.node-text-group {
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+  flex-grow: 1;
 }
 
-.node-type-label {
-  font-size: 0.65rem;
-  font-weight: 800;
-  color: #a8a29e;
-  text-transform: uppercase;
-}
-
-.node-title {
-  font-size: 0.88rem;
-  font-weight: 900;
-  color: #fff;
-  margin: 0;
-}
-
-.node-desc {
-  font-size: 0.75rem;
-  color: #a8a29e;
-  line-height: 1.4;
-  margin: 0;
-}
-
-.node-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border-top: 1px solid #383028;
-  padding-top: 6px;
-  margin-top: 2px;
-}
-
-.node-status-badge {
+.node-meta-line {
   display: flex;
   align-items: center;
   gap: 4px;
-  font-size: 0.68rem;
-  font-weight: 800;
-  color: #10b981;
 }
 
-.node-status-badge .dot {
-  width: 6px;
-  height: 6px;
+.node-badge-tag {
+  font-size: 0.6rem;
+  font-weight: 800;
+  color: #a8a29e;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.node-mini-led {
+  width: 4px;
+  height: 4px;
   border-radius: 50%;
   background: #10b981;
 }
 
-.node-quick-run-btn {
+.node-compact-title {
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: #f5f5f4;
+  margin: 1px 0 0 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.node-trigger-pill {
   background: rgba(245, 158, 11, 0.15);
   border: 1px solid rgba(245, 158, 11, 0.4);
   color: #fbbf24;
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-size: 0.7rem;
-  font-weight: 800;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
-  transition: all 0.2s;
+  flex-shrink: 0;
+  transition: all 0.15s;
 }
 
-.node-quick-run-btn:hover {
+.node-trigger-pill:hover {
   background: #f59e0b;
   color: #000;
+  transform: scale(1.1);
 }
 
 /* Inspector Drawer Card */
 .node-inspector-drawer {
   position: absolute;
-  top: 20px;
-  left: 20px;
-  width: 280px;
-  background: rgba(22, 19, 16, 0.95);
-  backdrop-filter: blur(16px);
-  border: 1px solid #4a3e34;
+  top: 16px;
+  left: 16px;
+  width: 270px;
+  background: rgba(18, 15, 13, 0.95);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: var(--radius-md);
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
   z-index: 20;
   overflow: hidden;
 }
@@ -1754,8 +1842,8 @@ const formatRelativeTime = (dtStr?: string) => {
   justify-content: space-between;
   align-items: center;
   padding: 10px 14px;
-  background: #1a1612;
-  border-bottom: 1px solid #383028;
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .btn-close-mini {
@@ -1775,7 +1863,7 @@ const formatRelativeTime = (dtStr?: string) => {
   justify-content: space-between;
   align-items: center;
   padding: 4px 0;
-  border-bottom: 1px dashed #2e2721;
+  border-bottom: 1px dashed rgba(255, 255, 255, 0.08);
 }
 
 /* Section Cards & Grid */

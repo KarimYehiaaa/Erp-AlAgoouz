@@ -211,55 +211,57 @@
                         <!-- السطر الثاني: خيارات الأسعار حسب نوع التسعير -->
                         <div class="item-pricing-fields">
                           <!-- 1. أوزان البن القياسية (ثمن، ربع، نصف، كيلو) -->
-                          <div v-if="item.pricing_type === 'weights'" class="weights-editor-grid">
-                            <div class="weight-input-box">
-                              <span class="w-input-label">ثمن (١٢٥ج):</span>
-                              <input
-                                v-model.number="item.price_eighth"
-                                type="number"
-                                step="0.5"
-                                placeholder="ثمن"
-                                class="form-input text-center"
-                              />
-                            </div>
-                            <div class="weight-input-box">
-                              <span class="w-input-label">ربع (٢٥٠ج):</span>
-                              <input
-                                v-model.number="item.price_quarter"
-                                type="number"
-                                step="0.5"
-                                placeholder="ربع"
-                                class="form-input text-center"
-                              />
-                            </div>
-                            <div class="weight-input-box">
-                              <span class="w-input-label">نصف (٥٠٠ج):</span>
-                              <input
-                                v-model.number="item.price_half"
-                                type="number"
-                                step="0.5"
-                                placeholder="نصف"
-                                class="form-input text-center"
-                              />
-                            </div>
-                            <div class="weight-input-box">
-                              <span class="w-input-label">كيلو (١كج):</span>
-                              <input
-                                v-model.number="item.price_kilo"
-                                type="number"
-                                step="0.5"
-                                placeholder="كيلو"
-                                class="form-input text-center font-bold text-primary"
-                                @input="onKiloPriceChange(item)"
-                              />
+                          <div v-if="item.pricing_type === 'weights'" class="weights-editor-box">
+                            <div class="weights-editor-grid">
+                              <div class="weight-input-box">
+                                <span class="w-input-label">ثمن (١٢٥ج)</span>
+                                <input
+                                  v-model.number="item.price_eighth"
+                                  type="number"
+                                  step="0.5"
+                                  placeholder="ثمن"
+                                  class="form-input text-center"
+                                />
+                              </div>
+                              <div class="weight-input-box">
+                                <span class="w-input-label">ربع (٢٥٠ج)</span>
+                                <input
+                                  v-model.number="item.price_quarter"
+                                  type="number"
+                                  step="0.5"
+                                  placeholder="ربع"
+                                  class="form-input text-center"
+                                />
+                              </div>
+                              <div class="weight-input-box">
+                                <span class="w-input-label">نصف (٥٠٠ج)</span>
+                                <input
+                                  v-model.number="item.price_half"
+                                  type="number"
+                                  step="0.5"
+                                  placeholder="نصف"
+                                  class="form-input text-center"
+                                />
+                              </div>
+                              <div class="weight-input-box">
+                                <span class="w-input-label">كيلو (١كج)</span>
+                                <input
+                                  v-model.number="item.price_kilo"
+                                  type="number"
+                                  step="0.5"
+                                  placeholder="كيلو"
+                                  class="form-input text-center font-bold text-primary"
+                                  @input="onKiloPriceChange(item)"
+                                />
+                              </div>
                             </div>
                             <button
                               type="button"
-                              class="btn-calc-weights"
+                              class="btn-calc-weights-full"
                               title="حساب بقية الأوزان تلقائياً بناءً على سعر الكيلو"
                               @click="autoFillWeights(item)"
                             >
-                              ⚡ حساب تلقائي
+                              ⚡ حساب تلقائي (ثمن، ربع، نصف) من سعر الكيلو
                             </button>
                           </div>
 
@@ -548,27 +550,28 @@
             <input
               v-model="productsSearch"
               type="text"
-              placeholder="🔍 ابحث عن اسم المنتج أو الباركود..."
-              class="form-input"
+              placeholder="🔍 ابحث بالاسم، الباركود، أو التصنيف..."
+              class="form-input search-products-input"
             />
           </div>
 
-          <div class="products-pick-list custom-scrollbar">
+          <div class="products-pick-grid custom-scrollbar">
             <div
               v-for="prod in filteredProducts"
               :key="prod.id"
-              class="product-row-item"
+              class="product-picker-card"
               @click="addProductToMenu(prod)"
             >
-              <div class="prod-details">
-                <span class="prod-name font-bold">{{ prod.name_ar }}</span>
-                <span class="prod-category text-muted text-xs"
-                  >{{ prod.category_name || 'بدون تصنيف' }} · SKU: {{ prod.sku || '-' }}</span
-                >
+              <div class="prod-card-info">
+                <span class="prod-title">{{ prod.name_ar }}</span>
+                <div class="prod-tags">
+                  <span class="prod-tag-cat">{{ prod.category_name || 'عام' }}</span>
+                  <span v-if="prod.unit" class="prod-tag-unit">{{ prod.unit }}</span>
+                </div>
               </div>
-              <div class="prod-action">
-                <span class="prod-price font-extrabold">{{ prod.sale_price }} ج.م</span>
-                <button type="button" class="btn btn-xs btn-primary">+ إضافة</button>
+              <div class="prod-card-action">
+                <span class="prod-price-text">{{ prod.sale_price }} <small>ج.م</small></span>
+                <button type="button" class="btn-quick-add">+ إضافة</button>
               </div>
             </div>
           </div>
@@ -1094,12 +1097,12 @@ const addProductToMenu = (prod: any) => {
 /* مساحة العمل (Layout) */
 .builder-layout {
   display: grid;
-  grid-template-columns: 460px 1fr;
+  grid-template-columns: minmax(580px, 640px) 1fr;
   gap: var(--space-4);
   align-items: start;
 }
 
-@media (max-width: 1200px) {
+@media (max-width: 1300px) {
   .builder-layout {
     grid-template-columns: 1fr;
   }
@@ -1111,6 +1114,7 @@ const addProductToMenu = (prod: any) => {
   flex-direction: column;
   max-height: calc(100vh - 180px);
   overflow-y: auto;
+  box-shadow: none !important;
 }
 
 /* تبويبات التنقل */
@@ -1143,7 +1147,7 @@ const addProductToMenu = (prod: any) => {
 .tab-btn.active {
   background: var(--bg-card);
   color: var(--primary);
-  box-shadow: var(--shadow-sm);
+  box-shadow: none;
 }
 
 .badge-count {
@@ -1169,24 +1173,25 @@ const addProductToMenu = (prod: any) => {
 
 /* كارت القسم */
 .category-editor-card {
-  background: var(--surface-2);
-  border: 1px solid var(--border);
+  background: var(--bg-card);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
   margin-bottom: var(--space-3);
   overflow: hidden;
+  box-shadow: none !important;
   transition: border-color var(--transition);
 }
 
 .category-editor-card:hover {
-  border-color: var(--border-strong);
+  border-color: var(--primary);
 }
 
 .cat-head {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 12px;
-  background: var(--surface-3);
+  padding: 10px 14px;
+  background: var(--surface-2);
   border-bottom: 1px solid var(--border);
 }
 
@@ -1200,8 +1205,9 @@ const addProductToMenu = (prod: any) => {
 .page-indicator {
   font-size: 0.72rem;
   font-weight: 800;
-  padding: 2px 8px;
+  padding: 3px 8px;
   border-radius: var(--radius-xs);
+  white-space: nowrap;
 }
 
 .page-indicator.front {
@@ -1218,23 +1224,23 @@ const addProductToMenu = (prod: any) => {
   font-size: 0.95rem;
   font-weight: 800;
   color: var(--text-strong);
-  background: transparent;
-  border: 1px solid transparent;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
   border-radius: var(--radius-xs);
-  padding: 2px 6px;
-  width: 55%;
+  padding: 4px 8px;
+  width: 65%;
   outline: none;
+  box-shadow: none;
 }
 
 .cat-title-input:focus {
-  background: var(--bg-card);
-  border-color: var(--border-strong);
+  border-color: var(--primary);
 }
 
 .cat-head-actions {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
 }
 
 .side-toggle-btn {
@@ -1249,6 +1255,7 @@ const addProductToMenu = (prod: any) => {
   border: 1px solid var(--border);
   color: var(--text);
   cursor: pointer;
+  box-shadow: none;
 }
 
 .icon-btn-delete {
@@ -1285,11 +1292,12 @@ const addProductToMenu = (prod: any) => {
 }
 
 .item-row-card {
-  background: var(--bg-card);
+  background: var(--surface-1);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  padding: 8px;
-  margin-bottom: 6px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  box-shadow: none !important;
 }
 
 .item-row-primary {
@@ -1303,34 +1311,27 @@ const addProductToMenu = (prod: any) => {
 .item-input-name {
   flex: 1;
   font-weight: 700;
-  font-size: 0.85rem;
+  font-size: 0.88rem;
   padding: 4px 8px;
-}
-
-.item-pricing-type-select {
-  font-size: 0.78rem;
-  padding: 3px 6px;
-  border-radius: var(--radius-xs);
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  color: var(--text-strong);
-  font-weight: 700;
-  max-width: 170px;
+  box-shadow: none !important;
 }
 
 .item-pricing-fields {
   margin-bottom: 6px;
+}
+
+.weights-editor-box {
   background: var(--surface-2);
-  padding: 6px 8px;
+  border: 1px solid var(--border);
   border-radius: var(--radius-xs);
-  border: 1px dashed var(--border);
+  padding: 8px;
 }
 
 .weights-editor-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr) auto;
+  grid-template-columns: repeat(4, 1fr);
   gap: 6px;
-  align-items: center;
+  margin-bottom: 6px;
 }
 
 .weight-input-box {
@@ -1343,28 +1344,30 @@ const addProductToMenu = (prod: any) => {
   font-size: 0.7rem;
   font-weight: 800;
   color: var(--text-muted);
+  text-align: center;
 }
 
 .weight-input-box input {
-  padding: 3px 4px;
-  font-size: 0.8rem;
+  padding: 4px;
+  font-size: 0.82rem;
+  box-shadow: none !important;
 }
 
-.btn-calc-weights {
+.btn-calc-weights-full {
+  width: 100%;
+  padding: 5px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  border-radius: var(--radius-xs);
   background: var(--bg-card);
   border: 1px solid var(--primary-soft);
   color: var(--primary);
-  font-size: 0.72rem;
-  font-weight: 800;
-  padding: 6px 8px;
-  border-radius: var(--radius-xs);
   cursor: pointer;
-  white-space: nowrap;
   transition: all var(--transition);
-  margin-top: 14px;
+  box-shadow: none;
 }
 
-.btn-calc-weights:hover {
+.btn-calc-weights-full:hover {
   background: var(--primary);
   color: #fff;
 }
@@ -1374,15 +1377,20 @@ const addProductToMenu = (prod: any) => {
   display: flex;
   align-items: center;
   gap: var(--space-2);
+  background: var(--surface-2);
+  padding: 6px 8px;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--border);
 }
 
 .item-input-price {
-  width: 70px;
+  width: 76px;
   text-align: center;
   font-weight: 800;
   color: var(--primary);
   padding: 4px;
   font-size: 0.85rem;
+  box-shadow: none !important;
 }
 
 .currency-tag {
@@ -1399,20 +1407,10 @@ const addProductToMenu = (prod: any) => {
 
 .item-input-desc {
   flex: 1;
-  font-size: 0.75rem;
+  font-size: 0.78rem;
   color: var(--text-muted);
-  padding: 2px 6px;
-}
-
-.featured-toggle {
-  display: flex;
-  align-items: center;
-  gap: 3px;
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: var(--primary);
-  cursor: pointer;
-  white-space: nowrap;
+  padding: 3px 6px;
+  box-shadow: none !important;
 }
 
 .item-delete-btn {
@@ -1420,7 +1418,7 @@ const addProductToMenu = (prod: any) => {
   border: none;
   color: var(--danger);
   cursor: pointer;
-  padding: 2px;
+  padding: 3px;
 }
 
 /* نموذج الهوية */
@@ -1430,6 +1428,7 @@ const addProductToMenu = (prod: any) => {
   border-radius: var(--radius-md);
   padding: var(--space-3);
   margin-bottom: var(--space-3);
+  box-shadow: none !important;
 }
 
 .form-section-title {
@@ -1464,6 +1463,7 @@ const addProductToMenu = (prod: any) => {
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: none;
 }
 
 .logo-thumb {
@@ -1479,6 +1479,7 @@ const addProductToMenu = (prod: any) => {
   flex-direction: column;
   align-items: center;
   background: var(--surface-2);
+  box-shadow: none !important;
 }
 
 .preview-toolbar {
@@ -1491,6 +1492,7 @@ const addProductToMenu = (prod: any) => {
   border-radius: var(--radius-md);
   border: 1px solid var(--border);
   margin-bottom: var(--space-4);
+  box-shadow: none;
 }
 
 .preview-badge-status {
@@ -1531,6 +1533,7 @@ const addProductToMenu = (prod: any) => {
   color: var(--text);
   cursor: pointer;
   transition: all var(--transition);
+  box-shadow: none;
 }
 
 .btn-zoom.active {
@@ -1553,7 +1556,7 @@ const addProductToMenu = (prod: any) => {
   transition: transform 0.2s ease-out;
 }
 
-/* المودال */
+/* المودال الشامل والمريح */
 .modal-overlay {
   position: fixed;
   inset: 0;
@@ -1566,11 +1569,12 @@ const addProductToMenu = (prod: any) => {
 }
 
 .products-modal {
-  width: 520px;
-  max-width: 90vw;
+  width: 820px;
+  max-width: 95vw;
   background: var(--bg-card);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--border-strong);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.2);
   overflow: hidden;
 }
 
@@ -1580,6 +1584,7 @@ const addProductToMenu = (prod: any) => {
   align-items: center;
   padding: var(--space-3) var(--space-4);
   border-bottom: 1px solid var(--border);
+  background: var(--surface-2);
 }
 
 .modal-header-title {
@@ -1594,46 +1599,105 @@ const addProductToMenu = (prod: any) => {
   padding: var(--space-4);
 }
 
-.products-pick-list {
-  max-height: 280px;
-  overflow-y: auto;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+.search-products-input {
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 0.9rem;
+  box-shadow: none !important;
 }
 
-.product-row-item {
+.products-pick-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  max-height: 400px;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+@media (max-width: 680px) {
+  .products-pick-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.product-picker-card {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 12px;
-  border-bottom: 1px solid var(--border);
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: all 0.15s;
+  box-shadow: none;
+}
+
+.product-picker-card:hover {
+  background: var(--surface-2);
+  border-color: var(--primary);
+  transform: translateY(-1px);
+}
+
+.prod-card-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.prod-title {
+  font-size: 0.92rem;
+  font-weight: 800;
+  color: var(--text-strong);
+}
+
+.prod-tags {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.prod-tag-cat {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--primary);
+  background: var(--surface-3);
+  padding: 1px 6px;
+  border-radius: var(--radius-xs);
+}
+
+.prod-tag-unit {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.prod-card-action {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.prod-price-text {
+  font-size: 1.05rem;
+  font-weight: 900;
+  color: var(--primary);
+}
+
+.btn-quick-add {
+  padding: 5px 12px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  border-radius: var(--radius-xs);
+  background: var(--primary);
+  color: #fff;
+  border: none;
   cursor: pointer;
   transition: background var(--transition);
 }
 
-.product-row-item:hover {
-  background: var(--surface-2);
-}
-
-.prod-details {
-  display: flex;
-  flex-direction: column;
-}
-
-.prod-name {
-  font-size: 0.88rem;
-  color: var(--text-strong);
-}
-
-.prod-action {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.prod-price {
-  font-size: 0.95rem;
-  color: var(--primary);
+.btn-quick-add:hover {
+  background: var(--primary-strong);
 }
 
 .modal-footer {

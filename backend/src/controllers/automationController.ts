@@ -7,6 +7,7 @@ import { Request, Response, NextFunction } from 'express';
 import AutomationService from '../services/automationService.ts';
 import SchedulerService from '../services/schedulerService.ts';
 import TelegramService from '../services/telegramService.ts';
+import TelegramBotService from '../services/telegramBotService.ts';
 
 export class AutomationController {
   /**
@@ -51,6 +52,10 @@ export class AutomationController {
       const updated = await AutomationService.updateAutomation(req.params.id as string, req.body);
       // إعادة تحميل الجدولة بعد التعديل
       await SchedulerService.reloadSchedules();
+      // إذا تم تعديل إعدادات تليجرام، يتم تحديث محرك البوت التفاعلي فوراً
+      if (req.body?.config?.bot_token) {
+        TelegramBotService.restartListening().catch(() => {});
+      }
       res.json({
         success: true,
         message: 'تم حفظ إعدادات الأتمتة بنجاح',
@@ -95,6 +100,9 @@ export class AutomationController {
           message: result.error || 'فشل إرسال رسالة الاختبار',
         });
       }
+
+      // تشغيل الاستماع فور نجاح الاختبار
+      TelegramBotService.restartListening().catch(() => {});
 
       res.json({
         success: true,

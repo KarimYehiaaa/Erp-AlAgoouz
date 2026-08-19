@@ -14,21 +14,60 @@ export class TelegramBotService {
   private static isPolling = false;
   private static lastUpdateId = 0;
   private static pollingInterval: NodeJS.Timeout | null = null;
+  private static cachedToken: string | null = null;
+
+  /**
+   * جلب بيانات اعتماد بوت تليجرام (من المتغيرات البيئية أو قاعدة البيانات)
+   */
+  static async getBotCredentials(): Promise<{ token: string; defaultChatId: string }> {
+    let token = (process.env.TELEGRAM_BOT_TOKEN || '').trim();
+    let defaultChatId = (process.env.TELEGRAM_CHAT_ID || '').trim();
+
+    if (!token || !defaultChatId) {
+      try {
+        const res = await db.query(
+          `SELECT config FROM automations 
+           WHERE config->>'bot_token' IS NOT NULL 
+             AND config->>'bot_token' != '' 
+           LIMIT 1`,
+        );
+        if (res.rows.length > 0) {
+          const cfg = res.rows[0].config;
+          if (!token && cfg.bot_token) token = String(cfg.bot_token).trim();
+          if (!defaultChatId && cfg.chat_id) defaultChatId = String(cfg.chat_id).trim();
+        }
+      } catch (err: any) {
+        logger.warn(`⚠️ [Telegram Bot] تعذر قراءة إعدادات تليجرام من DB: ${err.message}`);
+      }
+    }
+
+    return { token, defaultChatId };
+  }
 
   /**
    * بدء الاستماع التلقائي للأوامر الواردة (Long Polling)
    */
   static async startListening() {
-    if (this.isPolling || process.env.VERCEL) return;
+    if (this.isPolling) return;
 
-    const token = process.env.TELEGRAM_BOT_TOKEN;
+    const { token } = await this.getBotCredentials();
     if (!token) {
       logger.info('ℹ️ [Telegram Bot] لم يتم ضبط TELEGRAM_BOT_TOKEN — الاستماع التفاعلي معطل.');
       return;
     }
 
+    this.cachedToken = token;
     this.isPolling = true;
     logger.info('🤖 [Telegram Bot] بدء الاستماع التفاعلي لأوامر تليجرام (2-Way Commands)...');
+
+    // مسح أي Webhook سابق لتفادي خطأ 409 Conflict مع Long Polling
+    try {
+      await fetch(`https://api.telegram.org/bot${token}/deleteWebhook?drop_pending_updates=false`);
+    } catch {
+      // Ignore network hiccups on webhook clear
+    }
+
+    if (this.pollingInterval) clearInterval(this.pollingInterval);
 
     this.pollingInterval = setInterval(async () => {
       try {
@@ -36,15 +75,31 @@ export class TelegramBotService {
       } catch (err: any) {
         // Silent loop error
       }
-    }, 3000);
+    }, 2000);
+  }
+
+  /**
+   * إعادة تشغيل الاستماع (عند تحديث الإعدادات من الواجهة)
+   */
+  static async restartListening() {
+    this.isPolling = false;
+    if (this.pollingInterval) {
+      clearInterval(this.pollingInterval);
+      this.pollingInterval = null;
+    }
+    await this.startListening();
   }
 
   /**
    * جلب التحديثات ومعالجة الرسائل الواردة
    */
   private static async pollUpdates() {
-    const token = process.env.TELEGRAM_BOT_TOKEN;
-    if (!token) return;
+    const { token } = await this.getBotCredentials();
+    if (!token) {
+      this.isPolling = false;
+      if (this.pollingInterval) clearInterval(this.pollingInterval);
+      return;
+    }
 
     try {
       const url = `https://api.telegram.org/bot${token}/getUpdates?offset=${this.lastUpdateId + 1}&timeout=2`;
@@ -56,7 +111,7 @@ export class TelegramBotService {
       for (const update of data.result) {
         this.lastUpdateId = update.update_id;
         if (update.message?.text) {
-          await this.handleIncomingMessage(update.message);
+          await this.handleIncomingMessage(update.message, token);
         }
       }
     } catch (err: any) {
@@ -67,22 +122,47 @@ export class TelegramBotService {
   /**
    * معالجة الرسالة الواردة وتنفيذ الأمر المناسب
    */
-  static async handleIncomingMessage(message: any) {
-    const text = (message.text || '').trim();
+  static async handleIncomingMessage(message: any, overrideToken?: string) {
+    const rawText = (message.text || '').trim();
     const chatId = String(message.chat?.id || '');
-    const userName = message.from?.first_name || 'يا فندم';
+    const userName = message.from?.first_name || message.from?.username || 'يا فندم';
 
-    const cmd = text.toLowerCase().split(' ')[0].split('@')[0];
+    if (!rawText || !chatId) return;
 
-    logger.info(`📨 [Telegram Bot] استلام أمر: "${text}" من شات: ${chatId}`);
+    const { token: defaultToken } = await this.getBotCredentials();
+    const token = overrideToken || defaultToken;
 
-    switch (cmd) {
-      case '/start':
-      case '/help':
-      case '/اوامر':
-      case '/أوامر':
-      case 'اوامر':
-      case 'أوامر': {
+    // توحيد الحروف وإزالة اللواحق والتنقيط
+    const normalized = rawText
+      .replace(/^[/\\#@]/, '')
+      .split('@')[0]
+      .trim()
+      .toLowerCase();
+
+    logger.info(`📨 [Telegram Bot] استلام أمر: "${rawText}" (${normalized}) من شات: ${chatId}`);
+
+    const reply = async (htmlContent: string) => {
+      await TelegramService.sendMessage(htmlContent, { chatId, botToken: token }, 'HTML');
+    };
+
+    try {
+      // 1. أوامر المساعدة والترحيب
+      if (
+        [
+          'start',
+          'help',
+          'اوامر',
+          'أوامر',
+          'الاوامر',
+          'الأوامر',
+          'مساعدة',
+          'مساعده',
+          'هلا',
+          'مرحبا',
+          'سلام',
+          'menu',
+        ].includes(normalized)
+      ) {
         const welcomeText = `
 ☕ <b>أهلاً بك في بوت بن العجوز ERP الذكي</b> 🤖
 ═════════════════════════
@@ -96,35 +176,56 @@ export class TelegramBotService {
 ⚡ <b>/health أو /سيرفر</b> ⬅️ حالة السيرفر وسلامة قاعدة البيانات
 
 ═════════════════════════
-🚀 <i>اكتب أي أمر وسأجيبك بأحدث أرقام النظام فوراً!</i>
+🚀 <i>اكتب أي أمر مباشرة وسأجيبك بأحدث أرقام النظام فوراً!</i>
         `.trim();
-        await TelegramService.sendMessage(welcomeText, { chatId });
-        break;
+        await reply(welcomeText);
+        return;
       }
 
-      case '/sales':
-      case '/مبيعات':
-      case 'مبيعات': {
+      // 2. أمر المبيعات الحية
+      if (
+        [
+          'sales',
+          'مبيعات',
+          'المبيعات',
+          'تقرير_المبيعات',
+          'تقرير',
+          'التقرير',
+          'تقرير_اليوم',
+        ].includes(normalized)
+      ) {
         const auto = await AutomationService.getAutomationByKey('daily_sales_report');
         const report = await (AutomationService as any).generateDailySalesReport(
           auto?.config || {},
         );
-        await TelegramService.sendMessage(report.htmlMessage, { chatId });
-        break;
+        await reply(report.htmlMessage);
+        return;
       }
 
-      case '/stock':
-      case '/نواقص':
-      case '/مخزون':
-      case 'نواقص': {
+      // 3. أمر النواقص والمخزون
+      if (
+        ['stock', 'نواقص', 'النواقص', 'مخزون', 'المخزون', 'خامات', 'الخامات'].includes(normalized)
+      ) {
         const stockAlert = await (AutomationService as any).generateLowStockAlert({});
-        await TelegramService.sendMessage(stockAlert.htmlMessage, { chatId });
-        break;
+        await reply(stockAlert.htmlMessage);
+        return;
       }
 
-      case '/cash':
-      case '/خزينة':
-      case 'خزينة': {
+      // 4. أمر الخزينة والسيولة النقدية الحية
+      if (
+        [
+          'cash',
+          'خزينة',
+          'الخزينة',
+          'خزينه',
+          'الخزينه',
+          'كاش',
+          'الكاش',
+          'درج',
+          'الدرج',
+          'فلوس',
+        ].includes(normalized)
+      ) {
         const today = new Date().toISOString().slice(0, 10);
         const cashRes = await db.query(
           `SELECT
@@ -152,43 +253,44 @@ export class TelegramBotService {
 💰 <b>إجمالي المبيعات المحصلة:</b> ${Number(c.total_collected).toLocaleString()} ج.م
 📈 <b>أرباح اليوم التقديرية:</b> ${Number(c.total_profit).toLocaleString()} ج.م
 📉 <b>مصروفات نقدية خرجت اليوم:</b> ${expToday.toLocaleString()} ج.م
-⚖️ <b>صافي السيولة النقدية:</b> <b>${netCash.toLocaleString()} ج.م</b>
+⚖️ <b>صافي السيولة النقدية بالدرج:</b> <b>${netCash.toLocaleString()} ج.م</b>
         `.trim();
-        await TelegramService.sendMessage(cashMsg, { chatId });
-        break;
+        await reply(cashMsg);
+        return;
       }
 
-      case '/balance':
-      case '/مناقلات':
-      case '/فروع':
-      case 'مناقلات': {
+      // 5. أمر مناقلات الفروع الذكية
+      if (['balance', 'مناقلات', 'المناقلات', 'فروع', 'الفروع', 'توازن'].includes(normalized)) {
         const bal = await BranchBalancingService.generateBalancingRecommendations();
-        await TelegramService.sendMessage(bal.htmlReport, { chatId });
-        break;
+        await reply(bal.htmlReport);
+        return;
       }
 
-      case '/cashflow':
-      case '/سيولة':
-      case 'سيولة': {
+      // 6. أمر توقعات درع السيولة
+      if (
+        ['cashflow', 'سيولة', 'السيولة', 'سيوله', 'السيوله', 'تدفق', 'التدفق'].includes(normalized)
+      ) {
         const shield = await (AutomationService as any).generateCashFlowRiskReport();
-        await TelegramService.sendMessage(shield.htmlMessage, { chatId });
-        break;
+        await reply(shield.htmlMessage);
+        return;
       }
 
-      case '/health':
-      case '/سيرفر': {
+      // 7. أمر فحص حالة السيرفر
+      if (['health', 'سيرفر', 'السيرفر', 'سيستم', 'السيستم', 'فحص', 'الفحص'].includes(normalized)) {
         const health = await (AutomationService as any).generateSystemHealthSummary();
-        await TelegramService.sendMessage(health.htmlMessage, { chatId });
-        break;
+        await reply(health.htmlMessage);
+        return;
       }
 
-      default: {
-        const unknownText = `
-❓ <b>عفواً، لم أتعرف على الأمر "${text}".</b>
-اكتب <b>/اوامر</b> لعرض قائمة الأوامر التفاعلية المتاحة. ☕
-        `.trim();
-        await TelegramService.sendMessage(unknownText, { chatId });
-      }
+      // 8. في حال عدم التعرف على الأمر
+      const unknownText = `
+❓ <b>عفواً، لم أتعرف على الأمر "${rawText}".</b>
+اكتب <b>/اوامر</b> لعرض قائمة الأوامر التفاعلية المتاحة للنظام. ☕
+      `.trim();
+      await reply(unknownText);
+    } catch (err: any) {
+      logger.error(`❌ [Telegram Bot] خطأ أثناء معالجة الأمر: ${err.message}`);
+      await reply(`⚠️ <b>عفواً، حدث خطأ أثناء تنفيذ الأمر:</b> ${err.message}`);
     }
   }
 }

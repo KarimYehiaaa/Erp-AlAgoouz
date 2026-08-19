@@ -107,68 +107,55 @@
       </div>
     </div>
 
-    <!-- ═══════════════════ العرض الأول: المنظومة الكونية ثلاثية الأبعاد (Cosmic 3D Orbs Network) ═══════════════════ -->
-    <div v-if="viewMode === 'graph'" class="cosmic-canvas-wrapper card">
-      <!-- شريط القيادة الفضائي العائم (Cosmic Glass HUD) -->
-      <div class="cosmic-hud-bar">
-        <div class="hud-left-group">
-          <div class="cosmic-badge">
-            <span class="cosmic-pulse-dot"></span>
-            <span class="cosmic-badge-title">COSMIC 3D NETWORK</span>
+    <!-- ═══════════════════ العرض الأول: شبكة الأتمتة التفاعلية الحديثة (Interactive Node Network) ═══════════════════ -->
+    <div v-if="viewMode === 'graph'" class="clean-network-wrapper card">
+      <!-- شريط أدوات الكانفاس الأنيق -->
+      <div class="network-toolbar">
+        <div class="toolbar-left">
+          <div class="network-status-badge">
+            <span class="live-dot"></span>
+            <span class="status-title">شبكة الأتمتة المباشرة</span>
           </div>
-          <div class="hud-meta">
-            <span class="hud-title">المنظومة العصبية الكونية للأتمتة</span>
-            <span class="hud-subtitle"
-              >✨ أجرام زجاجية ثلاثية الأبعاد تدور بفيزياء الجاذبية الحية مع جزيئات الفضاء</span
-            >
-          </div>
+          <span class="toolbar-subtitle">مخطط تفاعلي حي للعقد والمسارات البرمجية</span>
         </div>
 
-        <div class="hud-controls">
-          <!-- زر تشغيل/إيقاف الدوران المداري -->
+        <div class="toolbar-actions">
+          <!-- زر تشغيل/إيقاف الحركة -->
           <button
             type="button"
-            class="hud-btn"
+            class="toolbar-btn"
             :class="{ active: isRotating }"
-            :title="isRotating ? 'إيقاف الدوران المداري' : 'تشغيل الدوران المداري'"
+            :title="isRotating ? 'إيقاف الحركة' : 'تشغيل الحركة'"
             @click="toggleRotation"
           >
-            <span>{{ isRotating ? '⏸️ إيقاف الدوران' : '▶️ تشغيل الدوران' }}</span>
-          </button>
-
-          <!-- زر ضخ طاقة سوبرنوفا -->
-          <button
-            type="button"
-            class="hud-btn hud-btn-supernova"
-            :disabled="isFiringAll"
-            @click="simulateFullNetworkPulse"
-          >
-            <span>{{ isFiringAll ? '⚡ سريان السوبرنوفا...' : '🚀 ضخ طاقة كونية' }}</span>
+            <AppIcon :name="isRotating ? 'timerOff' : 'timer'" :size="14" />
+            <span>{{ isRotating ? 'إيقاف الدوران' : 'تشغيل الدوران' }}</span>
           </button>
 
           <!-- أدوات التكبير والتصغير -->
-          <div class="hud-zoom-pill">
-            <button type="button" class="hud-icon-btn" title="تصغير" @click="zoomOut">➖</button>
-            <span class="hud-zoom-val">{{ Math.round(zoomLevel * 100) }}%</span>
-            <button type="button" class="hud-icon-btn" title="تكبير" @click="zoomIn">➕</button>
+          <div class="zoom-controls">
+            <button type="button" class="zoom-btn" title="تصغير" @click="zoomOut">−</button>
+            <span class="zoom-text">{{ Math.round(zoomLevel * 100) }}%</span>
+            <button type="button" class="zoom-btn" title="تكبير" @click="zoomIn">+</button>
           </div>
 
           <!-- زر إعادة التمركز -->
           <button
             type="button"
-            class="hud-btn"
-            title="إعادة ضبط وتمركز المنظومة"
+            class="toolbar-btn"
+            title="إعادة تمركز المخطط"
             @click="resetPhysicsAndCenter"
           >
-            <span>🎯 إعادة التمركز</span>
+            <AppIcon name="refresh" :size="14" />
+            <span>إعادة التمركز</span>
           </button>
         </div>
       </div>
 
-      <!-- مساحة الكانفاس الفضائية التفاعلية (3D Deep Space Viewport) -->
+      <!-- مساحة الكانفاس التفاعلية -->
       <div
         ref="canvasContainerRef"
-        class="cosmic-viewport"
+        class="clean-canvas-viewport"
         :class="{ dragging: isPanning }"
         @mousedown="handleCanvasMouseDown"
         @mousemove="handleCanvasMouseMove"
@@ -176,99 +163,47 @@
         @mouseleave="handleCanvasMouseUp"
         @wheel.prevent="handleCanvasWheel"
       >
-        <!-- سحب السديم الكوني متعدد الطبقات (Multi-Layer Cosmic Nebulae) -->
-        <div class="cosmic-nebula nebula-core"></div>
-        <div class="cosmic-nebula nebula-amber"></div>
-        <div class="cosmic-nebula nebula-cyan"></div>
-        <div class="cosmic-nebula nebula-rose"></div>
-
-        <!-- حقل النجوم والجزيئات المتطايرة (Floating Stardust Particles) -->
-        <div class="stardust-field">
-          <div
-            v-for="star in cosmicStars"
-            :key="star.id"
-            class="stardust-particle"
-            :style="{
-              left: `${star.x}%`,
-              top: `${star.y}%`,
-              width: `${star.size}px`,
-              height: `${star.size}px`,
-              opacity: star.opacity,
-              animationDuration: `${star.duration}s`,
-              animationDelay: `${star.delay}s`,
-              backgroundColor: star.color,
-            }"
-          ></div>
-        </div>
-
-        <!-- شبكة الفضاء النقطية المتقاطعة -->
+        <!-- شبكة الخلفية النقطية الهادئة -->
         <div
-          class="cosmic-grid-pattern"
+          class="canvas-grid-bg"
           :style="{
             transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoomLevel})`,
           }"
         ></div>
 
-        <!-- مساحة التحويل ثلاثية الأبعاد (3D Transform Layer) -->
+        <!-- مساحة التحويل الرئيسية -->
         <div
-          class="cosmic-transform-layer"
+          class="canvas-nodes-layer"
           :style="{
             transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoomLevel})`,
           }"
         >
-          <!-- طبقة مسارات الجاذبية والأشعة الليزرية SVG -->
-          <svg class="cosmic-svg-layer" width="3000" height="2000">
-            <defs>
-              <!-- تدرجات الأشعة الكونية -->
-              <linearGradient id="laser-gold" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stop-color="#fbbf24" stop-opacity="0.9" />
-                <stop offset="50%" stop-color="#f59e0b" stop-opacity="0.6" />
-                <stop offset="100%" stop-color="#38bdf8" stop-opacity="0.9" />
-              </linearGradient>
-
-              <linearGradient id="laser-active" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stop-color="#f43f5e" stop-opacity="1" />
-                <stop offset="50%" stop-color="#fbbf24" stop-opacity="1" />
-                <stop offset="100%" stop-color="#34d399" stop-opacity="1" />
-              </linearGradient>
-
-              <!-- فلتر التوهج النيون للأشعة -->
-              <filter id="beam-glow" x="-30%" y="-30%" width="160%" height="160%">
-                <feGaussianBlur stdDeviation="3" result="blur1" />
-                <feGaussianBlur stdDeviation="6" result="blur2" />
-                <feMerge>
-                  <feMergeNode in="blur2" />
-                  <feMergeNode in="blur1" />
-                  <feMergeNode in="SourceGraphic" />
-                </feMerge>
-              </filter>
-            </defs>
-
-            <!-- مدارات الجاذبية الإهليلجية ثلاثية الأبعاد -->
+          <!-- طبقة التوصيلات والمسارات SVG -->
+          <svg class="network-svg-layer" width="3000" height="2000">
+            <!-- مسارات المدارات الدائرية الهادئة -->
             <ellipse
               :cx="centerCoord.x"
               :cy="centerCoord.y"
               rx="170"
               ry="125"
-              class="gravity-orbit-track orbit-inner"
+              class="orbit-guide-line"
             />
             <ellipse
               :cx="centerCoord.x"
               :cy="centerCoord.y"
               rx="265"
               ry="190"
-              class="gravity-orbit-track orbit-outer"
+              class="orbit-guide-line outer"
             />
 
-            <!-- كابلات الأشعة العصبية المنسابة بين الأجرام -->
-            <g v-for="link in graphLinks" :key="link.id" class="beam-group">
-              <!-- شعاع الخلفية الهادئ -->
+            <!-- كابلات الربط بين العقد -->
+            <g v-for="link in graphLinks" :key="link.id" class="connection-group">
               <line
                 :x1="getNodePos(link.from).x"
                 :y1="getNodePos(link.from).y"
                 :x2="getNodePos(link.to).x"
                 :y2="getNodePos(link.to).y"
-                class="cosmic-beam-base"
+                class="network-wire"
                 :class="{
                   highlighted:
                     hoveredNodeId === link.from ||
@@ -278,85 +213,48 @@
                   dimmed: hoveredNodeId && hoveredNodeId !== link.from && hoveredNodeId !== link.to,
                 }"
               />
-
-              <!-- تيار الفوتونات الضوئية الجاري على الشعاع -->
-              <line
-                :x1="getNodePos(link.from).x"
-                :y1="getNodePos(link.from).y"
-                :x2="getNodePos(link.to).x"
-                :y2="getNodePos(link.to).y"
-                class="cosmic-beam-laser"
-                :class="{
-                  active: isFiringAll || triggeringId === link.automationId,
-                  highlighted:
-                    hoveredNodeId === link.from ||
-                    hoveredNodeId === link.to ||
-                    selectedNode?.id === link.from ||
-                    selectedNode?.id === link.to,
-                }"
-                filter="url(#beam-glow)"
-              />
             </g>
           </svg>
 
-          <!-- طبقة الأجرام الكروية الزجاجية ثلاثية الأبعاد (3D Glass Orbs) -->
+          <!-- طبقة العقد التفاعلية (Clean Glass Nodes with Vector Icons) -->
           <div
             v-for="node in graphNodes"
             :key="node.id"
-            class="cosmic-orb-body"
+            class="vector-node-card"
             :class="[
               node.category,
               {
-                'is-nucleus': node.isCenter,
+                'is-center-node': node.isCenter,
                 'is-active': selectedNode?.id === node.id,
                 'is-hovered': hoveredNodeId === node.id,
                 'is-dimmed':
                   hoveredNodeId && hoveredNodeId !== node.id && !isNeighbor(hoveredNodeId, node.id),
-                'is-supernova': isFiringAll || triggeringId === node.automationId,
                 'is-dragging': draggedNodeId === node.id,
               },
             ]"
             :style="{
-              transform: `translate3d(${node.x - node.radius}px, ${node.y - node.radius}px, 0) scale(${node.scale3d || 1})`,
+              transform: `translate3d(${node.x - node.radius}px, ${node.y - node.radius}px, 0)`,
               width: `${node.radius * 2}px`,
               height: `${node.radius * 2}px`,
-              zIndex: node.zIndex || 2,
             }"
             @mousedown.stop="handleNodeMouseDown(node, $event)"
             @mouseenter="hoveredNodeId = node.id"
             @mouseleave="hoveredNodeId = null"
             @click.stop="selectNode(node)"
           >
-            <!-- الهالة الإشعاعية الكونية (Volumetric Corona Aura) -->
-            <div class="orb-corona-aura"></div>
-
-            <!-- حلقات الطاقة النبضية للسوبرنوفا -->
-            <div
-              v-if="isFiringAll || triggeringId === node.automationId"
-              class="supernova-shockwave"
-            ></div>
-
-            <!-- الكوكب الزجاجي ثلاثي الأبعاد مع انعكاس الضوء الكروي -->
-            <div class="glass-sphere-3d">
-              <!-- لمعان الضوء العلوي المنعكس (Specular Glass Glint) -->
-              <div class="sphere-specular-shine"></div>
-
-              <!-- لمعان قوسي محيطي سفلي (Bottom Ambient Rim) -->
-              <div class="sphere-rim-light"></div>
-
-              <!-- أيقونة العقدة المركزية -->
-              <span class="sphere-icon">{{ node.icon }}</span>
-
-              <!-- نقطة الاستشعار الحية (Live Telemetry LED) -->
-              <span v-if="node.hasLed" class="sphere-live-led"></span>
+            <!-- القرص الزجاجي المصمت مع أيقونة الـ SVG -->
+            <div class="node-glass-disc" :style="{ borderColor: node.color }">
+              <div class="node-icon-wrapper" :style="{ color: node.color }">
+                <AppIcon :name="node.icon" :size="node.isCenter ? 24 : 18" />
+              </div>
             </div>
 
-            <!-- التسمية الكونية العائمة تحت الجرم (Cosmic Floating Label) -->
-            <div class="cosmic-label-wrap">
-              <span class="cosmic-label-pill">{{ node.title }}</span>
+            <!-- التسمية النصية الأنيقة تحت العقدة -->
+            <div class="node-caption">
+              <span class="caption-title">{{ node.title }}</span>
               <span
                 v-if="hoveredNodeId === node.id || selectedNode?.id === node.id"
-                class="cosmic-sub-pill"
+                class="caption-desc"
               >
                 {{ node.subLabel }}
               </span>
@@ -364,52 +262,55 @@
           </div>
         </div>
 
-        <!-- اللوحة الزجاجية لمعاينة بيانات الجرم المحدد (Celestial Inspector HUD) -->
+        <!-- بطاقة تفاصيل العقدة المحددة (Clean Inspector Card) -->
         <transition name="slide-left">
-          <div v-if="selectedNode" class="celestial-inspector-card">
-            <div class="inspector-top-bar">
-              <div class="flex items-center gap-2">
-                <span class="text-3xl">{{ selectedNode.icon }}</span>
+          <div v-if="selectedNode" class="node-details-card">
+            <div class="details-card-header">
+              <div class="flex items-center gap-3">
+                <div
+                  class="details-icon-badge"
+                  :style="{
+                    color: selectedNode.color,
+                    backgroundColor: `${selectedNode.color}15`,
+                    borderColor: `${selectedNode.color}35`,
+                  }"
+                >
+                  <AppIcon :name="selectedNode.icon" :size="20" />
+                </div>
                 <div>
-                  <h4 class="font-black text-sm text-white">{{ selectedNode.title }}</h4>
-                  <span class="text-xs text-cyan-300 font-mono">{{ selectedNode.typeLabel }}</span>
+                  <h4 class="font-bold text-sm text-strong">{{ selectedNode.title }}</h4>
+                  <span class="text-xs text-muted">{{ selectedNode.typeLabel }}</span>
                 </div>
               </div>
-              <button type="button" class="btn-close-cosmic" @click="selectedNode = null">✕</button>
+              <button type="button" class="btn-close-clean" @click="selectedNode = null">✕</button>
             </div>
 
-            <div class="inspector-card-body">
-              <p class="text-xs text-neutral-300 mb-3 leading-relaxed">{{ selectedNode.desc }}</p>
+            <div class="details-card-body">
+              <p class="text-xs text-muted mb-3 leading-relaxed">{{ selectedNode.desc }}</p>
 
-              <div class="cosmic-meta-row">
-                <span class="meta-label">حالة الجرم الفلكي:</span>
-                <span class="meta-badge on">🟢 مدار نشط ومستقر</span>
+              <div class="detail-row">
+                <span class="detail-label">حالة المسار:</span>
+                <span class="detail-status active">نشط ومستقر</span>
               </div>
 
-              <div class="cosmic-meta-row">
-                <span class="meta-label">المدار والتردد:</span>
-                <span class="meta-val font-mono">{{
-                  selectedNode.isCenter ? 'نواة الجاذبية 0 AU' : `${selectedNode.orbitRadius} px`
-                }}</span>
+              <div v-if="selectedNode.cron" class="detail-row">
+                <span class="detail-label">التوقيت المجدول:</span>
+                <span class="detail-val">{{ selectedNode.cron }}</span>
               </div>
 
-              <div v-if="selectedNode.cron" class="cosmic-meta-row">
-                <span class="meta-label">توقيت الإطلاق:</span>
-                <span class="meta-val text-amber-300 font-bold">{{ selectedNode.cron }}</span>
-              </div>
-
-              <div class="inspector-action-wrap mt-4">
+              <div class="detail-actions mt-3">
                 <button
                   v-if="selectedNode.automationId"
                   type="button"
-                  class="btn btn-primary btn-sm w-full btn-fire-orb"
+                  class="btn btn-primary btn-sm w-full"
                   :disabled="triggeringId === selectedNode.automationId"
                   @click="triggerTestRunById(selectedNode.automationId)"
                 >
+                  <AppIcon name="zap" :size="14" />
                   <span>{{
                     triggeringId === selectedNode.automationId
-                      ? '⚡ جاري ضخ السوبرنوفا...'
-                      : '🚀 تشغيل ومحاكاة الجرم الآن'
+                      ? 'جاري التنفيذ...'
+                      : 'تشغيل تجريبي الآن'
                   }}</span>
                 </button>
               </div>
@@ -748,32 +649,18 @@ const dragNodeStart = reactive({ x: 0, y: 0, nodeX: 0, nodeY: 0 });
 // إحداثيات مركز الجاذبية الكونية
 const centerCoord = reactive({ x: 500, y: 320 });
 
-// حقل جزيئات ونجوم الفضاء المتلألئة (Stardust Particles)
-const starColors = ['#ffffff', '#fbbf24', '#38bdf8', '#c084fc', '#f43f5e', '#34d399'];
-const cosmicStars = ref<any[]>(
-  Array.from({ length: 65 }, (_, i) => ({
-    id: i,
-    x: Math.random() * 100,
-    y: Math.random() * 100,
-    size: Math.random() > 0.85 ? 3 : Math.random() > 0.5 ? 2 : 1.2,
-    opacity: 0.2 + Math.random() * 0.75,
-    duration: 2 + Math.random() * 4,
-    delay: Math.random() * 3,
-    color: starColors[Math.floor(Math.random() * starColors.length)],
-  })),
-);
-
-// تعريف الأجرام الزجاجية المتوهجة (3D Cosmic Celestial Orbs)
+// تعريف العقد التفاعلية (Clean Vector Icon Nodes)
 const graphNodes = ref<any[]>([
   {
     id: 'node-brain',
-    typeLabel: 'Supermassive Nucleus • عقل الأتمتة',
+    typeLabel: 'العقل المركزي • Core Brain',
     category: 'core-cat',
-    icon: '🧠',
+    icon: 'cpu',
+    color: '#a855f7',
     title: 'عقل الأتمتة المركزي',
     subLabel: 'محرك التحليل والقرارات',
     desc: 'تجميع إيرادات اليوم، صافي الأرباح، وأعلى الأصناف طلباً وضخ التوجيهات',
-    radius: 32,
+    radius: 28,
     x: 500,
     y: 320,
     vx: 0,
@@ -782,204 +669,183 @@ const graphNodes = ref<any[]>([
     orbitSpeed: 0,
     orbitAngle: 0,
     isCenter: true,
-    hasLed: true,
-    scale3d: 1.1,
-    zIndex: 10,
     automationId: null,
   },
   {
     id: 'node-pos',
-    typeLabel: 'Solar Trigger • كاشير الفروع',
-    category: 'trigger-cat',
-    icon: '☕',
+    typeLabel: 'كاشير الفروع • POS Terminal',
+    category: 'amber-cat',
+    icon: 'coffee',
+    color: '#f59e0b',
     title: 'كاشير ومبيعات الفروع',
     subLabel: 'مبيعات حية ولحظية',
     desc: 'متابعة الفواتير والتحصيل وورديات الكاشير الحية في كافة الفروع',
-    radius: 23,
+    radius: 21,
     x: 340,
     y: 200,
     vx: 0,
     vy: 0,
-    orbitRadius: 170,
-    orbitSpeed: 0.0028,
+    orbitRadius: 165,
+    orbitSpeed: 0.002,
     orbitAngle: 0,
-    hasLed: true,
-    scale3d: 1.0,
-    zIndex: 3,
     automationId: null,
   },
   {
     id: 'node-inv',
-    typeLabel: 'Emerald Nebula • مخازن البن',
+    typeLabel: 'مخازن البن • Coffee Inventory',
     category: 'emerald-cat',
-    icon: '🫘',
+    icon: 'inventory',
+    color: '#10b981',
     title: 'مخازن البن والتحميص',
     subLabel: 'رصد الخامات والجرد',
     desc: 'مراقبة أرصدة البن الأخضر والمحمص وحركات الصرف والاستهلاك',
-    radius: 22,
+    radius: 21,
     x: 660,
     y: 200,
     vx: 0,
     vy: 0,
-    orbitRadius: 185,
-    orbitSpeed: 0.0024,
+    orbitRadius: 180,
+    orbitSpeed: 0.0017,
     orbitAngle: 1.25,
-    hasLed: true,
-    scale3d: 1.0,
-    zIndex: 3,
     automationId: null,
   },
   {
     id: 'node-cron',
-    typeLabel: 'Cyan Chrono • محرك الجدولة',
+    typeLabel: 'محرك الجدولة • Cron Engine',
     category: 'cyan-cat',
-    icon: '⏰',
+    icon: 'clock',
+    color: '#06b6d4',
     title: 'محرك الجدولة (Cron)',
     subLabel: '11:30 م يومياً',
     desc: 'إطلاق تقرير الإغلاق وفحص النواقص الدوري في المواعيد المحددة',
     cron: 'يومياً 11:30 م',
-    radius: 20,
+    radius: 19,
     x: 360,
     y: 440,
     vx: 0,
     vy: 0,
-    orbitRadius: 175,
-    orbitSpeed: 0.0025,
+    orbitRadius: 170,
+    orbitSpeed: 0.0018,
     orbitAngle: 2.45,
-    hasLed: true,
-    scale3d: 1.0,
-    zIndex: 3,
     automationId: null,
   },
   {
     id: 'node-fraud',
-    typeLabel: 'Ruby Shield • كشف التلاعب',
-    category: 'ruby-cat',
-    icon: '🛡️',
+    typeLabel: 'منظومة الرقابة • Security Shield',
+    category: 'rose-cat',
+    icon: 'users',
+    color: '#f43f5e',
     title: 'منظومة الرقابة والأمان',
     subLabel: 'حماية وتدقيق 24/7',
     desc: 'رصد فوري لإلغاء الفواتير والخصومات المشبوهة وتنبيه الإدارة',
-    radius: 23,
+    radius: 21,
     x: 640,
     y: 440,
     vx: 0,
     vy: 0,
-    orbitRadius: 180,
-    orbitSpeed: 0.0026,
+    orbitRadius: 175,
+    orbitSpeed: 0.0019,
     orbitAngle: 3.65,
-    hasLed: true,
-    scale3d: 1.0,
-    zIndex: 3,
     automationId: null,
   },
   {
     id: 'node-balancing',
-    typeLabel: 'Sapphire Flow • مناقلات الفروع',
-    category: 'sapphire-cat',
-    icon: '🔄',
+    typeLabel: 'مناقلات الفروع • Stock Balancing',
+    category: 'blue-cat',
+    icon: 'refresh',
+    color: '#3b82f6',
     title: 'توازن مخزون الفروع',
     subLabel: 'مناقلات ذكية',
     desc: 'تحليل معدل الاستهلاك واقتراح نقل البن بين الفروع لتفادي الشراء',
-    radius: 23,
+    radius: 21,
     x: 230,
     y: 320,
     vx: 0,
     vy: 0,
-    orbitRadius: 265,
-    orbitSpeed: -0.0016,
+    orbitRadius: 260,
+    orbitSpeed: -0.0012,
     orbitAngle: 4.85,
-    hasLed: true,
-    scale3d: 1.0,
-    zIndex: 2,
     automationId: null,
   },
   {
     id: 'node-cashflow',
-    typeLabel: 'Imperial Gold • درع السيولة',
+    typeLabel: 'درع السيولة • Cashflow Shield',
     category: 'gold-cat',
-    icon: '💰',
+    icon: 'coins',
+    color: '#eab308',
     title: 'درع حماية السيولة',
     subLabel: 'توقعات 14 يوم',
     desc: 'التنبؤ بالعجز المالي ومقارنة التدفقات النقدية بالالتزامات',
-    radius: 24,
+    radius: 22,
     x: 770,
     y: 320,
     vx: 0,
     vy: 0,
-    orbitRadius: 275,
-    orbitSpeed: -0.0018,
+    orbitRadius: 270,
+    orbitSpeed: -0.0013,
     orbitAngle: 0.65,
-    hasLed: true,
-    scale3d: 1.0,
-    zIndex: 2,
     automationId: null,
   },
   {
     id: 'node-db',
-    typeLabel: 'Amethyst Vault • قاعدة البيانات',
-    category: 'amethyst-cat',
-    icon: '🗄️',
+    typeLabel: 'قاعدة البيانات • PostgreSQL',
+    category: 'purple-cat',
+    icon: 'dashboard',
+    color: '#8b5cf6',
     title: 'سحابة PostgreSQL',
     subLabel: 'أرشفة فورية آمنة',
     desc: 'أرشفة حركات البيع، التوريدات، القيود المحاسبية وسلسلة الجرد',
-    radius: 20,
+    radius: 19,
     x: 500,
     y: 110,
     vx: 0,
     vy: 0,
-    orbitRadius: 215,
-    orbitSpeed: 0.002,
+    orbitRadius: 210,
+    orbitSpeed: 0.0014,
     orbitAngle: 5.45,
-    hasLed: true,
-    scale3d: 1.0,
-    zIndex: 2,
     automationId: null,
   },
   {
     id: 'node-tg',
-    typeLabel: 'Azure Bot • بوت تليجرام',
-    category: 'azure-cat',
-    icon: '🤖',
+    typeLabel: 'بوت تليجرام • Telegram Bot',
+    category: 'sky-cat',
+    icon: 'bot',
+    color: '#0284c7',
     title: 'بوت تليجرام التفاعلي',
     subLabel: 'استماع وتفاعل 24/7',
     desc: 'توصيل التقارير والرد اللحظي على أوامر المالك /sales /stock /cash',
-    radius: 26,
+    radius: 23,
     x: 500,
     y: 530,
     vx: 0,
     vy: 0,
-    orbitRadius: 235,
-    orbitSpeed: 0.0021,
+    orbitRadius: 230,
+    orbitSpeed: 0.0015,
     orbitAngle: 1.85,
-    hasLed: true,
-    scale3d: 1.0,
-    zIndex: 2,
     automationId: null,
   },
   {
     id: 'node-logs',
-    typeLabel: 'Rose Stream • سجل المراقبة',
-    category: 'rose-cat',
-    icon: '📜',
+    typeLabel: 'سجل العمليات • Audit Stream',
+    category: 'pink-cat',
+    icon: 'invoices',
+    color: '#ec4899',
     title: 'سجل العمليات الحي',
-    subLabel: 'Audit Telemetry',
+    subLabel: 'Audit Stream',
     desc: 'أرشفة متواصلة لكافة الأنشطة والتقارير المنفذة مع النتائج',
-    radius: 20,
+    radius: 19,
     x: 280,
     y: 170,
     vx: 0,
     vy: 0,
-    orbitRadius: 255,
-    orbitSpeed: -0.0015,
+    orbitRadius: 250,
+    orbitSpeed: -0.0011,
     orbitAngle: 3.1,
-    hasLed: true,
-    scale3d: 1.0,
-    zIndex: 2,
     automationId: null,
   },
 ]);
 
-// خيوط وأشعة الشبكة العصبية (Cosmic Neural Links)
+// خيوط التوصيل العصبية (Neural Links)
 const graphLinks = ref<any[]>([
   { id: 'l1', from: 'node-pos', to: 'node-brain', automationId: null },
   { id: 'l2', from: 'node-pos', to: 'node-fraud', automationId: null },
@@ -1005,7 +871,7 @@ const isNeighbor = (nodeAId: string, nodeBId: string) => {
   );
 };
 
-/* ═══════════════════ محرك الدوران المداري والعمق ثلاثي الأبعاد (3D Depth Orbit Loop) ═══════════════════ */
+/* ═══════════════════ محرك الدوران المداري الناعم (Smooth Orbit Loop) ═══════════════════ */
 const startPhysicsLoop = () => {
   const step = () => {
     if (isRotating.value) {
@@ -1020,13 +886,8 @@ const startPhysicsLoop = () => {
         const targetY = centerCoord.y + Math.sin(node.orbitAngle) * node.orbitRadius * 0.72;
 
         // اقتراب ناعم وفيزيائي (Smooth Spring Easing)
-        node.x += (targetX - node.x) * 0.03;
-        node.y += (targetY - node.y) * 0.03;
-
-        // حساب العمق البصري ثلاثي الأبعاد (3D Perspective Scale & Z-Index)
-        const depth = Math.sin(node.orbitAngle); // -1 (خلف) إلى +1 (أمام)
-        node.scale3d = 0.88 + (depth + 1) * 0.14; // scale بين 0.88 و 1.16
-        node.zIndex = depth > 0 ? 5 : 2;
+        node.x += (targetX - node.x) * 0.025;
+        node.y += (targetY - node.y) * 0.025;
       }
     }
     animationFrameId = requestAnimationFrame(step);
@@ -1574,304 +1435,161 @@ const formatRelativeTime = (dtStr?: string) => {
   }
 }
 
-/* ═══════════════════ Cosmic 3D Orbs Network Masterpiece ═══════════════════ */
-.cosmic-canvas-wrapper {
+/* ═══════════════════ Clean Interactive Vector Network ═══════════════════ */
+.clean-network-wrapper {
   padding: 0;
   display: flex;
   flex-direction: column;
-  border: 1px solid rgba(251, 191, 36, 0.15);
+  border: 1px solid var(--border-strong);
   overflow: hidden;
   border-radius: var(--radius-lg);
-  box-shadow:
-    0 24px 70px rgba(0, 0, 0, 0.8),
-    0 0 40px rgba(139, 92, 246, 0.08);
-  background: #06040d;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+  background: #0d1117;
 }
 
-/* Cosmic Glass HUD Bar */
-.cosmic-hud-bar {
-  background: rgba(10, 8, 20, 0.92);
-  backdrop-filter: blur(24px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  padding: 10px 20px;
+/* Toolbar */
+.network-toolbar {
+  background: rgba(18, 22, 32, 0.95);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  padding: 10px 18px;
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: 14px;
+  gap: 12px;
   z-index: 10;
 }
 
-.hud-left-group {
+.toolbar-left {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
 }
 
-.cosmic-badge {
+.network-status-badge {
   display: flex;
   align-items: center;
-  gap: 8px;
-  background: linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(139, 92, 246, 0.15));
-  border: 1px solid rgba(251, 191, 36, 0.35);
-  padding: 4px 12px;
+  gap: 7px;
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  padding: 3px 10px;
   border-radius: 999px;
-  box-shadow: 0 0 16px rgba(245, 158, 11, 0.2);
 }
 
-.cosmic-pulse-dot {
-  width: 8px;
-  height: 8px;
+.live-dot {
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
-  background: #fbbf24;
-  box-shadow:
-    0 0 8px #fbbf24,
-    0 0 16px #f59e0b;
-  animation: cosmic-star-pulse 1.8s infinite;
+  background: #10b981;
+  box-shadow: 0 0 6px #10b981;
 }
 
-@keyframes cosmic-star-pulse {
-  0%,
-  100% {
-    transform: scale(0.9);
-    opacity: 0.6;
-  }
-  50% {
-    transform: scale(1.3);
-    opacity: 1;
-    box-shadow:
-      0 0 12px #fbbf24,
-      0 0 24px #f59e0b;
-  }
-}
-
-.cosmic-badge-title {
-  font-size: 0.68rem;
-  font-weight: 900;
-  letter-spacing: 1.2px;
-  color: #fbbf24;
-  text-shadow: 0 0 8px rgba(251, 191, 36, 0.5);
-}
-
-.hud-meta {
-  display: flex;
-  flex-direction: column;
-}
-
-.hud-title {
-  font-size: 0.95rem;
-  font-weight: 900;
-  color: #ffffff;
-  letter-spacing: 0.2px;
-}
-
-.hud-subtitle {
+.status-title {
   font-size: 0.72rem;
-  color: #a1a1aa;
+  font-weight: 800;
+  color: #10b981;
 }
 
-.hud-controls {
+.toolbar-subtitle {
+  font-size: 0.74rem;
+  color: var(--text-muted);
+}
+
+.toolbar-actions {
   display: flex;
   align-items: center;
   gap: 8px;
-  flex-wrap: wrap;
 }
 
-.hud-btn {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: #e4e4e7;
-  padding: 6px 14px;
+.toolbar-btn {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-strong);
+  padding: 5px 12px;
   border-radius: var(--radius-sm);
-  font-size: 0.78rem;
-  font-weight: 800;
+  font-size: 0.76rem;
+  font-weight: 700;
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 6px;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.15s ease;
 }
 
-.hud-btn:hover {
-  background: rgba(255, 255, 255, 0.12);
-  color: #fbbf24;
-  border-color: rgba(251, 191, 36, 0.4);
-  transform: translateY(-1px);
+.toolbar-btn:hover {
+  background: rgba(255, 255, 255, 0.09);
+  color: #38bdf8;
+  border-color: rgba(56, 189, 248, 0.35);
 }
 
-.hud-btn.active {
-  background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(139, 92, 246, 0.2));
-  border-color: #fbbf24;
-  color: #fbbf24;
-  box-shadow: 0 0 16px rgba(245, 158, 11, 0.25);
+.toolbar-btn.active {
+  background: rgba(59, 130, 246, 0.15);
+  border-color: #3b82f6;
+  color: #60a5fa;
 }
 
-.hud-btn-supernova {
-  background: linear-gradient(135deg, #d97706, #7c3aed);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  color: #ffffff;
-  font-weight: 900;
-  box-shadow: 0 0 20px rgba(217, 119, 6, 0.4);
-}
-
-.hud-btn-supernova:hover {
-  box-shadow:
-    0 0 30px rgba(217, 119, 6, 0.7),
-    0 0 40px rgba(124, 58, 237, 0.5);
-  transform: translateY(-2px);
-}
-
-.hud-zoom-pill {
+.zoom-controls {
   display: flex;
   align-items: center;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: var(--radius-sm);
-  padding: 3px 6px;
+  padding: 2px 6px;
   gap: 4px;
 }
 
-.hud-icon-btn {
+.zoom-btn {
   background: transparent;
   border: none;
-  color: #a1a1aa;
+  color: var(--text-muted);
   cursor: pointer;
   padding: 2px 6px;
-  font-size: 0.75rem;
+  font-size: 0.8rem;
   transition: color 0.15s;
 }
 
-.hud-icon-btn:hover {
-  color: #fbbf24;
+.zoom-btn:hover {
+  color: var(--text-strong);
 }
 
-.hud-zoom-val {
+.zoom-text {
   font-size: 0.72rem;
-  font-weight: 800;
-  color: #fbbf24;
-  min-width: 36px;
+  font-weight: 700;
+  color: var(--text-muted);
+  min-width: 34px;
   text-align: center;
   font-family: 'SF Mono', 'Fira Code', monospace;
 }
 
-/* 3D Deep Space Viewport */
-.cosmic-viewport {
+/* Canvas Viewport */
+.clean-canvas-viewport {
   width: 100%;
-  height: 660px;
-  background: radial-gradient(circle at center, #0f0a21 0%, #06040d 70%, #020105 100%);
+  height: 640px;
+  background: #090c10;
   position: relative;
   overflow: hidden;
   cursor: grab;
   user-select: none;
 }
 
-.cosmic-viewport.dragging {
+.clean-canvas-viewport.dragging {
   cursor: grabbing;
 }
 
-/* Multi-Layer Cosmic Nebulae */
-.cosmic-nebula {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(120px);
-  pointer-events: none;
-  opacity: 0.22;
-  mix-blend-mode: screen;
-}
-
-.nebula-core {
-  width: 550px;
-  height: 550px;
-  background: #7c3aed;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  animation: nebula-breathe 8s ease-in-out infinite alternate;
-}
-
-.nebula-amber {
-  width: 480px;
-  height: 480px;
-  background: #f59e0b;
-  left: 15%;
-  top: 20%;
-  animation: nebula-breathe 10s ease-in-out infinite alternate 1s;
-}
-
-.nebula-cyan {
-  width: 520px;
-  height: 520px;
-  background: #06b6d4;
-  right: 12%;
-  bottom: 15%;
-  animation: nebula-breathe 12s ease-in-out infinite alternate 2s;
-}
-
-.nebula-rose {
-  width: 420px;
-  height: 420px;
-  background: #f43f5e;
-  right: 25%;
-  top: 15%;
-  opacity: 0.16;
-}
-
-@keyframes nebula-breathe {
-  0% {
-    transform: scale(0.9) rotate(0deg);
-    opacity: 0.18;
-  }
-  100% {
-    transform: scale(1.15) rotate(15deg);
-    opacity: 0.28;
-  }
-}
-
-/* Stardust Field */
-.stardust-field {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-
-.stardust-particle {
-  position: absolute;
-  border-radius: 50%;
-  box-shadow: 0 0 6px currentColor;
-  animation: star-twinkle infinite ease-in-out;
-}
-
-@keyframes star-twinkle {
-  0%,
-  100% {
-    opacity: 0.2;
-    transform: scale(0.7);
-  }
-  50% {
-    opacity: 1;
-    transform: scale(1.4);
-  }
-}
-
-/* Space Grid Pattern */
-.cosmic-grid-pattern {
+/* Subtle Blueprint Dots */
+.canvas-grid-bg {
   position: absolute;
   width: 4000px;
   height: 4000px;
   left: -1000px;
   top: -1000px;
-  background-image:
-    radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px),
-    linear-gradient(to right, rgba(255, 255, 255, 0.015) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
-  background-size:
-    40px 40px,
-    120px 120px,
-    120px 120px;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+  background-size: 28px 28px;
   pointer-events: none;
 }
 
-.cosmic-transform-layer {
+.canvas-nodes-layer {
   position: absolute;
   left: 0;
   top: 0;
@@ -1881,8 +1599,8 @@ const formatRelativeTime = (dtStr?: string) => {
   pointer-events: none;
 }
 
-/* SVG Laser Beams & Orbits Layer */
-.cosmic-svg-layer {
+/* SVG Network Layer */
+.network-svg-layer {
   position: absolute;
   left: 0;
   top: 0;
@@ -1890,73 +1608,36 @@ const formatRelativeTime = (dtStr?: string) => {
   z-index: 1;
 }
 
-.gravity-orbit-track {
+.orbit-guide-line {
   fill: none;
-  stroke: rgba(255, 255, 255, 0.05);
+  stroke: rgba(255, 255, 255, 0.04);
   stroke-width: 1;
-  stroke-dasharray: 6 10;
-  transition: all 0.3s;
+  stroke-dasharray: 4 8;
 }
 
-.orbit-inner {
-  stroke: rgba(245, 158, 11, 0.08);
+.orbit-guide-line.outer {
+  stroke: rgba(255, 255, 255, 0.03);
 }
 
-.orbit-outer {
-  stroke: rgba(56, 189, 248, 0.08);
-}
-
-/* Beams */
-.cosmic-beam-base {
-  stroke: rgba(255, 255, 255, 0.08);
+/* Wires */
+.network-wire {
+  stroke: rgba(255, 255, 255, 0.09);
   stroke-width: 1.2;
-  transition: all 0.3s ease;
+  transition: all 0.25s ease;
 }
 
-.cosmic-beam-base.highlighted {
-  stroke: #fbbf24;
-  stroke-width: 2.4;
+.network-wire.highlighted {
+  stroke: #38bdf8;
+  stroke-width: 2.2;
   opacity: 0.9;
 }
 
-.cosmic-beam-base.dimmed {
+.network-wire.dimmed {
   opacity: 0.12;
 }
 
-.cosmic-beam-laser {
-  stroke: url(#laser-gold);
-  stroke-width: 1.8;
-  stroke-dasharray: 6 18;
-  animation: beam-flow 1.2s linear infinite;
-  opacity: 0.5;
-  transition: all 0.3s ease;
-}
-
-.cosmic-beam-laser.highlighted {
-  stroke: url(#laser-gold);
-  stroke-width: 3;
-  opacity: 1;
-  animation: beam-flow 0.6s linear infinite;
-}
-
-.cosmic-beam-laser.active {
-  stroke: url(#laser-active);
-  stroke-width: 4;
-  opacity: 1;
-  animation: beam-flow 0.3s linear infinite;
-}
-
-@keyframes beam-flow {
-  from {
-    stroke-dashoffset: 48;
-  }
-  to {
-    stroke-dashoffset: 0;
-  }
-}
-
-/* ═══════════════════ 3D Glass Orbs (الأجرام الزجاجية المتوهجة) ═══════════════════ */
-.cosmic-orb-body {
+/* ═══════════════════ Clean Vector Node Cards ═══════════════════ */
+.vector-node-card {
   position: absolute;
   left: 0;
   top: 0;
@@ -1966,319 +1647,74 @@ const formatRelativeTime = (dtStr?: string) => {
   display: flex;
   align-items: center;
   justify-content: center;
+  z-index: 2;
   transition:
-    opacity 0.3s ease,
-    filter 0.3s ease,
+    opacity 0.25s ease,
+    filter 0.25s ease,
     transform 0.1s linear;
 }
 
-.cosmic-orb-body.is-dimmed {
-  opacity: 0.18;
-  filter: grayscale(0.7) brightness(0.5);
+.vector-node-card.is-dimmed {
+  opacity: 0.2;
+  filter: grayscale(0.6);
 }
 
-.cosmic-orb-body.is-dragging {
+.vector-node-card.is-dragging {
   cursor: grabbing;
-  z-index: 20 !important;
+  z-index: 15 !important;
 }
 
-/* Volumetric Corona Aura */
-.orb-corona-aura {
-  position: absolute;
-  inset: -14px;
-  border-radius: 50%;
-  opacity: 0.55;
-  filter: blur(10px);
-  pointer-events: none;
-  transition: all 0.3s ease;
-}
-
-.cosmic-orb-body:hover .orb-corona-aura,
-.cosmic-orb-body.is-hovered .orb-corona-aura,
-.cosmic-orb-body.is-active .orb-corona-aura {
-  inset: -22px;
-  opacity: 0.95;
-  filter: blur(14px);
-}
-
-/* Supernova Shockwave */
-.supernova-shockwave {
-  position: absolute;
-  inset: -18px;
-  border-radius: 50%;
-  border: 2px solid #fbbf24;
-  animation: shockwave-expand 1s cubic-bezier(0.1, 0.8, 0.3, 1) infinite;
-  pointer-events: none;
-}
-
-@keyframes shockwave-expand {
-  0% {
-    transform: scale(0.8);
-    opacity: 1;
-    border-color: #fbbf24;
-  }
-  100% {
-    transform: scale(2.2);
-    opacity: 0;
-    border-color: #34d399;
-  }
-}
-
-/* 3D Glass Sphere Structure */
-.glass-sphere-3d {
+/* Glass Disc */
+.node-glass-disc {
   position: relative;
   width: 100%;
   height: 100%;
   border-radius: 50%;
+  background: rgba(17, 24, 39, 0.9);
+  border: 1.5px solid rgba(255, 255, 255, 0.15);
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
   box-shadow:
-    0 12px 28px rgba(0, 0, 0, 0.7),
-    inset 0 -4px 8px rgba(0, 0, 0, 0.6),
-    inset 0 2px 4px rgba(255, 255, 255, 0.6);
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    0 4px 16px rgba(0, 0, 0, 0.5),
+    inset 0 1px 1px rgba(255, 255, 255, 0.15);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.cosmic-orb-body:hover .glass-sphere-3d,
-.cosmic-orb-body.is-active .glass-sphere-3d {
-  transform: scale(1.18);
+.vector-node-card:hover .node-glass-disc,
+.vector-node-card.is-active .node-glass-disc {
+  transform: scale(1.15);
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.6),
+    0 0 16px currentColor;
 }
 
-/* Specular Glass Highlight Glint */
-.sphere-specular-shine {
-  position: absolute;
-  top: 14%;
-  left: 20%;
-  width: 42%;
-  height: 28%;
-  border-radius: 50%;
+.vector-node-card.is-center-node .node-glass-disc {
   background: radial-gradient(
-    ellipse at center,
-    rgba(255, 255, 255, 0.95) 0%,
-    rgba(255, 255, 255, 0.1) 75%,
-    transparent 100%
+    circle at center,
+    rgba(168, 85, 247, 0.2) 0%,
+    rgba(17, 24, 39, 0.95) 75%
   );
-  transform: rotate(-35deg);
-  pointer-events: none;
+  box-shadow:
+    0 6px 20px rgba(0, 0, 0, 0.6),
+    0 0 20px rgba(168, 85, 247, 0.25);
 }
 
-/* Ambient Rim Light */
-.sphere-rim-light {
-  position: absolute;
-  bottom: 0;
-  left: 10%;
-  right: 10%;
-  height: 35%;
-  border-radius: 50%;
-  background: radial-gradient(ellipse at bottom, rgba(255, 255, 255, 0.4) 0%, transparent 80%);
-  pointer-events: none;
-}
-
-.sphere-icon {
-  font-size: 1.15rem;
-  line-height: 1;
-  z-index: 2;
-  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.8));
+.node-icon-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   transition: transform 0.2s;
 }
 
-.cosmic-orb-body:hover .sphere-icon {
-  transform: scale(1.1);
+.vector-node-card:hover .node-icon-wrapper {
+  transform: scale(1.08);
 }
 
-.sphere-live-led {
+/* Node Caption Badge */
+.node-caption {
   position: absolute;
-  top: 4px;
-  right: 4px;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #34d399;
-  box-shadow:
-    0 0 6px #34d399,
-    0 0 12px #10b981;
-  z-index: 3;
-}
-
-/* ═══════════════════ Distinct Celestial Palettes ═══════════════════ */
-
-/* 🧠 Nucleus Brain Core */
-.cosmic-orb-body.core-cat .glass-sphere-3d {
-  background: radial-gradient(
-    circle at 35% 30%,
-    #e9d5ff 0%,
-    #a855f7 35%,
-    #581c87 75%,
-    #2e1065 100%
-  );
-  border: 1.5px solid rgba(233, 213, 255, 0.7);
-}
-.cosmic-orb-body.core-cat .orb-corona-aura {
-  background: radial-gradient(circle, #a855f7 0%, #7c3aed 50%, transparent 75%);
-}
-.cosmic-orb-body.core-cat .sphere-icon {
-  font-size: 1.5rem;
-}
-.cosmic-orb-body.is-nucleus .glass-sphere-3d {
-  animation: nucleus-pulse 3s infinite ease-in-out;
-}
-@keyframes nucleus-pulse {
-  0%,
-  100% {
-    box-shadow:
-      0 0 30px rgba(168, 85, 247, 0.5),
-      inset 0 -4px 8px rgba(0, 0, 0, 0.6),
-      inset 0 2px 4px rgba(255, 255, 255, 0.8);
-  }
-  50% {
-    box-shadow:
-      0 0 50px rgba(233, 213, 255, 0.8),
-      inset 0 -4px 8px rgba(0, 0, 0, 0.6),
-      inset 0 2px 4px rgba(255, 255, 255, 0.95);
-  }
-}
-
-/* ☕ Solar Amber Trigger (POS) */
-.cosmic-orb-body.trigger-cat .glass-sphere-3d {
-  background: radial-gradient(
-    circle at 35% 30%,
-    #fef3c7 0%,
-    #f59e0b 40%,
-    #b45309 80%,
-    #451a03 100%
-  );
-  border: 1.5px solid rgba(254, 243, 199, 0.6);
-}
-.cosmic-orb-body.trigger-cat .orb-corona-aura {
-  background: radial-gradient(circle, #f59e0b 0%, #d97706 50%, transparent 75%);
-}
-
-/* 🫘 Emerald Nebula (Inventory) */
-.cosmic-orb-body.emerald-cat .glass-sphere-3d {
-  background: radial-gradient(
-    circle at 35% 30%,
-    #d1fae5 0%,
-    #10b981 40%,
-    #047857 80%,
-    #064e3b 100%
-  );
-  border: 1.5px solid rgba(209, 250, 229, 0.6);
-}
-.cosmic-orb-body.emerald-cat .orb-corona-aura {
-  background: radial-gradient(circle, #10b981 0%, #059669 50%, transparent 75%);
-}
-
-/* ⏰ Cyan Chrono (Scheduler) */
-.cosmic-orb-body.cyan-cat .glass-sphere-3d {
-  background: radial-gradient(
-    circle at 35% 30%,
-    #cffafe 0%,
-    #06b6d4 40%,
-    #0e7490 80%,
-    #164e63 100%
-  );
-  border: 1.5px solid rgba(207, 250, 254, 0.6);
-}
-.cosmic-orb-body.cyan-cat .orb-corona-aura {
-  background: radial-gradient(circle, #06b6d4 0%, #0891b2 50%, transparent 75%);
-}
-
-/* 🛡️ Ruby Shield (Security) */
-.cosmic-orb-body.ruby-cat .glass-sphere-3d {
-  background: radial-gradient(
-    circle at 35% 30%,
-    #ffe4e6 0%,
-    #f43f5e 40%,
-    #be123c 80%,
-    #4c0519 100%
-  );
-  border: 1.5px solid rgba(255, 228, 230, 0.6);
-}
-.cosmic-orb-body.ruby-cat .orb-corona-aura {
-  background: radial-gradient(circle, #f43f5e 0%, #e11d48 50%, transparent 75%);
-}
-
-/* 🔄 Sapphire Flow (Balancing) */
-.cosmic-orb-body.sapphire-cat .glass-sphere-3d {
-  background: radial-gradient(
-    circle at 35% 30%,
-    #dbeafe 0%,
-    #3b82f6 40%,
-    #1d4ed8 80%,
-    #172554 100%
-  );
-  border: 1.5px solid rgba(219, 234, 254, 0.6);
-}
-.cosmic-orb-body.sapphire-cat .orb-corona-aura {
-  background: radial-gradient(circle, #3b82f6 0%, #2563eb 50%, transparent 75%);
-}
-
-/* 💰 Imperial Gold (Cash Flow) */
-.cosmic-orb-body.gold-cat .glass-sphere-3d {
-  background: radial-gradient(
-    circle at 35% 30%,
-    #fef08a 0%,
-    #eab308 40%,
-    #a16207 80%,
-    #422006 100%
-  );
-  border: 1.5px solid rgba(254, 240, 138, 0.7);
-}
-.cosmic-orb-body.gold-cat .orb-corona-aura {
-  background: radial-gradient(circle, #eab308 0%, #ca8a04 50%, transparent 75%);
-}
-
-/* 🗄️ Amethyst Vault (Database) */
-.cosmic-orb-body.amethyst-cat .glass-sphere-3d {
-  background: radial-gradient(
-    circle at 35% 30%,
-    #ede9fe 0%,
-    #8b5cf6 40%,
-    #6d28d9 80%,
-    #2e1065 100%
-  );
-  border: 1.5px solid rgba(237, 233, 254, 0.6);
-}
-.cosmic-orb-body.amethyst-cat .orb-corona-aura {
-  background: radial-gradient(circle, #8b5cf6 0%, #7c3aed 50%, transparent 75%);
-}
-
-/* 🤖 Azure Bot (Telegram) */
-.cosmic-orb-body.azure-cat .glass-sphere-3d {
-  background: radial-gradient(
-    circle at 35% 30%,
-    #e0f2fe 0%,
-    #0284c7 40%,
-    #0369a1 80%,
-    #082f49 100%
-  );
-  border: 1.5px solid rgba(224, 242, 254, 0.7);
-}
-.cosmic-orb-body.azure-cat .orb-corona-aura {
-  background: radial-gradient(circle, #0284c7 0%, #0369a1 50%, transparent 75%);
-}
-
-/* 📜 Rose Stream (Logs) */
-.cosmic-orb-body.rose-cat .glass-sphere-3d {
-  background: radial-gradient(
-    circle at 35% 30%,
-    #fce7f3 0%,
-    #ec4899 40%,
-    #be185d 80%,
-    #500724 100%
-  );
-  border: 1.5px solid rgba(252, 231, 243, 0.6);
-}
-.cosmic-orb-body.rose-cat .orb-corona-aura {
-  background: radial-gradient(circle, #ec4899 0%, #db2777 50%, transparent 75%);
-}
-
-/* Cosmic Floating Label */
-.cosmic-label-wrap {
-  position: absolute;
-  top: calc(100% + 7px);
+  top: calc(100% + 6px);
   left: 50%;
   transform: translateX(-50%);
   display: flex;
@@ -2289,123 +1725,111 @@ const formatRelativeTime = (dtStr?: string) => {
   white-space: nowrap;
 }
 
-.cosmic-label-pill {
-  font-size: 0.74rem;
+.caption-title {
+  font-size: 0.72rem;
   font-weight: 800;
-  color: #f4f4f5;
-  background: rgba(10, 8, 20, 0.82);
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  padding: 2px 9px;
+  color: #e4e4e7;
+  background: rgba(13, 17, 23, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 2px 8px;
   border-radius: 999px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.7);
-  transition: all 0.2s;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+  transition: all 0.15s;
 }
 
-.cosmic-orb-body:hover .cosmic-label-pill,
-.cosmic-orb-body.is-active .cosmic-label-pill {
-  color: #fbbf24;
-  border-color: rgba(251, 191, 36, 0.5);
-  box-shadow: 0 0 14px rgba(251, 191, 36, 0.35);
+.vector-node-card:hover .caption-title,
+.vector-node-card.is-active .caption-title {
+  color: #38bdf8;
+  border-color: rgba(56, 189, 248, 0.4);
 }
 
-.cosmic-sub-pill {
+.caption-desc {
   font-size: 0.58rem;
   font-weight: 700;
-  color: #a1a1aa;
+  color: var(--text-muted);
 }
 
-/* Celestial Inspector HUD Card */
-.celestial-inspector-card {
+/* Details Card / Inspector */
+.node-details-card {
   position: absolute;
-  top: 18px;
-  left: 18px;
-  width: 290px;
-  background: rgba(12, 10, 24, 0.94);
-  backdrop-filter: blur(24px);
-  border: 1px solid rgba(251, 191, 36, 0.3);
-  border-radius: var(--radius-lg);
-  box-shadow:
-    0 20px 50px rgba(0, 0, 0, 0.8),
-    0 0 30px rgba(245, 158, 11, 0.15);
-  z-index: 30;
+  top: 16px;
+  left: 16px;
+  width: 280px;
+  background: rgba(17, 24, 39, 0.95);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-md);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+  z-index: 20;
   overflow: hidden;
 }
 
-.inspector-top-bar {
+.details-card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 16px;
-  background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(139, 92, 246, 0.1));
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.btn-close-cosmic {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  color: #d4d4d8;
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  cursor: pointer;
+.details-icon-badge {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  border: 1px solid;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.8rem;
-  transition: all 0.2s;
 }
 
-.btn-close-cosmic:hover {
-  background: rgba(239, 68, 68, 0.3);
-  color: #ffffff;
-  border-color: #ef4444;
+.btn-close-clean {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.85rem;
+  padding: 4px;
+  transition: color 0.15s;
 }
 
-.inspector-card-body {
-  padding: 16px;
+.btn-close-clean:hover {
+  color: var(--text-strong);
 }
 
-.cosmic-meta-row {
+.details-card-body {
+  padding: 14px;
+}
+
+.detail-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 6px 0;
-  border-bottom: 1px dashed rgba(255, 255, 255, 0.08);
+  padding: 5px 0;
+  border-bottom: 1px dashed rgba(255, 255, 255, 0.06);
 }
 
-.meta-label {
-  font-size: 0.75rem;
+.detail-label {
+  font-size: 0.74rem;
+  color: var(--text-muted);
+}
+
+.detail-val {
+  font-size: 0.74rem;
   font-weight: 700;
-  color: #a1a1aa;
+  color: var(--text-strong);
 }
 
-.meta-val {
-  font-size: 0.75rem;
-  color: #f4f4f5;
-}
-
-.meta-badge {
+.detail-status {
   font-size: 0.7rem;
   font-weight: 800;
   padding: 2px 8px;
   border-radius: var(--radius-xs);
-  background: rgba(52, 211, 153, 0.15);
-  color: #34d399;
-  border: 1px solid rgba(52, 211, 153, 0.3);
 }
 
-.btn-fire-orb {
-  background: linear-gradient(135deg, #d97706, #7c3aed);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  font-weight: 900;
-  box-shadow: 0 0 16px rgba(217, 119, 6, 0.4);
-  transition: all 0.2s;
-}
-
-.btn-fire-orb:hover {
-  box-shadow: 0 0 25px rgba(217, 119, 6, 0.7);
-  transform: translateY(-1px);
+.detail-status.active {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
 }
 
 /* Section Cards & Grid */

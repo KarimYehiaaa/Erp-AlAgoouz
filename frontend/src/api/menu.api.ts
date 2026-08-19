@@ -6,6 +6,7 @@ export const menu = {
   getActive: () => api.get('/menus/active'),
   create: (data: any) => api.post('/menus', data),
   update: (id: number | string, data: any) => api.put(`/menus/${id}`, data),
+  save: (data: any) => (data.id ? api.put(`/menus/${data.id}`, data) : api.post('/menus', data)),
   delete: (id: number | string) => api.delete(`/menus/${id}`),
   getAvailableProducts: () => api.get('/menus/products'),
 };

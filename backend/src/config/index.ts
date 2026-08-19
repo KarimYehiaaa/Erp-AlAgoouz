@@ -20,7 +20,7 @@ dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 const requireEnv = (name, fallback = '') => {
   const value = process.env[name];
   if (value && value.trim()) return value.trim();
-  if (fallback) return fallback;
+  if (fallback && process.env.NODE_ENV !== 'production') return fallback;
   throw new Error(`تعذر العثور على متغير البيئة المطلوب: ${name}`);
 };
 
@@ -68,7 +68,7 @@ if (process.env.DATABASE_URL) {
   }
   dbConfig = {
     user: requireEnv('DB_USER', 'postgres.agzcpybgcjxtkyszfhws'),
-    password: requireEnv('DB_PASSWORD', 'C@me#Cap0#1'),
+    password: requireEnv('DB_PASSWORD'),
     host: dbHost,
     port: portNum,
     database: optionalEnv('DB_NAME', 'postgres'),
@@ -90,15 +90,23 @@ const isCloudDB =
 
 const sslEnabled = process.env.DB_SSL === 'true' || !!isCloudDB;
 
-dbConfig.ssl = sslEnabled ? { rejectUnauthorized: false } : false;
+const allowInsecureSsl = process.env.DB_SSL_REJECT_UNAUTHORIZED === 'false';
+if (sslEnabled && process.env.NODE_ENV === 'production' && allowInsecureSsl) {
+  throw new Error('DB_SSL_REJECT_UNAUTHORIZED=false غير مسموح به في الإنتاج');
+}
+dbConfig.ssl = sslEnabled ? { rejectUnauthorized: !allowInsecureSsl } : false;
 
 // ─── Export Configuration ──────────────────────────────────────────────────────
 /**
  * إعدادات التطبيق المركزية (الخادم، قاعدة البيانات، JWT، CORS، معدل الطلبات، الشركة، النسخ الاحتياطي).
  * تُقرأ من متغيرات البيئة مع قيم افتراضية مناسبة للإنتاج.
  */
-const defaultJwtSecret = 'q1b2DoHuyqTNfjOM+BlV01Xl7NNaw+a0sgts3kbpYL4DKdy0VXqTnyA5HnwIgN6W';
-const jwtSecret = requireEnv('JWT_SECRET', defaultJwtSecret);
+const jwtSecret = requireEnv('JWT_SECRET');
+const refreshSecret = requireEnv('JWT_REFRESH_SECRET', `${jwtSecret}_refresh`);
+
+if (jwtSecret.length < 32 || refreshSecret.length < 32) {
+  throw new Error('JWT_SECRET و JWT_REFRESH_SECRET يجب أن يكونا بطول 32 حرفًا على الأقل');
+}
 
 const config = {
   // ── Server ──
@@ -116,7 +124,7 @@ const config = {
     secret: jwtSecret,
     // إصلاح التجمّد: مهلة أطول (8 ساعات) — كانت 15 دقيقة تُسقط الجلسات أثناء الاستخدام
     expiresIn: optionalEnv('JWT_EXPIRES_IN', '8h'),
-    refreshSecret: optionalEnv('JWT_REFRESH_SECRET', jwtSecret + '_refresh'),
+    refreshSecret,
     refreshExpiresIn: optionalEnv('JWT_REFRESH_EXPIRES_IN', '7d'),
   },
 

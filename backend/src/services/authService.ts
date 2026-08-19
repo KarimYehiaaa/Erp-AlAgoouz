@@ -36,9 +36,11 @@ const logFailedLogin = async (
 const issueTokens = (userId: number, roleName: string) => {
   const jti = uuidv4();
   const accessToken = jwt.sign({ userId, role: roleName, jti }, config.jwt.secret, {
+    algorithm: 'HS256',
     expiresIn: config.jwt.expiresIn as any,
   });
   const refreshToken = jwt.sign({ userId, type: 'refresh' }, config.jwt.refreshSecret, {
+    algorithm: 'HS256',
     expiresIn: config.jwt.refreshExpiresIn as any,
   });
   return { accessToken, refreshToken };

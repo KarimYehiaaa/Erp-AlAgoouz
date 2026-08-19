@@ -16,6 +16,14 @@ export const initWebSocket = (server: import('http').Server) => {
   wss.on('connection', (ws, req) => {
     try {
       const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
+
+      // التحقق من Origin لمنع Cross-Site WebSocket Hijacking
+      const origin = req.headers.origin;
+      if (origin && !config.corsOrigin.includes(origin) && !config.isDevelopment) {
+        ws.close(4003, 'Forbidden: Origin not allowed');
+        return;
+      }
+
       const token = url.searchParams.get('token');
 
       if (!token) {
@@ -23,7 +31,9 @@ export const initWebSocket = (server: import('http').Server) => {
         return;
       }
 
-      const decoded = jwt.verify(token, config.jwt.secret) as import('jsonwebtoken').JwtPayload;
+      const decoded = jwt.verify(token, config.jwt.secret, {
+        algorithms: ['HS256'],
+      }) as import('jsonwebtoken').JwtPayload;
       ws.userId = decoded.userId;
       clients.add(ws);
     } catch {

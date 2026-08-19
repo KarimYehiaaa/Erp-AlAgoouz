@@ -12,9 +12,31 @@ if (!isVercel && !fs.existsSync(LOG_DIR)) {
   fs.mkdirSync(LOG_DIR, { recursive: true });
 }
 
+/** فلتر إخفاء البيانات الحساسة من السجلات. */
+const SENSITIVE_KEYS = [
+  'password',
+  'token',
+  'secret',
+  'authorization',
+  'cookie',
+  'password_hash',
+  'refreshToken',
+];
+const redactSensitive = winston.format((info) => {
+  if (typeof info.message === 'string') {
+    let msg = info.message as string;
+    for (const key of SENSITIVE_KEYS) {
+      msg = msg.replace(new RegExp(`"${key}"\\s*:\\s*"[^"]*"`, 'gi'), `"${key}": "[REDACTED]"`);
+    }
+    info.message = msg;
+  }
+  return info;
+});
+
 const customFormat = winston.format.combine(
   winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
   winston.format.errors({ stack: true }),
+  redactSensitive(),
   winston.format.splat(),
   winston.format.json(),
 );

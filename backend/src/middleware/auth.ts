@@ -12,16 +12,20 @@ import type { User } from '../../../shared/types.ts';
  */
 const authenticate = async (req, res, next) => {
   try {
+    // قراءة التوكن من Cookie أو من Header (دعم الطريقتين للتوافقية)
     const header = req.headers.authorization;
-    if (!header?.startsWith('Bearer ')) {
+    const token =
+      req.cookies?.access_token || (header?.startsWith('Bearer ') ? header.split(' ')[1] : null);
+    if (!token) {
       throw new AppError(
         '\u062A\u0633\u062C\u064A\u0644 \u0627\u0644\u062F\u062E\u0648\u0644 \u0645\u0637\u0644\u0648\u0628',
         401,
         'UNAUTHORIZED',
       );
     }
-    const token = header.split(' ')[1];
-    const decoded = jwt.verify(token, config.jwt.secret) as import('jsonwebtoken').JwtPayload;
+    const decoded = jwt.verify(token, config.jwt.secret, {
+      algorithms: ['HS256'],
+    }) as import('jsonwebtoken').JwtPayload;
     const result = await query(
       `SELECT u.id, u.uuid, u.username, u.full_name, u.email, u.role_id, u.password_changed_at, r.name as role_name, r.name_ar as role_name_ar
        FROM users u

@@ -26,6 +26,7 @@ import routes from './routes/index.ts';
 import { authenticate } from './middleware/auth.ts';
 import { errorHandler, notFound } from './middleware/errorHandler.ts';
 import { requestId } from './middleware/requestId.ts';
+import { requireIdempotency } from './middleware/idempotency.ts';
 import cookieParser from 'cookie-parser';
 import { checkHealth } from './database/pool.ts';
 import { initSentry } from './services/sentry.ts';
@@ -46,21 +47,54 @@ const app = express();
 initSentry(app);
 app.set('trust proxy', 1);
 app.use(requestId);
-app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+    contentSecurityPolicy: config.isProduction
+      ? {
+          directives: {
+            defaultSrc: ["'self'"],
+            scriptSrc: ["'self'"],
+            styleSrc: ["'self'", "'unsafe-inline'"],
+            imgSrc: ["'self'", 'data:', 'blob:'],
+            connectSrc: ["'self'", 'wss:', 'ws:'],
+            fontSrc: ["'self'", 'data:'],
+          },
+        }
+      : false,
+    hsts: { maxAge: 31536000, includeSubDomains: true, preload: true },
+    referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+  }),
+);
 app.use(cookieParser());
 app.use(
   cors({
     origin: (origin, callback) => {
+      // السماح للطلبات بدون origin (مثل الأدوات المباشرة، Server-to-Server، وتطبيقات الموبايل)
       if (!origin) return callback(null, true);
+
+      // 1. النطاقات المحددة صراحة في الإعدادات
+      if (config.corsOrigin.includes(origin)) {
+        return callback(null, true);
+      }
+
+      // 2. نطاقات Vercel السحابية (الإنتاجية ومعاينات الفروع)
+      if (origin.endsWith('.vercel.app') || origin === 'https://agoouz.vercel.app') {
+        return callback(null, true);
+      }
+
+      // 3. بيئات التطوير المحلية والشبكة الداخلية للفرع (Localhost / LAN IP)
       if (
-        config.corsOrigin.includes(origin) ||
-        origin.endsWith('.vercel.app') ||
-        origin.startsWith('http://localhost:') ||
-        origin.startsWith('http://127.0.0.1:')
+        origin.startsWith('http://localhost') ||
+        origin.startsWith('http://127.0.0.1') ||
+        origin.startsWith('http://192.168.') ||
+        origin.startsWith('http://10.')
       ) {
         return callback(null, true);
       }
-      return callback(null, true);
+
+      // رفض النطاق غير المسموح به بهدوء دون كسر الخادم
+      return callback(null, false);
     },
     credentials: true,
   }),
@@ -68,6 +102,7 @@ app.use(
 app.use(morgan(config.nodeEnv === 'development' ? 'dev' : 'combined'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
+app.use(requireIdempotency);
 app.use(
   rateLimit({
     windowMs: config.rateLimit.windowMs,

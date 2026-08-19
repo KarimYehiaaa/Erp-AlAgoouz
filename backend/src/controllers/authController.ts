@@ -1,4 +1,13 @@
 import * as authService from '../services/authService.ts';
+import config from '../config/index.ts';
+
+/** إعدادات مشتركة لـ cookies الأمنية. */
+const cookieDefaults = (maxAgeMs: number) => ({
+  httpOnly: true,
+  secure: config.isProduction,
+  sameSite: (config.isProduction ? 'strict' : 'lax') as 'strict' | 'lax',
+  maxAge: maxAgeMs,
+});
 
 /**
  * تسجيل الدخول وإصدار توكنات الوصول والانعاش.
@@ -13,12 +22,14 @@ const login = async (req, res, next) => {
       ip: req.ip,
       userAgent: req.get('user-agent'),
     });
+    // HttpOnly cookies — حماية من سرقة التوكن عبر XSS
+    res.cookie('access_token', data.token, {
+      ...cookieDefaults(8 * 60 * 60 * 1e3), // 8 ساعات
+      path: '/',
+    });
     res.cookie('refresh_token', refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60 * 1e3,
-      // 7 days
+      ...cookieDefaults(7 * 24 * 60 * 60 * 1e3), // 7 أيام
+      path: '/api/v1/auth',
     });
     res.json({ success: true, data });
   } catch (err: any) {
@@ -54,11 +65,14 @@ const refresh = async (req, res, next) => {
         .status(401)
         .json({ success: false, message: 'Refresh token \u0645\u0637\u0644\u0648\u0628' });
     const data = await authService.refreshAccessToken(refreshToken);
+    // تحديث الـ cookies بالتوكنات الجديدة
+    res.cookie('access_token', data.token, {
+      ...cookieDefaults(8 * 60 * 60 * 1e3),
+      path: '/',
+    });
     res.cookie('refresh_token', data.refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60 * 1e3,
+      ...cookieDefaults(7 * 24 * 60 * 60 * 1e3),
+      path: '/api/v1/auth',
     });
     const { refreshToken: _ignoredRefreshToken, ...responseData } = data;
     void _ignoredRefreshToken;
@@ -77,7 +91,9 @@ const logoutHandler = async (req, res, next) => {
   try {
     const userId = req.user?.id || req.user?.userId;
     await authService.logout(userId);
-    res.clearCookie('refresh_token');
+    // مسح كل cookies الجلسة
+    res.clearCookie('access_token', { path: '/' });
+    res.clearCookie('refresh_token', { path: '/api/v1/auth' });
     res.json({
       success: true,
       message:

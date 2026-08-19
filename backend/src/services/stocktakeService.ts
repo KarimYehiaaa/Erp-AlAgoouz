@@ -110,8 +110,8 @@ export const getStocktakeList = async () => {
        s.created_by,
        s.created_at,
        s.completed_at,
-       s.total_deficit_value::float8 AS total_deficit_value,
-       s.total_surplus_value::float8 AS total_surplus_value,
+       s.total_deficit_value::numeric AS total_deficit_value,
+       s.total_surplus_value::numeric AS total_surplus_value,
        w.name_ar AS warehouse_name,
        u.username AS creator_name,
        (SELECT COUNT(*) FROM stocktake_items WHERE stocktake_id = s.id) AS items_count
@@ -137,8 +137,8 @@ export const getStocktakeDetails = async (stocktakeId: number) => {
        s.created_by,
        s.created_at,
        s.completed_at,
-       s.total_deficit_value::float8 AS total_deficit_value,
-       s.total_surplus_value::float8 AS total_surplus_value,
+       s.total_deficit_value::numeric AS total_deficit_value,
+       s.total_surplus_value::numeric AS total_surplus_value,
        w.name_ar AS warehouse_name,
        u.username AS creator_name
      FROM stocktakes s
@@ -157,10 +157,10 @@ export const getStocktakeDetails = async (stocktakeId: number) => {
        si.id,
        si.stocktake_id,
        si.product_id,
-       si.system_quantity::float8 AS system_quantity,
-       si.actual_quantity::float8 AS actual_quantity,
-       si.difference::float8 AS difference,
-       si.unit_cost::float8 AS unit_cost,
+       si.system_quantity::numeric AS system_quantity,
+       si.actual_quantity::numeric AS actual_quantity,
+       si.difference::numeric AS difference,
+       si.unit_cost::numeric AS unit_cost,
        p.name_ar AS product_name,
        p.sku,
        p.unit

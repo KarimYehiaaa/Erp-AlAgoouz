@@ -125,7 +125,10 @@ export const localDb = {
       const transaction = db.transaction('offline_sales', 'readwrite');
       const store = transaction.objectStore('offline_sales');
 
-      const offline_id = 'off_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+      const offline_id =
+        typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+          ? crypto.randomUUID()
+          : 'off_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
       const record: LocalOfflineSale = {
         ...sale,
         offline_id,

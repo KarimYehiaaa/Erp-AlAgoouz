@@ -8,6 +8,7 @@ export type { User, Permission };
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null);
+  // قراءة التوكن من localStorage كـ fallback للتوافقية (الـ Backend يضبط HttpOnly cookie أيضاً)
   const token = ref<string | null>(localStorage.getItem('token'));
   const permissions = ref<Permission[]>([]);
   const profileLoaded = ref(false);
@@ -15,7 +16,7 @@ export const useAuthStore = defineStore('auth', () => {
   let activeProfilePromise: Promise<any> | null = null;
 
   const fetchProfile = async () => {
-    if (!token.value) return;
+    if (!token.value && !document.cookie.includes('access_token')) return;
     if (activeProfilePromise) return activeProfilePromise;
 
     activeProfilePromise = (async () => {
@@ -28,7 +29,7 @@ export const useAuthStore = defineStore('auth', () => {
           profileLoaded.value = true;
         }
       } catch (e: any) {
-        if (e.response?.status === 401) logout();
+        if (e.response?.status === 401 || e.status === 401) logout();
       } finally {
         activeProfilePromise = null;
       }
@@ -48,7 +49,7 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  const isAuthenticated = computed(() => !!token.value);
+  const isAuthenticated = computed(() => !!token.value || !!user.value);
 
   const hasPermission = (code: string) => {
     if (user.value?.role_name && ADMIN_ROLES.includes(user.value.role_name)) return true;
@@ -60,6 +61,8 @@ export const useAuthStore = defineStore('auth', () => {
 
   const login = async (username: string, password: string) => {
     const res = await authApi.login({ username, password });
+    // التوكن يتخزن الآن في HttpOnly cookie من Backend
+    // نحتفظ بنسخة في localStorage كـ fallback فقط خلال فترة الانتقال
     token.value = res.data.token;
     user.value = res.data.user;
     permissions.value = res.data.permissions || [];
@@ -71,7 +74,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   const logout = async () => {
     try {
-      if (token.value) await authApi.logout();
+      if (token.value || user.value) await authApi.logout();
     } catch (e: any) {
       console.error('Logout API failed:', e);
     }
@@ -84,7 +87,10 @@ export const useAuthStore = defineStore('auth', () => {
   };
 
   const loadFromStorage = () => {
-    if (token.value && permissions.value.length === 0) {
+    if (
+      (token.value || document.cookie.includes('access_token')) &&
+      permissions.value.length === 0
+    ) {
       fetchProfile();
     }
   };

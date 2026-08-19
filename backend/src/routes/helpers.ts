@@ -8,10 +8,34 @@
 import multer from 'multer';
 import type { Request, Response, NextFunction } from 'express';
 
-/** رافع الملفات الموحّد — ذاكرة فقط، حد أقصى 5MB. */
+/** أنواع MIME المسموحة لرفع الملفات. */
+const ALLOWED_MIMES = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+  'image/webp',
+  'application/pdf',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // xlsx
+  'application/vnd.ms-excel', // xls
+  'text/csv',
+  'application/json',
+  'application/sql',
+  'application/x-sql', // backup restore
+  'application/gzip',
+  'application/x-gzip', // compressed backups
+]);
+
+/** رافع الملفات الموحّد — ذاكرة فقط، حد أقصى 5MB، مع فلترة MIME. */
 export const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (ALLOWED_MIMES.has(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error(`نوع الملف غير مسموح: ${file.mimetype}`));
+    }
+  },
 });
 
 /**

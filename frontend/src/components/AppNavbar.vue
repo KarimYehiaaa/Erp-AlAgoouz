@@ -276,7 +276,9 @@ const syncOfflineSales = async () => {
       void sale_number;
       void created_at;
       try {
-        await salesApi.create(cleanSale);
+        await salesApi.create(cleanSale, {
+          headers: { 'Idempotency-Key': offline_id },
+        });
         await localDb.deleteOfflineSale(offline_id);
       } catch (err: any) {
         const isNetworkError = !navigator.onLine || !err.status || err.code === 'ERR_NETWORK';

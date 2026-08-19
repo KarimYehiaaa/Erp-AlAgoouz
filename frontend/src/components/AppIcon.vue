@@ -59,6 +59,9 @@ import {
   Timer,
   TimerOff,
   RefreshCw,
+  Zap,
+  Bot,
+  Cpu,
 } from '@lucide/vue';
 
 const props = defineProps({
@@ -73,6 +76,9 @@ const icons = {
   shop: Store,
   sales: ReceiptText,
   coffee: Coffee,
+  zap: Zap,
+  bot: Bot,
+  cpu: Cpu,
   products: Package,
   purchases: ShoppingCart,
   inventory: Boxes,

@@ -104,6 +104,7 @@ const rawMenuGroups = [
     items: [
       { to: '/hr', label: 'الموظفين والرواتب', icon: 'hr', perm: 'hr.view' },
       { to: '/users', label: 'المستخدمين', icon: 'users', perm: 'users.view' },
+      { to: '/automations', label: 'مركز الأتمتة ⚡', icon: 'zap', perm: 'settings.view' },
       { to: '/settings', label: 'الإعدادات', icon: 'settings', perm: 'settings.view' },
       { to: '/admin-dashboard', label: 'مركز التحكم', icon: 'gauge', perm: 'users.view' },
     ],

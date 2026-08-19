@@ -155,6 +155,12 @@ const routes: RouteRecordRaw[] = [
         meta: { permission: 'settings.view' },
       },
       {
+        path: 'automations',
+        name: 'Automations',
+        component: () => import('@/views/AutomationView.vue'),
+        meta: { permission: 'settings.view' },
+      },
+      {
         path: 'admin-dashboard',
         name: 'AdminDashboard',
         component: () => import('@/views/AdminDashboardView.vue'),

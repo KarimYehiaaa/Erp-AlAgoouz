@@ -57,10 +57,16 @@ if (!process.env.VERCEL) {
       initWebSocket(server);
       initAutoBackupScheduler();
       try {
+        const { default: SchedulerService } = await import('./services/schedulerService.ts');
+        await SchedulerService.init();
+      } catch (e: any) {
+        console.error('Failed to start Automation Scheduler:', e.message);
+      }
+      try {
         const { initDatabaseMaintenanceScheduler } =
           await import('./services/maintenanceService.ts');
         initDatabaseMaintenanceScheduler();
-      } catch (e) {
+      } catch (e: any) {
         console.error('Failed to start maintenance scheduler:', e.message);
       }
     });

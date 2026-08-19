@@ -4,19 +4,17 @@
     <div class="page-header card">
       <div class="header-title">
         <div class="header-icon-wrap">
-          <span class="header-icon">⚡</span>
+          <span class="header-icon">🪐</span>
           <span class="radar-ping"></span>
         </div>
         <div>
-          <h2>مركز الأتمتة والذكاء التشغيلي</h2>
-          <p>
-            مراقبة وتصميم مسارات العمل التلقائية، تقارير الإغلاق، والإنذارات اللحظية عبر تليجرام
-          </p>
+          <h2>مركز الأتمتة والمخطط العصبي</h2>
+          <p>مراقبة شبكة الأتمتة الحية، تقارير الإغلاق، والإنذارات اللحظية عبر بوت تليجرام</p>
         </div>
       </div>
 
       <div class="header-actions">
-        <!-- أزرار التبديل بين وضع المخطط الشبكي الحديث والوضع الكلاسيكي -->
+        <!-- أزرار التبديل بين وضع المخطط الدائري Obsidian والوضع الكلاسيكي -->
         <div class="view-mode-toggle">
           <button
             type="button"
@@ -24,7 +22,7 @@
             :class="{ active: viewMode === 'graph' }"
             @click="viewMode = 'graph'"
           >
-            <span>🌌 استوديو المخطط الشبكي الفائق</span>
+            <span>🪐 مخطط أوبسيديان العصبي (Obsidian Graph)</span>
           </button>
           <button
             type="button"
@@ -68,7 +66,7 @@
           <span>⚡</span>
         </div>
         <div class="stat-info">
-          <span class="stat-label">المسارات والعقد النشطة</span>
+          <span class="stat-label">المسارات والعقد الفعالة</span>
           <h3 class="stat-value">
             {{ activeCount }} <small>/ {{ automationsList.length }}</small>
           </h3>
@@ -109,24 +107,34 @@
       </div>
     </div>
 
-    <!-- ═══════════════════ العرض الأول: استوديو المخطط العصبي الفائق (Ultra-Modern Neural Canvas) ═══════════════════ -->
+    <!-- ═══════════════════ العرض الأول: مخطط أوبسيديان الفضائي الدوار (True Obsidian Force Graph) ═══════════════════ -->
     <div v-if="viewMode === 'graph'" class="obsidian-graph-wrapper card">
       <!-- شريط أدوات الكانفاس الزجاجي العائم -->
       <div class="graph-top-bar">
         <div class="graph-title-group">
           <div class="live-status-pill">
             <span class="beacon-circle"></span>
-            <span class="live-text">LIVE STREAM</span>
+            <span class="live-text">ORBITAL PHYSICS</span>
           </div>
           <div>
-            <h3 class="graph-heading">المنظومة العصبية التفاعلية للأتمتة</h3>
+            <h3 class="graph-heading">المنظومة الكونية الدوارة (Obsidian Orb Constellation)</h3>
             <span class="graph-sub"
-              >اسحب العقد بحرية، أو اضغط على أي مسار لتشغيل نبضات البيانات الفورية</span
+              >✨ العقد تدور بفيزياء جاذبية حية. اسحب أي كوكب بالماوس، أو انقر عليه لمعاينته
+              وتشغيله</span
             >
           </div>
         </div>
 
         <div class="graph-controls">
+          <button
+            type="button"
+            class="graph-btn-secondary"
+            :class="{ 'is-active': isRotating }"
+            @click="toggleRotation"
+          >
+            <span>{{ isRotating ? '⏸️ إيقاف الدوران' : '▶️ تشغيل الدوران' }}</span>
+          </button>
+
           <div class="zoom-pill">
             <button type="button" class="ctrl-btn-icon" title="تكبير" @click="zoomIn">➕</button>
             <span class="zoom-value">{{ Math.round(zoomLevel * 100) }}%</span>
@@ -136,31 +144,24 @@
           <button
             type="button"
             class="graph-btn-secondary"
-            title="إعادة ضبط المنظور"
-            @click="resetViewport"
+            title="إعادة ضبط وتمركز المنظومة"
+            @click="resetPhysicsAndCenter"
           >
-            <span>🎯 ضبط</span>
+            <span>🎯 إعادة التمركز</span>
           </button>
-          <button
-            type="button"
-            class="graph-btn-secondary"
-            title="إعادة الترتيب التلقائي"
-            @click="autoLayoutNodes"
-          >
-            <span>✨ ترتيب ذكي</span>
-          </button>
+
           <button
             type="button"
             class="graph-btn-laser"
             :disabled="isFiringAll"
             @click="simulateFullNetworkPulse"
           >
-            <span>{{ isFiringAll ? '⚡ سريان النبضات...' : '🚀 إطلاق نبضة بيانات' }}</span>
+            <span>{{ isFiringAll ? '⚡ سريان الطاقة...' : '🚀 ضخ نبضة طاقة كونية' }}</span>
           </button>
         </div>
       </div>
 
-      <!-- مساحة الكانفاس التفاعلية -->
+      <!-- مساحة الكانفاس التفاعلية الفضائية -->
       <div
         ref="canvasContainerRef"
         class="obsidian-canvas-viewport"
@@ -171,12 +172,12 @@
         @mouseleave="handleCanvasMouseUp"
         @wheel.prevent="handleCanvasWheel"
       >
-        <!-- سديم الإضاءة العميقة بالخلفية -->
+        <!-- سديم الإضاءة الكونية العميقة -->
         <div class="nebula-glow glow-amber"></div>
         <div class="nebula-glow glow-cyan"></div>
         <div class="nebula-glow glow-purple"></div>
 
-        <!-- شبكة النقاط الهندسية الدقيقة -->
+        <!-- شبكة الفضاء النقطية -->
         <div
           class="obsidian-grid-pattern"
           :style="{
@@ -191,109 +192,110 @@
             transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoomLevel})`,
           }"
         >
-          <!-- طبقة الأسلاك الليزرية الحديثة SVG (Ultra-Thin Laser Splines) -->
+          <!-- طبقة الخيوط العصبية الشبكية SVG (Thin Neural Web Filaments) -->
           <svg class="wires-svg-layer" width="3000" height="2000">
             <defs>
-              <!-- تدرج ليزري فائق الانسيابية -->
-              <linearGradient id="laser-stream-grad" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stop-color="#f59e0b" stop-opacity="0.3" />
-                <stop offset="30%" stop-color="#fbbf24" stop-opacity="0.9" />
-                <stop offset="70%" stop-color="#38bdf8" stop-opacity="0.9" />
-                <stop offset="100%" stop-color="#10b981" stop-opacity="0.3" />
+              <linearGradient id="orb-wire-amber" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#f59e0b" stop-opacity="0.8" />
+                <stop offset="100%" stop-color="#38bdf8" stop-opacity="0.4" />
               </linearGradient>
 
-              <!-- مرشح توهج ألياف الضوء -->
-              <filter id="fiber-glow" x="-30%" y="-30%" width="160%" height="160%">
-                <feGaussianBlur stdDeviation="2" result="blur1" />
-                <feGaussianBlur stdDeviation="5" result="blur2" />
+              <filter id="orb-wire-glow" x="-20%" y="-20%" width="140%" height="140%">
+                <feGaussianBlur stdDeviation="1.5" result="blur" />
                 <feMerge>
-                  <feMergeNode in="blur2" />
-                  <feMergeNode in="blur1" />
+                  <feMergeNode in="blur" />
                   <feMergeNode in="SourceGraphic" />
                 </feMerge>
               </filter>
             </defs>
 
-            <!-- رسم الوصلات المنحنية لكل رابط -->
-            <g v-for="link in graphLinks" :key="link.id" class="wire-group">
-              <!-- سلك العمود الفقري الرفيع الأنيق -->
-              <path :d="computeBezierPath(link)" class="fiber-wire-base" />
+            <!-- رسم الخيوط العصبية المستقيمة/المرنة بين الكواكب -->
+            <g v-for="link in graphLinks" :key="link.id" class="filament-group">
+              <!-- الخط العصبي الأساسي -->
+              <line
+                :x1="getNodePos(link.from).x"
+                :y1="getNodePos(link.from).y"
+                :x2="getNodePos(link.to).x"
+                :y2="getNodePos(link.to).y"
+                class="neural-filament-base"
+                :class="{
+                  highlighted:
+                    hoveredNodeId === link.from ||
+                    hoveredNodeId === link.to ||
+                    selectedNode?.id === link.from ||
+                    selectedNode?.id === link.to,
+                }"
+              />
 
-              <!-- شعاع الليزر الضوئي المتحرك -->
-              <path
-                :d="computeBezierPath(link)"
-                class="fiber-wire-laser"
+              <!-- نبضات الفوتون الضوئي المضيء المتحرك على الخيط -->
+              <line
+                :x1="getNodePos(link.from).x"
+                :y1="getNodePos(link.from).y"
+                :x2="getNodePos(link.to).x"
+                :y2="getNodePos(link.to).y"
+                class="neural-filament-laser"
                 :class="{
                   active: isFiringAll || triggeringId === link.automationId,
                 }"
-                filter="url(#fiber-glow)"
+                filter="url(#orb-wire-glow)"
               />
             </g>
+
+            <!-- مدارات الجاذبية الدائرية الخافتة في الخلفية -->
+            <circle :cx="centerCoord.x" :cy="centerCoord.y" r="140" class="orbit-ring ring-inner" />
+            <circle :cx="centerCoord.x" :cy="centerCoord.y" r="240" class="orbit-ring ring-outer" />
           </svg>
 
-          <!-- طبقة العقد الذكية المدمجة (Compact Micro-Chip Nodes) -->
+          <!-- طبقة الكواكب والعقد الدائرية المضيئة (Obsidian Glowing Orbs) -->
           <div
             v-for="node in graphNodes"
             :key="node.id"
-            class="compact-node"
+            class="obsidian-orb-node"
             :class="[
               node.category,
               {
-                active: selectedNode?.id === node.id,
-                executing: isFiringAll || triggeringId === node.automationId,
-                dragging: draggedNodeId === node.id,
+                'is-center': node.isCenter,
+                'is-active': selectedNode?.id === node.id,
+                'is-hovered': hoveredNodeId === node.id,
+                'is-dimmed':
+                  hoveredNodeId && hoveredNodeId !== node.id && !isNeighbor(hoveredNodeId, node.id),
+                'is-executing': isFiringAll || triggeringId === node.automationId,
+                'is-dragging': draggedNodeId === node.id,
               },
             ]"
             :style="{
-              left: `${node.x}px`,
-              top: `${node.y}px`,
+              transform: `translate3d(${node.x - node.radius}px, ${node.y - node.radius}px, 0)`,
+              width: `${node.radius * 2}px`,
+              height: `${node.radius * 2}px`,
             }"
             @mousedown.stop="handleNodeMouseDown(node, $event)"
+            @mouseenter="hoveredNodeId = node.id"
+            @mouseleave="hoveredNodeId = null"
             @click.stop="selectNode(node)"
           >
-            <!-- مقبس الإدخال الدائري الرفيع -->
-            <div v-if="node.hasInput" class="compact-socket socket-in">
-              <span class="socket-inner-ring"></span>
+            <!-- الهالة الضوئية الخارجية المتوهجة (Atmosphere Halo) -->
+            <div class="orb-halo"></div>
+
+            <!-- الكوكب الزجاجي الداخلي والمحتوى -->
+            <div class="orb-core">
+              <span class="orb-icon">{{ node.icon }}</span>
+              <span v-if="node.hasLed" class="orb-led"></span>
             </div>
 
-            <!-- محتوى العقدة المصغر الأنيق -->
-            <div class="compact-node-content">
-              <div class="node-icon-box" :class="node.category">
-                <span>{{ node.icon }}</span>
-              </div>
-
-              <div class="node-text-group">
-                <div class="node-meta-line">
-                  <span class="node-badge-tag">{{ node.typeLabel }}</span>
-                  <span class="node-mini-led" :class="node.status"></span>
-                </div>
-                <h4 class="node-compact-title">{{ node.title }}</h4>
-              </div>
-
-              <button
-                v-if="node.automationId"
-                type="button"
-                class="node-trigger-pill"
-                title="تشغيل فوري"
-                @click.stop="triggerTestRunById(node.automationId)"
-              >
-                <span>⚡</span>
-              </button>
-            </div>
-
-            <!-- مقبس الإخراج الدائري الرفيع -->
-            <div v-if="node.hasOutput" class="compact-socket socket-out">
-              <span class="socket-inner-ring"></span>
+            <!-- التسمية النصية العائمة تحت الكوكب (Obsidian Label) -->
+            <div class="orb-floating-label">
+              <span class="label-title">{{ node.title }}</span>
+              <span v-if="node.subLabel" class="label-sub">{{ node.subLabel }}</span>
             </div>
           </div>
         </div>
 
-        <!-- اللوحة الجانبية لمستكشف العقدة المحددة (Glass Node Inspector) -->
+        <!-- اللوحة الجانبية لمستكشف الكوكب المحدد (Glass Node Inspector) -->
         <transition name="slide-left">
           <div v-if="selectedNode" class="node-inspector-drawer">
             <div class="inspector-header">
               <div class="flex items-center gap-2">
-                <span class="text-xl">{{ selectedNode.icon }}</span>
+                <span class="text-2xl">{{ selectedNode.icon }}</span>
                 <div>
                   <h4 class="font-black text-sm text-strong">{{ selectedNode.title }}</h4>
                   <span class="text-xs text-muted">{{ selectedNode.typeLabel }}</span>
@@ -306,13 +308,13 @@
               <p class="text-xs text-muted mb-3">{{ selectedNode.desc }}</p>
 
               <div class="inspector-stat-row">
-                <span class="text-xs font-bold text-muted">حالة العقدة:</span>
-                <span class="badge-mini on">🟢 نشط ومتصل</span>
+                <span class="text-xs font-bold text-muted">الحالة في المنظومة:</span>
+                <span class="badge-mini on">🟢 مدار متصل ومستقر</span>
               </div>
 
               <div class="inspector-stat-row">
-                <span class="text-xs font-bold text-muted">نوع المحفز:</span>
-                <span class="font-mono text-xs text-strong">Event / Realtime</span>
+                <span class="text-xs font-bold text-muted">طبيعة العقدة:</span>
+                <span class="font-mono text-xs text-strong">{{ selectedNode.typeLabel }}</span>
               </div>
 
               <div v-if="selectedNode.cron" class="inspector-stat-row">
@@ -330,7 +332,7 @@
                 >
                   <span>{{
                     triggeringId === selectedNode.automationId
-                      ? 'جاري الضخ...'
+                      ? '⚡ جاري إطلاق الطاقة...'
                       : '⚡ تشغيل محاكاة العقدة'
                   }}</span>
                 </button>
@@ -600,7 +602,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, reactive } from 'vue';
+import { ref, computed, onMounted, onUnmounted, reactive } from 'vue';
 import { automations as automationsApi } from '@/api';
 import AppIcon from '@/components/AppIcon.vue';
 
@@ -623,52 +625,63 @@ const telegramForm = ref({
   chatId: '',
 });
 
-/* ═══════════════════ محرك الكانفاس والفيزياء التفاعلية الفائقة ═══════════════════ */
+/* ═══════════════════ محرك فيزياء أوبسيديان الكوني الدوار (True Obsidian Orbit Engine) ═══════════════════ */
 const canvasContainerRef = ref<HTMLElement | null>(null);
 const zoomLevel = ref(1.0);
-const panOffset = reactive({ x: 50, y: 40 });
+const panOffset = reactive({ x: 0, y: 0 });
 const isPanning = ref(false);
 const panStart = reactive({ x: 0, y: 0 });
 
-const draggedNodeId = ref<string | null>(null);
-const dragNodeStart = reactive({ x: 0, y: 0, nodeX: 0, nodeY: 0 });
+const isRotating = ref(true);
+let animationFrameId: number | null = null;
+const hoveredNodeId = ref<string | null>(null);
 const selectedNode = ref<any | null>(null);
 
-// أبعاد العقد المصغرة الأنيقة (Sleek Micro-Chip Dimensions)
-const NODE_WIDTH = 210;
-const NODE_HEIGHT = 68;
+const draggedNodeId = ref<string | null>(null);
+const dragNodeStart = reactive({ x: 0, y: 0, nodeX: 0, nodeY: 0 });
 
-// تعريف عقد الخريطة الشبكية المدمجة
+// إحداثيات مركز الجاذبية الكونية
+const centerCoord = reactive({ x: 500, y: 320 });
+
+// تعريف كواكب وعقد المنظومة العصبية (Obsidian Celestial Orbs)
 const graphNodes = ref<any[]>([
+  {
+    id: 'node-brain',
+    typeLabel: 'Core Nucleus • العقل المركزي',
+    category: 'core-cat',
+    icon: '🧠',
+    title: 'عقل الأتمتة المركزي',
+    subLabel: 'محرك التقارير والقرارات',
+    desc: 'تجميع إيرادات اليوم، صافي الأرباح، وأعلى الأصناف طلباً',
+    radius: 34,
+    x: 500,
+    y: 320,
+    vx: 0,
+    vy: 0,
+    orbitRadius: 0,
+    orbitSpeed: 0,
+    orbitAngle: 0,
+    isCenter: true,
+    hasLed: true,
+    automationId: null,
+  },
   {
     id: 'node-pos',
     typeLabel: 'Trigger • نقطة بيع',
     category: 'trigger-cat',
     icon: '☕',
     title: 'كاشير الفروع (POS)',
+    subLabel: 'مبيعات حية',
     desc: 'إصدار الفواتير، التحصيل، ومتابعة الورديات الحية',
-    x: 60,
-    y: 60,
-    hasInput: false,
-    hasOutput: true,
-    status: 'online',
-    statusLabel: 'متصل ولحظي',
-    automationId: null,
-  },
-  {
-    id: 'node-cron',
-    typeLabel: 'Trigger • جدول زمني',
-    category: 'trigger-cat',
-    icon: '⏰',
-    title: 'محرك الجدولة (Cron)',
-    desc: 'جدولة تقرير الإغلاق وفحص النواقص الدوري',
-    cron: 'يومياً 11:30 م',
-    x: 60,
-    y: 190,
-    hasInput: false,
-    hasOutput: true,
-    status: 'online',
-    statusLabel: 'مجدول ونشط',
+    radius: 24,
+    x: 340,
+    y: 200,
+    vx: 0,
+    vy: 0,
+    orbitRadius: 170,
+    orbitSpeed: 0.0035,
+    orbitAngle: 0,
+    hasLed: true,
     automationId: null,
   },
   {
@@ -677,43 +690,37 @@ const graphNodes = ref<any[]>([
     category: 'trigger-cat',
     icon: '🫘',
     title: 'مخازن البن والتحميص',
+    subLabel: 'رصد الخامات',
     desc: 'رصد كميات البن الأخضر والمحمص وحركات الصرف',
-    x: 60,
-    y: 320,
-    hasInput: false,
-    hasOutput: true,
-    status: 'online',
-    statusLabel: 'مراقبة حية',
+    radius: 24,
+    x: 660,
+    y: 200,
+    vx: 0,
+    vy: 0,
+    orbitRadius: 190,
+    orbitSpeed: 0.0028,
+    orbitAngle: 1.2,
+    hasLed: true,
     automationId: null,
   },
   {
-    id: 'node-brain',
-    typeLabel: 'Engine • محرك التقارير',
-    category: 'logic-cat',
-    icon: '🧠',
-    title: 'عقل الأتمتة المركزي',
-    desc: 'تجميع إيرادات اليوم، صافي الأرباح، وأعلى الأصناف طلباً',
-    x: 370,
-    y: 70,
-    hasInput: true,
-    hasOutput: true,
-    status: 'online',
-    statusLabel: 'معالجة فورية',
-    automationId: null,
-  },
-  {
-    id: 'node-balancing',
-    typeLabel: 'Balancing • مناقلات الفروع',
-    category: 'logic-cat',
-    icon: '🔄',
-    title: 'توازن مخزون الفروع',
-    desc: 'تحليل سرعة السحب واقتراح مناقلات لتفادي الشراء الجديد',
-    x: 370,
-    y: 180,
-    hasInput: true,
-    hasOutput: true,
-    status: 'online',
-    statusLabel: 'توازن ذكي',
+    id: 'node-cron',
+    typeLabel: 'Trigger • جدولة زمنية',
+    category: 'trigger-cat',
+    icon: '⏰',
+    title: 'محرك الجدولة (Cron)',
+    subLabel: '11:30 م يومياً',
+    desc: 'جدولة تقرير الإغلاق وفحص النواقص الدوري',
+    cron: 'يومياً 11:30 م',
+    radius: 22,
+    x: 360,
+    y: 440,
+    vx: 0,
+    vy: 0,
+    orbitRadius: 180,
+    orbitSpeed: 0.003,
+    orbitAngle: 2.4,
+    hasLed: true,
     automationId: null,
   },
   {
@@ -722,13 +729,36 @@ const graphNodes = ref<any[]>([
     category: 'security-cat',
     icon: '🛡️',
     title: 'منظومة الرقابة والأمان',
+    subLabel: 'حماية 24/7',
     desc: 'كشف فوري لإلغاء الفواتير والخصومات المشبوهة',
-    x: 370,
-    y: 290,
-    hasInput: true,
-    hasOutput: true,
-    status: 'online',
-    statusLabel: 'حماية 24/7',
+    radius: 25,
+    x: 640,
+    y: 440,
+    vx: 0,
+    vy: 0,
+    orbitRadius: 185,
+    orbitSpeed: 0.0032,
+    orbitAngle: 3.6,
+    hasLed: true,
+    automationId: null,
+  },
+  {
+    id: 'node-balancing',
+    typeLabel: 'Balancing • مناقلات الفروع',
+    category: 'logic-cat',
+    icon: '🔄',
+    title: 'توازن مخزون الفروع',
+    subLabel: 'مناقلات ذكية',
+    desc: 'تحليل سرعة السحب واقتراح مناقلات لتفادي الشراء الجديد',
+    radius: 24,
+    x: 230,
+    y: 320,
+    vx: 0,
+    vy: 0,
+    orbitRadius: 270,
+    orbitSpeed: -0.002,
+    orbitAngle: 4.8,
+    hasLed: true,
     automationId: null,
   },
   {
@@ -737,13 +767,17 @@ const graphNodes = ref<any[]>([
     category: 'security-cat',
     icon: '💰',
     title: 'درع حماية السيولة',
+    subLabel: 'توقعات 14 يوم',
     desc: 'تنبؤ استباقي بالعجز المالي ومقارنة الالتزامات بالإيرادات',
-    x: 370,
-    y: 400,
-    hasInput: true,
-    hasOutput: true,
-    status: 'online',
-    statusLabel: 'حماية السيولة',
+    radius: 25,
+    x: 770,
+    y: 320,
+    vx: 0,
+    vy: 0,
+    orbitRadius: 275,
+    orbitSpeed: -0.0022,
+    orbitAngle: 0.6,
+    hasLed: true,
     automationId: null,
   },
   {
@@ -752,28 +786,36 @@ const graphNodes = ref<any[]>([
     category: 'storage-cat',
     icon: '🗄️',
     title: 'سحابة PostgreSQL',
+    subLabel: 'أرشفة دائمة',
     desc: 'حفظ الحركات المحاسبية والسجلات وسلسلة الجرد',
-    x: 690,
-    y: 60,
-    hasInput: true,
-    hasOutput: false,
-    status: 'online',
-    statusLabel: 'مستقرة وسريعة',
+    radius: 22,
+    x: 500,
+    y: 110,
+    vx: 0,
+    vy: 0,
+    orbitRadius: 220,
+    orbitSpeed: 0.0024,
+    orbitAngle: 5.4,
+    hasLed: true,
     automationId: null,
   },
   {
     id: 'node-tg',
-    typeLabel: 'Action • بوت تليجرام 2-Way',
+    typeLabel: 'Action • بوت تليجرام التفاعلي',
     category: 'action-cat',
     icon: '🤖',
-    title: 'بوت تليجرام المالك',
+    title: 'بوت تليجرام 2-Way',
+    subLabel: 'استماع لحظي',
     desc: 'توصيل التقارير والرد الفوري على أوامر المالك على تليجرام',
-    x: 690,
-    y: 190,
-    hasInput: true,
-    hasOutput: false,
-    status: 'online',
-    statusLabel: 'استماع لحظي 24/7',
+    radius: 28,
+    x: 500,
+    y: 530,
+    vx: 0,
+    vy: 0,
+    orbitRadius: 230,
+    orbitSpeed: 0.0025,
+    orbitAngle: 1.8,
+    hasLed: true,
     automationId: null,
   },
   {
@@ -781,19 +823,23 @@ const graphNodes = ref<any[]>([
     typeLabel: 'Audit • سجل المراقبة',
     category: 'action-cat',
     icon: '📜',
-    title: 'سجل الأتمتة الحي',
+    title: 'سجل العمليات الحي',
+    subLabel: 'Audit Stream',
     desc: 'أرشفة كافة المهام المنفذة مع التوقيت والنتيجة',
-    x: 690,
-    y: 320,
-    hasInput: true,
-    hasOutput: false,
-    status: 'online',
-    statusLabel: 'أرشفة دائمة',
+    radius: 22,
+    x: 280,
+    y: 170,
+    vx: 0,
+    vy: 0,
+    orbitRadius: 260,
+    orbitSpeed: -0.0018,
+    orbitAngle: 3.0,
+    hasLed: true,
     automationId: null,
   },
 ]);
 
-// شبكة الوصلات بين العقد (Bézier Links)
+// خيوط الشبكة العصبية (Neural Links)
 const graphLinks = ref<any[]>([
   { id: 'l1', from: 'node-pos', to: 'node-brain', automationId: null },
   { id: 'l2', from: 'node-pos', to: 'node-fraud', automationId: null },
@@ -808,31 +854,70 @@ const graphLinks = ref<any[]>([
   { id: 'l11', from: 'node-brain', to: 'node-logs', automationId: null },
 ]);
 
-// حساب مسار بيزييه فائق النعومة والجمال
-const computeBezierPath = (link: any) => {
-  const fromNode = graphNodes.value.find((n) => n.id === link.from);
-  const toNode = graphNodes.value.find((n) => n.id === link.to);
-  if (!fromNode || !toNode) return '';
-
-  const x1 = fromNode.x + NODE_WIDTH;
-  const y1 = fromNode.y + NODE_HEIGHT / 2;
-  const x2 = toNode.x;
-  const y2 = toNode.y + NODE_HEIGHT / 2;
-
-  const dx = Math.abs(x2 - x1) * 0.5;
-  const cx1 = x1 + dx;
-  const cy1 = y1;
-  const cx2 = x2 - dx;
-  const cy2 = y2;
-
-  return `M ${x1} ${y1} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${x2} ${y2}`;
+const getNodePos = (nodeId: string) => {
+  const node = graphNodes.value.find((n) => n.id === nodeId);
+  return node ? { x: node.x, y: node.y } : { x: centerCoord.x, y: centerCoord.y };
 };
 
-// تفاعلات الكانفاس والتحريك (Pan & Zoom)
+const isNeighbor = (nodeAId: string, nodeBId: string) => {
+  return graphLinks.value.some(
+    (l) => (l.from === nodeAId && l.to === nodeBId) || (l.from === nodeBId && l.to === nodeAId),
+  );
+};
+
+/* ═══════════════════ محرك الدوران والفيزياء المستمرة ═══════════════════ */
+const startPhysicsLoop = () => {
+  const step = () => {
+    if (isRotating.value) {
+      for (const node of graphNodes.value) {
+        if (node.isCenter || draggedNodeId.value === node.id) continue;
+
+        // تقدم الزاوية المدارية للكوكب
+        node.orbitAngle += node.orbitSpeed;
+
+        // حساب الإحداثيات المستهدفة بناء على المسار المداري
+        const targetX = centerCoord.x + Math.cos(node.orbitAngle) * node.orbitRadius;
+        const targetY = centerCoord.y + Math.sin(node.orbitAngle) * node.orbitRadius * 0.78; // إهليلجي ثلاثي الأبعاد
+
+        // اقتراب ناعم وفيزيائي (Smooth Spring Easing)
+        node.x += (targetX - node.x) * 0.04;
+        node.y += (targetY - node.y) * 0.04;
+      }
+    }
+    animationFrameId = requestAnimationFrame(step);
+  };
+  animationFrameId = requestAnimationFrame(step);
+};
+
+const toggleRotation = () => {
+  isRotating.value = !isRotating.value;
+  showFeedback(
+    isRotating.value ? 'تم تفعيل الدوران الكوني للمنظومة 🪐' : 'تم إيقاف الدوران مؤقتاً ⏸️',
+  );
+};
+
+const resetPhysicsAndCenter = () => {
+  for (const node of graphNodes.value) {
+    if (node.isCenter) {
+      node.x = centerCoord.x;
+      node.y = centerCoord.y;
+    } else {
+      node.x = centerCoord.x + Math.cos(node.orbitAngle) * node.orbitRadius;
+      node.y = centerCoord.y + Math.sin(node.orbitAngle) * node.orbitRadius * 0.78;
+    }
+  }
+  panOffset.x = 0;
+  panOffset.y = 0;
+  zoomLevel.value = 1.0;
+  showFeedback('تمت إعادة تمركز المنظومة بالكامل! 🎯');
+};
+
+/* تفاعلات الكانفاس والتحريك (Pan & Zoom) */
 const handleCanvasMouseDown = (e: MouseEvent) => {
   if (
     e.target !== canvasContainerRef.value &&
-    !(e.target as HTMLElement).classList.contains('obsidian-grid-pattern')
+    !(e.target as HTMLElement).classList.contains('obsidian-grid-pattern') &&
+    !(e.target as HTMLElement).classList.contains('wires-svg-layer')
   ) {
     return;
   }
@@ -847,8 +932,16 @@ const handleCanvasMouseMove = (e: MouseEvent) => {
     if (node) {
       const deltaX = (e.clientX - dragNodeStart.x) / zoomLevel.value;
       const deltaY = (e.clientY - dragNodeStart.y) / zoomLevel.value;
-      node.x = Math.max(10, Math.round(dragNodeStart.nodeX + deltaX));
-      node.y = Math.max(10, Math.round(dragNodeStart.nodeY + deltaY));
+      node.x = Math.round(dragNodeStart.nodeX + deltaX);
+      node.y = Math.round(dragNodeStart.nodeY + deltaY);
+
+      // تحديث نصف القطر المداري وزاوية الكوكب بناء على الموقع الجديد الذي سحبه المستخدم
+      if (!node.isCenter) {
+        const dx = node.x - centerCoord.x;
+        const dy = (node.y - centerCoord.y) / 0.78;
+        node.orbitRadius = Math.max(80, Math.sqrt(dx * dx + dy * dy));
+        node.orbitAngle = Math.atan2(dy, dx);
+      }
     }
     return;
   }
@@ -878,36 +971,6 @@ const zoomOut = () => {
   zoomLevel.value = Math.max(0.6, parseFloat((zoomLevel.value - 0.12).toFixed(2)));
 };
 
-const resetViewport = () => {
-  panOffset.x = 50;
-  panOffset.y = 40;
-  zoomLevel.value = 1.0;
-};
-
-const autoLayoutNodes = () => {
-  const layouts: Record<string, { x: number; y: number }> = {
-    'node-pos': { x: 60, y: 60 },
-    'node-cron': { x: 60, y: 190 },
-    'node-inv': { x: 60, y: 320 },
-    'node-brain': { x: 370, y: 70 },
-    'node-balancing': { x: 370, y: 180 },
-    'node-fraud': { x: 370, y: 290 },
-    'node-cashflow': { x: 370, y: 400 },
-    'node-db': { x: 690, y: 60 },
-    'node-tg': { x: 690, y: 190 },
-    'node-logs': { x: 690, y: 320 },
-  };
-
-  for (const node of graphNodes.value) {
-    const loc = layouts[node.id];
-    if (loc) {
-      node.x = loc.x;
-      node.y = loc.y;
-    }
-  }
-  showFeedback('تمت إعادة ترتيب العقد بذكاء! ✨');
-};
-
 const handleNodeMouseDown = (node: any, e: MouseEvent) => {
   draggedNodeId.value = node.id;
   dragNodeStart.x = e.clientX;
@@ -923,10 +986,10 @@ const selectNode = (node: any) => {
 
 const simulateFullNetworkPulse = async () => {
   isFiringAll.value = true;
-  showFeedback('⚡ سريان نبضات الليزر والبيانات في كافة فروع المنظومة...');
+  showFeedback('⚡ ضخ نبضات الليزر الكونية في جميع الخيوط العصبية...');
   setTimeout(() => {
     isFiringAll.value = false;
-    showFeedback('تم وصول إشارات البيانات بنجاح! ✨');
+    showFeedback('اكتمل سريان نبضات الطاقة في كامل المنظومة! ✨');
   }, 2200);
 };
 
@@ -945,6 +1008,13 @@ const activeCount = computed(() => {
 onMounted(async () => {
   await fetchAutomations();
   await fetchLogs();
+  startPhysicsLoop();
+});
+
+onUnmounted(() => {
+  if (animationFrameId) {
+    cancelAnimationFrame(animationFrameId);
+  }
 });
 
 const showFeedback = (msg: string, type: 'success' | 'error' = 'success') => {
@@ -1358,23 +1428,22 @@ const formatRelativeTime = (dtStr?: string) => {
   }
 }
 
-/* ═══════════════════ Ultra-Modern Obsidian Neural Canvas ═══════════════════ */
+/* ═══════════════════ True Obsidian Force Orbital Graph ═══════════════════ */
 .obsidian-graph-wrapper {
   padding: 0;
   display: flex;
   flex-direction: column;
-  border: 1px solid #27221e;
+  border: 1px solid #201c18;
   overflow: hidden;
   border-radius: var(--radius-lg);
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
-  background: #090807;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+  background: #080706;
 }
 
-/* Floating Glass Top Bar */
 .graph-top-bar {
-  background: rgba(18, 15, 13, 0.85);
+  background: rgba(14, 12, 10, 0.88);
   backdrop-filter: blur(20px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   padding: 10px 18px;
   display: flex;
   justify-content: space-between;
@@ -1394,8 +1463,8 @@ const formatRelativeTime = (dtStr?: string) => {
   display: flex;
   align-items: center;
   gap: 6px;
-  background: rgba(245, 158, 11, 0.12);
-  border: 1px solid rgba(245, 158, 11, 0.35);
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.3);
   padding: 3px 10px;
   border-radius: 20px;
 }
@@ -1425,7 +1494,7 @@ const formatRelativeTime = (dtStr?: string) => {
 .live-text {
   font-size: 0.65rem;
   font-weight: 900;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.6px;
   color: #fbbf24;
 }
 
@@ -1492,10 +1561,11 @@ const formatRelativeTime = (dtStr?: string) => {
   transition: all 0.2s;
 }
 
-.graph-btn-secondary:hover {
-  background: rgba(255, 255, 255, 0.1);
+.graph-btn-secondary:hover,
+.graph-btn-secondary.is-active {
+  background: rgba(255, 255, 255, 0.12);
   border-color: #fbbf24;
-  color: #fff;
+  color: #fbbf24;
 }
 
 .graph-btn-laser {
@@ -1519,7 +1589,7 @@ const formatRelativeTime = (dtStr?: string) => {
 /* Canvas Viewport */
 .obsidian-canvas-viewport {
   width: 100%;
-  height: 600px;
+  height: 640px;
   background: #080706;
   position: relative;
   overflow: hidden;
@@ -1535,33 +1605,33 @@ const formatRelativeTime = (dtStr?: string) => {
 .nebula-glow {
   position: absolute;
   border-radius: 50%;
-  filter: blur(100px);
+  filter: blur(110px);
   pointer-events: none;
   opacity: 0.18;
 }
 
 .glow-amber {
-  width: 400px;
-  height: 400px;
+  width: 450px;
+  height: 450px;
   background: #f59e0b;
-  left: 10%;
-  top: 10%;
+  left: 20%;
+  top: 15%;
 }
 
 .glow-cyan {
-  width: 450px;
-  height: 450px;
+  width: 500px;
+  height: 500px;
   background: #38bdf8;
-  right: 10%;
+  right: 15%;
   bottom: 10%;
 }
 
 .glow-purple {
-  width: 350px;
-  height: 350px;
+  width: 380px;
+  height: 380px;
   background: #818cf8;
-  left: 45%;
-  top: 30%;
+  left: 50%;
+  top: 40%;
 }
 
 /* Dot Grid */
@@ -1572,7 +1642,7 @@ const formatRelativeTime = (dtStr?: string) => {
   left: -1000px;
   top: -1000px;
   background-image: radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px);
-  background-size: 20px 20px;
+  background-size: 22px 22px;
   pointer-events: none;
 }
 
@@ -1586,7 +1656,7 @@ const formatRelativeTime = (dtStr?: string) => {
   pointer-events: none;
 }
 
-/* Wires Layer (Ultra-Thin Laser Splines) */
+/* Wires Layer (Obsidian Neural Filaments) */
 .wires-svg-layer {
   position: absolute;
   left: 0;
@@ -1595,29 +1665,43 @@ const formatRelativeTime = (dtStr?: string) => {
   z-index: 1;
 }
 
-.fiber-wire-base {
+.orbit-ring {
   fill: none;
-  stroke: rgba(255, 255, 255, 0.08);
-  stroke-width: 1.5;
+  stroke: rgba(255, 255, 255, 0.03);
+  stroke-width: 1;
+  stroke-dasharray: 4 6;
 }
 
-.fiber-wire-laser {
-  fill: none;
-  stroke: url(#laser-stream-grad);
-  stroke-width: 2;
-  stroke-dasharray: 6 12;
-  animation: laser-dash-flow 1.5s linear infinite;
-  opacity: 0.7;
+.neural-filament-base {
+  stroke: rgba(255, 255, 255, 0.09);
+  stroke-width: 1.2;
+  transition:
+    stroke 0.2s,
+    stroke-width 0.2s;
 }
 
-.fiber-wire-laser.active {
-  stroke-width: 3;
+.neural-filament-base.highlighted {
   stroke: #fbbf24;
-  animation: laser-dash-flow 0.4s linear infinite;
+  stroke-width: 2.2;
+  opacity: 0.9;
+}
+
+.neural-filament-laser {
+  stroke: url(#orb-wire-amber);
+  stroke-width: 1.8;
+  stroke-dasharray: 4 14;
+  animation: laser-spark 1.4s linear infinite;
+  opacity: 0.6;
+}
+
+.neural-filament-laser.active {
+  stroke: #fbbf24;
+  stroke-width: 3;
+  animation: laser-spark 0.35s linear infinite;
   opacity: 1;
 }
 
-@keyframes laser-dash-flow {
+@keyframes laser-spark {
   from {
     stroke-dashoffset: 36;
   }
@@ -1626,200 +1710,191 @@ const formatRelativeTime = (dtStr?: string) => {
   }
 }
 
-/* Compact Micro-Chip Nodes (Modern Sleek Dimensions) */
-.compact-node {
+/* ═══════════════════ Obsidian Glowing Orbs (Celestial Spheres) ═══════════════════ */
+.obsidian-orb-node {
   position: absolute;
-  width: 210px;
-  height: 68px;
-  background: rgba(18, 16, 14, 0.92);
-  backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  padding: 8px 12px;
-  display: flex;
-  align-items: center;
+  left: 0;
+  top: 0;
+  border-radius: 50%;
   cursor: grab;
   pointer-events: auto;
   z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   transition:
-    border-color 0.2s,
-    box-shadow 0.2s,
-    transform 0.15s;
-  box-shadow:
-    0 8px 24px rgba(0, 0, 0, 0.5),
-    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    opacity 0.2s,
+    filter 0.2s;
 }
 
-.compact-node:hover {
-  border-color: rgba(245, 158, 11, 0.7);
-  box-shadow:
-    0 12px 30px rgba(245, 158, 11, 0.2),
-    inset 0 1px 0 rgba(255, 255, 255, 0.15);
-  transform: translateY(-2px);
-  z-index: 5;
+.obsidian-orb-node.is-dimmed {
+  opacity: 0.25;
+  filter: grayscale(0.6);
 }
 
-.compact-node.dragging {
+.obsidian-orb-node.is-dragging {
   cursor: grabbing;
-  border-color: #fbbf24;
-  box-shadow: 0 16px 40px rgba(251, 191, 36, 0.35);
-  transform: scale(1.03);
   z-index: 10;
 }
 
-.compact-node.active {
+/* Atmosphere Halo */
+.orb-halo {
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(245, 158, 11, 0.25) 0%, transparent 70%);
+  opacity: 0.6;
+  transition: all 0.25s;
+  pointer-events: none;
+}
+
+.obsidian-orb-node:hover .orb-halo,
+.obsidian-orb-node.is-hovered .orb-halo {
+  inset: -12px;
+  opacity: 1;
+  background: radial-gradient(circle, rgba(245, 158, 11, 0.45) 0%, transparent 70%);
+}
+
+.obsidian-orb-node.is-center .orb-halo {
+  inset: -14px;
+  background: radial-gradient(circle, rgba(245, 158, 11, 0.4) 0%, transparent 75%);
+  animation: core-pulsar 2.4s infinite ease-in-out;
+}
+
+@keyframes core-pulsar {
+  0% {
+    transform: scale(0.95);
+    opacity: 0.5;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(0.95);
+    opacity: 0.5;
+  }
+}
+
+/* The Solid Orb Core */
+.orb-core {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: rgba(22, 19, 16, 0.94);
+  border: 1.5px solid rgba(255, 255, 255, 0.15);
+  box-shadow:
+    0 4px 16px rgba(0, 0, 0, 0.6),
+    inset 0 1px 1px rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.obsidian-orb-node:hover .orb-core,
+.obsidian-orb-node.is-active .orb-core {
   border-color: #fbbf24;
   box-shadow:
-    0 0 0 2px rgba(251, 191, 36, 0.5),
-    0 12px 32px rgba(0, 0, 0, 0.6);
+    0 0 16px rgba(251, 191, 36, 0.6),
+    inset 0 1px 1px rgba(255, 255, 255, 0.4);
+  transform: scale(1.15);
 }
 
-.compact-node.executing {
-  animation: node-chip-laser 0.6s infinite alternate;
+.obsidian-orb-node.is-center .orb-core {
+  border: 2px solid #f59e0b;
+  background: radial-gradient(circle, #3d260f 0%, #17130f 100%);
+  box-shadow: 0 0 24px rgba(245, 158, 11, 0.5);
 }
 
-@keyframes node-chip-laser {
+.obsidian-orb-node.is-executing .orb-core {
+  animation: orb-laser-pulse 0.6s infinite alternate;
+}
+
+@keyframes orb-laser-pulse {
   0% {
     border-color: #f59e0b;
-    box-shadow: 0 0 15px rgba(245, 158, 11, 0.4);
+    box-shadow: 0 0 20px #f59e0b;
   }
   100% {
     border-color: #10b981;
-    box-shadow: 0 0 22px rgba(16, 185, 129, 0.7);
+    box-shadow: 0 0 30px #10b981;
   }
 }
 
-/* Category Color Indicator Accent */
-.compact-node.trigger-cat {
-  border-right: 3px solid #f59e0b;
+.orb-icon {
+  font-size: 1.1rem;
+  line-height: 1;
 }
 
-.compact-node.logic-cat {
-  border-right: 3px solid #6366f1;
+.obsidian-orb-node.is-center .orb-icon {
+  font-size: 1.45rem;
 }
 
-.compact-node.security-cat {
-  border-right: 3px solid #ef4444;
-}
-
-.compact-node.storage-cat {
-  border-right: 3px solid #38bdf8;
-}
-
-.compact-node.action-cat {
-  border-right: 3px solid #10b981;
-}
-
-/* Sockets */
-.compact-socket {
+.orb-led {
   position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: #0d0b0a;
-  border: 1.5px solid rgba(255, 255, 255, 0.25);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 3;
-}
-
-.socket-in {
-  right: -5px;
-}
-
-.socket-out {
-  left: -5px;
-}
-
-.socket-inner-ring {
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: #fbbf24;
-}
-
-/* Node Inner Content */
-.compact-node-content {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-}
-
-.node-icon-box {
-  width: 34px;
-  height: 34px;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.15rem;
-  flex-shrink: 0;
-}
-
-.node-text-group {
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  flex-grow: 1;
-}
-
-.node-meta-line {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.node-badge-tag {
-  font-size: 0.6rem;
-  font-weight: 800;
-  color: #a8a29e;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
-.node-mini-led {
-  width: 4px;
-  height: 4px;
+  top: 2px;
+  right: 2px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
   background: #10b981;
+  box-shadow: 0 0 6px #10b981;
 }
 
-.node-compact-title {
-  font-size: 0.8rem;
-  font-weight: 800;
-  color: #f5f5f4;
-  margin: 1px 0 0 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+/* Category Colors */
+.obsidian-orb-node.trigger-cat .orb-core {
+  border-color: rgba(245, 158, 11, 0.5);
 }
 
-.node-trigger-pill {
-  background: rgba(245, 158, 11, 0.15);
-  border: 1px solid rgba(245, 158, 11, 0.4);
-  color: #fbbf24;
-  width: 24px;
-  height: 24px;
-  border-radius: 6px;
-  font-size: 0.75rem;
+.obsidian-orb-node.logic-cat .orb-core {
+  border-color: rgba(99, 102, 241, 0.6);
+}
+
+.obsidian-orb-node.security-cat .orb-core {
+  border-color: rgba(239, 68, 68, 0.6);
+}
+
+.obsidian-orb-node.storage-cat .orb-core {
+  border-color: rgba(56, 189, 248, 0.6);
+}
+
+.obsidian-orb-node.action-cat .orb-core {
+  border-color: rgba(16, 185, 129, 0.6);
+}
+
+/* Floating Label Under Orb */
+.orb-floating-label {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  flex-shrink: 0;
-  transition: all 0.15s;
+  pointer-events: none;
+  white-space: nowrap;
 }
 
-.node-trigger-pill:hover {
-  background: #f59e0b;
-  color: #000;
-  transform: scale(1.1);
+.label-title {
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #e7e5e4;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.9);
+  transition: color 0.15s;
+}
+
+.obsidian-orb-node:hover .label-title,
+.obsidian-orb-node.is-hovered .label-title {
+  color: #fbbf24;
+}
+
+.label-sub {
+  font-size: 0.58rem;
+  font-weight: 700;
+  color: #a8a29e;
+  opacity: 0.75;
 }
 
 /* Inspector Drawer Card */
@@ -1828,7 +1903,7 @@ const formatRelativeTime = (dtStr?: string) => {
   top: 16px;
   left: 16px;
   width: 270px;
-  background: rgba(18, 15, 13, 0.95);
+  background: rgba(16, 14, 12, 0.94);
   backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: var(--radius-md);

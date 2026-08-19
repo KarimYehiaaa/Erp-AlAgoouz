@@ -18,13 +18,13 @@ export class TelegramService {
     config?: TelegramConfig,
     parseMode: 'HTML' | 'Markdown' = 'HTML',
   ): Promise<{ success: boolean; error?: string; messageId?: number }> {
-    const token = config?.botToken || process.env.TELEGRAM_BOT_TOKEN;
-    const chatId = config?.chatId || process.env.TELEGRAM_CHAT_ID;
+    const token = (config?.botToken || process.env.TELEGRAM_BOT_TOKEN || '').trim();
+    const chatId = (config?.chatId || process.env.TELEGRAM_CHAT_ID || '').trim();
 
     if (!token || !chatId) {
       return {
         success: false,
-        error: 'لم يتم ضبط بيانات بوت تليجرام (TELEGRAM_BOT_TOKEN أو TELEGRAM_CHAT_ID غير متوفرين)',
+        error: 'يرجى إدخال كل من Bot Token و Chat ID أولاً',
       };
     }
 
@@ -43,9 +43,21 @@ export class TelegramService {
 
       const data = await res.json();
       if (!data.ok) {
+        let friendlyErr = data.description || 'فشل إرسال الرسالة إلى تليجرام';
+        if (data.description?.includes('Unauthorized')) {
+          friendlyErr = 'رمز الـ Bot Token غير صحيح أو تم حذفه من BotFather';
+        } else if (data.description?.includes('chat not found')) {
+          friendlyErr = 'الـ Chat ID غير صحيح، أو أنك لم تضغط Start في شات البوت بعد';
+        } else if (data.description?.includes("bot can't initiate conversation")) {
+          friendlyErr =
+            'يجب عليك أولاً فتح شات البوت على تليجرام والضغط على زر Start لكي يتمكن من مراسلتك!';
+        } else if (data.description?.includes('bot was blocked')) {
+          friendlyErr = 'البوت محظور من هذا الحساب في تليجرام، يرجى إلغاء الحظر والضغط على Start';
+        }
+
         return {
           success: false,
-          error: data.description || 'فشل إرسال الرسالة إلى تليجرام',
+          error: friendlyErr,
         };
       }
 

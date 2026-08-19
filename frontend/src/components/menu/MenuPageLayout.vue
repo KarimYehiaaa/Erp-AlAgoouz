@@ -2,15 +2,21 @@
   <div class="menu-print-document" :class="`theme-${menuData.theme || 'coffee-gold'}`">
     <!-- ═══════════════════ الصفحة الأولى: الوجه (FRONT PAGE) ═══════════════════ -->
     <div class="menu-sheet page-front">
-      <div class="sheet-border-outer">
-        <div class="sheet-border-inner">
+      <div class="sheet-frame-outer">
+        <div class="sheet-frame-inner">
+          <!-- زوايا زخرفية ملكية -->
+          <div class="corner-flourish top-right"></div>
+          <div class="corner-flourish top-left"></div>
+          <div class="corner-flourish bottom-right"></div>
+          <div class="corner-flourish bottom-left"></div>
+
           <!-- الترويسة الرئيسية للوجه -->
           <header class="menu-header">
             <div class="brand-crest">
-              <div class="coffee-beans-icon">☕</div>
+              <div class="coffee-emblem">☕</div>
               <h1 class="brand-title">{{ menuData.title_ar || 'بن العجوز' }}</h1>
               <p class="brand-subtitle">
-                {{ menuData.subtitle_ar || 'أصل القهوة والتوليفات الفاخرة' }}
+                {{ menuData.subtitle_ar || 'أصل القهوة والتوليفات الفاخرة منذ 1980' }}
               </p>
               <div class="ornament-divider">
                 <span class="line"></span>
@@ -83,8 +89,14 @@
 
     <!-- ═══════════════════ الصفحة الثانية: الظهر (BACK PAGE) ═══════════════════ -->
     <div class="menu-sheet page-back">
-      <div class="sheet-border-outer">
-        <div class="sheet-border-inner">
+      <div class="sheet-frame-outer">
+        <div class="sheet-frame-inner">
+          <!-- زوايا زخرفية ملكية -->
+          <div class="corner-flourish top-right"></div>
+          <div class="corner-flourish top-left"></div>
+          <div class="corner-flourish bottom-right"></div>
+          <div class="corner-flourish bottom-left"></div>
+
           <!-- ترويسة الصفحة الثانية -->
           <header class="menu-header back-header">
             <div class="brand-crest mini">
@@ -155,7 +167,7 @@
             <div class="footer-columns">
               <div class="footer-contact-info">
                 <h4 class="footer-heading">📍 زيارتكم تسعدنا</h4>
-                <p class="footer-text">{{ menuData.address_ar || 'جمهورية مصر العربية' }}</p>
+                <p class="footer-text">{{ menuData.address_ar || 'الفرع الرئيسي - مصر' }}</p>
                 <div class="phones-wrap">
                   <span class="phone-item">📞 {{ menuData.phone_primary || '01000000000' }}</span>
                   <span v-if="menuData.phone_secondary" class="phone-item">
@@ -271,11 +283,11 @@ const getCatIcon = (iconName?: string) => {
 
 <style scoped>
 /* ═══════════════════════════════════════════════════════════════════
-   THEME STYLING & PRINT OPTIMIZATION (A4 210mm x 297mm)
+   THEME STYLING & A4 PRINT READY LAYOUT (210mm x 297mm)
    ═══════════════════════════════════════════════════════════════════ */
 
 .menu-print-document {
-  font-family: 'Cairo', 'Tajawal', 'Segoe UI', sans-serif;
+  font-family: var(--font-ui);
   direction: rtl;
   color: var(--menu-text);
   background-color: var(--menu-bg);
@@ -284,36 +296,36 @@ const getCatIcon = (iconName?: string) => {
 
 /* 🎨 THEME 1: COFFEE GOLD (بن العجوز الملكي) */
 .theme-coffee-gold {
-  --menu-bg: #fbf8f3;
-  --menu-sheet-bg: #fffdfa;
-  --menu-primary: #3d2314;
-  --menu-accent: #c5a059;
-  --menu-accent-dark: #8c6a2d;
-  --menu-text: #2a1b12;
-  --menu-text-muted: #6e594d;
-  --menu-border-outer: #c5a059;
-  --menu-border-inner: #3d2314;
-  --menu-badge-bg: #f4ece0;
+  --menu-bg: #fdfaf6;
+  --menu-sheet-bg: #ffffff;
+  --menu-primary: #5c3d2e;
+  --menu-accent: #c8956e;
+  --menu-accent-dark: #8a572a;
+  --menu-text: #2c1810;
+  --menu-text-muted: #8a786a;
+  --menu-border-outer: #c8956e;
+  --menu-border-inner: #5c3d2e;
+  --menu-badge-bg: #faf3eb;
 }
 
 /* 🎨 THEME 2: MODERN DARK (دارك كافيه مودرن) */
 .theme-modern-dark {
   --menu-bg: #121214;
-  --menu-sheet-bg: #18181b;
-  --menu-primary: #fafafa;
-  --menu-accent: #f59e0b;
-  --menu-accent-dark: #d97706;
-  --menu-text: #f4f4f5;
-  --menu-text-muted: #a1a1aa;
-  --menu-border-outer: #f59e0b;
-  --menu-border-inner: #27272a;
-  --menu-badge-bg: #27272a;
+  --menu-sheet-bg: #1a1614;
+  --menu-primary: #f5ebe0;
+  --menu-accent: #d4a373;
+  --menu-accent-dark: #c8956e;
+  --menu-text: #faedcd;
+  --menu-text-muted: #b7a192;
+  --menu-border-outer: #d4a373;
+  --menu-border-inner: #3d2a20;
+  --menu-badge-bg: #2b1f1a;
 }
 
 /* 🎨 THEME 3: WARM CREAM (كريمي كلاسيك) */
 .theme-warm-cream {
-  --menu-bg: #f7f2ea;
-  --menu-sheet-bg: #faf7f2;
+  --menu-bg: #f5ebe0;
+  --menu-sheet-bg: #fefae0;
   --menu-primary: #4a3427;
   --menu-accent: #b47b48;
   --menu-accent-dark: #84532b;
@@ -330,33 +342,67 @@ const getCatIcon = (iconName?: string) => {
   min-height: 297mm;
   max-height: 297mm;
   padding: 8mm;
-  margin: 0 auto 20px auto;
+  margin: 0 auto 24px auto;
   box-sizing: border-box;
   background-color: var(--menu-sheet-bg);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 10px 30px rgba(44, 24, 16, 0.12);
   position: relative;
   page-break-after: always;
   display: flex;
   flex-direction: column;
 }
 
-/* الإطارات الزخرفية المزدوجة للطباعة الملكية */
-.sheet-border-outer {
+/* الإطارات الزخرفية المزدوجة المتناسقة */
+.sheet-frame-outer {
   border: 2px solid var(--menu-border-outer);
   padding: 4px;
   height: 100%;
   display: flex;
   flex-direction: column;
   flex: 1;
+  position: relative;
 }
 
-.sheet-border-inner {
+.sheet-frame-inner {
   border: 1px solid var(--menu-border-inner);
-  padding: 12px 16px;
+  padding: 14px 18px;
   height: 100%;
   display: flex;
   flex-direction: column;
   flex: 1;
+  position: relative;
+}
+
+/* زوايا زخرفية */
+.corner-flourish {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border-color: var(--menu-accent);
+}
+.corner-flourish.top-right {
+  top: 4px;
+  right: 4px;
+  border-top: 2px solid var(--menu-accent);
+  border-right: 2px solid var(--menu-accent);
+}
+.corner-flourish.top-left {
+  top: 4px;
+  left: 4px;
+  border-top: 2px solid var(--menu-accent);
+  border-left: 2px solid var(--menu-accent);
+}
+.corner-flourish.bottom-right {
+  bottom: 4px;
+  right: 4px;
+  border-bottom: 2px solid var(--menu-accent);
+  border-right: 2px solid var(--menu-accent);
+}
+.corner-flourish.bottom-left {
+  bottom: 4px;
+  left: 4px;
+  border-bottom: 2px solid var(--menu-accent);
+  border-left: 2px solid var(--menu-accent);
 }
 
 /* ترويسة المنيو */
@@ -365,28 +411,29 @@ const getCatIcon = (iconName?: string) => {
   margin-bottom: 12px;
 }
 
-.coffee-beans-icon {
-  font-size: 28px;
+.coffee-emblem {
+  font-size: 26px;
   margin-bottom: 2px;
 }
 
 .brand-title {
-  font-size: 28px;
-  font-weight: 900;
+  font-family: var(--font-calligraphy), var(--font-ui);
+  font-size: 32px;
+  font-weight: 700;
   color: var(--menu-primary);
   margin: 0;
-  letter-spacing: -0.5px;
+  line-height: 1.1;
 }
 
 .brand-title.mini {
-  font-size: 20px;
+  font-size: 22px;
 }
 
 .brand-subtitle {
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 600;
   color: var(--menu-accent-dark);
-  margin: 2px 0 6px 0;
+  margin: 3px 0 6px 0;
 }
 
 .ornament-divider {
@@ -395,7 +442,7 @@ const getCatIcon = (iconName?: string) => {
   justify-content: center;
   gap: 8px;
   margin: 4px auto 8px auto;
-  width: 60%;
+  width: 55%;
 }
 
 .ornament-divider .line {
@@ -405,12 +452,12 @@ const getCatIcon = (iconName?: string) => {
 }
 
 .ornament-divider .diamond {
-  font-size: 10px;
+  font-size: 9px;
   color: var(--menu-accent);
 }
 
 .ornament-divider .star {
-  font-size: 14px;
+  font-size: 13px;
   color: var(--menu-accent);
 }
 
@@ -419,11 +466,11 @@ const getCatIcon = (iconName?: string) => {
   background: var(--menu-primary);
   color: #fff;
   padding: 4px 18px;
-  border-radius: 20px;
-  font-size: 12px;
+  border-radius: var(--radius-xl);
+  font-size: 11.5px;
   font-weight: 700;
   border: 1px solid var(--menu-accent);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
 }
 
 .page-badge-ribbon.secondary {
@@ -436,7 +483,7 @@ const getCatIcon = (iconName?: string) => {
 .menu-content-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 16px 20px;
+  gap: 14px 18px;
   flex: 1;
   align-content: start;
 }
@@ -450,7 +497,7 @@ const getCatIcon = (iconName?: string) => {
 }
 
 .category-header {
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .cat-title-wrap {
@@ -464,14 +511,14 @@ const getCatIcon = (iconName?: string) => {
 }
 
 .cat-title {
-  font-size: 16px;
+  font-size: 15.5px;
   font-weight: 800;
   color: var(--menu-primary);
   margin: 0;
 }
 
 .cat-subtitle {
-  font-size: 10.5px;
+  font-size: 10px;
   color: var(--menu-text-muted);
   margin: 2px 0 0 0;
 }
@@ -479,14 +526,14 @@ const getCatIcon = (iconName?: string) => {
 .cat-divider {
   height: 1.5px;
   background: linear-gradient(to left, var(--menu-accent), transparent);
-  margin-top: 4px;
+  margin-top: 3px;
 }
 
 /* سطور الأصناف */
 .items-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 5px;
 }
 
 .menu-item-row {
@@ -497,9 +544,9 @@ const getCatIcon = (iconName?: string) => {
 }
 
 .menu-item-row.featured-item {
-  background: linear-gradient(to left, rgba(197, 160, 89, 0.08), transparent);
+  background: linear-gradient(to left, rgba(200, 149, 110, 0.12), transparent);
   padding: 2px 6px;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
 }
 
 .item-info {
@@ -520,7 +567,7 @@ const getCatIcon = (iconName?: string) => {
 }
 
 .item-desc {
-  font-size: 10px;
+  font-size: 9.5px;
   color: var(--menu-text-muted);
   margin: 1px 0 0 0;
   line-height: 1.3;
@@ -531,7 +578,7 @@ const getCatIcon = (iconName?: string) => {
   font-size: 8.5px;
   font-weight: 800;
   padding: 1px 5px;
-  border-radius: 8px;
+  border-radius: var(--radius-xs);
 }
 
 .badge-featured {
@@ -540,7 +587,7 @@ const getCatIcon = (iconName?: string) => {
 }
 
 .badge-new {
-  background: #10b981;
+  background: #15803d;
   color: #fff;
 }
 
@@ -548,7 +595,7 @@ const getCatIcon = (iconName?: string) => {
 .item-leader-dots {
   flex: 1;
   border-bottom: 1.5px dotted var(--menu-accent);
-  opacity: 0.5;
+  opacity: 0.45;
   margin-bottom: 3px;
 }
 
@@ -561,8 +608,8 @@ const getCatIcon = (iconName?: string) => {
 }
 
 .item-price {
-  font-size: 14px;
-  font-weight: 900;
+  font-size: 13.5px;
+  font-weight: 800;
   color: var(--menu-primary);
 }
 
@@ -573,7 +620,7 @@ const getCatIcon = (iconName?: string) => {
 }
 
 .unit-label {
-  font-size: 9.5px;
+  font-size: 9px;
   color: var(--menu-text-muted);
 }
 
@@ -581,7 +628,7 @@ const getCatIcon = (iconName?: string) => {
   display: flex;
   align-items: baseline;
   gap: 2px;
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 800;
   color: var(--menu-primary);
 }
@@ -599,7 +646,7 @@ const getCatIcon = (iconName?: string) => {
   border-top: 1px dashed var(--menu-border-outer);
   padding-top: 6px;
   margin-top: auto;
-  font-size: 10px;
+  font-size: 9.5px;
   color: var(--menu-text-muted);
   font-weight: 600;
 }
@@ -608,7 +655,7 @@ const getCatIcon = (iconName?: string) => {
 .menu-master-footer {
   margin-top: auto;
   border-top: 2px solid var(--menu-border-outer);
-  padding-top: 10px;
+  padding-top: 8px;
 }
 
 .footer-columns {
@@ -619,20 +666,20 @@ const getCatIcon = (iconName?: string) => {
 }
 
 .footer-heading {
-  font-size: 11.5px;
+  font-size: 11px;
   font-weight: 800;
   color: var(--menu-primary);
-  margin: 0 0 3px 0;
+  margin: 0 0 2px 0;
 }
 
 .footer-text {
-  font-size: 10px;
+  font-size: 9.5px;
   color: var(--menu-text-muted);
-  margin: 0 0 4px 0;
+  margin: 0 0 3px 0;
 }
 
 .phones-wrap {
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 800;
   color: var(--menu-accent-dark);
   direction: ltr;
@@ -642,16 +689,16 @@ const getCatIcon = (iconName?: string) => {
 .social-tags {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 2px;
 }
 
 .social-badge {
-  font-size: 10px;
+  font-size: 9.5px;
   font-weight: 700;
   color: var(--menu-text);
   background: var(--menu-badge-bg);
-  padding: 2px 8px;
-  border-radius: 4px;
+  padding: 2px 6px;
+  border-radius: var(--radius-xs);
   display: inline-block;
   width: fit-content;
 }
@@ -669,20 +716,20 @@ const getCatIcon = (iconName?: string) => {
 }
 
 .qr-pattern {
-  width: 44px;
-  height: 44px;
+  width: 40px;
+  height: 40px;
   border: 1.5px solid var(--menu-border-inner);
-  border-radius: 6px;
+  border-radius: var(--radius-xs);
   display: flex;
   align-items: center;
   justify-content: center;
   background: #fff;
   color: var(--menu-primary);
-  font-size: 20px;
+  font-size: 18px;
 }
 
 .qr-caption {
-  font-size: 8.5px;
+  font-size: 8px;
   font-weight: 700;
   color: var(--menu-text-muted);
 }
@@ -691,16 +738,16 @@ const getCatIcon = (iconName?: string) => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: 8px;
+  margin-top: 6px;
   padding-top: 4px;
   border-top: 1px solid var(--menu-border-outer);
-  font-size: 9.5px;
+  font-size: 9px;
   color: var(--menu-text-muted);
   font-weight: 600;
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   PRINT MEDIA RULES FOR DIRECT PRINT (Ctrl + P)
+   PRINT MEDIA RULES
    ═══════════════════════════════════════════════════════════════════ */
 @media print {
   @page {

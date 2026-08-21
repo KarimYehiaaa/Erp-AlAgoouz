@@ -30,6 +30,7 @@ import { requireIdempotency } from './middleware/idempotency.ts';
 import cookieParser from 'cookie-parser';
 import { checkHealth } from './database/pool.ts';
 import { initSentry } from './services/sentry.ts';
+import { syncMonitorController } from './controllers/syncMonitorController.ts';
 
 // ─── تحديد مجلد العمل (يعمل في ESM وفي العقدة العادية) ───────────────────────
 let __dirname = process.cwd();
@@ -199,6 +200,11 @@ app.get('/api/health', handleHealth);
 app.get('/api/v1/health', handleHealth);
 app.get('/v1/health', handleHealth);
 app.get('/health', handleHealth);
+
+app.get('/api/sync/status', syncMonitorController.getStatus);
+app.get('/api/v1/sync/status', syncMonitorController.getStatus);
+app.get('/v1/sync/status', syncMonitorController.getStatus);
+app.get('/sync/status', syncMonitorController.getStatus);
 
 // ─── تقديم الواجهة المبنية (SPA) ──────────────────────────────────────────────
 const frontendDist = resolveFrontendDist();

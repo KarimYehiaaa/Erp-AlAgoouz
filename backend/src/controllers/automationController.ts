@@ -3,7 +3,7 @@
  * ══════════════════════════════════════════════════════════════════════════
  */
 
-import { Request, Response, NextFunction } from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import AutomationService from '../services/automationService.ts';
 import SchedulerService from '../services/schedulerService.ts';
 import TelegramService from '../services/telegramService.ts';

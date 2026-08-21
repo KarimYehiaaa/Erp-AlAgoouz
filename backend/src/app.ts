@@ -206,11 +206,11 @@ if (frontendDist) {
   console.log(`📦 Serving frontend from: ${frontendDist}`);
   app.use(express.static(frontendDist));
   // أي مسار ليس API → index.html (دعم History Mode في Vue Router)
-  app.get('*', (req, res, next) => {
-    if (req.path.startsWith('/api') || req.path.startsWith('/v1')) {
-      return next();
+  app.use((req, res, next) => {
+    if (req.method === 'GET' && !req.path.startsWith('/api') && !req.path.startsWith('/v1')) {
+      return res.sendFile(path.join(frontendDist, 'index.html'));
     }
-    res.sendFile(path.join(frontendDist, 'index.html'));
+    next();
   });
 } else {
   console.log('⚠️ Frontend dist not found - API only mode');

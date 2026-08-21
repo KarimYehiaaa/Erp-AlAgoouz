@@ -106,13 +106,13 @@ api.interceptors.response.use(
     }
     if (!message) {
       if (err.code === 'ERR_NETWORK' || !err.response) {
-        message = 'لا يمكن الاتصال بالخادم. تأكد من تشغيل Backend: cd backend && npm run dev';
+        message = 'لا يمكن الاتصال بالخادم. يرجى المحاولة مرة أخرى لاحقاً';
       } else {
         message = 'حدث خطأ في الاتصال';
       }
     }
     if (message?.includes('قاعدة البيانات') || err.response?.status === 503) {
-      message = 'قاعدة البيانات غير متصلة. شغّل PostgreSQL أو نفّذ: docker compose up -d';
+      message = 'الخدمة غير متاحة حالياً. يرجى المحاولة مرة أخرى بعد قليل';
     }
 
     // Report unhandled backend errors to Sentry

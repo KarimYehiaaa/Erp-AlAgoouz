@@ -1,74 +1,91 @@
-const CACHE_NAME = 'alagoouz-erp-v1';
-const ASSETS_TO_CACHE = [
-  '/',
-  '/index.html',
-  '/logo.png',
-  '/manifest.json'
-];
+// Service Worker — بن العجوز ERP
+// ═══════════════════════════════════════════════════════════
+// الاستراتيجية المُصحّحة (تحل مشكلة تجمّد التنقل):
+//  - الـ HTML (التنقلات) → Network-First: يُجلب دائمًا نسخة جديدة من الخادم
+//    حتى لا يقدّم index.html قديمًا يشير لأصول محذوفة (كان سبب تجمّد كل المسارات).
+//  - الأصول المحددة بالهاش (JS/CSS/صور) → Cache-First مع إعادة تحقق خلفية
+//    (الأصول ذات الهاش غير قابلة للتغيير — آمنة للكاش).
+//  - طلبات /api وPOST وغيرها → تُمرَّر كما هي بلا تدخل.
+//  - إصدار الكاش v2: عند الترقية يُمسح القديم تلقائيًا في activate.
+const CACHE_NAME = 'alagoouz-erp-v2';
+const PRECACHE_ASSETS = ['/logo.png', '/manifest.json'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS_TO_CACHE);
-    })
+    caches
+      .open(CACHE_NAME)
+      .then((cache) => cache.addAll(PRECACHE_ASSETS))
+      .catch(() => {}),
   );
   self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((keys) => {
-      return Promise.all(
-        keys.map((key) => {
-          if (key !== CACHE_NAME) {
-            return caches.delete(key);
-          }
-        })
-      );
-    })
+    caches
+      .keys()
+      .then((keys) =>
+        Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))),
+      ),
   );
   self.clients.claim();
 });
 
 self.addEventListener('fetch', (event) => {
-  const url = new URL(event.request.url);
+  const request = event.request;
+  const url = new URL(request.url);
 
-  // Skip POST/PUT/DELETE and API requests
-  if (event.request.method !== 'GET' || url.pathname.startsWith('/api/')) {
+  // تخطي: طرق غير GET + واجهة الـ API + المصادر الخارجية
+  if (
+    request.method !== 'GET' ||
+    url.pathname.startsWith('/api/') ||
+    url.origin !== self.location.origin
+  ) {
     return;
   }
 
-  event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) {
-        // Fetch new version in background to update cache (Stale-While-Revalidate)
-        fetch(event.request).then((networkResponse) => {
-          if (networkResponse.status === 200) {
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(event.request, networkResponse);
-            });
+  // ── التنقلات (HTML) → Network-First ──
+  if (request.mode === 'navigate' || request.headers.get('accept')?.includes('text/html')) {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          // خزّن آخر index.html صالح للاستخدام دون اتصال (لا نخدمه إلا عند انقطاع الشبكة)
+          if (response && response.status === 200) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put('/index.html', clone));
           }
-        }).catch(() => {});
-        return cachedResponse;
+          return response;
+        })
+        .catch(() =>
+          caches
+            .match('/index.html')
+            .then((cached) => cached || caches.match('/')),
+        ),
+    );
+    return;
+  }
+
+  // ── الأصول الثابتة (JS/CSS/صور بهاش) → Cache-First مع إعادة تحقق خلفية ──
+  event.respondWith(
+    caches.match(request).then((cached) => {
+      if (cached) {
+        // تحديث خلفي (لا يُحجب العرض — والهاشات غير قابلة للتغيير، فالنسخة القديمة سليمة)
+        fetch(request)
+          .then((networkResponse) => {
+            if (networkResponse && networkResponse.status === 200) {
+              caches.open(CACHE_NAME).then((cache) => cache.put(request, networkResponse));
+            }
+          })
+          .catch(() => {});
+        return cached;
       }
-
-      return fetch(event.request).then((networkResponse) => {
-        if (!networkResponse || networkResponse.status !== 200) {
-          return networkResponse;
+      return fetch(request).then((networkResponse) => {
+        if (networkResponse && networkResponse.status === 200) {
+          const clone = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
         }
-
-        const responseToCache = networkResponse.clone();
-        caches.open(CACHE_NAME).then((cache) => {
-          cache.put(event.request, responseToCache);
-        });
-
         return networkResponse;
-      }).catch(() => {
-        // Fallback for HTML pages when offline
-        if (event.request.headers.get('accept')?.includes('text/html')) {
-          return caches.match('/index.html');
-        }
       });
-    })
+    }),
   );
 });

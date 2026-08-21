@@ -155,6 +155,7 @@ import {
   operations as operationsApi,
 } from '@/api';
 import { localDb } from '@/services/localDb';
+import { OutboxService } from '@/services/outboxService';
 
 const route = useRoute();
 const router = useRouter();
@@ -266,39 +267,14 @@ const handleDocumentClick = (event: any) => {
 const syncOfflineSales = async () => {
   if (!navigator.onLine) return;
   try {
-    const offlineSales = await localDb.getOfflineSales();
-    appStore.pendingSyncCount = offlineSales.length;
-    if (!offlineSales.length) return;
+    const result = await OutboxService.processOutbox();
+    appStore.pendingSyncCount = result.remainingCount;
 
-    console.warn(`Starting sync of ${offlineSales.length} offline sales...`);
-    for (const sale of offlineSales) {
-      const { offline_id, sale_number, created_at, ...cleanSale } = sale;
-      void sale_number;
-      void created_at;
-      try {
-        await salesApi.create(cleanSale, {
-          headers: { 'Idempotency-Key': offline_id },
-        });
-        await localDb.deleteOfflineSale(offline_id);
-      } catch (err: any) {
-        const isNetworkError = !navigator.onLine || !err.status || err.code === 'ERR_NETWORK';
-        if (isNetworkError) {
-          console.error(`Network error syncing ${offline_id}, stopping sync:`, err);
-          break; // توقف المزامنة مؤقتاً حتى عودة الاتصال
-        }
-        // خطأ تحقق (400) — الفاتورة تالفة، تخطيها لمتابعة المزامنة
-        console.error(`Skipping corrupted offline sale ${offline_id} (${err.status}):`, err);
-        // حذف الفاتورة التالفة لمنع تكرار الفشل
-        await localDb.deleteOfflineSale(offline_id);
-      }
+    if (result.syncedCount > 0) {
+      appStore.triggerDataRefresh();
     }
-
-    const remaining = await localDb.getOfflineSales();
-    appStore.pendingSyncCount = remaining.length;
-
-    appStore.triggerDataRefresh();
   } catch (err: any) {
-    console.error('Error during background sync:', err);
+    console.error('Error during background outbox sync:', err);
   }
 };
 

@@ -1,10 +1,10 @@
 const DB_NAME = 'BinAlAgoouzOfflineDB';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 let dbInstance: IDBDatabase | null = null;
 
 /**
- * فتح قاعدة البيانات المحلية (IndexedDB) مرة واحدة وإعادة استخدامها.
+ * فتح قاعدة البيانات المحلية (IndexedDB) مع دعم الترقية التلقائية.
  * @returns {Promise<IDBDatabase>} مثيل قاعدة البيانات
  */
 const getDb = (): Promise<IDBDatabase> => {
@@ -22,7 +22,8 @@ const getDb = (): Promise<IDBDatabase> => {
         db.createObjectStore('customers', { keyPath: 'id' });
       }
       if (!db.objectStoreNames.contains('offline_sales')) {
-        db.createObjectStore('offline_sales', { keyPath: 'offline_id' });
+        const salesStore = db.createObjectStore('offline_sales', { keyPath: 'offline_id' });
+        salesStore.createIndex('status', 'sync_status', { unique: false });
       }
     };
 
@@ -38,20 +39,25 @@ const getDb = (): Promise<IDBDatabase> => {
 };
 
 /** سجل المنتج في قاعدة البيانات المحلية. */
-type LocalProduct = Record<string, any> & { id: number | string };
+export type LocalProduct = Record<string, any> & { id: number | string };
 
 /** سجل العميل في قاعدة البيانات المحلية. */
-type LocalCustomer = Record<string, any> & { id: number | string };
+export type LocalCustomer = Record<string, any> & { id: number | string };
 
 /** سجل المبيعة غير المتصلة بالإنترنت. */
-type LocalOfflineSale = Record<string, any> & {
+export type LocalOfflineSale = Record<string, any> & {
   offline_id: string;
+  sync_id?: string;
   sale_number: string;
   created_at: string;
+  sync_status?: 'PENDING' | 'SYNCING' | 'FAILED' | 'QUARANTINED';
+  retry_count?: number;
+  last_error?: string;
 };
 
 /**
- * قاعدة بيانات محلية (IndexedDB) للعمل دون اتصال: منتجات وعملاء ومبيعات معلّقة.\n * تُستخدم لمزامنة البيانات عند عودة الاتصال.
+ * قاعدة بيانات محلية (IndexedDB) للعمل دون اتصال: منتجات وعملاء ومبيعات معلّقة.
+ * تُستخدم لمزامنة البيانات عند عودة الاتصال.
  */
 export const localDb = {
   /** مسح وحفظ قائمة المنتجات محليًا. */
@@ -129,17 +135,43 @@ export const localDb = {
         typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
           ? crypto.randomUUID()
           : 'off_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
+
       const record: LocalOfflineSale = {
         ...sale,
         offline_id,
-        sale_number: 'PENDING-' + Date.now().toString().slice(-6),
-        created_at: new Date().toISOString(),
+        sync_id: offline_id,
+        sale_number: sale.sale_number || 'PENDING-' + Date.now().toString().slice(-6),
+        created_at: sale.created_at || new Date().toISOString(),
+        sync_status: 'PENDING',
+        retry_count: 0,
       };
 
       const request = store.put(record);
 
       request.onsuccess = () => resolve(record);
       request.onerror = () => reject(request.error);
+    });
+  },
+
+  /** تحديث حالة مبيعة معلقة. */
+  updateOfflineSale: async (
+    offline_id: string,
+    updates: Partial<LocalOfflineSale>,
+  ): Promise<boolean> => {
+    const db = await getDb();
+    return new Promise((resolve: any, reject: any) => {
+      const transaction = db.transaction('offline_sales', 'readwrite');
+      const store = transaction.objectStore('offline_sales');
+      const getReq = store.get(offline_id);
+
+      getReq.onsuccess = () => {
+        if (!getReq.result) return resolve(false);
+        const updated = { ...getReq.result, ...updates };
+        const putReq = store.put(updated);
+        putReq.onsuccess = () => resolve(true);
+        putReq.onerror = () => reject(putReq.error);
+      };
+      getReq.onerror = () => reject(getReq.error);
     });
   },
 

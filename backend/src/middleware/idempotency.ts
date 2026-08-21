@@ -4,8 +4,12 @@
  * يتحقق من وجود رأس Idempotency-Key أو X-Idempotency-Key لمنع تكرار
  * العمليات المالية (مثل إنشاء الفواتير أو تسديد الدفعات) في حال انقطاع الاتصال
  * أو إعادة إرسال الطلب من العميل.
+ *
+ * يدعم التخزين المركزي في قاعدة البيانات (PostgreSQL) لتوافق تام مع بيئة Vercel Serverless،
+ * مع وجود ذاكرة محلية (Memory Fallback) في حال تعذر الاتصال اللحظي.
  */
 import type { Request, Response, NextFunction } from 'express';
+import { query } from '../database/pool.ts';
 
 interface CachedResponse {
   statusCode: number;
@@ -14,17 +18,17 @@ interface CachedResponse {
   createdAt: number;
 }
 
-// تخزين المفاتيح في الذاكرة (TTL: 24 ساعة)
-const idempotencyStore = new Map<string, CachedResponse | 'PROCESSING'>();
+// تخزين محلي احتياطي (Memory Fallback)
+const memoryStore = new Map<string, CachedResponse | 'PROCESSING'>();
 const TTL_MS = 24 * 60 * 60 * 1000;
 
-// تنظيف دوري كل ساعة
+// تنظيف دوري للذاكرة المحلية
 setInterval(
   () => {
     const now = Date.now();
-    for (const [key, value] of idempotencyStore.entries()) {
+    for (const [key, value] of memoryStore.entries()) {
       if (value !== 'PROCESSING' && now - value.createdAt > TTL_MS) {
-        idempotencyStore.delete(key);
+        memoryStore.delete(key);
       }
     }
   },
@@ -32,24 +36,30 @@ setInterval(
 ).unref?.();
 
 /**
- * Middleware لتطبيق مبدأ Idempotency
+ * Middleware لتطبيق مبدأ Idempotency عبر قاعدة البيانات المركزية
  */
-export const requireIdempotency = (req: Request, res: Response, next: NextFunction): void => {
+export const requireIdempotency = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
   // تطبيق فقط على طلبات التعديل والإنشاء
   if (!['POST', 'PUT', 'PATCH'].includes(req.method)) {
     return next();
   }
 
-  const idempotencyKey = (req.headers['idempotency-key'] || req.headers['x-idempotency-key']) as
-    string | undefined;
+  const rawKey = req.headers['idempotency-key'] || req.headers['x-idempotency-key'];
+  const idempotencyKey = Array.isArray(rawKey) ? rawKey[0] : rawKey;
 
-  if (!idempotencyKey) {
+  if (!idempotencyKey || typeof idempotencyKey !== 'string' || !idempotencyKey.trim()) {
     return next();
   }
 
-  const cached = idempotencyStore.get(idempotencyKey);
+  const cleanKey = idempotencyKey.trim();
 
-  if (cached === 'PROCESSING') {
+  // 1. فحص الذاكرة المحلية أولاً
+  const memCached = memoryStore.get(cleanKey);
+  if (memCached === 'PROCESSING') {
     res.status(409).json({
       success: false,
       message: 'الطلب قيد المعالجة حالياً. يرجى الانتظار.',
@@ -58,32 +68,80 @@ export const requireIdempotency = (req: Request, res: Response, next: NextFuncti
     return;
   }
 
-  if (cached) {
-    // إعادة الرد المحفوظ مسبقاً
-    res.status(cached.statusCode).json({
-      ...cached.body,
+  if (memCached) {
+    res.status(memCached.statusCode).json({
+      ...memCached.body,
       _idempotentReplay: true,
     });
     return;
   }
 
-  // تسجيل المفتاح كقيد المعالجة
-  idempotencyStore.set(idempotencyKey, 'PROCESSING');
+  // 2. فحص قاعدة البيانات المركزية
+  try {
+    const dbResult = await query(
+      `SELECT status_code, response_body 
+       FROM idempotency_records 
+       WHERE key = $1 AND expires_at > NOW() 
+       LIMIT 1`,
+      [cleanKey],
+    );
 
-  // اعتراض الرد لحفظه
+    if (dbResult.rows && dbResult.rows.length > 0) {
+      const record = dbResult.rows[0];
+      const parsedBody =
+        typeof record.response_body === 'string'
+          ? JSON.parse(record.response_body)
+          : record.response_body;
+
+      res.status(record.status_code).json({
+        ...parsedBody,
+        _idempotentReplay: true,
+      });
+      return;
+    }
+  } catch (err: any) {
+    // في حال عدم وجود الجدول بعد أو تعذر الاتصال، نستمر بالذاكرة المحلية دون كسر الطلب
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('[Idempotency] DB lookup bypassed:', err.message);
+    }
+  }
+
+  // 3. تسجيل المفتاح كقيد المعالجة في الذاكرة
+  memoryStore.set(cleanKey, 'PROCESSING');
+
+  // 4. اعتراض الرد لحفظه
   const originalJson = res.json.bind(res);
   res.json = function (body: any) {
     if (res.statusCode < 500) {
-      idempotencyStore.set(idempotencyKey, {
+      // حفظ في الذاكرة المحلية
+      memoryStore.set(cleanKey, {
         statusCode: res.statusCode,
         headers: {},
         body,
         createdAt: Date.now(),
       });
+
+      // حفظ غير متزامن في قاعدة البيانات المركزية
+      const userId = (req as any).user?.id || null;
+      const requestPath = req.originalUrl || req.url || '';
+
+      query(
+        `INSERT INTO idempotency_records (key, user_id, request_path, status_code, response_body)
+         VALUES ($1, $2, $3, $4, $5)
+         ON CONFLICT (key) DO UPDATE 
+         SET status_code = EXCLUDED.status_code, 
+             response_body = EXCLUDED.response_body`,
+        [cleanKey, userId, requestPath, res.statusCode, JSON.stringify(body)],
+      ).catch((err: any) => {
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('[Idempotency] Failed to persist key to DB:', err.message);
+        }
+      });
     } else {
       // في حال خطأ الخادم، نحذف المفتاح للسماح بالمحاولة مجدداً
-      idempotencyStore.delete(idempotencyKey);
+      memoryStore.delete(cleanKey);
     }
+
     return originalJson(body);
   };
 

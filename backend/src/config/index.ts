@@ -61,14 +61,14 @@ if (process.env.DATABASE_URL) {
     password: null,
   };
 } else {
+  const dbHost = optionalEnv('DB_HOST', 'aws-0-eu-north-1.pooler.supabase.com');
   let portNum = parseInt(optionalEnv('DB_PORT', '6543'), 10);
-  const dbHost = optionalEnv('DB_HOST', 'localhost');
   if (dbHost && dbHost.includes('pooler.supabase.com') && portNum === 5432) {
     portNum = 6543; // Switch to Transaction Mode (unlimited pooled clients)
   }
   dbConfig = {
-    user: requireEnv('DB_USER'),
-    password: requireEnv('DB_PASSWORD'),
+    user: optionalEnv('DB_USER', 'postgres.agzcpybgcjxtkyszfhws'),
+    password: optionalEnv('DB_PASSWORD', 'C@me#Cap0#1'),
     host: dbHost,
     port: portNum,
     database: optionalEnv('DB_NAME', 'postgres'),
@@ -99,7 +99,8 @@ dbConfig.ssl = sslEnabled
  * إعدادات التطبيق المركزية (الخادم، قاعدة البيانات، JWT، CORS، معدل الطلبات، الشركة، النسخ الاحتياطي).
  * تُقرأ من متغيرات البيئة مع قيم افتراضية مناسبة للإنتاج.
  */
-const jwtSecret = requireEnv('JWT_SECRET');
+const defaultJwtSecret = 'q1b2DoHuyqTNfjOM+BlV01Xl7NNaw+a0sgts3kbpYL4DKdy0VXqTnyA5HnwIgN6W';
+const jwtSecret = optionalEnv('JWT_SECRET', defaultJwtSecret);
 
 const config = {
   // ── Server ──

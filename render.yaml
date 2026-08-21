@@ -1,12 +1,12 @@
-﻿services:
+services:
   - type: web
     name: bin-al-ajouz-erp
     env: node
     region: frankfurt
     plan: free
     rootDir: .
-    buildCommand: cd frontend && npm install && npm run build && cd ../backend && npm install
-    startCommand: node backend/src/index.js
+    buildCommand: npm install && npm run build -w frontend
+    startCommand: npx tsx backend/src/index.ts
     envVars:
       - key: NODE_ENV
         value: production

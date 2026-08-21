@@ -178,7 +178,7 @@ app.get('/debug', authenticate, (req, res) => {
  * نقطة فحص الصحة — تتحقق من اتصال قاعدة البيانات وتعيد حالة الـ Pool.
  * تُستخدم في فحص الدخان (CI) وفي Vercel (/health → api/index.js).
  */
-app.get('/api/health', async (req, res) => {
+const handleHealth = async (req: any, res: any) => {
   const health = await checkHealth();
   const statusCode = health.ok ? 200 : 503;
   res.status(statusCode).json({
@@ -193,24 +193,12 @@ app.get('/api/health', async (req, res) => {
       pool: health.poolStats,
     },
   });
-});
+};
 
-/** نقطة فحص صحة مختصرة (بدون بادئة /api) — لفحص الدخان و Vercel. */
-app.get('/health', async (req, res) => {
-  const health = await checkHealth();
-  const statusCode = health.ok ? 200 : 503;
-  res.status(statusCode).json({
-    success: health.ok,
-    message: health.ok ? 'API يعمل بشكل طبيعي' : 'قاعدة البيانات غير متصلة',
-    company: config.company.name,
-    requestId: req.requestId,
-    db: {
-      connected: health.ok,
-      latencyMs: health.latencyMs,
-      pool: health.poolStats,
-    },
-  });
-});
+app.get('/api/health', handleHealth);
+app.get('/api/v1/health', handleHealth);
+app.get('/v1/health', handleHealth);
+app.get('/health', handleHealth);
 
 // ─── تقديم الواجهة المبنية (SPA) ──────────────────────────────────────────────
 const frontendDist = resolveFrontendDist();
@@ -218,7 +206,10 @@ if (frontendDist) {
   console.log(`📦 Serving frontend from: ${frontendDist}`);
   app.use(express.static(frontendDist));
   // أي مسار ليس API → index.html (دعم History Mode في Vue Router)
-  app.get(/^(?!\/api).*/, (_req, res) => {
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api') || req.path.startsWith('/v1')) {
+      return next();
+    }
     res.sendFile(path.join(frontendDist, 'index.html'));
   });
 } else {

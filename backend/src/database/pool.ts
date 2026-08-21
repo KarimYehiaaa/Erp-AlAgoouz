@@ -17,13 +17,13 @@ const connectionOptions = process.env.DATABASE_URL
     };
 const dbSsl = config.db.ssl;
 // إصلاح التجمّد: رفع سقف الاتصالات (كان 5 فتُشبع تحت الحمل) مع الاحتفاظ بمهلات الحماية
-const maxConnections = process.env.VERCEL ? 1 : 10;
+const maxConnections = process.env.VERCEL ? 3 : 10;
 const pool = new Pool({
   ...connectionOptions,
   ssl: dbSsl,
   max: maxConnections,
-  min: 1,
-  idleTimeoutMillis: 10000,
+  min: process.env.VERCEL ? 0 : 1,
+  idleTimeoutMillis: process.env.VERCEL ? 2000 : 10000,
   connectionTimeoutMillis: 10000,
   statement_timeout: 30000,
   query_timeout: 30000,

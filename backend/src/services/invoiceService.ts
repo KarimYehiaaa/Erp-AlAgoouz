@@ -634,7 +634,7 @@ const syncStandaloneInvoicesToWholesaleSales = async () => {
       }
       const totalAmount = Number(inv.total_amount || 0);
       const profitAmount = totalAmount - costAmount;
-      const whId = await getDefaultWarehouseId();
+      const whId = await getDefaultWarehouseId(client);
 
       const saleRes = await client.query(
         `INSERT INTO sales (

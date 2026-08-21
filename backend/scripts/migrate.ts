@@ -18,6 +18,9 @@ import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import logger from '../src/services/loggerService.ts';
 
+import config from '../src/config/index.ts';
+import { getClient } from '../src/database/pool.ts';
+
 dotenv.config();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -26,40 +29,17 @@ if (!process.env.POSTGRES_PASSWORD && fs.existsSync(localPgFile)) {
   process.env.POSTGRES_PASSWORD = fs.readFileSync(localPgFile, 'utf8').trim();
 }
 
-const { Client } = pg;
-
 /**
  * تطبيق جميع الهجرات المعلقة على قاعدة البيانات المتصلة.
  *
  * يُستدعى عند إقلاع الخادم (index.ts) وعند تهيئة قاعدة الاختبارات.
- * يقرأ إعدادات الاتصال من DATABASE_URL أو متغيرات DB_* (مع دعم SSL للقواعد السحابية).
  *
  * @returns {Promise<void>} يكتمل بعد تطبيق كل الهجرات أو التحقق من تحديث القاعدة
  */
 export async function runMigrations(): Promise<void> {
-  const connectionOptions = process.env.DATABASE_URL
-    ? { connectionString: process.env.DATABASE_URL }
-    : {
-        host: process.env.DB_HOST || 'localhost',
-        port: parseInt(process.env.DB_PORT || '5432', 10),
-        user: process.env.DB_USER || 'erp_user',
-        password: process.env.DB_PASSWORD,
-        database: process.env.DB_NAME || 'bin_al_ajouz',
-      };
-
-  const isSsl =
-    process.env.DB_SSL === 'true' ||
-    !!process.env.DATABASE_URL ||
-    (typeof connectionOptions.host === 'string' &&
-      (connectionOptions.host.includes('supabase') || connectionOptions.host.includes('neon')));
-
-  const client = new Client({
-    ...connectionOptions,
-    ...(isSsl && { ssl: { rejectUnauthorized: false } }),
-  });
+  const client = await getClient();
 
   try {
-    await client.connect();
     logger.info('🔄 [بن العجوز ERP] جاري فحص وتحديث جداول قاعدة البيانات (Migrations)...');
 
     // إنشاء جدول تتبع الهجرات إن لم يوجد
@@ -170,7 +150,7 @@ export async function runMigrations(): Promise<void> {
     logger.error('❌ [بن العجوز ERP] فشل تحديث قاعدة البيانات: %s', (err as Error).message);
     throw err;
   } finally {
-    await client.end().catch(() => {});
+    client.release();
   }
 }
 

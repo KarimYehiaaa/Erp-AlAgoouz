@@ -129,6 +129,12 @@ const routes: RouteRecordRaw[] = [
         meta: { permission: 'suppliers.view' },
       },
       {
+        path: 'partners',
+        name: 'Partners',
+        component: () => import('@/views/PartnersView.vue'),
+        meta: { permission: 'reports.view' },
+      },
+      {
         path: 'hr',
         name: 'HR',
         component: () => import('@/views/HrView.vue'),

@@ -97,6 +97,7 @@ const rawMenuGroups = [
         perm: ['inventory.view', 'expenses.view'],
       },
       { to: '/suppliers', label: 'الموردين', icon: 'suppliers', perm: 'suppliers.view' },
+      { to: '/partners', label: 'جاري ومسحوبات الشركاء', icon: 'money', perm: 'reports.view' },
     ],
   },
   {

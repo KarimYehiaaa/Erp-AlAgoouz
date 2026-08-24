@@ -38,6 +38,12 @@ export default async function handler(req: any, res: any) {
     nodeEnv: process.env.NODE_ENV,
     isVercel: !!process.env.VERCEL,
     hasDatabaseUrl: !!process.env.DATABASE_URL,
+    hasDbUser: !!process.env.DB_USER,
+    hasDbPassword: !!process.env.DB_PASSWORD,
+    hasDbHost: !!process.env.DB_HOST,
+    hasDbName: !!process.env.DB_NAME,
+    hasJwtSecret: !!process.env.JWT_SECRET,
+    hasJwtRefreshSecret: !!process.env.JWT_REFRESH_SECRET,
     dbResult,
     appError,
   });

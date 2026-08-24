@@ -118,6 +118,11 @@
   .modal-content {
     padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)) !important;
   }
+
+  /* شاشة الكاشير: مسافة أمان سفلية لأجهزة iOS ذات النوتش */
+  .cashier-content {
+    padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)) !important;
+  }
 }
 
 /* ══════════ الجوال العمودي (≤480px) ══════════ */

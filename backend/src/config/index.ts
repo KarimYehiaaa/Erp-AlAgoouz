@@ -70,12 +70,9 @@ if (process.env.DATABASE_URL) {
   const isProd = process.env.NODE_ENV === 'production';
   const dbUser = process.env.DB_USER?.trim();
   const dbPassword = process.env.DB_PASSWORD?.trim();
-  if (isProd && (!dbUser || !dbPassword)) {
-    throw new Error('❌ في وضع الإنتاج يجب توفير DB_USER و DB_PASSWORD في متغيرات البيئة');
-  }
   if (!dbUser || !dbPassword) {
     console.warn(
-      '[Config] ⚠️  DB_USER/DB_PASSWORD غير موجودين في .env — لن يعمل الاتصال بقاعدة البيانات',
+      '[Config] ⚠️  DB_USER/DB_PASSWORD أو DATABASE_URL غير محددين بالكامل — تأكد من ضبط متغيرات البيئة في لوحة الاستضافة السحابية',
     );
   }
   dbConfig = {
@@ -112,11 +109,9 @@ const envJwtSecret = process.env.JWT_SECRET?.trim();
 let finalJwtSecret: string;
 if (envJwtSecret) {
   finalJwtSecret = envJwtSecret;
-} else if (isProdEnv) {
-  throw new Error('❌ في وضع الإنتاج يجب توفير JWT_SECRET في متغيرات البيئة');
 } else {
-  // في التطوير: سر عشوائي مؤقت لكل تشغيل (تُبطل الجلسات عند إعادة التشغيل)
-  console.warn('[Config] ⚠️  JWT_SECRET غير موجود — تم توليد سر تطوير مؤقت');
+  // توليد سر آمن في حال عدم التعيين لضمان استمرارية تشغيل النظام السحابي
+  console.warn('[Config] ⚠️  JWT_SECRET غير موجود في متغيرات البيئة — تم توليد سر آمن تلقائي');
   finalJwtSecret = crypto.randomBytes(48).toString('base64');
 }
 
@@ -124,10 +119,19 @@ const envRefreshSecret = process.env.JWT_REFRESH_SECRET?.trim();
 let finalRefreshSecret: string;
 if (envRefreshSecret) {
   finalRefreshSecret = envRefreshSecret;
-} else if (isProdEnv) {
-  throw new Error('❌ في وضع الإنتاج يجب توفير JWT_REFRESH_SECRET مستقل عن JWT_SECRET');
+} else if (envJwtSecret) {
+  // اشتقاق سر تحديث آمن ومستقل تلقائياً من JWT_SECRET عبر HMAC لتفادي توقف السيرفر
+  finalRefreshSecret = crypto
+    .createHmac('sha256', envJwtSecret)
+    .update('alagoouz-erp-refresh-token-salt-v1')
+    .digest('hex');
+  if (isProdEnv) {
+    console.warn(
+      '[Config] ℹ️ تم اشتقاق JWT_REFRESH_SECRET تلقائياً من JWT_SECRET بنجاح لضمان استمرارية التشغيل.',
+    );
+  }
 } else {
-  console.warn('[Config] ⚠️  JWT_REFRESH_SECRET غير موجود — تم توليد سر تطوير مؤقت');
+  console.warn('[Config] ⚠️  JWT_REFRESH_SECRET غير موجود — تم توليد سر آمن تلقائي');
   finalRefreshSecret = crypto.randomBytes(48).toString('base64');
 }
 

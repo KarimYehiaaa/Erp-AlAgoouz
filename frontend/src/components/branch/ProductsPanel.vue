@@ -31,7 +31,7 @@
         <div class="active-cat-indicator" :title="'التصنيف: ' + currentCategoryName">
           <span class="cat-ind-icon">{{ currentCategoryIcon }}</span>
           <span class="cat-ind-name">{{ currentCategoryName }}</span>
-          <span class="cat-ind-count">{{ filteredProducts.length }} صنف متاح</span>
+          <span class="cat-ind-count">{{ filteredProducts.length }} صنف</span>
         </div>
       </div>
 
@@ -63,14 +63,12 @@
       </nav>
     </div>
 
-    <!-- ═══════════════════ شبكة المنتجات العريضة (Full-Width Touch Grid) ═══════════════════ -->
+    <!-- ═══════════════════ شبكة المنتجات المجسمة 3D (Tactile 3D Cards Grid) ═══════════════════ -->
     <div class="catalog-grid-wrapper">
       <!-- هيكل التحميل -->
-      <div v-if="loadingProducts" class="products-touch-grid">
-        <div v-for="i in 12" :key="'sk-prod-' + i" class="product-touch-card skeleton-card">
-          <SkeletonLoader type="line" height="18px" width="75%" class="mb-2" />
-          <SkeletonLoader type="line" height="14px" width="45%" class="mb-3" />
-          <SkeletonLoader type="line" height="24px" width="90%" />
+      <div v-if="loadingProducts" class="products-3d-grid">
+        <div v-for="i in 12" :key="'sk-prod-' + i" class="product-3d-card skeleton-3d-card">
+          <SkeletonLoader type="line" height="22px" width="80%" />
         </div>
       </div>
 
@@ -91,89 +89,43 @@
         </button>
       </div>
 
-      <!-- شبكة بطاقات المنتجات -->
-      <div v-else class="products-touch-grid">
-        <article
+      <!-- شبكة بطاقات المنتجات الثلاثية الأبعاد (3D Tactile Buttons) -->
+      <div v-else class="products-3d-grid">
+        <button
           v-for="product in filteredProducts"
           :key="product.id"
-          class="product-touch-card"
+          type="button"
+          class="product-3d-card"
           :class="{
             'is-selected': isInCart(product.id),
-            'no-recipe': !product.has_recipe,
             'low-stock': hasLowIngredients(product) || getProductStockClass(product) === 'low',
             'is-out-of-stock': getProductStockClass(product) === 'out',
           }"
           @click="handleCardClick(product)"
+          :title="
+            product.name_ar + (product.sale_price ? ' — ' + formatMoney(product.sale_price) : '')
+          "
         >
-          <!-- رأس البطاقة ومؤشر المخزون -->
-          <div class="card-header-line">
-            <span
-              class="stock-pulse-dot"
-              :class="getProductStockClass(product)"
-              :title="getProductStockTitle(product)"
-            ></span>
-            <span class="category-tag-small">{{ product.category_name || 'عام' }}</span>
-            <div v-if="isInCart(product.id)" class="cart-current-badge">
-              <span class="cart-qty-num">{{ getCartQty(product.id) }}</span>
-              <span class="cart-qty-lbl">في السلة</span>
-            </div>
+          <!-- زاوية مؤشر المخزون الخفي/المضيء -->
+          <span
+            class="card-stock-dot"
+            :class="getProductStockClass(product)"
+            :title="getProductStockTitle(product)"
+          ></span>
+
+          <!-- شارة عدد القطع المختارة في السلة (3D Floating Badge) -->
+          <span v-if="isInCart(product.id)" class="cart-qty-3d-badge">
+            {{ getCartQty(product.id) }}
+          </span>
+
+          <!-- ✨ اسم المنتج الرئيسي (التركيز الكامل والواضح في المنتصف) -->
+          <div class="card-center-content">
+            <span class="product-title-3d">{{ product.name_ar }}</span>
           </div>
 
-          <!-- اسم وسعر المنتج -->
-          <div class="product-info-block">
-            <h4 class="product-title" :title="product.name_ar">{{ product.name_ar }}</h4>
-            <div class="price-row">
-              <span class="price-number">{{ formatMoney(product.sale_price) }}</span>
-              <span v-if="product.unit" class="unit-badge">/ {{ product.unit }}</span>
-            </div>
-          </div>
-
-          <!-- 🫘 أزرار أوزان سريعة للبن والحبوب (Direct Quick Weights) -->
-          <div v-if="isWeightProduct(product)" class="quick-weights-strip" @click.stop>
-            <button
-              type="button"
-              class="weight-btn"
-              @click="addWithWeight(product, 0.125, 'ثمن')"
-              title="إضافة ثمن كجم (125g)"
-            >
-              ⅛ ثمن
-            </button>
-            <button
-              type="button"
-              class="weight-btn"
-              @click="addWithWeight(product, 0.25, 'ربع')"
-              title="إضافة ربع كجم (250g)"
-            >
-              ¼ ربع
-            </button>
-            <button
-              type="button"
-              class="weight-btn"
-              @click="addWithWeight(product, 0.5, 'نصف')"
-              title="إضافة نصف كجم (500g)"
-            >
-              ½ نصف
-            </button>
-            <button
-              type="button"
-              class="weight-btn kilo"
-              @click="addWithWeight(product, 1.0, 'كيلو')"
-              title="إضافة كيلو كامل (1000g)"
-            >
-              1k كيلو
-            </button>
-          </div>
-
-          <!-- شريط الحالة للمنتجات العادية -->
-          <div v-else class="card-footer-strip">
-            <span v-if="hasLowIngredients(product)" class="status-chip warning">⚠️ منخفض</span>
-            <span v-else-if="getProductStockClass(product) === 'out'" class="status-chip danger"
-              >نفذ</span
-            >
-            <span v-else class="status-chip success">✓ متاح</span>
-            <span class="click-to-add-hint">اضغط للإضافة +</span>
-          </div>
-        </article>
+          <!-- طبقة اللمعان والانعكاس الضوئي 3D -->
+          <span class="specular-highlight"></span>
+        </button>
       </div>
     </div>
   </div>
@@ -243,22 +195,6 @@ const currentCategoryIcon = computed(() => {
   return cat ? getCategoryIcon(cat.name_ar) : '✨';
 });
 
-const isWeightProduct = (product: any) => {
-  const cat = (product.category_name || '').toLowerCase();
-  const name = (product.name_ar || '').toLowerCase();
-  const unit = (product.unit || '').toLowerCase();
-  return (
-    unit.includes('كجم') ||
-    unit.includes('كيلو') ||
-    unit.includes('جرام') ||
-    cat.includes('بن') ||
-    cat.includes('حبوب') ||
-    cat.includes('توليف') ||
-    name.includes('بن') ||
-    name.includes('توليفة')
-  );
-};
-
 const onSearch = (e: Event) => {
   emit('update:productSearch', (e.target as HTMLInputElement).value);
   emit('filter');
@@ -273,10 +209,6 @@ const handleCardClick = (product: any) => {
   emit('addToCart', product);
 };
 
-const addWithWeight = (product: any, weightFraction: number, _label: string) => {
-  emit('addToCart', product, weightFraction);
-};
-
 /** يُستخدم من الأب لتركيز حقل البحث عبر اختصار F2 أو F7 */
 defineExpose({
   focusSearch: () => {
@@ -288,7 +220,7 @@ defineExpose({
 
 <style lang="scss" scoped>
 /* ═══════════════════════════════════════════════════════════════════
-   FULL CATALOG PANEL (100% SCREEN REAL ESTATE REDESIGN)
+   FULL CATALOG PANEL WITH 3D TACTILE BUTTON CARDS
    ═══════════════════════════════════════════════════════════════════ */
 
 .full-catalog-panel {
@@ -298,7 +230,7 @@ defineExpose({
   gap: 14px;
   background: var(--surface, #1b120c);
   border: 1px solid var(--border, rgba(212, 163, 115, 0.2));
-  border-radius: 16px;
+  border-radius: 18px;
   min-height: calc(100vh - 180px);
 }
 
@@ -453,69 +385,187 @@ defineExpose({
   }
 }
 
-/* ── Product Touch Grid ── */
+/* ═══════════════════════════════════════════════════════════════════
+   3D TACTILE PRODUCT CARDS GRID (تصميم مجسم بارز ثلاثي الأبعاد)
+   ═══════════════════════════════════════════════════════════════════ */
+
 .catalog-grid-wrapper {
   flex: 1;
   overflow-y: auto;
+  padding: 4px 2px 20px 2px;
 }
 
-.products-touch-grid {
+.products-3d-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(175px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 16px;
 }
 
 @media (min-width: 1200px) {
-  .products-touch-grid {
-    grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
-    gap: 14px;
+  .products-3d-grid {
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 18px;
   }
 }
 
-.product-touch-card {
-  background: linear-gradient(145deg, rgba(35, 20, 12, 0.85) 0%, rgba(25, 15, 9, 0.95) 100%);
-  border: 1.5px solid rgba(212, 163, 115, 0.22);
-  border-radius: 14px;
-  padding: 12px;
+@media (min-width: 1600px) {
+  .products-3d-grid {
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 20px;
+  }
+}
+
+/* ── 3D Tactile Card (الزر المجسم ثلاثي الأبعاد) ── */
+.product-3d-card {
+  position: relative;
   display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  min-height: 120px;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  min-height: 105px;
+  padding: 16px 14px;
+  border-radius: 16px;
   cursor: pointer;
   user-select: none;
-  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
-  position: relative;
+  text-decoration: none;
+  font-family: inherit;
+  outline: none;
 
+  /* 3D Base Material & Gradients */
+  background: linear-gradient(180deg, #2b1a10 0%, #1a0f07 100%);
+  border: 1px solid rgba(212, 163, 115, 0.28);
+  border-top: 2px solid rgba(250, 237, 205, 0.45); /* انعكاس الحافة العلوية */
+
+  /* 3D Depth Shadow (بروز مجسم حقيقي) */
+  box-shadow:
+    0 7px 0 #0c0704,
+    /* الحافة السفلية ثلاثية الأبعاد */ 0 10px 18px rgba(0, 0, 0, 0.65),
+    /* ظل السقوط */ inset 0 1px 1px rgba(255, 255, 255, 0.15),
+    /* بريق داخلي علوي */ inset 0 -2px 4px rgba(0, 0, 0, 0.4); /* ظل سفلي داخلي */
+
+  transition:
+    transform 0.12s cubic-bezier(0.2, 0.8, 0.4, 1),
+    box-shadow 0.12s cubic-bezier(0.2, 0.8, 0.4, 1),
+    border-color 0.15s ease,
+    background 0.15s ease;
+
+  /* ── 3D Hover State (ارتفاع إضافي للزر) ── */
   &:hover {
-    transform: translateY(-2px);
-    border-color: rgba(212, 163, 115, 0.55);
+    transform: translateY(-3px);
+    border-color: rgba(212, 163, 115, 0.6);
+    border-top-color: #faedcd;
+    background: linear-gradient(180deg, #382215 0%, #20130a 100%);
     box-shadow:
-      0 8px 20px rgba(0, 0, 0, 0.5),
-      0 0 12px rgba(212, 163, 115, 0.15);
+      0 10px 0 #0c0704,
+      0 14px 24px rgba(0, 0, 0, 0.75),
+      inset 0 1px 2px rgba(255, 255, 255, 0.25),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.3);
+
+    .product-title-3d {
+      color: #ffffff;
+      text-shadow: 0 0 12px rgba(212, 163, 115, 0.5);
+    }
   }
 
+  /* ── 3D Active/Click Press (كبسة ملموسة بالكامل إلى الداخل) ── */
+  &:active {
+    transform: translateY(6px);
+    box-shadow:
+      0 1px 0 #0c0704,
+      0 2px 6px rgba(0, 0, 0, 0.4),
+      inset 0 3px 6px rgba(0, 0, 0, 0.6);
+    background: linear-gradient(180deg, #1c1008 0%, #2b1a10 100%);
+  }
+
+  /* ── Selected State (حالة التحديد عند الإضافة للسلة) ── */
   &.is-selected {
+    background: linear-gradient(180deg, #3d2414 0%, #26160c 100%);
     border-color: #d4a373;
-    background: linear-gradient(145deg, rgba(55, 32, 18, 0.95) 0%, rgba(35, 20, 12, 0.95) 100%);
-    box-shadow: 0 0 16px rgba(212, 163, 115, 0.25);
+    border-top-color: #faedcd;
+    box-shadow:
+      0 7px 0 #120904,
+      0 10px 20px rgba(212, 163, 115, 0.25),
+      0 0 14px rgba(212, 163, 115, 0.3),
+      inset 0 1px 2px rgba(250, 237, 205, 0.4);
+
+    .product-title-3d {
+      color: #faedcd;
+      font-weight: 900;
+    }
   }
 
+  /* حالة نفاذ المخزون */
   &.is-out-of-stock {
-    opacity: 0.6;
-    filter: grayscale(0.4);
+    opacity: 0.55;
+    filter: grayscale(0.5);
   }
 }
 
-.card-header-line {
+/* ── محتوى البطاقة في المنتصف (اسم المنتج فقط) ── */
+.card-center-content {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 6px;
+  justify-content: center;
+  width: 100%;
+  padding: 4px;
 }
 
-.stock-pulse-dot {
-  width: 9px;
-  height: 9px;
+.product-title-3d {
+  font-size: 1.05rem;
+  font-weight: 850;
+  color: #f7ede2;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  letter-spacing: 0.2px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+  transition:
+    color 0.15s ease,
+    text-shadow 0.15s ease;
+}
+
+/* ── 3D Floating Cart Badge (شارة الكمية المجسمة) ── */
+.cart-qty-3d-badge {
+  position: absolute;
+  top: -6px;
+  left: -6px;
+  min-width: 26px;
+  height: 26px;
+  padding: 0 6px;
+  border-radius: 13px;
+  background: linear-gradient(135deg, #d4a373 0%, #a86f3d 100%);
+  color: #140d08;
+  font-size: 0.82rem;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid #faedcd;
+  box-shadow:
+    0 4px 8px rgba(0, 0, 0, 0.5),
+    0 0 8px rgba(212, 163, 115, 0.5);
+  animation: badgePop 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  z-index: 5;
+}
+
+@keyframes badgePop {
+  0% {
+    transform: scale(0.5);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* ── مؤشر المخزون ── */
+.card-stock-dot {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   background: #22c55e;
   box-shadow: 0 0 6px #22c55e;
@@ -530,126 +580,25 @@ defineExpose({
   }
 }
 
-.category-tag-small {
-  font-size: 0.68rem;
-  color: var(--text-muted, #a89f91);
-  background: rgba(255, 255, 255, 0.05);
-  padding: 1px 6px;
-  border-radius: 6px;
+/* طبقة الانعكاس الضوئي */
+.specular-highlight {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 35%;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0) 100%);
+  border-radius: 15px 15px 0 0;
+  pointer-events: none;
 }
 
-.cart-current-badge {
+.skeleton-3d-card {
+  min-height: 105px;
   display: flex;
   align-items: center;
-  gap: 3px;
-  background: #d4a373;
-  color: #140d08;
-  padding: 1px 6px;
-  border-radius: 10px;
-  font-size: 0.7rem;
-  font-weight: 800;
-
-  .cart-qty-num {
-    font-size: 0.78rem;
-  }
-}
-
-.product-info-block {
-  margin-bottom: 8px;
-}
-
-.product-title {
-  margin: 0 0 4px;
-  font-size: 0.96rem;
-  font-weight: 800;
-  color: #faedcd;
-  line-height: 1.3;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.price-row {
-  display: flex;
-  align-items: baseline;
-  gap: 4px;
-
-  .price-number {
-    font-size: 1.15rem;
-    font-weight: 900;
-    color: #ffffff;
-    letter-spacing: 0.3px;
-  }
-
-  .unit-badge {
-    font-size: 0.72rem;
-    color: #d4a373;
-  }
-}
-
-/* ── Quick Weights Strip ── */
-.quick-weights-strip {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 4px;
-  margin-top: 6px;
-  padding-top: 6px;
-  border-top: 1px dashed rgba(212, 163, 115, 0.2);
-}
-
-.weight-btn {
-  padding: 4px 2px;
-  background: rgba(212, 163, 115, 0.12);
-  border: 1px solid rgba(212, 163, 115, 0.3);
-  border-radius: 6px;
-  color: #faedcd;
-  font-size: 0.7rem;
-  font-weight: 700;
-  cursor: pointer;
-  text-align: center;
-  transition: all 0.15s ease;
-
-  &:hover {
-    background: #d4a373;
-    color: #140d08;
-    border-color: #faedcd;
-  }
-
-  &.kilo {
-    background: rgba(212, 163, 115, 0.25);
-    font-weight: 800;
-  }
-}
-
-.card-footer-strip {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-top: 4px;
-  padding-top: 4px;
-  border-top: 1px dashed rgba(255, 255, 255, 0.08);
-
-  .status-chip {
-    font-size: 0.68rem;
-    padding: 1px 6px;
-    border-radius: 6px;
-
-    &.success {
-      color: #86efac;
-    }
-    &.warning {
-      color: #fde047;
-    }
-    &.danger {
-      color: #fca5a5;
-    }
-  }
-
-  .click-to-add-hint {
-    font-size: 0.68rem;
-    color: rgba(212, 163, 115, 0.6);
-  }
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .empty-catalog-state {

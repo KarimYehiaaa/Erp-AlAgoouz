@@ -30,6 +30,7 @@
         <div class="item-main-details">
           <span class="item-name">{{ item.name_ar }}</span>
           <span class="item-unit-price">{{ formatMoney(item.unit_price) }} / للوحدة</span>
+          <span v-if="item.custom_notes" class="item-custom-notes">📌 {{ item.custom_notes }}</span>
         </div>
 
         <div class="item-touch-controls">
@@ -702,6 +703,18 @@ defineExpose({
   .item-unit-price {
     font-size: 0.72rem;
     color: #a89f91;
+  }
+  .item-custom-notes {
+    font-size: 0.7rem;
+    color: #faedcd;
+    background: rgba(212, 163, 115, 0.18);
+    border: 1px dashed rgba(212, 163, 115, 0.35);
+    padding: 2px 6px;
+    border-radius: 6px;
+    margin-top: 4px;
+    display: inline-block;
+    line-height: 1.25;
+    word-break: break-word;
   }
 }
 

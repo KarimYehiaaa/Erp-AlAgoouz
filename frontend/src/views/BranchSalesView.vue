@@ -1003,10 +1003,12 @@ watch(
 );
 
 // ─── cart actions ───────────────────────────────────────────────────────────
-const addToCart = (product: any, customQty?: number) => {
+const addToCart = (product: any, customQty?: number, customNotes?: string) => {
   playBeep('success');
   const qtyToAdd = customQty !== undefined ? customQty : 1;
-  const existing = cart.value.find((i: any) => i.product_id === product.id);
+  const existing = cart.value.find(
+    (i: any) => i.product_id === product.id && (i.custom_notes || '') === (customNotes || ''),
+  );
   if (existing) {
     existing.quantity = parseFloat((existing.quantity + qtyToAdd).toFixed(3));
   } else {
@@ -1020,6 +1022,7 @@ const addToCart = (product: any, customQty?: number) => {
       unit_price: parseFloat(product.sale_price || 0),
       quantity: qtyToAdd,
       has_recipe: product.has_recipe,
+      custom_notes: customNotes || '',
     });
   }
 };
@@ -1087,16 +1090,19 @@ const printReceipt = async (saleRecord: any) => {
       discount_amount: saleRecord.discount_amount,
       user_name: 'كاشير الفرع',
       company: companySettings.value,
-      items: saleRecord.items.map((item: any) => ({
-        product_name:
-          item.product_name ||
-          item.name_ar ||
-          allProducts.value.find((p: any) => p.id === item.product_id)?.name_ar ||
-          'منتج',
-        quantity: item.quantity,
-        unit_price: item.unit_price,
-        total_amount: roundMoney(Number(item.total_amount ?? item.quantity * item.unit_price)),
-      })),
+      items: saleRecord.items.map((item: any) => {
+        const notesStr = item.notes || item.custom_notes;
+        return {
+          product_name:
+            (item.product_name ||
+              item.name_ar ||
+              allProducts.value.find((p: any) => p.id === item.product_id)?.name_ar ||
+              'منتج') + (notesStr ? ` (${notesStr})` : ''),
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          total_amount: roundMoney(Number(item.total_amount ?? item.quantity * item.unit_price)),
+        };
+      }),
     };
     await directPrinter.print(invoiceData);
   } catch (err: any) {
@@ -1133,6 +1139,7 @@ const submitManualSale = async () => {
         quantity: parseLocalizedNumber(i.quantity),
         unit_price: parseLocalizedNumber(i.unit_price),
         discount_amount: 0,
+        notes: i.custom_notes || undefined,
       })),
   };
 

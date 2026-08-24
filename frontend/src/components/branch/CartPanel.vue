@@ -1,47 +1,81 @@
 <template>
-  <div class="card cart-panel" :class="{ 'mobile-hidden': activeTab !== 'cart' }">
+  <div class="card checkout-cart-panel" :class="{ 'mobile-hidden': activeTab !== 'cart' }">
     <div class="cart-title-row">
-      <h3>🛒 سلة المبيعات</h3>
-      <span v-if="cart.length" class="cart-items-count">{{ cart.length }} صنف</span>
+      <div class="title-with-badge">
+        <span class="cart-icon">🛒</span>
+        <h3>سلة ومحاسبة الفاتورة</h3>
+      </div>
+      <div class="cart-header-actions">
+        <span v-if="cart.length" class="cart-items-count">{{ cart.length }} صنف</span>
+        <button
+          type="button"
+          class="btn-close-cart"
+          @click="emit('closeDrawer')"
+          title="إغلاق والعودة للكتالوج (Esc)"
+        >
+          ✕
+        </button>
+      </div>
     </div>
 
     <!-- Cart Items -->
     <div v-if="!cart.length" class="empty-cart">
-      <span>🛒</span>
-      <p>اضغط على منتج لإضافته للسلة</p>
-      <span class="empty-hint">أو استخدم البحث السريع (F7)</span>
+      <span class="empty-cart-icon">🛒</span>
+      <p>السلة فارغة حالياً</p>
+      <span class="empty-hint">اختر أصنافاً من الكتالوج لإضافتها للسلة</span>
     </div>
-    <div v-else class="cart-items">
-      <div v-for="(item, idx) in cart" :key="item.product_id" class="cart-item">
-        <div class="cart-item-info">
-          <span class="cart-item-name">{{ item.name_ar }}</span>
-          <span class="cart-item-price">{{ formatMoney(item.unit_price) }}</span>
-        </div>
-        <div class="cart-item-controls">
-          <button class="qty-btn" @click="emit('decreaseQty', idx)" title="تقليل الكمية">−</button>
 
-          <!-- 🔢 زر تعديل الكمية التفاعلي لفتح لوحة الأرقام (Numpad) -->
+    <div v-else class="cart-items-scrollable">
+      <div v-for="(item, idx) in cart" :key="item.product_id || idx" class="checkout-item-row">
+        <div class="item-main-details">
+          <span class="item-name">{{ item.name_ar }}</span>
+          <span class="item-unit-price">{{ formatMoney(item.unit_price) }} / للوحدة</span>
+        </div>
+
+        <div class="item-touch-controls">
           <button
             type="button"
-            class="qty-display-btn"
-            @click="openNumpad(idx)"
-            title="انقر لتعديل الكمية أو الوزن بالجرام عبر لوحة الأرقام"
+            class="touch-qty-btn decrease"
+            @click="emit('decreaseQty', idx)"
+            title="تقليل الكمية"
           >
-            <span class="qty-num">{{ item.quantity }}</span>
-            <span class="qty-unit">{{ getWeightLabel(item.quantity) }}</span>
-            <span class="qty-edit-icon">✏️</span>
+            −
           </button>
 
-          <button class="qty-btn" @click="emit('increaseQty', idx)" title="زيادة الكمية">+</button>
+          <!-- 🔢 زر تعديل الكمية والوزن بالنقر لفتح لوحة الأرقام -->
           <button
-            class="remove-btn"
+            type="button"
+            class="touch-qty-display"
+            @click="openNumpad(idx)"
+            title="انقر لتعديل الكمية أو الوزن بالجرامات"
+          >
+            <span class="qty-val">{{ item.quantity }}</span>
+            <span class="qty-unit-label">{{ getWeightLabel(item.quantity) }}</span>
+            <span class="qty-pencil">✏️</span>
+          </button>
+
+          <button
+            type="button"
+            class="touch-qty-btn increase"
+            @click="emit('increaseQty', idx)"
+            title="زيادة الكمية"
+          >
+            +
+          </button>
+
+          <button
+            type="button"
+            class="touch-delete-btn"
             @click="emit('removeFromCart', idx)"
-            title="حذف الصنف من السلة"
+            title="حذف من السلة"
           >
             🗑️
           </button>
         </div>
-        <div class="cart-item-total">{{ formatMoney(item.quantity * item.unit_price) }}</div>
+
+        <div class="item-line-total">
+          {{ formatMoney(item.quantity * item.unit_price) }}
+        </div>
       </div>
     </div>
 
@@ -69,13 +103,13 @@
     </div>
 
     <!-- Cart Summary -->
-    <div v-if="cart.length" class="cart-summary">
+    <div v-if="cart.length" class="cart-summary-box">
       <div class="summary-row">
-        <span>المجموع الفرعي</span>
-        <span>{{ formatMoney(cartSubtotal) }}</span>
+        <span>المجموع الفرعي:</span>
+        <strong class="subtotal-val">{{ formatMoney(cartSubtotal) }}</strong>
       </div>
       <div class="summary-row discount-row">
-        <span>خصم (ج.م) [F4]</span>
+        <span>خصم الفاتورة (ج.م) [F4]:</span>
         <input
           ref="discountInputRef"
           v-model.number="saleForm.discount_amount"
@@ -86,50 +120,80 @@
           placeholder="0.00"
         />
       </div>
-      <div class="summary-row total-row">
-        <span>الإجمالي المستحق</span>
-        <span class="total-amount">{{ formatMoney(cartTotal) }}</span>
+      <div class="summary-row total-highlight-row">
+        <span class="total-label">الإجمالي المستحق للدفع:</span>
+        <span class="total-amount-glow">{{ formatMoney(cartTotal) }}</span>
       </div>
     </div>
 
     <!-- Sale Form & Payments -->
-    <form @submit.prevent="emit('submitSale')" class="sale-form">
-      <div class="form-row">
-        <div class="form-group">
-          <label>طريقة الدفع</label>
-          <select v-model="saleForm.payment_method" class="payment-select">
-            <option value="cash">💵 نقدي (كاش) [F9]</option>
-            <option value="card">💳 بطاقة (فيزا / مدى) [F10]</option>
-            <option value="transfer">📱 تحويل بنكي / محفظة</option>
-            <option value="credit">📝 آجل / على الحساب</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>تاريخ البيع</label>
-          <input v-model="saleForm.sale_date" type="date" required class="date-input" />
+    <form v-if="cart.length" @submit.prevent="emit('submitSale')" class="checkout-payment-form">
+      <!-- 💳 شبكة أزرار طرق الدفع السريعة (Payment Methods Grid) -->
+      <div class="payment-section-box">
+        <label class="section-title">طريقة الدفع (اضغط للاختيار):</label>
+        <div class="payment-tiles-grid">
+          <button
+            type="button"
+            class="pay-tile"
+            :class="{ selected: saleForm.payment_method === 'cash' }"
+            @click="saleForm.payment_method = 'cash'"
+          >
+            <span class="tile-icon">💵</span>
+            <span class="tile-title">نقدي (كاش)</span>
+          </button>
+
+          <button
+            type="button"
+            class="pay-tile"
+            :class="{ selected: saleForm.payment_method === 'card' }"
+            @click="saleForm.payment_method = 'card'"
+          >
+            <span class="tile-icon">💳</span>
+            <span class="tile-title">فيزا / مدى</span>
+          </button>
+
+          <button
+            type="button"
+            class="pay-tile"
+            :class="{ selected: saleForm.payment_method === 'transfer' }"
+            @click="saleForm.payment_method = 'transfer'"
+          >
+            <span class="tile-icon">📱</span>
+            <span class="tile-title">إنستاباي / محفظة</span>
+          </button>
+
+          <button
+            type="button"
+            class="pay-tile"
+            :class="{ selected: saleForm.payment_method === 'credit' }"
+            @click="saleForm.payment_method = 'credit'"
+          >
+            <span class="tile-icon">⏳</span>
+            <span class="tile-title">آجل / ذمم</span>
+          </button>
         </div>
       </div>
 
       <!-- 💵 حاسبة الباقي وفئات النقود السريعة عند الدفع كاش -->
-      <div v-if="cart.length && saleForm.payment_method === 'cash'" class="cash-calc-box">
+      <div v-if="saleForm.payment_method === 'cash'" class="cash-calc-box">
         <div class="calc-header">
-          <span class="calc-title">💵 حساب النقدية والباقي:</span>
+          <span class="calc-title">💵 أزرار النقدية السريعة:</span>
         </div>
 
-        <div class="preset-bills">
+        <div class="preset-bills-row">
           <button
             type="button"
-            class="bill-btn exact-bill"
+            class="bill-chip exact"
             @click="receivedAmount = cartTotal"
             title="المبلغ بالضبط بدون باقي"
           >
             المبلغ بالضبط
           </button>
           <button
-            v-for="preset in quickBills"
+            v-for="preset in [50, 100, 200, 500]"
             :key="preset"
             type="button"
-            class="bill-btn"
+            class="bill-chip"
             :class="{ active: receivedAmount === preset }"
             @click="receivedAmount = preset"
           >
@@ -138,7 +202,7 @@
         </div>
 
         <div class="received-row">
-          <label>المستلم من الزبون:</label>
+          <label>المبلغ المستلم نقدياً:</label>
           <div class="received-input-wrap">
             <input
               ref="receivedInputRef"
@@ -146,7 +210,7 @@
               type="number"
               min="0"
               step="1"
-              placeholder="0.00"
+              placeholder="أدخل المبلغ..."
               class="received-input"
             />
             <span class="curr-tag">ج.م</span>
@@ -155,7 +219,7 @@
 
         <div
           v-if="Boolean(receivedAmount && receivedAmount > 0)"
-          class="change-row"
+          class="change-statement-row"
           :class="{
             'has-change': changeAmount >= 0,
             'has-shortage': changeAmount < 0,
@@ -169,76 +233,64 @@
       </div>
 
       <!-- إعدادات الطباعة الحرارية المباشرة -->
-      <div class="printer-settings-box">
-        <div class="printer-header">
-          <span>🖨️ الطباعة الحرارية المباشرة</span>
-        </div>
-        <div class="printer-controls">
-          <div class="printer-info">
-            <span class="printer-status" :class="{ configured: printerName }">
-              {{ printerName ? `طابعة نشطة: ${printerName}` : 'لم يتم تحديد طابعة USB' }}
-            </span>
-            <button type="button" class="btn-sm btn-outline" @click="emit('selectPrinter')">
-              {{ printerName ? 'تغيير' : 'تحديد طابعة' }}
-            </button>
-          </div>
-          <div class="printer-options">
-            <label class="checkbox-label">
-              <input
-                type="checkbox"
-                :checked="autoPrint"
-                @change="emit('update:autoPrint', ($event.target as HTMLInputElement).checked)"
-              />
-              <span>طباعة تلقائية عند البيع</span>
-            </label>
-            <button
-              v-if="lastSavedSale"
-              type="button"
-              class="btn-sm btn-outline print-last-btn"
-              @click="emit('printLast', lastSavedSale)"
-              title="إعادة طباعة آخر فاتورة تم حفظها (F8)"
-            >
-              🖨️ إعادة طباعة (F8)
-            </button>
-          </div>
-        </div>
+      <div class="printer-settings-bar">
+        <label class="auto-print-checkbox">
+          <input
+            type="checkbox"
+            :checked="autoPrint"
+            @change="emit('update:autoPrint', ($event.target as HTMLInputElement).checked)"
+          />
+          <span>🖨️ طباعة إيصال فوري تلقائياً عند الحفظ</span>
+        </label>
+
+        <button
+          v-if="lastSavedSale"
+          type="button"
+          class="btn-reprint-link"
+          @click="emit('printLast', lastSavedSale)"
+          title="إعادة طباعة آخر فاتورة تم حفظها (F8)"
+        >
+          <span>إعادة طباعة الأخيرة (F8)</span>
+        </button>
       </div>
 
       <div v-if="saleError" class="alert alert-danger">{{ saleError }}</div>
 
       <!-- Action Buttons -->
-      <div class="cart-action-buttons">
+      <div class="checkout-final-actions">
         <button
           v-permission="['pos.add', 'sales.add']"
           type="submit"
-          class="btn btn-primary btn-submit"
+          class="btn-finalize-submit"
           :class="{ 'btn-loading': saving }"
           :disabled="saving || !cart.length"
         >
-          {{ saving ? '⏳ جاري الحفظ...' : `💾 تسجيل البيع (${formatMoney(cartTotal)})` }}
+          <span class="btn-icon">🖨️</span>
+          <div class="btn-text-col">
+            <span class="btn-title">{{
+              saving ? 'جاري الحفظ والتجهيز...' : 'حفظ وطباعة الفاتورة الفورية'
+            }}</span>
+            <span class="btn-sub">اختصار Enter • {{ formatMoney(cartTotal) }}</span>
+          </div>
         </button>
 
-        <div class="secondary-cart-actions">
-          <!-- Hold Order Button -->
+        <div class="drawer-secondary-actions">
           <button
             type="button"
-            class="btn btn-warning btn-hold"
+            class="btn-drawer-hold"
             @click="emit('holdOrder')"
-            :disabled="!cart.length"
-            title="تعليق الطلب الحالي في قائمة الانتظار وخدمة عميل آخر (F2)"
+            title="تعليق الطلب في الانتظار (F4)"
           >
-            ⏸️ تعليق (F2)
+            ⏸️ تعليق الطلب (F4)
           </button>
 
-          <!-- Clear Cart Button -->
           <button
             type="button"
-            class="btn btn-outline btn-clear"
+            class="btn-drawer-clear"
             @click="emit('clearCart')"
-            :disabled="!cart.length"
-            title="تفريغ السلة الحالية بالكامل"
+            title="إفراغ السلة"
           >
-            🗑️ مسح
+            🗑️ مسح السلة
           </button>
         </div>
       </div>
@@ -371,6 +423,7 @@ const emit = defineEmits<{
   holdOrder: [];
   selectPrinter: [];
   printLast: [sale: any];
+  closeDrawer: [];
   'update:autoPrint': [v: boolean];
 }>();
 
@@ -422,7 +475,6 @@ const numpadPress = (char: string) => {
   if (numpadValue.value === '0') {
     numpadValue.value = char;
   } else {
-    // Avoid unrealistically long decimals
     if (numpadValue.value.length < 8) {
       numpadValue.value += char;
     }
@@ -436,7 +488,6 @@ const setPresetWeight = (qty: number) => {
 const confirmNumpad = () => {
   if (editingIndex.value !== null && props.cart[editingIndex.value]) {
     const val = Math.max(0.001, parseFloat(numpadValue.value) || 1);
-    // Round to max 3 decimal places (grams)
     const rounded = Math.round(val * 1000) / 1000;
     props.cart[editingIndex.value].quantity = rounded;
     emit('validateQty', editingIndex.value);
@@ -489,30 +540,6 @@ onUnmounted(() => {
   window.removeEventListener('keydown', handleNumpadKey);
 });
 
-/** حساب فئات النقود السريعة المقترحة تلقائياً */
-const quickBills = computed(() => {
-  const total = Number(props.cartTotal) || 0;
-  if (total <= 0) return [50, 100, 200];
-  const bills = new Set<number>();
-
-  const next50 = Math.ceil(total / 50) * 50;
-  const next100 = Math.ceil(total / 100) * 100;
-  const next200 = Math.ceil(total / 200) * 200;
-
-  if (next50 > total) bills.add(next50);
-  if (next100 > total) bills.add(next100);
-  if (next200 > total) bills.add(next200);
-
-  if (total < 50) bills.add(50);
-  if (total < 100) bills.add(100);
-  if (total < 200) bills.add(200);
-  if (total < 500) bills.add(500);
-
-  return Array.from(bills)
-    .sort((a, b) => a - b)
-    .slice(0, 3);
-});
-
 /** حساب الباقي المستحق */
 const changeAmount = computed(() => {
   const received = Number(receivedAmount.value) || 0;
@@ -537,13 +564,19 @@ defineExpose({
 </script>
 
 <style lang="scss" scoped>
-/* Cart Panel */
-.cart-panel {
-  position: sticky;
-  top: 70px;
-  max-height: calc(100vh - 90px);
+/* ═══════════════════════════════════════════════════════════════════
+   CHECKOUT CART PANEL (ON-DEMAND SLIDE-OVER LAYER STYLES)
+   ═══════════════════════════════════════════════════════════════════ */
+
+.checkout-cart-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 16px;
+  background: var(--surface, #1e130b);
+  border: none;
+  box-shadow: none;
   overflow-y: auto;
-  padding: 14px;
 }
 
 .cart-title-row {
@@ -551,700 +584,682 @@ defineExpose({
   justify-content: space-between;
   align-items: center;
   margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(212, 163, 115, 0.2);
 
-  h3 {
-    margin: 0;
-    color: var(--primary-dark);
-    font-size: 1.05rem;
-    font-weight: 850;
+  .title-with-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    .cart-icon {
+      font-size: 1.2rem;
+    }
+
+    h3 {
+      margin: 0;
+      color: #faedcd;
+      font-size: 1.15rem;
+      font-weight: 800;
+    }
   }
 
-  .cart-items-count {
-    background: rgba(16, 185, 129, 0.1);
-    color: var(--primary, #10b981);
-    border: 1px solid rgba(16, 185, 129, 0.25);
-    padding: 2px 8px;
-    border-radius: 12px;
-    font-size: 0.76rem;
-    font-weight: 750;
+  .cart-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    .cart-items-count {
+      background: rgba(212, 163, 115, 0.15);
+      color: #d4a373;
+      border: 1px solid rgba(212, 163, 115, 0.3);
+      padding: 2px 10px;
+      border-radius: 14px;
+      font-size: 0.8rem;
+      font-weight: 700;
+    }
+
+    .btn-close-cart {
+      background: rgba(255, 255, 255, 0.08);
+      border: none;
+      color: #f7ede2;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      font-size: 1rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+
+      &:hover {
+        background: rgba(239, 68, 68, 0.2);
+        color: #f87171;
+      }
+    }
   }
 }
 
 .empty-cart {
   text-align: center;
-  padding: 30px 14px;
-  color: var(--text-muted);
+  padding: 40px 14px;
+  color: var(--text-muted, #a89f91);
 
-  span {
-    font-size: 2.4rem;
+  .empty-cart-icon {
+    font-size: 3rem;
     display: inline-block;
-    margin-bottom: 6px;
-    animation: cart-bounce 2.5s ease-in-out infinite;
+    margin-bottom: 8px;
+    opacity: 0.8;
   }
 
   p {
     margin: 0 0 4px 0;
-    font-weight: 600;
-    font-size: 0.9rem;
+    font-weight: 700;
+    font-size: 1rem;
+    color: #faedcd;
   }
 
   .empty-hint {
-    font-size: 0.75rem;
-    color: var(--text-muted);
-    opacity: 0.8;
+    font-size: 0.8rem;
+    color: #d4a373;
   }
 }
 
-@keyframes cart-bounce {
-  0%,
-  100% {
-    transform: translateY(0) rotate(0deg);
-  }
-  50% {
-    transform: translateY(-6px) rotate(3deg);
-  }
-}
-
-.cart-items {
-  max-height: 240px;
-  overflow-y: auto;
-  margin-bottom: 10px;
-}
-
-.cart-item {
+/* ── Cart Items List ── */
+.cart-items-scrollable {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 8px;
+  margin-bottom: 14px;
+  max-height: 260px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.checkout-item-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   padding: 8px 10px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm, 8px);
-  margin-bottom: 6px;
-  background: var(--bg);
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(212, 163, 115, 0.15);
+  border-radius: 10px;
+  gap: 8px;
+}
 
-  .cart-item-info {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+.item-main-details {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 100px;
 
-    .cart-item-name {
-      font-weight: 700;
-      font-size: 0.88rem;
-    }
-    .cart-item-price {
-      color: var(--text-muted);
-      font-size: 0.8rem;
-    }
-  }
-
-  .cart-item-controls {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-
-  .qty-btn {
-    width: 26px;
-    height: 26px;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    background: var(--bg-card);
-    cursor: pointer;
-    font-size: 0.95rem;
+  .item-name {
+    font-size: 0.88rem;
     font-weight: 700;
+    color: #faedcd;
+  }
+  .item-unit-price {
+    font-size: 0.72rem;
+    color: #a89f91;
+  }
+}
+
+.item-touch-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+
+  .touch-qty-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    background: rgba(212, 163, 115, 0.18);
+    border: 1px solid rgba(212, 163, 115, 0.35);
+    color: #faedcd;
+    font-size: 1rem;
+    font-weight: 800;
+    cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: var(--text);
 
     &:hover {
-      background: var(--primary);
-      color: #fff;
+      background: #d4a373;
+      color: #140d08;
     }
   }
 
-  /* 🔢 Interactive Quantity Button that opens Numpad */
-  .qty-display-btn {
-    display: inline-flex;
+  .touch-qty-display {
+    display: flex;
     align-items: center;
-    gap: 4px;
-    padding: 3px 8px;
-    background: rgba(16, 185, 129, 0.08);
-    border: 1px solid rgba(16, 185, 129, 0.3);
+    gap: 3px;
+    padding: 3px 6px;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px dashed rgba(212, 163, 115, 0.3);
     border-radius: 6px;
     cursor: pointer;
-    transition: all 0.15s ease;
 
-    &:hover {
-      background: rgba(16, 185, 129, 0.2);
-      border-color: var(--primary, #10b981);
-      transform: scale(1.03);
+    .qty-val {
+      font-size: 0.88rem;
+      font-weight: 800;
+      color: #fff;
     }
-
-    .qty-num {
-      font-weight: 850;
-      font-size: 0.92rem;
-      color: var(--primary, #10b981);
-    }
-
-    .qty-unit {
-      font-size: 0.7rem;
-      color: var(--text-muted);
-      font-weight: 600;
-    }
-
-    .qty-edit-icon {
+    .qty-unit-label {
       font-size: 0.68rem;
+      color: #d4a373;
+    }
+    .qty-pencil {
+      font-size: 0.65rem;
       opacity: 0.7;
     }
   }
 
-  .remove-btn {
+  .touch-delete-btn {
     background: none;
     border: none;
     cursor: pointer;
-    font-size: 0.9rem;
-    margin-right: auto;
-    opacity: 0.7;
+    font-size: 0.85rem;
+    opacity: 0.6;
+    padding: 2px 4px;
 
     &:hover {
       opacity: 1;
-      transform: scale(1.1);
-    }
-  }
-
-  .cart-item-total {
-    font-weight: 800;
-    color: var(--primary-dark);
-    text-align: left;
-    font-size: 0.9rem;
-  }
-}
-
-/* ── Cart Summary ── */
-.cart-summary {
-  border-top: 2px solid var(--border);
-  padding-top: 10px;
-  margin-bottom: 12px;
-
-  .summary-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 3px 0;
-    font-size: 0.86rem;
-  }
-
-  .discount-row .discount-input {
-    width: 80px;
-    padding: 3px 6px;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    text-align: center;
-    font-size: 0.85rem;
-    background: var(--bg);
-    color: var(--text);
-  }
-
-  .total-row {
-    font-size: 1rem;
-    font-weight: 850;
-    padding-top: 6px;
-    border-top: 1px dashed var(--border);
-    margin-top: 4px;
-
-    .total-amount {
-      color: var(--primary, #10b981);
-      font-size: 1.15rem;
     }
   }
 }
 
-/* ── Form Inputs ── */
-.sale-form {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-
-  .form-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-  }
-
-  .form-group {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-
-    label {
-      font-size: 0.78rem;
-      font-weight: 700;
-      color: var(--text-muted);
-    }
-
-    select,
-    input {
-      padding: 6px 8px;
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      background: var(--bg);
-      color: var(--text);
-      font-size: 0.85rem;
-    }
-  }
+.item-line-total {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #ffffff;
+  white-space: nowrap;
+  min-width: 60px;
+  text-align: left;
 }
 
-/* ── 💵 Cash Calculator Box ── */
-.cash-calc-box {
-  background: rgba(16, 185, 129, 0.04);
-  border: 1px solid rgba(16, 185, 129, 0.18);
-  border-radius: 10px;
-  padding: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-
-  .calc-header {
-    .calc-title {
-      font-size: 0.8rem;
-      font-weight: 800;
-      color: var(--primary, #10b981);
-    }
-  }
-
-  .preset-bills {
-    display: flex;
-    gap: 6px;
-    flex-wrap: wrap;
-
-    .bill-btn {
-      flex: 1;
-      padding: 5px 8px;
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      font-size: 0.78rem;
-      font-weight: 750;
-      color: var(--text);
-      cursor: pointer;
-      white-space: nowrap;
-      transition: all 0.15s ease;
-
-      &:hover {
-        border-color: var(--primary);
-        color: var(--primary);
-      }
-
-      &.exact-bill {
-        background: rgba(16, 185, 129, 0.12);
-        color: var(--primary, #10b981);
-        border-color: rgba(16, 185, 129, 0.3);
-      }
-
-      &.active {
-        background: var(--primary, #10b981);
-        color: #ffffff;
-        border-color: var(--primary);
-      }
-    }
-  }
-
-  .received-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 8px;
-
-    label {
-      font-size: 0.8rem;
-      font-weight: 700;
-      color: var(--text-muted);
-      white-space: nowrap;
-    }
-
-    .received-input-wrap {
-      position: relative;
-      flex: 1;
-
-      .received-input {
-        width: 100%;
-        padding: 5px 28px 5px 8px;
-        border: 1px solid var(--border);
-        border-radius: 6px;
-        background: var(--bg-card);
-        color: var(--text);
-        font-weight: 800;
-        font-size: 0.92rem;
-        text-align: left;
-        direction: ltr;
-
-        &:focus {
-          border-color: var(--primary);
-          outline: none;
-        }
-      }
-
-      .curr-tag {
-        position: absolute;
-        right: 8px;
-        top: 50%;
-        transform: translateY(-50%);
-        font-size: 0.75rem;
-        color: var(--text-muted);
-      }
-    }
-  }
-
-  .change-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 6px 8px;
-    border-radius: 6px;
-    background: var(--bg-card);
-
-    .change-label {
-      font-size: 0.82rem;
-      font-weight: 750;
-    }
-
-    .change-val {
-      font-size: 1.05rem;
-      font-weight: 900;
-      direction: ltr;
-    }
-
-    &.has-change {
-      border: 1px solid rgba(16, 185, 129, 0.3);
-      background: rgba(16, 185, 129, 0.08);
-
-      .change-label,
-      .change-val {
-        color: #10b981;
-      }
-    }
-
-    &.has-shortage {
-      border: 1px solid rgba(239, 68, 68, 0.3);
-      background: rgba(239, 68, 68, 0.08);
-
-      .change-label,
-      .change-val {
-        color: #ef4444;
-      }
-    }
-  }
-}
-
-/* ── Printer Box ── */
-.printer-settings-box {
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 8px 10px;
-
-  .printer-header {
-    font-size: 0.78rem;
-    font-weight: 750;
-    color: var(--text-muted);
-    margin-bottom: 6px;
-  }
-
-  .printer-controls {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  .printer-info {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-
-    .printer-status {
-      font-size: 0.75rem;
-      color: var(--text-muted);
-
-      &.configured {
-        color: var(--primary, #10b981);
-        font-weight: 750;
-      }
-    }
-  }
-
-  .printer-options {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .checkbox-label {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 0.76rem;
-    cursor: pointer;
-  }
-
-  .print-last-btn {
-    font-size: 0.74rem;
-    padding: 3px 8px;
-  }
-}
-
-/* ── Action Buttons ── */
-.cart-action-buttons {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-top: 4px;
-
-  .btn-submit {
-    width: 100%;
-    padding: 11px;
-    font-size: 0.95rem;
-    font-weight: 850;
-    border-radius: 10px;
-  }
-
-  .secondary-cart-actions {
-    display: grid;
-    grid-template-columns: 2fr 1fr;
-    gap: 8px;
-
-    .btn-hold {
-      background: rgba(245, 158, 11, 0.12);
-      border: 1px solid rgba(245, 158, 11, 0.35);
-      color: #f59e0b;
-      font-weight: 750;
-      font-size: 0.82rem;
-      padding: 7px 10px;
-      border-radius: 8px;
-      cursor: pointer;
-      transition: all 0.2s ease;
-
-      &:hover:not(:disabled) {
-        background: #f59e0b;
-        color: #ffffff;
-      }
-    }
-
-    .btn-clear {
-      font-size: 0.82rem;
-      padding: 7px 10px;
-      border-radius: 8px;
-    }
-  }
-}
-
-/* Recommendations */
+/* ── Recommendations ── */
 .cart-recommendations {
-  margin: 8px 0;
+  margin-bottom: 12px;
   padding: 8px 10px;
-  background: var(--bg);
-  border: 1px dashed var(--primary);
-  border-radius: 8px;
+  background: rgba(212, 163, 115, 0.08);
+  border: 1px dashed rgba(212, 163, 115, 0.25);
+  border-radius: 10px;
 
   .rec-title {
-    font-size: 0.75rem;
-    font-weight: 800;
-    color: var(--primary-dark);
+    font-size: 0.76rem;
+    font-weight: 700;
+    color: #d4a373;
     margin-bottom: 6px;
   }
 
   .rec-list {
     display: flex;
-    flex-direction: column;
-    gap: 4px;
+    gap: 6px;
+    overflow-x: auto;
   }
 
   .rec-item {
     display: flex;
-    justify-content: space-between;
     align-items: center;
+    gap: 6px;
     padding: 4px 8px;
-    background: var(--bg-card);
-    border: 1px solid var(--border);
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(212, 163, 115, 0.2);
     border-radius: 6px;
     cursor: pointer;
-
-    &:hover {
-      border-color: var(--primary);
-    }
+    white-space: nowrap;
 
     .rec-name-text {
       font-size: 0.78rem;
       font-weight: 700;
+      color: #faedcd;
     }
     .rec-category {
       font-size: 0.68rem;
-      color: var(--text-muted);
+      color: #a89f91;
     }
     .rec-price {
-      font-size: 0.76rem;
-      font-weight: 750;
-      color: var(--accent);
+      font-size: 0.78rem;
+      font-weight: 800;
+      color: #d4a373;
     }
   }
 }
 
-/* ── 🔢 Numpad Modal ── */
+/* ── Cart Summary ── */
+.cart-summary-box {
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(212, 163, 115, 0.2);
+  border-radius: 12px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.84rem;
+  color: #d4a373;
+  margin-bottom: 4px;
+
+  &.discount-row {
+    .discount-input {
+      width: 90px;
+      padding: 4px 8px;
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid rgba(212, 163, 115, 0.3);
+      border-radius: 6px;
+      color: #faedcd;
+      font-size: 0.82rem;
+      text-align: center;
+    }
+  }
+
+  &.total-highlight-row {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px dashed rgba(212, 163, 115, 0.25);
+
+    .total-label {
+      font-size: 0.95rem;
+      font-weight: 800;
+      color: #faedcd;
+    }
+    .total-amount-glow {
+      font-size: 1.3rem;
+      font-weight: 900;
+      color: #faedcd;
+      text-shadow: 0 0 10px rgba(212, 163, 115, 0.3);
+    }
+  }
+}
+
+/* ── Payment Section ── */
+.payment-section-box {
+  margin-bottom: 12px;
+
+  .section-title {
+    display: block;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #d4a373;
+    margin-bottom: 6px;
+  }
+}
+
+.payment-tiles-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+
+.pay-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 4px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(212, 163, 115, 0.25);
+  border-radius: 10px;
+  color: #f7ede2;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  .tile-icon {
+    font-size: 1.2rem;
+    margin-bottom: 2px;
+  }
+  .tile-title {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #d4a373;
+  }
+
+  &:hover {
+    background: rgba(212, 163, 115, 0.15);
+    border-color: #d4a373;
+  }
+
+  &.selected {
+    background: linear-gradient(135deg, rgba(212, 163, 115, 0.25) 0%, rgba(140, 83, 43, 0.25) 100%);
+    border-color: #d4a373;
+    box-shadow: 0 0 10px rgba(212, 163, 115, 0.2);
+
+    .tile-title {
+      color: #faedcd;
+      font-weight: 800;
+    }
+  }
+}
+
+/* ── Cash Calculator ── */
+.cash-calc-box {
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(212, 163, 115, 0.2);
+  border-radius: 10px;
+  padding: 10px;
+  margin-bottom: 12px;
+
+  .calc-header {
+    margin-bottom: 6px;
+    .calc-title {
+      font-size: 0.74rem;
+      font-weight: 700;
+      color: #d4a373;
+    }
+  }
+}
+
+.preset-bills-row {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+
+  .bill-chip {
+    padding: 5px 8px;
+    background: rgba(212, 163, 115, 0.1);
+    border: 1px solid rgba(212, 163, 115, 0.25);
+    border-radius: 6px;
+    color: #faedcd;
+    font-size: 0.74rem;
+    font-weight: 700;
+    cursor: pointer;
+
+    &:hover,
+    &.active {
+      background: #d4a373;
+      color: #140d08;
+    }
+
+    &.exact {
+      background: rgba(34, 197, 94, 0.15);
+      border-color: rgba(34, 197, 94, 0.4);
+      color: #86efac;
+
+      &:hover {
+        background: #22c55e;
+        color: #fff;
+      }
+    }
+  }
+}
+
+.received-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+
+  label {
+    font-size: 0.78rem;
+    color: #d4a373;
+  }
+
+  .received-input-wrap {
+    position: relative;
+    width: 120px;
+
+    .received-input {
+      width: 100%;
+      padding: 6px 26px 6px 8px;
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid rgba(212, 163, 115, 0.3);
+      border-radius: 6px;
+      color: #faedcd;
+      font-size: 0.88rem;
+      font-weight: 800;
+      text-align: center;
+    }
+
+    .curr-tag {
+      position: absolute;
+      right: 6px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 0.7rem;
+      color: #d4a373;
+    }
+  }
+}
+
+.change-statement-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed rgba(212, 163, 115, 0.2);
+  font-size: 0.85rem;
+
+  .change-label {
+    color: #d4a373;
+  }
+  .change-val {
+    font-size: 1.05rem;
+    font-weight: 900;
+    color: #86efac;
+  }
+
+  &.has-shortage .change-val {
+    color: #fca5a5;
+  }
+}
+
+/* ── Printer & Actions ── */
+.printer-settings-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  font-size: 0.76rem;
+  color: #a89f91;
+
+  .auto-print-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+  }
+
+  .btn-reprint-link {
+    background: none;
+    border: none;
+    color: #d4a373;
+    cursor: pointer;
+    text-decoration: underline;
+    font-size: 0.74rem;
+  }
+}
+
+.checkout-final-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.btn-finalize-submit {
+  width: 100%;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, #d4a373 0%, #a86f3d 100%);
+  border: 1px solid #faedcd;
+  border-radius: 12px;
+  color: #140d08;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  box-shadow: 0 4px 16px rgba(212, 163, 115, 0.35);
+  transition: all 0.2s ease;
+
+  .btn-icon {
+    font-size: 1.4rem;
+  }
+
+  .btn-text-col {
+    display: flex;
+    flex-direction: column;
+    text-align: right;
+  }
+
+  .btn-title {
+    font-size: 0.96rem;
+    font-weight: 900;
+  }
+  .btn-sub {
+    font-size: 0.72rem;
+    opacity: 0.85;
+  }
+
+  &:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(212, 163, 115, 0.5);
+  }
+}
+
+.drawer-secondary-actions {
+  display: flex;
+  gap: 6px;
+
+  .btn-drawer-hold,
+  .btn-drawer-clear {
+    flex: 1;
+    padding: 8px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 8px;
+    color: #d4a373;
+    font-size: 0.76rem;
+    font-weight: 700;
+    cursor: pointer;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: #faedcd;
+    }
+  }
+
+  .btn-drawer-clear:hover {
+    background: rgba(239, 68, 68, 0.15);
+    color: #f87171;
+    border-color: rgba(239, 68, 68, 0.3);
+  }
+}
+
+/* ── Numpad Modal ── */
 .numpad-modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(6px);
-  z-index: 2000;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(4px);
+  z-index: 200;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .numpad-modal-card {
-  width: 90%;
-  max-width: 420px;
-  background: var(--bg-card, #1e1e2d);
-  border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+  width: 100%;
+  max-width: 360px;
+  background: #1b120c;
+  border: 1px solid #d4a373;
   border-radius: 16px;
-  padding: 18px;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
+  padding: 16px;
 }
 
 .numpad-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
+  margin-bottom: 10px;
 
   .numpad-title-wrap {
     display: flex;
-    gap: 10px;
     align-items: center;
-
-    .numpad-icon {
-      font-size: 1.5rem;
-    }
+    gap: 8px;
 
     h4 {
       margin: 0;
-      font-size: 1.1rem;
-      font-weight: 850;
-      color: var(--text-strong, #ffffff);
+      color: #faedcd;
+      font-size: 1rem;
     }
-
     .numpad-prod-name {
-      margin: 2px 0 0 0;
-      font-size: 0.84rem;
-      color: var(--primary, #10b981);
-      font-weight: 750;
-
-      .unit-price-tag {
-        color: var(--text-muted);
-        font-size: 0.78rem;
-        font-weight: 600;
-      }
+      margin: 0;
+      font-size: 0.75rem;
+      color: #d4a373;
     }
   }
 
   .close-numpad-btn {
     background: none;
     border: none;
-    font-size: 1.2rem;
-    color: var(--text-muted);
+    color: #fff;
+    font-size: 1.1rem;
     cursor: pointer;
-    padding: 2px 8px;
-    border-radius: 6px;
-
-    &:hover {
-      background: rgba(255, 255, 255, 0.08);
-      color: #ffffff;
-    }
   }
 }
 
 .numpad-display-screen {
-  background: rgba(0, 0, 0, 0.35);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
-  padding: 12px 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(212, 163, 115, 0.3);
+  border-radius: 10px;
+  padding: 8px 12px;
+  margin-bottom: 10px;
 
   .display-val-row {
     display: flex;
-    justify-content: flex-end;
+    justify-content: space-between;
     align-items: baseline;
-    gap: 8px;
 
     .display-qty {
-      font-size: 2.2rem;
+      font-size: 1.5rem;
       font-weight: 900;
-      color: var(--primary, #10b981);
-      font-family: monospace;
-      letter-spacing: 1px;
+      color: #fff;
     }
-
     .display-unit {
-      font-size: 0.95rem;
-      color: var(--text-muted);
-      font-weight: 700;
+      color: #d4a373;
+      font-size: 0.85rem;
     }
   }
 
   .display-helper-row {
     display: flex;
     justify-content: space-between;
-    align-items: center;
-    border-top: 1px dashed rgba(255, 255, 255, 0.08);
-    padding-top: 6px;
-    font-size: 0.82rem;
-
-    .weight-meaning {
-      color: #f59e0b;
-      font-weight: 750;
-    }
-
-    .live-calculated-total {
-      color: var(--text-muted);
-
-      strong {
-        color: #ffffff;
-        font-weight: 800;
-      }
-    }
+    font-size: 0.74rem;
+    color: #a89f91;
+    margin-top: 4px;
+    border-top: 1px dashed rgba(255, 255, 255, 0.1);
+    padding-top: 4px;
   }
 }
 
 .numpad-presets {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 6px;
+  gap: 4px;
+  margin-bottom: 10px;
 
   .preset-btn {
-    padding: 8px 4px;
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 8px;
-    color: var(--text, #e2e8f0);
-    font-size: 0.78rem;
-    font-weight: 750;
+    padding: 6px 2px;
+    background: rgba(212, 163, 115, 0.1);
+    border: 1px solid rgba(212, 163, 115, 0.25);
+    border-radius: 6px;
+    color: #faedcd;
+    font-size: 0.72rem;
+    font-weight: 700;
     cursor: pointer;
-    transition: all 0.15s ease;
-
-    &:hover {
-      background: rgba(16, 185, 129, 0.15);
-      border-color: var(--primary, #10b981);
-      color: var(--primary, #10b981);
-    }
 
     &.highlight {
-      background: rgba(16, 185, 129, 0.1);
-      border-color: rgba(16, 185, 129, 0.3);
-      color: var(--primary, #10b981);
+      background: rgba(212, 163, 115, 0.25);
+      border-color: #d4a373;
+    }
+
+    &:hover {
+      background: #d4a373;
+      color: #140d08;
     }
   }
 }
@@ -1252,71 +1267,41 @@ defineExpose({
 .numpad-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
+  gap: 6px;
+  margin-bottom: 12px;
 
   .num-key {
-    height: 48px;
-    background: var(--bg, #171723);
-    border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
-    border-radius: 10px;
-    font-size: 1.3rem;
-    font-weight: 850;
-    color: #ffffff;
+    padding: 12px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(212, 163, 115, 0.2);
+    border-radius: 8px;
+    color: #faedcd;
+    font-size: 1.15rem;
+    font-weight: 800;
     cursor: pointer;
-    transition: all 0.1s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
 
     &:hover {
-      background: rgba(255, 255, 255, 0.1);
-      border-color: rgba(255, 255, 255, 0.2);
-      transform: translateY(-1px);
-    }
-
-    &:active {
-      transform: translateY(1px);
-      background: var(--primary, #10b981);
-      color: #ffffff;
+      background: rgba(212, 163, 115, 0.2);
     }
 
     &.clear-key {
-      color: #ef4444;
-      background: rgba(239, 68, 68, 0.08);
-      border-color: rgba(239, 68, 68, 0.2);
+      color: #f87171;
     }
-
     &.backspace-key {
-      color: #f59e0b;
-      background: rgba(245, 158, 11, 0.08);
-      border-color: rgba(245, 158, 11, 0.2);
-    }
-
-    &.dot-key {
-      font-weight: 900;
+      color: #fde047;
     }
   }
 }
 
 .numpad-actions {
-  display: grid;
-  grid-template-columns: 1fr 2fr;
-  gap: 10px;
-  margin-top: 4px;
+  display: flex;
+  gap: 8px;
 
   .confirm-btn {
-    padding: 12px;
-    font-size: 0.95rem;
-    font-weight: 850;
-    border-radius: 10px;
-  }
-}
-
-@media (max-width: 768px) {
-  .cart-panel {
-    &.mobile-hidden {
-      display: none !important;
-    }
+    flex: 1;
+    background: #d4a373;
+    color: #140d08;
+    font-weight: 800;
   }
 }
 </style>

@@ -116,32 +116,10 @@
       </div>
     </div>
 
-    <!-- Manual Entry Mode -->
-    <div v-if="showMode === 'manual'" class="manual-mode">
-      <!-- Mobile Tabs Switcher -->
-      <div class="mobile-tabs-bar">
-        <button
-          class="tab-btn"
-          :class="{ active: activeTab === 'products' }"
-          @click="activeTab = 'products'"
-          type="button"
-        >
-          🛍️ قائمة المنتجات
-        </button>
-        <button
-          class="tab-btn"
-          :class="{ active: activeTab === 'cart' }"
-          @click="activeTab = 'cart'"
-          type="button"
-          style="position: relative"
-        >
-          🛒 سلة المبيعات
-          <span v-if="cart.length" class="cart-badge">{{ cart.length }}</span>
-        </button>
-      </div>
-
-      <div class="main-grid">
-        <!-- Products Panel -->
+    <!-- Manual Entry Mode (100% Screen Real Estate Redesign) -->
+    <div v-if="showMode === 'manual'" class="manual-mode-layout">
+      <!-- 🌟 100% Full-Width Product Catalog View -->
+      <div class="full-catalog-wrapper">
         <ProductsPanel
           ref="productsPanelRef"
           :filtered-products="filteredProducts"
@@ -159,34 +137,95 @@
           @add-to-cart="addToCart"
           @filter="filterProducts"
         />
-
-        <!-- Cart & Form Panel -->
-        <CartPanel
-          ref="cartPanelRef"
-          :cart="cart"
-          :sale-form="saleForm"
-          :recommended-items="recommendedItems"
-          :cart-subtotal="cartSubtotal"
-          :cart-total="cartTotal"
-          :saving="saving"
-          :sale-error="saleError"
-          v-model:auto-print="autoPrint"
-          :printer-name="printerName"
-          :last-saved-sale="lastSavedSale"
-          :active-tab="activeTab"
-          :format-money="formatMoney"
-          @increase-qty="increaseQty"
-          @decrease-qty="decreaseQty"
-          @validate-qty="validateQty"
-          @remove-from-cart="removeFromCart"
-          @add-recommended="addRecommendedToCart"
-          @submit-sale="submitManualSale"
-          @clear-cart="clearCart"
-          @hold-order="holdCurrentOrder"
-          @select-printer="selectPrinter"
-          @print-last="printReceipt"
-        />
       </div>
+
+      <!-- ⚡ Floating Bottom Smart Action Bar (شريط المحاسبة الذكي العائم) -->
+      <transition name="floating-bar-slide">
+        <div v-if="cart.length > 0" class="pos-floating-action-bar">
+          <div
+            class="bar-cart-summary"
+            @click="showCheckoutDrawer = true"
+            title="انقر لفتح سلة ومحاسبة الفاتورة"
+          >
+            <div class="bar-badge-pill">
+              <span class="bar-icon">🛒</span>
+              <span class="bar-items-count">{{ cart.length }} صنف في السلة</span>
+            </div>
+            <div class="bar-price-block">
+              <span class="bar-total-label">الإجمالي المستحق:</span>
+              <strong class="bar-total-amount">{{ formatMoney(cartTotal) }}</strong>
+            </div>
+          </div>
+
+          <div class="bar-action-buttons">
+            <button
+              type="button"
+              class="bar-btn-hold"
+              @click="holdCurrentOrder"
+              title="تعليق الطلب الحالي في قائمة الانتظار (F4)"
+            >
+              ⏸️ تعليق (F4)
+            </button>
+
+            <button
+              type="button"
+              class="bar-btn-clear"
+              @click="clearCart"
+              title="تفريغ السلة الحالية (F6)"
+            >
+              🗑️ تفريغ (F6)
+            </button>
+
+            <button
+              type="button"
+              class="bar-btn-checkout"
+              @click="showCheckoutDrawer = true"
+              title="إتمام الطلب والدفع الفوري (Space أو F9)"
+            >
+              <span class="checkout-text">إتمام الطلب والدفع</span>
+              <span class="checkout-key-hint">(Space / F9) ➔</span>
+            </button>
+          </div>
+        </div>
+      </transition>
+
+      <!-- 💳 On-Demand Slide-Over Checkout Layer (درج الدفع والمحاسبة المنزلق عند الطلب) -->
+      <transition name="drawer-backdrop">
+        <div
+          v-if="showCheckoutDrawer"
+          class="checkout-drawer-backdrop"
+          @click.self="showCheckoutDrawer = false"
+        >
+          <div class="checkout-drawer-panel">
+            <CartPanel
+              ref="cartPanelRef"
+              :cart="cart"
+              :sale-form="saleForm"
+              :recommended-items="recommendedItems"
+              :cart-subtotal="cartSubtotal"
+              :cart-total="cartTotal"
+              :saving="saving"
+              :sale-error="saleError"
+              v-model:auto-print="autoPrint"
+              :printer-name="printerName"
+              :last-saved-sale="lastSavedSale"
+              :active-tab="activeTab"
+              :format-money="formatMoney"
+              @increase-qty="increaseQty"
+              @decrease-qty="decreaseQty"
+              @validate-qty="validateQty"
+              @remove-from-cart="removeFromCart"
+              @add-recommended="addRecommendedToCart"
+              @submit-sale="submitManualSale"
+              @clear-cart="clearCart"
+              @hold-order="holdCurrentOrder"
+              @select-printer="selectPrinter"
+              @print-last="printReceipt"
+              @close-drawer="showCheckoutDrawer = false"
+            />
+          </div>
+        </div>
+      </transition>
     </div>
 
     <!-- Excel Mode -->
@@ -251,20 +290,24 @@
         </div>
         <div class="shortcuts-grid">
           <div class="shortcut-item">
+            <kbd class="key-badge">Space</kbd>
+            <span>فتح / إغلاق درج الدفع والمحاسبة</span>
+          </div>
+          <div class="shortcut-item">
             <kbd class="key-badge">F1</kbd>
             <span>فتح وإغلاق دليل الاختصارات</span>
           </div>
           <div class="shortcut-item">
-            <kbd class="key-badge">F2</kbd>
-            <span>تعليق الطلب الحالي (Hold Order)</span>
+            <kbd class="key-badge">F2 / F7</kbd>
+            <span>التركيز على بحث المنتجات أو مسح الباركود</span>
           </div>
           <div class="shortcut-item">
             <kbd class="key-badge">F4</kbd>
-            <span>التركيز على حقل الخصم</span>
+            <span>تعليق الطلب (Hold) / التركيز على الخصم</span>
           </div>
           <div class="shortcut-item">
-            <kbd class="key-badge">F7</kbd>
-            <span>التركيز على بحث المنتجات بالاسم أو الباركود</span>
+            <kbd class="key-badge">F6</kbd>
+            <span>تفريغ السلة الحالية بالكامل</span>
           </div>
           <div class="shortcut-item">
             <kbd class="key-badge">F8</kbd>
@@ -279,16 +322,12 @@
             <span>تفعيل الدفع بالبطاقة (فيزا / شبكة)</span>
           </div>
           <div class="shortcut-item">
-            <kbd class="key-badge">F11</kbd>
-            <span>تبديل وضع ملء الشاشة (Kiosk Mode)</span>
-          </div>
-          <div class="shortcut-item">
             <kbd class="key-badge">Enter</kbd>
             <span>حفظ عملية البيع والطباعة الفورية</span>
           </div>
           <div class="shortcut-item">
             <kbd class="key-badge">Esc</kbd>
-            <span>إغلاق النوافذ المنبثقة</span>
+            <span>إغلاق درج الدفع أو النوافذ المنبثقة</span>
           </div>
         </div>
         <div class="modal-actions">
@@ -493,6 +532,7 @@ const { categories, loadMeta } = useProductMeta();
 
 // ─── state ─────────────────────────────────────────────────────────────────
 const showMode = ref('manual');
+const showCheckoutDrawer = ref(false);
 const activeTab = ref('products'); // 'products' or 'cart'
 const loadingProducts = ref(false);
 const loadingHistory = ref(false);
@@ -688,38 +728,60 @@ const handleGlobalKeyDown = (e: KeyboardEvent) => {
   const shortcutsEnabled = localStorage.getItem('shortcuts_enabled') !== 'false';
   if (!shortcutsEnabled) return;
 
-  if (e.key === 'F1') {
+  const targetTag = (e.target as HTMLElement)?.tagName;
+  const isTyping = targetTag === 'INPUT' || targetTag === 'TEXTAREA' || targetTag === 'SELECT';
+
+  if (e.key === ' ' && !isTyping) {
+    // زر المسافة يفتح/يغلق درج الدفع عند وجود أصناف
+    if (cart.value.length > 0) {
+      e.preventDefault();
+      showCheckoutDrawer.value = !showCheckoutDrawer.value;
+      playBeep('click');
+    }
+  } else if (e.key === 'F1') {
     e.preventDefault();
     shortcutsModal.value = !shortcutsModal.value;
-  } else if (e.key === 'F2') {
+  } else if (e.key === 'F2' || e.key === 'F7') {
     e.preventDefault();
-    if (cart.value.length > 0) {
+    productsPanelRef.value?.focusSearch();
+  } else if (e.key === 'F4') {
+    e.preventDefault();
+    if (showCheckoutDrawer.value) {
+      cartPanelRef.value?.focusDiscount();
+    } else if (cart.value.length > 0) {
       holdCurrentOrder();
     } else if (heldOrders.value.length > 0) {
       resumeHeldOrder(heldOrders.value[0]);
     } else {
       appStore.addToast('السلة فارغة، ولا توجد طلبات معلقة', 'warning');
     }
-  } else if (e.key === 'F4') {
+  } else if (e.key === 'F6') {
     e.preventDefault();
-    cartPanelRef.value?.focusDiscount();
-  } else if (e.key === 'F7') {
-    e.preventDefault();
-    productsPanelRef.value?.focusSearch();
+    if (cart.value.length > 0) {
+      clearCart();
+    }
   } else if (e.key === 'F8') {
     e.preventDefault();
     reprintLastSale();
   } else if (e.key === 'F9') {
     e.preventDefault();
-    saleForm.value.payment_method = 'cash';
-    cartPanelRef.value?.focusReceived();
-    playBeep('click');
+    if (cart.value.length > 0) {
+      showCheckoutDrawer.value = true;
+      saleForm.value.payment_method = 'cash';
+      cartPanelRef.value?.focusReceived();
+      playBeep('click');
+    }
   } else if (e.key === 'F10') {
     e.preventDefault();
-    saleForm.value.payment_method = 'card';
-    playBeep('click');
+    if (cart.value.length > 0) {
+      showCheckoutDrawer.value = true;
+      saleForm.value.payment_method = 'card';
+      playBeep('click');
+    }
   } else if (e.key === 'Escape') {
-    if (shortcutsModal.value || returnsModal.value || countsModal.value) {
+    if (showCheckoutDrawer.value) {
+      showCheckoutDrawer.value = false;
+    } else if (shortcutsModal.value || returnsModal.value || countsModal.value) {
       shortcutsModal.value = false;
       returnsModal.value = false;
       countsModal.value = false;
@@ -941,11 +1003,12 @@ watch(
 );
 
 // ─── cart actions ───────────────────────────────────────────────────────────
-const addToCart = (product: any) => {
+const addToCart = (product: any, customQty?: number) => {
   playBeep('success');
+  const qtyToAdd = customQty !== undefined ? customQty : 1;
   const existing = cart.value.find((i: any) => i.product_id === product.id);
   if (existing) {
-    existing.quantity = parseFloat((existing.quantity + 1).toFixed(3));
+    existing.quantity = parseFloat((existing.quantity + qtyToAdd).toFixed(3));
   } else {
     // set sale warehouse from product primary_warehouse_id if not set
     if (!saleForm.value.warehouse_id && product.primary_warehouse_id) {
@@ -955,7 +1018,7 @@ const addToCart = (product: any) => {
       product_id: product.id,
       name_ar: product.name_ar,
       unit_price: parseFloat(product.sale_price || 0),
-      quantity: 1,
+      quantity: qtyToAdd,
       has_recipe: product.has_recipe,
     });
   }
@@ -980,6 +1043,9 @@ const validateQty = (idx: any) => {
 const removeFromCart = (idx: any) => {
   playBeep('click');
   cart.value.splice(idx, 1);
+  if (!cart.value.length) {
+    showCheckoutDrawer.value = false;
+  }
 };
 const clearCart = () => {
   playBeep('click');
@@ -988,6 +1054,7 @@ const clearCart = () => {
   saleForm.value.notes = '';
   saleForm.value.warehouse_id = null;
   saleError.value = '';
+  showCheckoutDrawer.value = false;
 };
 
 // ─── submit sale ────────────────────────────────────────────────────────────
@@ -1574,25 +1641,240 @@ const submitCounts = async () => {
   }
 }
 
-/* Main grid — إعطاء الأولوية لمساحة المنتجات بنسبة واسعة وتنسيق السلة كشريط جانبي مدمج */
-.main-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 390px;
-  gap: 20px;
-  align-items: start;
+/* ═══════════════════════════════════════════════════════════════════
+   100% FULL-WIDTH CATALOG & ON-DEMAND CHECKOUT DRAWER
+   ═══════════════════════════════════════════════════════════════════ */
+.manual-mode-layout {
+  position: relative;
+  width: 100%;
+  padding-bottom: 90px; /* Space for floating bar */
 }
 
-@media (max-width: 1280px) {
-  .main-grid {
-    grid-template-columns: minmax(0, 1fr) 350px;
-    gap: 16px;
+.full-catalog-wrapper {
+  width: 100%;
+}
+
+/* ── ⚡ Floating Bottom Smart Action Bar ── */
+.pos-floating-action-bar {
+  position: fixed;
+  bottom: 16px;
+  left: 20px;
+  right: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+  z-index: 100;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  background: linear-gradient(135deg, rgba(27, 18, 12, 0.95) 0%, rgba(20, 13, 8, 0.98) 100%);
+  border: 1.5px solid #d4a373;
+  border-radius: 20px;
+  padding: 10px 18px;
+  box-shadow:
+    0 12px 36px rgba(0, 0, 0, 0.6),
+    0 0 20px rgba(212, 163, 115, 0.25);
+  backdrop-filter: blur(12px);
+  animation: floatingPulse 3s infinite ease-in-out;
+}
+
+@keyframes floatingPulse {
+  0%,
+  100% {
+    box-shadow:
+      0 12px 36px rgba(0, 0, 0, 0.6),
+      0 0 16px rgba(212, 163, 115, 0.2);
+  }
+  50% {
+    box-shadow:
+      0 14px 42px rgba(0, 0, 0, 0.7),
+      0 0 28px rgba(212, 163, 115, 0.4);
   }
 }
 
-@media (max-width: 992px) {
-  .main-grid {
-    grid-template-columns: 1fr;
-    gap: 16px;
+.bar-cart-summary {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  cursor: pointer;
+  user-select: none;
+
+  .bar-badge-pill {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(212, 163, 115, 0.18);
+    border: 1px solid rgba(212, 163, 115, 0.35);
+    padding: 6px 14px;
+    border-radius: 20px;
+
+    .bar-icon {
+      font-size: 1.2rem;
+    }
+    .bar-items-count {
+      color: #faedcd;
+      font-size: 0.88rem;
+      font-weight: 800;
+    }
+  }
+
+  .bar-price-block {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+
+    .bar-total-label {
+      color: #d4a373;
+      font-size: 0.85rem;
+      font-weight: 700;
+    }
+
+    .bar-total-amount {
+      font-size: 1.45rem;
+      font-weight: 900;
+      color: #ffffff;
+      letter-spacing: 0.4px;
+      text-shadow: 0 0 10px rgba(212, 163, 115, 0.3);
+    }
+  }
+}
+
+.bar-action-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  .bar-btn-hold,
+  .bar-btn-clear {
+    padding: 9px 14px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 12px;
+    color: #faedcd;
+    font-size: 0.84rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.12);
+      color: #fff;
+    }
+  }
+
+  .bar-btn-clear:hover {
+    background: rgba(239, 68, 68, 0.2);
+    color: #f87171;
+    border-color: rgba(239, 68, 68, 0.4);
+  }
+
+  .bar-btn-checkout {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 22px;
+    background: linear-gradient(135deg, #d4a373 0%, #a86f3d 100%);
+    border: 1.5px solid #faedcd;
+    border-radius: 14px;
+    color: #140d08;
+    font-size: 0.95rem;
+    font-weight: 900;
+    cursor: pointer;
+    box-shadow: 0 4px 18px rgba(212, 163, 115, 0.4);
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+
+    .checkout-key-hint {
+      font-size: 0.76rem;
+      opacity: 0.85;
+      font-weight: 700;
+    }
+
+    &:hover {
+      transform: translateY(-2px) scale(1.02);
+      box-shadow: 0 6px 24px rgba(212, 163, 115, 0.6);
+      background: linear-gradient(135deg, #faedcd 0%, #d4a373 100%);
+    }
+  }
+}
+
+/* ── 💳 On-Demand Slide-Over Drawer Layer ── */
+.checkout-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(6px);
+  z-index: 150;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.checkout-drawer-panel {
+  width: 100%;
+  max-width: 480px;
+  height: 100%;
+  background: #1e130b;
+  border-left: 2px solid #d4a373;
+  box-shadow: -10px 0 40px rgba(0, 0, 0, 0.75);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+@media (max-width: 600px) {
+  .checkout-drawer-panel {
+    max-width: 100%;
+  }
+
+  .pos-floating-action-bar {
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+    flex-direction: column;
+    gap: 8px;
+    padding: 8px 12px;
+
+    .bar-cart-summary {
+      width: 100%;
+      justify-content: space-between;
+    }
+
+    .bar-action-buttons {
+      width: 100%;
+      justify-content: space-between;
+
+      .bar-btn-checkout {
+        flex: 1;
+        justify-content: center;
+      }
+    }
+  }
+}
+
+/* ── Transitions ── */
+.floating-bar-slide-enter-active,
+.floating-bar-slide-leave-active {
+  transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.floating-bar-slide-enter-from,
+.floating-bar-slide-leave-to {
+  opacity: 0;
+  transform: translateY(30px) scale(0.95);
+}
+
+.drawer-backdrop-enter-active,
+.drawer-backdrop-leave-active {
+  transition: opacity 0.25s ease;
+
+  .checkout-drawer-panel {
+    transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+}
+.drawer-backdrop-enter-from,
+.drawer-backdrop-leave-to {
+  opacity: 0;
+
+  .checkout-drawer-panel {
+    transform: translateX(100%);
   }
 }
 

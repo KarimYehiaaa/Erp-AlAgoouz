@@ -1,0 +1,170 @@
+/* ═══════════════════════════════════════════════════════════════════
+   _mobile.scss — طبقة الاستجابة الكاملة للجوال
+   ═══════════════════════════════════════════════════════════════════
+   قاعدة صارمة: كل قاعدة في هذا الملف داخل @media (max-width: …)
+   أو @media (hover: none) — لا تلمس إطلاقاً مظهر سطح المكتب.
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── أجهزة اللمس بلا مؤشر فأرة: تعطيل حركات hover المرتفعة ── */
+@media (hover: none) {
+  .card:hover,
+  .panel:hover,
+  .stat-card:hover,
+  .hover-lift:hover,
+  .icon-btn:hover,
+  .btn:hover {
+    transform: none;
+    box-shadow: var(--shadow-xs);
+  }
+}
+
+/* ══════════ التابلت والجوال الكبير (≤992px) ══════════ */
+@media (max-width: 992px) {
+  /* شريط علوي أنحف ومحتوى يتنفس بشكل مناسب */
+  :root {
+    --navbar-height: 60px;
+  }
+
+  html,
+  body {
+    overflow-x: hidden;
+  }
+
+  .layout {
+    min-height: 100dvh;
+  }
+
+  .layout-content {
+    padding-top: calc(var(--navbar-height) + 14px);
+    min-height: calc(100dvh - var(--navbar-height));
+  }
+
+  /* الشريط الجانبي المنبثق: ظل أقوى وحدود ناعمة عند الانزلاق */
+  .sidebar {
+    box-shadow:
+      -12px 0 40px rgba(0, 0, 0, 0.35),
+      0 0 0 1px rgba(200, 149, 110, 0.15);
+  }
+
+  /* أدوات الصفحة تلتف بدل التكدس */
+  .page-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+
+    > * {
+      width: 100%;
+    }
+  }
+}
+
+/* ══════════ الجوال (≤768px) ══════════ */
+@media (max-width: 768px) {
+  /* أهداف لمس مريحة ≥44px لكل عناصر الإدخال والأزرار */
+  .form-group input,
+  .form-group select,
+  .form-group textarea,
+  .float-label-group .float-input {
+    min-height: 44px;
+  }
+
+  .btn:not(.btn-sm) {
+    min-height: 44px;
+    padding: 10px 18px;
+  }
+
+  .icon-btn {
+    width: 40px;
+    height: 40px;
+  }
+
+  /* محتوى أوسع قليلاً على الشاشات الصغيرة */
+  .layout-content {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .card {
+    padding: 14px !important;
+  }
+
+  /* جداول قابلة للتمرير مع إشارة بصرية للحافة المقطوعة */
+  .table-wrap,
+  .bt-container {
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+  }
+
+  /* التنبيهات العائمة: عرض كامل تقريباً فوق منطقة الأمان السفلية (iOS) */
+  .toast-container {
+    left: 12px;
+    right: 12px;
+    width: auto;
+    max-width: none;
+    bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* منع تكبير العناصر عند التركيز على iOS مع الحفاظ على المقاسات */
+  input[type='text'],
+  input[type='number'],
+  input[type='password'],
+  input[type='email'],
+  input[type='search'],
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+
+  /* النوافذ المنبثقة: لوحة سفلية بميلان طبيعي */
+  .modal-content {
+    padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+}
+
+/* ══════════ الجوال العمودي (≤480px) ══════════ */
+@media (max-width: 480px) {
+  /* تصغير تدريجي للعناوين الرئيسية دون كسر الهوية البصرية */
+  .dashboard-header h1,
+  .page-header h1,
+  .page-header h2 {
+    font-size: 1.25rem !important;
+  }
+
+  .page-header {
+    gap: 8px;
+  }
+
+  .header-actions {
+    gap: 6px;
+  }
+
+  .header-actions .btn {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 10px 10px;
+    font-size: 0.82rem;
+  }
+
+  /* بطاقات المؤشرات: نصوص مضغوطة لكن مقروءة */
+  .metric-card strong {
+    font-size: 1.05rem !important;
+  }
+
+  .metric-label {
+    font-size: 0.74rem !important;
+  }
+
+  /* صفوف بطاقات الجدول (table-to-card) تستفيد من كامل الارتفاع للمس */
+  .table-to-card td {
+    min-height: 40px;
+  }
+
+  /* شاشة الدخول: عنوان الخط العربي ينكمش بنعومة */
+  .brand-title {
+    font-size: 3rem !important;
+  }
+
+  .typing-tagline {
+    font-size: 1.2rem !important;
+    height: 1.9rem;
+  }
+}

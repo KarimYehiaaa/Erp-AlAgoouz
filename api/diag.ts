@@ -18,12 +18,27 @@ function listDirRecursive(dir: string, depth = 2): any {
 }
 
 export default async function handler(req: any, res: any) {
-  const rootFiles = listDirRecursive(process.cwd(), 3);
-  const taskFiles = listDirRecursive('/var/task', 3);
+  let dbResult: any = null;
+  try {
+    const { checkHealth } = await import('../backend/src/database/pool.ts');
+    dbResult = await checkHealth();
+  } catch (err: any) {
+    dbResult = { ok: false, error: err.message, stack: err.stack };
+  }
+
+  let appError: any = null;
+  try {
+    await import('../backend/src/app.ts');
+  } catch (err: any) {
+    appError = { message: err.message, stack: err.stack };
+  }
 
   res.status(200).json({
-    cwd: process.cwd(),
-    rootFiles,
-    taskFiles,
+    timestamp: new Date().toISOString(),
+    nodeEnv: process.env.NODE_ENV,
+    isVercel: !!process.env.VERCEL,
+    hasDatabaseUrl: !!process.env.DATABASE_URL,
+    dbResult,
+    appError,
   });
 }

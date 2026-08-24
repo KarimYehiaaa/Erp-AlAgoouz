@@ -612,12 +612,14 @@ const categoryTabs = [
 ];
 
 const filteredAutomations = computed(() => {
-  if (selectedCategory.value === 'all') return automationsList.value;
-  return automationsList.value.filter((a) => a.category === selectedCategory.value);
+  const list = Array.isArray(automationsList.value) ? automationsList.value : [];
+  if (selectedCategory.value === 'all') return list;
+  return list.filter((a) => a.category === selectedCategory.value);
 });
 
 const activeCount = computed(() => {
-  return automationsList.value.filter((a) => a.is_enabled).length;
+  const list = Array.isArray(automationsList.value) ? automationsList.value : [];
+  return list.filter((a) => a.is_enabled).length;
 });
 
 const isTelegramConfigured = computed(() => {
@@ -625,8 +627,9 @@ const isTelegramConfigured = computed(() => {
 });
 
 const getCategoryCount = (catKey: string) => {
-  if (catKey === 'all') return automationsList.value.length;
-  return automationsList.value.filter((a) => a.category === catKey).length;
+  const list = Array.isArray(automationsList.value) ? automationsList.value : [];
+  if (catKey === 'all') return list.length;
+  return list.filter((a) => a.category === catKey).length;
 };
 
 const getCategoryLabel = (category: string) => {
@@ -751,10 +754,11 @@ const fetchAutomations = async () => {
   isLoading.value = true;
   try {
     const res = await automationsApi.list();
-    automationsList.value = res.data?.data || res.data || [];
+    const raw = res.data?.data || res.data || {};
+    automationsList.value = Array.isArray(raw) ? raw : raw.automations || [];
 
     // استخراج إعدادات تليجرام من أول أتمتة
-    const firstWithConfig = automationsList.value.find(
+    const firstWithConfig = (automationsList.value || []).find(
       (a: any) => a.config?.bot_token || a.config?.chat_id,
     );
     if (firstWithConfig) {
@@ -772,7 +776,8 @@ const fetchAutomations = async () => {
 const fetchLogs = async () => {
   try {
     const res = await automationsApi.getLogs();
-    logsList.value = res.data?.data || res.data || [];
+    const raw = res.data?.data || res.data || {};
+    logsList.value = Array.isArray(raw) ? raw : raw.logs || [];
   } catch (err: any) {
     console.error('Failed to fetch logs:', err);
   }

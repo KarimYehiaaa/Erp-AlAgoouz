@@ -99,35 +99,47 @@
     </div>
 
     <!-- ═══════════════════ اللوحة التفاعلية البصرية المطورة (Visual Matrix Hub) ═══════════════════ -->
+    <!-- ═══════════════════ اللوحة التفاعلية الحركية (Obsidian Kinetic Automation Grid) ═══════════════════ -->
     <div class="canvas-section-card card">
       <div class="canvas-toolbar">
         <div class="canvas-title-group">
           <div class="canvas-badge-live">
             <span class="live-dot"></span>
-            <span>اللوحة التفاعلية الحية (Live Automation Neural Grid)</span>
+            <span>الشبكة التفاعلية الحركية للأتمتة (Kinetic Neural Canvas)</span>
           </div>
-          <span class="canvas-subtitle">انقر على أي عقدة في اللوحة للمعاينة والتحكم الفوري</span>
+          <span class="canvas-subtitle"
+            >تفاعل حركي متناغم بتصميم موحد — انقر أو مرر الفأرة فوق أي عقدة لمعاينة مساراتها</span
+          >
         </div>
 
         <!-- أدوات التحكم في اللوحة -->
         <div class="canvas-controls-group">
-          <!-- تبديل المنظور -->
+          <!-- تبديل المنظور الحركي -->
           <div class="layout-toggle-pill">
+            <button
+              type="button"
+              class="layout-btn"
+              :class="{ active: canvasLayout === 'obsidian' }"
+              @click="canvasLayout = 'obsidian'"
+              title="توزيع عنقودي شبكي بتفاعل أوبسيديان المتناغم"
+            >
+              🕸️ أوبسيديان
+            </button>
             <button
               type="button"
               class="layout-btn"
               :class="{ active: canvasLayout === 'orbit' }"
               @click="canvasLayout = 'orbit'"
-              title="توزيع مداري دائري متناسق"
+              title="توزيع مداري كهروميكانيكي كوكبي"
             >
-              🌐 مداري
+              🪐 مداري
             </button>
             <button
               type="button"
               class="layout-btn"
               :class="{ active: canvasLayout === 'matrix' }"
               @click="canvasLayout = 'matrix'"
-              title="توزيع شبكي منظم"
+              title="مصفوفة تدفق رقمية متوازنة"
             >
               🔀 شبكي
             </button>
@@ -137,9 +149,9 @@
             type="button"
             class="btn btn-xs btn-outline"
             @click="pulseNetwork"
-            title="إرسال موجة نبضية في مسارات الطاقة"
+            title="إرسال موجة صدمية كهروميكانيكية في كافة المسارات"
           >
-            💫 إرسال موجة طاقة
+            💫 ضخ نبضة طاقة
           </button>
 
           <button
@@ -180,16 +192,39 @@
           <!-- التدرجات والأنماط المعرفة (Defs) -->
           <defs>
             <!-- خلفية النقاط الشبكية -->
-            <pattern id="grid-dots" width="30" height="30" patternUnits="userSpaceOnUse">
+            <pattern id="grid-dots" width="32" height="32" patternUnits="userSpaceOnUse">
               <circle cx="2" cy="2" r="1.2" fill="rgba(212, 163, 115, 0.12)" />
+              <line
+                x1="0"
+                y1="16"
+                x2="32"
+                y2="16"
+                stroke="rgba(212, 163, 115, 0.03)"
+                stroke-width="0.5"
+              />
+              <line
+                x1="16"
+                y1="0"
+                x2="16"
+                y2="32"
+                stroke="rgba(212, 163, 115, 0.03)"
+                stroke-width="0.5"
+              />
             </pattern>
 
             <!-- التدرج الشعاعي للمركز -->
             <radialGradient id="center-glow" cx="50%" cy="50%" r="50%">
               <stop offset="0%" stop-color="rgba(212, 163, 115, 0.35)" />
-              <stop offset="60%" stop-color="rgba(212, 163, 115, 0.08)" />
+              <stop offset="50%" stop-color="rgba(212, 163, 115, 0.08)" />
               <stop offset="100%" stop-color="rgba(0, 0, 0, 0)" />
             </radialGradient>
+
+            <!-- مخروط ماسح الرادار (Radar Sonar Sweep Gradient) -->
+            <linearGradient id="radar-sweep-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="rgba(212, 163, 115, 0.28)" />
+              <stop offset="70%" stop-color="rgba(212, 163, 115, 0.06)" />
+              <stop offset="100%" stop-color="rgba(212, 163, 115, 0)" />
+            </linearGradient>
 
             <!-- تدرجات خطوط الطاقة -->
             <linearGradient id="gold-beam" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -204,57 +239,91 @@
               <stop offset="100%" stop-color="#22c55e" stop-opacity="0.8" />
             </linearGradient>
 
-            <linearGradient id="amber-beam" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stop-color="#f59e0b" stop-opacity="0.8" />
-              <stop offset="50%" stop-color="#fde047" stop-opacity="1" />
-              <stop offset="100%" stop-color="#f59e0b" stop-opacity="0.8" />
-            </linearGradient>
-
             <!-- فلاتر التوهج النيون -->
-            <filter id="glow-gold" x="-20%" y="-20%" width="140%" height="140%">
-              <feGaussianBlur stdDeviation="4" result="blur" />
+            <filter id="glow-gold" x="-30%" y="-30%" width="160%" height="160%">
+              <feGaussianBlur stdDeviation="3.5" result="blur" />
+              <feComposite in="SourceGraphic" in2="blur" operator="over" />
+            </filter>
+
+            <filter id="glow-strong" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="6" result="blur" />
               <feComposite in="SourceGraphic" in2="blur" operator="over" />
             </filter>
           </defs>
 
-          <!-- 1. خلفية الشبكة الهندسية -->
+          <!-- 1. خلفية الشبكة الهندسية وموجات الرادار الميكانيكية -->
           <rect width="1000" height="620" fill="url(#grid-dots)" />
-          <circle cx="500" cy="310" r="260" fill="url(#center-glow)" />
+          <circle cx="500" cy="310" r="280" fill="url(#center-glow)" />
 
-          <!-- الدوائر المدارية التوجيهية الناعمة -->
+          <!-- الدوائر المدارية التوجيهية ذات المعايرة الميكانيكية -->
           <circle
             cx="500"
             cy="310"
             r="160"
             fill="none"
-            stroke="rgba(212, 163, 115, 0.12)"
+            stroke="rgba(212, 163, 115, 0.14)"
             stroke-width="1.5"
-            stroke-dasharray="6,6"
+            stroke-dasharray="8, 6"
+            class="mechanical-orbit-track-1"
           />
           <circle
             cx="500"
             cy="310"
-            r="255"
+            r="260"
             fill="none"
-            stroke="rgba(212, 163, 115, 0.08)"
+            stroke="rgba(212, 163, 115, 0.1)"
             stroke-width="1.5"
-            stroke-dasharray="10,10"
+            stroke-dasharray="12, 8"
+            class="mechanical-orbit-track-2"
           />
 
-          <!-- 2. خطوط الطاقة الانسيابية المنحنية (Bézier Energy Conduits) -->
+          <!-- مخروط ماسح الرادار الدوار 360 درجة (Mechanical Sonar Radar Sweep) -->
+          <g transform="translate(500, 310)" class="mechanical-radar-scanner">
+            <path
+              d="M 0 0 L 260 0 A 260 260 0 0 1 184 184 Z"
+              fill="url(#radar-sweep-grad)"
+              class="sonar-beam-slice"
+            />
+            <line
+              x1="0"
+              y1="0"
+              x2="260"
+              y2="0"
+              stroke="rgba(250, 237, 205, 0.45)"
+              stroke-width="1.5"
+            />
+          </g>
+
+          <!-- 2. شبكة الروابط البينية العنقودية (Obsidian Inter-Node Mesh Links) -->
+          <g class="obsidian-mesh-layer">
+            <template v-for="link in interNodeLinks" :key="link.id">
+              <path
+                :d="generateConduitPath(link.source.x, link.source.y, link.target.x, link.target.y)"
+                fill="none"
+                class="obsidian-mesh-conduit"
+                :class="{
+                  'is-highlighted': link.isHighlighted,
+                  'is-active': link.active,
+                }"
+              />
+            </template>
+          </g>
+
+          <!-- 3. خطوط الطاقة الانسيابية من المركز للعقد (Bézier Energy Conduits) -->
           <g class="conduits-layer">
             <template v-for="node in nodeLayouts" :key="`conduit-${node.id}`">
-              <!-- خط الخلفية الخافت -->
+              <!-- مسار الخلفية الخافت -->
               <path
                 :d="generateConduitPath(500, 310, node.x, node.y)"
                 fill="none"
-                :stroke="
-                  node.is_enabled ? 'rgba(212, 163, 115, 0.25)' : 'rgba(255, 255, 255, 0.06)'
-                "
-                stroke-width="2"
+                class="conduit-base-line"
+                :class="{
+                  'is-focused-conduit': isNodeFocused(node.id),
+                  'is-disabled-conduit': !node.is_enabled,
+                }"
               />
 
-              <!-- خط الطاقة المتدفق المتحرك للعقد النشطة -->
+              <!-- خط الليزر النشط المتدفق -->
               <path
                 v-if="node.is_enabled"
                 :d="generateConduitPath(500, 310, node.x, node.y)"
@@ -264,7 +333,7 @@
                 stroke-linecap="round"
                 class="energy-flowing-beam"
                 :class="{
-                  'active-selected': selectedNodeId === node.id,
+                  'active-selected': selectedNodeId === node.id || hoveredNodeId === node.id,
                   'is-firing': triggeringId === node.id,
                 }"
               />
@@ -286,89 +355,128 @@
             </template>
           </g>
 
-          <!-- 3. العقدة المركزية: قلب بن العجوز الذكي (Central AI Core) -->
+          <!-- 4. العقدة المركزية: قلب الذكاء الاصطناعي الميكانيكي (Central AI Core) -->
           <g
             class="central-core-node"
             transform="translate(500, 310)"
             @click="selectedNodeId = null"
           >
-            <!-- حلقات النبض الدائرية المتوسعة -->
-            <circle class="core-pulse-outer" r="54" />
-            <circle class="core-pulse-middle" r="44" />
-            <circle class="core-base-circle" r="36" />
+            <!-- حلقات النبض والتروس الميكانيكية الدوارة -->
+            <circle class="core-pulse-outer" r="58" />
+            <circle class="core-pulse-middle" r="48" />
+
+            <!-- حلقة التروس الميكانيكية مع عقارب الساعة -->
+            <circle class="core-gear-ring-cw" r="42" stroke-dasharray="4, 5" />
+            <!-- حلقة المعايرة الميكانيكية عكس عقارب الساعة -->
+            <circle class="core-gear-ring-ccw" r="36" stroke-dasharray="2, 6" />
+
+            <!-- الجسم الزجاجي للمركز -->
+            <circle class="core-base-circle" r="32" />
 
             <!-- أيقونة ونص المركز -->
-            <text text-anchor="middle" y="6" class="core-icon">☕</text>
-            <text text-anchor="middle" y="55" class="core-label">محرك الأتمتة المركزي</text>
-            <text text-anchor="middle" y="70" class="core-sublabel">
+            <text text-anchor="middle" y="7" class="core-icon">☕</text>
+            <text text-anchor="middle" y="52" class="core-label">محرك الأتمتة المركزي</text>
+            <text text-anchor="middle" y="67" class="core-sublabel">
               {{ activeCount }} مسار نشط 24/7
             </text>
           </g>
 
-          <!-- 4. محطات وعقد الأتمتة الموزعة (Automation Station Nodes) -->
+          <!-- 5. محطات وعقد الأتمتة الموحدة بالكامل (Standardized Cyber-Pod Nodes) -->
           <g class="automation-nodes-layer">
             <g
               v-for="node in nodeLayouts"
               :key="`node-${node.id}`"
               class="automation-node-group"
-              :class="{
-                'is-selected': selectedNodeId === node.id,
-                'is-disabled': !node.is_enabled,
-                'is-firing': triggeringId === node.id,
-                'is-dimmed': selectedCategory !== 'all' && node.category !== selectedCategory,
-              }"
+              :class="[
+                node.harmonicClass,
+                {
+                  'is-selected': selectedNodeId === node.id,
+                  'is-hovered': hoveredNodeId === node.id,
+                  'is-focused': isNodeFocused(node.id),
+                  'is-disabled': !node.is_enabled,
+                  'is-firing': triggeringId === node.id,
+                  'is-dimmed':
+                    (selectedCategory !== 'all' && node.category !== selectedCategory) ||
+                    ((hoveredNodeId || selectedNodeId) && !isNodeFocused(node.id)),
+                },
+              ]"
               :transform="`translate(${node.x}, ${node.y})`"
+              @mouseenter="hoveredNodeId = node.id"
+              @mouseleave="hoveredNodeId = null"
               @click.stop="handleNodeClick(node)"
             >
-              <!-- هالة التحديد والتوهج عند التحديد أو التشغيل -->
+              <!-- هالة التحديد والتوهج الحركي عند التحديد أو التشغيل -->
               <circle
-                v-if="selectedNodeId === node.id || triggeringId === node.id"
-                r="38"
+                v-if="
+                  selectedNodeId === node.id ||
+                  triggeringId === node.id ||
+                  hoveredNodeId === node.id
+                "
+                r="36"
                 class="node-selected-halo"
                 :stroke="getCategoryColor(node.category)"
               />
 
-              <!-- جسم العقدة الزجاجي المجسم -->
-              <circle
-                r="28"
-                class="node-card-body"
-                :fill="node.is_enabled ? '#20130b' : '#140c07'"
+              <!-- حلقة المعايرة الميكانيكية الدوارة حول الأيقونة -->
+              <circle r="30" class="node-caliper-ticks" stroke-dasharray="2, 6" />
+
+              <!-- كبسولة الأيقونة الزجاجية الموحدة (Standardized Cyber-Pod Capsule) -->
+              <rect
+                x="-25"
+                y="-25"
+                width="50"
+                height="50"
+                rx="15"
+                class="node-icon-pod-bg"
+                :fill="node.is_enabled ? '#1e1109' : '#120904'"
                 :stroke="
                   node.is_enabled ? getCategoryColor(node.category) : 'rgba(255,255,255,0.15)'
                 "
               />
 
-              <!-- حلقة الحالة المضيئة -->
+              <!-- نقطة لمبة الحالة المضيئة LED -->
               <circle
-                cx="18"
-                cy="-18"
-                r="6"
-                class="node-status-dot"
+                cx="16"
+                cy="-16"
+                r="5"
+                class="node-status-led"
                 :fill="node.is_enabled ? '#22c55e' : '#6b7280'"
               />
 
-              <!-- أيقونة العملية -->
-              <text text-anchor="middle" y="6" class="node-icon">
+              <!-- أيقونة العملية الموحدة -->
+              <text text-anchor="middle" y="7" class="node-icon-emoji">
                 {{ getScenarioEmoji(node.key) }}
               </text>
 
-              <!-- اسم العملية أسفل العقدة -->
-              <rect
-                :x="-Math.min(node.name_ar.length * 4.5, 65)"
-                y="34"
-                :width="Math.min(node.name_ar.length * 9, 130)"
-                height="22"
-                rx="6"
-                class="node-title-bg"
-              />
-              <text text-anchor="middle" y="49" class="node-title-text">
-                {{ formatNodeTitle(node.name_ar) }}
-              </text>
-
-              <!-- شارة نوع المحفز -->
-              <text text-anchor="middle" y="66" class="node-trigger-text">
-                {{ node.trigger_type === 'cron' ? '⏰ مجدول' : '⚡ حدث فوري' }}
-              </text>
+              <!-- لوحة المعلومات الموحدة بالكامل أسفل الأيقونة (Unified Info Plaque Underneath) -->
+              <g class="node-info-group">
+                <rect
+                  x="-66"
+                  y="32"
+                  width="132"
+                  height="38"
+                  rx="9"
+                  class="node-info-plaque"
+                  :stroke="
+                    selectedNodeId === node.id
+                      ? getCategoryColor(node.category)
+                      : 'rgba(212, 163, 115, 0.25)'
+                  "
+                />
+                <!-- اسم العملية -->
+                <text text-anchor="middle" y="47" class="node-info-title">
+                  {{ formatNodeTitle(node.name_ar) }}
+                </text>
+                <!-- التوقيت والحالة -->
+                <text text-anchor="middle" y="61" class="node-info-subtitle">
+                  {{
+                    node.trigger_type === 'cron'
+                      ? '⏰ ' + formatCronShort(node.cron_expression)
+                      : '⚡ حدث فوري'
+                  }}
+                  • {{ node.is_enabled ? 'مفعل 🟢' : 'معطل ⚪' }}
+                </text>
+              </g>
             </g>
           </g>
         </svg>
@@ -939,9 +1047,10 @@ const selectedLog = ref<any | null>(null);
 const editingAutomation = ref<any | null>(null);
 const isSavingConfig = ref(false);
 
-// ─── اللوحة التفاعلية البصرية ───
-const canvasLayout = ref<'orbit' | 'matrix'>('orbit');
+// ─── اللوحة التفاعلية البصرية الحركية (Obsidian / Kinetic Canvas) ───
+const canvasLayout = ref<'obsidian' | 'orbit' | 'matrix'>('obsidian');
 const selectedNodeId = ref<number | null>(null);
+const hoveredNodeId = ref<number | null>(null);
 const isNetworkPulsing = ref(false);
 
 const showAllLogs = ref(false);
@@ -1033,11 +1142,24 @@ const getScenarioEmoji = (key: string) => {
 
 const formatNodeTitle = (title: string) => {
   if (!title) return '';
-  return title.length > 18 ? title.slice(0, 16) + '...' : title;
+  return title.length > 17 ? title.slice(0, 15) + '..' : title;
+};
+
+const formatCronShort = (cronStr: string) => {
+  if (!cronStr) return 'فوري';
+  if (cronStr === '30 23 * * *') return '11:30 م';
+  if (cronStr === '0 10,18 * * *') return '10ص و 6م';
+  if (cronStr === '0 9 * * *') return '9:00 ص';
+  if (cronStr === '0 10 * * 1') return 'إثنين 10ص';
+  if (cronStr === '0 3 * * *') return '3:00 ص';
+  if (cronStr === '0 22 * * *') return '10:00 م';
+  if (cronStr === '0 11 * * *') return '11:00 ص';
+  if (cronStr === '0 12 * * 0') return 'أحد 12م';
+  return 'مجدول';
 };
 
 const getParticleSpeed = (id: number) => {
-  const speeds = ['3.5s', '4.2s', '3.8s', '4.6s', '3.2s', '4s'];
+  const speeds = ['3s', '3.8s', '3.4s', '4.2s', '2.8s', '3.6s'];
   return speeds[id % speeds.length];
 };
 
@@ -1050,8 +1172,52 @@ const nodeLayouts = computed(() => {
   const centerX = 500;
   const centerY = 310;
 
-  if (canvasLayout.value === 'orbit') {
-    // 🌐 مدار متناسق ثنائي الحلقات (Inner & Outer Orbit)
+  if (canvasLayout.value === 'obsidian') {
+    // 🕸️ شبكة أوبسيديان العنقودية التفاعلية (Obsidian Dynamic Force Clusters)
+    const clusterPositions: Record<string, { baseAngle: number; distance: number }> = {
+      sales: { baseAngle: -Math.PI / 4, distance: 235 }, // الربع الأول: أعلى اليمين
+      inventory: { baseAngle: Math.PI / 4, distance: 240 }, // الربع الثاني: أسفل اليمين
+      security: { baseAngle: (3 * Math.PI) / 4, distance: 235 }, // الربع الثالث: أسفل اليسار
+      system: { baseAngle: (-3 * Math.PI) / 4, distance: 240 }, // الربع الرابع: أعلى اليسار
+    };
+
+    const categoryBuckets: Record<string, any[]> = {
+      sales: [],
+      inventory: [],
+      security: [],
+      system: [],
+    };
+    list.forEach((item) => {
+      const cat = categoryBuckets[item.category] ? item.category : 'sales';
+      categoryBuckets[cat].push(item);
+    });
+
+    const result: any[] = [];
+    Object.keys(categoryBuckets).forEach((cat) => {
+      const items = categoryBuckets[cat];
+      const cluster = clusterPositions[cat] || { baseAngle: 0, distance: 220 };
+      const spreadAngle = 0.52;
+      items.forEach((item, idx) => {
+        const offset =
+          items.length > 1
+            ? (idx - (items.length - 1) / 2) * (spreadAngle / Math.max(items.length - 1, 1))
+            : 0;
+        const finalAngle = cluster.baseAngle + offset;
+        const radialDist = cluster.distance + (idx % 2 === 1 ? 22 : -12);
+        const x = Math.round(centerX + radialDist * Math.cos(finalAngle));
+        const y = Math.round(centerY + radialDist * Math.sin(finalAngle));
+        result.push({
+          ...item,
+          x,
+          y,
+          harmonicClass: `harmonic-float-${result.length % 4}`,
+        });
+      });
+    });
+
+    return result;
+  } else if (canvasLayout.value === 'orbit') {
+    // 🪐 مدار كهروميكانيكي ثنائي الحلقات (Dual Planetary Orbit)
     const innerRadius = 175;
     const outerRadius = 265;
 
@@ -1068,10 +1234,11 @@ const nodeLayouts = computed(() => {
         ...item,
         x,
         y,
+        harmonicClass: `harmonic-float-${idx % 4}`,
       };
     });
   } else {
-    // 🔀 شبكي مصفوفي متوازن (Matrix Grid)
+    // 🔀 مصفوفة التدفق المتوازن (High-Tech Matrix Grid)
     const cols = Math.min(count, 4);
     const rows = Math.ceil(count / cols);
     const startX = 140;
@@ -1091,10 +1258,59 @@ const nodeLayouts = computed(() => {
         ...item,
         x,
         y,
+        harmonicClass: `harmonic-float-${idx % 4}`,
       };
     });
   }
 });
+
+// ─── الروابط العنقودية البينية بين العقد ذات الصلة (Obsidian Cross-Links) ───
+const interNodeConnections = [
+  ['daily_sales_report', 'cashflow_risk_shield'],
+  ['cashflow_risk_shield', 'supplier_payment_due_alert'],
+  ['shift_handover_reconciliation', 'daily_sales_report'],
+  ['void_invoice_alert', 'large_discount_alert'],
+  ['low_stock_alert', 'roastery_recipe_waste_guard'],
+  ['roastery_recipe_waste_guard', 'branch_stock_balancing'],
+  ['daily_profit_margin_anomaly', 'daily_sales_report'],
+  ['customer_loyalty_dormant_winback', 'daily_sales_report'],
+];
+
+const interNodeLinks = computed(() => {
+  const nodes = nodeLayouts.value;
+  const nodeMap = new Map(nodes.map((n) => [n.key, n]));
+  const links: any[] = [];
+
+  interNodeConnections.forEach(([key1, key2]) => {
+    const n1 = nodeMap.get(key1);
+    const n2 = nodeMap.get(key2);
+    if (n1 && n2) {
+      const isHighlighted =
+        hoveredNodeId.value === n1.id ||
+        hoveredNodeId.value === n2.id ||
+        selectedNodeId.value === n1.id ||
+        selectedNodeId.value === n2.id;
+      links.push({
+        source: n1,
+        target: n2,
+        id: `link-${n1.id}-${n2.id}`,
+        isHighlighted,
+        active: n1.is_enabled && n2.is_enabled,
+      });
+    }
+  });
+
+  return links;
+});
+
+// التحقق من تركيز العقدة في وضع أوبسيديان
+const isNodeFocused = (nodeId: number) => {
+  if (!hoveredNodeId.value && !selectedNodeId.value) return false;
+  if (hoveredNodeId.value === nodeId || selectedNodeId.value === nodeId) return true;
+  return interNodeLinks.value.some(
+    (l) => l.isHighlighted && (l.source.id === nodeId || l.target.id === nodeId),
+  );
+};
 
 // توليد مسار انسيابي سلس (Smooth Cubic Bézier Conduit)
 const generateConduitPath = (x1: number, y1: number, x2: number, y2: number) => {
@@ -1733,35 +1949,49 @@ onMounted(async () => {
 /* ── Central Core Node ── */
 .central-core-node {
   cursor: pointer;
-  transition: transform 0.2s ease;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 
   &:hover {
-    transform: translate(500px, 310px) scale(1.05);
+    transform: translate(500px, 310px) scale(1.08);
   }
 
   .core-pulse-outer {
     fill: none;
     stroke: rgba(212, 163, 115, 0.25);
     stroke-width: 1.5;
-    animation: corePulseOuter 3s infinite ease-out;
+    animation: corePulseOuter 3.2s infinite ease-out;
   }
 
   .core-pulse-middle {
     fill: none;
     stroke: rgba(212, 163, 115, 0.4);
     stroke-width: 2;
-    animation: corePulseMiddle 2.2s infinite ease-out;
+    animation: corePulseMiddle 2.4s infinite ease-out;
+  }
+
+  .core-gear-ring-cw {
+    fill: none;
+    stroke: rgba(212, 163, 115, 0.45);
+    stroke-width: 1.5;
+    animation: gearRotateCw 24s linear infinite;
+  }
+
+  .core-gear-ring-ccw {
+    fill: none;
+    stroke: rgba(250, 237, 205, 0.35);
+    stroke-width: 1.2;
+    animation: gearRotateCcw 16s linear infinite;
   }
 
   .core-base-circle {
-    fill: #2c1a0e;
+    fill: #26150b;
     stroke: #d4a373;
-    stroke-width: 3;
-    filter: drop-shadow(0 0 14px rgba(212, 163, 115, 0.6));
+    stroke-width: 2.8;
+    filter: drop-shadow(0 0 16px rgba(212, 163, 115, 0.7));
   }
 
   .core-icon {
-    font-size: 24px;
+    font-size: 22px;
   }
 
   .core-label {
@@ -1777,41 +2007,316 @@ onMounted(async () => {
   }
 }
 
-@keyframes corePulseOuter {
-  0% {
-    r: 40px;
-    opacity: 0.8;
-  }
-  100% {
-    r: 68px;
-    opacity: 0;
-  }
+/* ── Mechanical Radar Scanner & Orbit Tracks ── */
+.mechanical-radar-scanner {
+  animation: radarSweep 12s linear infinite;
+  transform-origin: 500px 310px;
+  pointer-events: none;
 }
 
-@keyframes corePulseMiddle {
-  0% {
-    r: 36px;
-    opacity: 0.9;
+.mechanical-orbit-track-1 {
+  animation: orbitTrackCw 80s linear infinite;
+  transform-origin: 500px 310px;
+}
+
+.mechanical-orbit-track-2 {
+  animation: orbitTrackCcw 120s linear infinite;
+  transform-origin: 500px 310px;
+}
+
+/* ── Obsidian Inter-Node Mesh Conduits ── */
+.obsidian-mesh-conduit {
+  stroke: rgba(212, 163, 115, 0.1);
+  stroke-width: 1.2;
+  stroke-dasharray: 4, 8;
+  transition: all 0.3s ease;
+
+  &.is-active {
+    stroke: rgba(212, 163, 115, 0.18);
   }
-  100% {
-    r: 52px;
-    opacity: 0;
+
+  &.is-highlighted {
+    stroke: #faedcd;
+    stroke-width: 2.5;
+    stroke-dasharray: 6, 4;
+    animation: beamFlow 1s linear infinite;
+    filter: drop-shadow(0 0 8px rgba(250, 237, 205, 0.8));
   }
 }
 
 /* ── Energy Conduits & Particles ── */
+.conduit-base-line {
+  stroke: rgba(212, 163, 115, 0.2);
+  stroke-width: 1.8;
+  transition: all 0.3s ease;
+
+  &.is-focused-conduit {
+    stroke: rgba(212, 163, 115, 0.4);
+    stroke-width: 2.2;
+  }
+
+  &.is-disabled-conduit {
+    stroke: rgba(255, 255, 255, 0.05);
+  }
+}
+
 .energy-flowing-beam {
   stroke-dasharray: 8, 8;
   animation: beamFlow 1.6s linear infinite;
 
   &.active-selected {
     stroke-width: 4;
-    filter: drop-shadow(0 0 8px currentColor);
+    filter: drop-shadow(0 0 10px currentColor);
   }
 
   &.is-firing {
-    stroke-width: 5;
-    animation: beamFire 0.4s linear infinite;
+    stroke-width: 5.5;
+    animation: beamFire 0.35s linear infinite;
+  }
+}
+
+.pulsing-energy-particle {
+  filter: drop-shadow(0 0 6px currentColor);
+}
+
+/* ── Harmonic Kinetic Floating Oscillations (Obsidian Dynamics) ── */
+.harmonic-float-0 {
+  animation: harmonicFloat0 5.2s ease-in-out infinite alternate;
+}
+.harmonic-float-1 {
+  animation: harmonicFloat1 6.1s ease-in-out infinite alternate;
+}
+.harmonic-float-2 {
+  animation: harmonicFloat2 4.6s ease-in-out infinite alternate;
+}
+.harmonic-float-3 {
+  animation: harmonicFloat3 5.8s ease-in-out infinite alternate;
+}
+
+/* ── Standardized Cyber-Pod Nodes (Unified Nodes & Info) ── */
+.automation-node-group {
+  cursor: pointer;
+  transition:
+    transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.3s ease,
+    filter 0.3s ease;
+
+  &:hover {
+    transform: scale(1.14);
+
+    .node-icon-pod-bg {
+      filter: drop-shadow(0 0 16px rgba(212, 163, 115, 0.85));
+    }
+    .node-info-plaque {
+      stroke: #d4a373;
+      fill: rgba(30, 17, 9, 0.96);
+    }
+  }
+
+  &.is-selected {
+    .node-icon-pod-bg {
+      stroke-width: 3.5;
+      filter: drop-shadow(0 0 20px rgba(212, 163, 115, 0.95));
+    }
+    .node-info-plaque {
+      stroke-width: 2;
+    }
+  }
+
+  &.is-focused {
+    opacity: 1 !important;
+    filter: none !important;
+  }
+
+  &.is-disabled {
+    opacity: 0.45;
+    filter: grayscale(0.6);
+  }
+
+  &.is-dimmed {
+    opacity: 0.15;
+    filter: grayscale(0.85) blur(0.4px);
+  }
+
+  &.is-firing {
+    animation: firingBounce 0.5s infinite alternate;
+  }
+
+  .node-selected-halo {
+    fill: none;
+    stroke-width: 2.2;
+    stroke-dasharray: 6, 4;
+    animation: spinHalo 6s linear infinite;
+  }
+
+  .node-caliper-ticks {
+    fill: none;
+    stroke: rgba(212, 163, 115, 0.25);
+    stroke-width: 1.2;
+    animation: caliperSpin 16s linear infinite;
+  }
+
+  .node-icon-pod-bg {
+    stroke-width: 2.2;
+    filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.7));
+    transition: all 0.2s ease;
+  }
+
+  .node-status-led {
+    stroke: #120904;
+    stroke-width: 1.5;
+    filter: drop-shadow(0 0 6px currentColor);
+  }
+
+  .node-icon-emoji {
+    font-size: 21px;
+    user-select: none;
+  }
+
+  .node-info-plaque {
+    fill: rgba(18, 9, 4, 0.92);
+    backdrop-filter: blur(10px);
+    stroke-width: 1.2;
+    filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.6));
+    transition: all 0.2s ease;
+  }
+
+  .node-info-title {
+    fill: #faedcd;
+    font-size: 9.8px;
+    font-weight: 850;
+    letter-spacing: -0.2px;
+  }
+
+  .node-info-subtitle {
+    fill: #a89f91;
+    font-size: 8.2px;
+    font-weight: 700;
+  }
+}
+
+/* ── Keyframe Animations ── */
+@keyframes radarSweep {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes gearRotateCw {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes gearRotateCcw {
+  from {
+    transform: rotate(360deg);
+  }
+  to {
+    transform: rotate(0deg);
+  }
+}
+
+@keyframes orbitTrackCw {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes orbitTrackCcw {
+  from {
+    transform: rotate(360deg);
+  }
+  to {
+    transform: rotate(0deg);
+  }
+}
+
+@keyframes caliperSpin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes harmonicFloat0 {
+  0% {
+    transform: translateY(0px) translateX(0px);
+  }
+  50% {
+    transform: translateY(-7px) translateX(3px);
+  }
+  100% {
+    transform: translateY(5px) translateX(-2px);
+  }
+}
+
+@keyframes harmonicFloat1 {
+  0% {
+    transform: translateY(0px) translateX(0px);
+  }
+  50% {
+    transform: translateY(8px) translateX(-4px);
+  }
+  100% {
+    transform: translateY(-6px) translateX(2px);
+  }
+}
+
+@keyframes harmonicFloat2 {
+  0% {
+    transform: translateY(0px) translateX(0px);
+  }
+  50% {
+    transform: translateY(-9px) translateX(-3px);
+  }
+  100% {
+    transform: translateY(4px) translateX(4px);
+  }
+}
+
+@keyframes harmonicFloat3 {
+  0% {
+    transform: translateY(0px) translateX(0px);
+  }
+  50% {
+    transform: translateY(6px) translateX(4px);
+  }
+  100% {
+    transform: translateY(-8px) translateX(-2px);
+  }
+}
+
+@keyframes corePulseOuter {
+  0% {
+    r: 44px;
+    opacity: 0.8;
+  }
+  100% {
+    r: 74px;
+    opacity: 0;
+  }
+}
+
+@keyframes corePulseMiddle {
+  0% {
+    r: 40px;
+    opacity: 0.9;
+  }
+  100% {
+    r: 58px;
+    opacity: 0;
   }
 }
 
@@ -1826,87 +2331,13 @@ onMounted(async () => {
 
 @keyframes beamFire {
   0% {
-    opacity: 0.4;
+    opacity: 0.3;
   }
   50% {
     opacity: 1;
   }
   100% {
-    opacity: 0.4;
-  }
-}
-
-/* ── Automation Station Nodes ── */
-.automation-node-group {
-  cursor: pointer;
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-
-  &:hover {
-    transform: scale(1.12);
-
-    .node-card-body {
-      filter: drop-shadow(0 0 12px rgba(212, 163, 115, 0.7));
-    }
-  }
-
-  &.is-selected {
-    .node-card-body {
-      stroke-width: 3.5;
-      filter: drop-shadow(0 0 16px rgba(212, 163, 115, 0.9));
-    }
-  }
-
-  &.is-disabled {
-    opacity: 0.45;
-    filter: grayscale(0.5);
-  }
-
-  &.is-dimmed {
-    opacity: 0.2;
-    filter: grayscale(0.8);
-  }
-
-  &.is-firing {
-    animation: firingBounce 0.6s infinite alternate;
-  }
-
-  .node-selected-halo {
-    fill: none;
-    stroke-width: 2;
-    stroke-dasharray: 6, 4;
-    animation: spinHalo 8s linear infinite;
-  }
-
-  .node-card-body {
-    stroke-width: 2.2;
-    filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.6));
-  }
-
-  .node-status-dot {
-    stroke: #120904;
-    stroke-width: 1.5;
-  }
-
-  .node-icon {
-    font-size: 18px;
-  }
-
-  .node-title-bg {
-    fill: rgba(18, 9, 4, 0.88);
-    stroke: rgba(212, 163, 115, 0.3);
-    stroke-width: 1;
-  }
-
-  .node-title-text {
-    fill: #faedcd;
-    font-size: 9.5px;
-    font-weight: 800;
-  }
-
-  .node-trigger-text {
-    fill: #a89f91;
-    font-size: 8px;
-    font-weight: 700;
+    opacity: 0.3;
   }
 }
 

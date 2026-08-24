@@ -4,6 +4,7 @@ import App from './App.vue';
 import router from './router';
 import AppIcon from './components/AppIcon.vue';
 import './styles/main.scss';
+import './styles/mobile.scss';
 import { initSentry } from './sentry';
 import * as Sentry from '@sentry/vue';
 

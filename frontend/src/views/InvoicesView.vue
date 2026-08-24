@@ -54,9 +54,7 @@
             <td>{{ inv.customer_name || 'عميل نقدي' }}</td>
             <td>{{ formatMoney(inv.total_amount) }}</td>
             <td>
-              <span :class="statusClass(inv.payment_status)">{{
-                statusLabel(inv.payment_status)
-              }}</span>
+              <StatusBadge :status="inv.payment_status" kind="payment" />
             </td>
             <td>{{ formatDate(inv.issued_at || inv.created_at) }}</td>
             <td class="actions">
@@ -91,26 +89,13 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import AppIcon from '@/components/AppIcon.vue';
+import StatusBadge from '@/components/ui/StatusBadge.vue';
 import { invoices as api } from '@/api';
 import { formatMoney } from '@/utils/currency';
 
 const invoices = ref<any[]>([]);
 const filterStatus = ref('');
 
-const statusLabel = (s: any) =>
-  (
-    ({
-      paid: 'مدفوعة',
-      partial: 'جزئية',
-      unpaid: 'غير مدفوعة',
-      refunded: 'مستردة',
-    }) as Record<string, string>
-  )[s] || s;
-
-const statusClass = (s: any) => [
-  'badge',
-  s === 'paid' ? 'badge-success' : s === 'unpaid' ? 'badge-danger' : 'badge-warning',
-];
 const formatDate = (d: any) => (d ? new Date(d).toLocaleDateString('en-GB') : '—');
 
 const load = async () => {

@@ -139,7 +139,8 @@ export const localDb = {
       const record: LocalOfflineSale = {
         ...sale,
         offline_id,
-        sync_id: offline_id,
+        // الحفاظ على نفس sync_id من المحاولة الأولى (online) حتى يتعرف عليه الخادم عند المزامنة
+        sync_id: sale.sync_id || offline_id,
         sale_number: sale.sale_number || 'PENDING-' + Date.now().toString().slice(-6),
         created_at: sale.created_at || new Date().toISOString(),
         sync_status: 'PENDING',

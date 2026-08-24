@@ -1,6 +1,7 @@
 import { query } from '../database/pool.ts';
 import { getProducts } from './productService.ts';
 import { toNumber, sanitizeLimit } from '../utils/money.ts';
+import { getBroadcast } from './systemHealthService.ts';
 
 const normalizeFilter = (value) => {
   const text = String(value || '').trim();
@@ -110,6 +111,25 @@ export const getOperationAlerts = async () => {
     }));
 
   const alerts: any[] = [];
+
+  // بث الإدارة — يظهر لكل المستخدمين عبر تدفق التنبيهات
+  const broadcast = getBroadcast();
+  if (broadcast && broadcast.active) {
+    alerts.push({
+      type: 'broadcast',
+      severity:
+        broadcast.level === 'danger'
+          ? 'danger'
+          : broadcast.level === 'warning'
+            ? 'warning'
+            : 'info',
+      title: broadcast.title || 'إعلان الإدارة',
+      message: broadcast.message,
+      count: 1,
+      date: broadcast.date,
+      items: [],
+    });
+  }
 
   if (lowStockRes.rows.length) {
     alerts.push({

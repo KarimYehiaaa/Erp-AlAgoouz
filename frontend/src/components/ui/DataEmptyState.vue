@@ -7,6 +7,15 @@
       <h3 class="empty-title">{{ title }}</h3>
       <p v-if="message" class="empty-message">{{ message }}</p>
     </div>
+    <!-- CTA اختياري: حوّل الفراغ إلى خطوة تالية واضحة -->
+    <button
+      v-if="actionLabel"
+      type="button"
+      class="btn btn-primary empty-action"
+      @click="$emit('action')"
+    >
+      {{ actionLabel }}
+    </button>
     <slot />
   </div>
 </template>
@@ -18,7 +27,10 @@ defineProps({
   icon: { type: String, default: 'inventory' },
   tone: { type: String, default: '' }, // 'muted', 'primary', 'warning'
   compact: { type: Boolean, default: false },
+  actionLabel: { type: String, default: '' },
 });
+
+defineEmits(['action']);
 </script>
 
 <style lang="scss" scoped>
@@ -87,5 +99,9 @@ defineProps({
   color: var(--text-muted);
   line-height: 1.6;
   max-width: 320px;
+}
+
+.empty-action {
+  margin-top: 4px;
 }
 </style>

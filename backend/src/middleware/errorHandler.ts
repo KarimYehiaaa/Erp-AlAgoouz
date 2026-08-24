@@ -77,16 +77,22 @@ const notFound = (req, res, next) => {
 const errorHandler = (err, req, res, _next) => {
   const classified = classifyDbError(err);
   const finalErr = classified || err;
-  const statusCode = finalErr.statusCode || 500;
+  const statusCode = finalErr.statusCode || (classified ? 500 : err.statusCode || 500);
+  const isAppError = !classified && finalErr instanceof AppError;
+  // رسالة عامة للأخطاء الداخلية — منع تسريب تفاصيل قاعدة البيانات/المكتبات للعميل
+  const GENERIC_MESSAGE =
+    '\u062D\u062F\u062B \u062E\u0637\u0623 \u063A\u064A\u0631 \u0645\u062A\u0648\u0642\u0639 \u2014 \u062D\u0627\u0648\u0644 \u0645\u0631\u0629 \u0623\u062E\u0631\u0649 \u0623\u0648 \u062A\u0648\u0627\u0635\u0644 \u0645\u0639 \u0627\u0644\u062F\u0639\u0645';
+  const isClientError = statusCode >= 400 && statusCode < 500;
   const message =
-    finalErr.message ||
-    '\u062D\u062F\u062B \u062E\u0637\u0623 \u063A\u064A\u0631 \u0645\u062A\u0648\u0642\u0639';
-  const code = finalErr.code || 'INTERNAL_ERROR';
+    isAppError || isClientError
+      ? finalErr.message || '\u0637\u0644\u0628 \u063A\u064A\u0631 \u0635\u0627\u0644\u062D'
+      : GENERIC_MESSAGE;
+  const code = isAppError || isClientError ? finalErr.code || 'REQUEST_ERROR' : 'INTERNAL_ERROR';
   const requestId = req.requestId || 'N/A';
   const userId = req.user?.id;
   if (statusCode >= 500) {
     logger.error({
-      message: `[${requestId}] Internal Error: ${message}`,
+      message: `[${requestId}] Internal Error: ${finalErr.message || message}`,
       requestId,
       path: req.path,
       method: req.method,
@@ -111,7 +117,7 @@ const errorHandler = (err, req, res, _next) => {
     requestId,
     // تفاصيل إضافية في بيئة التطوير فقط
     ...(process.env.NODE_ENV !== 'production' && err.stack
-      ? { stack: err.stack, pgCode: err.code }
+      ? { stack: err.stack, pgCode: err.code, rawMessage: finalErr.message }
       : {}),
   });
 };

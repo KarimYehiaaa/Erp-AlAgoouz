@@ -272,16 +272,32 @@ const restoreInventoryForSale = async (
   }
 
   // استرجاع المنتجات غير المركبة بناءً على المخازن الفعلية التي خُصمت منها
+  // يُقرأ فقط الحركات النشطة (غير الملغاة) لمنع الاحتساب المزدوج عند التعديل/الإرجاع المتكرر
   const originalMovements = (
     await client.query(
-      `SELECT product_id, from_warehouse_id, quantity 
-     FROM stock_movements 
-     WHERE reference_type = 'sale' AND reference_id = $1 AND movement_type = 'sale' AND product_id != ALL($2::int[])`,
+      `SELECT id, product_id, from_warehouse_id, quantity
+     FROM stock_movements
+     WHERE reference_type = 'sale' AND reference_id = $1 AND movement_type = 'sale'
+       AND voided_at IS NULL AND product_id != ALL($2::int[])`,
       [saleId, Array.from(recipeProductIds)],
     )
   ).rows;
 
+  const anySaleMovements =
+    (
+      await client.query(
+        `SELECT 1 FROM stock_movements
+       WHERE reference_type = 'sale' AND reference_id = $1 AND movement_type = 'sale'
+       LIMIT 1`,
+        [saleId],
+      )
+    ).rows.length > 0;
+
   if (originalMovements.length > 0) {
+    // تعليم الحركات المقروءة كملغاة داخل نفس المعاملة حتى لا تُسترجع مرة أخرى
+    await client.query(`UPDATE stock_movements SET voided_at = NOW() WHERE id = ANY($1::int[])`, [
+      originalMovements.map((m) => m.id),
+    ]);
     for (const mov of originalMovements) {
       const targetWh = mov.from_warehouse_id || sale.warehouse_id;
       await client.query(
@@ -298,8 +314,10 @@ const restoreInventoryForSale = async (
         [mov.product_id, targetWh, mov.quantity, saleId, userId],
       );
     }
+  } else if (anySaleMovements) {
+    // كل حركات البيع لهذه العملية ملغاة مسبقًا ← تم استرجاعها من قبل، لا شيء يُفعل
   } else {
-    // fallback إذا لم توجد حركات مخزنية مفصلة
+    // fallback إذا لم توجد حركات مخزنية مفصلة (بيانات قديمة)
     for (const item of items) {
       if (!recipeProductIds.has(Number(item.product_id))) {
         await client.query(
@@ -312,7 +330,15 @@ const restoreInventoryForSale = async (
           `INSERT INTO stock_movements (
              product_id, to_warehouse_id, movement_type, quantity,
              reference_type, reference_id, user_id, notes
-           ) VALUES ($1,$2,'return',$3,'sale',$4,$5,'\u0627\u0633\u062A\u0631\u062F\u0627\u062F \u0645\u062E\u0632\u0648\u0646 \u0639\u0645\u0644\u064A\u0629 \u0628\u064A\u0639')`,
+           ) VALUES ($1,$2,'return',$3,'sale',$4,$5,'\u0627\u0633\u062A\u0631\u062F\u0627\u062D \u0645\u062E\u0632\u0648\u0646 \u0639\u0645\u0644\u064A\u0629 \u0628\u064A\u0639')`,
+          [item.product_id, sale.warehouse_id, item.quantity, saleId, userId],
+        );
+        // شاهد (tombstone): يمنع تكرار الـ fallback لاحقًا لأن الحركة الأصلية غير موجودة
+        await client.query(
+          `INSERT INTO stock_movements (
+             product_id, from_warehouse_id, movement_type, quantity,
+             reference_type, reference_id, user_id, notes, voided_at
+           ) VALUES ($1,$2,'sale',$3,'sale',$4,$5,'\u0642\u064A\u062F \u0645\u0631\u062C\u0639\u064A \u0644\u0627\u0633\u062A\u0631\u062F\u0627\u062F fallback',NOW())`,
           [item.product_id, sale.warehouse_id, item.quantity, saleId, userId],
         );
       }

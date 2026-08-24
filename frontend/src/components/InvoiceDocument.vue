@@ -74,6 +74,9 @@
         <div class="total-line grand">
           <span>الإجمالي المستحق</span><span>{{ formatMoney(invoice.total_amount) }}</span>
         </div>
+        <div class="total-line tafqeet-line">
+          <span class="tafqeet-text">{{ tafqeetText }}</span>
+        </div>
       </div>
     </div>
 
@@ -90,10 +93,13 @@
 import { computed } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
 import { formatMoney, TAX_RATE } from '@/utils/currency';
+import { tafqeet } from '@/utils/tafqeet';
 
 const props = defineProps({
   invoice: { type: Object, required: true },
 });
+
+const tafqeetText = computed(() => tafqeet(props.invoice?.total_amount));
 
 const company = computed(() => props.invoice.company || {});
 const displayAddress = computed(() => company.value.address || 'جمهورية مصر العربية');
@@ -284,6 +290,14 @@ const formatDate = (d: any) =>
     font-size: 1.15rem;
     font-weight: 800;
     color: #5c3d2e;
+  }
+  &.tafqeet-line {
+    justify-content: flex-start;
+    font-size: 0.85rem;
+    color: #555;
+    .tafqeet-text {
+      font-style: italic;
+    }
   }
 }
 .inv-notes {

@@ -462,6 +462,7 @@ import {
   users as userApi,
 } from '@/api';
 import { formatMoney } from '@/utils/currency';
+import { roundMoney } from '@/utils/money';
 import { parseLocalizedNumber } from '@/utils/numberParsing';
 import { useProductMeta } from '@/composables/useProductMeta';
 import { useAppStore } from '@/stores/app';
@@ -802,16 +803,25 @@ const counts = ref<Record<string, any>>({});
 
 // ─── computed ──────────────────────────────────────────────────────────────
 const cartSubtotal = computed(() =>
-  cart.value.reduce((sum: any, item: any) => sum + item.quantity * item.unit_price, 0),
+  roundMoney(
+    cart.value.reduce(
+      (sum: any, item: any) => sum + roundMoney(item.quantity * item.unit_price),
+      0,
+    ),
+  ),
 );
-const cartTotal = computed(() =>
-  Math.max(0, cartSubtotal.value - (saleForm.value.discount_amount || 0)),
+// خصم مقيّد دائماً بين 0 وإجمالي السلة (يمنع الخصم السالب أو الأكبر من الإجمالي)
+const effectiveDiscount = computed(() =>
+  Math.min(Math.max(0, Number(saleForm.value.discount_amount || 0)), cartSubtotal.value),
 );
+const cartTotal = computed(() => roundMoney(cartSubtotal.value - effectiveDiscount.value));
 
 const todayTotal = computed(() =>
-  salesHistory.value
-    .filter((s: any) => s.status === 'completed' && (s.sale_date || '').startsWith(today))
-    .reduce((sum: any, s: any) => sum + parseFloat(s.total_amount || 0), 0),
+  roundMoney(
+    salesHistory.value
+      .filter((s: any) => s.status === 'completed' && (s.sale_date || '').startsWith(today))
+      .reduce((sum: any, s: any) => sum + parseFloat(s.total_amount || 0), 0),
+  ),
 );
 const todayCount = computed(
   () =>
@@ -998,9 +1008,13 @@ const printReceipt = async (saleRecord: any) => {
       ...saleRecord,
       invoice_number: saleRecord.sale_number,
       created_at: saleRecord.created_at || saleRecord.sale_date,
-      subtotal: (saleRecord.items || []).reduce(
-        (sum: any, item: any) => sum + item.quantity * item.unit_price,
-        0,
+      // استخدام القيم المخزنة كما هي — لا تُعاد عملية الضرب لتجنب فروق القروش مع قاعدة البيانات
+      subtotal: roundMoney(
+        (saleRecord.items || []).reduce(
+          (sum: number, item: any) =>
+            sum + Number(item.total_amount ?? item.quantity * item.unit_price),
+          0,
+        ),
       ),
       total_amount: saleRecord.total_amount,
       discount_amount: saleRecord.discount_amount,
@@ -1014,7 +1028,7 @@ const printReceipt = async (saleRecord: any) => {
           'منتج',
         quantity: item.quantity,
         unit_price: item.unit_price,
-        total_amount: item.quantity * item.unit_price,
+        total_amount: roundMoney(Number(item.total_amount ?? item.quantity * item.unit_price)),
       })),
     };
     await directPrinter.print(invoiceData);
@@ -1029,13 +1043,19 @@ const submitManualSale = async () => {
   saleError.value = '';
   saving.value = true;
 
+  const syncId =
+    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : 'pos_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
+
   const payload = {
+    sync_id: syncId,
     sale_type: 'branch',
     sale_date: saleForm.value.sale_date,
     warehouse_id: saleForm.value.warehouse_id || null,
     payment_method: saleForm.value.payment_method,
     payment_status: 'paid',
-    discount_amount: Number(saleForm.value.discount_amount || 0),
+    discount_amount: effectiveDiscount.value,
     notes: saleForm.value.notes || null,
     total_amount: Number(cartTotal.value),
     items: cart.value
@@ -1052,7 +1072,13 @@ const submitManualSale = async () => {
   try {
     let saleRecord = null;
     if (navigator.onLine) {
-      const res = await salesApi.create(payload);
+      // مفتاح Idempotency يُرسل من المحاولة الأولى حتى لو فُقد الرد يتعرف الخادم على العملية
+      const res = await salesApi.create(payload, {
+        headers: {
+          'Idempotency-Key': syncId,
+          'X-Idempotency-Key': syncId,
+        },
+      });
       saleRecord = res.data;
       lastSavedSale.value = saleRecord;
       playBeep('success');

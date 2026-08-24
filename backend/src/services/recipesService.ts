@@ -403,15 +403,18 @@ export const restoreRecipeConsumptionForProduct = async (
   }: { productId: number; soldQty: number; saleId: number; warehouseId: number; userId?: number },
 ) => {
   // ابحث عن consumption movements لهذا المنتج في هذه العملية
+  // يُقرأ فقط الحركات النشطة (غير الملغاة) لمنع الاحتساب المزدوج
   const consumedRows = (
     await client.query(
-      `SELECT sm.product_id AS ingredient_product_id,
+      `SELECT string_agg(sm.id::text, ',') AS movement_ids,
+            sm.product_id AS ingredient_product_id,
             sm.from_warehouse_id,
             SUM(sm.quantity) AS quantity
      FROM stock_movements sm
      WHERE sm.reference_type = 'sale'
        AND sm.reference_id = $1
        AND sm.movement_type = 'consumption'
+       AND sm.voided_at IS NULL
        AND EXISTS (
          SELECT 1 FROM product_recipe_items pri
          JOIN product_recipes pr ON pr.id = pri.recipe_id
@@ -424,7 +427,36 @@ export const restoreRecipeConsumptionForProduct = async (
     )
   ).rows;
 
+  const anyConsumptionMovements =
+    consumedRows.length > 0 ||
+    (
+      await client.query(
+        `SELECT 1 FROM stock_movements sm
+         WHERE sm.reference_type = 'sale' AND sm.reference_id = $1
+           AND sm.movement_type = 'consumption'
+           AND EXISTS (
+             SELECT 1 FROM product_recipe_items pri
+             JOIN product_recipes pr ON pr.id = pri.recipe_id
+             WHERE pr.product_id = $2 AND pr.deleted_at IS NULL
+               AND pri.ingredient_product_id = sm.product_id
+           )
+         LIMIT 1`,
+        [saleId, productId],
+      )
+    ).rows.length > 0;
+
   if (consumedRows.length) {
+    // تعليم الحركات المقروءة كملغاة داخل نفس المعاملة حتى لا تُسترجع مرة أخرى
+    const allIds = consumedRows.flatMap((r) =>
+      String(r.movement_ids || '')
+        .split(',')
+        .filter(Boolean),
+    );
+    if (allIds.length) {
+      await client.query(`UPDATE stock_movements SET voided_at = NOW() WHERE id = ANY($1::int[])`, [
+        allIds.map(Number),
+      ]);
+    }
     // استعادة من سجلات الـ consumption الفعلية
     for (const item of consumedRows) {
       const qtyToRestore = Number(item.quantity || 0);
@@ -458,6 +490,9 @@ export const restoreRecipeConsumptionForProduct = async (
     }
     return;
   }
+
+  // كل حركات الاستهلاك ملغاة مسبقًا ← تم استرجاعها من قبل، لا تُكرر الـ fallback
+  if (anyConsumptionMovements) return;
 
   // fallback: احسب من الوصفة الحالية
   const recipeResult = await client.query(
@@ -889,22 +924,32 @@ export const reverseProductionBatch = async (
       throw new AppError(`هذه الحركة ليست عملية إنتاج (النوع: ${mv.movement_type})`, 400);
     }
 
-    // 2) تحقق إن مش اتعكست قبل كده
-    const alreadyReversed = await client.query(
-      `SELECT 1 FROM stock_movements
+    // 2) حساب الكمية المتبقية للعكس — يدعم العكس الجزئي المتكرر ويمنع تجاوز الأصل
+    const reversedRes = await client.query(
+      `SELECT COALESCE(SUM(quantity), 0)::numeric AS total FROM stock_movements
        WHERE movement_type = 'adjustment'
          AND reference_type = $1
-         AND reference_id   = $2
-       LIMIT 1`,
+         AND reference_id   = $2`,
       [mv.movement_type, mv.id],
     );
-    if (alreadyReversed.rowCount) {
-      throw new AppError('هذه العملية تم عكسها مسبقاً', 400);
-    }
+    const alreadyReversedQty = Number(reversedRes.rows[0].total || 0);
 
     const originalQty = Number(mv.quantity);
-    const reverseQty = rawReverseQty ? Math.min(Number(rawReverseQty), originalQty) : originalQty;
-    if (reverseQty <= 0) throw new AppError('الكمية يجب أن تكون أكبر من صفر', 400);
+    const remainingReversible = originalQty - alreadyReversedQty;
+    if (remainingReversible <= 1e-9) {
+      throw new AppError('هذه العملية تم عكسها مسبقاً بالكامل', 400);
+    }
+
+    let reverseQty;
+    if (rawReverseQty !== undefined && rawReverseQty !== null) {
+      const requested = Number(rawReverseQty);
+      if (!Number.isFinite(requested) || requested <= 0) {
+        throw new AppError('الكمية يجب أن تكون أكبر من صفر', 400);
+      }
+      reverseQty = Math.min(requested, remainingReversible);
+    } else {
+      reverseQty = remainingReversible;
+    }
 
     const productId = mv.product_id;
     const warehouseId = mv.to_warehouse_id;
@@ -934,11 +979,29 @@ export const reverseProductionBatch = async (
     );
 
     if (consRes.rowCount === 0) {
-      // Fallback: جلب حركات الـ consumption المرتبطة بالنافذة الزمنية للبيانات القديمة
-      const window = 2 * 60 * 1000;
+      // Fallback: نافذة زمنية ضيقة للبيانات القديمة — يُقبل فقط إذا لم توجد
+      // دفعة إنتاج أخرى لنفس الوصفة داخل النافذة (لمنع ابتلاع مكونات دفعة غريبة)
+      const window = 30 * 1000;
       const dupTime = new Date(mv.created_at).getTime();
       const startTime = new Date(dupTime - window).toISOString();
       const endTime = new Date(dupTime + window).toISOString();
+
+      const siblingRes = await client.query(
+        `SELECT 1 FROM stock_movements
+         WHERE movement_type IN ('production', 'opening_production')
+           AND reference_type = $1
+           AND reference_id   = $2
+           AND id <> $3
+           AND created_at BETWEEN $4 AND $5
+         LIMIT 1`,
+        [refType, recipeId, mv.id, startTime, endTime],
+      );
+      if ((siblingRes.rowCount ?? 0) > 0) {
+        throw new AppError(
+          'تعذر تحديد حركات الاستهلاك المرتبطة بهذه الدفعة بدقة (توجد دفعات متقاربة) — العكس اليدوي مطلوب',
+          409,
+        );
+      }
 
       consRes = await client.query(
         `SELECT * FROM stock_movements
@@ -949,6 +1012,9 @@ export const reverseProductionBatch = async (
          ORDER BY id`,
         [refType, recipeId, startTime, endTime],
       );
+      if (consRes.rowCount === 0) {
+        throw new AppError('لا توجد حركات استهلاك مرتبطة بهذه الدفعة — لا يمكن العكس', 409);
+      }
     }
 
     // 5) طرح المنتج النهائي من المخزون

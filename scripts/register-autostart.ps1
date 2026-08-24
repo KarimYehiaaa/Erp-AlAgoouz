@@ -2,7 +2,8 @@
 # Must run as Administrator
 
 $taskName = "AlAgoouz-ERP-Backend"
-$vbsPath = "d:\AlAgoouz System\AlAgoouz-erp\scripts\start-backend-silent.vbs"
+# اشتقاق مسار الـ vbs تلقائياً من موقع هذا السكربت
+$vbsPath = Join-Path $PSScriptRoot "start-backend-silent.vbs"
 
 # Remove old task if exists
 Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue

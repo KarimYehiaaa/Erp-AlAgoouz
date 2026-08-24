@@ -27,7 +27,7 @@ const authenticate = async (req, res, next) => {
       algorithms: ['HS256'],
     }) as import('jsonwebtoken').JwtPayload;
     const result = await query(
-      `SELECT u.id, u.uuid, u.username, u.full_name, u.email, u.role_id, u.password_changed_at, r.name as role_name, r.name_ar as role_name_ar
+      `SELECT u.id, u.uuid, u.username, u.full_name, u.email, u.role_id, u.password_changed_at, u.token_version, r.name as role_name, r.name_ar as role_name_ar
        FROM users u
        JOIN roles r ON u.role_id = r.id
        WHERE u.id = $1 AND u.is_active = TRUE AND u.deleted_at IS NULL`,
@@ -41,6 +41,18 @@ const authenticate = async (req, res, next) => {
       );
     }
     const user = result.rows[0] as User;
+    // إبطال فوري لتوكنات الوصول عند إلغاء كل الجلسات أو تغيير الصلاحيات
+    if (
+      user.token_version !== undefined &&
+      user.token_version !== null &&
+      (decoded.ver ?? 0) !== Number(user.token_version)
+    ) {
+      throw new AppError(
+        '\u062A\u0645 \u0625\u0644\u063A\u0627\u0621 \u0627\u0644\u062C\u0644\u0633\u0629. \u064A\u0631\u062C\u0649 \u062A\u0633\u062C\u064A\u0644 \u0627\u0644\u062F\u062E\u0648\u0644 \u0645\u0631\u0629 \u0623\u062E\u0631\u0649',
+        401,
+        'SESSION_REVOKED',
+      );
+    }
     if (user.password_changed_at) {
       const changedAtSec = Math.floor(new Date(user.password_changed_at).getTime() / 1e3);
       if ((decoded.iat ?? 0) < changedAtSec) {

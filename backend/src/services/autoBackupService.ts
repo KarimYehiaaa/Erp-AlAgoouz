@@ -4,6 +4,7 @@ import { query } from '../database/pool.ts';
 import { getCloudConfig, uploadBackupToCloud } from './cloudBackupService.ts';
 import { sendAlert } from './notificationService.ts';
 import { encrypt } from '../utils/crypto.ts';
+import { enqueueBackup } from '../jobs/queue.ts';
 
 const getAutoBackupDir = () =>
   process.env.AUTO_BACKUP_DIR || path.join(process.cwd(), 'backups', 'auto-backups');
@@ -244,15 +245,20 @@ export const runAutoBackup = async () => {
  */
 export const initAutoBackupScheduler = () => {
   if (process.env.VERCEL) return;
+  // تشغيل عبر الطابور عند توفر Redis — وإلا تنفيذ مباشر
+  const trigger = async () => {
+    const queued = await enqueueBackup('auto');
+    if (!queued) await runAutoBackup();
+  };
   // 1. تشغيل نسخة احتياطية فورية عند تشغيل السيرفر
   setTimeout(async () => {
     console.log('🚀 [بن العجوز ERP] تفعيل نظام النسخ الاحتياطي الصامت المحلي...');
-    await runAutoBackup();
+    await trigger();
   }, 5000); // الانتظار 5 ثوان بعد التشغيل لتفادي التداخل مع بدء الاتصالات
 
   // 2. جدولة أخذ نسخة دورية كل 4 ساعات (4 * 60 * 60 * 1000 مللي ثانية)
   const FOUR_HOURS_MS = 4 * 60 * 60 * 1000;
   setInterval(async () => {
-    await runAutoBackup();
+    await trigger();
   }, FOUR_HOURS_MS);
 };

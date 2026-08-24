@@ -1,4 +1,5 @@
 import XLSX from 'xlsx';
+import { AppError } from '../types/errors.ts';
 import { deleteAllSales, importDailySales } from './salesService.ts';
 import { readSafeWorkbook } from './excelSecurity.ts';
 import { parseLocalizedNumber } from '../utils/numberParsing.ts';
@@ -197,13 +198,13 @@ const parseRow = (row, indices) => {
   if (action === 'delete_all') return { action: 'delete_all' };
 
   const saleType = normalizeSaleType(indices.sale_type >= 0 ? row[indices.sale_type] : null);
-  if (!saleType) throw new Error('نوع البيع غير صحيح');
+  if (!saleType) throw new AppError('نوع البيع غير صحيح', 400);
 
   const saleDate = parseDate(indices.sale_date >= 0 ? row[indices.sale_date] : null);
-  if (!saleDate) throw new Error('تاريخ البيع غير صحيح');
+  if (!saleDate) throw new AppError('تاريخ البيع غير صحيح', 400);
 
   const totalAmount = toNumber(indices.total_amount >= 0 ? row[indices.total_amount] : null, 0);
-  if (totalAmount <= 0) throw new Error('المبلغ الإجمالي يجب أن يكون أكبر من صفر');
+  if (totalAmount <= 0) throw new AppError('المبلغ الإجمالي يجب أن يكون أكبر من صفر', 400);
 
   return {
     sale_date: saleDate,
@@ -233,12 +234,12 @@ export const parseSalesExcel = (buffer: Buffer) => {
   const wb = readSafeWorkbook(buffer, { cellDates: true });
   const sheet = wb.Sheets[wb.SheetNames[0]];
   const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' }) as any[][];
-  if (rows.length < 2) throw new Error('ملف الإكسيل فارغ');
+  if (rows.length < 2) throw new AppError('ملف الإكسيل فارغ', 400);
 
   const headers = headersFromRow(rows[0]);
   const indices = resolveHeaderIndices(headers);
   if (indices.sale_date === -1 || indices.sale_type === -1 || indices.total_amount === -1) {
-    throw new Error('ملف الإكسيل لا يحتوي على الحقول الأساسية المطلوبة');
+    throw new AppError('ملف الإكسيل لا يحتوي على الحقول الأساسية المطلوبة', 400);
   }
 
   const parsed: any[] = [];
@@ -261,7 +262,7 @@ export const parseSalesExcel = (buffer: Buffer) => {
   }
 
   if (!parsed.length && !hasDeleteAll && errors.length) {
-    throw new Error(errors.map((e) => `السطر ${e.row}: ${e.message}`).join(' | '));
+    throw new AppError(errors.map((e) => `السطر ${e.row}: ${e.message}`).join(' | '), 400);
   }
 
   return { rows: parsed, errors, hasDeleteAll };
@@ -297,7 +298,7 @@ export const importFromExcel = async (
 ) => {
   const { rows, errors, hasDeleteAll } = parseSalesExcel(buffer);
   if (hasDeleteAll && options.confirm !== 'CONFIRM_DELETE_ALL_SALES') {
-    throw new Error('delete_all requires explicit confirmation');
+    throw new AppError('delete_all requires explicit confirmation', 400);
   }
   let deletedCount = 0;
   if (hasDeleteAll) {

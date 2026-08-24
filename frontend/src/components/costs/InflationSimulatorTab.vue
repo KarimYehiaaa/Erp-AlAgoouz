@@ -59,6 +59,26 @@
           </span>
         </div>
       </div>
+
+      <div
+        v-if="isSimulatorActive && simulationWarnings.length"
+        class="simulator-warnings"
+        role="alert"
+        style="
+          margin-top: 12px;
+          padding: 10px 14px;
+          border-radius: 8px;
+          background: rgba(245, 158, 11, 0.12);
+          border: 1px solid rgba(245, 158, 11, 0.45);
+          color: #b45309;
+          font-size: 0.85rem;
+        "
+      >
+        <strong>⚠️ تحذيرات تحويل الوحدات ({{ simulationWarnings.length }}):</strong>
+        <ul style="margin: 6px 18px 0 0; padding: 0">
+          <li v-for="(w, i) in simulationWarnings" :key="i">{{ w }}</li>
+        </ul>
+      </div>
     </div>
 
     <!-- Simulated Products Table -->
@@ -162,125 +182,117 @@ const isSimulatorActive = ref(false);
 const simulatorCategory = ref('');
 const inflationPercent = ref(10); // Default 10% inflation
 
-// ─── unit helpers ─────────────────────────────────────────────────────────────
-const UNIT_ALIASES: Record<string, string> = {
-  kg: 'kg',
-  kilo: 'kg',
-  كيلو: 'kg',
-  كجم: 'kg',
-  g: 'g',
-  gram: 'g',
-  جرام: 'g',
-  l: 'l',
-  liter: 'l',
-  litre: 'l',
-  لتر: 'l',
-  ml: 'ml',
-  milli: 'ml',
-  مل: 'ml',
-  count: 'count',
-  unit: 'count',
-  piece: 'count',
-  pieces: 'count',
-  عدد: 'count',
-  قطعة: 'count',
-};
+// ─── unit helpers (مشتركة مع recipeCost) ─────────────────────────────────────
+import { normalizeUnit, convertQty, unitPriceFor } from '@/utils/recipeCost';
 
-const normalizeUnitLocal = (u: any) => {
-  const key = String(u || '')
-    .trim()
-    .toLowerCase() as keyof typeof UNIT_ALIASES;
-  return UNIT_ALIASES[key] || null;
-};
-
-const convertQtyLocal = (qty: any, fromUnit: any, toUnit: any) => {
-  if (fromUnit === toUnit) return qty;
-  if (fromUnit === 'kg' && toUnit === 'g') return qty * 1000;
-  if (fromUnit === 'g' && toUnit === 'kg') return qty / 1000;
-  if (fromUnit === 'l' && toUnit === 'ml') return qty * 1000;
-  if (fromUnit === 'ml' && toUnit === 'l') return qty / 1000;
-  return null;
-};
-
-const unitPriceForLocal = (purchasePrice: any, productUnit: any, wantedUnit: any) => {
-  const fromUnit = normalizeUnitLocal(productUnit);
-  const toUnit = normalizeUnitLocal(wantedUnit);
-  if (!fromUnit || !toUnit) return 0;
-  const converted = convertQtyLocal(1, fromUnit, toUnit);
-  if (converted == null || converted === 0) return 0;
-  return Number(purchasePrice || 0) / converted;
+const unitPriceChecked = (
+  basePrice: number,
+  productUnit: any,
+  wantedUnit: any,
+  label: string,
+  warnings: string[],
+): number => {
+  const from = normalizeUnit(productUnit);
+  const to = normalizeUnit(wantedUnit);
+  if (!from || !to) {
+    warnings.push(`${label}: وحدة غير معروفة (${productUnit} ← ${wantedUnit}) — تم تجاهل التكلفة`);
+    return 0;
+  }
+  if (from !== to && convertQty(1, from, to) == null) {
+    warnings.push(`${label}: تعذر التحويل بين الوحدتين (${from} ← ${to}) — تم تجاهل التكلفة`);
+    return 0;
+  }
+  return unitPriceFor(basePrice, productUnit, wantedUnit);
 };
 
 // ─── computed ─────────────────────────────────────────────────────────────────
 const simulatedProducts = computed(() => {
   if (!isSimulatorActive.value) return [];
 
-  // Build a map of simulated purchase prices for raw materials (non-recipes)
-  const simulatedPriceMap = new Map();
-  props.products.forEach((p: any) => {
-    let price = Number(p.purchase_price || 0);
-    let isInflated = false;
+  const productMap = new Map<number, any>();
+  props.products.forEach((p: any) => productMap.set(Number(p.id), p));
 
-    // Check if product matches category filter
-    const matchesCategory = !simulatorCategory.value || p.category_id == simulatorCategory.value;
+  const recipeById = new Map<number, any>();
+  props.recipesList.forEach((r: any) => recipeById.set(Number(r.id), r));
 
-    if (matchesCategory) {
-      price = price * (1 + Number(inflationPercent.value) / 100);
-      isInflated = true;
+  const unitWarnings: string[] = [];
+
+  const matchesCategory = (p: any) =>
+    !simulatorCategory.value || p.category_id == simulatorCategory.value;
+
+  // حساب تكراري memoized لتكلفة كل منتج بعد المحاكاة — يدعم الوصفات المتداخلة
+  const memo = new Map<number, { cost: number; isInflated: boolean }>();
+  const inProgress = new Set<number>();
+
+  const resolveCost = (productId: number): { cost: number; isInflated: boolean } => {
+    const cached = memo.get(productId);
+    if (cached) return cached;
+
+    const p = productMap.get(productId);
+    if (!p) return { cost: 0, isInflated: false };
+
+    // حارس دورات: وصفة تشير لنفسها بشكل دائري
+    if (inProgress.has(productId)) {
+      return { cost: Number(p.purchase_price || 0), isInflated: false };
     }
+    inProgress.add(productId);
 
-    simulatedPriceMap.set(p.id, { price, isInflated });
-  });
+    let result: { cost: number; isInflated: boolean };
+    const recipe = p.has_recipe && p.recipe_id ? recipeById.get(Number(p.recipe_id)) : null;
 
-  // Now, calculate simulated costs for all products (dynamic recipes)
-  return props.products.map((p: any) => {
-    let simulatedCost = Number(p.purchase_price || 0);
-    let isInflated = false;
-
-    if (p.has_recipe && p.recipe_id) {
-      // Find the recipe
-      const recipe = props.recipesList.find((r: any) => r.id === p.recipe_id);
-      if (recipe && recipe.items) {
-        let totalRecipeCost = 0;
-        recipe.items.forEach((item: any) => {
-          const ingredientId = Number(item.ingredient_product_id);
-          const ingredientSim = simulatedPriceMap.get(ingredientId);
-          const ingredientPrice = ingredientSim
-            ? ingredientSim.price
-            : Number(item.ingredient_purchase_price || 0);
-          if (ingredientSim?.is_inflated) {
-            isInflated = true;
-          }
-
-          const unitPrice = unitPriceForLocal(
-            ingredientPrice,
-            item.ingredient_unit,
-            item.unit_code,
-          );
-          totalRecipeCost += Number(item.quantity || 0) * unitPrice;
-        });
-        simulatedCost = Math.round(totalRecipeCost * 100) / 100;
-      }
+    if (recipe && Array.isArray(recipe.items) && recipe.items.length) {
+      let totalRecipeCost = 0;
+      let isInflated = false;
+      recipe.items.forEach((item: any) => {
+        const ingId = Number(item.ingredient_product_id);
+        // تكلفة المكوّن بعد المحاكاة (شاملة وصفته الخاصة إن وجدت)
+        const sub = resolveCost(ingId);
+        if (sub.isInflated) isInflated = true;
+        const ing = productMap.get(ingId);
+        const ingStockUnit = ing ? ing.unit : item.ingredient_unit;
+        const unitPrice = unitPriceChecked(
+          sub.cost,
+          ingStockUnit,
+          item.unit_code,
+          `${p.name_ar} ← مكوّن #${ingId}`,
+          unitWarnings,
+        );
+        totalRecipeCost += Number(item.quantity || 0) * unitPrice;
+      });
+      result = { cost: Math.round(totalRecipeCost * 100) / 100, isInflated };
     } else {
-      // It's a raw material or direct sell product
-      const sim = simulatedPriceMap.get(p.id);
-      if (sim) {
-        simulatedCost = Math.round(sim.price * 100) / 100;
-        isInflated = sim.is_inflated;
-      }
+      const inflatedPrice =
+        Number(p.purchase_price || 0) *
+        (1 + (matchesCategory(p) ? Number(inflationPercent.value) / 100 : 0));
+      result = {
+        cost: Math.round(inflatedPrice * 100) / 100,
+        isInflated: matchesCategory(p),
+      };
     }
 
-    const sell = Number(p.sale_price || 0);
-    const simulatedMargin = sell ? ((sell - simulatedCost) / sell) * 100 : 0;
+    inProgress.delete(productId);
+    memo.set(productId, result);
+    return result;
+  };
 
+  const rows = props.products.map((p: any) => {
+    const sim = resolveCost(Number(p.id));
+    const sell = Number(p.sale_price || 0);
+    const simulatedMargin = sell ? ((sell - sim.cost) / sell) * 100 : 0;
     return {
       ...p,
-      simulated_cost: simulatedCost,
+      simulated_cost: sim.cost,
       simulated_margin: simulatedMargin,
-      is_inflated: isInflated && Math.abs(simulatedCost - Number(p.purchase_price || 0)) > 0.01,
+      is_inflated: sim.isInflated && Math.abs(sim.cost - Number(p.purchase_price || 0)) > 0.01,
     };
   });
+
+  // إظهار تحذير واحد فقط لكل رسالة مكررة
+  simulationWarnings.value = [...new Set(unitWarnings)];
+  return rows;
 });
+
+const simulationWarnings = ref<string[]>([]);
 
 const simulatedAvgMargin = computed(() => {
   if (!simulatedProducts.value.length) return '0.0';

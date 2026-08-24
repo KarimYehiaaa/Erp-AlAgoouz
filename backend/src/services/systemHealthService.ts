@@ -1,5 +1,6 @@
 import os from 'os';
-import { query, checkHealth } from '../database/pool.ts';
+import { query, checkHealth, getClient } from '../database/pool.ts';
+import logger from './loggerService.ts';
 
 /**
  * جلب تقرير صحة النظام (النظام، الذاكرة، قاعدة البيانات، الجلسات).
@@ -89,8 +90,9 @@ export const getActiveSessions = async () => {
       ORDER BY rt.created_at DESC
     `);
     return res.rows;
-  } catch {
-    return [];
+  } catch (err: any) {
+    logger.error(`[SystemHealth] فشل جلب الجلسات النشطة: ${err.message}`);
+    throw err;
   }
 };
 
@@ -113,8 +115,9 @@ export const getFailedLogins = async (hours = 24) => {
       [String(safeHours)],
     );
     return res.rows;
-  } catch {
-    return [];
+  } catch (err: any) {
+    logger.error(`[SystemHealth] فشل جلب محاولات الدخول الفاشلة: ${err.message}`);
+    throw err;
   }
 };
 
@@ -137,11 +140,26 @@ export const revokeSession = async (sessionId) => {
  * @returns {Promise<boolean>}
  */
 export const revokeAllUserSessions = async (userId) => {
-  const res = await query(
-    `UPDATE refresh_tokens SET revoked = TRUE WHERE user_id = $1 AND revoked = FALSE RETURNING id`,
-    [userId],
-  );
-  return res.rows;
+  const client = await getClient();
+  try {
+    await client.query('BEGIN');
+    const res = await client.query(
+      `UPDATE refresh_tokens SET revoked = TRUE WHERE user_id = $1 AND revoked = FALSE RETURNING id`,
+      [userId],
+    );
+    // رفع إصدار التوكن يبطل توكنات الوصول (8 ساعات) فوراً — ليس refresh فقط
+    await client.query(
+      `UPDATE users SET token_version = COALESCE(token_version, 0) + 1 WHERE id = $1`,
+      [userId],
+    );
+    await client.query('COMMIT');
+    return res.rows;
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
 };
 
 /**
@@ -162,8 +180,9 @@ export const getRecentActivity = async (limit = 50) => {
       [limit],
     );
     return res.rows;
-  } catch {
-    return [];
+  } catch (err: any) {
+    logger.error(`[SystemHealth] فشل جلب النشاطات الأخيرة: ${err.message}`);
+    throw err;
   }
 };
 
@@ -193,14 +212,8 @@ export const getSystemCounts = async () => {
       lowStockProducts: parseInt(lowStockRes.rows[0]?.count || 0, 10),
     };
   } catch (err: any) {
-    console.error('Error fetching system counts:', err);
-    return {
-      totalUsers: 0,
-      activeUsers24h: 0,
-      totalProducts: 0,
-      totalCustomers: 0,
-      lowStockProducts: 0,
-    };
+    logger.error(`[SystemHealth] فشل جلب عدادات النظام: ${err.message}`);
+    throw err;
   }
 };
 
@@ -237,7 +250,8 @@ export const repairSequences = async () => {
         `SELECT setval(pg_get_serial_sequence('${table}', 'id'), COALESCE(MAX(id), 1)) FROM "${table}";`,
       );
       results.push({ table, status: 'repaired' });
-    } catch {
+    } catch (err: any) {
+      logger.warn(`[SystemHealth] تخطي إصلاح تسلسل الجدول ${table}: ${err.message}`);
       results.push({ table, status: 'skipped' });
     }
   }
@@ -273,7 +287,8 @@ export const generateBackupSnapshot = async () => {
     try {
       const res = await query(`SELECT * FROM "${table}" LIMIT 5000`);
       snapshot.data[table] = res.rows;
-    } catch {
+    } catch (err: any) {
+      logger.warn(`[SystemHealth] تخطي جدول ${table} في اللقطة: ${err.message}`);
       snapshot.data[table] = [];
     }
   }
@@ -327,13 +342,8 @@ export const getRiskRadarReport = async () => {
       staleInvoices: staleInvoices.rows,
     };
   } catch (err: any) {
-    console.error('Error fetching risk radar:', err);
-    return {
-      overdueCustomers: [],
-      lowMarginProducts: [],
-      outOfStockProducts: [],
-      staleInvoices: [],
-    };
+    logger.error(`[SystemHealth] فشل جلب رادار المخاطر: ${err.message}`);
+    throw err;
   }
 };
 
@@ -345,7 +355,8 @@ export const getRiskRadarReport = async () => {
 export const purgeOldAuditLogs = async (days = 90) => {
   const d = Math.max(7, Number(days) || 90);
   const res = await query(
-    `DELETE FROM activity_logs WHERE created_at < NOW() - INTERVAL '${d} days'`,
+    `DELETE FROM activity_logs WHERE created_at < NOW() - ($1::int * interval '1 day')`,
+    [d],
   );
   return { deletedCount: res.rowCount || 0 };
 };

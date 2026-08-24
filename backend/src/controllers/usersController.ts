@@ -145,6 +145,34 @@ const users = {
     }
   },
   /**
+   * تعليم إشعار واحد كمقروء.
+   * @param {import('express').Request} req طلب HTTP
+   * @param {import('express').Response} res استجابة HTTP
+   * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
+   */
+  markNotificationRead: async (req, res, next) => {
+    try {
+      await userService.markNotificationRead(Number(req.params.id));
+      ok(res, { success: true });
+    } catch (e: any) {
+      next(e);
+    }
+  },
+  /**
+   * تعليم كل إشعارات المستخدم كمقروءة.
+   * @param {import('express').Request} req طلب HTTP
+   * @param {import('express').Response} res استجابة HTTP
+   * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
+   */
+  markAllNotificationsRead: async (req, res, next) => {
+    try {
+      const userId = req.user?.id || req.user?.userId;
+      ok(res, await userService.markAllNotificationsRead(userId));
+    } catch (e: any) {
+      next(e);
+    }
+  },
+  /**
    * جلب إعدادات النظام.
    * @param {import('express').Request} req طلب HTTP
    * @param {import('express').Response} res استجابة HTTP

@@ -65,7 +65,12 @@ export async function runMigrations(): Promise<void> {
     const files = fs
       .readdirSync(migrationsDir)
       .filter((file) => file.endsWith('.sql'))
-      .sort((a, b) => a.localeCompare(b));
+      // ترتيب رقمي صارم: يمنع انقلاب ترتيب اللواحق الحرفية (041b قبل 041) تحت ICU
+      .sort((a, b) => {
+        const na = parseInt(a, 10);
+        const nb = parseInt(b, 10);
+        return na !== nb ? na - nb : a.localeCompare(b);
+      });
 
     // الحصول على الهجرات المنفذة مسبقًا
     const appliedRes = await client.query(`SELECT version FROM schema_migrations`);

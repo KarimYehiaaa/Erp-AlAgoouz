@@ -1,13 +1,14 @@
-import { getClient, query } from '../database/pool.ts';
+﻿import { getClient, query } from '../database/pool.ts';
 import { AppError } from '../types/errors.ts';
 import { getProductsEffectiveCosts } from './productCostService.ts';
 import { getDefaultWarehouseId, getWarehouseIdByCode } from './warehouseService.ts';
 import { ensureInventoryRow } from './inventoryService.ts';
 import { sanitizeLimit, toNumber } from '../utils/money.ts';
+import { appCache } from '../utils/cache.ts';
 
 /**
- * جلب قائمة المنتجات مع فلترة وبحث وترقيم.
- * @param {Record<string, any>} [filters] خيارات الفلترة (search, category_id, warehouse_id, is_active...)
+ * Ø¬Ù„Ø¨ Ù‚Ø§Ø¦Ù…Ø© Ø§Ù„Ù…Ù†ØªØ¬Ø§Øª Ù…Ø¹ ÙÙ„ØªØ±Ø© ÙˆØ¨Ø­Ø« ÙˆØªØ±Ù‚ÙŠÙ….
+ * @param {Record<string, any>} [filters] Ø®ÙŠØ§Ø±Ø§Øª Ø§Ù„ÙÙ„ØªØ±Ø© (search, category_id, warehouse_id, is_active...)
  * @returns {Promise<{ rows: any[], total: number }>}
  */
 export const getProducts = async (filters: Record<string, any> = {}) => {
@@ -97,8 +98,8 @@ export const getProducts = async (filters: Record<string, any> = {}) => {
 };
 
 /**
- * جلب منتج واحد كاملاً مع الوصفة والمخزون.
- * @param {number} id معرف المنتج
+ * Ø¬Ù„Ø¨ Ù…Ù†ØªØ¬ ÙˆØ§Ø­Ø¯ ÙƒØ§Ù…Ù„Ø§Ù‹ Ù…Ø¹ Ø§Ù„ÙˆØµÙØ© ÙˆØ§Ù„Ù…Ø®Ø²ÙˆÙ†.
+ * @param {number} id Ù…Ø¹Ø±Ù Ø§Ù„Ù…Ù†ØªØ¬
  * @returns {Promise<any>}
  */
 export const getProductById = async (id: number) => {
@@ -119,7 +120,7 @@ export const getProductById = async (id: number) => {
      WHERE p.id = $1 AND p.deleted_at IS NULL`,
     [id],
   );
-  if (!result.rows[0]) throw new AppError('المنتج غير موجود', 404);
+  if (!result.rows[0]) throw new AppError('Ø§Ù„Ù…Ù†ØªØ¬ ØºÙŠØ± Ù…ÙˆØ¬ÙˆØ¯', 404);
   const product = result.rows[0];
 
   if (product.has_active_recipe) {
@@ -145,7 +146,7 @@ const generateProductSku = async (client) => {
   return `${PRODUCT_SKU_PREFIX}${String(result.rows[0].next_number).padStart(3, '0')}`;
 };
 
-/** توليد رقم SKU تلقائي للمنتج التالي. */
+/** ØªÙˆÙ„ÙŠØ¯ Ø±Ù‚Ù… SKU ØªÙ„Ù‚Ø§Ø¦ÙŠ Ù„Ù„Ù…Ù†ØªØ¬ Ø§Ù„ØªØ§Ù„ÙŠ. */
 export const getNextProductSku = async () => {
   const client = await getClient();
   try {
@@ -162,8 +163,8 @@ export const getNextProductSku = async () => {
 };
 
 /**
- * إنشاء منتج جديد مع الأرصدة الافتتاحية والمخازن.
- * @param {Record<string, any>} data بيانات المنتج
+ * Ø¥Ù†Ø´Ø§Ø¡ Ù…Ù†ØªØ¬ Ø¬Ø¯ÙŠØ¯ Ù…Ø¹ Ø§Ù„Ø£Ø±ØµØ¯Ø© Ø§Ù„Ø§ÙØªØªØ§Ø­ÙŠØ© ÙˆØ§Ù„Ù…Ø®Ø§Ø²Ù†.
+ * @param {Record<string, any>} data Ø¨ÙŠØ§Ù†Ø§Øª Ø§Ù„Ù…Ù†ØªØ¬
  * @returns {Promise<any>}
  */
 export const createProduct = async (data: Record<string, any>) => {
@@ -215,6 +216,7 @@ export const createProduct = async (data: Record<string, any>) => {
     }
 
     await client.query('COMMIT');
+    appCache.invalidateByTag('product_cost');
     return result.rows[0];
   } catch (err: any) {
     await client.query('ROLLBACK');
@@ -225,9 +227,9 @@ export const createProduct = async (data: Record<string, any>) => {
 };
 
 /**
- * تحديث منتج (بيانات، مخازن، أرصدة).
- * @param {number} id معرف المنتج
- * @param {Record<string, any>} data الحقول المطلوب تحديثها
+ * ØªØ­Ø¯ÙŠØ« Ù…Ù†ØªØ¬ (Ø¨ÙŠØ§Ù†Ø§ØªØŒ Ù…Ø®Ø§Ø²Ù†ØŒ Ø£Ø±ØµØ¯Ø©).
+ * @param {number} id Ù…Ø¹Ø±Ù Ø§Ù„Ù…Ù†ØªØ¬
+ * @param {Record<string, any>} data Ø§Ù„Ø­Ù‚ÙˆÙ„ Ø§Ù„Ù…Ø·Ù„ÙˆØ¨ ØªØ­Ø¯ÙŠØ«Ù‡Ø§
  * @returns {Promise<any>}
  */
 export const updateProduct = async (id: number, data: Record<string, any>) => {
@@ -240,7 +242,7 @@ export const updateProduct = async (id: number, data: Record<string, any>) => {
       [id],
     );
     const existing = existingRes.rows[0];
-    if (!existing) throw new AppError('المنتج غير موجود', 404);
+    if (!existing) throw new AppError('Ø§Ù„Ù…Ù†ØªØ¬ ØºÙŠØ± Ù…ÙˆØ¬ÙˆØ¯', 404);
 
     const warehouseProvided = data.primary_warehouse_id !== undefined;
     const nextWarehouseId = warehouseProvided
@@ -252,13 +254,16 @@ export const updateProduct = async (id: number, data: Record<string, any>) => {
 
     if (warehouseChanged) {
       if (existing.has_active_recipe) {
-        throw new AppError('لا يمكن تغيير مخزن منتج مرتبط بوصفة نشطة', 400);
+        throw new AppError(
+          'Ù„Ø§ ÙŠÙ…ÙƒÙ† ØªØºÙŠÙŠØ± Ù…Ø®Ø²Ù† Ù…Ù†ØªØ¬ Ù…Ø±ØªØ¨Ø· Ø¨ÙˆØµÙØ© Ù†Ø´Ø·Ø©',
+          400,
+        );
       }
       const warehouseRes = await client.query(
         'SELECT id FROM warehouses WHERE id = $1 AND deleted_at IS NULL AND is_active = TRUE',
         [nextWarehouseId],
       );
-      if (!warehouseRes.rows[0]) throw new AppError('المخزن غير موجود', 404);
+      if (!warehouseRes.rows[0]) throw new AppError('Ø§Ù„Ù…Ø®Ø²Ù† ØºÙŠØ± Ù…ÙˆØ¬ÙˆØ¯', 404);
     }
 
     const fields = [
@@ -298,7 +303,7 @@ export const updateProduct = async (id: number, data: Record<string, any>) => {
           .replace('__ID__', String(i)),
         values,
       );
-      if (!result.rows[0]) throw new AppError('المنتج غير موجود', 404);
+      if (!result.rows[0]) throw new AppError('Ø§Ù„Ù…Ù†ØªØ¬ ØºÙŠØ± Ù…ÙˆØ¬ÙˆØ¯', 404);
     }
 
     if (warehouseChanged) {
@@ -306,7 +311,7 @@ export const updateProduct = async (id: number, data: Record<string, any>) => {
         'SELECT id FROM warehouses WHERE id = $1 AND deleted_at IS NULL AND is_active = TRUE',
         [nextWarehouseId],
       );
-      if (!whRes.rows[0]) throw new AppError('المخزن غير موجود', 404);
+      if (!whRes.rows[0]) throw new AppError('Ø§Ù„Ù…Ø®Ø²Ù† ØºÙŠØ± Ù…ÙˆØ¬ÙˆØ¯', 404);
 
       await ensureInventoryRow(client, id, nextWarehouseId);
       await client.query(
@@ -328,6 +333,7 @@ export const updateProduct = async (id: number, data: Record<string, any>) => {
     }
 
     await client.query('COMMIT');
+    appCache.invalidateByTag('product_cost');
     return getProductById(id);
   } catch (err: any) {
     await client.query('ROLLBACK');
@@ -337,7 +343,7 @@ export const updateProduct = async (id: number, data: Record<string, any>) => {
   }
 };
 
-/** حذف منتج (حذف ناعم). */
+/** Ø­Ø°Ù Ù…Ù†ØªØ¬ (Ø­Ø°Ù Ù†Ø§Ø¹Ù…). */
 export const deleteProduct = async (id: number) => {
   const client = await getClient();
   try {
@@ -350,7 +356,7 @@ export const deleteProduct = async (id: number) => {
        RETURNING id`,
       [id],
     );
-    if (!productRes.rows[0]) throw new AppError('المنتج غير موجود', 404);
+    if (!productRes.rows[0]) throw new AppError('Ø§Ù„Ù…Ù†ØªØ¬ ØºÙŠØ± Ù…ÙˆØ¬ÙˆØ¯', 404);
 
     await client.query(`DELETE FROM inventory WHERE product_id = $1`, [id]);
 
@@ -368,6 +374,7 @@ export const deleteProduct = async (id: number) => {
     );
 
     await client.query('COMMIT');
+    appCache.invalidateByTag('product_cost');
   } catch (err: any) {
     await client.query('ROLLBACK');
     throw err;
@@ -376,10 +383,10 @@ export const deleteProduct = async (id: number) => {
   }
 };
 
-/** تعيين المخزن الرئيسي لمنتج. */
+/** ØªØ¹ÙŠÙŠÙ† Ø§Ù„Ù…Ø®Ø²Ù† Ø§Ù„Ø±Ø¦ÙŠØ³ÙŠ Ù„Ù…Ù†ØªØ¬. */
 export const setProductWarehouse = async (id: number, warehouseId: number) => {
   const wid = Number(warehouseId);
-  if (!wid) throw new AppError('معرف المخزن غير صالح', 400);
+  if (!wid) throw new AppError('Ù…Ø¹Ø±Ù Ø§Ù„Ù…Ø®Ø²Ù† ØºÙŠØ± ØµØ§Ù„Ø­', 400);
   const updated = await updateProduct(id, { primary_warehouse_id: wid });
   const totalQty = Array.isArray(updated?.stock)
     ? updated.stock.reduce((sum, row) => sum + Number(row.quantity || 0), 0)
@@ -387,7 +394,7 @@ export const setProductWarehouse = async (id: number, warehouseId: number) => {
   return { product_id: Number(id), warehouse_id: wid, quantity: totalQty };
 };
 
-/** مسح كل المنتجات (إعادة ضبط) — للمدير فقط. */
+/** Ù…Ø³Ø­ ÙƒÙ„ Ø§Ù„Ù…Ù†ØªØ¬Ø§Øª (Ø¥Ø¹Ø§Ø¯Ø© Ø¶Ø¨Ø·) â€” Ù„Ù„Ù…Ø¯ÙŠØ± ÙÙ‚Ø·. */
 export const deleteAllProducts = async () => {
   const client = await getClient();
   try {
@@ -418,6 +425,7 @@ export const deleteAllProducts = async () => {
     }
 
     await client.query('COMMIT');
+    appCache.invalidateByTag('product_cost');
     return { deletedCount: result.rowCount || 0 };
   } catch (err: any) {
     await client.query('ROLLBACK');
@@ -427,7 +435,7 @@ export const deleteAllProducts = async () => {
   }
 };
 
-/** جلب شجرة التصنيفات. */
+/** Ø¬Ù„Ø¨ Ø´Ø¬Ø±Ø© Ø§Ù„ØªØµÙ†ÙŠÙØ§Øª. */
 export const getCategories = async () => {
   const result = await query(
     `SELECT pc.*, COALESCE(COUNT(p.id), 0) AS products_count
@@ -444,8 +452,8 @@ export const getCategories = async () => {
  * *B1J1 'D*C'DJA: CD EF*,'* 'DE-D E9 391 'D41'!/'D(J9/'D1(- H'DE(J9'* 'DA9DJ)
  */
 /**
- * تقرير تكاليف المنتجات.
- * @param {Record<string, any>} [filters] خيارات التقرير (warehouse_id...)
+ * ØªÙ‚Ø±ÙŠØ± ØªÙƒØ§Ù„ÙŠÙ Ø§Ù„Ù…Ù†ØªØ¬Ø§Øª.
+ * @param {Record<string, any>} [filters] Ø®ÙŠØ§Ø±Ø§Øª Ø§Ù„ØªÙ‚Ø±ÙŠØ± (warehouse_id...)
  * @returns {Promise<any[]>}
  */
 export const getCostsReport = async (filters: Record<string, any> = {}) => {
@@ -516,8 +524,8 @@ export const getCostsReport = async (filters: Record<string, any> = {}) => {
  * EF*,'* 'DA19: 'DEF*,'* 'D*J DG' E.2HF AJ E.2F 'DA19 E9 (J'F'* 'DH5A) H'DE.2HF 'D-'DJ DCD ECHF
  */
 /**
- * منتجات الفرع للبيع السريع (مع فلترة وترقيم).
- * @param {Record<string, any>} [filters] خيارات الفلترة (search, category_id...)
+ * Ù…Ù†ØªØ¬Ø§Øª Ø§Ù„ÙØ±Ø¹ Ù„Ù„Ø¨ÙŠØ¹ Ø§Ù„Ø³Ø±ÙŠØ¹ (Ù…Ø¹ ÙÙ„ØªØ±Ø© ÙˆØªØ±Ù‚ÙŠÙ…).
+ * @param {Record<string, any>} [filters] Ø®ÙŠØ§Ø±Ø§Øª Ø§Ù„ÙÙ„ØªØ±Ø© (search, category_id...)
  * @returns {Promise<{ rows: any[], total: number }>}
  */
 export const getBranchProducts = async (filters: Record<string, any> = {}) => {
@@ -581,7 +589,7 @@ export const getBranchProducts = async (filters: Record<string, any> = {}) => {
   }));
 };
 
-/** إنشاء تصنيف جديد. */
+/** Ø¥Ù†Ø´Ø§Ø¡ ØªØµÙ†ÙŠÙ Ø¬Ø¯ÙŠØ¯. */
 export const createCategory = async (data: Record<string, any>) => {
   const result = await query(
     `INSERT INTO product_categories (name_ar, slug, parent_id, sort_order) VALUES ($1,$2,$3,$4) RETURNING *`,
@@ -595,7 +603,7 @@ export const createCategory = async (data: Record<string, any>) => {
   return result.rows[0];
 };
 
-/** تحديث تصنيف. */
+/** ØªØ­Ø¯ÙŠØ« ØªØµÙ†ÙŠÙ. */
 export const updateCategory = async (id: number, data: Record<string, any>) => {
   const result = await query(
     `UPDATE product_categories
@@ -607,11 +615,11 @@ export const updateCategory = async (id: number, data: Record<string, any>) => {
      RETURNING *`,
     [data.name_ar, data.slug, data.parent_id, data.sort_order, id],
   );
-  if (!result.rows[0]) throw new AppError('التصنيف غير موجود', 404);
+  if (!result.rows[0]) throw new AppError('Ø§Ù„ØªØµÙ†ÙŠÙ ØºÙŠØ± Ù…ÙˆØ¬ÙˆØ¯', 404);
   return result.rows[0];
 };
 
-/** حذف تصنيف (حذف ناعم). */
+/** Ø­Ø°Ù ØªØµÙ†ÙŠÙ (Ø­Ø°Ù Ù†Ø§Ø¹Ù…). */
 export const deleteCategory = async (id: number) => {
   const client = await getClient();
   try {
@@ -620,11 +628,12 @@ export const deleteCategory = async (id: number) => {
       `SELECT id FROM product_categories WHERE id = $1 AND deleted_at IS NULL`,
       [id],
     );
-    if (!category.rows[0]) throw new AppError('التصنيف غير موجود', 404);
+    if (!category.rows[0]) throw new AppError('Ø§Ù„ØªØµÙ†ÙŠÙ ØºÙŠØ± Ù…ÙˆØ¬ÙˆØ¯', 404);
 
     await client.query(`UPDATE products SET category_id = NULL WHERE category_id = $1`, [id]);
     await client.query(`UPDATE product_categories SET deleted_at = NOW() WHERE id = $1`, [id]);
     await client.query('COMMIT');
+    appCache.invalidateByTag('product_cost');
     return { id };
   } catch (err: any) {
     await client.query('ROLLBACK');
@@ -634,7 +643,7 @@ export const deleteCategory = async (id: number) => {
   }
 };
 
-/** جلب قائمة الوحدات. */
+/** Ø¬Ù„Ø¨ Ù‚Ø§Ø¦Ù…Ø© Ø§Ù„ÙˆØ­Ø¯Ø§Øª. */
 export const getUnits = async () => {
   return (
     await query(
@@ -649,7 +658,7 @@ export const getUnits = async () => {
   ).rows;
 };
 
-/** إنشاء وحدة قياس جديدة. */
+/** Ø¥Ù†Ø´Ø§Ø¡ ÙˆØ­Ø¯Ø© Ù‚ÙŠØ§Ø³ Ø¬Ø¯ÙŠØ¯Ø©. */
 export const createUnit = async (data: Record<string, any>) => {
   const result = await query(
     `INSERT INTO product_units (name_ar, sort_order) VALUES ($1, $2) RETURNING *`,
@@ -658,7 +667,7 @@ export const createUnit = async (data: Record<string, any>) => {
   return result.rows[0];
 };
 
-/** تحديث وحدة قياس. */
+/** ØªØ­Ø¯ÙŠØ« ÙˆØ­Ø¯Ø© Ù‚ÙŠØ§Ø³. */
 export const updateUnit = async (id: number, data: Record<string, any>) => {
   const result = await query(
     `UPDATE product_units
@@ -669,31 +678,31 @@ export const updateUnit = async (id: number, data: Record<string, any>) => {
      RETURNING *`,
     [data.name_ar, data.sort_order, id],
   );
-  if (!result.rows[0]) throw new AppError('الوحدة غير موجودة', 404);
+  if (!result.rows[0]) throw new AppError('Ø§Ù„ÙˆØ­Ø¯Ø© ØºÙŠØ± Ù…ÙˆØ¬ÙˆØ¯Ø©', 404);
   return result.rows[0];
 };
 
-/** حذف وحدة قياس. */
+/** Ø­Ø°Ù ÙˆØ­Ø¯Ø© Ù‚ÙŠØ§Ø³. */
 export const deleteUnit = async (id: number) => {
   const unit = await query(
     `SELECT name_ar FROM product_units WHERE id = $1 AND deleted_at IS NULL`,
     [id],
   );
-  if (!unit.rows[0]) throw new AppError('الوحدة غير موجودة', 404);
+  if (!unit.rows[0]) throw new AppError('Ø§Ù„ÙˆØ­Ø¯Ø© ØºÙŠØ± Ù…ÙˆØ¬ÙˆØ¯Ø©', 404);
   await query(`UPDATE product_units SET deleted_at = NOW() WHERE id = $1`, [id]);
   return { id };
 };
 
 /**
- * تعديل أسعار مجموعة منتجات دفعة واحدة (نسبة أو مبلغ ثابت).
- * @param {Record<string, any>} data بيانات التعديل (category_id, type, adjust_type, value)
- * @param {number} userId معرف المستخدم المنفّذ
+ * ØªØ¹Ø¯ÙŠÙ„ Ø£Ø³Ø¹Ø§Ø± Ù…Ø¬Ù…ÙˆØ¹Ø© Ù…Ù†ØªØ¬Ø§Øª Ø¯ÙØ¹Ø© ÙˆØ§Ø­Ø¯Ø© (Ù†Ø³Ø¨Ø© Ø£Ùˆ Ù…Ø¨Ù„Øº Ø«Ø§Ø¨Øª).
+ * @param {Record<string, any>} data Ø¨ÙŠØ§Ù†Ø§Øª Ø§Ù„ØªØ¹Ø¯ÙŠÙ„ (category_id, type, adjust_type, value)
+ * @param {number} userId Ù…Ø¹Ø±Ù Ø§Ù„Ù…Ø³ØªØ®Ø¯Ù… Ø§Ù„Ù…Ù†ÙÙ‘Ø°
  * @returns {Promise<{ updated: number }>}
  */
 export const bulkAdjustPrices = async (data: Record<string, any>, __userId: number) => {
   const { category_id, type, value, adjust_type } = data; // type: 'sale' | 'purchase', adjust_type: 'percent' | 'fixed'
   const val = Number(value);
-  if (isNaN(val)) throw new AppError('القيمة غير صالحة', 400);
+  if (isNaN(val)) throw new AppError('Ø§Ù„Ù‚ÙŠÙ…Ø© ØºÙŠØ± ØµØ§Ù„Ø­Ø©', 400);
 
   let sql = `UPDATE products SET `;
   const params: any[] = [];
@@ -711,7 +720,7 @@ export const bulkAdjustPrices = async (data: Record<string, any>, __userId: numb
       sql += `purchase_price = ROUND(purchase_price + $1::numeric, 2)`;
     }
   } else {
-    throw new AppError('نوع السعر المراد تعديله غير صالح', 400);
+    throw new AppError('Ù†ÙˆØ¹ Ø§Ù„Ø³Ø¹Ø± Ø§Ù„Ù…Ø±Ø§Ø¯ ØªØ¹Ø¯ÙŠÙ„Ù‡ ØºÙŠØ± ØµØ§Ù„Ø­', 400);
   }
 
   params.push(val);

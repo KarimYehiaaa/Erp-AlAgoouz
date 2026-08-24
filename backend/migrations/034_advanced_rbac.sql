@@ -1,7 +1,6 @@
 -- Migration: Advanced RBAC (034_advanced_rbac.sql)
 
-BEGIN;
-
+-- (المعامل الخارجي يديره مشغل الهجرات)
 -- 1. Update existing roles names to match the new structure (ONLY ARABIC names to avoid trigger errors)
 UPDATE roles SET name_ar = 'مالك', description = 'صلاحيات كاملة وغير قابلة للتعديل' WHERE id = 1;
 UPDATE roles SET name_ar = 'مدير فرع', description = 'إدارة فرع' WHERE id = 2;
@@ -125,4 +124,3 @@ CROSS JOIN permissions p
 WHERE roles.name = 'warehouse'
 AND p.module IN ('inventory', 'products');
 
-COMMIT;

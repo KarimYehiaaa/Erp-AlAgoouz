@@ -36,16 +36,14 @@ export const getCashFlowProjection = async (params: Record<string, any> = {}) =>
   const totalPurchases = Number(purchasesSumRes.rows[0].val);
 
   // نوزع المصاريف العمومية بالتساوي على الفروع/المستودعات لتجنب تشويه الحسابات لفرع واحد
-  let currentCash = totalSales - totalExpenses / warehousesCount - totalPurchases;
-  if (currentCash <= 0) {
-    currentCash = 15000.0;
-  }
+  // الإصلاح: لم نعد نستبدل السيولة السالبة برقم وهمي — نعرضها كما هي حتى تظهر تحذيرات العجز فعلياً
+  const currentCash = totalSales - totalExpenses / warehousesCount - totalPurchases;
+  const startsInsolvent = currentCash <= 0;
 
   // 2. حساب متوسط المبيعات اليومية لكل يوم من أيام الأسبوع لآخر 90 يوماً (الموسمية الأسبوعية)
-  // 90 يوماً تعادل حوالي 13 أسبوعاً
-  const WEEKS_COUNT = 13.0;
+  // نقسم على عدد مرات تكرار كل يوم فعلياً في النافذة بدل ثابت 13 أسبوع
   const salesDensitySql = `
-    SELECT 
+    SELECT
       EXTRACT(DOW FROM sale_date) AS dow,
       COALESCE(SUM(total_amount), 0) AS total_sales
     FROM sales
@@ -56,12 +54,23 @@ export const getCashFlowProjection = async (params: Record<string, any> = {}) =>
   `;
   const salesDensity = (await query(salesDensitySql, [warehouseId])).rows;
 
+  const dowOccurrencesRes = await query(`
+    SELECT EXTRACT(DOW FROM d)::int AS dow, COUNT(*)::numeric AS occ
+    FROM generate_series(CURRENT_DATE - INTERVAL '89 days', CURRENT_DATE, INTERVAL '1 day') d
+    GROUP BY 1
+  `);
+  const dowOccurrenceMap = {};
+  dowOccurrencesRes.rows.forEach((row) => {
+    dowOccurrenceMap[Number(row.dow)] = Math.max(1, Number(row.occ));
+  });
+
   const dowSalesMap = {};
   for (let i = 0; i < 7; i++) {
     dowSalesMap[i] = 0.0;
   }
   salesDensity.forEach((row) => {
-    dowSalesMap[Number(row.dow)] = Number((Number(row.total_sales) / WEEKS_COUNT).toFixed(2));
+    const occ = dowOccurrenceMap[Number(row.dow)] || 13;
+    dowSalesMap[Number(row.dow)] = Number((Number(row.total_sales) / occ).toFixed(2));
   });
 
   // 3. حساب متوسط المصاريف اليومية لآخر 90 يوماً
@@ -85,7 +94,7 @@ export const getCashFlowProjection = async (params: Record<string, any> = {}) =>
   const projectionDays = 30;
   const dailyPoints: any[] = [];
   let cashTracker = currentCash;
-  let runwayDays: number | null = null;
+  let runwayDays: number | null = startsInsolvent ? 0 : null;
   const today = new Date();
 
   const dayNamesAr = {
@@ -129,7 +138,10 @@ export const getCashFlowProjection = async (params: Record<string, any> = {}) =>
     'الوضع المالي مستقر تماماً. الإيرادات المتوقعة تغطي مصاريف التشغيل والمشتريات بنجاح دون أية فجوات نقدية للـ 30 يوماً القادمة.';
   let status = 'healthy'; // healthy, warning, danger
 
-  if (runwayDays !== null) {
+  if (startsInsolvent) {
+    status = 'danger';
+    warningMsg = `تحذير حرج: السيولة الحالية سالبة (${currentCash.toFixed(2)} ج.م). المصاريف والمشتريات التاريخية تتجاوز المبيعات — يلزم تدخل فوري لتحسين التحصيل أو خفض النفقات.`;
+  } else if (runwayDays !== null) {
     status = 'danger';
     warningMsg = `تنبيه عجز نقدي حرج! تشير المحاكاة إلى نفاد السيولة النقدية لديك تماماً بعد ${runwayDays} يوم بسبب زيادة معدلات الإنفاق والمشتريات عن المبيعات. يرجى ترشيد النفقات أو تعزيز المبيعات فوراً لتجنب العجز.`;
   } else if (netChange < 0) {

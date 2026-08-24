@@ -4,6 +4,7 @@ import { getDefaultWarehouseId } from './warehouseService.ts';
 import { parseLocalizedNumber } from '../utils/numberParsing.ts';
 import { invalidateDashboardCache } from './dashboardService.ts';
 import { roundMoney } from '../utils/money.ts';
+import { appCache } from '../utils/cache.ts';
 import { recalculateSupplierBalance } from './supplierService.ts';
 
 /**
@@ -233,6 +234,8 @@ const refreshPurchasePrices = async (client, productIds) => {
   `,
     [uniqueIds],
   );
+  // أسعار الشراء تغيّرت — يجب إبطال كاش التكلفة الفعلية فوراً
+  appCache.invalidateByTag('product_cost');
 };
 
 /**

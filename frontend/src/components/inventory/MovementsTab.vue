@@ -36,7 +36,13 @@
       </div>
     </div>
 
-    <BaseTable :items="items" :columns="columns" empty-message="لا توجد حركات">
+    <BaseTable
+      :items="items"
+      :columns="columns"
+      client-pagination
+      :client-per-page="50"
+      empty-message="لا توجد حركات"
+    >
       <template #cell-product_name="{ item }">
         <div style="display: flex; flex-direction: column">
           <strong style="font-size: 0.9rem">{{ item.product_name }}</strong>

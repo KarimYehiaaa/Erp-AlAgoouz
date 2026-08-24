@@ -19,12 +19,14 @@
     "html2pdf.js": "^0.14.0",
     "jspdf": "^4.2.1",
     "pinia": "^3.0.0",
+    "qrcode": "^1.5.4",
     "vue": "^3.5.6",
     "vue-chartjs": "^5.3.1",
     "vue-router": "^4.4.5"
   },
   "devDependencies": {
     "@tsconfig/node22": "^22.0.5",
+    "@types/qrcode": "^1.5.6",
     "@types/w3c-web-usb": "^1.0.14",
     "@vitejs/plugin-vue": "^6.0.0",
     "@vue/test-utils": "^2.4.11",

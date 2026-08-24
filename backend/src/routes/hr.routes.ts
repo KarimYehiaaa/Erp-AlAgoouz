@@ -84,7 +84,7 @@ router.get('/hr/payroll/:id', authenticate, authorize('hr.view'), api.hr.getPayr
 router.post(
   '/hr/payroll/:id/pay',
   authenticate,
-  authorize('hr.add'),
+  authorize('hr.pay'),
   validateBody(payrollPaySchema),
   api.hr.payPayroll,
 );
@@ -154,6 +154,8 @@ router.post(
   api.users.updateRolePermissions,
 );
 router.get('/notifications', authenticate, api.users.notifications);
+router.patch('/notifications/read-all', authenticate, api.users.markAllNotificationsRead);
+router.patch('/notifications/:id/read', authenticate, api.users.markNotificationRead);
 router.get('/settings', authenticate, authorize('settings.view'), api.users.settings);
 router.put(
   '/settings/:key',

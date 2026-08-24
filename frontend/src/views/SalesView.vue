@@ -173,6 +173,7 @@ import ExcelGuide from '@/components/sales/ExcelGuide.vue';
 import SalesDangerActions from '@/components/sales/SalesDangerActions.vue';
 import { sales as salesApi, customers as customersApi } from '@/api';
 import { formatMoney } from '@/utils/currency';
+import { resolveStatusMeta } from '@/utils/statusMeta';
 
 const route = useRoute();
 const router = useRouter();
@@ -285,10 +286,13 @@ const remainingAmount = computed(() => {
   return Math.max(0, total - paid);
 });
 
-const periodTotal = computed(() =>
-  sales.value
-    .filter((s: any) => s.status === 'completed')
-    .reduce((sum: any, s: any) => sum + parseFloat(s.total_amount || 0), 0),
+const periodTotal = computed(
+  () =>
+    Math.round(
+      sales.value
+        .filter((s: any) => s.status === 'completed')
+        .reduce((sum: any, s: any) => sum + parseFloat(s.total_amount || 0), 0) * 100,
+    ) / 100,
 );
 const completedSales = computed(() => sales.value.filter((s: any) => s.status === 'completed'));
 const isOpenPayment = (sale: any) => ['partial', 'unpaid'].includes(sale?.payment_status);
@@ -371,16 +375,8 @@ const paymentStatusLabel = (s: any) =>
   )[s] ||
   s ||
   '—';
-const paymentBadge = (s: any) => [
-  'badge',
-  s === 'paid'
-    ? 'badge-success'
-    : s === 'unpaid'
-      ? 'badge-danger'
-      : s === 'partial'
-        ? 'badge-warning'
-        : 'badge-danger',
-];
+// بادج حالة السداد — مُدار من المصدر الموحد statusMeta
+const paymentBadge = (s: any) => [`badge`, `badge-${resolveStatusMeta('payment', s).tone}`];
 
 const switchTab = (tab: any) => {
   activeTab.value = tab;

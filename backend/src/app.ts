@@ -46,7 +46,9 @@ try {
 const app = express();
 
 initSentry(app);
-app.set('trust proxy', 1);
+// ثقة البروكسي مشروطة: خلف Vercel فقط افتراضياً — التشغيل المباشر يعرض req.ip الحقيقي
+// ويمنع تزوير X-Forwarded-For لتجاوز rate-limit
+app.set('trust proxy', config.trustProxy);
 app.use(requestId);
 app.use(
   helmet({
@@ -79,8 +81,11 @@ app.use(
         return callback(null, true);
       }
 
-      // 2. نطاقات Vercel السحابية (الإنتاجية ومعاينات الفروع)
-      if (origin.endsWith('.vercel.app') || origin === 'https://agoouz.vercel.app') {
+      // 2. نطاقات Vercel — النطاق الرئيسي فقط افتراضياً؛ معاينات الفروع عبر CORS_ALLOW_VERCEL_PREVIEWS
+      if (
+        origin === 'https://agoouz.vercel.app' ||
+        (config.corsAllowVercelPreviews && origin.endsWith('.vercel.app'))
+      ) {
         return callback(null, true);
       }
 

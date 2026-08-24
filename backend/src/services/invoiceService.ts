@@ -302,16 +302,27 @@ const createInvoice = async (data: Record<string, any>, userId: number) => {
 
     // Auto-create linked Wholesale Sale record for all invoices created in invoices section
     {
+      // إصلاح N+1: جلب أسعار شراء جميع المنتجات دفعة واحدة بدلاً من query لكل بند
+      const productIds = [...new Set(parsedItems.map((it) => Number(it.product_id)))];
+      const purchasePriceMap = new Map();
+      if (productIds.length > 0) {
+        const pricesRes = await client.query(
+          `SELECT id, purchase_price FROM products WHERE id = ANY($1::int[])`,
+          [productIds],
+        );
+        for (const row of pricesRes.rows) {
+          purchasePriceMap.set(Number(row.id), Number(row.purchase_price || 0));
+        }
+      }
+
       let costAmount = 0;
       for (const item of parsedItems) {
-        const prodRes = await client.query(`SELECT purchase_price FROM products WHERE id = $1`, [
-          item.product_id,
-        ]);
-        const costPrice = Number(prodRes.rows[0]?.purchase_price || 0);
-        costAmount += Number(item.quantity) * costPrice;
+        const costPrice = purchasePriceMap.get(Number(item.product_id)) ?? 0;
+        costAmount = roundMoney(costAmount + Number(item.quantity) * costPrice);
       }
-      const profitAmount = totalAmount - costAmount;
+      const profitAmount = roundMoney(totalAmount - costAmount);
       const whId = data.warehouse_id ? Number(data.warehouse_id) : await getDefaultWarehouseId();
+      if (!userId) throw new AppError('معرف المستخدم مطلوب لإنشاء الفاتورة', 400);
 
       const saleRes = await client.query(
         `INSERT INTO sales (
@@ -325,7 +336,7 @@ const createInvoice = async (data: Record<string, any>, userId: number) => {
           data.issued_at || new Date(),
           data.customer_id || null,
           whId,
-          userId || 1,
+          userId,
           subtotal,
           discountAmount,
           totalAmount,
@@ -338,10 +349,7 @@ const createInvoice = async (data: Record<string, any>, userId: number) => {
       const createdSaleId = saleRes.rows[0].id;
 
       for (const item of parsedItems) {
-        const prodRes = await client.query(`SELECT purchase_price FROM products WHERE id = $1`, [
-          item.product_id,
-        ]);
-        const costPrice = Number(prodRes.rows[0]?.purchase_price || 0);
+        const costPrice = purchasePriceMap.get(Number(item.product_id)) ?? 0;
         await client.query(
           `INSERT INTO sale_items (sale_id, product_id, quantity, unit_price, cost_price, discount_amount, tax_amount, total_amount)
            VALUES ($1, $2, $3, $4, $5, $6, 0, $7)`,
@@ -464,15 +472,25 @@ const updateInvoice = async (id: number, data: Record<string, any>, userId: numb
     await deductInvoiceInventory(client, invoice.id, parsedItems, userId, invoice.invoice_number);
 
     if (invoice.sale_id) {
+      // إصلاح N+1: جلب أسعار شراء جميع المنتجات دفعة واحدة بدلاً من query لكل بند
+      const productIds = [...new Set(parsedItems.map((it) => Number(it.product_id)))];
+      const purchasePriceMap = new Map();
+      if (productIds.length > 0) {
+        const pricesRes = await client.query(
+          `SELECT id, purchase_price FROM products WHERE id = ANY($1::int[])`,
+          [productIds],
+        );
+        for (const row of pricesRes.rows) {
+          purchasePriceMap.set(Number(row.id), Number(row.purchase_price || 0));
+        }
+      }
+
       let costAmount = 0;
       for (const item of parsedItems) {
-        const prodRes = await client.query(`SELECT purchase_price FROM products WHERE id = $1`, [
-          item.product_id,
-        ]);
-        const costPrice = Number(prodRes.rows[0]?.purchase_price || 0);
-        costAmount += Number(item.quantity) * costPrice;
+        const costPrice = purchasePriceMap.get(Number(item.product_id)) ?? 0;
+        costAmount = roundMoney(costAmount + Number(item.quantity) * costPrice);
       }
-      const profitAmount = totalAmount - costAmount;
+      const profitAmount = roundMoney(totalAmount - costAmount);
       await client.query(
         `UPDATE sales SET
           customer_id = $1,
@@ -497,10 +515,7 @@ const updateInvoice = async (id: number, data: Record<string, any>, userId: numb
       );
       await client.query(`DELETE FROM sale_items WHERE sale_id = $1`, [invoice.sale_id]);
       for (const item of parsedItems) {
-        const prodRes = await client.query(`SELECT purchase_price FROM products WHERE id = $1`, [
-          item.product_id,
-        ]);
-        const costPrice = Number(prodRes.rows[0]?.purchase_price || 0);
+        const costPrice = purchasePriceMap.get(Number(item.product_id)) ?? 0;
         await client.query(
           `INSERT INTO sale_items (sale_id, product_id, quantity, unit_price, cost_price, discount_amount, tax_amount, total_amount)
            VALUES ($1, $2, $3, $4, $5, $6, 0, $7)`,
@@ -615,25 +630,39 @@ const deleteInvoice = async (id: number, userId: number | null = null) => {
 const syncStandaloneInvoicesToWholesaleSales = async () => {
   const client = await getClient();
   try {
+    // LIMIT 200: منع تراكم backlog غير محدود من إبطاء بدء التشغيل — يُكمل في الدورة التالية
     const unlinkedInvoices = await client.query(
       `SELECT i.* FROM invoices i
-       WHERE i.sale_id IS NULL AND i.deleted_at IS NULL`,
+       WHERE i.sale_id IS NULL AND i.deleted_at IS NULL
+       ORDER BY i.id
+       LIMIT 200`,
     );
     for (const inv of unlinkedInvoices.rows) {
       const itemsRes = await client.query(`SELECT * FROM invoice_items WHERE invoice_id = $1`, [
         inv.id,
       ]);
       const items = itemsRes.rows;
+
+      // إصلاح N+1: جلب أسعار شراء جميع المنتجات دفعة واحدة بدلاً من query لكل بند
+      const productIds = [...new Set(items.map((it) => Number(it.product_id)))];
+      const purchasePriceMap = new Map();
+      if (productIds.length > 0) {
+        const pricesRes = await client.query(
+          `SELECT id, purchase_price FROM products WHERE id = ANY($1::int[])`,
+          [productIds],
+        );
+        for (const row of pricesRes.rows) {
+          purchasePriceMap.set(Number(row.id), Number(row.purchase_price || 0));
+        }
+      }
+
       let costAmount = 0;
       for (const it of items) {
-        const pRes = await client.query(`SELECT purchase_price FROM products WHERE id = $1`, [
-          it.product_id,
-        ]);
-        const cost = Number(pRes.rows[0]?.purchase_price || 0);
-        costAmount += Number(it.quantity) * cost;
+        const cost = purchasePriceMap.get(Number(it.product_id)) ?? 0;
+        costAmount = roundMoney(costAmount + Number(it.quantity) * cost);
       }
       const totalAmount = Number(inv.total_amount || 0);
-      const profitAmount = totalAmount - costAmount;
+      const profitAmount = roundMoney(totalAmount - costAmount);
       const whId = await getDefaultWarehouseId(client);
 
       const saleRes = await client.query(
@@ -661,10 +690,7 @@ const syncStandaloneInvoicesToWholesaleSales = async () => {
       const saleId = saleRes.rows[0].id;
 
       for (const it of items) {
-        const pRes = await client.query(`SELECT purchase_price FROM products WHERE id = $1`, [
-          it.product_id,
-        ]);
-        const cost = Number(pRes.rows[0]?.purchase_price || 0);
+        const cost = purchasePriceMap.get(Number(it.product_id)) ?? 0;
         await client.query(
           `INSERT INTO sale_items (sale_id, product_id, quantity, unit_price, cost_price, discount_amount, tax_amount, total_amount)
            VALUES ($1, $2, $3, $4, $5, $6, 0, $7)`,

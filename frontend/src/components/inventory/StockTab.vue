@@ -32,6 +32,8 @@
     :items="items"
     :columns="stockColumns"
     :loading="loading"
+    client-pagination
+    :client-per-page="50"
     empty-message="لا توجد بيانات مخزون"
     :row-class="(i: any) => [{ 'row-low': i.is_low }, { 'row-highlight': isHighlighted(i) }]"
   >

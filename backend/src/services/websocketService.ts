@@ -11,7 +11,8 @@ const clients = new Set<import('ws').WebSocket>();
  */
 export const initWebSocket = (server: import('http').Server) => {
   if (process.env.VERCEL) return;
-  const wss = new WebSocketServer({ server });
+  // مسار مخصص /ws لتفادي تعارض ترقيات الاتصال مع Vite HMR ووكلاء التطوير
+  const wss = new WebSocketServer({ server, path: '/ws' });
 
   wss.on('connection', (ws, req) => {
     try {

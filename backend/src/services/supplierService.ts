@@ -197,7 +197,7 @@ export const recalculateSupplierBalance = async (
 /**
  * تسجيل دفعة لمورد وتحديث رصيده.
  * @param {number} supplierId معرف المورد
- * @param {{ amount: number, payment_date?: string, notes?: string, method?: string }} data بيانات الدفعة
+ * @param {{ amount: number, payment_method?: string, notes?: string }} data بيانات الدفعة
  * @param {number} [userId] معرف المستخدم المنفذ
  * @returns {Promise<Record<string, any>>} الدفعة المسجلة
  */

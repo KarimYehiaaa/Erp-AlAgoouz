@@ -11,14 +11,16 @@
       @drop="onDrop($event, index)"
       title="اسحب البطاقة لتغيير الترتيب"
     >
-      <RouterLink class="metric-card circular-card hover-lift" :class="metric.tone" :to="metric.to">
+      <RouterLink
+        v-spotlight
+        class="metric-card circular-card hover-lift"
+        :class="metric.tone"
+        :to="metric.to"
+      >
         <span class="metric-icon"><AppIcon :name="metric.icon" :size="18" /></span>
         <span class="metric-label">
           {{ metric.label }}
-          <span
-            v-if="metric.estimate"
-            class="estimate-pill"
-            :title="metric.estimateNote"
+          <span v-if="metric.estimate" class="estimate-pill" :title="metric.estimateNote"
             >≈ تقديري</span
           >
         </span>
@@ -43,7 +45,6 @@ import { useAuthStore } from '@/stores/auth';
 import { formatMoney, abbreviateNumber, formatPercent } from '@/utils/formatters';
 import AnimatedNumber from '@/components/ui/AnimatedNumber.vue';
 import Sparkline from '@/components/ui/Sparkline.vue';
-
 const props = defineProps({
   stats: { type: Object, required: true },
 });

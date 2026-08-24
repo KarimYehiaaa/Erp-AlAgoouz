@@ -28,13 +28,13 @@ export async function getGoogleDriveAccessToken(serviceAccountJson: string | Rec
     keyData =
       typeof serviceAccountJson === 'string' ? JSON.parse(serviceAccountJson) : serviceAccountJson;
   } catch (err: any) {
-    throw new Error('فشل تحليل رمز JSON لحساب الخدمة Google: ' + err.message, { cause: err });
+    throw new AppError('فشل تحليل رمز JSON لحساب الخدمة Google: ' + err.message, 400);
   }
 
   const clientEmail = keyData.client_email;
   const privateKey = keyData.private_key;
   if (!clientEmail || !privateKey) {
-    throw new Error('رمز حساب الخدمة غير مكتمل. تأكد من وجود client_email و private_key');
+    throw new AppError('رمز حساب الخدمة غير مكتمل. تأكد من وجود client_email و private_key', 400);
   }
 
   const header = { alg: 'RS256', typ: 'JWT' };
@@ -70,8 +70,9 @@ export async function getGoogleDriveAccessToken(serviceAccountJson: string | Rec
 
   if (!response.ok) {
     const errText = await response.text();
-    throw new Error(
+    throw new AppError(
       `فشل الحصول على Access Token من Google: ${response.statusText}. التفاصيل: ${errText}`,
+      400,
     );
   }
 
@@ -105,8 +106,9 @@ export async function getGoogleDriveAccessTokenViaOAuth(
 
   if (!response.ok) {
     const errText = await response.text();
-    throw new Error(
+    throw new AppError(
       `فشل تجديد Access Token لـ Google OAuth2: ${response.statusText}. التفاصيل: ${errText}`,
+      400,
     );
   }
 
@@ -237,8 +239,9 @@ export const uploadBackupToCloud = async (
           403,
         );
       }
-      throw new Error(
+      throw new AppError(
         `فشل رفع الملف إلى Google Drive: ${response.statusText}. التفاصيل: ${errText}`,
+        400,
       );
     }
 
@@ -275,7 +278,7 @@ export const uploadBackupToCloud = async (
 
     if (!response.ok) {
       const errText = await response.text();
-      throw new Error(`Dropbox upload failed: ${response.statusText}. Details: ${errText}`);
+      throw new AppError(`Dropbox upload failed: ${response.statusText}. Details: ${errText}`, 400);
     }
 
     const data = await response.json();
@@ -325,7 +328,7 @@ export const uploadBackupToCloud = async (
 
     if (!response.ok) {
       const errText = await response.text();
-      throw new Error(`Webhook upload failed: ${response.statusText}. Details: ${errText}`);
+      throw new AppError(`Webhook upload failed: ${response.statusText}. Details: ${errText}`, 400);
     }
 
     return { success: true, provider: 'webhook' };

@@ -3,6 +3,7 @@
  * Cleaned version with explicit headers and strict parsing.
  */
 import XLSX from 'xlsx';
+import { AppError } from '../types/errors.ts';
 import { query } from '../database/pool.ts';
 import { createDailySale } from './salesService.ts';
 import { getDefaultWarehouseId } from './warehouseService.ts';
@@ -223,16 +224,16 @@ export const buildBranchTemplate = async (warehouseId?: number) => {
 
 const parseRow = (row, indices) => {
   const saleDate = parseDate(indices.sale_date >= 0 ? row[indices.sale_date] : null);
-  if (!saleDate) throw new Error('تاريخ البيع غير صالح');
+  if (!saleDate) throw new AppError('تاريخ البيع غير صالح', 400);
 
   const sku = String(indices.sku >= 0 ? row[indices.sku] : '').trim();
-  if (!sku) throw new Error('SKU غير موجود');
+  if (!sku) throw new AppError('SKU غير موجود', 400);
 
   const qty = toNumber(indices.quantity >= 0 ? row[indices.quantity] : null, 0);
-  if (qty <= 0) throw new Error('الكمية يجب أن تكون أكبر من صفر');
+  if (qty <= 0) throw new AppError('الكمية يجب أن تكون أكبر من صفر', 400);
 
   const unitPrice = toNumber(indices.unit_price >= 0 ? row[indices.unit_price] : null, 0);
-  if (unitPrice <= 0) throw new Error('سعر البيع غير صالح');
+  if (unitPrice <= 0) throw new AppError('سعر البيع غير صالح', 400);
 
   return {
     sale_date: saleDate,
@@ -258,10 +259,10 @@ export const parseBranchSalesExcel = async (buffer: Buffer, warehouseId?: number
   const wb = readSafeWorkbook(buffer, { cellDates: true });
   const sheet = wb.Sheets[wb.SheetNames[0]];
   const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' }) as any[][];
-  if (rows.length < 2) throw new Error('ملف مبيعات الفرع فارغ');
+  if (rows.length < 2) throw new AppError('ملف مبيعات الفرع فارغ', 400);
 
   const headerRowIdx = resolveHeaderRow(rows);
-  if (headerRowIdx === -1) throw new Error('لم يتم العثور على صف العناوين');
+  if (headerRowIdx === -1) throw new AppError('لم يتم العثور على صف العناوين', 400);
 
   const headers = (rows[headerRowIdx] || []).map((h) => normalizeText(h));
   const indices = {
@@ -281,7 +282,7 @@ export const parseBranchSalesExcel = async (buffer: Buffer, warehouseId?: number
     indices.unit_price === -1 ||
     indices.quantity === -1
   ) {
-    throw new Error('الأعمدة الأساسية غير مكتملة');
+    throw new AppError('الأعمدة الأساسية غير مكتملة', 400);
   }
 
   const products = await fetchBranchProducts(warehouseId);

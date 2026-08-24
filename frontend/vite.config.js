@@ -48,6 +48,8 @@ export default defineConfig({
     proxy: {
       '/api': { target: 'http://localhost:3000', changeOrigin: true },
       '/assets': { target: 'http://localhost:3000', changeOrigin: true },
+      // WebSocket للمزامنة اللحظية — مسار مخصص /ws (بدون هذا لا يصل اتصال الـ ws للخادم في التطوير)
+      '/ws': { target: 'ws://localhost:3000', ws: true },
     },
   },
   preview: {

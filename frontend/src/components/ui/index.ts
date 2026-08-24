@@ -1,13 +1,10 @@
 /**
- * UI Component Library — بن العجوز ERP
+ * UI Component Library — مكونات واجهة بن العجوز ERP
  *
- * استخدام مركزي لاستيراد مكونات الـ UI
- *
- * import { BaseTable, BaseModal, ConfirmDialog } from '@/components/ui'
+ * المكونات الأساسية المشتركة عبر الشاشات.
+ * ملاحظة: الاستيراد في المشروع يتم مباشرة من مسار الملف (مثل '@/components/ui/BaseTable.vue')
  */
 export { default as BaseTable } from './BaseTable.vue';
 export { default as BaseModal } from './BaseModal.vue';
-export { default as ConfirmDialog } from './ConfirmDialog.vue';
 export { default as DataEmptyState } from './DataEmptyState.vue';
-export { default as PageHeader } from './PageHeader.vue';
 export { default as ToastContainer } from './ToastContainer.vue';

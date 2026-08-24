@@ -48,6 +48,11 @@
           <span>{{ isSaving ? 'جاري الحفظ...' : 'حفظ المنيو' }}</span>
         </button>
 
+        <button type="button" class="btn btn-outline" @click="openDigitalMenu">
+          <AppIcon name="coffee" :size="16" />
+          <span>المنيو الرقمي (QR) 📲</span>
+        </button>
+
         <button
           v-if="activeMainTab === 'preview'"
           type="button"
@@ -495,16 +500,76 @@
                   />
                 </div>
               </div>
-              <div
-                class="custom-toggle-row mt-3"
-                @click="menuForm.show_qr_code = !menuForm.show_qr_code"
-              >
-                <div class="toggle-track" :class="{ 'is-on': menuForm.show_qr_code }">
-                  <div class="toggle-knob"></div>
+
+              <!-- بطاقة إدارة وتوليد الـ QR Code الفاخرة للمنيو الرقمي -->
+              <div class="qr-management-card mt-4">
+                <div class="qr-mgmt-header">
+                  <div class="qr-mgmt-title">
+                    <span class="qr-mgmt-icon">📲</span>
+                    <div>
+                      <h4 class="font-bold text-sm text-gold">
+                        المنيو الرقمي ورمز الاستجابة السريعة (QR Code)
+                      </h4>
+                      <p class="text-xs text-muted">
+                        امسح الرمز بكاميرا الهاتف لفتح المنيو التفاعلي وطلب الأوردر
+                      </p>
+                    </div>
+                  </div>
+                  <div
+                    class="custom-toggle-row"
+                    @click="menuForm.show_qr_code = !menuForm.show_qr_code"
+                  >
+                    <div class="toggle-track" :class="{ 'is-on': menuForm.show_qr_code }">
+                      <div class="toggle-knob"></div>
+                    </div>
+                    <span class="toggle-text font-bold text-xs">إظهار في الـ PDF</span>
+                  </div>
                 </div>
-                <span class="toggle-text font-bold text-xs"
-                  >إظهار رمز الـ QR Code في تذييل المنيو</span
-                >
+
+                <div class="qr-mgmt-body">
+                  <div class="qr-display-box">
+                    <img
+                      v-if="builderQrDataUrl"
+                      :src="builderQrDataUrl"
+                      class="builder-qr-img"
+                      alt="QR Code"
+                    />
+                    <div v-else class="qr-skeleton">جاري التوليد...</div>
+                  </div>
+
+                  <div class="qr-details-col">
+                    <div class="qr-url-row">
+                      <label class="text-xs font-bold text-muted"
+                        >الرابط المباشر للمنيو الرقمي:</label
+                      >
+                      <div class="qr-input-group">
+                        <input
+                          :value="publicMenuUrl"
+                          type="text"
+                          readonly
+                          class="form-input qr-url-input"
+                        />
+                        <button type="button" class="btn btn-secondary btn-sm" @click="copyMenuUrl">
+                          {{ isCopiedUrl ? 'تم النسخ! ✅' : 'نسخ الرابط' }}
+                        </button>
+                        <button
+                          type="button"
+                          class="btn btn-primary btn-sm"
+                          @click="openDigitalMenu"
+                        >
+                          فتح المنيو ↗️
+                        </button>
+                      </div>
+                    </div>
+
+                    <div class="qr-actions-row mt-3">
+                      <button type="button" class="btn btn-add btn-sm" @click="downloadBuilderQr">
+                        <AppIcon name="download" :size="14" />
+                        <span>تحميل الـ QR كصورة عالية الدقة (PNG) لاستاند الطاولات</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -661,9 +726,10 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue';
-import { menu as menuApi } from '@/api';
+import { menu as menuApi, products as productsApi } from '@/api';
 import AppIcon from '@/components/AppIcon.vue';
 import MenuPageLayout from '@/components/menu/MenuPageLayout.vue';
+import { generateQrDataUrl, downloadQrImage } from '@/utils/qrCode';
 
 const activeMainTab = ref<'builder' | 'preview'>('builder');
 const activeSubTab = ref<'content' | 'branding'>('content');
@@ -675,8 +741,52 @@ const selectedTargetCatIdx = ref(0);
 const productsSearch = ref('');
 const availableProducts = ref<any[]>([]);
 
+const builderQrDataUrl = ref('');
+const isCopiedUrl = ref(false);
+
 const feedbackMessage = ref('');
 const feedbackType = ref<'success' | 'error'>('success');
+
+const publicMenuUrl = computed(() => {
+  return typeof window !== 'undefined' ? `${window.location.origin}/menu` : '/menu';
+});
+
+const generateBuilderQr = async () => {
+  try {
+    builderQrDataUrl.value = await generateQrDataUrl(publicMenuUrl.value, {
+      width: 400,
+      margin: 2,
+      darkColor: '#1b120c',
+      lightColor: '#ffffff',
+    });
+  } catch (err) {
+    console.error('Error generating builder QR:', err);
+  }
+};
+
+const openDigitalMenu = () => {
+  window.open(publicMenuUrl.value, '_blank');
+};
+
+const copyMenuUrl = async () => {
+  try {
+    await navigator.clipboard.writeText(publicMenuUrl.value);
+    isCopiedUrl.value = true;
+    showFeedback('تم نسخ رابط المنيو بنجاح! 📋');
+    setTimeout(() => {
+      isCopiedUrl.value = false;
+    }, 2500);
+  } catch {
+    showFeedback('تعذر نسخ الرابط تلقائياً', 'error');
+  }
+};
+
+const downloadBuilderQr = () => {
+  if (builderQrDataUrl.value) {
+    downloadQrImage(builderQrDataUrl.value, 'bin-alagoouz-menu-qr.png');
+    showFeedback('تم تحميل صورة الـ QR Code بنجاح! 📥');
+  }
+};
 
 const menuForm = reactive({
   id: undefined as number | undefined,
@@ -702,6 +812,7 @@ onMounted(async () => {
   } catch {
     initDefaultCategories();
   }
+  generateBuilderQr();
 });
 
 const initDefaultCategories = () => {
@@ -940,7 +1051,7 @@ const handleExportPdf = async () => {
 
     await html2pdf().set(opt).from(exportNode).save();
     showFeedback('تم تصدير ملف الـ PDF بنجاح! 📥');
-  } catch (err) {
+  } catch (_err) {
     showFeedback('حدث خطأ أثناء تصدير الـ PDF', 'error');
   } finally {
     isExportingPdf.value = false;
@@ -962,8 +1073,7 @@ const openProductsModal = async () => {
   showProductsModal.value = true;
   if (!availableProducts.value.length) {
     try {
-      const res = await fetch('/api/v1/products?limit=100');
-      const data = await res.json();
+      const data: any = await productsApi.list({ limit: 100 });
       if (data.data?.products) {
         availableProducts.value = data.data.products;
       }
@@ -1907,5 +2017,87 @@ const addProductToMenu = (prod: any) => {
   background: #fee2e2;
   color: var(--danger);
   border: 1px solid #fecaca;
+}
+
+/* ─── بطاقة إدارة الـ QR Code ─── */
+.qr-management-card {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  box-shadow: var(--shadow-sm);
+}
+
+.qr-mgmt-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-3);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px dashed var(--border);
+}
+
+.qr-mgmt-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.qr-mgmt-icon {
+  font-size: 1.5rem;
+}
+
+.qr-mgmt-body {
+  display: flex;
+  gap: var(--space-4);
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.qr-display-box {
+  width: 140px;
+  height: 140px;
+  background: #ffffff;
+  padding: 8px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.builder-qr-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.qr-skeleton {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.qr-details-col {
+  flex: 1;
+  min-width: 250px;
+}
+
+.qr-input-group {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: 4px;
+}
+
+.qr-url-input {
+  direction: ltr;
+  font-family: monospace;
+  font-size: 0.85rem;
+  background: var(--surface);
+}
+
+.text-gold {
+  color: #b07d4b;
 }
 </style>

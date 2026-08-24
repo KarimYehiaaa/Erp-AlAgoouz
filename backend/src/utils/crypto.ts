@@ -2,8 +2,13 @@ import crypto from 'crypto';
 
 const ALGORITHM = 'aes-256-gcm';
 
-// Safe fallback for BACKUP_ENCRYPTION_KEY to ensure serverless boot
-const backupKeySecret = process.env.BACKUP_ENCRYPTION_KEY || 'agoouz_default_backup_key_2026';
+// مفتاح التشفير مطلوب من متغيرات البيئة — لا يوجد سر افتراضي مضمن
+const backupKeySecret = process.env.BACKUP_ENCRYPTION_KEY?.trim();
+if (!backupKeySecret) {
+  throw new Error(
+    '❌ BACKUP_ENCRYPTION_KEY غير موجود في متغيرات البيئة — لا يمكن تشفير النسخ الاحتياطية بدون مفتاح آمن',
+  );
+}
 
 // Derives a 32-byte key from the environment secret
 const ENCRYPTION_KEY = crypto.scryptSync(
@@ -38,7 +43,7 @@ export const decrypt = (text) => {
 
   // Support legacy CBC format (iv:ciphertext) or new GCM format (iv:authTag:ciphertext)
   if (textParts.length === 2) {
-    // Fallback to AES-256-CBC for older backups
+    // Fallback to AES-256-CBC for older backups (legacy key kept ONLY for decrypting old files)
     const legacyAlgorithm = 'aes-256-cbc';
     const legacyKey = crypto.scryptSync(
       process.env.BACKUP_ENCRYPTION_KEY || 'bin_al_ajouz_erp_secret_salt_2026',

@@ -5,9 +5,9 @@
  * مع استخدام Exponential Backoff و Idempotency Keys، وحجر الفواتير
  * التالفة تلقائياً لمنع انسداد طابور المزامنة.
  */
-import { localDb, type LocalOfflineSale } from './localDb.ts';
-import { executeWithRetry } from '../utils/retryPolicy.ts';
-import { sales } from '../api/sales.api.ts';
+import { localDb, type LocalOfflineSale } from './localDb';
+import { executeWithRetry } from '../utils/retryPolicy';
+import { sales } from '../api/sales.api';
 
 export class OutboxService {
   private static isSyncing = false;
@@ -19,10 +19,18 @@ export class OutboxService {
     syncedCount: number;
     failedCount: number;
     remainingCount: number;
+    quarantinedCount: number;
   }> {
+    const current = await localDb.getOfflineSales();
+    const pendingNow = current.filter((s) => s.sync_status !== 'QUARANTINED').length;
+    const quarantinedNow = current.length - pendingNow;
     if (this.isSyncing || !navigator.onLine) {
-      const current = await localDb.getOfflineSales();
-      return { syncedCount: 0, failedCount: 0, remainingCount: current.length };
+      return {
+        syncedCount: 0,
+        failedCount: 0,
+        remainingCount: pendingNow,
+        quarantinedCount: quarantinedNow,
+      };
     }
 
     this.isSyncing = true;
@@ -117,10 +125,12 @@ export class OutboxService {
     }
 
     const remaining = await localDb.getOfflineSales();
+    const pending = remaining.filter((s) => s.sync_status !== 'QUARANTINED');
     return {
       syncedCount,
       failedCount,
-      remainingCount: remaining.length,
+      remainingCount: pending.length,
+      quarantinedCount: remaining.length - pending.length,
     };
   }
 }

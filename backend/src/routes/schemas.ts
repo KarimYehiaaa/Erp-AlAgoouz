@@ -118,7 +118,11 @@ const bulkPriceAdjustSchema = z
     category_id: optionalPositiveId,
     type: z.enum(['sale', 'purchase']),
     adjust_type: z.enum(['percent', 'fixed']),
-    value: z.coerce.number().finite(),
+    value: z.coerce
+      .number()
+      .finite()
+      .min(-100, 'النسبة/القيمة لا يمكن أن تكون أقل من -100')
+      .max(10_000_000, 'القيمة أكبر من الحد المسموح'),
   })
   .strip();
 const productWarehouseSchema = z
@@ -214,6 +218,7 @@ const saleItemSchema = z
   .strip();
 const saleSchema = z
   .object({
+    sync_id: z.string().uuid().optional(),
     sale_type: z.enum(['branch', 'wholesale', 'pos']),
     sale_date: optionalDateText,
     customer_id: optionalPositiveId,
@@ -402,11 +407,12 @@ const updateRoleSchema = z
     description: z.string().trim().max(500).optional(),
   })
   .strip();
+const timeText = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'الوقت يجب أن يكون بصيغة HH:MM');
 const shiftSchema = z
   .object({
     name_ar: shortText(255),
-    start_time: shortText(20).optional(),
-    end_time: shortText(20).optional(),
+    start_time: timeText.optional(),
+    end_time: timeText.optional(),
     required_hours: positiveNumber.optional(),
     grace_minutes: z.coerce.number().int().min(0).optional(),
     overtime_enabled: optionalBool,

@@ -605,6 +605,26 @@ onMounted(async () => {
   text-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
   line-height: 1.1;
   letter-spacing: -1px;
+
+  /* كشف الخط بالسحب: يظهر الاسم كأنه يُكتب بالحبر من اليمين لليسار */
+  clip-path: inset(0 0 0 0);
+  animation: calligraphy-reveal 1.4s cubic-bezier(0.65, 0, 0.35, 1) both;
+}
+
+@keyframes calligraphy-reveal {
+  from {
+    clip-path: inset(0 100% 0 0);
+    filter: blur(6px);
+    opacity: 0.4;
+  }
+  60% {
+    filter: blur(2px);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+    filter: blur(0);
+    opacity: 1;
+  }
 }
 
 /* Typing Tagline */

@@ -74,6 +74,8 @@
           :items="products"
           :columns="productsColumns"
           :loading="loading"
+          client-pagination
+          :client-per-page="50"
           empty-message="لا توجد منتجات مسجلة"
         >
           <template #cell-name="{ item }">

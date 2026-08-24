@@ -1,13 +1,37 @@
 import logger from './loggerService.ts';
+import { query } from '../database/pool.ts';
 
 /**
- * إرسال تنبيه (سجل داخلي + Webhook اختياري).
+ * حفظ التنبيه في جدول notifications (user_id NULL = عام لكل المستخدمين).
+ * لا يُرمي خطأ أبداً حتى لا يكسر تدفق التنبيهات الخارجية.
+ */
+const persistNotification = async (
+  subject: string,
+  message: string,
+  type: string,
+): Promise<void> => {
+  try {
+    await query(
+      `INSERT INTO notifications (user_id, type, title_ar, message_ar)
+       VALUES (NULL, $1, $2, $3)`,
+      [type === 'error' ? 'danger' : type, String(subject).slice(0, 200), message],
+    );
+  } catch (err: any) {
+    logger.warn('⚠️ [Notifications] فشل حفظ التنبيه في قاعدة البيانات: %s', err.message);
+  }
+};
+
+/**
+ * إرسال تنبيه (حفظ في قاعدة البيانات + Webhook اختياري).
  * @param {string} subject عنوان التنبيه
  * @param {string} message نص التنبيه
  * @param {'info'|'warning'|'danger'} [type] نوع التنبيه
  * @returns {Promise<void>}
  */
 export const sendAlert = async (subject: string, message: string, type: string = 'info') => {
+  // 0. حفظ داخلي في مركز التنبيهات
+  await persistNotification(subject, message, type);
+
   // 1. تنبيه Discord
   const webhookUrl = process.env.ALERT_DISCORD_WEBHOOK_URL;
   if (webhookUrl) {

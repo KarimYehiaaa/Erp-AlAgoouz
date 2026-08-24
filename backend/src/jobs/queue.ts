@@ -1,6 +1,9 @@
 import Bull from 'bullmq';
 import IORedisModule from 'ioredis';
 
+import { createBackup } from '../services/backupService.ts';
+import logger from '../services/loggerService.ts';
+
 // bullmq/ioredis ship CJS with class exports; cast through any for construction in ESM
 const { Queue, Worker } = Bull as any;
 const IORedis = IORedisModule as any;
@@ -85,20 +88,26 @@ if (!isVercel) {
         'system-queue',
         async (job) => {
           if (job.name === 'backup') {
-            console.log(`[Job] Executing backup job ${job.id}`);
-            await new Promise((resolve) => setTimeout(resolve, 2000));
-            console.log(`[Job] Backup job ${job.id} completed successfully`);
+            logger.info(`[Job] تنفيذ مهمة نسخ احتياطي ${job.id}`);
+            await createBackup();
+            logger.info(`[Job] اكتملت المهمة ${job.id} بنجاح`);
+          } else if (job.name === 'auto_backup') {
+            // استيراد ديناميكي لتفادي التدوير مع autoBackupService
+            const { runAutoBackup } = await import('../services/autoBackupService.ts');
+            logger.info(`[Job] تنفيذ مهمة نسخ احتياطي تلقائي ${job.id}`);
+            await runAutoBackup();
+            logger.info(`[Job] اكتملت المهمة ${job.id} بنجاح`);
           }
         },
         { connection },
       );
 
       systemWorker!.on('completed', (job) => {
-        console.log(`[Queue] Job ${job.id} has completed!`);
+        logger.info(`[Queue] اكتملت المهمة ${job.id}`);
       });
 
       systemWorker!.on('failed', (job, err) => {
-        console.error(`[Queue] Job ${job?.id} has failed with ${err.message}`);
+        logger.error(`[Queue] فشلت المهمة ${job?.id}: ${err.message}`);
       });
     })
     .catch((err) => {
@@ -108,16 +117,27 @@ if (!isVercel) {
 
 /**
  * إضافة مهمة نسخ احتياطي إلى الطابور (مع 3 محاولات وإرجاع تصاعدي).
- * @returns {Promise<void>}
+ * @param {'full'|'auto'} [kind] نوع النسخة: كاملة أو تلقائية (مع رفع سحابي وتنظيف)
+ * @returns {Promise<boolean>} true إذا تمت الجدولة عبر الطابور، false إذا كان الطابور غير متاح
  */
-export const addBackupJob = async () => {
-  if (isVercel || !systemQueue || !redisReady) return;
+export const enqueueBackup = async (kind: 'full' | 'auto' = 'full'): Promise<boolean> => {
+  if (isVercel || !systemQueue || !redisReady) return false;
   await systemQueue!.add(
-    'backup',
+    kind === 'auto' ? 'auto_backup' : 'backup',
     { time: new Date().toISOString() },
     {
       attempts: 3,
       backoff: { type: 'exponential', delay: 1000 },
     },
   );
+  return true;
+};
+
+/**
+ * إضافة مهمة نسخ احتياطي إلى الطابور (مع 3 محاولات وإرجاع تصاعدي).
+ * @returns {Promise<void>}
+ * @deprecated استخدم enqueueBackup بدلاً منها
+ */
+export const addBackupJob = async () => {
+  await enqueueBackup('full');
 };

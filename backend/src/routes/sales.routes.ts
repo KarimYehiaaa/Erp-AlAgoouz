@@ -9,6 +9,7 @@ import { Router } from 'express';
 import { authenticate, authorize, auditLog } from '../middleware/auth.ts';
 import { requireConfirmation } from '../middleware/confirmAction.ts';
 import { validateBody, validateQuery } from '../middleware/validate.ts';
+import { enforceWarehouseAccess } from '../middleware/branchIsolation.ts';
 import { upload } from './helpers.ts';
 import {
   commonQuerySchema,
@@ -84,6 +85,7 @@ router.post(
   '/sales',
   authenticate,
   salesCreateAuth,
+  enforceWarehouseAccess,
   validateBody(saleSchema),
   auditLog('sale_create', 'sales'),
   api.sales.create,
@@ -92,6 +94,7 @@ router.put(
   '/sales/:id',
   authenticate,
   salesEditAuth,
+  enforceWarehouseAccess,
   validateBody(saleSchema),
   auditLog('sale_update', 'sales'),
   api.sales.update,

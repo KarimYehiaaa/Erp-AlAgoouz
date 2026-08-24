@@ -45,5 +45,6 @@ eslint_output.txt
 
 # Test/coverage/temp output.
 tmp/
+scratch/
 coverage/
 .nyc_output/

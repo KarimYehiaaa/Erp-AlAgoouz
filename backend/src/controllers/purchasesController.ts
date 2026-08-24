@@ -10,7 +10,6 @@ export const purchases = {
    */
   list: async (req, res, next) => {
     try {
-      console.log('Purchases List Query:', req.query);
       ok(res, await purchaseService.listPurchaseInvoices(req.query));
     } catch (e: any) {
       next(e);

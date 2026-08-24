@@ -14,6 +14,7 @@
     "test:local": "node scripts/run-vitest-local.ts",
     "check:scripts": "node scripts/check-scripts.ts",
     "setup-db": "node src/database/setup.ts",
+    "update": "node scripts/migrate.ts",
     "reset-admin": "node src/database/reset-admin.ts",
     "factory-reset": "node src/database/factoryReset.ts",
     "migrate-supabase": "node scripts/migrate-supabase.ts"

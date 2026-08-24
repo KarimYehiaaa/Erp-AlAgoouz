@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -17,7 +18,7 @@ dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 /**
  * الحصول على متغير بيئة أو استخدام قيمة افتراضية للإنتاج لضمان عمل Vercel تلقائياً
  */
-const requireEnv = (name, fallback = '') => {
+const _requireEnv = (name, fallback = '') => {
   const value = process.env[name];
   if (value && value.trim()) return value.trim();
   if (fallback) return fallback;
@@ -66,9 +67,20 @@ if (process.env.DATABASE_URL) {
   if (dbHost && dbHost.includes('pooler.supabase.com') && portNum === 5432) {
     portNum = 6543; // Switch to Transaction Mode (unlimited pooled clients)
   }
+  const isProd = process.env.NODE_ENV === 'production';
+  const dbUser = process.env.DB_USER?.trim();
+  const dbPassword = process.env.DB_PASSWORD?.trim();
+  if (isProd && (!dbUser || !dbPassword)) {
+    throw new Error('❌ في وضع الإنتاج يجب توفير DB_USER و DB_PASSWORD في متغيرات البيئة');
+  }
+  if (!dbUser || !dbPassword) {
+    console.warn(
+      '[Config] ⚠️  DB_USER/DB_PASSWORD غير موجودين في .env — لن يعمل الاتصال بقاعدة البيانات',
+    );
+  }
   dbConfig = {
-    user: optionalEnv('DB_USER', 'postgres.agzcpybgcjxtkyszfhws'),
-    password: optionalEnv('DB_PASSWORD', 'C@me#Cap0#1'),
+    user: dbUser || '',
+    password: dbPassword || '',
     host: dbHost,
     port: portNum,
     database: optionalEnv('DB_NAME', 'postgres'),
@@ -78,15 +90,11 @@ if (process.env.DATABASE_URL) {
 // ─── SSL Detection ─────────────────────────────────────────────────────────────
 // تفعيل SSL إذا:
 // 1. DB_SSL=true صريح في .env
-// 2. يوجد DATABASE_URL (عادةً Supabase/Render)
-// 3. الـ Host يحتوي على 'supabase' أو 'neon' أو 'render'
+// 2. يوجد DATABASE_URL (عادةً Supabase)
+// 3. الـ Host يحتوي على 'supabase' أو 'neon'
 const isCloudDB =
   process.env.DATABASE_URL ||
-  (dbConfig.host &&
-    (dbConfig.host.includes('supabase') ||
-      dbConfig.host.includes('neon') ||
-      dbConfig.host.includes('render') ||
-      dbConfig.host.includes('pooler')));
+  (dbConfig.host && (dbConfig.host.includes('supabase') || dbConfig.host.includes('neon')));
 
 const sslEnabled = process.env.DB_SSL === 'true' || !!isCloudDB;
 
@@ -97,10 +105,31 @@ dbConfig.ssl = sslEnabled
 // ─── Export Configuration ──────────────────────────────────────────────────────
 /**
  * إعدادات التطبيق المركزية (الخادم، قاعدة البيانات، JWT، CORS، معدل الطلبات، الشركة، النسخ الاحتياطي).
- * تُقرأ من متغيرات البيئة مع قيم افتراضية مناسبة للإنتاج.
+ * تُقرأ من متغيرات البيئة — لا توجد أسرار مضمّنة في الكود.
  */
-const defaultJwtSecret = 'q1b2DoHuyqTNfjOM+BlV01Xl7NNaw+a0sgts3kbpYL4DKdy0VXqTnyA5HnwIgN6W';
-const jwtSecret = optionalEnv('JWT_SECRET', defaultJwtSecret);
+const isProdEnv = process.env.NODE_ENV === 'production';
+const envJwtSecret = process.env.JWT_SECRET?.trim();
+let finalJwtSecret: string;
+if (envJwtSecret) {
+  finalJwtSecret = envJwtSecret;
+} else if (isProdEnv) {
+  throw new Error('❌ في وضع الإنتاج يجب توفير JWT_SECRET في متغيرات البيئة');
+} else {
+  // في التطوير: سر عشوائي مؤقت لكل تشغيل (تُبطل الجلسات عند إعادة التشغيل)
+  console.warn('[Config] ⚠️  JWT_SECRET غير موجود — تم توليد سر تطوير مؤقت');
+  finalJwtSecret = crypto.randomBytes(48).toString('base64');
+}
+
+const envRefreshSecret = process.env.JWT_REFRESH_SECRET?.trim();
+let finalRefreshSecret: string;
+if (envRefreshSecret) {
+  finalRefreshSecret = envRefreshSecret;
+} else if (isProdEnv) {
+  throw new Error('❌ في وضع الإنتاج يجب توفير JWT_REFRESH_SECRET مستقل عن JWT_SECRET');
+} else {
+  console.warn('[Config] ⚠️  JWT_REFRESH_SECRET غير موجود — تم توليد سر تطوير مؤقت');
+  finalRefreshSecret = crypto.randomBytes(48).toString('base64');
+}
 
 const config = {
   // ── Server ──
@@ -115,11 +144,17 @@ const config = {
 
   // ── JWT ──
   jwt: {
-    secret: jwtSecret,
+    secret: finalJwtSecret,
     // إصلاح التجمّد: مهلة أطول (8 ساعات) — كانت 15 دقيقة تُسقط الجلسات أثناء الاستخدام
     expiresIn: optionalEnv('JWT_EXPIRES_IN', '8h'),
-    refreshSecret: optionalEnv('JWT_REFRESH_SECRET', jwtSecret + '_refresh'),
+    refreshSecret: finalRefreshSecret,
     refreshExpiresIn: optionalEnv('JWT_REFRESH_EXPIRES_IN', '7d'),
+  },
+
+  // ── Auth / Lockout ──
+  auth: {
+    maxFailedAttempts: parseInt(optionalEnv('AUTH_MAX_FAILED_ATTEMPTS', '5'), 10),
+    lockoutMinutes: parseInt(optionalEnv('AUTH_LOCKOUT_MINUTES', '15'), 10),
   },
 
   // ── CORS ──
@@ -128,6 +163,16 @@ const config = {
         .map((o) => o.trim())
         .filter(Boolean)
     : ['http://localhost:3000', 'http://127.0.0.1:3000', 'https://agoouz.vercel.app'],
+  // السماح بأي معاينة *.vercel.app — يُعطَّل افتراضياً (أي تطبيق على Vercel يمكنه محاولة الاتصال)
+  corsAllowVercelPreviews: process.env.CORS_ALLOW_VERCEL_PREVIEWS === 'true',
+  // ثقة البروكسي لتصحيح req.ip (مطلوب خلف Vercel؛ عطّله عند التشغيل المباشر لمنع تزوير X-Forwarded-For وتجاوز rate-limit)
+  trustProxy: process.env.TRUST_PROXY
+    ? process.env.TRUST_PROXY === 'true'
+      ? 1
+      : parseInt(process.env.TRUST_PROXY, 10) || false
+    : process.env.VERCEL
+      ? 1
+      : false,
 
   // ── Rate Limiting ──
   rateLimit: {

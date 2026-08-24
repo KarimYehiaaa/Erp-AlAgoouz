@@ -251,7 +251,7 @@ export const recordPayment = async (customerId: number, data: Record<string, any
 
     const customer = (
       await client.query(
-        `SELECT id, name_ar, balance FROM customers WHERE id = $1 AND deleted_at IS NULL FOR UPDATE`,
+        `SELECT id, name_ar, balance, COALESCE(opening_balance, 0) AS opening_balance FROM customers WHERE id = $1 AND deleted_at IS NULL FOR UPDATE`,
         [customerId],
       )
     ).rows[0];
@@ -271,6 +271,7 @@ export const recordPayment = async (customerId: number, data: Record<string, any
        WHERE s.customer_id = $1
         AND s.deleted_at IS NULL
         AND s.status = 'completed'
+        AND s.sale_type = 'wholesale'
 
        UNION ALL
 
@@ -299,6 +300,20 @@ export const recordPayment = async (customerId: number, data: Record<string, any
       }))
       .filter((debt) => debt.remaining > 0.01);
 
+    // الرصيد الافتتاحي يُعامل كدين قابل للتسوية (وهو الأقدم دائماً في FIFO)
+    if (Number(customer.opening_balance || 0) > 0.01) {
+      openDebts.unshift({
+        entry_type: 'opening_balance',
+        id: customer.id,
+        entry_number: '\u0631\u0635\u064A\u062F \u0627\u0641\u062A\u062A\u0627\u062D\u064A',
+        total_amount: Number(customer.opening_balance),
+        paid_amount: 0,
+        entry_date: null,
+        created_at: null,
+        remaining: Number(customer.opening_balance),
+      });
+    }
+
     const totalRemaining = openDebts.reduce((sum, debt) => sum + debt.remaining, 0);
     if (totalRemaining <= 0.01) {
       throw new AppError('لا توجد مبيعات أو فواتير مستحقة لهذا العميل');
@@ -320,7 +335,13 @@ export const recordPayment = async (customerId: number, data: Record<string, any
       const newPaid = Number(debt.paid_amount || 0) + paidForDebt;
       const newStatus = newPaid >= Number(debt.total_amount) - 0.01 ? 'paid' : 'partial';
 
-      if (debt.entry_type === 'sale') {
+      if (debt.entry_type === 'opening_balance') {
+        // تسوية الرصيد الافتتاحي: تخفيضه مباشرة على العميل (recalculateCustomerBalance يلتقط التغيير)
+        await client.query(
+          `UPDATE customers SET opening_balance = GREATEST(0, COALESCE(opening_balance, 0) - $1) WHERE id = $2`,
+          [paidForDebt, customerId],
+        );
+      } else if (debt.entry_type === 'sale') {
         const payNum = `PAY-S${debt.id}-${stamp}-${allocations.length + 1}`;
         await client.query(
           `INSERT INTO payments (payment_number, reference_type, reference_id, amount, payment_method, notes, user_id)

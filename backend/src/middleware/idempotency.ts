@@ -56,9 +56,14 @@ export const requireIdempotency = async (
   }
 
   const cleanKey = idempotencyKey.trim();
+  // نطاق المفتاح: مستخدم:مسار:مفتاح
+  // - المسار يمنع إعادة استخدام مفتاح نقطة نهاية في أخرى (يعمل فوراً حتى قبل المصادقة)
+  // - المستخدم يحمي من التصادم بين الحسابات متى توفر req.user (بعد المصادقة)
+  const basePath = (req.originalUrl || req.url || '').split('?')[0];
+  const scopedKey = `${(req as any).user?.id || 'anon'}:${basePath}:${cleanKey}`;
 
   // 1. فحص الذاكرة المحلية أولاً
-  const memCached = memoryStore.get(cleanKey);
+  const memCached = memoryStore.get(scopedKey);
   if (memCached === 'PROCESSING') {
     res.status(409).json({
       success: false,
@@ -83,7 +88,7 @@ export const requireIdempotency = async (
        FROM idempotency_records 
        WHERE key = $1 AND expires_at > NOW() 
        LIMIT 1`,
-      [cleanKey],
+      [scopedKey],
     );
 
     if (dbResult.rows && dbResult.rows.length > 0) {
@@ -107,14 +112,14 @@ export const requireIdempotency = async (
   }
 
   // 3. تسجيل المفتاح كقيد المعالجة في الذاكرة
-  memoryStore.set(cleanKey, 'PROCESSING');
+  memoryStore.set(scopedKey, 'PROCESSING');
 
   // 4. اعتراض الرد لحفظه
   const originalJson = res.json.bind(res);
   res.json = function (body: any) {
     if (res.statusCode < 500) {
       // حفظ في الذاكرة المحلية
-      memoryStore.set(cleanKey, {
+      memoryStore.set(scopedKey, {
         statusCode: res.statusCode,
         headers: {},
         body,
@@ -131,7 +136,7 @@ export const requireIdempotency = async (
          ON CONFLICT (key) DO UPDATE 
          SET status_code = EXCLUDED.status_code, 
              response_body = EXCLUDED.response_body`,
-        [cleanKey, userId, requestPath, res.statusCode, JSON.stringify(body)],
+        [scopedKey, userId, requestPath, res.statusCode, JSON.stringify(body)],
       ).catch((err: any) => {
         if (process.env.NODE_ENV === 'development') {
           console.warn('[Idempotency] Failed to persist key to DB:', err.message);
@@ -139,7 +144,7 @@ export const requireIdempotency = async (
       });
     } else {
       // في حال خطأ الخادم، نحذف المفتاح للسماح بالمحاولة مجدداً
-      memoryStore.delete(cleanKey);
+      memoryStore.delete(scopedKey);
     }
 
     return originalJson(body);

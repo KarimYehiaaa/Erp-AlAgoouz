@@ -201,20 +201,21 @@ export const createRecipe = async (data: Record<string, any>, userId: number) =>
     );
     const recipe = ins.rows[0];
 
-    for (const item of items) {
-      await client.query(
-        `INSERT INTO product_recipe_items (recipe_id, ingredient_product_id, quantity, unit_code, notes, sort_order)
-         VALUES ($1,$2,$3,$4,$5,$6)`,
-        [
-          recipe.id,
-          item.ingredient_product_id,
-          item.quantity,
-          item.unit_code,
-          item.notes,
-          item.sort_order,
-        ],
-      );
-    }
+    // إدخال المكونات دفعة واحدة (multi-row insert عبر unnest) بدلاً من حلقة INSERT لكل مكوّن
+    await client.query(
+      `INSERT INTO product_recipe_items (recipe_id, ingredient_product_id, quantity, unit_code, notes, sort_order)
+       SELECT $1, i.ingredient_product_id, i.quantity, i.unit_code, i.notes, i.sort_order
+       FROM unnest($2::int[], $3::numeric[], $4::text[], $5::text[], $6::int[])
+         AS i(ingredient_product_id, quantity, unit_code, notes, sort_order)`,
+      [
+        recipe.id,
+        items.map((it) => it.ingredient_product_id),
+        items.map((it) => it.quantity),
+        items.map((it) => it.unit_code),
+        items.map((it) => it.notes),
+        items.map((it) => it.sort_order),
+      ],
+    );
 
     await client.query('COMMIT');
     invalidateDashboardCache();
@@ -249,20 +250,21 @@ export const updateRecipe = async (id: number, data: Record<string, any>) => {
       [data.name_ar || current.rows[0].name_ar, data.is_active !== false, data.notes || null, id],
     );
     await client.query(`DELETE FROM product_recipe_items WHERE recipe_id = $1`, [id]);
-    for (const item of items) {
-      await client.query(
-        `INSERT INTO product_recipe_items (recipe_id, ingredient_product_id, quantity, unit_code, notes, sort_order)
-         VALUES ($1,$2,$3,$4,$5,$6)`,
-        [
-          id,
-          item.ingredient_product_id,
-          item.quantity,
-          item.unit_code,
-          item.notes,
-          item.sort_order,
-        ],
-      );
-    }
+    // إدخال المكونات دفعة واحدة (multi-row insert عبر unnest) بدلاً من حلقة INSERT لكل مكوّن
+    await client.query(
+      `INSERT INTO product_recipe_items (recipe_id, ingredient_product_id, quantity, unit_code, notes, sort_order)
+       SELECT $1, i.ingredient_product_id, i.quantity, i.unit_code, i.notes, i.sort_order
+       FROM unnest($2::int[], $3::numeric[], $4::text[], $5::text[], $6::int[])
+         AS i(ingredient_product_id, quantity, unit_code, notes, sort_order)`,
+      [
+        id,
+        items.map((it) => it.ingredient_product_id),
+        items.map((it) => it.quantity),
+        items.map((it) => it.unit_code),
+        items.map((it) => it.notes),
+        items.map((it) => it.sort_order),
+      ],
+    );
 
     await client.query('COMMIT');
     invalidateDashboardCache();

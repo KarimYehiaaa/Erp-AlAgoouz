@@ -36,9 +36,10 @@ BEGIN
   ELSIF TG_TABLE_NAME = 'expenses' THEN
     record_date := COALESCE(NEW.expense_date, NEW.created_at::DATE);
   ELSIF TG_TABLE_NAME = 'invoices' THEN
-    record_date := COALESCE(NEW.invoice_date, NEW.created_at::DATE);
+    record_date := COALESCE(NEW.issued_at::DATE, NEW.created_at::DATE);
   ELSIF TG_TABLE_NAME = 'payments' THEN
-    record_date := COALESCE(NEW.payment_date, NEW.created_at::DATE);
+    -- جدول payments لا يحتوي على عمود payment_date (انظر 001_schema.sql)
+    record_date := NEW.created_at::DATE;
   ELSE
     record_date := NEW.created_at::DATE;
   END IF;

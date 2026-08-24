@@ -33,11 +33,15 @@ const logFailedLogin = async (
     );
   }
 };
-const issueTokens = (userId: number, roleName: string) => {
+const issueTokens = (userId: number, roleName: string, tokenVersion: number = 0) => {
   const jti = uuidv4();
-  const accessToken = jwt.sign({ userId, role: roleName, jti }, config.jwt.secret, {
-    expiresIn: config.jwt.expiresIn as any,
-  });
+  const accessToken = jwt.sign(
+    { userId, role: roleName, jti, ver: tokenVersion },
+    config.jwt.secret,
+    {
+      expiresIn: config.jwt.expiresIn as any,
+    },
+  );
   const refreshToken = jwt.sign({ userId, type: 'refresh' }, config.jwt.refreshSecret, {
     expiresIn: config.jwt.refreshExpiresIn as any,
   });
@@ -81,12 +85,25 @@ const login = async (username: string, password: string, meta: Record<string, an
       403,
     );
   }
+  // ─── إزالة نهائية لبيانات الاعتماد الافتراضية (admin/admin123) ───
+  if (user.username === 'admin' && password === 'admin123') {
+    await logFailedLogin(username, user.id, meta, 'default_credentials_blocked');
+    throw new AppError(
+      '\u0628\u064A\u0627\u0646\u0627\u062A \u0627\u0644\u0627\u0639\u062A\u0645\u0627\u062F \u0627\u0644\u0627\u0641\u062A\u0631\u0627\u0636\u064A\u0629 \u0645\u0639\u0637\u0644\u0629 \u0623\u0645\u0627\u0646\u064A\u0627\u064B \u2014 \u064A\u062C\u0628 \u062A\u0639\u064A\u064A\u0646 \u0643\u0644\u0645\u0629 \u0645\u0631\u0648\u0631 \u062C\u062F\u064A\u062F\u0629 \u0644\u0644\u0645\u062F\u064A\u0631 \u0642\u0628\u0644 \u0627\u0644\u062F\u062E\u0648\u0644',
+      403,
+      'DEFAULT_CREDENTIALS_DISABLED',
+    );
+  }
   let valid = false;
   const hash = user.password_hash || '';
   if (hash.startsWith('$2')) {
     valid = await bcrypt.compare(password, hash);
   } else {
-    if (password === hash) {
+    // مقارنة زمنية ثابتة لتجنب تسريب التوقيت (مسار كلمات المرور القديمة النصية)
+    const a = Buffer.from(password);
+    const b = Buffer.from(hash);
+    const legacyMatch = a.length === b.length && crypto.timingSafeEqual(a, b);
+    if (legacyMatch) {
       valid = true;
       const newHash = await bcrypt.hash(password, 10);
       await query('UPDATE users SET password_hash = $1 WHERE id = $2', [newHash, user.id]);
@@ -98,10 +115,14 @@ const login = async (username: string, password: string, meta: Record<string, an
   if (!valid) {
     await logFailedLogin(username, user.id, meta, 'wrong_password');
     const failedAttempts = (user.failed_login_attempts || 0) + 1;
-    if (failedAttempts >= 5) {
+    if (failedAttempts >= config.auth.maxFailedAttempts) {
       await query(
-        `UPDATE users SET failed_login_attempts = $1, locked_until = NOW() + INTERVAL '15 minutes' WHERE id = $2`,
-        [failedAttempts, user.id],
+        `UPDATE users SET failed_login_attempts = $1, locked_until = NOW() + make_interval(mins => $3) WHERE id = $2`,
+        [
+          failedAttempts,
+          user.id,
+          Math.max(1, Math.floor(Number(config.auth.lockoutMinutes) || 15)),
+        ],
       );
       throw new AppError(
         '\u062A\u0645 \u0642\u0641\u0644 \u0627\u0644\u062D\u0633\u0627\u0628 \u0645\u0624\u0642\u062A\u0627\u064B (15 \u062F\u0642\u064A\u0642\u0629) \u0628\u0633\u0628\u0628 \u0645\u062D\u0627\u0648\u0644\u0627\u062A \u062F\u062E\u0648\u0644 \u0645\u062A\u0643\u0631\u0631\u0629 \u062E\u0627\u0637\u0626\u0629.',
@@ -127,7 +148,11 @@ const login = async (username: string, password: string, meta: Record<string, an
      JOIN role_permissions rp ON p.id = rp.permission_id WHERE rp.role_id = $1`,
     [user.role_id],
   );
-  const { accessToken, refreshToken } = issueTokens(user.id, user.role_name || '');
+  const { accessToken, refreshToken } = issueTokens(
+    user.id,
+    user.role_name || '',
+    Number(user.token_version) || 0,
+  );
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1e3);
   await query(
     `INSERT INTO refresh_tokens (user_id, token_hash, expires_at, ip_address, user_agent)
@@ -174,7 +199,7 @@ const refreshAccessToken = async (refreshToken: string) => {
   return await withTransaction(async (client) => {
     const tokenHash = hashToken(refreshToken);
     const result = await client.query(
-      `SELECT rt.*, u.is_active, u.deleted_at, r.name as role_name
+      `SELECT rt.*, u.is_active, u.deleted_at, u.token_version, r.name as role_name
        FROM refresh_tokens rt
        JOIN users u ON rt.user_id = u.id
        JOIN roles r ON u.role_id = r.id
@@ -192,7 +217,11 @@ const refreshAccessToken = async (refreshToken: string) => {
       throw new AppError('الجلسة انتهت، يرجى تسجيل الدخول مرة أخرى', 401, 'INVALID_REFRESH');
     }
     await client.query('UPDATE refresh_tokens SET revoked = TRUE WHERE id = $1', [row.id]);
-    const { accessToken, refreshToken: newRefresh } = issueTokens(row.user_id, row.role_name);
+    const { accessToken, refreshToken: newRefresh } = issueTokens(
+      row.user_id,
+      row.role_name,
+      Number(row.token_version) || 0,
+    );
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1e3);
     await client.query(
       `INSERT INTO refresh_tokens (user_id, token_hash, expires_at, ip_address, user_agent)

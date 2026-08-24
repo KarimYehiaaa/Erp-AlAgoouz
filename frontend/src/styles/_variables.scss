@@ -8,6 +8,15 @@
   --font-ui: 'Cairo', 'Outfit', 'Segoe UI', Tahoma, Arial, sans-serif;
   --font-calligraphy: 'Aref Ruqaa', serif;
 
+  /* ── Type Scale (نسبة 1.2 — مصعد طباعي موحد لكل الشاشات) ── */
+  --text-xs: 0.72rem;
+  --text-sm: 0.86rem;
+  --text-base: 1rem;
+  --text-lg: 1.2rem;
+  --text-xl: 1.44rem;
+  --text-2xl: 1.73rem;
+  --text-3xl: 2.07rem;
+
   /* ── Core Backgrounds (Warm Latte & Premium Roast) ── */
   --bg: #fdf8f3;
   --bg-elevated: #ffffff;

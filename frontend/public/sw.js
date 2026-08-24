@@ -3,12 +3,13 @@
 // الاستراتيجية المُصحّحة (تحل مشكلة تجمّد التنقل):
 //  - الـ HTML (التنقلات) → Network-First: يُجلب دائمًا نسخة جديدة من الخادم
 //    حتى لا يقدّم index.html قديمًا يشير لأصول محذوفة (كان سبب تجمّد كل المسارات).
-//  - الأصول المحددة بالهاش (JS/CSS/صور) → Cache-First مع إعادة تحقق خلفية
-//    (الأصول ذات الهاش غير قابلة للتغيير — آمنة للكاش).
+//  - الأصول المحددة بالهاش (JS/CSS) → Cache-First بلا إعادة تحقق (غير قابلة للتغيير —
+//    إعادة الجلب الخلفي كانت تضاعف طلبات الشبكة بلا فائدة).
+//  - الصور والملفات غير المُهاشَمة → Cache-First مع تحديث خلفي (قد تتغير بنفس الاسم).
 //  - طلبات /api وPOST وغيرها → تُمرَّر كما هي بلا تدخل.
-//  - إصدار الكاش v2: عند الترقية يُمسح القديم تلقائيًا في activate.
-const CACHE_NAME = 'alagoouz-erp-v2';
-const PRECACHE_ASSETS = ['/logo.png', '/manifest.json'];
+//  - إصدار الكاش v3: عند الترقية يُمسح القديم تلقائياً في activate.
+const CACHE_NAME = 'alagoouz-erp-v3';
+const PRECACHE_ASSETS = ['/manifest.json', '/icons/icon-192.png', '/icons/icon-512.png'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -65,20 +66,11 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // ── الأصول الثابتة (JS/CSS/صور بهاش) → Cache-First مع إعادة تحقق خلفية ──
+  // ── الأصول المُهاشَمة (JS/CSS) → Cache-First صرف ──
+  const isHashedAsset = /\.[0-9a-f]{8,}\.(js|css)$/i.test(url.pathname);
   event.respondWith(
     caches.match(request).then((cached) => {
-      if (cached) {
-        // تحديث خلفي (لا يُحجب العرض — والهاشات غير قابلة للتغيير، فالنسخة القديمة سليمة)
-        fetch(request)
-          .then((networkResponse) => {
-            if (networkResponse && networkResponse.status === 200) {
-              caches.open(CACHE_NAME).then((cache) => cache.put(request, networkResponse));
-            }
-          })
-          .catch(() => {});
-        return cached;
-      }
+      if (cached) return cached;
       return fetch(request).then((networkResponse) => {
         if (networkResponse && networkResponse.status === 200) {
           const clone = networkResponse.clone();
@@ -86,6 +78,18 @@ self.addEventListener('fetch', (event) => {
         }
         return networkResponse;
       });
+    }).then((response) => {
+      if (!isHashedAsset && response) {
+        // للصور وmanifest: تحديث خلفي لأن نفس الاسم قد يحمل محتوى جديدًا
+        fetch(request)
+          .then((networkResponse) => {
+            if (networkResponse && networkResponse.status === 200) {
+              caches.open(CACHE_NAME).then((cache) => cache.put(request, networkResponse));
+            }
+          })
+          .catch(() => {});
+      }
+      return response;
     }),
   );
 });

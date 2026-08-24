@@ -1,6 +1,6 @@
 import { query } from '../database/pool.ts';
 import { getOpeningBalanceForDate } from './openingBalanceService.ts';
-import { appCache } from '../utils/cache.ts';
+import { invalidateAppCacheTags } from '../utils/cache.ts';
 import { roundMoney, toNumber } from '../utils/money.ts';
 
 const formatDate = (date) => {
@@ -102,8 +102,7 @@ const _setCached = (key, data) => {
  */
 export const invalidateDashboardCache = () => {
   _dashboardCache.clear();
-  appCache.invalidateByTag('pl_report');
-  appCache.invalidateByTag('product_cost');
+  invalidateAppCacheTags();
 };
 
 /**
@@ -315,10 +314,10 @@ const _computeDashboardStats = async (filters: Record<string, any> = {}) => {
     // تشمل سداد ديون سابقة وفواتير آجلة لأنها تسجل كمدفوعات على مبيعات/فواتير قديمة
     query(
       `SELECT COALESCE(SUM(p.amount), 0) AS total
-       FROM payments p
-       WHERE DATE(p.created_at) BETWEEN $1::date AND $2::date
-         AND p.reference_type IN ('sale', 'invoice')
-         AND COALESCE(p.payment_method, 'cash') != 'credit'
+        FROM payments p
+        WHERE p.created_at >= $1::date AND p.created_at < ($2::date + INTERVAL '1 day')
+          AND p.reference_type IN ('sale', 'invoice')
+          AND COALESCE(p.payment_method, 'cash') != 'credit'
          AND NOT EXISTS (
            SELECT 1 FROM sales s2
            WHERE p.reference_type = 'sale' AND s2.id = p.reference_id AND s2.status = 'returned'
@@ -333,10 +332,10 @@ const _computeDashboardStats = async (filters: Record<string, any> = {}) => {
     // فواتير الشراء الآجلة غير المسددة لا تُخصم من السيولة لأنها لم تخرج نقدًا بعد
     query(
       `SELECT COALESCE(SUM(p.amount), 0) AS total
-       FROM payments p
-       WHERE DATE(p.created_at) BETWEEN $1::date AND $2::date
-         AND p.reference_type = 'supplier'
-         AND COALESCE(p.payment_method, 'cash') != 'credit'`,
+        FROM payments p
+        WHERE p.created_at >= $1::date AND p.created_at < ($2::date + INTERVAL '1 day')
+          AND p.reference_type = 'supplier'
+          AND COALESCE(p.payment_method, 'cash') != 'credit'`,
       [period.start, period.end],
     ),
   ]);
@@ -615,10 +614,10 @@ const _computeDashboardStats = async (filters: Record<string, any> = {}) => {
       `SELECT payment_method,
               COALESCE(SUM(p.amount),0) AS total,
               COUNT(*)::int AS count
-       FROM payments p
-       WHERE DATE(p.created_at) BETWEEN $1::date AND $2::date
-         AND p.reference_type IN ('sale', 'invoice')
-         AND NOT EXISTS (
+        FROM payments p
+        WHERE p.created_at >= $1::date AND p.created_at < ($2::date + INTERVAL '1 day')
+          AND p.reference_type IN ('sale', 'invoice')
+          AND NOT EXISTS (
            SELECT 1 FROM sales s2
            WHERE p.reference_type = 'sale' AND s2.id = p.reference_id AND s2.status = 'returned'
          )
@@ -634,8 +633,8 @@ const _computeDashboardStats = async (filters: Record<string, any> = {}) => {
       `SELECT movement_type,
               COALESCE(SUM(quantity),0) AS qty,
               COUNT(*)::int AS count
-       FROM stock_movements
-       WHERE DATE(created_at) BETWEEN $1::date AND $2::date
+        FROM stock_movements
+        WHERE created_at >= $1::date AND created_at < ($2::date + INTERVAL '1 day')
        GROUP BY movement_type
        ORDER BY count DESC`,
       [period.start, period.end],

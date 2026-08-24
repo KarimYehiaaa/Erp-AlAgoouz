@@ -5,8 +5,10 @@ import router from './router';
 import AppIcon from './components/AppIcon.vue';
 import './styles/main.scss';
 import { initSentry } from './sentry';
+import * as Sentry from '@sentry/vue';
 
 import { permissionDirective } from './directives/permission';
+import { spotlightDirective } from './directives/spotlight';
 
 const app = createApp(App);
 const pinia = createPinia();
@@ -17,9 +19,11 @@ initSentry(app, router);
 
 app.component('AppIcon', AppIcon);
 app.directive('permission', permissionDirective);
+app.directive('spotlight', spotlightDirective);
 
 app.config.errorHandler = (err: any, instance: any, info: any) => {
   console.error('[Global Vue ErrorHandler caught error]:', err, info);
+  Sentry.captureException(err);
 };
 
 app.mount('#app');
@@ -41,7 +45,11 @@ const appStore = useAppStore(pinia);
 
 const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
 // الباك يخدم الـ WebSocket على نفس host/port الصفحة — لا نكتب المنفذ يدويًا بعد الآن.
-const wsUrl = `${wsProtocol}//${window.location.host}`;
+// الخادم يطالب بـ JWT عبر ?token= (websocketService) وإلا يغلق الاتصال برمز 4001.
+const buildWsUrl = () => {
+  const token = localStorage.getItem('token');
+  return `${wsProtocol}//${window.location.host}/ws${token ? `?token=${encodeURIComponent(token)}` : ''}`;
+};
 
 let ws: WebSocket | null = null;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
@@ -60,7 +68,7 @@ const connectWebSocket = () => {
   if (document.hidden) return; // لا نتواصل والتبويب مخفي
   if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return;
 
-  ws = new WebSocket(wsUrl);
+  ws = new WebSocket(buildWsUrl());
 
   ws.onopen = () => {
     reconnectAttempts = 0; // اتصال ناجح — إعادة تعيين العدّاد

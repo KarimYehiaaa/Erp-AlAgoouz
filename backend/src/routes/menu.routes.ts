@@ -8,7 +8,11 @@ import { menuController } from '../controllers/menuController.ts';
 
 const router = Router();
 
-// مسارات المنيو
+// مسار عام للجمهور والزبائن (بدون مصادقة) لمسح الـ QR Code وعرض المنيو
+router.get('/menus/public/active', menuController.getActive);
+router.get('/menus/public/:id', menuController.get);
+
+// مسارات المنيو المحمية للإدارة
 router.get('/menus', authenticate, authorize('products.view'), menuController.list);
 router.get('/menus/active', authenticate, menuController.getActive);
 router.get(

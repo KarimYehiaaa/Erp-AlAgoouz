@@ -12,6 +12,9 @@ export const dashboard = (params: any) => api.get('/dashboard', { params });
 export const operations = {
   alerts: () => api.get('/operations/alerts'),
   auditLogs: (params: any) => api.get('/operations/audit-logs', { params }),
+  notifications: () => api.get('/notifications'),
+  markNotificationRead: (id: any) => api.patch(`/notifications/${id}/read`),
+  markAllNotificationsRead: () => api.patch('/notifications/read-all'),
 };
 export const hr = {
   summary: (params?: any) => api.get('/hr/summary', { params }),
@@ -71,7 +74,21 @@ export const products = {
     });
   },
 };
-export const warehouses = () => api.get('/warehouses');
+// كاش قصير لقائمة المخازن — بيانات شبه ثابتة تُجلب من 6+ شاشات عند كل تحميل
+let _whCache: { data: any; at: number } | null = null;
+const WH_TTL_MS = 60_000;
+export const warehouses = async (force = false) => {
+  if (!force && _whCache && Date.now() - _whCache.at < WH_TTL_MS) {
+    return _whCache.data;
+  }
+  const res = await api.get('/warehouses');
+  _whCache = { data: res, at: Date.now() };
+  return res;
+};
+/** إبطال كاش المخازن بعد عمليات إنشاء/تعديل مخزن (نداء اختياري) */
+export const invalidateWarehousesCache = () => {
+  _whCache = null;
+};
 export { inventory } from './inventory.api';
 export const purchases = {
   list: (params: any) => api.get('/purchases', { params }),

@@ -127,28 +127,38 @@ export const getDemandForecast = async (filters: Record<string, any> = {}) => {
     }
 
     // Calculate Day-of-Week Seasonality Index (7 indices: 0 = Sunday, ..., 6 = Saturday)
+    // ملاحظة: dateList بصيغة YYYY-MM-DD — التحليل اليدوي يضمن قراءة اليوم بتوقيت محلي
+    // بدلاً من new Date(str) الذي يحلل كـ UTC ويزيح اليوم على خوادم غرب جرينتش
+    const parseDow = (dateStr) => {
+      const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(dateStr));
+      if (!m) return new Date(dateStr).getDay();
+      return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])).getDay();
+    };
     const weekdaySums = new Array(7).fill(0);
     const weekdayCounts = new Array(7).fill(0);
 
     dateList.forEach((dateStr, idx) => {
-      const d = new Date(dateStr);
-      const day = d.getDay();
+      const day = parseDow(dateStr);
       weekdaySums[day] += y[idx];
       weekdayCounts[day]++;
     });
 
     const overallAvg = totalSold / 90;
-    const seasonalIndices = weekdaySums.map((sum, day) => {
+    let seasonalIndices = weekdaySums.map((sum, day) => {
       const count = weekdayCounts[day];
       if (count === 0 || overallAvg === 0) return 1;
       const dayAvg = sum / count;
       return dayAvg / overallAvg;
     });
+    // إعادة معايرة المؤشرات الموسمية بحيث متوسطها = 1 (إزالة الانحياز الناتج عن طول النافذة)
+    const indicesMean = seasonalIndices.reduce((s, v) => s + v, 0) / 7;
+    if (indicesMean > 0) {
+      seasonalIndices = seasonalIndices.map((v) => v / indicesMean);
+    }
 
     // Deseasonalize sales
     const deseasonalized = y.map((val, idx) => {
-      const d = new Date(dateList[idx]);
-      const day = d.getDay();
+      const day = parseDow(dateList[idx]);
       const sIndex = seasonalIndices[day];
       return sIndex > 0 ? val / sIndex : val;
     });
@@ -223,6 +233,11 @@ export const getDemandForecast = async (filters: Record<string, any> = {}) => {
           const factor = convertQty(1, fromUnit, toUnit);
           if (factor !== null && factor !== 0) {
             convertedQty = Number(ing.quantity) * factor;
+          } else {
+            // وحدات غير قابلة للتحويل (مثل كجم ↔ عدد) — لا نجري تحويلاً صامتاً خاطئاً
+            console.warn(
+              `[Forecasting] تعذر تحويل الوحدات (${fromUnit} ← ${toUnit}) للمكوّن ${ing.ingredient_product_id} — استُخدمت الكمية كما هي`,
+            );
           }
         }
 
@@ -286,20 +301,21 @@ export const getDemandForecast = async (filters: Record<string, any> = {}) => {
       return;
     }
 
-    let runwayDays = 0;
+    let runwayDays = 999;
     let outOfStockDateStr = 'مستمر (>30 يوم)';
     let tempStock = currentStock;
 
     for (let d = 0; d < forecastDays; d++) {
       const demand = projectedDaily[d] || 0;
-      if (tempStock - demand <= 0) {
-        runwayDays = d;
+      tempStock -= demand;
+      if (tempStock <= 0) {
+        // نُفد المخزون بنهاية اليوم d+1 (عدّ بشري صحيح وليس فهرس صفر)
+        runwayDays = d + 1;
         const oosDate = new Date();
-        oosDate.setDate(oosDate.getDate() + d);
+        oosDate.setDate(oosDate.getDate() + d + 1);
         outOfStockDateStr = oosDate.toISOString().split('T')[0];
         break;
       }
-      tempStock -= demand;
       if (d === forecastDays - 1) {
         // If stock is still positive after 30 days, estimate linearly
         runwayDays = Math.ceil(currentStock / avgDailyDemand);

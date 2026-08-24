@@ -9,6 +9,7 @@ import { Router } from 'express';
 import { authenticate, authorize, auditLog } from '../middleware/auth.ts';
 import { requireConfirmation } from '../middleware/confirmAction.ts';
 import { validateBody, validateQuery } from '../middleware/validate.ts';
+import { enforceWarehouseAccess } from '../middleware/branchIsolation.ts';
 import { upload } from './helpers.ts';
 import {
   commonQuerySchema,
@@ -57,6 +58,7 @@ router.post(
   '/inventory/transfer',
   authenticate,
   authorize('inventory.add'),
+  enforceWarehouseAccess,
   validateBody(inventoryTransferSchema),
   api.inventory.transfer,
 );
@@ -64,6 +66,7 @@ router.post(
   '/inventory/adjust',
   authenticate,
   authorize('inventory.add'),
+  enforceWarehouseAccess,
   validateBody(inventoryAdjustSchema),
   auditLog('inventory_adjust', 'inventory'),
   api.inventory.adjust,
@@ -83,6 +86,7 @@ router.post(
   '/stocktakes',
   authenticate,
   authorize('inventory.add'),
+  enforceWarehouseAccess,
   validateBody(stocktakeCreateSchema),
   auditLog('stocktake_create', 'inventory'),
   api.stocktake.create,

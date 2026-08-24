@@ -352,8 +352,14 @@
               <div v-if="menuData.show_qr_code !== false" class="footer-card-col qr-col">
                 <div class="qr-luxury-frame">
                   <div class="qr-box">
-                    <!-- أيقونة QR ديكورية ذكية -->
-                    <div class="qr-matrix-mock">
+                    <img
+                      v-if="qrCodeDataUrl"
+                      :src="qrCodeDataUrl"
+                      class="real-qr-img"
+                      alt="QR Code"
+                    />
+                    <!-- أيقونة QR ديكورية ذكية احتياطية -->
+                    <div v-else class="qr-matrix-mock">
                       <div class="qr-corner top-l"></div>
                       <div class="qr-corner top-r"></div>
                       <div class="qr-corner bot-l"></div>
@@ -378,7 +384,31 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
+import { generateQrDataUrl } from '@/utils/qrCode';
+
+const qrCodeDataUrl = ref('');
+
+const updateQr = async () => {
+  try {
+    const url =
+      typeof window !== 'undefined'
+        ? `${window.location.origin}/menu`
+        : 'https://binalagoouz.com/menu';
+    qrCodeDataUrl.value = await generateQrDataUrl(url, {
+      width: 250,
+      margin: 1,
+      darkColor: '#1b120c',
+      lightColor: '#ffffff',
+    });
+  } catch (err) {
+    console.error('Error generating QR in MenuPageLayout:', err);
+  }
+};
+
+onMounted(() => {
+  updateQr();
+});
 
 const props = defineProps<{
   menuData: {
@@ -1150,6 +1180,13 @@ const getCatIcon = (iconName?: string) => {
   align-items: center;
   justify-content: center;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.real-qr-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
 }
 
 .qr-matrix-mock {

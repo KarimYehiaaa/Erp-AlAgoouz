@@ -158,11 +158,11 @@ const getIndex = (headers, key) => headers.findIndex((header) => header === key)
 const parseRow = async (row, headers, categoryMap, warehouseMap) => {
   const sku = String(row[getIndex(headers, 'sku')] || '').trim();
   const nameAr = String(row[getIndex(headers, 'name_ar')] || '').trim();
-  if (!sku) throw new Error('كود المنتج sku مطلوب');
-  if (!nameAr) throw new Error('اسم المنتج name_ar مطلوب');
+  if (!sku) throw new AppError('كود المنتج sku مطلوب', 400);
+  if (!nameAr) throw new AppError('اسم المنتج name_ar مطلوب', 400);
 
   const salePrice = toNumber(row[getIndex(headers, 'sale_price')], 0);
-  if (salePrice <= 0) throw new Error('سعر البيع sale_price يجب أن يكون أكبر من صفر');
+  if (salePrice <= 0) throw new AppError('سعر البيع sale_price يجب أن يكون أكبر من صفر', 400);
 
   const categoryRaw = String(row[getIndex(headers, 'category')] || '').trim() || 'عام';
   let categoryId = categoryMap[normalizeText(categoryRaw)] || null;
@@ -284,7 +284,7 @@ export const importProductsFromExcel = async (buffer: Buffer) => {
       if (!data.category_id) {
         data.category_id = await ensureCategoryId(data.category_raw || 'عام', categoryMap);
       }
-      if (!data.category_id) throw new Error('التصنيف غير متاح');
+      if (!data.category_id) throw new AppError('التصنيف غير متاح', 400);
 
       const existing = await query(`SELECT id, deleted_at FROM products WHERE sku = $1`, [
         data.sku,

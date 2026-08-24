@@ -1,4 +1,4 @@
-import { ref } from 'vue';
+import { onBeforeUnmount, ref } from 'vue';
 import { users as userApi } from '@/api';
 
 /**
@@ -12,6 +12,7 @@ export function useCompanySettings() {
   });
   const saving = ref(false);
   const saveMsg = ref('');
+  let saveMsgTimer: ReturnType<typeof setTimeout> | null = null;
 
   /** تعبئة الإعدادات من استجابة خادم الإعدادات (مع قيم افتراضية عند غيابها). */
   const loadCompanySettings = (data: Record<string, any>) => {
@@ -31,13 +32,18 @@ export function useCompanySettings() {
     try {
       await userApi.updateSetting('company', settings.value.company);
       saveMsg.value = 'تم الحفظ — سيظهر على الفواتير';
-      setTimeout(() => (saveMsg.value = ''), 3000);
+      if (saveMsgTimer) clearTimeout(saveMsgTimer);
+      saveMsgTimer = setTimeout(() => (saveMsg.value = ''), 3000);
     } catch (e: any) {
       saveMsg.value = e.message || 'فشل الحفظ';
     } finally {
       saving.value = false;
     }
   };
+
+  onBeforeUnmount(() => {
+    if (saveMsgTimer) clearTimeout(saveMsgTimer);
+  });
 
   return { settings, saving, saveMsg, saveCompany, loadCompanySettings };
 }

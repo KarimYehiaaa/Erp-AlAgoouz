@@ -3,6 +3,7 @@ import { query, getClient } from '../database/pool.ts';
 import { AppError } from '../types/errors.ts';
 import { getOpeningBalance } from './openingBalanceService.ts';
 import { encrypt } from '../utils/crypto.ts';
+import { clearWarehouseCache } from '../middleware/branchIsolation.ts';
 const getUsers = async () =>
   (
     await query(
@@ -39,6 +40,10 @@ const updateUser = async (id, data) => {
     sql += `, password_hash=$7, password_changed_at=NOW()`;
     params.push(hash);
   }
+  // تغيير كلمة المرور أو الدور يبطل توكنات الوصول الحالية فوراً (وليس refresh فقط)
+  if (data.password || data.role_id !== undefined) {
+    sql += `, token_version = COALESCE(token_version, 0) + 1`;
+  }
   params.push(id);
   sql += ` WHERE id=$${params.length} AND deleted_at IS NULL RETURNING id, username, full_name, role_id`;
   const client = await getClient();
@@ -50,10 +55,14 @@ const updateUser = async (id, data) => {
         '\u0627\u0644\u0645\u0633\u062A\u062E\u062F\u0645 \u063A\u064A\u0631 \u0645\u0648\u062C\u0648\u062F',
         404,
       );
-    if (data.password) {
+    if (data.password || data.role_id !== undefined) {
       await client.query(`UPDATE refresh_tokens SET revoked = TRUE WHERE user_id = $1`, [id]);
     }
     await client.query('COMMIT');
+    // تغيير الدور/التفعيل يؤثر على المخازن المسموحة — مسح كاش العزل فوراً
+    if (data.role_id !== undefined || data.is_active !== undefined) {
+      clearWarehouseCache(id);
+    }
     return result.rows[0];
   } catch (err: any) {
     await client.query('ROLLBACK');
@@ -130,6 +139,13 @@ const getNotifications = async (userId) =>
   ).rows;
 const markNotificationRead = async (id) => {
   await query(`UPDATE notifications SET is_read = TRUE WHERE id = $1`, [id]);
+};
+const markAllNotificationsRead = async (userId) => {
+  const res = await query(
+    `UPDATE notifications SET is_read = TRUE WHERE is_read = FALSE AND (user_id = $1 OR user_id IS NULL)`,
+    [userId],
+  );
+  return { updated: res.rowCount || 0 };
 };
 const SENSITIVE_KEYS = [
   'gdrive_key',
@@ -706,6 +722,7 @@ export {
   getSettings,
   getUsers,
   markNotificationRead,
+  markAllNotificationsRead,
   updateRole,
   updateRolePermissions,
   updateSetting,

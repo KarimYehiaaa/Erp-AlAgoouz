@@ -35,6 +35,7 @@
             class="icon-btn"
             type="button"
             title="إظهار/إخفاء أعمدة"
+            aria-label="إظهار أو إخفاء أعمدة الجدول"
             @click.stop="colMenuOpen = !colMenuOpen"
           >
             <AppIcon name="settings" :size="16" />
@@ -196,13 +197,14 @@
       </table>
     </div>
 
-    <!-- Pagination -->
+    <!-- Pagination (server mode: paginated | client mode: clientPagination) -->
     <div v-if="paginated && totalPages > 1" class="bt-pagination">
       <span class="bt-page-info"> عرض {{ pageStart }}–{{ pageEnd }} من {{ totalRows }} عنصر </span>
       <div class="bt-page-controls">
         <button
           class="bt-page-btn"
           type="button"
+          aria-label="الصفحة السابقة"
           :disabled="currentPage <= 1"
           @click="$emit('page-change', currentPage - 1)"
         >
@@ -222,6 +224,7 @@
         <button
           class="bt-page-btn"
           type="button"
+          aria-label="الصفحة التالية"
           :disabled="currentPage >= totalPages"
           @click="$emit('page-change', currentPage + 1)"
         >
@@ -236,11 +239,49 @@
         <option v-for="n in [10, 25, 50, 100]" :key="n" :value="n">{{ n }} / صفحة</option>
       </select>
     </div>
+
+    <!-- Pagination داخلي (بيانات محلية كاملة) -->
+    <div v-else-if="clientPagination && clientTotalPages > 1" class="bt-pagination">
+      <span class="bt-page-info">
+        عرض {{ clientPageStart }}–{{ clientPageEnd }} من {{ (items ?? rows).length }} عنصر
+      </span>
+      <div class="bt-page-controls">
+        <button
+          class="bt-page-btn"
+          type="button"
+          aria-label="الصفحة السابقة"
+          :disabled="internalPage <= 1"
+          @click="setPage(internalPage - 1)"
+        >
+          <AppIcon name="arrowRight" :size="14" />
+        </button>
+        <button
+          v-for="p in clientPagesToShow"
+          :key="`c-${p}`"
+          class="bt-page-btn"
+          type="button"
+          :class="{ active: p === internalPage, ellipsis: p === '...' }"
+          :disabled="p === '...'"
+          @click="p !== '...' && setPage(p as number)"
+        >
+          {{ p }}
+        </button>
+        <button
+          class="bt-page-btn"
+          type="button"
+          aria-label="الصفحة التالية"
+          :disabled="internalPage >= clientTotalPages"
+          @click="setPage(internalPage + 1)"
+        >
+          <AppIcon name="arrowLeft" :size="14" />
+        </button>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, useSlots, onMounted, onBeforeUnmount } from 'vue';
+import { ref, computed, watch, useSlots, onMounted, onBeforeUnmount } from 'vue';
 import DataEmptyState from './DataEmptyState.vue';
 
 /** نوع صف الجدول (كائن بأي مفاتيح، المعرف اختياري). */
@@ -275,6 +316,9 @@ const props = withDefaults(
     sortable?: boolean;
     searchable?: boolean;
     paginated?: boolean;
+    /** ترقيم صفحات داخلي للبيانات المعطاة كاملة (يقطّع العرض دون طلبات إضافية) */
+    clientPagination?: boolean;
+    clientPerPage?: number;
     compact?: boolean;
     showColumnToggle?: boolean;
     // Pagination props (لو الـ pagination من الـ parent)
@@ -314,6 +358,8 @@ const props = withDefaults(
     sortable: true,
     searchable: false,
     paginated: false,
+    clientPagination: false,
+    clientPerPage: 50,
     compact: false,
     showColumnToggle: false,
     currentPage: 1,
@@ -350,9 +396,56 @@ defineEmits<{
 }>();
 const slots = useSlots();
 
-const displayRows = computed(() =>
-  props.items !== null && props.items !== undefined ? props.items : props.rows,
+const displayRows = computed(() => {
+  const all = props.items !== null && props.items !== undefined ? props.items : props.rows;
+  if (props.clientPagination) {
+    const start = (internalPage.value - 1) * props.clientPerPage;
+    return all.slice(start, start + props.clientPerPage);
+  }
+  return all;
+});
+
+// حالة الترقيم الداخلي (clientPagination)
+const internalPage = ref(1);
+watch(
+  () => [props.items, props.rows] as any,
+  () => {
+    const total =
+      (props.items !== null && props.items !== undefined
+        ? props.items.length
+        : props.rows.length) || 0;
+    const maxPage = Math.max(1, Math.ceil(total / props.clientPerPage));
+    if (internalPage.value > maxPage) internalPage.value = maxPage;
+  },
 );
+const clientTotalPages = computed(() =>
+  Math.max(
+    1,
+    Math.ceil(
+      (props.items !== null && props.items !== undefined ? props.items : props.rows).length /
+        props.clientPerPage,
+    ),
+  ),
+);
+const setPage = (p: number) => {
+  if (p >= 1 && p <= clientTotalPages.value) internalPage.value = p;
+};
+const clientPageStart = computed(() =>
+  Math.min((internalPage.value - 1) * props.clientPerPage + 1, (props.items ?? props.rows).length),
+);
+const clientPageEnd = computed(() =>
+  Math.min(internalPage.value * props.clientPerPage, (props.items ?? props.rows).length),
+);
+const clientPagesToShow = computed(() => {
+  const total = clientTotalPages.value;
+  const cur = internalPage.value;
+  if (total <= 7) return Array.from({ length: total }, (_: any, i: any) => i + 1);
+  const pages: (number | string)[] = [];
+  if (cur > 3) pages.push(1, '...');
+  for (let p = Math.max(1, cur - 2); p <= Math.min(total, cur + 2); p++) pages.push(p);
+  if (cur < total - 2) pages.push('...', total);
+  return pages;
+});
 
 const internalSearch = ref(props.search);
 const colMenuOpen = ref(false);

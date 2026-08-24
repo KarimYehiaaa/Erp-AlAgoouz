@@ -78,6 +78,19 @@ api.interceptors.response.use(
           originalRequest.headers.Authorization = `Bearer ${newToken}`;
           return api.request(originalRequest);
         }
+        // نجح الطلب لكن بدون توكن صالح — نعاملها كفشل تحديث حتى لا تبقى الطلبات معلّقة للأبد
+        originalRequest._retry = true;
+        const noTokenErr: any = {
+          message: 'انتهت الجلسة. يرجى تسجيل الدخول مرة أخرى',
+          status: 401,
+        };
+        processQueue(noTokenErr, null);
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        if (!window.location.pathname.includes('/login')) {
+          window.location.replace('/login');
+        }
+        return Promise.reject(noTokenErr);
       } catch (refreshErr: any) {
         processQueue(refreshErr, null);
         // Refresh failed — clear tokens and redirect (replace بدل href لتجنّب تلويث التاريخ)

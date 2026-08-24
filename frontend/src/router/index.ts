@@ -9,6 +9,16 @@ const routes: RouteRecordRaw[] = [
     meta: { guest: true },
   },
   {
+    path: '/menu',
+    name: 'DigitalMenu',
+    component: () => import('@/views/DigitalMenuView.vue'),
+    meta: { public: true },
+  },
+  {
+    path: '/qr-menu',
+    redirect: '/menu',
+  },
+  {
     path: '/',
     component: () => import('@/layouts/MainLayout.vue'),
     meta: { requiresAuth: true },

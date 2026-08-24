@@ -51,6 +51,17 @@ jobs:
       - name: Install dependencies (workspaces)
         run: npm ci
 
+      # بوابة نصوص مشوّهة (mojibake): يمنع اندفاع سلاسل '?????' الناتجة عن
+      # أخطاء ترميز إلى رسائل المستخدم. أي 4 علامات استفهام متتالية داخل
+      # كود المصدر تفشل البناء فوراً.
+      - name: Gate — detect mojibake strings in source
+        run: |
+          if grep -rnE "[?]{4,}" --include="*.ts" --include="*.vue" backend/src frontend/src shared/ 2>/dev/null; then
+            echo "❌ وُجدت نصوص مشوّهة (?????) في الكود أعلاه — أصلح الترميز قبل الدمج"
+            exit 1
+          fi
+          echo "✅ لا نصوص مشوّهة"
+
       # كشف هل غيّر الـ PR ملفات backend (أو مشتركة/اعتماديات) — حتى لا نُشغّل
       # تحقق الباك على PRs تغيّر الواجهة فقط (توفير وقت).
       - name: Detect backend changes (PR)

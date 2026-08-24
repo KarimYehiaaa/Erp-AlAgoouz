@@ -5,6 +5,7 @@
         class="icon-btn"
         type="button"
         :title="appStore.sidebarOpen ? 'إخفاء القائمة' : 'إظهار القائمة'"
+        :aria-label="appStore.sidebarOpen ? 'إخفاء القائمة' : 'إظهار القائمة'"
         @click="appStore.toggleSidebar"
       >
         <AppIcon name="menu" />
@@ -34,6 +35,7 @@
         @click.stop="mobileActionsOpen = !mobileActionsOpen"
         :class="{ active: mobileActionsOpen }"
         title="أدوات إضافية"
+        aria-label="أدوات إضافية"
       >
         <AppIcon name="settings" />
       </button>
@@ -49,6 +51,7 @@
               ? 'إظهار المبالغ (وضع الخصوصية مفعل)'
               : 'طمس المبالغ (تفعيل وضع الخصوصية)'
           "
+          :aria-label="appStore.privacyMode ? 'إظهار المبالغ' : 'طمس المبالغ'"
           :class="{ active: appStore.privacyMode }"
         >
           <AppIcon :name="appStore.privacyMode ? 'eyeOff' : 'eye'" />
@@ -64,6 +67,7 @@
               ? 'كثافة البيانات: كثيفة (تبديل للمريح)'
               : 'كثافة البيانات: مريحة (تبديل للمكثف)'
           "
+          aria-label="تبديل كثافة البيانات"
           :class="{ active: appStore.dataDensity === 'compact' }"
         >
           <AppIcon :name="appStore.dataDensity === 'compact' ? 'maximize' : 'minimize'" />
@@ -77,6 +81,7 @@
           :title="
             appStore.darkMode ? 'الوضع الداكن مفعل (تبديل للفاتح)' : 'تفعيل الوضع الداكن (إسبريسو)'
           "
+          aria-label="تبديل الوضع الداكن"
           :class="{ active: appStore.darkMode }"
         >
           <AppIcon :name="appStore.darkMode ? 'sun' : 'moon'" />
@@ -92,6 +97,7 @@
               ? 'الخروج من وضع تركيز الكاشير (Esc)'
               : 'وضع تركيز الكاشير — إخفاء كل شيء إلا شاشة البيع (F4)'
           "
+          aria-label="تبديل وضع تركيز الكاشير"
           :class="{ active: appStore.focusMode }"
         >
           <AppIcon :name="appStore.focusMode ? 'dashboard' : 'coffee'" />
@@ -120,6 +126,7 @@
         type="button"
         @click="appStore.toggleNotificationDrawer"
         title="تنبيهات التشغيل"
+        aria-label="تنبيهات التشغيل"
         style="position: relative"
       >
         <AppIcon name="warning" />
@@ -134,7 +141,13 @@
           <strong>{{ displayUserName }}</strong>
           <span>{{ authStore.user?.role_name_ar || 'مستخدم' }}</span>
         </div>
-        <button class="logout-btn" type="button" @click="handleLogout" title="تسجيل الخروج">
+        <button
+          class="logout-btn"
+          type="button"
+          @click="handleLogout"
+          title="تسجيل الخروج"
+          aria-label="تسجيل الخروج"
+        >
           <AppIcon name="logout" />
         </button>
       </div>
@@ -143,17 +156,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import AppIcon from '@/components/AppIcon.vue';
 import { useAppStore } from '@/stores/app';
 import { useAuthStore } from '@/stores/auth';
-import {
-  products as productsApi,
-  customers as customersApi,
-  sales as salesApi,
-  operations as operationsApi,
-} from '@/api';
+import { operations as operationsApi } from '@/api';
 import { localDb } from '@/services/localDb';
 import { OutboxService } from '@/services/outboxService';
 
@@ -161,11 +169,7 @@ const route = useRoute();
 const router = useRouter();
 const appStore = useAppStore();
 const authStore = useAuthStore();
-const search = ref('');
-const searchLoading = ref(false);
-const remoteResults = ref<any[]>([]);
 const mobileActionsOpen = ref(false);
-let searchTimer: ReturnType<typeof setTimeout> | null = null;
 const triggerCommandPalette = () => {
   window.dispatchEvent(new CustomEvent('open-command-palette'));
 };
@@ -206,49 +210,6 @@ const handleLogout = () => {
   authStore.logout();
   router.push('/login');
 };
-
-watch(search, (value: any) => {
-  clearTimeout(searchTimer ?? undefined);
-  const q = value.trim();
-  remoteResults.value = [];
-  if (q.length < 2) {
-    searchLoading.value = false;
-    return;
-  }
-
-  searchLoading.value = true;
-  searchTimer = setTimeout(async () => {
-    try {
-      const [productsRes, customersRes] = await Promise.allSettled([
-        productsApi.list({ search: q, limit: 4 }),
-        customersApi.list({ search: q, limit: 4 }),
-      ]);
-
-      const products = productsRes.status === 'fulfilled' ? productsRes.value.data || [] : [];
-      const customers = customersRes.status === 'fulfilled' ? customersRes.value.data || [] : [];
-      remoteResults.value = [
-        ...products.map((p: any) => ({
-          type: 'product',
-          badge: 'منتج',
-          id: p.id,
-          title: p.name_ar || p.sku,
-          subtitle: [p.sku, p.category_name].filter(Boolean).join(' - ') || 'فتح المنتجات',
-          to: '/products',
-        })),
-        ...customers.map((c: any) => ({
-          type: 'customer',
-          badge: 'عميل',
-          id: c.id,
-          title: c.name_ar || c.code,
-          subtitle: [c.code, c.phone].filter(Boolean).join(' - ') || 'فتح العملاء',
-          to: '/customers',
-        })),
-      ];
-    } finally {
-      searchLoading.value = false;
-    }
-  }, 250);
-});
 
 const handleDocumentClick = (event: any) => {
   const actionsToggle = document.querySelector('.mobile-actions-toggle');
@@ -308,22 +269,25 @@ onMounted(() => {
   // Initial check and sync
   updateOnlineStatus();
   localDb.getOfflineSales().then((sales: any) => {
-    appStore.pendingSyncCount = sales.length;
-    if (navigator.onLine && sales.length > 0) {
+    // الشارة تعرض المعلّق القابل للمزامنة فقط — المحجور يحتاج مراجعة يدوية
+    appStore.pendingSyncCount = sales.filter((s: any) => s.sync_status !== 'QUARANTINED').length;
+    if (navigator.onLine && appStore.pendingSyncCount > 0) {
       syncOfflineSales();
     }
   });
 
-  // Set up periodic sync
+  // Set up periodic sync — يتوقف عند إخفاء التبويب لتوفير البيانات والبطارية
   syncInterval = setInterval(() => {
-    if (navigator.onLine) {
+    if (navigator.onLine && !document.hidden) {
       syncOfflineSales();
     }
   }, 30000);
 
   // Background alerts fetch
   loadAlertsBackground();
-  alertsInterval = setInterval(loadAlertsBackground, 60000);
+  alertsInterval = setInterval(() => {
+    if (!document.hidden) loadAlertsBackground();
+  }, 60000);
 });
 
 onBeforeUnmount(() => {

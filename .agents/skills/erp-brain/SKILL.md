@@ -22,9 +22,9 @@ description: >
 | **Frontend** | Vue 3 (Composition API) + Vite + Tailwind CSS + Pinia |
 | **Backend** | Express.js + Node.js (≥18) + pg (PostgreSQL driver) |
 | **قاعدة البيانات** | PostgreSQL |
-| **الاستضافة** | Render (سحابي) + Local (محلي) بالتوازي |
+| **الاستضافة** | Vercel (سحابي) + Local (محلي) بالتوازي |
 | **الأمان** | JWT + RBAC + Helmet + Rate Limiting + AES-256 Encryption |
-| **النشر** | Docker + PM2 + Render.yaml |
+| **النشر** | Docker + PM2 + vercel.json |
 
 ---
 

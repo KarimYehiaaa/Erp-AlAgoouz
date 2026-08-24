@@ -5,6 +5,8 @@
 
 import { Router } from 'express';
 import type { Request, Response } from 'express';
+import { authenticate } from '../middleware/auth.ts';
+import { requireAdmin } from './helpers.ts';
 import TelegramBotService from '../services/telegramBotService.ts';
 
 const router = Router();
@@ -16,7 +18,7 @@ const handleWebhook = async (req: Request, res: Response) => {
       await TelegramBotService.handleIncomingMessage(req.body.message);
     }
     res.status(200).json({ ok: true });
-  } catch (err) {
+  } catch (_err) {
     res.status(200).json({ ok: true }); // Always 200 for telegram webhook
   }
 };
@@ -24,8 +26,8 @@ const handleWebhook = async (req: Request, res: Response) => {
 router.post('/telegram/webhook', handleWebhook);
 router.post('/api/telegram/webhook', handleWebhook);
 
-// فحص حالة البوت التفاعلي
-router.get('/telegram/status', async (_req: Request, res: Response) => {
+// فحص حالة البوت التفاعلي (محمي — لا يكشف إعدادات البوت للعموم)
+router.get('/telegram/status', authenticate, requireAdmin, async (_req: Request, res: Response) => {
   const creds = await TelegramBotService.getBotCredentials();
   res.json({
     success: true,
@@ -36,13 +38,18 @@ router.get('/telegram/status', async (_req: Request, res: Response) => {
   });
 });
 
-// إعادة تشغيل محرك الاستماع التفاعلي
-router.post('/telegram/restart', async (_req: Request, res: Response) => {
-  await TelegramBotService.restartListening();
-  res.json({
-    success: true,
-    message: 'تمت إعادة تشغيل محرك استماع بوت تليجرام بنجاح',
-  });
-});
+// إعادة تشغيل محرك الاستماع التفاعلي (محمي — عملية إدارية حساسة)
+router.post(
+  '/telegram/restart',
+  authenticate,
+  requireAdmin,
+  async (_req: Request, res: Response) => {
+    await TelegramBotService.restartListening();
+    res.json({
+      success: true,
+      message: 'تمت إعادة تشغيل محرك استماع بوت تليجرام بنجاح',
+    });
+  },
+);
 
 export default router;

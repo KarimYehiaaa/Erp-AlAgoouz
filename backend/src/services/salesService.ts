@@ -13,6 +13,7 @@ import { recalculateCustomerBalance } from './customerBalanceService.ts';
 import { invalidateDashboardCache } from './dashboardService.ts';
 import { broadcast } from './websocketService.ts';
 import { roundMoney, parseAmount } from '../utils/money.ts';
+import { businessToday } from '../utils/localDate.ts';
 import {
   calculateOutstandingAmount,
   calculatePaidAmount,
@@ -81,19 +82,29 @@ const createDailySale = async (data: Record<string, any>, userId: number) => {
     totalAmount,
     data.paid_amount || 0,
   );
-  const saleDate = data.sale_date || /* @__PURE__ */ new Date().toISOString().split('T')[0];
+  const saleDate = data.sale_date || businessToday();
   let profitAmount = parseAmount(data.profit_amount);
   const client = await getClient();
   try {
     await client.query('BEGIN');
+    // حماية من الإرسال المزدوج (Offline replay): نفس sync_id يعيد البيع الموجود بدل إنشاء جديد
+    const syncId = typeof data.sync_id === 'string' && data.sync_id ? data.sync_id : null;
+    if (syncId) {
+      const dup = await client.query(`SELECT id FROM sales WHERE sync_id = $1 LIMIT 1`, [syncId]);
+      if (dup.rows[0]) {
+        const existingId = dup.rows[0].id;
+        await client.query('COMMIT');
+        return { ...(await getSaleById(existingId)), _duplicateSync: true };
+      }
+    }
     const saleNumber = await generateNumber(client, 'SL', 'sale');
     const entryMode = items.length ? 'pos' : 'daily';
     const saleResult = await client.query(
       `INSERT INTO sales (
         sale_number, sale_type, sale_date, entry_mode, customer_id, warehouse_id, user_id,
         subtotal, discount_amount, tax_amount, tax_percent, total_amount, cost_amount, profit_amount,
-        payment_status, status, notes
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,'completed',$16) RETURNING *`,
+        payment_status, status, notes, sync_id
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,'completed',$16,COALESCE($17::uuid, gen_random_uuid())) RETURNING *`,
       [
         saleNumber,
         saleType,
@@ -111,6 +122,7 @@ const createDailySale = async (data: Record<string, any>, userId: number) => {
         profitAmount,
         paymentStatus,
         data.notes || null,
+        syncId,
       ],
     );
     const sale = saleResult.rows[0];
@@ -242,12 +254,17 @@ const updateSale = async (saleId: number, data: Record<string, any>, userId: num
       throw new AppError(
         '\u0625\u062C\u0645\u0627\u0644\u064A \u0627\u0644\u0645\u0628\u064A\u0639\u0627\u062A \u064A\u062C\u0628 \u0623\u0646 \u064A\u0643\u0648\u0646 \u0623\u0643\u0628\u0631 \u0645\u0646 \u0635\u0641\u0631',
       );
-    const paymentStatus = data.payment_status || existingSale.payment_status || 'paid';
-    const effectivePaidAmount = calculatePaidAmount(
-      paymentStatus,
-      totalAmount,
-      data.paid_amount || 0,
-    );
+    // المدفوع المطلوب: يُحتسب فقط إذا أُرسلت بيانات دفع صريحة،
+    // وإلا يُحافظ على سجل الدفعات الحقيقي كما هو (تسوية بالفرق لاحقاً)
+    const providesPaymentInput =
+      data.payment_status !== undefined || data.paid_amount !== undefined;
+    const requestedPaidAmount = providesPaymentInput
+      ? calculatePaidAmount(
+          data.payment_status || existingSale.payment_status || 'paid',
+          totalAmount,
+          data.paid_amount || 0,
+        )
+      : null;
     const warehouseId =
       shouldReplaceItems && items.length
         ? await resolveSaleWarehouseId(items, data.warehouse_id || existingSale.warehouse_id)
@@ -279,6 +296,53 @@ const updateSale = async (saleId: number, data: Record<string, any>, userId: num
         profitAmount = parseAmount(data.profit_amount, 0);
       }
     }
+    // تسوية الدفعات بالفرق فقط — لا يُحذف السجل المالي كاملاً عند كل تعديل
+    const existingPaidRes = await client.query(
+      `SELECT COALESCE(SUM(amount), 0)::numeric AS total FROM payments WHERE reference_type = 'sale' AND reference_id = $1`,
+      [saleId],
+    );
+    const existingPaid = Number(existingPaidRes.rows[0].total || 0);
+    const targetPaid = requestedPaidAmount === null ? existingPaid : requestedPaidAmount;
+
+    if (targetPaid > existingPaid + 1e-9) {
+      await client.query(
+        `INSERT INTO payments (payment_number, reference_type, reference_id, amount, payment_method, user_id)
+         VALUES ($1,'sale',$2,$3,$4,$5)`,
+        [
+          `PAY-${saleId}-${Date.now()}`,
+          saleId,
+          roundMoney(targetPaid - existingPaid),
+          data.payment_method || 'cash',
+          userId,
+        ],
+      );
+    } else if (targetPaid < existingPaid - 1e-9) {
+      // تقليص المدفوع من أحدث دفعة لأقدمها، مع تعديل جزئي لآخر دفعة عند الحاجة
+      let excess = roundMoney(existingPaid - targetPaid);
+      const payRows = (
+        await client.query(
+          `SELECT id, amount FROM payments WHERE reference_type = 'sale' AND reference_id = $1 ORDER BY id DESC FOR UPDATE`,
+          [saleId],
+        )
+      ).rows;
+      for (const pay of payRows) {
+        if (excess <= 1e-9) break;
+        const amt = Number(pay.amount);
+        if (amt <= excess + 1e-9) {
+          await client.query(`DELETE FROM payments WHERE id = $1`, [pay.id]);
+          excess = roundMoney(excess - amt);
+        } else {
+          await client.query(`UPDATE payments SET amount = $1 WHERE id = $2`, [
+            roundMoney(amt - excess),
+            pay.id,
+          ]);
+          excess = 0;
+        }
+      }
+    }
+    // تصحيح حالة الدفع لتطابق الواقع الفعلي بعد التسوية
+    const finalPaymentStatus =
+      targetPaid >= totalAmount - 0.01 ? 'paid' : targetPaid > 0.01 ? 'partial' : 'unpaid';
     await client.query(
       `UPDATE sales SET
         sale_type = $1,
@@ -310,27 +374,11 @@ const updateSale = async (saleId: number, data: Record<string, any>, userId: num
         totalAmount,
         costAmount,
         profitAmount,
-        paymentStatus,
+        finalPaymentStatus,
         data.notes || null,
         saleId,
       ],
     );
-    await client.query(`DELETE FROM payments WHERE reference_type = 'sale' AND reference_id = $1`, [
-      saleId,
-    ]);
-    if (effectivePaidAmount > 0) {
-      await client.query(
-        `INSERT INTO payments (payment_number, reference_type, reference_id, amount, payment_method, user_id)
-         VALUES ($1,'sale',$2,$3,$4,$5)`,
-        [
-          `PAY-${saleId}-${Date.now()}`,
-          saleId,
-          effectivePaidAmount,
-          data.payment_method || 'cash',
-          userId,
-        ],
-      );
-    }
     await client.query(
       `UPDATE invoices SET
         customer_id = $1,
@@ -346,7 +394,7 @@ const updateSale = async (saleId: number, data: Record<string, any>, userId: num
         totals.discountAmount || 0,
         totals.taxAmount || 0,
         totalAmount,
-        paymentStatus,
+        finalPaymentStatus,
         saleId,
       ],
     );
@@ -505,7 +553,7 @@ const deleteAllSales = async (userId: number) => {
         `SELECT DISTINCT customer_id FROM sales WHERE deleted_at IS NULL AND customer_id IS NOT NULL`,
       );
       const posSales = await client.query(
-        `SELECT id FROM sales WHERE deleted_at IS NULL AND entry_mode = 'pos'`,
+        `SELECT id FROM sales WHERE deleted_at IS NULL AND entry_mode = 'pos' AND status <> 'returned'`,
       );
       for (const row of posSales.rows) {
         await restoreInventoryForSale(client, row.id, userId);
@@ -571,7 +619,7 @@ const deleteSalesByDate = async (saleDate: string, userId: number) => {
         [saleDate],
       );
       const posSales = await client.query(
-        `SELECT id FROM sales WHERE deleted_at IS NULL AND sale_date = $1::date AND entry_mode = 'pos'`,
+        `SELECT id FROM sales WHERE deleted_at IS NULL AND sale_date = $1::date AND entry_mode = 'pos' AND status <> 'returned'`,
         [saleDate],
       );
       for (const row of posSales.rows) {
@@ -644,7 +692,7 @@ const deleteSalesByType = async (saleType: string, userId: number) => {
         [saleType],
       );
       const posSales = await client.query(
-        `SELECT id FROM sales WHERE deleted_at IS NULL AND sale_type = $1 AND entry_mode = 'pos'`,
+        `SELECT id FROM sales WHERE deleted_at IS NULL AND sale_type = $1 AND entry_mode = 'pos' AND status <> 'returned'`,
         [saleType],
       );
       for (const row of posSales.rows) {

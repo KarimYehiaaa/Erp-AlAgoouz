@@ -74,12 +74,37 @@ const lastChecked = ref('—');
 const fetchAlerts = async () => {
   loading.value = true;
   try {
-    const res = await operations.alerts();
-    appStore.notifications = res.data?.alerts || [];
+    const [res, notifRes] = await Promise.all([
+      operations.alerts(),
+      operations.notifications().catch(() => null),
+    ]);
+    const alerts = res.data?.alerts || [];
+
+    // دمج الإشعارات المحفوظة غير المقروءة (من نظام التنبيهات الداخلي)
+    const savedNotifs = (notifRes?.data?.data || notifRes?.data || []).filter(
+      (n: any) => !n.is_read,
+    );
+    const mappedNotifs = savedNotifs.map((n: any) => ({
+      type: `notification_${n.id}`,
+      notification_id: n.id,
+      severity: n.type === 'danger' ? 'danger' : n.type === 'warning' ? 'warning' : 'info',
+      title: n.title_ar,
+      message: n.message_ar,
+      count: 1,
+      action_to: '',
+      items: [],
+    }));
+
+    appStore.notifications = [...mappedNotifs, ...alerts];
     lastChecked.value = new Date().toLocaleTimeString('ar-EG', {
       hour: '2-digit',
       minute: '2-digit',
     });
+
+    // تعليم الإشعارات كمقروءة بعد عرضها حتى لا تتراكم
+    if (mappedNotifs.length) {
+      operations.markAllNotificationsRead().catch(() => {});
+    }
   } catch (e: any) {
     console.error('❌ Error fetching alerts:', e);
   } finally {

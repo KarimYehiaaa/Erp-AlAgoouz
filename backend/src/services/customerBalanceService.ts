@@ -17,89 +17,54 @@ export const recalculateCustomerBalance = async (
   customerId?: number,
 ) => {
   const execQuery = typeof db === 'function' ? db : (text, params) => db.query(text, params);
+  // إصلاح الأداء: كان الرصيد يُحسب مرتين (مرة لـ balance ومرة لـ current_balance) —
+  // الآن نحسبه مرة واحدة في CTE ونستخدمه للعمودين مع الحفاظ على نفس الدلالات العددية
   await execQuery(
     `
+    WITH balance_calc AS (
+      SELECT SUM(outstanding) AS total_outstanding
+      FROM (
+        SELECT
+          CASE
+            WHEN s.status = 'returned' THEN 0
+            WHEN s.payment_status = 'paid' THEN 0
+            ELSE
+              GREATEST(0, COALESCE(s.total_amount, 0) - COALESCE((
+                SELECT SUM(amount)
+                FROM payments p
+                WHERE (p.reference_type = 'sale' AND p.reference_id = s.id)
+                   OR (p.reference_type = 'invoice' AND p.reference_id = (SELECT id FROM invoices WHERE sale_id = s.id LIMIT 1))
+              ), 0))
+          END AS outstanding
+        FROM sales s
+        WHERE s.customer_id = $1
+          AND s.deleted_at IS NULL
+          AND s.sale_type = 'wholesale'
+          AND s.status IN ('completed', 'returned')
+
+        UNION ALL
+
+        SELECT
+          CASE
+            WHEN i.payment_status = 'paid' THEN 0
+            ELSE
+              GREATEST(0, COALESCE(i.total_amount, 0) - COALESCE((
+                SELECT SUM(amount)
+                FROM payments p
+                WHERE p.reference_type = 'invoice'
+                  AND p.reference_id = i.id
+              ), 0))
+          END AS outstanding
+        FROM invoices i
+        WHERE i.customer_id = $1
+          AND i.sale_id IS NULL
+          AND i.deleted_at IS NULL
+      ) source
+    )
     UPDATE customers c
-    SET balance = COALESCE(c.opening_balance, 0) + COALESCE((
-      SELECT SUM(outstanding)
-      FROM (
-        SELECT
-          CASE
-            WHEN s.status = 'returned' THEN 0
-            WHEN s.payment_status = 'paid' THEN 0
-            ELSE
-              GREATEST(0, COALESCE(s.total_amount, 0) - COALESCE((
-                SELECT SUM(amount)
-                FROM payments p
-                WHERE (p.reference_type = 'sale' AND p.reference_id = s.id)
-                   OR (p.reference_type = 'invoice' AND p.reference_id = (SELECT id FROM invoices WHERE sale_id = s.id LIMIT 1))
-              ), 0))
-          END AS outstanding
-        FROM sales s
-        WHERE s.customer_id = $1
-          AND s.deleted_at IS NULL
-          AND s.sale_type = 'wholesale'
-          AND s.status IN ('completed', 'returned')
-
-        UNION ALL
-
-        SELECT
-          CASE
-            WHEN i.payment_status = 'paid' THEN 0
-            ELSE
-              GREATEST(0, COALESCE(i.total_amount, 0) - COALESCE((
-                SELECT SUM(amount)
-                FROM payments p
-                WHERE p.reference_type = 'invoice'
-                  AND p.reference_id = i.id
-              ), 0))
-          END AS outstanding
-        FROM invoices i
-        WHERE i.customer_id = $1
-          AND i.sale_id IS NULL
-          AND i.deleted_at IS NULL
-      ) source
-    ), 0),
-    current_balance = COALESCE(c.opening_balance, 0) + COALESCE((
-      SELECT SUM(outstanding)
-      FROM (
-        SELECT
-          CASE
-            WHEN s.status = 'returned' THEN 0
-            WHEN s.payment_status = 'paid' THEN 0
-            ELSE
-              GREATEST(0, COALESCE(s.total_amount, 0) - COALESCE((
-                SELECT SUM(amount)
-                FROM payments p
-                WHERE (p.reference_type = 'sale' AND p.reference_id = s.id)
-                   OR (p.reference_type = 'invoice' AND p.reference_id = (SELECT id FROM invoices WHERE sale_id = s.id LIMIT 1))
-              ), 0))
-          END AS outstanding
-        FROM sales s
-        WHERE s.customer_id = $1
-          AND s.deleted_at IS NULL
-          AND s.sale_type = 'wholesale'
-          AND s.status IN ('completed', 'returned')
-
-        UNION ALL
-
-        SELECT
-          CASE
-            WHEN i.payment_status = 'paid' THEN 0
-            ELSE
-              GREATEST(0, COALESCE(i.total_amount, 0) - COALESCE((
-                SELECT SUM(amount)
-                FROM payments p
-                WHERE p.reference_type = 'invoice'
-                  AND p.reference_id = i.id
-              ), 0))
-          END AS outstanding
-        FROM invoices i
-        WHERE i.customer_id = $1
-          AND i.sale_id IS NULL
-          AND i.deleted_at IS NULL
-      ) source
-    ), 0)
+    SET balance = COALESCE(c.opening_balance, 0) + COALESCE(bc.total_outstanding, 0),
+        current_balance = COALESCE(c.opening_balance, 0) + COALESCE(bc.total_outstanding, 0)
+    FROM balance_calc bc
     WHERE c.id = $1
     `,
     [customerId],

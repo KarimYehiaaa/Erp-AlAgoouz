@@ -73,6 +73,9 @@ export function useInventoryStock(ctx: InventoryStockContext) {
   const showWastage = ref(false);
   const savingWastage = ref(false);
 
+  /** مؤقّتات إزالة الإبراز لكل صف — تُنظّف عند إلغاء التركيب */
+  const highlightTimers: Record<string, ReturnType<typeof setTimeout>> = {};
+
   const stockColumns = [
     { key: 'name_ar', label: 'المنتج' },
     { key: 'sku', label: 'الكود' },
@@ -173,10 +176,12 @@ export function useInventoryStock(ctx: InventoryStockContext) {
       if (pid && wid) {
         const key = `${pid}-${wid}`;
         highlighted.value[key] = Date.now();
-        // إزالة الإبراز بعد 5 ثوانٍ
-        setTimeout(() => {
+        // إزالة الإبراز بعد 5 ثوانٍ (مع تنظيف المؤقّت عند إلغاء التركيب)
+        if (highlightTimers[key]) clearTimeout(highlightTimers[key]);
+        highlightTimers[key] = setTimeout(() => {
           delete highlighted.value[key];
           highlighted.value = { ...highlighted.value };
+          delete highlightTimers[key];
         }, 5000);
       }
     } catch (e: any) {
@@ -185,7 +190,10 @@ export function useInventoryStock(ctx: InventoryStockContext) {
   };
 
   onMounted(() => window.addEventListener('inventory-updated', onInventoryUpdated));
-  onBeforeUnmount(() => window.removeEventListener('inventory-updated', onInventoryUpdated));
+  onBeforeUnmount(() => {
+    window.removeEventListener('inventory-updated', onInventoryUpdated);
+    Object.values(highlightTimers).forEach(clearTimeout);
+  });
 
   /** فتح مودال تعديل الكميات وتوزيع المخازن لصف. */
   const openEdit = async (row: any) => {

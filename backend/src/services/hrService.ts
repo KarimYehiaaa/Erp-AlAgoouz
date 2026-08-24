@@ -2,6 +2,7 @@ import { getClient, query, withTransaction } from '../database/pool.ts';
 import { AppError } from '../types/errors.ts';
 import { invalidateDashboardCache } from './dashboardService.ts';
 import { roundMoney, toNumber } from '../utils/money.ts';
+import { businessToday } from '../utils/localDate.ts';
 
 const getMonthBounds = (periodMonth) => {
   const raw = periodMonth || new Date().toISOString().slice(0, 7);
@@ -53,6 +54,36 @@ const mergeDateWithTime = (date, dateTimeValue) => {
 };
 
 /**
+ * استخراج الوقت كدقائق من منتصف الليل (ساعة حائط) من أي صيغة
+ * ('HH:MM' أو 'HH:MM:SS' أو ISO 'YYYY-MM-DDTHH:MM...').
+ * يعتمد الساعة الحائطية فقط لتجنب اختلاق مناطق زمنية مختلفة.
+ */
+const parseWallMinutes = (value) => {
+  if (!value) return null;
+  const match = String(value).match(/(\d{1,2}):(\d{2})/);
+  if (!match) return null;
+  const h = Number(match[1]);
+  const m = Number(match[2]);
+  if (h > 23 || m > 59) return null;
+  return h * 60 + m;
+};
+
+/**
+ * دقائق العمل الفعلية بين حضور وانصراف.
+ * المناوبة الليلية (الخروج ≤ الدخول) يُعتبر خروجها في اليوم التالي.
+ */
+const computeWorkedMinutes = (checkInValue, checkOutValue) => {
+  const inMin = parseWallMinutes(checkInValue);
+  const outMin = parseWallMinutes(checkOutValue);
+  if (inMin === null || outMin === null) return null;
+  let delta = outMin - inMin;
+  // تساوي الحضور والانصراف = بيانات غير صالحة → صفر ساعات بدل احتساب 24 ساعة
+  if (delta === 0) return 0;
+  if (delta < 0) delta += 1440;
+  return delta;
+};
+
+/**
  * ملخص الموارد البشرية (موظفون، دوام، سلف، رواتب) لشهر محدد.
  * @param {string} periodMonth الشهر بصيغة YYYY-MM
  * @returns {Promise<any>}
@@ -63,15 +94,18 @@ export const getHrSummary = async (periodMonth: string) => {
     query(
       `SELECT COUNT(*)::int AS count FROM employees WHERE deleted_at IS NULL AND is_active = TRUE`,
     ),
-    query(`
+    query(
+      `
       SELECT
         COUNT(*) FILTER (WHERE status = 'present')::int AS present,
         COUNT(*) FILTER (WHERE status = 'absent')::int AS absent
       FROM employee_attendance
-      WHERE deleted_at IS NULL AND work_date = CURRENT_DATE
-    `),
+      WHERE deleted_at IS NULL AND work_date = $1::date
+    `,
+      [businessToday()],
+    ),
     query(`
-      SELECT COALESCE(SUM(amount - COALESCE(installment_amount, amount) * paid_installments), 0)::numeric AS open_amount
+      SELECT COALESCE(SUM(GREATEST(amount - COALESCE(installment_amount, amount) * paid_installments, 0)), 0)::numeric AS open_amount
       FROM employee_advances
       WHERE deleted_at IS NULL AND status = 'active'
     `),
@@ -193,8 +227,8 @@ export const updateEmployee = async (id: number, data: Record<string, any>) => {
     `UPDATE employees SET
        code = COALESCE($1, code),
        full_name = COALESCE($2, full_name),
-       job_title = $3,
-       phone = $4,
+       job_title = COALESCE($3, job_title),
+       phone = COALESCE($4, phone),
        salary_type = COALESCE($5, salary_type),
        base_salary = COALESCE($6, base_salary),
        hourly_rate = COALESCE($7, hourly_rate),
@@ -202,9 +236,9 @@ export const updateEmployee = async (id: number, data: Record<string, any>) => {
        daily_required_hours = COALESCE($9, daily_required_hours),
        work_days_per_month = COALESCE($10, work_days_per_month),
        absence_deduction_type = COALESCE($11, absence_deduction_type),
-       shift_id = $12,
+       shift_id = COALESCE($12, shift_id),
        start_date = COALESCE($13, start_date),
-       notes = $14,
+       notes = COALESCE($14, notes),
        is_active = COALESCE($15, is_active)
      WHERE id = $16 AND deleted_at IS NULL
      RETURNING *`,
@@ -271,19 +305,29 @@ const calculateAttendanceFields = async (employeeId, workDate, checkIn, checkOut
   } else if (status === 'half_day') {
     regularHours = roundMoney(requiredHours / 2);
   } else if (checkIn && checkOut) {
-    const diffMs = new Date(checkOut).getTime() - new Date(checkIn).getTime();
-    const workedHours = Math.max(0, diffMs / 36e5);
-    regularHours = Math.min(workedHours, requiredHours);
-    overtimeHours = employee.overtime_enabled ? Math.max(0, workedHours - requiredHours) : 0;
+    // حساب بالساعة الحائطية — يدعم المناوبة الليلية (الخروج بعد منتصف الليل)
+    const workedMinutes = computeWorkedMinutes(checkIn, checkOut);
+    if (workedMinutes !== null) {
+      const workedHours = workedMinutes / 60;
+      regularHours = Math.min(workedHours, requiredHours);
+      overtimeHours = employee.overtime_enabled ? Math.max(0, workedHours - requiredHours) : 0;
+    }
   } else if (status === 'present') {
     regularHours = requiredHours;
   }
 
   if (checkIn && employee.start_time) {
-    const expected = new Date(`${workDate}T${employee.start_time}`);
-    const actual = new Date(checkIn);
-    const grace = Math.max(0, Number(employee.grace_minutes || 0));
-    lateMinutes = Math.max(0, Math.floor((actual.getTime() - expected.getTime()) / 60000) - grace);
+    const actualMin = parseWallMinutes(checkIn);
+    const expectedMin = parseWallMinutes(employee.start_time);
+    if (actualMin !== null && expectedMin !== null) {
+      let delta = actualMin - expectedMin;
+      // وردية تبدأ قرب منتصف الليل والحضور بعد منتصفها
+      if (delta < -720) delta += 1440;
+      // وردية تبدأ بعد منتصف الليل وحضور مبكر مساء اليوم السابق (وليست تأخيراً)
+      else if (expectedMin <= 360 && actualMin >= 1080 && delta > 720) delta -= 1440;
+      const grace = Math.max(0, Number(employee.grace_minutes || 0));
+      lateMinutes = Math.max(0, Math.floor(delta) - grace);
+    }
   }
 
   return {
@@ -332,7 +376,7 @@ export const saveAttendance = async (data: Record<string, any>, userId: number) 
   const employeeId = Number(data.employee_id);
   if (!employeeId) throw new AppError('يرجى اختيار الموظف أولاً من القائمة', 400);
 
-  const workDate = data.work_date || data.from_date || new Date().toISOString().slice(0, 10);
+  const workDate = data.work_date || data.from_date || businessToday();
   const checkIn = data.check_in || null;
   const checkOut = data.check_out || null;
   const status = data.status || 'present';
@@ -420,22 +464,31 @@ export const saveAttendanceRange = async (data: Record<string, any>, userId: num
         } else if (status === 'half_day') {
           regularHours = roundMoney(requiredHours / 2);
         } else if (checkIn && checkOut) {
-          const diffMs = new Date(checkOut).getTime() - new Date(checkIn).getTime();
-          const workedHours = Math.max(0, diffMs / 36e5);
-          regularHours = Math.min(workedHours, requiredHours);
-          overtimeHours = employee.overtime_enabled ? Math.max(0, workedHours - requiredHours) : 0;
+          // حساب بالساعة الحائطية — يدعم المناوبة الليلية (الخروج بعد منتصف الليل)
+          const workedMinutes = computeWorkedMinutes(checkIn, checkOut);
+          if (workedMinutes !== null) {
+            const workedHours = workedMinutes / 60;
+            regularHours = Math.min(workedHours, requiredHours);
+            overtimeHours = employee.overtime_enabled
+              ? Math.max(0, workedHours - requiredHours)
+              : 0;
+          }
         } else if (status === 'present') {
           regularHours = requiredHours;
         }
 
         if (checkIn && employee.start_time) {
-          const expected = new Date(`${workDate}T${employee.start_time}`);
-          const actual = new Date(checkIn);
-          const grace = Math.max(0, Number(employee.grace_minutes || 0));
-          lateMinutes = Math.max(
-            0,
-            Math.floor((actual.getTime() - expected.getTime()) / 60000) - grace,
-          );
+          const actualMin = parseWallMinutes(checkIn);
+          const expectedMin = parseWallMinutes(employee.start_time);
+          if (actualMin !== null && expectedMin !== null) {
+            let delta = actualMin - expectedMin;
+            // وردية تبدأ قرب منتصف الليل والحضور بعد منتصفها
+            if (delta < -720) delta += 1440;
+            // وردية تبدأ بعد منتصف الليل وحضور مبكر مساء اليوم السابق (وليست تأخيراً)
+            else if (expectedMin <= 360 && actualMin >= 1080 && delta > 720) delta -= 1440;
+            const grace = Math.max(0, Number(employee.grace_minutes || 0));
+            lateMinutes = Math.max(0, Math.floor(delta) - grace);
+          }
         }
       }
 
@@ -615,9 +668,11 @@ const calculatePayrollItems = async (periodMonth) => {
       row.salary_type === 'hourly'
         ? toNumber(row.hourly_rate)
         : dailyRate / Math.max(1, toNumber(row.daily_required_hours, 8));
-    const overtimeAmount = roundMoney(
-      toNumber(row.overtime_hours) * (toNumber(row.overtime_rate) || hourlyRate),
-    );
+    // الأوفرتايم لا يساوي الدوام العادي: معامل افتراضي 1.5× عند عدم تحديد سعر صريح
+    const DEFAULT_OVERTIME_MULTIPLIER = 1.5;
+    const effectiveOvertimeRate =
+      toNumber(row.overtime_rate) || roundMoney(hourlyRate * DEFAULT_OVERTIME_MULTIPLIER);
+    const overtimeAmount = roundMoney(toNumber(row.overtime_hours) * effectiveOvertimeRate);
     const absenceDeduction =
       row.salary_type === 'monthly'
         ? roundMoney(Math.max(0, workDaysPerMonth - workedDays) * monthlyDailyRate)
@@ -682,6 +737,11 @@ export const createOrRecalculatePayroll = async (periodMonth: string, userId: nu
   const client = await getClient();
   try {
     await client.query('BEGIN');
+    // قفل صف المسير إن وُجد لمنع سباق مع اعتماد الصرف (TOCTOU):
+    // بدون القفل يمكن لمسير تم صرفه للتو أن يُعاد إلى مسودة
+    await client.query(`SELECT id FROM payroll_runs WHERE period_month = $1::date FOR UPDATE`, [
+      preview.period_month,
+    ]);
     const existing = await client.query(
       `SELECT * FROM payroll_runs WHERE period_month = $1::date AND deleted_at IS NULL LIMIT 1`,
       [preview.period_month],
@@ -695,6 +755,7 @@ export const createOrRecalculatePayroll = async (periodMonth: string, userId: nu
        DO UPDATE SET status = 'draft', total_gross = EXCLUDED.total_gross, total_deductions = EXCLUDED.total_deductions,
          total_advances = EXCLUDED.total_advances, total_net = EXCLUDED.total_net, user_id = EXCLUDED.user_id,
          deleted_at = NULL, updated_at = NOW()
+       WHERE payroll_runs.status <> 'paid'
        RETURNING *`,
       [
         preview.period_month,
@@ -705,6 +766,7 @@ export const createOrRecalculatePayroll = async (periodMonth: string, userId: nu
         userId,
       ],
     );
+    if (!run.rows[0]) throw new AppError('لا يمكن إعادة حساب شهر تم صرفه بالفعل', 400);
     await client.query(`DELETE FROM payroll_items WHERE payroll_run_id = $1`, [run.rows[0].id]);
     for (const item of preview.items) {
       await client.query(

@@ -1,7 +1,7 @@
 import { getClient, query } from '../database/pool.ts';
 import { AppError } from '../types/errors.ts';
-import { lockInventoryRow } from './inventoryService.ts';
 import { invalidateDashboardCache } from './dashboardService.ts';
+import { roundMoney } from '../utils/money.ts';
 
 /**
  * إنشاء عملية جرد جديدة كمسودة للمخزن المحدد
@@ -50,14 +50,14 @@ export const createStocktake = async (warehouseId: number, userId: number, notes
     );
     const stocktake = stocktakeRes.rows[0];
 
-    // 4. جلب جميع المنتجات النشطة (التي ليست وصفات نشطة) مع كمياتها الدفترية وتكلفتها المتوسطة (WAC)
-    const productsRes = await client.query(
-      `SELECT 
-         p.id AS product_id,
-         COALESCE(i.quantity, 0) AS system_quantity,
-         COALESCE(p.purchase_price, 0) AS unit_cost
+    // 4-5. إدخال بنود الجرد التفصيلية دفعة واحدة (set-based) —
+    // جميع المنتجات النشطة (التي ليست وصفات نشطة) مع كمياتها الدفترية وتكلفتها من purchase_price
+    // بدلاً من حلقة INSERT لكل منتج على حدة (كانت N query لكل عملية جرد)
+    const itemsRes = await client.query(
+      `INSERT INTO stocktake_items (stocktake_id, product_id, system_quantity, unit_cost)
+       SELECT $1, p.id, COALESCE(i.quantity, 0), COALESCE(p.purchase_price, 0)
        FROM products p
-       LEFT JOIN inventory i ON i.product_id = p.id AND i.warehouse_id = $1
+       LEFT JOIN inventory i ON i.product_id = p.id AND i.warehouse_id = $2
        WHERE p.deleted_at IS NULL 
          AND p.is_active = TRUE
          AND NOT EXISTS (
@@ -67,24 +67,12 @@ export const createStocktake = async (warehouseId: number, userId: number, notes
              AND r.deleted_at IS NULL 
              AND r.is_active = TRUE
          )`,
-      [warehouseId],
+      [stocktake.id, warehouseId],
     );
-
-    const items = productsRes.rows;
-
-    // 5. إدخال بنود الجرد التفصيلية
-    if (items.length > 0) {
-      for (const item of items) {
-        await client.query(
-          `INSERT INTO stocktake_items (stocktake_id, product_id, system_quantity, unit_cost)
-           VALUES ($1, $2, $3, $4)`,
-          [stocktake.id, item.product_id, item.system_quantity, item.unit_cost],
-        );
-      }
-    }
+    const itemsCount = itemsRes.rowCount || 0;
 
     await client.query('COMMIT');
-    return { ...stocktake, items_count: items.length };
+    return { ...stocktake, items_count: itemsCount };
   } catch (err: any) {
     await client.query('ROLLBACK');
     throw err;
@@ -208,7 +196,10 @@ export const updateStocktakeItems = async (stocktakeId: number, data: Record<str
       await client.query(`UPDATE stocktakes SET notes = $1 WHERE id = $2`, [notes, stocktakeId]);
     }
 
-    // تحديث البنود
+    // تحديث البنود دفعة واحدة (set-based) بدلاً من SELECT + UPDATE لكل بند
+    // التحقق من الصحة أولاً ثم تحديث الصفوف الموجودة فقط عبر UPDATE ... FROM (VALUES)
+    const productIds: number[] = [];
+    const actualQtys: (number | null)[] = [];
     for (const item of items) {
       const productId = Number(item.product_id);
       const actualQty =
@@ -220,24 +211,23 @@ export const updateStocktakeItems = async (stocktakeId: number, data: Record<str
       if (actualQty !== null && (isNaN(actualQty) || actualQty < 0)) {
         throw new AppError('الكمية الفعلية يجب أن تكون قيمة موجبة أو فارغة', 400);
       }
+      productIds.push(productId);
+      actualQtys.push(actualQty);
+    }
 
-      // جلب الكمية الدفترية لحساب الفرق
-      const currentItemRes = await client.query(
-        `SELECT system_quantity FROM stocktake_items WHERE stocktake_id = $1 AND product_id = $2`,
-        [stocktakeId, productId],
+    if (productIds.length > 0) {
+      // الفرق = الكمية الفعلية الجديدة − الكمية الدفترية (NULL عند غياب الكمية الفعلية)
+      await client.query(
+        `UPDATE stocktake_items si
+         SET actual_quantity = v.actual_qty,
+             difference = CASE WHEN v.actual_qty IS NULL THEN NULL ELSE v.actual_qty - si.system_quantity END
+         FROM (
+           SELECT u.pid AS product_id, u.qty AS actual_qty
+           FROM unnest($2::int[], $3::numeric[]) AS u(pid, qty)
+         ) v
+         WHERE si.stocktake_id = $1 AND si.product_id = v.product_id`,
+        [stocktakeId, productIds, actualQtys],
       );
-
-      if (currentItemRes.rows[0]) {
-        const sysQty = Number(currentItemRes.rows[0].system_quantity);
-        const difference = actualQty === null ? null : actualQty - sysQty;
-
-        await client.query(
-          `UPDATE stocktake_items 
-           SET actual_quantity = $1, difference = $2 
-           WHERE stocktake_id = $3 AND product_id = $4`,
-          [actualQty, difference, stocktakeId, productId],
-        );
-      }
     }
 
     await client.query('COMMIT');
@@ -295,30 +285,48 @@ export const completeStocktake = async (stocktakeId: number, userId: number) => 
         continue;
       }
 
-      const sysQty = Number(item.system_quantity);
       const actQty = Number(item.actual_quantity);
-      const diff = actQty - sysQty;
       const cost = Number(item.unit_cost);
+
+      // قفل كل صفوف المخزون للمنتج في هذا المخزن (كل الدفعات) ثم قراءة
+      // الإجمالي الدفتري الحالي — قد تكون حدثت حركات بيع/شراء بعد إنشاء
+      // مسودة الجرد، ويجب حساب الفرق مقابل إجمالي الكمية الحالية
+      await client.query(
+        `SELECT product_id FROM inventory WHERE product_id = $1 AND warehouse_id = $2 FOR UPDATE`,
+        [item.product_id, stocktake.warehouse_id],
+      );
+      const sumRes = await client.query(
+        `SELECT COALESCE(SUM(quantity), 0)::numeric AS total FROM inventory
+         WHERE product_id = $1 AND warehouse_id = $2`,
+        [item.product_id, stocktake.warehouse_id],
+      );
+      const currentQty = Number(sumRes.rows[0].total || 0);
+      const diff = actQty - currentQty;
 
       if (Math.abs(diff) > 0.0001) {
         const movementQty = Math.abs(diff);
+        const movementValue = roundMoney(movementQty * cost);
 
         if (diff < 0) {
-          totalDeficit += movementQty * cost;
+          totalDeficit += movementValue;
         } else {
-          totalSurplus += movementQty * cost;
+          totalSurplus += movementValue;
         }
 
-        // قفل وتأكيد وجود سطر المخزون
-        await lockInventoryRow(client, item.product_id, stocktake.warehouse_id);
-
-        // تحديث جدول الكميات الفعلي inventory ليتطابق مع الجرد
+        // ضبط الصف الافتراضي على الكمية الفعلية وتصفير باقي الدفعات —
+        // الجرد الفعلي لا يفرّق بين الدفعات فيجب أن يساوي الإجمالي الكمية المعدودة
         await client.query(
           `INSERT INTO inventory (product_id, warehouse_id, quantity)
            VALUES ($1, $2, $3)
            ON CONFLICT (product_id, warehouse_id, COALESCE(batch_number, ''))
            DO UPDATE SET quantity = EXCLUDED.quantity, updated_at = NOW()`,
           [item.product_id, stocktake.warehouse_id, actQty],
+        );
+        await client.query(
+          `UPDATE inventory SET quantity = 0, updated_at = NOW()
+           WHERE product_id = $1 AND warehouse_id = $2
+             AND batch_number IS NOT NULL AND batch_number <> ''`,
+          [item.product_id, stocktake.warehouse_id],
         );
 
         // تسجيل الحركة المخزنية من نوع adjustment
@@ -331,7 +339,7 @@ export const completeStocktake = async (stocktakeId: number, userId: number) => 
              product_id, from_warehouse_id, to_warehouse_id, movement_type, 
              quantity, user_id, notes, unit_cost, total_cost
            ) VALUES ($1, $2, $3, 'adjustment', $4, $5, $6, $7, $8)`,
-          [item.product_id, fromWh, toWh, movementQty, userId, note, cost, movementQty * cost],
+          [item.product_id, fromWh, toWh, movementQty, userId, note, cost, movementValue],
         );
       }
     }
@@ -364,22 +372,32 @@ export const completeStocktake = async (stocktakeId: number, userId: number) => 
   }
 };
 
-/**
- * حذف مسودة الجرد (المسودة فقط)
- */
-/** حذف جرد. */
+/** حذف جرد (المسودة فقط) — داخل معاملة مع قفل لمنع سباق الاعتماد المتزامن. */
 export const deleteStocktake = async (stocktakeId: number) => {
-  const stocktakeRes = await query(`SELECT status FROM stocktakes WHERE id = $1`, [stocktakeId]);
+  const client = await getClient();
+  try {
+    await client.query('BEGIN');
+    const stocktakeRes = await client.query(
+      `SELECT status FROM stocktakes WHERE id = $1 FOR UPDATE`,
+      [stocktakeId],
+    );
 
-  if (!stocktakeRes.rows[0]) {
-    throw new AppError('عملية الجرد غير موجودة', 404);
+    if (!stocktakeRes.rows[0]) {
+      throw new AppError('عملية الجرد غير موجودة', 404);
+    }
+
+    if (stocktakeRes.rows[0].status !== 'draft') {
+      throw new AppError('لا يمكن حذف عملية جرد تم اعتمادها وتسويتها تاريخياً', 400);
+    }
+
+    // سيقوم بحذف البنود تلقائياً بسبب ON DELETE CASCADE
+    await client.query(`DELETE FROM stocktakes WHERE id = $1`, [stocktakeId]);
+    await client.query('COMMIT');
+    return { success: true, message: 'تم حذف مسودة الجرد بنجاح' };
+  } catch (err: any) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
   }
-
-  if (stocktakeRes.rows[0].status !== 'draft') {
-    throw new AppError('لا يمكن حذف عملية جرد تم اعتمادها وتسويتها تاريخياً', 400);
-  }
-
-  // سيقوم بحذف البنود تلقائياً بسبب ON DELETE CASCADE
-  await query(`DELETE FROM stocktakes WHERE id = $1`, [stocktakeId]);
-  return { success: true, message: 'تم حذف مسودة الجرد بنجاح' };
 };

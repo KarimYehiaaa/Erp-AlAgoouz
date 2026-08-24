@@ -38,6 +38,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
+import api from '@/api/client';
 
 defineEmits(['reset-system']);
 
@@ -47,11 +48,11 @@ const resetting = ref(false);
 const downloadBackup = async () => {
   loading.value = true;
   try {
-    const res = await fetch('/api/v1/operations/backup', {
-      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
-    });
-    if (!res.ok) throw new Error('فشل تنزيل النسخة الاحتياطية');
-    const blob = await res.blob();
+    const blob = (await api.post(
+      '/operations/backup',
+      {},
+      { responseType: 'blob' },
+    )) as unknown as Blob;
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;

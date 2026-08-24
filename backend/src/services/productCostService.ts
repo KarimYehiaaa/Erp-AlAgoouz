@@ -172,43 +172,51 @@ export const getProductsEffectiveCosts = async (
       if (!normalizedIdVal) return { cost: 0, source: 'purchase_price' };
       if (resolvedCache.has(normalizedIdVal)) return resolvedCache.get(normalizedIdVal);
 
+      let result;
       if (stack.has(normalizedIdVal)) {
         // Break circular dependency, fallback to base price
         const base = productMap.get(normalizedIdVal);
-        return { cost: roundMoney(base?.purchase_price || 0), source: 'purchase_price' };
+        result = { cost: roundMoney(base?.purchase_price || 0), source: 'purchase_price' };
+      } else {
+        stack.add(normalizedIdVal);
+        try {
+          const base = productMap.get(normalizedIdVal);
+          if (!base) {
+            result = { cost: 0, source: 'purchase_price' };
+          } else {
+            const purchasePrice = roundMoney(base.purchase_price || 0);
+            const items = recipeMap.get(normalizedIdVal) || [];
+            if (items.length === 0) {
+              result = { cost: purchasePrice, source: 'purchase_price' };
+            } else {
+              let totalCost = 0;
+              for (const item of items) {
+                const ingId = Number(item.ingredient_product_id);
+                const ingredient = resolveCostInMemory(ingId);
+                const unitPrice = unitPriceFor(
+                  ingredient.cost,
+                  item.ingredient_unit,
+                  item.unit_code,
+                );
+                if (unitPrice == null) continue;
+                totalCost += Number(item.quantity || 0) * unitPrice;
+              }
+
+              totalCost = roundMoney(totalCost);
+              if (totalCost <= 0 && purchasePrice > 0) {
+                result = { cost: purchasePrice, source: 'purchase_price' };
+              } else {
+                result = { cost: totalCost, source: 'recipe' };
+              }
+            }
+          }
+        } finally {
+          stack.delete(normalizedIdVal);
+        }
       }
 
-      stack.add(normalizedIdVal);
-      try {
-        const base = productMap.get(normalizedIdVal);
-        if (!base) {
-          return { cost: 0, source: 'purchase_price' };
-        }
-
-        const purchasePrice = roundMoney(base.purchase_price || 0);
-        const items = recipeMap.get(normalizedIdVal) || [];
-        if (items.length === 0) {
-          return { cost: purchasePrice, source: 'purchase_price' };
-        }
-
-        let totalCost = 0;
-        for (const item of items) {
-          const ingId = Number(item.ingredient_product_id);
-          const ingredient = resolveCostInMemory(ingId);
-          const unitPrice = unitPriceFor(ingredient.cost, item.ingredient_unit, item.unit_code);
-          if (unitPrice == null) continue;
-          totalCost += Number(item.quantity || 0) * unitPrice;
-        }
-
-        totalCost = roundMoney(totalCost);
-        if (totalCost <= 0 && purchasePrice > 0) {
-          return { cost: purchasePrice, source: 'purchase_price' };
-        }
-
-        return { cost: totalCost, source: 'recipe' };
-      } finally {
-        stack.delete(normalizedIdVal);
-      }
+      resolvedCache.set(normalizedIdVal, result);
+      return result;
     };
 
     // Run resolution and save to appCache

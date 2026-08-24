@@ -8,7 +8,7 @@
           v-model="search"
           type="text"
           placeholder="بحث بالاسم أو الهاتف أو الكود..."
-          @input="load"
+          aria-label="بحث في العملاء"
           class="search-input"
         />
       </div>
@@ -439,7 +439,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import { customers as api } from '@/api';
 import { formatMoney } from '@/utils/currency';
 
@@ -507,6 +507,13 @@ const statusLabel = (s: any) =>
   )[s] || s;
 
 // ─── data loading ─────────────────────────────────────────────────────────────
+// بحث مؤجَّل 350ms — كان يطلق طلب API لكل حرف مكتوب
+let searchDebounce: ReturnType<typeof setTimeout> | null = null;
+watch(search, () => {
+  if (searchDebounce) clearTimeout(searchDebounce);
+  searchDebounce = setTimeout(load, 350);
+});
+
 const load = async () => {
   loading.value = true;
   try {

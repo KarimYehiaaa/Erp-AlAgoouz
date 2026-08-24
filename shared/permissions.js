@@ -77,6 +77,7 @@ export const permissionEquivalents = {
   'settings.delete': ['settings.delete'],
   'hr.view': ['hr.view', 'shifts.view'],
   'hr.add': ['hr.add', 'shifts.add'],
+  'hr.pay': ['hr.pay'],
   'hr.edit': ['hr.edit', 'shifts.edit'],
   'hr.delete': ['hr.delete', 'shifts.delete'],
 
@@ -97,7 +98,7 @@ export const permissionEquivalents = {
   'settings.manage': ['settings.view', 'settings.add', 'settings.edit', 'settings.delete'],
   'hr.manage': [
     'shifts.view', 'shifts.add', 'shifts.edit', 'shifts.delete',
-    'hr.view', 'hr.add', 'hr.edit', 'hr.delete',
+    'hr.view', 'hr.add', 'hr.edit', 'hr.delete', 'hr.pay',
   ],
 };
 

@@ -1,6 +1,13 @@
 import bcrypt from 'bcryptjs';
 import pool from './pool.ts';
 
+// حماية: منع إعادة تعيين المدير في الإنتاج إلا بتجاوز صريح
+if (process.env.NODE_ENV === 'production' && process.env.ALLOW_ADMIN_RESET !== 'true') {
+  throw new Error(
+    '⛔ Admin reset is blocked in production. Set ALLOW_ADMIN_RESET=true explicitly to override.',
+  );
+}
+
 // Usage: node src/database/reset-admin.ts [username] [new_password]
 const username = process.argv[2] || 'admin';
 const password = process.argv[3] || process.env.ADMIN_RESET_PASSWORD;

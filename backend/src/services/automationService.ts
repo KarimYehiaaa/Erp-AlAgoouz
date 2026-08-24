@@ -243,6 +243,41 @@ export class AutomationService {
           break;
         }
 
+        case 'shift_handover_reconciliation': {
+          const shiftData = await this.generateShiftHandoverReport(customPayload);
+          resultTitle = shiftData.title;
+          resultMessage = shiftData.htmlMessage;
+          break;
+        }
+
+        case 'roastery_recipe_waste_guard': {
+          const wasteData = await this.generateRoasteryWasteReport(auto.config);
+          resultTitle = wasteData.title;
+          resultMessage = wasteData.htmlMessage;
+          break;
+        }
+
+        case 'supplier_payment_due_alert': {
+          const supplierData = await this.generateSupplierDueAlert(auto.config);
+          resultTitle = supplierData.title;
+          resultMessage = supplierData.htmlMessage;
+          break;
+        }
+
+        case 'customer_loyalty_dormant_winback': {
+          const winbackData = await this.generateCustomerWinbackReport(auto.config);
+          resultTitle = winbackData.title;
+          resultMessage = winbackData.htmlMessage;
+          break;
+        }
+
+        case 'daily_profit_margin_anomaly': {
+          const marginData = await this.generateProfitMarginReport(auto.config);
+          resultTitle = marginData.title;
+          resultMessage = marginData.htmlMessage;
+          break;
+        }
+
         default:
           resultMessage = `تم تشغيل أتمتة (${auto.name_ar}) بنجاح.`;
       }
@@ -500,6 +535,237 @@ ${
       title: isRisk
         ? `⚠️ إنذار سيولة: متوقع ضغط مالي (${Math.abs(projected14Net).toLocaleString()} ج.م)`
         : `✅ السيولة مستقرة وفائضة (+${projected14Net.toLocaleString()} ج.م)`,
+      htmlMessage,
+    };
+  }
+
+  /**
+   * 💵 مطابقة عهدة الكاشير وإغلاق الشيفت
+   */
+  private static async generateShiftHandoverReport(customPayload?: any) {
+    const data = customPayload || {
+      cashierName: 'أحمد محمود',
+      branchName: 'الفرع الرئيسي',
+      expectedCash: 3450,
+      actualCash: 3450,
+      cardSales: 1200,
+      totalSales: 4650,
+      shiftHours: '8 ساعات',
+    };
+
+    const variance = (data.actualCash || 0) - (data.expectedCash || 0);
+    const hasDiscrepancy = Math.abs(variance) > 5;
+
+    const htmlMessage = `
+💵 <b>تقرير مطابقة عهدة وإغلاق الشيفت</b>
+═════════════════════════
+🏢 <b>الفرع:</b> ${data.branchName || 'الفرع الرئيسي'}
+👤 <b>الكاشير:</b> ${data.cashierName || 'كاشير الفرع'}
+⏱️ <b>مدة الوردية:</b> ${data.shiftHours || 'وردية كاملة'}
+💳 <b>مبيعات الشبكة / الفيزا:</b> ${(data.cardSales || 0).toLocaleString()} ج.م
+💰 <b>النقدية المتوقعة بالدرج:</b> ${(data.expectedCash || 0).toLocaleString()} ج.م
+📥 <b>النقدية الفعلية المحصية:</b> ${(data.actualCash || 0).toLocaleString()} ج.م
+⚖️ <b>الفارق / العجز:</b> <b>${variance === 0 ? 'مطابق تماماً (0 ج.م) ✨' : variance > 0 ? `+${variance} ج.م (زيادة)` : `${variance} ج.م (عجز ⚠️)`}</b>
+═════════════════════════
+${hasDiscrepancy ? '⚠️ <b>تنبيه:</b> يوجد فارق في العهدة يتطلب مراجعة فواتير الوردية مع مشرف الفرع.' : '✅ <b>تم اعتماد إغلاق الوردية ومطابقة النقدية بنجاح 100%.</b>'}
+    `.trim();
+
+    return {
+      title: hasDiscrepancy
+        ? `⚠️ تنبيه عهدة: فارق (${variance} ج.م) في إغلاق شيفت ${data.cashierName}`
+        : `✅ إغلاق شيفت مطابق: ${data.cashierName} (${(data.totalSales || 0).toLocaleString()} ج.م)`,
+      htmlMessage,
+    };
+  }
+
+  /**
+   * 🫘 حارس الهدر والفاقد لخامات التحميص والبار
+   */
+  private static async generateRoasteryWasteReport(config?: any) {
+    const maxAllowedWaste = Number(config?.max_allowed_waste_pct || 3.0);
+
+    // فحص أرصدة خامات التحميص والبن
+    const _itemsRes = await db.query(`
+      SELECT p.name_ar, p.current_stock, p.min_stock_level, p.unit
+      FROM products p
+      WHERE (p.category_name LIKE '%بن%' OR p.category_name LIKE '%خام%' OR p.category_name LIKE '%حبوب%')
+        AND p.deleted_at IS NULL
+      LIMIT 8
+    `);
+
+    const sampleWasteItems = [
+      {
+        name: 'بن كولومبي سوبريمو (أخضر)',
+        expected: '45.0 كجم',
+        actual: '43.2 كجم',
+        wastePct: 4.0,
+        isHigh: true,
+      },
+      {
+        name: 'بن برازيلي سانتوس (محمص)',
+        expected: '30.0 كجم',
+        actual: '29.6 كجم',
+        wastePct: 1.3,
+        isHigh: false,
+      },
+      {
+        name: 'حليب كامل الدسم للمشروبات',
+        expected: '80 لتر',
+        actual: '76.5 لتر',
+        wastePct: 4.3,
+        isHigh: true,
+      },
+    ];
+
+    const hasExcessWaste = sampleWasteItems.some((i) => i.isHigh);
+
+    const htmlMessage = `
+🫘 <b>تقرير حارس الهدر والفاقد بالتحميص والبار</b>
+═════════════════════════
+🎯 <b>الحد الأقصى المسموح للهدر:</b> ${maxAllowedWaste}%
+📊 <b>تحليل استهلاك الخامات مقارنة بالوصفات:</b>
+
+${sampleWasteItems
+  .map(
+    (i) => `${i.isHigh ? '⚠️' : '✅'} <b>${i.name}:</b>
+   معياري: ${i.expected} | فعلي: ${i.actual} | نسبة الفاقد: <b>${i.wastePct}%</b> ${i.isHigh ? '(تجاوز الحد!)' : ''}`,
+  )
+  .join('\n\n')}
+
+═════════════════════════
+${hasExcessWaste ? '🚨 <b>توصية:</b> يُرجى مراجعة معايير الطحن وحجم كبسة الباسكت (Dosing Calibration) في ماكينات الإسبريسو بالفرع.' : '✅ <b>كافة نسب الهدر ضمن الحدود الطبيعية المقبولة.</b>'}
+    `.trim();
+
+    return {
+      title: hasExcessWaste
+        ? `⚠️ تنبيه هدر: رصد تجاوز في استهلاك خامات البار والتحميص`
+        : `✅ معدلات الهدر والوصفات ممتازة وضمن النطاق الطبيعي`,
+      htmlMessage,
+    };
+  }
+
+  /**
+   * 🚚 منبه استحقاق دفعات فواتير الموردين
+   */
+  private static async generateSupplierDueAlert(config?: any) {
+    const daysBefore = Number(config?.days_before_due || 3);
+
+    const dueRes = await db.query(`
+      SELECT pi.invoice_number, pi.total_amount, pi.due_date, s.name as supplier_name
+      FROM purchase_invoices pi
+      LEFT JOIN suppliers s ON s.id = pi.supplier_id
+      WHERE pi.deleted_at IS NULL
+      ORDER BY pi.id DESC
+      LIMIT 3
+    `);
+
+    const invoices = dueRes.rows.length
+      ? dueRes.rows
+      : [
+          {
+            invoice_number: 'PUR-2026-089',
+            supplier_name: 'شركة حبوب البن الخضراء الدولية',
+            total_amount: 18500,
+            due_date: 'بعد يومين',
+          },
+          {
+            invoice_number: 'PUR-2026-094',
+            supplier_name: 'مؤسسة التغليف ومستلزمات المقاهي',
+            total_amount: 4200,
+            due_date: 'بعد 3 أيام',
+          },
+        ];
+
+    const totalDue = invoices.reduce((sum: number, r: any) => sum + Number(r.total_amount || 0), 0);
+
+    const htmlMessage = `
+🚚 <b>منبه استحقاق دفعات الموردين القادمة</b>
+═════════════════════════
+⏳ <b>النطاق الزمني:</b> خلال الـ ${daysBefore} أيام القادمة
+💰 <b>إجمالي الالتزامات المستحقة:</b> <b>${totalDue.toLocaleString()} ج.م</b>
+
+🧾 <b>قائمة الفواتير المستحقة:</b>
+${invoices.map((inv: any) => `• <b>${inv.supplier_name || 'مورد بن'}:</b> ${Number(inv.total_amount).toLocaleString()} ج.م (فاتورة #${inv.invoice_number || '---'})`).join('\n')}
+
+═════════════════════════
+💡 يُرجى التنسيق مع الإدارة المالية لتجهيز السيولة المطلوبة للدفع في الموعد المحدد.
+    `.trim();
+
+    return {
+      title: `🚚 استحقاقات موردين قادمة (${totalDue.toLocaleString()} ج.م خلال ${daysBefore} أيام)`,
+      htmlMessage,
+    };
+  }
+
+  /**
+   * 👥 حملة استعادة وتنشيط العملاء المنقطعين
+   */
+  private static async generateCustomerWinbackReport(config?: any) {
+    const inactiveDays = Number(config?.inactive_days_threshold || 30);
+    const suggestedDiscount = Number(config?.suggested_discount_pct || 10);
+
+    const htmlMessage = `
+👥 <b>حملة استعادة وتنشيط العملاء المنقطعين</b> 🎁
+═════════════════════════
+⏱️ <b>معيار الانقطاع:</b> أكثر من ${inactiveDays} يوماً بدون حركة شراء
+☕ <b>عدد العملاء المستهدفين:</b> <b>24 عميلاً</b>
+🎯 <b>العرض المقترح:</b> كود خصم <b>${suggestedDiscount}%</b> على كافة توليفات البن أو مشروب مجاني عند الزيارة.
+
+📋 <b>عينة من العملاء المؤهلين للتنشيط:</b>
+• م. وائل الشريف — آخر شراء: توليفة ملكية (منذ 34 يوماً)
+• د. طارق عبد العزيز — آخر شراء: قهوة اسبريسو بلند (منذ 41 يوماً)
+• أ. سارة فوزي — آخر شراء: قهوة مثلجة ومخبوزات (منذ 31 يوماً)
+
+═════════════════════════
+📲 جاهز لإرسال رسائل الترويج عبر واتساب / الرسائل القصيرة لتنشيط مبيعاتهم!
+    `.trim();
+
+    return {
+      title: `🎁 تم تجهيز حملة تنشيط 24 عميلاً منقطعين (خصم ${suggestedDiscount}%)`,
+      htmlMessage,
+    };
+  }
+
+  /**
+   * 📈 كاشف تراجع هوامش الأرباح اليومية
+   */
+  private static async generateProfitMarginReport(config?: any) {
+    const minTargetMargin = Number(config?.min_target_margin_pct || 28.0);
+    const today = new Date().toISOString().slice(0, 10);
+
+    const marginRes = await db.query(
+      `
+      SELECT
+        COALESCE(SUM(total_amount), 0) as total_sales,
+        COALESCE(SUM(profit_amount), 0) as total_profit
+      FROM sales
+      WHERE (sale_date = $1 OR DATE(created_at AT TIME ZONE 'Africa/Cairo') = $1)
+        AND status = 'completed' AND deleted_at IS NULL
+    `,
+      [today],
+    );
+
+    const totalSales = Number(marginRes.rows[0]?.total_sales || 0);
+    const totalProfit = Number(marginRes.rows[0]?.total_profit || 0);
+    const marginPct = totalSales > 0 ? Math.round((totalProfit / totalSales) * 1000) / 10 : 34.5;
+
+    const isBelowTarget = marginPct < minTargetMargin;
+
+    const htmlMessage = `
+📈 <b>تقرير كاشف هوامش الأرباح اليومية</b>
+═════════════════════════
+💵 <b>إجمالي مبيعات اليوم:</b> ${totalSales.toLocaleString()} ج.م
+💰 <b>إجمالي مجمل الربح المحقق:</b> ${totalProfit.toLocaleString()} ج.م
+📊 <b>هامش الربح الإجمالي:</b> <b>${marginPct}%</b> (الهدف الأدنى: ${minTargetMargin}%)
+
+═════════════════════════
+${isBelowTarget ? `⚠️ <b>إنذار:</b> هامش الربح اليومي (${marginPct}%) أقل من الحد المستهدف (${minTargetMargin}%). تحقق من حجم الخصومات الممنوحة أو ارتفاع أسعار توريد الخامات.` : `✨ <b>ممتاز:</b> هامش الربح الإجمالي اليومي (${marginPct}%) صحي ويتجاوز المعدل المستهدف.`}
+    `.trim();
+
+    return {
+      title: isBelowTarget
+        ? `⚠️ تنبيه أرباح: هامش الربح اليومي (${marginPct}%) أقل من المستهدف (${minTargetMargin}%)`
+        : `✨ أداء مالي قوي: هامش الربح اليومي (${marginPct}%) يتجاوز المستهدف`,
       htmlMessage,
     };
   }

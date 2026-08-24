@@ -99,20 +99,21 @@
     </div>
 
     <!-- ═══════════════════ اللوحة التفاعلية البصرية المطورة (Visual Matrix Hub) ═══════════════════ -->
-    <!-- ═══════════════════ اللوحة التفاعلية الحركية (Obsidian Kinetic Automation Grid) ═══════════════════ -->
+    <!-- ═══════════════════ اللوحة التفاعلية الحركية (Obsidian Kinetic Automation Canvas Engine) ═══════════════════ -->
     <div class="canvas-section-card card">
       <div class="canvas-toolbar">
         <div class="canvas-title-group">
           <div class="canvas-badge-live">
             <span class="live-dot"></span>
-            <span>الشبكة التفاعلية الحركية للأتمتة (Kinetic Neural Canvas)</span>
+            <span>الشبكة التفاعلية الحركية للأتمتة (Obsidian Kinetic Canvas)</span>
           </div>
-          <span class="canvas-subtitle"
-            >تفاعل حركي متناغم بتصميم موحد — انقر أو مرر الفأرة فوق أي عقدة لمعاينة مساراتها</span
-          >
+          <span class="canvas-subtitle">
+            💡 اسحب أي عقدة بالماوس لترتيبها بحرية • مرر الفأرة لمعاينة الروابط • انقر للإجراءات
+            السريعة
+          </span>
         </div>
 
-        <!-- أدوات التحكم في اللوحة -->
+        <!-- أدوات التحكم في اللوحة والمنظور والتكبير -->
         <div class="canvas-controls-group">
           <!-- تبديل المنظور الحركي -->
           <div class="layout-toggle-pill">
@@ -145,9 +146,24 @@
             </button>
           </div>
 
+          <!-- أدوات التكبير والتصغير وإعادة الضبط -->
+          <div class="zoom-controls-pill">
+            <button type="button" class="zoom-btn" @click="zoomIn" title="تكبير">+</button>
+            <span class="zoom-level-text">{{ Math.round(zoomLevel * 100) }}%</span>
+            <button type="button" class="zoom-btn" @click="zoomOut" title="تصغير">−</button>
+            <button
+              type="button"
+              class="zoom-btn reset-btn"
+              @click="resetView"
+              title="إعادة ضبط الموضع والحجم"
+            >
+              ↺ إعادة ضبط
+            </button>
+          </div>
+
           <button
             type="button"
-            class="btn btn-xs btn-outline"
+            class="btn btn-xs btn-outline pulse-btn"
             @click="pulseNetwork"
             title="إرسال موجة صدمية كهروميكانيكية في كافة المسارات"
           >
@@ -182,211 +198,183 @@
         </button>
       </div>
 
-      <!-- مساحة الرسم التفاعلي SVG Matrix Viewport -->
-      <div class="svg-canvas-container" :class="{ 'is-pulsing': isNetworkPulsing }">
-        <svg
-          class="automation-svg-board"
-          viewBox="0 0 1000 620"
-          preserveAspectRatio="xMidYMid meet"
-        >
-          <!-- التدرجات والأنماط المعرفة (Defs) -->
-          <defs>
-            <!-- خلفية النقاط الشبكية -->
-            <pattern id="grid-dots" width="32" height="32" patternUnits="userSpaceOnUse">
-              <circle cx="2" cy="2" r="1.2" fill="rgba(212, 163, 115, 0.12)" />
+      <!-- مساحة الرسم التفاعلي الحركية الهجينة (Hybrid SVG Conduits + HTML Drag Nodes) -->
+      <div
+        ref="canvasContainerRef"
+        class="interactive-canvas-viewport"
+        :class="{ 'is-pulsing': isNetworkPulsing, 'is-dragging-any': Boolean(draggingNodeId) }"
+      >
+        <!-- اللوحة الداخلية القابلة للتكبير والتحريك (1000x620 Virtual Canvas) -->
+        <div class="canvas-scalable-board" :style="{ transform: `scale(${zoomLevel})` }">
+          <!-- 1. طبقة الليزر ومسارات الطاقة الخلفية SVG -->
+          <svg class="canvas-svg-layer" viewBox="0 0 1000 620" preserveAspectRatio="xMidYMid meet">
+            <!-- التدرجات والأنماط المعرفة (Defs) -->
+            <defs>
+              <pattern id="grid-dots-pattern" width="28" height="28" patternUnits="userSpaceOnUse">
+                <circle cx="2" cy="2" r="1.2" fill="rgba(212, 163, 115, 0.14)" />
+                <line
+                  x1="0"
+                  y1="14"
+                  x2="28"
+                  y2="14"
+                  stroke="rgba(212, 163, 115, 0.03)"
+                  stroke-width="0.5"
+                />
+                <line
+                  x1="14"
+                  y1="0"
+                  x2="14"
+                  y2="28"
+                  stroke="rgba(212, 163, 115, 0.03)"
+                  stroke-width="0.5"
+                />
+              </pattern>
+
+              <linearGradient id="radar-sweep-cone" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="rgba(212, 163, 115, 0.3)" />
+                <stop offset="70%" stop-color="rgba(212, 163, 115, 0.06)" />
+                <stop offset="100%" stop-color="rgba(212, 163, 115, 0)" />
+              </linearGradient>
+
+              <radialGradient id="ambient-center-glow" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stop-color="rgba(212, 163, 115, 0.35)" />
+                <stop offset="50%" stop-color="rgba(212, 163, 115, 0.08)" />
+                <stop offset="100%" stop-color="rgba(0, 0, 0, 0)" />
+              </radialGradient>
+
+              <filter id="glow-photon" x="-40%" y="-40%" width="180%" height="180%">
+                <feGaussianBlur stdDeviation="4" result="blur" />
+                <feComposite in="SourceGraphic" in2="blur" operator="over" />
+              </filter>
+            </defs>
+
+            <!-- خلفية الشبكة الهندسية -->
+            <rect width="1000" height="620" fill="url(#grid-dots-pattern)" />
+            <circle cx="500" cy="310" r="290" fill="url(#ambient-center-glow)" />
+
+            <!-- دوائر المعايرة المدارية الميكانيكية -->
+            <circle
+              cx="500"
+              cy="310"
+              r="175"
+              fill="none"
+              stroke="rgba(212, 163, 115, 0.14)"
+              stroke-width="1.5"
+              stroke-dasharray="8, 6"
+              class="mechanical-orbit-track-1"
+            />
+            <circle
+              cx="500"
+              cy="310"
+              r="265"
+              fill="none"
+              stroke="rgba(212, 163, 115, 0.1)"
+              stroke-width="1.5"
+              stroke-dasharray="12, 8"
+              class="mechanical-orbit-track-2"
+            />
+
+            <!-- مخروط ماسح الرادار الدوار 360 درجة -->
+            <g transform="translate(500, 310)" class="mechanical-radar-scanner">
+              <path d="M 0 0 L 265 0 A 265 265 0 0 1 187 187 Z" fill="url(#radar-sweep-cone)" />
               <line
                 x1="0"
-                y1="16"
-                x2="32"
-                y2="16"
-                stroke="rgba(212, 163, 115, 0.03)"
-                stroke-width="0.5"
-              />
-              <line
-                x1="16"
                 y1="0"
-                x2="16"
-                y2="32"
-                stroke="rgba(212, 163, 115, 0.03)"
-                stroke-width="0.5"
+                x2="265"
+                y2="0"
+                stroke="rgba(250, 237, 205, 0.45)"
+                stroke-width="1.5"
               />
-            </pattern>
+            </g>
 
-            <!-- التدرج الشعاعي للمركز -->
-            <radialGradient id="center-glow" cx="50%" cy="50%" r="50%">
-              <stop offset="0%" stop-color="rgba(212, 163, 115, 0.35)" />
-              <stop offset="50%" stop-color="rgba(212, 163, 115, 0.08)" />
-              <stop offset="100%" stop-color="rgba(0, 0, 0, 0)" />
-            </radialGradient>
-
-            <!-- مخروط ماسح الرادار (Radar Sonar Sweep Gradient) -->
-            <linearGradient id="radar-sweep-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stop-color="rgba(212, 163, 115, 0.28)" />
-              <stop offset="70%" stop-color="rgba(212, 163, 115, 0.06)" />
-              <stop offset="100%" stop-color="rgba(212, 163, 115, 0)" />
-            </linearGradient>
-
-            <!-- تدرجات خطوط الطاقة -->
-            <linearGradient id="gold-beam" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stop-color="#d4a373" stop-opacity="0.8" />
-              <stop offset="50%" stop-color="#faedcd" stop-opacity="1" />
-              <stop offset="100%" stop-color="#d4a373" stop-opacity="0.8" />
-            </linearGradient>
-
-            <linearGradient id="emerald-beam" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stop-color="#22c55e" stop-opacity="0.8" />
-              <stop offset="50%" stop-color="#86efac" stop-opacity="1" />
-              <stop offset="100%" stop-color="#22c55e" stop-opacity="0.8" />
-            </linearGradient>
-
-            <!-- فلاتر التوهج النيون -->
-            <filter id="glow-gold" x="-30%" y="-30%" width="160%" height="160%">
-              <feGaussianBlur stdDeviation="3.5" result="blur" />
-              <feComposite in="SourceGraphic" in2="blur" operator="over" />
-            </filter>
-
-            <filter id="glow-strong" x="-50%" y="-50%" width="200%" height="200%">
-              <feGaussianBlur stdDeviation="6" result="blur" />
-              <feComposite in="SourceGraphic" in2="blur" operator="over" />
-            </filter>
-          </defs>
-
-          <!-- 1. خلفية الشبكة الهندسية وموجات الرادار الميكانيكية -->
-          <rect width="1000" height="620" fill="url(#grid-dots)" />
-          <circle cx="500" cy="310" r="280" fill="url(#center-glow)" />
-
-          <!-- الدوائر المدارية التوجيهية ذات المعايرة الميكانيكية -->
-          <circle
-            cx="500"
-            cy="310"
-            r="160"
-            fill="none"
-            stroke="rgba(212, 163, 115, 0.14)"
-            stroke-width="1.5"
-            stroke-dasharray="8, 6"
-            class="mechanical-orbit-track-1"
-          />
-          <circle
-            cx="500"
-            cy="310"
-            r="260"
-            fill="none"
-            stroke="rgba(212, 163, 115, 0.1)"
-            stroke-width="1.5"
-            stroke-dasharray="12, 8"
-            class="mechanical-orbit-track-2"
-          />
-
-          <!-- مخروط ماسح الرادار الدوار 360 درجة (Mechanical Sonar Radar Sweep) -->
-          <g transform="translate(500, 310)" class="mechanical-radar-scanner">
-            <path
-              d="M 0 0 L 260 0 A 260 260 0 0 1 184 184 Z"
-              fill="url(#radar-sweep-grad)"
-              class="sonar-beam-slice"
-            />
-            <line
-              x1="0"
-              y1="0"
-              x2="260"
-              y2="0"
-              stroke="rgba(250, 237, 205, 0.45)"
-              stroke-width="1.5"
-            />
-          </g>
-
-          <!-- 2. شبكة الروابط البينية العنقودية (Obsidian Inter-Node Mesh Links) -->
-          <g class="obsidian-mesh-layer">
-            <template v-for="link in interNodeLinks" :key="link.id">
-              <path
-                :d="generateConduitPath(link.source.x, link.source.y, link.target.x, link.target.y)"
-                fill="none"
-                class="obsidian-mesh-conduit"
-                :class="{
-                  'is-highlighted': link.isHighlighted,
-                  'is-active': link.active,
-                }"
-              />
-            </template>
-          </g>
-
-          <!-- 3. خطوط الطاقة الانسيابية من المركز للعقد (Bézier Energy Conduits) -->
-          <g class="conduits-layer">
-            <template v-for="node in nodeLayouts" :key="`conduit-${node.id}`">
-              <!-- مسار الخلفية الخافت -->
-              <path
-                :d="generateConduitPath(500, 310, node.x, node.y)"
-                fill="none"
-                class="conduit-base-line"
-                :class="{
-                  'is-focused-conduit': isNodeFocused(node.id),
-                  'is-disabled-conduit': !node.is_enabled,
-                }"
-              />
-
-              <!-- خط الليزر النشط المتدفق -->
-              <path
-                v-if="node.is_enabled"
-                :d="generateConduitPath(500, 310, node.x, node.y)"
-                fill="none"
-                :stroke="getCategoryColor(node.category)"
-                stroke-width="2.5"
-                stroke-linecap="round"
-                class="energy-flowing-beam"
-                :class="{
-                  'active-selected': selectedNodeId === node.id || hoveredNodeId === node.id,
-                  'is-firing': triggeringId === node.id,
-                }"
-              />
-
-              <!-- جزيئة الطاقة المتحركة على المسار -->
-              <circle
-                v-if="node.is_enabled"
-                r="3.5"
-                :fill="getCategoryColor(node.category)"
-                filter="url(#glow-gold)"
-                class="pulsing-energy-particle"
-              >
-                <animateMotion
-                  :path="generateConduitPath(500, 310, node.x, node.y)"
-                  :dur="getParticleSpeed(node.id)"
-                  repeatCount="indefinite"
+            <!-- 2. شبكة الروابط البينية العنقودية أوبسيديان (Obsidian Mesh Conduits) -->
+            <g class="obsidian-mesh-layer">
+              <template v-for="link in interNodeLinks" :key="link.id">
+                <path
+                  :d="
+                    generateConduitPath(link.source.x, link.source.y, link.target.x, link.target.y)
+                  "
+                  fill="none"
+                  class="obsidian-mesh-conduit"
+                  :class="{
+                    'is-highlighted': link.isHighlighted,
+                    'is-active': link.active,
+                  }"
                 />
-              </circle>
-            </template>
-          </g>
+              </template>
+            </g>
 
-          <!-- 4. العقدة المركزية: قلب الذكاء الاصطناعي الميكانيكي (Central AI Core) -->
-          <g
-            class="central-core-node"
-            transform="translate(500, 310)"
+            <!-- 3. خطوط الطاقة الانسيابية من المركز للعقد -->
+            <g class="conduits-layer">
+              <template v-for="node in nodeLayouts" :key="`conduit-${node.id}`">
+                <!-- خط القاعدة الخافت -->
+                <path
+                  :d="generateConduitPath(500, 310, node.x, node.y)"
+                  fill="none"
+                  class="conduit-base-line"
+                  :class="{
+                    'is-focused-conduit': isNodeFocused(node.id),
+                    'is-disabled-conduit': !node.is_enabled,
+                  }"
+                />
+
+                <!-- خط الليزر النشط المتدفق -->
+                <path
+                  v-if="node.is_enabled"
+                  :d="generateConduitPath(500, 310, node.x, node.y)"
+                  fill="none"
+                  :stroke="getCategoryColor(node.category)"
+                  stroke-width="2.5"
+                  stroke-linecap="round"
+                  class="energy-flowing-beam"
+                  :class="{
+                    'active-selected': selectedNodeId === node.id || hoveredNodeId === node.id,
+                    'is-firing': triggeringId === node.id,
+                  }"
+                />
+
+                <!-- جزيئة الطاقة المتحركة على المسار -->
+                <circle
+                  v-if="node.is_enabled"
+                  r="3.5"
+                  :fill="getCategoryColor(node.category)"
+                  filter="url(#glow-photon)"
+                  class="pulsing-energy-particle"
+                >
+                  <animateMotion
+                    :path="generateConduitPath(500, 310, node.x, node.y)"
+                    :dur="getParticleSpeed(node.id)"
+                    repeatCount="indefinite"
+                  />
+                </circle>
+              </template>
+            </g>
+          </svg>
+
+          <!-- 4. محطة الذكاء الاصطناعي المركزية التفاعلية (Interactive Center AI Core) -->
+          <div
+            class="dom-central-core"
+            :style="{ left: '500px', top: '310px' }"
             @click="selectedNodeId = null"
           >
-            <!-- حلقات النبض والتروس الميكانيكية الدوارة -->
-            <circle class="core-pulse-outer" r="58" />
-            <circle class="core-pulse-middle" r="48" />
+            <div class="core-gear-ring-cw"></div>
+            <div class="core-gear-ring-ccw"></div>
+            <div class="core-pulse-wave"></div>
+            <div class="core-glass-disc">
+              <AppIcon name="coffee" :size="28" class="core-vector-icon" />
+            </div>
+            <div class="core-info-plaque">
+              <span class="core-title-text">محرك الأتمتة المركزي</span>
+              <span class="core-metric-text">{{ activeCount }} مسار نشط 24/7</span>
+            </div>
+          </div>
 
-            <!-- حلقة التروس الميكانيكية مع عقارب الساعة -->
-            <circle class="core-gear-ring-cw" r="42" stroke-dasharray="4, 5" />
-            <!-- حلقة المعايرة الميكانيكية عكس عقارب الساعة -->
-            <circle class="core-gear-ring-ccw" r="36" stroke-dasharray="2, 6" />
-
-            <!-- الجسم الزجاجي للمركز -->
-            <circle class="core-base-circle" r="32" />
-
-            <!-- أيقونة ونص المركز -->
-            <text text-anchor="middle" y="7" class="core-icon">☕</text>
-            <text text-anchor="middle" y="52" class="core-label">محرك الأتمتة المركزي</text>
-            <text text-anchor="middle" y="67" class="core-sublabel">
-              {{ activeCount }} مسار نشط 24/7
-            </text>
-          </g>
-
-          <!-- 5. محطات وعقد الأتمتة الموحدة بالكامل (Standardized Cyber-Pod Nodes) -->
-          <g class="automation-nodes-layer">
-            <g
+          <!-- 5. طبقة عقد ومحطات الأتمتة الموحدة التفاعلية ذات السحب والإفلات (Draggable Cyber-Pods) -->
+          <div class="dom-nodes-container">
+            <div
               v-for="node in nodeLayouts"
-              :key="`node-${node.id}`"
-              class="automation-node-group"
+              :key="`dom-node-${node.id}`"
+              class="dom-node-pod"
               :class="[
                 node.harmonicClass,
                 {
@@ -395,91 +383,73 @@
                   'is-focused': isNodeFocused(node.id),
                   'is-disabled': !node.is_enabled,
                   'is-firing': triggeringId === node.id,
+                  'is-dragging': draggingNodeId === node.id,
                   'is-dimmed':
                     (selectedCategory !== 'all' && node.category !== selectedCategory) ||
                     ((hoveredNodeId || selectedNodeId) && !isNodeFocused(node.id)),
                 },
               ]"
-              :transform="`translate(${node.x}, ${node.y})`"
+              :style="{
+                left: `${node.x}px`,
+                top: `${node.y}px`,
+                '--node-accent': getCategoryColor(node.category),
+              }"
+              @mousedown="startNodeDrag(node, $event)"
               @mouseenter="hoveredNodeId = node.id"
               @mouseleave="hoveredNodeId = null"
               @click.stop="handleNodeClick(node)"
             >
-              <!-- هالة التحديد والتوهج الحركي عند التحديد أو التشغيل -->
-              <circle
-                v-if="
-                  selectedNodeId === node.id ||
-                  triggeringId === node.id ||
-                  hoveredNodeId === node.id
-                "
-                r="36"
-                class="node-selected-halo"
-                :stroke="getCategoryColor(node.category)"
-              />
+              <!-- حلقة المعايرة الدوارة Reticle -->
+              <div class="pod-caliper-ring"></div>
 
-              <!-- حلقة المعايرة الميكانيكية الدوارة حول الأيقونة -->
-              <circle r="30" class="node-caliper-ticks" stroke-dasharray="2, 6" />
+              <!-- كبسولة الأيقونة الموحدة الدقيقة (Crisp Vector AppIcon) -->
+              <div class="pod-icon-capsule">
+                <span class="pod-status-led" :class="{ 'is-active': node.is_enabled }"></span>
+                <AppIcon :name="getScenarioIcon(node.key)" :size="24" class="pod-svg-icon" />
+              </div>
 
-              <!-- كبسولة الأيقونة الزجاجية الموحدة (Standardized Cyber-Pod Capsule) -->
-              <rect
-                x="-25"
-                y="-25"
-                width="50"
-                height="50"
-                rx="15"
-                class="node-icon-pod-bg"
-                :fill="node.is_enabled ? '#1e1109' : '#120904'"
-                :stroke="
-                  node.is_enabled ? getCategoryColor(node.category) : 'rgba(255,255,255,0.15)'
-                "
-              />
-
-              <!-- نقطة لمبة الحالة المضيئة LED -->
-              <circle
-                cx="16"
-                cy="-16"
-                r="5"
-                class="node-status-led"
-                :fill="node.is_enabled ? '#22c55e' : '#6b7280'"
-              />
-
-              <!-- أيقونة العملية الموحدة -->
-              <text text-anchor="middle" y="7" class="node-icon-emoji">
-                {{ getScenarioEmoji(node.key) }}
-              </text>
-
-              <!-- لوحة المعلومات الموحدة بالكامل أسفل الأيقونة (Unified Info Plaque Underneath) -->
-              <g class="node-info-group">
-                <rect
-                  x="-66"
-                  y="32"
-                  width="132"
-                  height="38"
-                  rx="9"
-                  class="node-info-plaque"
-                  :stroke="
-                    selectedNodeId === node.id
-                      ? getCategoryColor(node.category)
-                      : 'rgba(212, 163, 115, 0.25)'
-                  "
-                />
-                <!-- اسم العملية -->
-                <text text-anchor="middle" y="47" class="node-info-title">
+              <!-- لوحة المعلومات الموحدة بالكامل أسفل الأيقونة -->
+              <div class="pod-info-plaque">
+                <span class="pod-title-text" :title="node.name_ar">
                   {{ formatNodeTitle(node.name_ar) }}
-                </text>
-                <!-- التوقيت والحالة -->
-                <text text-anchor="middle" y="61" class="node-info-subtitle">
-                  {{
-                    node.trigger_type === 'cron'
-                      ? '⏰ ' + formatCronShort(node.cron_expression)
-                      : '⚡ حدث فوري'
-                  }}
-                  • {{ node.is_enabled ? 'مفعل 🟢' : 'معطل ⚪' }}
-                </text>
-              </g>
-            </g>
-          </g>
-        </svg>
+                </span>
+                <div class="pod-badge-row">
+                  <span class="pod-trigger-pill">
+                    {{
+                      node.trigger_type === 'cron'
+                        ? '⏰ ' + formatCronShort(node.cron_expression)
+                        : '⚡ فوري'
+                    }}
+                  </span>
+                  <span class="pod-state-pill" :class="{ 'is-active': node.is_enabled }">
+                    {{ node.is_enabled ? 'مفعل' : 'معطل' }}
+                  </span>
+                </div>
+
+                <!-- أزرار الإجراءات السريعة المباشرة عند التحويم -->
+                <div class="pod-hover-actions" @click.stop>
+                  <button
+                    type="button"
+                    class="pod-mini-btn run-btn"
+                    :disabled="triggeringId === node.id"
+                    @click="triggerTestRun(node)"
+                    title="تشغيل تجريبي فوري"
+                  >
+                    <span>{{ triggeringId === node.id ? '⏳' : '⚡ تشغيل' }}</span>
+                  </button>
+                  <button
+                    type="button"
+                    class="pod-mini-btn toggle-btn"
+                    @click="toggleAutomation(node)"
+                    :title="node.is_enabled ? 'إيقاف مؤقت' : 'تفعيل المسار'"
+                  >
+                    <span>{{ node.is_enabled ? '⏸' : '▶' }}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
 
         <!-- ═══════════════════ بطاقة العقدة المحددة التفاعلية السريعة (HUD Node Card) ═══════════════════ -->
         <transition name="pop-in">
@@ -1047,11 +1017,19 @@ const selectedLog = ref<any | null>(null);
 const editingAutomation = ref<any | null>(null);
 const isSavingConfig = ref(false);
 
-// ─── اللوحة التفاعلية البصرية الحركية (Obsidian / Kinetic Canvas) ───
+// ─── اللوحة التفاعلية البصرية الحركية (Obsidian / Kinetic Canvas Engine) ───
 const canvasLayout = ref<'obsidian' | 'orbit' | 'matrix'>('obsidian');
 const selectedNodeId = ref<number | null>(null);
 const hoveredNodeId = ref<number | null>(null);
 const isNetworkPulsing = ref(false);
+const zoomLevel = ref<number>(1);
+
+// سحب وإفلات العقد تفاعلياً (Interactive Drag & Drop Coordinates)
+const customPositions = ref<Record<number, { x: number; y: number }>>({});
+const draggingNodeId = ref<number | null>(null);
+const canvasContainerRef = ref<HTMLElement | null>(null);
+const dragStartMouse = ref({ x: 0, y: 0 });
+const dragStartNode = ref({ x: 0, y: 0 });
 
 const showAllLogs = ref(false);
 const logsPageSize = 15;
@@ -1140,9 +1118,28 @@ const getScenarioEmoji = (key: string) => {
   return map[key] || '⚡';
 };
 
+// أيقونات فيكتور دقيقة وموحدة من Lucide
+const getScenarioIcon = (key: string): string => {
+  const map: Record<string, string> = {
+    daily_sales_report: 'reports',
+    low_stock_alert: 'warning',
+    void_invoice_alert: 'invoices',
+    large_discount_alert: 'money',
+    daily_backup_reminder: 'users',
+    branch_stock_balancing: 'refresh',
+    cashflow_risk_shield: 'expenses',
+    shift_handover_reconciliation: 'costs',
+    roastery_recipe_waste_guard: 'coffee',
+    supplier_payment_due_alert: 'suppliers',
+    customer_loyalty_dormant_winback: 'customers',
+    daily_profit_margin_anomaly: 'trendingUp',
+  };
+  return map[key] || 'zap';
+};
+
 const formatNodeTitle = (title: string) => {
   if (!title) return '';
-  return title.length > 17 ? title.slice(0, 15) + '..' : title;
+  return title.length > 20 ? title.slice(0, 18) + '..' : title;
 };
 
 const formatCronShort = (cronStr: string) => {
@@ -1158,12 +1155,58 @@ const formatCronShort = (cronStr: string) => {
   return 'مجدول';
 };
 
+// ─── التحكم في التكبير والتصغير وإعادة الضبط ───
+const zoomIn = () => {
+  zoomLevel.value = Math.min(1.5, Math.round((zoomLevel.value + 0.1) * 10) / 10);
+};
+
+const zoomOut = () => {
+  zoomLevel.value = Math.max(0.7, Math.round((zoomLevel.value - 0.1) * 10) / 10);
+};
+
+const resetView = () => {
+  zoomLevel.value = 1;
+  customPositions.value = {};
+  selectedNodeId.value = null;
+};
+
+// ─── سحب وإفلات العقد بالماوس واللمس (Drag & Drop Engine) ───
+const startNodeDrag = (node: any, e: MouseEvent) => {
+  if (e.button !== 0) return;
+  draggingNodeId.value = node.id;
+  dragStartMouse.value = { x: e.clientX, y: e.clientY };
+  dragStartNode.value = { x: node.x, y: node.y };
+
+  window.addEventListener('mousemove', onNodeDragging);
+  window.addEventListener('mouseup', stopNodeDrag);
+};
+
+const onNodeDragging = (e: MouseEvent) => {
+  if (!draggingNodeId.value || !canvasContainerRef.value) return;
+  const deltaX = (e.clientX - dragStartMouse.value.x) / zoomLevel.value;
+  const deltaY = (e.clientY - dragStartMouse.value.y) / zoomLevel.value;
+
+  const newX = Math.max(70, Math.min(930, Math.round(dragStartNode.value.x + deltaX)));
+  const newY = Math.max(70, Math.min(550, Math.round(dragStartNode.value.y + deltaY)));
+
+  customPositions.value = {
+    ...customPositions.value,
+    [draggingNodeId.value]: { x: newX, y: newY },
+  };
+};
+
+const stopNodeDrag = () => {
+  draggingNodeId.value = null;
+  window.removeEventListener('mousemove', onNodeDragging);
+  window.removeEventListener('mouseup', stopNodeDrag);
+};
+
 const getParticleSpeed = (id: number) => {
   const speeds = ['3s', '3.8s', '3.4s', '4.2s', '2.8s', '3.6s'];
   return speeds[id % speeds.length];
 };
 
-// ─── الحسابات الهندسية الدقيقة لمواقع العقد في اللوحة التفاعلية ───
+// ─── الحسابات الهندسية لمواقع العقد ودمج الإحداثيات المسحوبة تفاعلياً ───
 const nodeLayouts = computed(() => {
   const list = Array.isArray(automationsList.value) ? automationsList.value : [];
   const count = list.length;
@@ -1171,6 +1214,7 @@ const nodeLayouts = computed(() => {
 
   const centerX = 500;
   const centerY = 310;
+  let baseNodes: any[] = [];
 
   if (canvasLayout.value === 'obsidian') {
     // 🕸️ شبكة أوبسيديان العنقودية التفاعلية (Obsidian Dynamic Force Clusters)
@@ -1215,13 +1259,13 @@ const nodeLayouts = computed(() => {
       });
     });
 
-    return result;
+    baseNodes = result;
   } else if (canvasLayout.value === 'orbit') {
     // 🪐 مدار كهروميكانيكي ثنائي الحلقات (Dual Planetary Orbit)
     const innerRadius = 175;
     const outerRadius = 265;
 
-    return list.map((item, idx) => {
+    baseNodes = list.map((item, idx) => {
       const isOuter = idx % 2 === 1;
       const radius = isOuter ? outerRadius : innerRadius;
       const angleStep = (2 * Math.PI) / count;
@@ -1248,7 +1292,7 @@ const nodeLayouts = computed(() => {
     const stepX = (endX - startX) / Math.max(cols - 1, 1);
     const stepY = (endY - startY) / Math.max(rows - 1, 1);
 
-    return list.map((item, idx) => {
+    baseNodes = list.map((item, idx) => {
       const row = Math.floor(idx / cols);
       const col = idx % cols;
       const x = Math.round(startX + col * stepX);
@@ -1262,6 +1306,18 @@ const nodeLayouts = computed(() => {
       };
     });
   }
+
+  // دمج أي إحداثيات تم سحبها يدوياً بواسطة المستخدم (Live Drag Overlay)
+  return baseNodes.map((n) => {
+    if (customPositions.value[n.id]) {
+      return {
+        ...n,
+        x: customPositions.value[n.id].x,
+        y: customPositions.value[n.id].y,
+      };
+    }
+    return n;
+  });
 });
 
 // ─── الروابط العنقودية البينية بين العقد ذات الصلة (Obsidian Cross-Links) ───
@@ -1928,82 +1984,428 @@ onMounted(async () => {
   }
 }
 
-.svg-canvas-container {
+.zoom-controls-pill {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(212, 163, 115, 0.3);
+  border-radius: 10px;
+  padding: 2px 4px;
+
+  .zoom-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-muted, #a89f91);
+    font-weight: 900;
+    font-size: 0.88rem;
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+
+    &:hover {
+      background: rgba(212, 163, 115, 0.2);
+      color: #faedcd;
+    }
+
+    &.reset-btn {
+      width: auto;
+      font-size: 0.72rem;
+      padding: 0 6px;
+      font-weight: 800;
+    }
+  }
+
+  .zoom-level-text {
+    font-size: 0.72rem;
+    font-weight: 800;
+    color: #faedcd;
+    min-width: 34px;
+    text-align: center;
+  }
+}
+
+/* ── مساحة الرسم التفاعلي الهجينة (Hybrid Interactive Canvas Engine) ── */
+.interactive-canvas-viewport {
   position: relative;
   width: 100%;
-  min-height: 520px;
+  min-height: 620px;
+  height: 620px;
+  overflow: hidden;
+  border-radius: 18px;
+  background: radial-gradient(circle at 50% 50%, #20130b 0%, #0d0603 100%);
+  border: 1px solid rgba(212, 163, 115, 0.2);
+  margin-top: 10px;
+  user-select: none;
+  box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.8);
+
+  &.is-pulsing {
+    box-shadow:
+      inset 0 0 50px rgba(212, 163, 115, 0.3),
+      0 0 20px rgba(212, 163, 115, 0.4);
+  }
+
+  &.is-dragging-any {
+    cursor: grabbing;
+  }
+}
+
+.canvas-scalable-board {
+  position: absolute;
+  width: 1000px;
+  height: 620px;
+  left: 50%;
+  top: 50%;
+  margin-left: -500px;
+  margin-top: -310px;
+  transform-origin: center center;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.canvas-svg-layer {
+  position: absolute;
+  inset: 0;
+  width: 1000px;
+  height: 620px;
+  pointer-events: none;
+}
+
+/* ── محطة الذكاء الاصطناعي المركزية التفاعلية DOM ── */
+.dom-central-core {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 80px;
+  height: 80px;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-top: 10px;
-}
-
-.automation-svg-board {
-  width: 100%;
-  height: auto;
-  max-height: 620px;
-  overflow: visible;
-  user-select: none;
-}
-
-/* ── Central Core Node ── */
-.central-core-node {
+  z-index: 10;
   cursor: pointer;
   transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 
   &:hover {
-    transform: translate(500px, 310px) scale(1.08);
-  }
-
-  .core-pulse-outer {
-    fill: none;
-    stroke: rgba(212, 163, 115, 0.25);
-    stroke-width: 1.5;
-    animation: corePulseOuter 3.2s infinite ease-out;
-  }
-
-  .core-pulse-middle {
-    fill: none;
-    stroke: rgba(212, 163, 115, 0.4);
-    stroke-width: 2;
-    animation: corePulseMiddle 2.4s infinite ease-out;
+    transform: translate(-50%, -50%) scale(1.08);
   }
 
   .core-gear-ring-cw {
-    fill: none;
-    stroke: rgba(212, 163, 115, 0.45);
-    stroke-width: 1.5;
+    position: absolute;
+    width: 84px;
+    height: 84px;
+    border-radius: 50%;
+    border: 2px dashed rgba(212, 163, 115, 0.4);
     animation: gearRotateCw 24s linear infinite;
   }
 
   .core-gear-ring-ccw {
-    fill: none;
-    stroke: rgba(250, 237, 205, 0.35);
-    stroke-width: 1.2;
+    position: absolute;
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    border: 1.5px dashed rgba(250, 237, 205, 0.3);
     animation: gearRotateCcw 16s linear infinite;
   }
 
-  .core-base-circle {
-    fill: #26150b;
-    stroke: #d4a373;
-    stroke-width: 2.8;
-    filter: drop-shadow(0 0 16px rgba(212, 163, 115, 0.7));
+  .core-pulse-wave {
+    position: absolute;
+    width: 96px;
+    height: 96px;
+    border-radius: 50%;
+    border: 1.5px solid rgba(212, 163, 115, 0.25);
+    animation: domPulseWave 3s infinite ease-out;
   }
 
-  .core-icon {
-    font-size: 22px;
+  .core-glass-disc {
+    width: 58px;
+    height: 58px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #381f10 0%, #1c0e07 100%);
+    border: 2.5px solid #d4a373;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow:
+      0 0 20px rgba(212, 163, 115, 0.7),
+      inset 0 0 10px rgba(250, 237, 205, 0.3);
+    z-index: 2;
+
+    .core-vector-icon {
+      color: #faedcd;
+      filter: drop-shadow(0 0 8px rgba(250, 237, 205, 0.8));
+    }
   }
 
-  .core-label {
-    fill: #faedcd;
-    font-size: 11px;
-    font-weight: 900;
+  .core-info-plaque {
+    position: absolute;
+    top: 70px;
+    width: 140px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    pointer-events: none;
+
+    .core-title-text {
+      font-size: 0.78rem;
+      font-weight: 900;
+      color: #faedcd;
+      text-shadow: 0 2px 6px rgba(0, 0, 0, 0.9);
+      white-space: nowrap;
+    }
+
+    .core-metric-text {
+      font-size: 0.68rem;
+      font-weight: 750;
+      color: #a89f91;
+      text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9);
+    }
+  }
+}
+
+@keyframes domPulseWave {
+  0% {
+    transform: scale(0.7);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(1.3);
+    opacity: 0;
+  }
+}
+
+/* ── حاوية وعقد الأتمتة الموحدة التفاعلية (Draggable Cyber-Pods) ── */
+.dom-nodes-container {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 15;
+}
+
+.dom-node-pod {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 144px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: grab;
+  pointer-events: auto;
+  transition:
+    transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.3s ease,
+    filter 0.3s ease;
+
+  &.is-dragging {
+    cursor: grabbing !important;
+    z-index: 30 !important;
+    transform: translate(-50%, -50%) scale(1.16) !important;
+    transition: none !important;
+
+    .pod-icon-capsule {
+      box-shadow: 0 0 24px var(--node-accent, #d4a373) !important;
+    }
   }
 
-  .core-sublabel {
-    fill: #a89f91;
-    font-size: 9.5px;
-    font-weight: 700;
+  &:hover {
+    transform: translate(-50%, -50%) scale(1.12);
+    z-index: 22;
+
+    .pod-icon-capsule {
+      box-shadow: 0 0 20px var(--node-accent, #d4a373);
+      border-color: #faedcd;
+    }
+
+    .pod-info-plaque {
+      border-color: var(--node-accent, #d4a373);
+      background: rgba(28, 15, 8, 0.97);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7);
+    }
+
+    .pod-hover-actions {
+      display: flex;
+    }
+  }
+
+  &.is-selected {
+    z-index: 25;
+
+    .pod-icon-capsule {
+      border-width: 3px;
+      box-shadow: 0 0 26px var(--node-accent, #d4a373);
+    }
+    .pod-info-plaque {
+      border-width: 2px;
+      border-color: var(--node-accent, #d4a373);
+    }
+  }
+
+  &.is-focused {
+    opacity: 1 !important;
+    filter: none !important;
+  }
+
+  &.is-disabled {
+    opacity: 0.45;
+    filter: grayscale(0.6);
+  }
+
+  &.is-dimmed {
+    opacity: 0.15;
+    filter: grayscale(0.85) blur(0.4px);
+  }
+
+  &.is-firing {
+    animation: firingBounce 0.4s infinite alternate;
+  }
+
+  /* حلقة المعايرة الدوارة Reticle */
+  .pod-caliper-ring {
+    position: absolute;
+    top: -5px;
+    width: 62px;
+    height: 62px;
+    border-radius: 50%;
+    border: 1.2px dashed rgba(212, 163, 115, 0.3);
+    animation: caliperSpin 16s linear infinite;
+    pointer-events: none;
+  }
+
+  /* كبسولة الأيقونة الموحدة */
+  .pod-icon-capsule {
+    width: 52px;
+    height: 52px;
+    border-radius: 16px;
+    background: linear-gradient(145deg, #24140a 0%, #120904 100%);
+    border: 2.2px solid var(--node-accent, #d4a373);
+    box-shadow:
+      0 6px 16px rgba(0, 0, 0, 0.7),
+      0 0 12px rgba(212, 163, 115, 0.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    transition: all 0.2s ease;
+
+    .pod-status-led {
+      position: absolute;
+      top: -3px;
+      right: -3px;
+      width: 11px;
+      height: 11px;
+      border-radius: 50%;
+      background: #6b7280;
+      border: 2px solid #120904;
+
+      &.is-active {
+        background: #22c55e;
+        box-shadow: 0 0 8px #22c55e;
+      }
+    }
+
+    .pod-svg-icon {
+      color: #faedcd;
+      filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
+    }
+  }
+
+  /* لوحة المعلومات الموحدة بالكامل أسفل الأيقونة */
+  .pod-info-plaque {
+    width: 140px;
+    background: rgba(18, 9, 4, 0.94);
+    backdrop-filter: blur(10px);
+    border: 1.5px solid rgba(212, 163, 115, 0.25);
+    border-radius: 12px;
+    padding: 6px 8px;
+    margin-top: 6px;
+    text-align: center;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.6);
+    transition: all 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+
+    .pod-title-text {
+      font-size: 0.76rem;
+      font-weight: 850;
+      color: #faedcd;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      display: block;
+    }
+
+    .pod-badge-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      flex-wrap: wrap;
+    }
+
+    .pod-trigger-pill {
+      font-size: 0.66rem;
+      font-weight: 750;
+      color: #d4a373;
+      background: rgba(212, 163, 115, 0.12);
+      padding: 1px 6px;
+      border-radius: 6px;
+    }
+
+    .pod-state-pill {
+      font-size: 0.66rem;
+      font-weight: 800;
+      color: #9ca3af;
+      background: rgba(255, 255, 255, 0.08);
+      padding: 1px 5px;
+      border-radius: 6px;
+
+      &.is-active {
+        color: #86efac;
+        background: rgba(34, 197, 94, 0.15);
+      }
+    }
+
+    /* أزرار الإجراءات السريعة المباشرة */
+    .pod-hover-actions {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      margin-top: 2px;
+      padding-top: 4px;
+      border-top: 1px solid rgba(212, 163, 115, 0.15);
+
+      .pod-mini-btn {
+        padding: 2px 8px;
+        font-size: 0.68rem;
+        font-weight: 800;
+        border-radius: 6px;
+        border: 1px solid rgba(212, 163, 115, 0.3);
+        background: rgba(255, 255, 255, 0.06);
+        color: #faedcd;
+        cursor: pointer;
+        transition: all 0.15s ease;
+
+        &:hover {
+          background: #d4a373;
+          color: #140d08;
+        }
+
+        &.run-btn {
+          background: rgba(34, 197, 94, 0.2);
+          border-color: rgba(34, 197, 94, 0.4);
+          color: #86efac;
+
+          &:hover {
+            background: #22c55e;
+            color: #0d0603;
+          }
+        }
+      }
+    }
   }
 }
 
@@ -2093,108 +2495,6 @@ onMounted(async () => {
   animation: harmonicFloat3 5.8s ease-in-out infinite alternate;
 }
 
-/* ── Standardized Cyber-Pod Nodes (Unified Nodes & Info) ── */
-.automation-node-group {
-  cursor: pointer;
-  transition:
-    transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
-    opacity 0.3s ease,
-    filter 0.3s ease;
-
-  &:hover {
-    transform: scale(1.14);
-
-    .node-icon-pod-bg {
-      filter: drop-shadow(0 0 16px rgba(212, 163, 115, 0.85));
-    }
-    .node-info-plaque {
-      stroke: #d4a373;
-      fill: rgba(30, 17, 9, 0.96);
-    }
-  }
-
-  &.is-selected {
-    .node-icon-pod-bg {
-      stroke-width: 3.5;
-      filter: drop-shadow(0 0 20px rgba(212, 163, 115, 0.95));
-    }
-    .node-info-plaque {
-      stroke-width: 2;
-    }
-  }
-
-  &.is-focused {
-    opacity: 1 !important;
-    filter: none !important;
-  }
-
-  &.is-disabled {
-    opacity: 0.45;
-    filter: grayscale(0.6);
-  }
-
-  &.is-dimmed {
-    opacity: 0.15;
-    filter: grayscale(0.85) blur(0.4px);
-  }
-
-  &.is-firing {
-    animation: firingBounce 0.5s infinite alternate;
-  }
-
-  .node-selected-halo {
-    fill: none;
-    stroke-width: 2.2;
-    stroke-dasharray: 6, 4;
-    animation: spinHalo 6s linear infinite;
-  }
-
-  .node-caliper-ticks {
-    fill: none;
-    stroke: rgba(212, 163, 115, 0.25);
-    stroke-width: 1.2;
-    animation: caliperSpin 16s linear infinite;
-  }
-
-  .node-icon-pod-bg {
-    stroke-width: 2.2;
-    filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.7));
-    transition: all 0.2s ease;
-  }
-
-  .node-status-led {
-    stroke: #120904;
-    stroke-width: 1.5;
-    filter: drop-shadow(0 0 6px currentColor);
-  }
-
-  .node-icon-emoji {
-    font-size: 21px;
-    user-select: none;
-  }
-
-  .node-info-plaque {
-    fill: rgba(18, 9, 4, 0.92);
-    backdrop-filter: blur(10px);
-    stroke-width: 1.2;
-    filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.6));
-    transition: all 0.2s ease;
-  }
-
-  .node-info-title {
-    fill: #faedcd;
-    font-size: 9.8px;
-    font-weight: 850;
-    letter-spacing: -0.2px;
-  }
-
-  .node-info-subtitle {
-    fill: #a89f91;
-    font-size: 8.2px;
-    font-weight: 700;
-  }
-}
-
 /* ── Keyframe Animations ── */
 @keyframes radarSweep {
   from {
@@ -2252,49 +2552,70 @@ onMounted(async () => {
 
 @keyframes harmonicFloat0 {
   0% {
-    transform: translateY(0px) translateX(0px);
+    transform: translate(-50%, -50%) translateY(0px) translateX(0px);
   }
   50% {
-    transform: translateY(-7px) translateX(3px);
+    transform: translate(-50%, -50%) translateY(-6px) translateX(3px);
   }
   100% {
-    transform: translateY(5px) translateX(-2px);
+    transform: translate(-50%, -50%) translateY(5px) translateX(-2px);
   }
 }
 
 @keyframes harmonicFloat1 {
   0% {
-    transform: translateY(0px) translateX(0px);
+    transform: translate(-50%, -50%) translateY(0px) translateX(0px);
   }
   50% {
-    transform: translateY(8px) translateX(-4px);
+    transform: translate(-50%, -50%) translateY(6px) translateX(-4px);
   }
   100% {
-    transform: translateY(-6px) translateX(2px);
+    transform: translate(-50%, -50%) translateY(-5px) translateX(2px);
   }
 }
 
 @keyframes harmonicFloat2 {
   0% {
-    transform: translateY(0px) translateX(0px);
+    transform: translate(-50%, -50%) translateY(0px) translateX(0px);
   }
   50% {
-    transform: translateY(-9px) translateX(-3px);
+    transform: translate(-50%, -50%) translateY(-7px) translateX(-3px);
   }
   100% {
-    transform: translateY(4px) translateX(4px);
+    transform: translate(-50%, -50%) translateY(4px) translateX(3px);
   }
 }
 
 @keyframes harmonicFloat3 {
   0% {
-    transform: translateY(0px) translateX(0px);
+    transform: translate(-50%, -50%) translateY(0px) translateX(0px);
   }
   50% {
-    transform: translateY(6px) translateX(4px);
+    transform: translate(-50%, -50%) translateY(5px) translateX(3px);
   }
   100% {
-    transform: translateY(-8px) translateX(-2px);
+    transform: translate(-50%, -50%) translateY(-6px) translateX(-2px);
+  }
+}
+
+@keyframes beamFlow {
+  from {
+    stroke-dashoffset: 32;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes beamFire {
+  0% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.3;
   }
 }
 

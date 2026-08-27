@@ -1,4 +1,4 @@
-﻿import axios from 'axios';
+import axios from 'axios';
 import * as Sentry from '@sentry/vue';
 import type { AxiosError, AxiosRequestConfig } from 'axios';
 import type { ApiEnvelope } from '../../../shared/types';
@@ -13,8 +13,14 @@ const api = axios.create({
   },
 });
 
-// المصادقة تعتمد حصرياً على HttpOnly cookie (access_token) — لا يُقرأ أو يُخزَّن توكن في JS
+// دعم المصادقة المزدوجة (Hybrid Authentication):
+// 1. HttpOnly cookies للأمان ضد XSS
+// 2. Authorization Bearer header كـ fallback قوي لبيئات السحابة والـ Cross-origin
 api.interceptors.request.use((config: any) => {
+  const token = localStorage.getItem('token');
+  if (token && !config.headers.Authorization) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
   // إصلاح التجمّد: مهلة لكل طلب — الطلب العالق كان يجمّد الـ router guard للأبد
   config.timeout = config.timeout || 20_000;
   config.timeoutErrorMessage = 'انتهت مهلة الاتصال بالخادم. حاول مرة أخرى';
@@ -52,14 +58,19 @@ api.interceptors.response.use(
         // Queue this request until refresh completes
         return new Promise((resolve: any, reject: any) => {
           failedQueue.push({ resolve, reject });
-        }).then(() => api.request(originalRequest));
+        }).then((token: any) => {
+          if (token && originalRequest.headers) {
+            originalRequest.headers.Authorization = `Bearer ${token}`;
+          }
+          return api.request(originalRequest);
+        });
       }
 
       originalRequest._retry = true;
       isRefreshing = true;
 
       try {
-        await axios.post(
+        const res = await axios.post(
           `${api.defaults.baseURL}/auth/refresh`,
           {},
           {
@@ -67,13 +78,20 @@ api.interceptors.response.use(
             headers: { 'Content-Type': 'application/json' },
           },
         );
-        processQueue(null, null);
+        const newToken = res.data?.data?.token || res.data?.token;
+        if (newToken) {
+          localStorage.setItem('token', newToken);
+          api.defaults.headers.common.Authorization = `Bearer ${newToken}`;
+          if (originalRequest.headers) {
+            originalRequest.headers.Authorization = `Bearer ${newToken}`;
+          }
+        }
+        processQueue(null, newToken);
         return api.request(originalRequest);
       } catch (refreshErr: any) {
         processQueue(refreshErr, null);
         // فشل التجديد — مسح الجلسة وإعادة التوجيه (replace بدل href لتجنّب تلويث التاريخ)
         localStorage.removeItem('user');
-        // تنظيف بقايا فترة الانتقال
         localStorage.removeItem('token');
         if (!window.location.pathname.includes('/login')) {
           window.location.replace('/login');

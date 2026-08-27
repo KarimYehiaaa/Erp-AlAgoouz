@@ -13,6 +13,8 @@ export const useAuthStore = defineStore('auth', () => {
 
   let activeProfilePromise: Promise<any> | null = null;
 
+  const token = ref<string | null>(localStorage.getItem('token'));
+
   const fetchProfile = async () => {
     if (activeProfilePromise) return activeProfilePromise;
 
@@ -46,7 +48,7 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  const isAuthenticated = computed(() => !!user.value);
+  const isAuthenticated = computed(() => !!user.value || !!token.value);
 
   const hasPermission = (code: string) => {
     if (user.value?.role_name && ADMIN_ROLES.includes(user.value.role_name)) return true;
@@ -58,25 +60,28 @@ export const useAuthStore = defineStore('auth', () => {
 
   const login = async (username: string, password: string) => {
     const res = await authApi.login({ username, password });
-    // التوكن يُضبط كـ HttpOnly cookie من الـ Backend — لا يُخزَّن في JS إطلاقاً
     user.value = res.data.user;
     permissions.value = res.data.permissions || [];
     profileLoaded.value = true;
+    if (res.data.token) {
+      token.value = res.data.token;
+      localStorage.setItem('token', res.data.token);
+    }
     localStorage.setItem('user', JSON.stringify(res.data.user));
     return res;
   };
 
   const logout = async () => {
     try {
-      if (user.value) await authApi.logout();
+      if (user.value || token.value) await authApi.logout();
     } catch (e: any) {
       console.error('Logout API failed:', e);
     }
+    token.value = null;
     user.value = null;
     permissions.value = [];
     profileLoaded.value = false;
     localStorage.removeItem('user');
-    // تنظيف بقايا فترة الانتقال: أي توكن قديم مخزّن في localStorage
     localStorage.removeItem('token');
   };
 
@@ -93,6 +98,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   return {
     user,
+    token,
     permissions,
     profileLoaded,
     isAuthenticated,

@@ -376,7 +376,8 @@ const handleLogin = async () => {
       localStorage.removeItem(STORAGE_KEY);
     }
 
-    router.push('/');
+    const targetRoute = auth.isCashier ? '/branch-sales' : '/';
+    router.push(targetRoute);
   } catch (e: any) {
     error.value = e.message || 'اسم المستخدم أو كلمة المرور غير صحيحة';
     triggerShake();

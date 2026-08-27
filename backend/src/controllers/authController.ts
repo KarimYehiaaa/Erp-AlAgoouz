@@ -5,7 +5,7 @@ import config from '../config/index.ts';
 const cookieDefaults = (maxAgeMs: number) => ({
   httpOnly: true,
   secure: config.isProduction,
-  sameSite: (config.isProduction ? 'strict' : 'lax') as 'strict' | 'lax',
+  sameSite: (config.isProduction ? 'none' : 'lax') as 'none' | 'lax',
   maxAge: maxAgeMs,
 });
 
@@ -59,7 +59,10 @@ const profile = async (req, res, next) => {
  */
 const refresh = async (req, res, next) => {
   try {
-    const refreshToken = req.cookies?.refresh_token;
+    const refreshToken =
+      req.cookies?.refresh_token ||
+      req.body?.refreshToken ||
+      (req.headers['x-refresh-token'] as string);
     if (!refreshToken)
       return res.status(401).json({ success: false, message: 'رمز التحديث (Refresh token) مطلوب' });
     const data = await authService.refreshAccessToken(refreshToken);

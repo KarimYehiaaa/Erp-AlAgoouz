@@ -44,7 +44,8 @@ const authenticate = async (req, res, next) => {
     }
     if (user.password_changed_at) {
       const changedAtSec = Math.floor(new Date(user.password_changed_at).getTime() / 1e3);
-      if ((decoded.iat ?? 0) < changedAtSec) {
+      // سماحية 15 ثانية لفروقات التوقيت الدقيقة بين خادم التطبيق وقاعدة البيانات
+      if ((decoded.iat ?? 0) < changedAtSec - 15) {
         throw new AppError(
           'تم تغيير كلمة المرور. يرجى تسجيل الدخول مرة أخرى',
           401,

@@ -110,19 +110,30 @@ let finalJwtSecret: string;
 if (envJwtSecret) {
   finalJwtSecret = envJwtSecret;
 } else {
-  // توليد سر آمن في حال عدم التعيين لضمان استمرارية تشغيل النظام السحابي
-  console.warn('[Config]   JWT_SECRET غير موجود في متغيرات البيئة — تم توليد سر آمن تلقائي');
-  finalJwtSecret = crypto.randomBytes(48).toString('base64');
+  // اشتقاق سر آمن ومستقر في حال عدم التعيين لضمان استمرارية الجلسات السحابية عبر كافة دوال Serverless
+  const fallbackSeed =
+    process.env.DATABASE_URL?.trim() ||
+    (dbConfig && dbConfig.host ? `${dbConfig.host}:${dbConfig.port}` : '') ||
+    'bin_al_ajouz_secure_jwt_fallback_secret_salt_2026';
+  finalJwtSecret = crypto
+    .createHmac('sha256', fallbackSeed)
+    .update('alagoouz-erp-jwt-secret-seed-v2')
+    .digest('hex');
+  if (isProdEnv) {
+    console.warn(
+      '[Config] ℹ JWT_SECRET غير محدد صراحة في متغيرات البيئة — تم اشتقاق سر آمن ومستقر تلقائياً لضمان ثبات الجلسات السحابية.',
+    );
+  }
 }
 
 const envRefreshSecret = process.env.JWT_REFRESH_SECRET?.trim();
 let finalRefreshSecret: string;
 if (envRefreshSecret) {
   finalRefreshSecret = envRefreshSecret;
-} else if (envJwtSecret) {
+} else {
   // اشتقاق سر تحديث آمن ومستقل تلقائياً من JWT_SECRET عبر HMAC لتفادي توقف السيرفر
   finalRefreshSecret = crypto
-    .createHmac('sha256', envJwtSecret)
+    .createHmac('sha256', finalJwtSecret)
     .update('alagoouz-erp-refresh-token-salt-v1')
     .digest('hex');
   if (isProdEnv) {
@@ -130,9 +141,6 @@ if (envRefreshSecret) {
       '[Config] ℹ تم اشتقاق JWT_REFRESH_SECRET تلقائياً من JWT_SECRET بنجاح لضمان استمرارية التشغيل.',
     );
   }
-} else {
-  console.warn('[Config]   JWT_REFRESH_SECRET غير موجود — تم توليد سر آمن تلقائي');
-  finalRefreshSecret = crypto.randomBytes(48).toString('base64');
 }
 
 const config = {

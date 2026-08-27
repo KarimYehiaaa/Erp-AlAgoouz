@@ -25,17 +25,17 @@ describe('auth store', () => {
     authApiMock.logout.mockReset();
   });
 
-  it('stores the user and permissions on login (token never persisted in JS)', async () => {
+  it('stores the user, token, and permissions on login', async () => {
     authApiMock.login.mockResolvedValue({
-      data: { user: cashierUser, permissions: [{ code: 'pos.view' }] },
+      data: { user: cashierUser, token: 'mock-jwt-token-123', permissions: [{ code: 'pos.view' }] },
     });
     const auth = useAuthStore();
     await auth.login('cash', 'secret');
 
     expect(auth.user?.username).toBe('cash');
     expect(auth.isAuthenticated).toBe(true);
-    // التوكن يعيش في HttpOnly cookie — لا شيء في localStorage
-    expect(localStorage.getItem('token')).toBeNull();
+    expect(localStorage.getItem('token')).toBe('mock-jwt-token-123');
+    expect(auth.token).toBe('mock-jwt-token-123');
   });
 
   it('grants admins every permission via bypass', async () => {

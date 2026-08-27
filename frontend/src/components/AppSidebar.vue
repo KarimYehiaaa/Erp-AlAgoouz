@@ -1,9 +1,22 @@
 <template>
-  <aside class="sidebar" :class="{ 'is-collapsed': !appStore.sidebarOpen }">
-    <router-link to="/" class="sidebar-brand" title="الذهاب إلى لوحة التحكم">
+  <aside
+    class="sidebar"
+    :class="{
+      'is-expanded': isExpanded,
+      'is-collapsed': !isExpanded,
+    }"
+    @mouseenter="handleMouseEnter"
+    @mouseleave="handleMouseLeave"
+  >
+    <router-link
+      to="/"
+      class="sidebar-brand"
+      title="الذهاب إلى لوحة التحكم"
+      @click="handleItemClick"
+    >
       <AppLogo size="sm" class="brand-logo" />
       <transition name="brand-fade">
-        <div v-if="appStore.sidebarOpen" class="brand-text">
+        <div v-if="isExpanded" class="brand-text">
           <span class="brand-name">بن العجوز</span>
           <span class="brand-sub">ERP تشغيل ومخزون ومالية</span>
         </div>
@@ -12,37 +25,28 @@
 
     <nav class="sidebar-nav" aria-label="أقسام النظام">
       <section v-for="group in menuGroups" :key="group.label" class="nav-group">
-        <p v-if="appStore.sidebarOpen" class="group-label">{{ group.label }}</p>
+        <p v-if="isExpanded" class="group-label">{{ group.label }}</p>
         <router-link
           v-for="item in group.items"
           :key="item.to"
           :to="item.to"
           class="nav-item"
           active-class="active"
-          :title="!appStore.sidebarOpen ? item.label : ''"
+          :title="!isExpanded ? item.label : ''"
+          @click="handleItemClick"
         >
           <span class="nav-icon"><AppIcon :name="item.icon" /></span>
           <transition name="label-fade">
-            <span v-if="appStore.sidebarOpen" class="nav-label">{{ item.label }}</span>
+            <span v-if="isExpanded" class="nav-label">{{ item.label }}</span>
           </transition>
         </router-link>
       </section>
     </nav>
-
-    <button
-      class="collapse-btn"
-      type="button"
-      @click="appStore.toggleSidebar"
-      :title="appStore.sidebarOpen ? 'طي القائمة' : 'توسيع القائمة'"
-    >
-      <AppIcon :name="appStore.sidebarOpen ? 'arrowRight' : 'arrowLeft'" />
-      <span v-if="appStore.sidebarOpen">طي القائمة</span>
-    </button>
   </aside>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
 import AppIcon from '@/components/AppIcon.vue';
 import { useAppStore } from '@/stores/app';
@@ -50,6 +54,49 @@ import { useAuthStore } from '@/stores/auth';
 
 const appStore = useAppStore();
 const authStore = useAuthStore();
+
+const isHovered = ref(false);
+const windowWidth = ref(typeof window !== 'undefined' ? window.innerWidth : 1200);
+
+function updateWindowWidth() {
+  windowWidth.value = window.innerWidth;
+}
+
+onMounted(() => {
+  window.addEventListener('resize', updateWindowWidth);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', updateWindowWidth);
+});
+
+const isMobile = computed(() => windowWidth.value <= 992);
+
+const isExpanded = computed(() => {
+  if (isMobile.value) {
+    return appStore.sidebarOpen;
+  }
+  return isHovered.value;
+});
+
+function handleMouseEnter() {
+  if (!isMobile.value) {
+    isHovered.value = true;
+  }
+}
+
+function handleMouseLeave() {
+  if (!isMobile.value) {
+    isHovered.value = false;
+  }
+}
+
+function handleItemClick() {
+  isHovered.value = false;
+  if (isMobile.value && appStore.sidebarOpen) {
+    appStore.sidebarOpen = false;
+  }
+}
 
 const rawMenuGroups = [
   {
@@ -134,26 +181,33 @@ const menuGroups = computed(() => {
   right: 0;
   top: 0;
   bottom: 0;
-  width: var(--sidebar-width);
+  width: var(--sidebar-collapsed, 68px);
   height: 100vh;
-  z-index: 100;
+  z-index: 150;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   color: var(--sidebar-text);
   background: var(--sidebar-bg);
   border-left: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: -8px 0 28px rgba(15, 23, 42, 0.16);
+  box-shadow: -4px 0 20px rgba(15, 23, 42, 0.12);
   transition:
-    width var(--transition),
-    transform var(--transition);
+    width 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+    transform 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 0.28s;
+  will-change: width, transform;
+
+  &.is-expanded {
+    width: var(--sidebar-width, 280px);
+    box-shadow: -14px 0 38px rgba(0, 0, 0, 0.35);
+    z-index: 250;
+  }
 
   &.is-collapsed {
-    width: var(--sidebar-collapsed);
-
     .sidebar-brand {
       justify-content: center;
-      padding-inline: 10px;
+      padding-inline: 8px;
     }
     .nav-group {
       padding-inline: 8px;
@@ -162,19 +216,18 @@ const menuGroups = computed(() => {
       justify-content: center;
       padding-inline: 0;
     }
-    .collapse-btn {
-      justify-content: center;
-    }
   }
 }
 
 .sidebar-brand {
-  min-height: 76px;
+  min-height: 72px;
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 16px;
+  padding: 14px 16px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  text-decoration: none;
+  flex-shrink: 0;
 }
 
 .brand-logo {
@@ -233,6 +286,7 @@ const menuGroups = computed(() => {
   overflow: hidden;
   white-space: nowrap;
   isolation: isolate;
+  text-decoration: none;
   transition:
     background var(--transition),
     color var(--transition),
@@ -299,25 +353,6 @@ const menuGroups = computed(() => {
   font-weight: 700;
 }
 
-.collapse-btn {
-  min-height: 48px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 16px;
-  border: 0;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.04);
-  color: var(--sidebar-muted);
-  cursor: pointer;
-  font-weight: 800;
-
-  &:hover {
-    color: #fff;
-    background: rgba(255, 255, 255, 0.08);
-  }
-}
-
 .brand-fade-enter-active,
 .brand-fade-leave-active,
 .label-fade-enter-active,
@@ -362,10 +397,12 @@ const menuGroups = computed(() => {
   .sidebar {
     width: min(84vw, 300px) !important;
     transform: translateX(100%);
-  }
+    z-index: 250;
+    box-shadow: -14px 0 38px rgba(0, 0, 0, 0.45);
 
-  .sidebar:not(.is-collapsed) {
-    transform: translateX(0);
+    &.is-expanded {
+      transform: translateX(0);
+    }
   }
 }
 </style>

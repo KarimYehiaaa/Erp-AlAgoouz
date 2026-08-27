@@ -26,7 +26,7 @@ export const useAppStore = defineStore('app', () => {
   };
 
   const syncSidebarWidth = () => {
-    const width = sidebarOpen.value ? '280px' : '76px';
+    const width = '68px';
     document.documentElement.style.setProperty('--sidebar-current-width', width);
   };
 

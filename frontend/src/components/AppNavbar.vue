@@ -308,7 +308,7 @@ onBeforeUnmount(() => {
   position: fixed;
   top: 12px;
   left: 16px;
-  right: calc(var(--sidebar-current-width, var(--sidebar-width)) + 16px);
+  right: calc(var(--sidebar-collapsed, 68px) + 16px);
   height: 56px;
   z-index: 130;
   display: flex;

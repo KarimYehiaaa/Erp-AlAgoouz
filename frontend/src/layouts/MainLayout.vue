@@ -397,13 +397,9 @@ onBeforeUnmount(() => {
 
 .layout-main {
   flex: 1;
-  margin-right: var(--sidebar-current-width, var(--sidebar-width));
+  margin-right: var(--sidebar-collapsed, 68px);
   transition: margin var(--transition);
   min-width: 0;
-}
-
-.sidebar-collapsed .layout-main {
-  margin-right: var(--sidebar-collapsed);
 }
 
 .layout-content {

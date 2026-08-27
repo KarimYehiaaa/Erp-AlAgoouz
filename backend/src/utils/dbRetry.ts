@@ -1,6 +1,6 @@
+import { logger } from '../services/loggerService.ts';
 /**
  * utils/dbRetry.ts — إعادة المحاولة التلقائية عند تعارض العمليات (Deadlock / Serialization)
- * ════════════════════════════════════════════════════════════════════════════════════
  * يلتقط أخطاء PostgreSQL الشهيرة بالتعارض المؤقت:
  *  - 40P01: Deadlock detected
  *  - 40001: Serialization failure
@@ -44,7 +44,7 @@ export async function withDbRetry<T>(
       const jitter = Math.random() * 50;
       const delay = Math.min(exponentialDelay + jitter, maxDelay);
 
-      console.warn(
+      logger.warn(
         `[DbRetry] تعارض مؤقت في قاعدة البيانات (${err.code}). المحاولة ${attempt}/${maxRetries} بعد ${Math.round(delay)}ms...`,
       );
 

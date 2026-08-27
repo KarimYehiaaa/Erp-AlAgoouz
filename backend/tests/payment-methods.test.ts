@@ -88,7 +88,6 @@ describe('رسم طرق الدفع (paymentMethodSummary)', () => {
     if (saleId) await query(`DELETE FROM sales WHERE id = $1`, [saleId]);
     if (supplierId) await query(`DELETE FROM suppliers WHERE id = $1`, [supplierId]);
     invalidateDashboardCache();
-    await pool.end();
   });
 
   const getSummary = async () => {

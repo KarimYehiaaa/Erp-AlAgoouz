@@ -47,9 +47,9 @@
             <!-- اسم البراند والشعار -->
             <div class="brand-headings">
               <div class="brand-crest-tag">
-                <span class="bean-icon">☕</span>
+                <span class="bean-icon"></span>
                 <span>تأسس عام 1980 • تحميص طازج يومياً</span>
-                <span class="bean-icon">☕</span>
+                <span class="bean-icon"></span>
               </div>
               <h1 class="brand-main-title">{{ menuData.title_ar || 'بن العجوز' }}</h1>
               <p class="brand-tagline">
@@ -72,7 +72,7 @@
 
             <!-- شريط عنوان الوجه -->
             <div class="front-title-ribbon">
-              <span>✦ قائمة توليفات البن الفاخر وحبوب التحميص الخاصة ✦</span>
+              <span> قائمة توليفات البن الفاخر وحبوب التحميص الخاصة </span>
             </div>
           </header>
 
@@ -105,8 +105,8 @@
                   <div class="item-primary-info">
                     <div class="item-title-row">
                       <span class="item-name-text">{{ item.name_ar }}</span>
-                      <span v-if="item.is_featured" class="special-badge gold">⭐ خلطة خاصة</span>
-                      <span v-if="item.is_new" class="special-badge green">✨ محصول جديد</span>
+                      <span v-if="item.is_featured" class="special-badge gold"> خلطة خاصة</span>
+                      <span v-if="item.is_new" class="special-badge green"> محصول جديد</span>
                     </div>
                     <p v-if="item.description_ar" class="item-desc-text">
                       {{ item.description_ar }}
@@ -190,11 +190,11 @@
           <!-- شريط سفلي جمالي للصفحة الأولى -->
           <footer class="front-luxury-footer">
             <div class="footer-guarantee">
-              <span class="seal-star">✦</span>
+              <span class="seal-star"></span>
               <span
                 >نضمن لك حبوب بن نقية 100% منتقاة من أفضل مزارع البرازيل وكولومبيا وإثيوبيا</span
               >
-              <span class="seal-star">✦</span>
+              <span class="seal-star"></span>
             </div>
             <div class="page-count-badge">الصفحة ١ من ٢</div>
           </footer>
@@ -271,9 +271,7 @@
                   <div class="item-primary-info">
                     <div class="item-title-row">
                       <span class="item-name-text">{{ item.name_ar }}</span>
-                      <span v-if="item.is_featured" class="special-badge gold"
-                        >⭐ الأكثر طلباً</span
-                      >
+                      <span v-if="item.is_featured" class="special-badge gold"> الأكثر طلباً</span>
                     </div>
                     <p v-if="item.description_ar" class="item-desc-text">
                       {{ item.description_ar }}
@@ -313,7 +311,7 @@
           <footer class="master-luxury-footer">
             <div class="footer-roastery-seal">
               <div class="seal-badge-box">
-                <span class="seal-icon">🏆</span>
+                <span class="seal-icon"></span>
                 <span class="seal-title">تحميص إيطالي عالي الجودة</span>
               </div>
             </div>
@@ -321,28 +319,28 @@
             <div class="footer-columns-grid">
               <!-- عمود العنوان والتوصيل -->
               <div class="footer-card-col">
-                <h4 class="col-heading">📍 الفرع والتوصيل للمنازل</h4>
+                <h4 class="col-heading">الفرع والتوصيل للمنازل</h4>
                 <p class="col-text">
                   {{ menuData.address_ar || 'الفرع الرئيسي - جمهورية مصر العربية' }}
                 </p>
                 <div class="phone-pills-wrap">
-                  <span class="phone-pill">📞 {{ menuData.phone_primary || '01012345678' }}</span>
-                  <span v-if="menuData.phone_secondary" class="phone-pill"
-                    >📱 {{ menuData.phone_secondary }}</span
+                  <span class="phone-pill"> {{ menuData.phone_primary || '01012345678' }}</span>
+                  <span v-if="menuData.phone_secondary" class="phone-pill">
+                    {{ menuData.phone_secondary }}</span
                   >
                 </div>
               </div>
 
               <!-- عمود السوشيال ميديا -->
               <div class="footer-card-col center">
-                <h4 class="col-heading">🌐 تواصل معنا</h4>
+                <h4 class="col-heading">تواصل معنا</h4>
                 <div class="social-tags-list">
                   <div v-if="menuData.facebook_handle" class="social-pill fb">
                     <span class="soc-icon">f</span>
                     <span>/{{ menuData.facebook_handle }}</span>
                   </div>
                   <div v-if="menuData.instagram_handle" class="social-pill insta">
-                    <span class="soc-icon">📸</span>
+                    <span class="soc-icon"></span>
                     <span>@{{ menuData.instagram_handle }}</span>
                   </div>
                 </div>
@@ -363,7 +361,7 @@
                       <div class="qr-corner top-l"></div>
                       <div class="qr-corner top-r"></div>
                       <div class="qr-corner bot-l"></div>
-                      <div class="qr-center-bean">☕</div>
+                      <div class="qr-center-bean"></div>
                     </div>
                   </div>
                   <span class="qr-caption-text">امسح للطلب أونلاين</span>
@@ -474,27 +472,25 @@ const onLogoError = (e: Event) => {
 const getCatIcon = (iconName?: string) => {
   switch (iconName) {
     case 'star':
-      return '⭐';
+      return '';
     case 'coffee':
-      return '☕';
+      return '';
     case 'sparkles':
-      return '✨';
+      return '';
     case 'flame':
-      return '🔥';
+      return '';
     case 'snowflake':
-      return '❄️';
+      return '';
     case 'heart':
-      return '❤️';
+      return '';
     default:
-      return '☕';
+      return '';
   }
 };
 </script>
 
 <style scoped>
-/* ═══════════════════════════════════════════════════════════════════
-   ULTRA-LUXURY COFFEE ROASTERY MENU DESIGN SYSTEM (A4 210mm x 297mm)
-   ═══════════════════════════════════════════════════════════════════ */
+/* ULTRA-LUXURY COFFEE ROASTERY MENU DESIGN SYSTEM (A4 210mm x 297mm) */
 
 .menu-print-document {
   font-family: 'Cairo', 'Outfit', 'Segoe UI', Tahoma, sans-serif;
@@ -504,7 +500,7 @@ const getCatIcon = (iconName?: string) => {
   -webkit-font-smoothing: antialiased;
 }
 
-/* 🎨 THEME 1: COFFEE GOLD (رويال إسبريسو وذهب ملكي) */
+/*  THEME 1: COFFEE GOLD (رويال إسبريسو وذهب ملكي) */
 .theme-coffee-gold {
   --m-bg: #1a0f0a;
   --m-sheet-bg: radial-gradient(circle at 50% 30%, #2e1911 0%, #170d08 100%);
@@ -521,7 +517,7 @@ const getCatIcon = (iconName?: string) => {
   --m-badge-bg: rgba(212, 175, 55, 0.15);
 }
 
-/* 🎨 THEME 2: WARM CREAM (بردي ومحمصة تراثية فاخرة) */
+/*  THEME 2: WARM CREAM (بردي ومحمصة تراثية فاخرة) */
 .theme-warm-cream {
   --m-bg: #e6dac8;
   --m-sheet-bg: radial-gradient(circle at 50% 20%, #fefcf8 0%, #f4eae0 100%);
@@ -538,7 +534,7 @@ const getCatIcon = (iconName?: string) => {
   --m-badge-bg: #ebe0d2;
 }
 
-/* 🎨 THEME 3: MODERN DARK (دارك كافيه مودرن) */
+/*  THEME 3: MODERN DARK (دارك كافيه مودرن) */
 .theme-modern-dark {
   --m-bg: #09090b;
   --m-sheet-bg: radial-gradient(circle at 50% 30%, #1f1f23 0%, #0d0d0f 100%);
@@ -1239,9 +1235,7 @@ const getCatIcon = (iconName?: string) => {
   padding-top: 4px;
 }
 
-/* ═══════════════════════════════════════════════════════════════════
-   PRINT MEDIA STYLES FOR DIRECT PRINT & A4 RENDERING
-   ═══════════════════════════════════════════════════════════════════ */
+/* PRINT MEDIA STYLES FOR DIRECT PRINT & A4 RENDERING */
 @media print {
   @page {
     size: A4 portrait;

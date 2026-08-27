@@ -2,7 +2,7 @@
   <div v-if="isOpen" class="command-palette-overlay" @click.self="close">
     <div class="command-palette-box card">
       <div class="search-section">
-        <span class="search-icon">🔍</span>
+        <span class="search-icon"></span>
         <input
           ref="searchInput"
           v-model="query"
@@ -63,6 +63,13 @@ const allItems = [
     desc: 'الذهاب إلى الرئيسية والتقارير العامة',
     icon: 'dashboard',
     action: () => router.push('/'),
+  },
+  {
+    id: 'automation',
+    title: 'محرك الأتمتة والوكلاء الأذكياء',
+    desc: 'الرسم البياني التفاعلي ومحاكاة سير العمليات وبوت تليجرام',
+    icon: 'bot',
+    action: () => router.push('/automation'),
   },
   {
     id: 'prod',

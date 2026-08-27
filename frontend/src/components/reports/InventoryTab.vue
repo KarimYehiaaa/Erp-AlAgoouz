@@ -2,21 +2,21 @@
   <div>
     <div class="kpi-grid kpi-grid-3">
       <div class="kpi-card inventory">
-        <div class="kpi-icon">📦</div>
+        <div class="kpi-icon"></div>
         <div class="kpi-body">
           <div class="kpi-label">إجمالي المنتجات</div>
           <div class="kpi-value">{{ (inventory?.products || []).length }}</div>
         </div>
       </div>
       <div class="kpi-card danger">
-        <div class="kpi-icon">⚠️</div>
+        <div class="kpi-icon"></div>
         <div class="kpi-body">
           <div class="kpi-label">منتجات منخفضة</div>
           <div class="kpi-value">{{ lowStockCount }}</div>
         </div>
       </div>
       <div class="kpi-card">
-        <div class="kpi-icon">🏭</div>
+        <div class="kpi-icon"></div>
         <div class="kpi-body">
           <div class="kpi-label">قيمة المخزون</div>
           <div class="kpi-value">{{ formatMoney(totalValue) }}</div>
@@ -25,7 +25,7 @@
     </div>
     <div class="grid grid-2 mt-4">
       <div class="card">
-        <h3>🏭 قيمة المخزون بالمستودع</h3>
+        <h3>قيمة المخزون بالمستودع</h3>
         <table class="report-table">
           <thead>
             <tr>
@@ -47,7 +47,7 @@
         </table>
       </div>
       <div class="card">
-        <h3>⚠️ المنتجات المنخفضة</h3>
+        <h3>المنتجات المنخفضة</h3>
         <table class="report-table">
           <thead>
             <tr>
@@ -63,20 +63,20 @@
               <td>{{ row.min_stock }}</td>
             </tr>
             <tr v-if="!lowStock.length">
-              <td colspan="3" class="empty">✅ لا توجد تنبيهات</td>
+              <td colspan="3" class="empty">لا توجد تنبيهات</td>
             </tr>
           </tbody>
         </table>
       </div>
     </div>
     <div class="card mt-4">
-      <h3>📋 كل المنتجات</h3>
+      <h3>كل المنتجات</h3>
       <div class="table-wrap">
         <table class="report-table">
           <thead>
             <tr>
               <th>المنتج</th>
-              <th>SKU</th>
+              <th>كود الصنف (SKU)</th>
               <th>التصنيف</th>
               <th>المخزون</th>
               <th>الحد الأدنى</th>

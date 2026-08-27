@@ -2,21 +2,21 @@
   <div>
     <div class="kpi-grid kpi-grid-3">
       <div class="kpi-card profit">
-        <div class="kpi-icon">📈</div>
+        <div class="kpi-icon"></div>
         <div class="kpi-body">
           <div class="kpi-label">إجمالي الإيرادات</div>
           <div class="kpi-value">{{ formatMoney(totalRevenue) }}</div>
         </div>
       </div>
       <div class="kpi-card">
-        <div class="kpi-icon">💼</div>
+        <div class="kpi-icon"></div>
         <div class="kpi-body">
           <div class="kpi-label">إجمالي التكلفة</div>
           <div class="kpi-value">{{ formatMoney(totalCost) }}</div>
         </div>
       </div>
       <div class="kpi-card" :class="totalNet >= 0 ? 'profit' : 'danger'">
-        <div class="kpi-icon">{{ totalNet >= 0 ? '✅' : '❌' }}</div>
+        <div class="kpi-icon">{{ totalNet >= 0 ? '' : '' }}</div>
         <div class="kpi-body">
           <div class="kpi-label">صافي الربح</div>
           <div class="kpi-value">{{ formatMoney(totalNet) }}</div>
@@ -25,7 +25,7 @@
     </div>
     <div class="grid grid-2 mt-4">
       <div class="card">
-        <h3>📊 الأرباح اليومية</h3>
+        <h3>الأرباح اليومية</h3>
         <div class="table-wrap">
           <table class="report-table">
             <thead>
@@ -55,7 +55,7 @@
         </div>
       </div>
       <div class="card">
-        <h3>🗂️ الأرباح حسب التصنيف</h3>
+        <h3>الأرباح حسب التصنيف</h3>
         <table class="report-table">
           <thead>
             <tr>

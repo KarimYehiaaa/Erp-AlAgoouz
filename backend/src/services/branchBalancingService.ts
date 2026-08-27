@@ -1,6 +1,5 @@
 /**
  * services/branchBalancingService.ts — خوارزمية المناقلات الذكية وتوازن مخزون الفروع
- * ══════════════════════════════════════════════════════════════════════════════════
  * تحلل معدل سحب ومبيعات المنتجات في كل فرع وتقترح مناقلات فورية لمنع الركود ونفاد المخزون.
  */
 
@@ -36,16 +35,15 @@ export class BranchBalancingService {
       return {
         recommendations: [],
         htmlReport: `
-🔄 <b>المناقلات الذكية بين الفروع</b>
-═════════════════════════
-ℹ️ النظام يعمل بفرع واحد حالياً. ستعمل خوارزمية المناقلات التلقائية عند وجود أكثر من فرع.
+ <b>المناقلات الذكية بين الفروع</b>
+ℹ النظام يعمل بفرع واحد حالياً. ستعمل خوارزمية المناقلات التلقائية عند وجود أكثر من فرع.
         `.trim(),
       };
     }
 
     // 2. حساب مبيعات آخر 14 يوماً لكل منتج في كل فرع
     const salesVelocityRes = await query(`
-      SELECT 
+      SELECT
         s.warehouse_id,
         si.product_id,
         p.name_ar as product_name,
@@ -61,7 +59,7 @@ export class BranchBalancingService {
 
     // 3. جلب المخزون الفعلي الحالي لكل منتج في كل فرع
     const stockRes = await query(`
-      SELECT 
+      SELECT
         p.id as product_id,
         p.name_ar as product_name,
         p.unit,
@@ -140,10 +138,9 @@ export class BranchBalancingService {
       return {
         recommendations: [],
         htmlReport: `
-🔄 <b>المناقلات الذكية وتوازن مخزون الفروع</b>
-═════════════════════════
-✅ <b>مخزون جميع الفروع متوازن ومستقر تماماً!</b>
-🕒 لا توجد حاجة لمناقلات بضاعة حالياً.
+ <b>المناقلات الذكية وتوازن مخزون الفروع</b>
+ <b>مخزون جميع الفروع متوازن ومستقر تماماً!</b>
+ لا توجد حاجة لمناقلات بضاعة حالياً.
         `.trim(),
       };
     }
@@ -152,19 +149,17 @@ export class BranchBalancingService {
       .slice(0, 8)
       .map(
         (rec, i) =>
-          `<b>${i + 1}. ${rec.productName}</b>\n   📦 الكمية المقترحة: <b>${rec.suggestedQty} ${rec.unit}</b>\n   🚚 من: <b>${rec.fromWarehouseName}</b> ⬅️ إلى: <b>${rec.toWarehouseName}</b>\n   💡 <i>${rec.reason}</i>`,
+          `<b>${i + 1}. ${rec.productName}</b>\n    الكمية المقترحة: <b>${rec.suggestedQty} ${rec.unit}</b>\n    من: <b>${rec.fromWarehouseName}</b>  إلى: <b>${rec.toWarehouseName}</b>\n    <i>${rec.reason}</i>`,
       )
       .join('\n\n');
 
     const htmlReport = `
-🔄 <b>اقتراحات المناقلات الذكية بين الفروع</b> 🚚
-═════════════════════════
-💡 رصدت خوارزمية التوازن (${recommendations.length}) اقتراح مناقلة بضاعة لتفادي الشراء الجديد:
+ <b>اقتراحات المناقلات الذكية بين الفروع</b>
+ رصدت خوارزمية التوازن (${recommendations.length}) اقتراح مناقلة بضاعة لتفادي الشراء الجديد:
 
 ${listText}
 
-═════════════════════════
-🚀 <i>تنفيذ هذه المناقلات يحمي الفروع من نفاد البن ويوفر السيولة النقدية.</i>
+ <i>تنفيذ هذه المناقلات يحمي الفروع من نفاد البن ويوفر السيولة النقدية.</i>
     `.trim();
 
     return {

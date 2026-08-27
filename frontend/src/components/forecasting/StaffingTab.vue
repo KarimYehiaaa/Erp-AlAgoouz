@@ -7,7 +7,7 @@
     </p>
 
     <div class="peak-hours-grid">
-      <div class="peak-header-sub">🔥 أعلى 5 ساعات ذروة مبيعاً وازدحاماً:</div>
+      <div class="peak-header-sub">أعلى 5 ساعات ذروة مبيعاً وازدحاماً:</div>
       <div class="grid grid-5">
         <div
           v-for="(peak, idx) in peakHours"

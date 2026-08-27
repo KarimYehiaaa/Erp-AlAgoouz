@@ -1,6 +1,5 @@
 /**
  * routes/index.ts — الراوتر الرئيسي (جامع الوحدات)
- * ════════════════════════════════════════════
  * يجمع كل وحدات التوجيه النطاقية في موجّه واحد يُسجَّل في التطبيق.
  * كل وحدة مسؤولة عن نطاقها:
  *  - auth      : المصادقة + لوحة التحكم
@@ -24,10 +23,10 @@ import hrRoutes from './hr.routes.ts';
 import reportsRoutes from './reports.routes.ts';
 import adminRoutes from './admin.routes.ts';
 import menuRoutes from './menu.routes.ts';
-import automationRoutes from './automation.routes.ts';
 import telegramRoutes from './telegram.routes.ts';
 import syncRoutes from './sync.routes.ts';
 import partnersRoutes from './partners.routes.ts';
+import automationRoutes from './automation.routes.ts';
 
 const router = Router();
 
@@ -40,10 +39,10 @@ router.use(hrRoutes);
 router.use(reportsRoutes);
 router.use(adminRoutes);
 router.use(menuRoutes);
-router.use(automationRoutes);
 router.use(telegramRoutes);
 router.use(syncRoutes);
 router.use(partnersRoutes);
+router.use(automationRoutes);
 
 /**
  * موجّه API الرئيسي — يُسجَّل في التطبيق ويجمع كل مسارات النظام (المصادقة، المبيعات، المخزون، الموارد البشرية...).

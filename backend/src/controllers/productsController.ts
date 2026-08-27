@@ -2,7 +2,7 @@ import * as productService from '../services/productService.ts';
 import * as productsExcelService from '../services/productsExcelService.ts';
 import * as inventoryService from '../services/inventoryService.ts';
 import { AppError } from '../types/errors.ts';
-import { ok } from './helper.ts';
+import { ok, wrap } from './helper.ts';
 
 export const products = {
   /**
@@ -11,348 +11,248 @@ export const products = {
    * @param {import('express').Response} res استجابة HTTP
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
-  list: async (req, res, next) => {
-    try {
-      ok(res, await productService.getProducts(req.query));
-    } catch (e: any) {
-      next(e);
-    }
-  },
+  list: wrap(async (req, res) => {
+    ok(res, await productService.getProducts(req.query));
+  }),
   /**
    * قائمة منتجات فرع/مخزن محدد.
    * @param {import('express').Request} req طلب HTTP
    * @param {import('express').Response} res استجابة HTTP
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
-  branchProducts: async (req, res, next) => {
-    try {
-      ok(res, await productService.getBranchProducts(req.query));
-    } catch (e: any) {
-      next(e);
-    }
-  },
+  branchProducts: wrap(async (req, res) => {
+    ok(res, await productService.getBranchProducts(req.query));
+  }),
   /**
    * تقرير تكاليف المنتجات الفعلية.
    * @param {import('express').Request} req طلب HTTP
    * @param {import('express').Response} res استجابة HTTP
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
-  costsReport: async (req, res, next) => {
-    try {
-      ok(res, await productService.getCostsReport(req.query));
-    } catch (e: any) {
-      next(e);
-    }
-  },
+  costsReport: wrap(async (req, res) => {
+    ok(res, await productService.getCostsReport(req.query));
+  }),
   /**
    * جلب منتج حسب معرفه.
    * @param {import('express').Request} req طلب HTTP
    * @param {import('express').Response} res استجابة HTTP
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
-  get: async (req, res, next) => {
-    try {
-      ok(res, await productService.getProductById(req.params.id));
-    } catch (e: any) {
-      next(e);
-    }
-  },
+  get: wrap(async (req, res) => {
+    ok(res, await productService.getProductById(req.params.id));
+  }),
   /**
    * اقتراح كود SKU التالي للمنتج.
    * @param {import('express').Request} req طلب HTTP
    * @param {import('express').Response} res استجابة HTTP
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
-  nextSku: async (_req, res, next) => {
-    try {
-      ok(res, await productService.getNextProductSku());
-    } catch (e: any) {
-      next(e);
-    }
-  },
+  nextSku: wrap(async (_req, res) => {
+    ok(res, await productService.getNextProductSku());
+  }),
   /**
    * إنشاء منتج جديد.
    * @param {import('express').Request} req طلب HTTP
    * @param {import('express').Response} res استجابة HTTP
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
-  create: async (req, res, next) => {
-    try {
-      ok(res, await productService.createProduct(req.body));
-    } catch (e: any) {
-      next(e);
-    }
-  },
+  create: wrap(async (req, res) => {
+    ok(res, await productService.createProduct(req.body));
+  }),
   /**
    * تحديث منتج.
    * @param {import('express').Request} req طلب HTTP
    * @param {import('express').Response} res استجابة HTTP
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
-  update: async (req, res, next) => {
-    try {
-      ok(res, await productService.updateProduct(req.params.id, req.body));
-    } catch (e: any) {
-      next(e);
-    }
-  },
+  update: wrap(async (req, res) => {
+    ok(res, await productService.updateProduct(req.params.id, req.body));
+  }),
   /**
    * تعديل أسعار جماعي (نسبة أو مبلغ).
    * @param {import('express').Request} req طلب HTTP
    * @param {import('express').Response} res استجابة HTTP
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
-  bulkPriceAdjust: async (req, res, next) => {
-    try {
-      ok(
-        res,
-        await productService.bulkAdjustPrices(req.body, req.user.id),
-        'تم تعديل الأسعار بنجاح',
-      );
-    } catch (e: any) {
-      next(e);
-    }
-  },
+  bulkPriceAdjust: wrap(async (req, res) => {
+    ok(res, await productService.bulkAdjustPrices(req.body, req.user.id), 'تم تعديل الأسعار بنجاح');
+  }),
   /**
    * ضبط بيانات المنتج داخل مخزن محدد.
    * @param {import('express').Request} req طلب HTTP
    * @param {import('express').Response} res استجابة HTTP
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
-  setWarehouse: async (req, res, next) => {
-    try {
-      ok(
-        res,
-        await productService.setProductWarehouse(req.params.id, req.body?.warehouse_id),
-        'Warehouse updated',
-      );
-    } catch (e: any) {
-      next(e);
-    }
-  },
+  setWarehouse: wrap(async (req, res) => {
+    ok(
+      res,
+      await productService.setProductWarehouse(req.params.id, req.body?.warehouse_id),
+      'Warehouse updated',
+    );
+  }),
   /**
    * حذف منتج.
    * @param {import('express').Request} req طلب HTTP
    * @param {import('express').Response} res استجابة HTTP
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
-  delete: async (req, res, next) => {
-    try {
-      await productService.deleteProduct(req.params.id);
-      ok(res, null, 'تم حذف المنتج');
-    } catch (e: any) {
-      next(e);
-    }
-  },
+  delete: wrap(async (req, res) => {
+    await productService.deleteProduct(req.params.id);
+    ok(res, null, 'تم حذف المنتج');
+  }),
   /**
    * مسح جميع المنتجات.
    * @param {import('express').Request} req طلب HTTP
    * @param {import('express').Response} res استجابة HTTP
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
-  deleteAll: async (req, res, next) => {
-    try {
-      const data = await productService.deleteAllProducts();
-      ok(res, data, `تم حذف ${data.deletedCount} منتجات بنجاح`);
-    } catch (e: any) {
-      next(e);
-    }
-  },
+  deleteAll: wrap(async (req, res) => {
+    const data = await productService.deleteAllProducts();
+    ok(res, data, `تم حذف ${data.deletedCount} منتجات بنجاح`);
+  }),
   /**
    * قائمة تصنيفات المنتجات.
    * @param {import('express').Request} req طلب HTTP
    * @param {import('express').Response} res استجابة HTTP
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
-  categories: async (req, res, next) => {
-    try {
-      ok(res, await productService.getCategories());
-    } catch (e: any) {
-      next(e);
-    }
-  },
+  categories: wrap(async (req, res) => {
+    ok(res, await productService.getCategories());
+  }),
   /**
    * إنشاء تصنيف جديد.
    * @param {import('express').Request} req طلب HTTP
    * @param {import('express').Response} res استجابة HTTP
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
-  createCategory: async (req, res, next) => {
-    try {
-      ok(res, await productService.createCategory(req.body));
-    } catch (e: any) {
-      next(e);
-    }
-  },
+  createCategory: wrap(async (req, res) => {
+    ok(res, await productService.createCategory(req.body));
+  }),
   /**
    * تحديث تصنيف.
    * @param {import('express').Request} req طلب HTTP
    * @param {import('express').Response} res استجابة HTTP
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
-  updateCategory: async (req, res, next) => {
-    try {
-      ok(res, await productService.updateCategory(req.params.id, req.body));
-    } catch (e: any) {
-      next(e);
-    }
-  },
+  updateCategory: wrap(async (req, res) => {
+    ok(res, await productService.updateCategory(req.params.id, req.body));
+  }),
   /**
    * حذف تصنيف.
    * @param {import('express').Request} req طلب HTTP
    * @param {import('express').Response} res استجابة HTTP
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
-  deleteCategory: async (req, res, next) => {
-    try {
-      ok(res, await productService.deleteCategory(req.params.id), 'تم حذف التصنيف');
-    } catch (e: any) {
-      next(e);
-    }
-  },
+  deleteCategory: wrap(async (req, res) => {
+    ok(res, await productService.deleteCategory(req.params.id), 'تم حذف التصنيف');
+  }),
   /**
    * قائمة وحدات القياس.
    * @param {import('express').Request} req طلب HTTP
    * @param {import('express').Response} res استجابة HTTP
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
-  units: async (req, res, next) => {
-    try {
-      ok(res, await productService.getUnits());
-    } catch (e: any) {
-      next(e);
-    }
-  },
+  units: wrap(async (req, res) => {
+    ok(res, await productService.getUnits());
+  }),
   /**
    * إنشاء وحدة قياس.
    * @param {import('express').Request} req طلب HTTP
    * @param {import('express').Response} res استجابة HTTP
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
-  createUnit: async (req, res, next) => {
-    try {
-      ok(res, await productService.createUnit(req.body));
-    } catch (e: any) {
-      next(e);
-    }
-  },
+  createUnit: wrap(async (req, res) => {
+    ok(res, await productService.createUnit(req.body));
+  }),
   /**
    * تحديث وحدة قياس.
    * @param {import('express').Request} req طلب HTTP
    * @param {import('express').Response} res استجابة HTTP
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
-  updateUnit: async (req, res, next) => {
-    try {
-      ok(res, await productService.updateUnit(req.params.id, req.body));
-    } catch (e: any) {
-      next(e);
-    }
-  },
+  updateUnit: wrap(async (req, res) => {
+    ok(res, await productService.updateUnit(req.params.id, req.body));
+  }),
   /**
    * حذف وحدة قياس.
    * @param {import('express').Request} req طلب HTTP
    * @param {import('express').Response} res استجابة HTTP
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
-  deleteUnit: async (req, res, next) => {
-    try {
-      ok(res, await productService.deleteUnit(req.params.id), 'تم حذف الوحدة');
-    } catch (e: any) {
-      next(e);
-    }
-  },
+  deleteUnit: wrap(async (req, res) => {
+    ok(res, await productService.deleteUnit(req.params.id), 'تم حذف الوحدة');
+  }),
   /**
    * إرجاع كمية منتج إلى المخزون.
    * @param {import('express').Request} req طلب HTTP
    * @param {import('express').Response} res استجابة HTTP
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
-  returnStock: async (req, res, next) => {
-    try {
-      ok(
-        res,
-        await inventoryService.returnProductToStock(req.body, req.user.id),
-        'تمت عملية إرجاع المنتج للمخزن',
-      );
-    } catch (e: any) {
-      next(e);
-    }
-  },
+  returnStock: wrap(async (req, res) => {
+    ok(
+      res,
+      await inventoryService.returnProductToStock(req.body, req.user.id),
+      'تمت عملية إرجاع المنتج للمخزن',
+    );
+  }),
   /**
    * قائمة مرتجعات المنتجات.
    * @param {import('express').Request} req طلب HTTP
    * @param {import('express').Response} res استجابة HTTP
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
-  returns: async (req, res, next) => {
-    try {
-      ok(res, await inventoryService.getProductReturns(req.query));
-    } catch (e: any) {
-      next(e);
-    }
-  },
+  returns: wrap(async (req, res) => {
+    ok(res, await inventoryService.getProductReturns(req.query));
+  }),
   /**
    * تنزيل قالب استيراد المنتجات (Excel).
    * @param {import('express').Request} req طلب HTTP
    * @param {import('express').Response} res استجابة HTTP
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
-  template: async (_req, res, next) => {
-    try {
-      const buf = productsExcelService.buildProductsTemplate();
-      res.setHeader(
-        'Content-Type',
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      );
-      res.setHeader(
-        'Content-Disposition',
-        'attachment; filename="bin-al-ajouz-products-template.xlsx"',
-      );
-      res.send(buf);
-    } catch (e: any) {
-      next(e);
-    }
-  },
+  template: wrap(async (_req, res) => {
+    const buf = productsExcelService.buildProductsTemplate();
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename="bin-al-ajouz-products-template.xlsx"',
+    );
+    res.send(buf);
+  }),
   /**
    * تصدير قائمة المنتجات إلى ملف Excel.
    * @param {import('express').Request} req طلب HTTP
    * @param {import('express').Response} res استجابة HTTP
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
-  export: async (_req, res, next) => {
-    try {
-      const buf = await productsExcelService.exportProductsToExcel();
-      res.setHeader(
-        'Content-Type',
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      );
-      res.setHeader(
-        'Content-Disposition',
-        'attachment; filename="bin-al-ajouz-products-export.xlsx"',
-      );
-      res.send(buf);
-    } catch (e: any) {
-      next(e);
-    }
-  },
+  export: wrap(async (_req, res) => {
+    const buf = await productsExcelService.exportProductsToExcel();
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename="bin-al-ajouz-products-export.xlsx"',
+    );
+    res.send(buf);
+  }),
   /**
    * استيراد المنتجات من ملف Excel.
    * @param {import('express').Request} req طلب HTTP
    * @param {import('express').Response} res استجابة HTTP
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
-  importExcel: async (req, res, next) => {
-    try {
-      if (!req.file?.buffer) throw new AppError('يجب رفع ملف Excel', 400);
-      const result = await productsExcelService.importProductsFromExcel(req.file.buffer);
-      ok(
-        res,
-        result,
-        `تم استيراد المنتجات بنجاح: تم إنشاء ${result.created} وتحديث ${result.updated}`,
-      );
-    } catch (e: any) {
-      next(e);
-    }
-  },
+  importExcel: wrap(async (req, res) => {
+    if (!req.file?.buffer) throw new AppError('يجب رفع ملف Excel', 400);
+    const result = await productsExcelService.importProductsFromExcel(req.file.buffer);
+    ok(
+      res,
+      result,
+      `تم استيراد المنتجات بنجاح: تم إنشاء ${result.created} وتحديث ${result.updated}`,
+    );
+  }),
 };

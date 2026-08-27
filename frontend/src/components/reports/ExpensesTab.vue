@@ -2,21 +2,21 @@
   <div>
     <div class="kpi-grid kpi-grid-3">
       <div class="kpi-card expenses">
-        <div class="kpi-icon">💸</div>
+        <div class="kpi-icon"></div>
         <div class="kpi-body">
           <div class="kpi-label">إجمالي المصروفات</div>
           <div class="kpi-value">{{ formatMoney(total) }}</div>
         </div>
       </div>
       <div class="kpi-card">
-        <div class="kpi-icon">📂</div>
+        <div class="kpi-icon"></div>
         <div class="kpi-body">
           <div class="kpi-label">عدد التصنيفات</div>
           <div class="kpi-value">{{ (expenses?.byCategory || []).length }}</div>
         </div>
       </div>
       <div class="kpi-card">
-        <div class="kpi-icon">🧾</div>
+        <div class="kpi-icon"></div>
         <div class="kpi-body">
           <div class="kpi-label">عدد المصروفات</div>
           <div class="kpi-value">{{ count }}</div>
@@ -25,7 +25,7 @@
     </div>
     <div class="grid grid-2 mt-4">
       <div class="card">
-        <h3>📂 حسب التصنيف</h3>
+        <h3>حسب التصنيف</h3>
         <table class="report-table">
           <thead>
             <tr>
@@ -49,7 +49,7 @@
         </table>
       </div>
       <div class="card">
-        <h3>📅 حسب الشهر</h3>
+        <h3>حسب الشهر</h3>
         <table class="report-table">
           <thead>
             <tr>
@@ -72,7 +72,7 @@
       </div>
     </div>
     <div class="card mt-4">
-      <h3>🕐 آخر المصروفات</h3>
+      <h3>آخر المصروفات</h3>
       <table class="report-table">
         <thead>
           <tr>

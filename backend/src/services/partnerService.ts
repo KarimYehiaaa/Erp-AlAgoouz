@@ -31,14 +31,14 @@ export interface DrawingInput {
  */
 export const getPartners = async () => {
   const result = await query(`
-    SELECT 
+    SELECT
       p.*,
       COALESCE(d.total_drawings, 0) AS total_drawings,
       COALESCE(d.drawings_count, 0) AS drawings_count,
       COALESCE(d.last_drawing_date, NULL) AS last_drawing_date
     FROM partners p
     LEFT JOIN (
-      SELECT 
+      SELECT
         partner_id,
         SUM(amount) AS total_drawings,
         COUNT(*)::int AS drawings_count,
@@ -178,7 +178,7 @@ export const updatePartner = async (id: number, data: Partial<PartnerInput>) => 
   }
 
   const res = await query(
-    `UPDATE partners 
+    `UPDATE partners
      SET name_ar = COALESCE($1, name_ar),
          phone = COALESCE($2, phone),
          share_percentage = COALESCE($3, share_percentage),
@@ -264,7 +264,7 @@ export const getPartnerDrawings = async (filters: {
   const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
   const listQuery = `
-    SELECT 
+    SELECT
       d.*,
       p.name_ar AS partner_name,
       p.phone AS partner_phone,
@@ -280,7 +280,7 @@ export const getPartnerDrawings = async (filters: {
   `;
 
   const totalQuery = `
-    SELECT 
+    SELECT
       COALESCE(SUM(d.amount), 0) AS total_amount,
       COUNT(*)::int AS count
     FROM partner_drawings d

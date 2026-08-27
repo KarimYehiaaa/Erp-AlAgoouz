@@ -83,7 +83,7 @@
           style="margin-bottom: 8px"
           @click="showPreview = true"
         >
-          👁️ معاينة الفاتورة قبل الإصدار
+          معاينة الفاتورة قبل الإصدار
         </button>
         <button type="submit" class="btn btn-primary btn-block" :disabled="saving">
           {{
@@ -192,7 +192,7 @@
           "
         >
           <h3 style="margin: 0; font-size: 1.15rem; font-weight: 800; color: var(--primary)">
-            👁️ معاينة الفاتورة قبل الإصدار
+            معاينة الفاتورة قبل الإصدار
           </h3>
           <button
             type="button"

@@ -1,5 +1,5 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router';
-import { useAuthStore } from '@/stores/auth';
+import { navigationGuard } from './guards';
 
 const routes: RouteRecordRaw[] = [
   {
@@ -171,10 +171,10 @@ const routes: RouteRecordRaw[] = [
         meta: { permission: 'settings.view' },
       },
       {
-        path: 'automations',
-        name: 'Automations',
-        component: () => import('@/views/AutomationView.vue'),
-        meta: { permission: 'settings.view' },
+        path: 'automation',
+        name: 'AutomationGraph',
+        component: () => import('@/views/AutomationGraphView.vue'),
+        meta: { permission: 'automation.view' },
       },
       {
         path: 'admin-dashboard',
@@ -188,47 +188,6 @@ const routes: RouteRecordRaw[] = [
 
 const router = createRouter({ history: createWebHistory(), routes });
 
-router.beforeEach(async (to: any, _from: any, next: any) => {
-  const auth = useAuthStore();
-
-  if (auth.isAuthenticated && !auth.profileLoaded) {
-    // إصلاح التجمّد: لا نسمح أبدًا لطلب profile عالق بمنع التنقل — مهلة قصوى 4 ثوانٍ
-    await Promise.race([auth.fetchProfile(), new Promise((resolve) => setTimeout(resolve, 4_000))]);
-  }
-
-  if (to.meta.requiresAuth && !auth.isAuthenticated) return next('/login');
-  if (to.meta.guest && auth.isAuthenticated) {
-    return next(auth.isCashier ? '/branch-sales' : '/');
-  }
-
-  // ─── حماية وتوجيه الكاشير التلقائي ───
-  if (auth.isAuthenticated && auth.isCashier) {
-    if (to.path === '/' || to.name === 'Dashboard') {
-      return next('/branch-sales');
-    }
-    // السماح فقط لشاشة مبيعات الفرع وتسجيل الدخول
-    if (to.path !== '/branch-sales') {
-      return next('/branch-sales');
-    }
-  }
-
-  if (to.meta.permission && auth.isAuthenticated) {
-    const hasPerm = Array.isArray(to.meta.permission)
-      ? to.meta.permission.some((p: any) => auth.hasPermission(p))
-      : auth.hasPermission(to.meta.permission as string);
-    if (!hasPerm) {
-      return next(auth.isCashier ? '/branch-sales' : '/');
-    }
-  }
-
-  // Admin-only pages
-  if (to.meta.requireAdmin && auth.isAuthenticated) {
-    if (auth.user?.role_name !== 'admin') {
-      return next('/');
-    }
-  }
-
-  next();
-});
+router.beforeEach(navigationGuard);
 
 export default router;

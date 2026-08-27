@@ -2,8 +2,8 @@
   <div class="modal-overlay" @click.self="emit('close')">
     <div class="modal-card">
       <div class="modal-header">
-        <h3>🏭 إنتاج دفعة</h3>
-        <button class="close-btn" @click="emit('close')">✕</button>
+        <h3>إنتاج دفعة</h3>
+        <button class="close-btn" @click="emit('close')"></button>
       </div>
 
       <div class="form-section">

@@ -8,7 +8,7 @@
           📥 استرداد بـ Excel
         </button>
         <button :class="{ active: tab === 'movements' }" @click="tab = 'movements'">
-          📋 حركة المخزون
+          🔄 حركة المخزون
         </button>
       </div>
       <div class="header-actions">
@@ -22,7 +22,7 @@
           class="btn btn-outline"
           @click="openTransferModal"
         >
-          🔄 تحويل جديد
+          🚚 تحويل جديد
         </button>
       </div>
     </div>
@@ -72,7 +72,7 @@
     <!-- Edit Modal -->
     <div v-if="showEdit" class="modal" @click.self="showEdit = false">
       <div class="card modal-content" style="max-width: 550px">
-        <h3>✏️ تعديل الكميات وتوزيع المخزون</h3>
+        <h3>تعديل الكميات وتوزيع المخزون</h3>
         <form @submit.prevent="saveEdit">
           <div class="form-group">
             <label>اسم المنتج</label>
@@ -111,7 +111,7 @@
                   gap: 6px;
                 "
               >
-                📦 توزيع رصيد المخزون بالمنشأة
+                توزيع رصيد المخزون بالمنشأة
               </label>
               <small
                 style="
@@ -150,7 +150,8 @@
                         padding: 2px 6px;
                         border-radius: 4px;
                       "
-                      >🏢 مخزن رئيسي</span
+                    >
+                      مخزن رئيسي</span
                     >
                     <span
                       v-else
@@ -162,7 +163,8 @@
                         padding: 2px 6px;
                         border-radius: 4px;
                       "
-                      >🏪 مخزن المحل / الفرع</span
+                    >
+                      مخزن المحل / الفرع</span
                     >
                   </label>
                   <input
@@ -191,7 +193,7 @@
     <!-- Transfer Modal -->
     <div v-if="showTransfer" class="modal" @click.self="showTransfer = false">
       <div class="card modal-content" style="max-width: 650px">
-        <h3>🔄 تحويل بين المخازن وإذن نقل مخزني</h3>
+        <h3>تحويل بين المخازن وإذن نقل مخزني</h3>
 
         <!-- Mode Switcher -->
         <div class="tabs inline-tabs" style="margin-bottom: 14px">
@@ -200,14 +202,14 @@
             :class="{ active: transferMode === 'single' }"
             @click="transferMode = 'single'"
           >
-            📦 تحويل صنف فردي
+            تحويل صنف فردي
           </button>
           <button
             type="button"
             :class="{ active: transferMode === 'batch' }"
             @click="transferMode = 'batch'"
           >
-            📋 إذن تحويل متعدد البنود
+            إذن تحويل متعدد البنود
           </button>
         </div>
 
@@ -223,7 +225,7 @@
             "
             @click="setTransferDirection('main', 'store')"
           >
-            🏢 من الرئيسي ➔ 🏪 للفرع
+            من الرئيسي للفرع
           </button>
           <button
             type="button"
@@ -236,7 +238,7 @@
             "
             @click="setTransferDirection('store', 'main')"
           >
-            🏪 من الفرع ➔ 🏢 للرئيسي
+            من الفرع للرئيسي
           </button>
           <button
             type="button"
@@ -244,7 +246,7 @@
             style="font-size: 0.78rem; font-weight: 700"
             @click="swapTransferDirection"
           >
-            🔄 عكس الاتجاه
+            عكس الاتجاه
           </button>
         </div>
 
@@ -323,11 +325,11 @@
                 "
               >
                 <small style="color: #2e7d4f; display: block">
-                  ℹ️ الكمية المتوفرة حالياً في مخزن المصدر:
+                  ℹ الكمية المتوفرة حالياً في مخزن المصدر:
                   {{ fmtQty(selectedTransferProduct.quantity) }}
                 </small>
                 <small style="color: #64748b; display: block">
-                  ℹ️ الكمية المتوفرة حالياً في مخزن الوجهة:
+                  ℹ الكمية المتوفرة حالياً في مخزن الوجهة:
                   {{
                     fmtQty(selectedTransferDestProduct ? selectedTransferDestProduct.quantity : 0)
                   }}
@@ -348,7 +350,7 @@
                 "
               >
                 <label style="font-weight: 800; font-size: 0.9rem; color: var(--accent, #c77a2f)">
-                  📋 بنود إذن التحويل المخزني ({{ batchItems.length }})
+                  بنود إذن التحويل المخزني ({{ batchItems.length }})
                 </label>
                 <button type="button" class="btn btn-sm btn-outline" @click="addBatchRow">
                   + إضافة بند للإذن
@@ -393,9 +395,7 @@
                   title="حذف البند"
                   :disabled="batchItems.length <= 1"
                   @click="removeBatchRow(idx)"
-                >
-                  ✕
-                </button>
+                ></button>
               </div>
             </div>
           </template>
@@ -540,7 +540,7 @@
             إغلاق
           </button>
           <button type="button" class="btn btn-primary" @click="printVoucher">
-            🖨️ طباعة إذن التحويل
+            طباعة إذن التحويل
           </button>
         </div>
       </div>
@@ -549,7 +549,7 @@
     <!-- Wastage Modal -->
     <div v-if="showWastage" class="modal" @click.self="showWastage = false">
       <div class="card modal-content border-danger">
-        <h3 class="text-danger">🗑️ تسجيل إعدام / هالك</h3>
+        <h3 class="text-danger">تسجيل إعدام / هالك</h3>
         <p style="margin-bottom: 15px; font-size: 0.9em; color: var(--text-muted)">
           سيتم إنقاص هذه الكمية من المخزون وتحميل تكلفتها على المصروفات (قسم الهالك).
         </p>

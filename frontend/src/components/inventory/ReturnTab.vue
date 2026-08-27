@@ -1,6 +1,5 @@
 <!--
   ReturnTab.vue — تبويب "استرداد بـ Excel": استرداد المخزون الجماعي
-  ═════════════════════════════════════════════════════════════════
   ثلاث خطوات (تحميل القالب ← كتابة الكمية ← فحص ثم رفع) + بطاقة النتيجة
   (معاينة/تفاصيل/أخطاء). استُخرج من InventoryView.vue (كان 1,594 سطرًا).
 -->
@@ -8,7 +7,7 @@
   <div class="excel-return-page">
     <!-- Info Card -->
     <div class="card info-card">
-      <div class="info-icon">📥</div>
+      <div class="info-icon"></div>
       <div class="info-body">
         <h3>استرداد المخزون بالجملة عبر Excel</h3>
         <p>
@@ -63,7 +62,7 @@
             :disabled="downloadingTemplate"
             @click="$emit('download')"
           >
-            {{ downloadingTemplate ? '⏳ جاري التحميل...' : '📥 تحميل القالب' }}
+            {{ downloadingTemplate ? '⏳ جاري التحميل...' : ' تحميل القالب' }}
           </button>
         </div>
       </div>
@@ -78,7 +77,7 @@
         </div>
         <div class="action-controls">
           <label class="btn btn-outline file-btn">
-            🔍 فحص الملف
+            فحص الملف
             <input type="file" accept=".xlsx,.xls" hidden @change="onFile('validate')" />
           </label>
         </div>
@@ -94,7 +93,7 @@
         </div>
         <div class="action-controls">
           <label class="btn btn-success file-btn">
-            📤 رفع وتنفيذ
+            رفع وتنفيذ
             <input type="file" accept=".xlsx,.xls" hidden @change="onFile('import')" />
           </label>
         </div>
@@ -109,7 +108,7 @@
     >
       <div class="result-header">
         <span class="result-icon">{{
-          excelResult.ok === false ? '❌' : excelResult.success !== undefined ? '✅' : '🔍'
+          excelResult.ok === false ? '' : excelResult.success !== undefined ? '' : ''
         }}</span>
         <div>
           <strong>{{ excelResult.title }}</strong>
@@ -167,7 +166,7 @@
 
       <!-- الأخطاء -->
       <div v-if="excelResult.errors?.length || excelResult.failed?.length" class="result-errors">
-        <h4>⚠️ مشاكل ({{ (excelResult.errors || excelResult.failed || []).length }}):</h4>
+        <h4>مشاكل ({{ (excelResult.errors || excelResult.failed || []).length }}):</h4>
         <ul>
           <li v-for="(e, i) in excelResult.errors || excelResult.failed || []" :key="i">
             {{ typeof e === 'string' ? e : `سطر ${e.row} — ${e.sku}: ${e.message}` }}

@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { logger } from '../services/loggerService.ts';
 
 const ALGORITHM = 'aes-256-gcm';
 
@@ -9,8 +10,8 @@ const backupKeySecret =
   'bin_al_ajouz_secure_backup_encryption_fallback_key_2026';
 
 if (!process.env.BACKUP_ENCRYPTION_KEY) {
-  console.warn(
-    '[Crypto] ℹ️ BACKUP_ENCRYPTION_KEY غير محدد صراحة في متغيرات البيئة — تم استخدام مفتاح مشتق آمن لضمان استمرارية التشغيل.',
+  logger.warn(
+    '[Crypto] ℹ BACKUP_ENCRYPTION_KEY غير محدد صراحة في متغيرات البيئة — تم استخدام مفتاح مشتق آمن لضمان استمرارية التشغيل.',
   );
 }
 

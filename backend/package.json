@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:local": "node scripts/run-vitest-local.ts",
+    "test:coverage": "vitest run --coverage",
     "check:scripts": "node scripts/check-scripts.ts",
     "setup-db": "node src/database/setup.ts",
     "update": "node scripts/migrate.ts",

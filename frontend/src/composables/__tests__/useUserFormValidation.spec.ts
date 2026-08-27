@@ -38,10 +38,10 @@ describe('useUserFormValidation (user form validation logic)', () => {
     });
 
     it('يقبل الاسم الصالح مع إزالة المسافات', () => {
-      expect(validateUsernameValue('karim')).toEqual({ valid: true, msg: 'اسم المستخدم متاح ✓' });
+      expect(validateUsernameValue('karim')).toEqual({ valid: true, msg: 'اسم المستخدم متاح ' });
       expect(validateUsernameValue('  karim  ')).toEqual({
         valid: true,
-        msg: 'اسم المستخدم متاح ✓',
+        msg: 'اسم المستخدم متاح ',
       });
     });
   });
@@ -70,11 +70,11 @@ describe('useUserFormValidation (user form validation logic)', () => {
     it('يقبل البريد الصحيح', () => {
       expect(validateEmailValue('karim@example.com')).toEqual({
         valid: true,
-        msg: 'بريد إلكتروني صالح ✓',
+        msg: 'بريد إلكتروني صالح ',
       });
       expect(validateEmailValue('  user.name+tag@sub.domain.org  ')).toEqual({
         valid: true,
-        msg: 'بريد إلكتروني صالح ✓',
+        msg: 'بريد إلكتروني صالح ',
       });
     });
   });
@@ -83,7 +83,7 @@ describe('useUserFormValidation (user form validation logic)', () => {
     it('يعيد ضعيفة جداً عند كلمة مرور فارغة', () => {
       expect(evaluatePasswordStrengthValue('')).toEqual({
         percent: 0,
-        text: 'ضعيفة جداً ⚠️',
+        text: 'ضعيفة جداً ',
         color: '#dc2626',
       });
     });
@@ -91,27 +91,27 @@ describe('useUserFormValidation (user form validation logic)', () => {
     it('قصيرة بدون رموز = ضعيفة (أحمر)', () => {
       const r = evaluatePasswordStrengthValue('abc');
       expect(r.percent).toBe(0);
-      expect(r.text).toBe('ضعيفة ⚠️');
+      expect(r.text).toBe('ضعيفة ');
       expect(r.color).toBe('#dc2626');
     });
 
     it('6 أحرف فقط = 20 نقطة = ضعيفة', () => {
       const r = evaluatePasswordStrengthValue('abcdef');
       expect(r.percent).toBe(20);
-      expect(r.text).toBe('ضعيفة ⚠️');
+      expect(r.text).toBe('ضعيفة ');
     });
 
     it('10 أحرف صغيرة = 40 نقطة = ضعيفة (حد الفاصل)', () => {
       const r = evaluatePasswordStrengthValue('abcdefghij');
       expect(r.percent).toBe(40);
-      expect(r.text).toBe('ضعيفة ⚠️');
+      expect(r.text).toBe('ضعيفة ');
     });
 
     it('طول 11 + رقم = 60 نقطة = متوسطة (برتقالي)', () => {
       // 11 أحرف: >=6 (20) + >=10 (20) + رقم (20) = 60
       const r = evaluatePasswordStrengthValue('abcdefghij1');
       expect(r.percent).toBe(60);
-      expect(r.text).toBe('متوسطة ⚡');
+      expect(r.text).toBe('متوسطة ');
       expect(r.color).toBe('#d97706');
     });
 
@@ -120,7 +120,7 @@ describe('useUserFormValidation (user form validation logic)', () => {
       // الطول ≥10 (20) + حرف كبير (20) + رقم (20) + رمز (20) = 80... لا طول ≥6؟ الطول 12 ≥10 فقط.
       // الحساب: >=6 (20) + >=10 (20) + A-Z (20) + 0-9 (20) + رمز (20) = 100
       expect(r.percent).toBe(100);
-      expect(r.text).toBe('قوية جداً ✨');
+      expect(r.text).toBe('قوية جداً ');
       expect(r.color).toBe('#16a34a');
     });
 
@@ -128,7 +128,7 @@ describe('useUserFormValidation (user form validation logic)', () => {
       const r = evaluatePasswordStrengthValue('abcdefghijk');
       // >=6 (20) + >=10 (20) = 40 فقط
       expect(r.percent).toBe(40);
-      expect(r.text).toBe('ضعيفة ⚠️');
+      expect(r.text).toBe('ضعيفة ');
     });
   });
 
@@ -137,7 +137,7 @@ describe('useUserFormValidation (user form validation logic)', () => {
       const v = useUserFormValidation();
       expect(v.validations.value).toEqual(emptyValidations());
       expect(v.strengthPercent.value).toBe(0);
-      expect(v.strengthText.value).toBe('ضعيفة جداً ⚠️');
+      expect(v.strengthText.value).toBe('ضعيفة جداً ');
       expect(v.strengthColor.value).toBe('#dc2626');
     });
 
@@ -157,7 +157,7 @@ describe('useUserFormValidation (user form validation logic)', () => {
       const v = useUserFormValidation();
       v.evaluatePasswordStrength('StrongPass1!');
       expect(v.strengthPercent.value).toBe(100);
-      expect(v.strengthText.value).toBe('قوية جداً ✨');
+      expect(v.strengthText.value).toBe('قوية جداً ');
       expect(v.strengthColor.value).toBe('#16a34a');
     });
 
@@ -170,7 +170,7 @@ describe('useUserFormValidation (user form validation logic)', () => {
       v.resetValidations();
       expect(v.validations.value).toEqual(emptyValidations());
       expect(v.strengthPercent.value).toBe(0);
-      expect(v.strengthText.value).toBe('ضعيفة جداً ⚠️');
+      expect(v.strengthText.value).toBe('ضعيفة جداً ');
       expect(v.strengthColor.value).toBe('#dc2626');
     });
 

@@ -1,6 +1,5 @@
 /**
  * salesCalculations.ts — أدوات الحساب النقيّة لدورة المبيعات
- * ═══════════════════════════════════════════════════════
  * دوال حسابية خالصة (بلا اعتماد على قاعدة البيانات) استُخرجت من
  * salesService.ts لتقليل حجم الملف المركزي:
  *  - حساب مجاميع الفاتورة (إجمالي الأصناف، الخصم، الضريبة)
@@ -28,13 +27,14 @@ const calculateSaleTotals = (items: any[] = [], data: Record<string, any> = {}) 
     const unitPrice = parseAmount(item.unit_price);
     const discountAmount2 = parseAmount(item.discount_amount);
     const taxAmount2 = 0;
-    if (!productId) throw new AppError(`Item ${idx + 1}: product is required`);
-    if (quantity <= 0) throw new AppError(`Item ${idx + 1}: quantity must be greater than zero`);
-    if (unitPrice < 0) throw new AppError(`Item ${idx + 1}: unit price cannot be negative`);
-    if (discountAmount2 < 0) throw new AppError(`Item ${idx + 1}: discount cannot be negative`);
+    if (!productId) throw new AppError(`البند ${idx + 1}: يجب تحديد المنتج`);
+    if (quantity <= 0) throw new AppError(`البند ${idx + 1}: يجب أن تكون الكمية أكبر من صفر`);
+    if (unitPrice < 0) throw new AppError(`البند ${idx + 1}: لا يمكن أن يكون سعر الوحدة سالباً`);
+    if (discountAmount2 < 0)
+      throw new AppError(`البند ${idx + 1}: لا يمكن أن تكون قيمة الخصم سالبة`);
     const grossLineTotal = roundMoney(quantity * unitPrice);
     if (discountAmount2 > grossLineTotal) {
-      throw new AppError(`Item ${idx + 1}: discount cannot exceed line total`);
+      throw new AppError(`البند ${idx + 1}: قيمة الخصم لا يمكن أن تتجاوز إجمالي البند`);
     }
     const lineTotal = roundMoney(grossLineTotal - discountAmount2 + taxAmount2);
     // تجميع بقرّوش صحيحة (تحصين الفاصلة العائمة)
@@ -52,9 +52,9 @@ const calculateSaleTotals = (items: any[] = [], data: Record<string, any> = {}) 
     });
   }
   const discountAmount = roundMoney(parseAmount(data.discount_amount));
-  if (discountAmount < 0) throw new AppError('Invoice discount cannot be negative');
+  if (discountAmount < 0) throw new AppError('قيمة خصم الفاتورة لا يمكن أن تكون سالبة');
   if (items.length && discountAmount > itemsTotal) {
-    throw new AppError('Invoice discount cannot exceed invoice total');
+    throw new AppError('قيمة خصم الفاتورة لا يمكن أن تتجاوز إجمالي الفاتورة');
   }
   const taxPercent = 0;
   const taxAmount = 0;
@@ -86,14 +86,14 @@ const calculatePaidAmount = (
   rawPaidAmount: number = 0,
 ) => {
   if (!['paid', 'partial', 'unpaid'].includes(paymentStatus)) {
-    throw new AppError('Invalid payment status');
+    throw new AppError('حالة الدفع المحددة غير صحيحة');
   }
   if (paymentStatus === 'unpaid') return 0;
   if (paymentStatus === 'paid') return roundMoney(totalAmount);
   const paidAmount = roundMoney(parseAmount(rawPaidAmount));
-  if (paidAmount <= 0) throw new AppError('Partial payment amount must be greater than zero');
+  if (paidAmount <= 0) throw new AppError('المبلغ المدفوع جزئياً يجب أن يكون أكبر من صفر');
   if (paidAmount >= totalAmount)
-    throw new AppError('Partial payment amount must be less than invoice total');
+    throw new AppError('المبلغ المدفوع جزئياً يجب أن يكون أقل من إجمالي الفاتورة');
   return paidAmount;
 };
 

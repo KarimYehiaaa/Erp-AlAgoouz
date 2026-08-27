@@ -1,6 +1,5 @@
 /**
  * services/menuService.ts — خدمة إدارة وتصميم المنيو
- * ═══════════════════════════════════════════════════
  * تتولى إدارة القوائم المخصصة، التصنيفات، وتوزيع الأصناف على الصفحات
  * مع استرجاع المنتجات من المخزن لتسهيل بناء وتخصيص المنيو.
  */
@@ -57,7 +56,7 @@ export interface MenuPayload {
  */
 export const getMenus = async () => {
   const res = await query(
-    `SELECT m.*, 
+    `SELECT m.*,
             (SELECT COUNT(*) FROM menu_categories WHERE menu_id = m.id) as categories_count,
             (SELECT COUNT(*) FROM menu_items mi JOIN menu_categories mc ON mi.menu_category_id = mc.id WHERE mc.menu_id = m.id) as items_count
      FROM menus m

@@ -7,7 +7,7 @@
     <div class="drawer-panel card">
       <div class="drawer-header">
         <div class="header-title">
-          <span class="bell-icon">🔔</span>
+          <span class="bell-icon"></span>
           <h3>مركز تنبيهات التشغيل</h3>
         </div>
         <div class="header-actions">
@@ -20,7 +20,7 @@
             <span v-if="loading">⏳</span>
             <AppIcon v-else name="theme" :size="16" />
           </button>
-          <button class="close-btn" @click="appStore.toggleNotificationDrawer">✕</button>
+          <button class="close-btn" @click="appStore.toggleNotificationDrawer"></button>
         </div>
       </div>
 
@@ -30,7 +30,7 @@
       </div>
 
       <div v-else-if="!appStore.notifications.length" class="drawer-empty">
-        <span class="shield-icon">🛡️</span>
+        <span class="shield-icon"></span>
         <h4>النظام يعمل بشكل ممتاز</h4>
         <p>لا توجد تنبيهات تشغيل أو مديونيات متأخرة حالياً.</p>
       </div>
@@ -81,9 +81,7 @@ const fetchAlerts = async () => {
     const alerts = res.data?.alerts || [];
 
     // دمج الإشعارات المحفوظة غير المقروءة (من نظام التنبيهات الداخلي)
-    const savedNotifs = (notifRes?.data?.data || notifRes?.data || []).filter(
-      (n: any) => !n.is_read,
-    );
+    const savedNotifs = (notifRes?.data || []).filter((n: any) => !n.is_read);
     const mappedNotifs = savedNotifs.map((n: any) => ({
       type: `notification_${n.id}`,
       notification_id: n.id,
@@ -106,7 +104,7 @@ const fetchAlerts = async () => {
       operations.markAllNotificationsRead().catch(() => {});
     }
   } catch (e: any) {
-    console.error('❌ Error fetching alerts:', e);
+    console.error(' Error fetching alerts:', e);
   } finally {
     loading.value = false;
   }

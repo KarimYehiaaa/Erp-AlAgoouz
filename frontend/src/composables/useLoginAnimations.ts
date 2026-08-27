@@ -1,9 +1,5 @@
 import { ref, reactive, onMounted, onUnmounted } from 'vue';
 
-/* ═══════════════════════════════════════════════════════════
-   Mouse Parallax Tracking
-   ═══════════════════════════════════════════════════════════ */
-
 /**
  * تأثير تتبع الماوس (Parallax) — يُحرك العناصر بنسبة محددة حسب موضع المؤشر.
  * @param {number} [intensity] قوة الإزاحة (افتراضي 15)
@@ -36,9 +32,7 @@ export function useMouseParallax(intensity = 15) {
   return { offset };
 }
 
-/* ═══════════════════════════════════════════════════════════
-   Password Strength Calculator
-   ═══════════════════════════════════════════════════════════ */
+/* Password Strength Calculator */
 
 /**
  * تقييم قوة كلمة المرور (الطول، الحروف، الأرقام، الرموز) مع تسمية ولون.
@@ -92,9 +86,7 @@ export function usePasswordStrength() {
   return { strength, evaluate };
 }
 
-/* ═══════════════════════════════════════════════════════════
-   Input Focus Micro-animation Controller
-   ═══════════════════════════════════════════════════════════ */
+/* Input Focus Micro-animation Controller */
 
 /**
  * تتبع الحقل النشط في النماذج لتفعيل حركات التركيز (micro-animations).
@@ -121,9 +113,7 @@ export function useInputAnimations() {
   };
 }
 
-/* ═══════════════════════════════════════════════════════════
-   Staggered Entrance Animation
-   ═══════════════════════════════════════════════════════════ */
+/* Staggered Entrance Animation */
 
 /**
  * حركة دخول متدرجة لعناصر (تظهر واحدًا تلو الآخر بفارق زمني).

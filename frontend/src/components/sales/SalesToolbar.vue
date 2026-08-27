@@ -1,6 +1,5 @@
 <!--
   SalesToolbar.vue — شريط أدوات صفحة المبيعات (إجراءات + فلاتر تاريخ)
-  ═══════════════════════════════════════════════════════════════
   أزرار إنشاء فاتورة/عروض أسعار/استيراد Excel + فلاتر الفترة.
   استُخرج من SalesView لتقليل حجم الملف المركزي (كان 2,463 سطرًا).
 -->
@@ -26,15 +25,11 @@
         class="icon-btn"
         title="تحميل قالب الاستيراد"
         @click="$emit('downloadTemplate')"
-      >
-        📥
-      </button>
+      ></button>
       <label class="icon-btn import-btn" title="فحص ملف Excel">
-        🔍
         <input type="file" accept=".xlsx,.xls" hidden @change="onFile('validate')" />
       </label>
       <label class="icon-btn import-btn" title="استيراد من Excel">
-        📤
         <input type="file" accept=".xlsx,.xls" hidden @change="onFile('import')" />
       </label>
     </div>

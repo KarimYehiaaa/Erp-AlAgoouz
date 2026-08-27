@@ -14,7 +14,7 @@ export function useAudioSettings() {
     localStorage.setItem('sound_enabled', String(soundEnabled.value));
     localStorage.setItem('sound_volume', String(soundVolume.value));
     localStorage.setItem('shortcuts_enabled', String(shortcutsEnabled.value));
-    alert('✓ تم حفظ إعدادات النظام بنجاح!');
+    alert(' تم حفظ إعدادات النظام بنجاح!');
   };
 
   /**

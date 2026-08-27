@@ -57,6 +57,7 @@ const rawMenuGroups = [
     items: [
       { to: '/', label: 'لوحة التحكم', icon: 'dashboard', perm: null },
       { to: '/copilot', label: 'المساعد الذكي', icon: 'copilot', perm: 'dashboard.view' },
+      { to: '/automation', label: 'محرك الأتمتة والوكلاء', icon: 'bot', perm: 'automation.view' },
       { to: '/reports', label: 'التقارير', icon: 'reports', perm: 'reports.view' },
       { to: '/operations', label: 'مركز التشغيل', icon: 'operations', perm: 'reports.view' },
       { to: '/forecasting', label: 'التنبؤ بالطلب', icon: 'trendingUp', perm: 'reports.view' },
@@ -105,7 +106,6 @@ const rawMenuGroups = [
     items: [
       { to: '/hr', label: 'الموظفين والرواتب', icon: 'hr', perm: 'hr.view' },
       { to: '/users', label: 'المستخدمين', icon: 'users', perm: 'users.view' },
-      { to: '/automations', label: 'مركز الأتمتة ⚡', icon: 'zap', perm: 'settings.view' },
       { to: '/settings', label: 'الإعدادات', icon: 'settings', perm: 'settings.view' },
       { to: '/admin-dashboard', label: 'مركز التحكم', icon: 'gauge', perm: 'users.view' },
     ],

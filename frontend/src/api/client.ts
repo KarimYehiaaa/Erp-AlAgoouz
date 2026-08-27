@@ -1,6 +1,7 @@
-import axios from 'axios';
+﻿import axios from 'axios';
 import * as Sentry from '@sentry/vue';
-import type { AxiosError } from 'axios';
+import type { AxiosError, AxiosRequestConfig } from 'axios';
+import type { ApiEnvelope } from '../../../shared/types';
 
 const api = axios.create({
   baseURL: `${import.meta.env.VITE_API_URL || ''}/api/v1`,
@@ -12,9 +13,8 @@ const api = axios.create({
   },
 });
 
+// المصادقة تعتمد حصرياً على HttpOnly cookie (access_token) — لا يُقرأ أو يُخزَّن توكن في JS
 api.interceptors.request.use((config: any) => {
-  const token = localStorage.getItem('token');
-  if (token) config.headers.Authorization = `Bearer ${token}`;
   // إصلاح التجمّد: مهلة لكل طلب — الطلب العالق كان يجمّد الـ router guard للأبد
   config.timeout = config.timeout || 20_000;
   config.timeoutErrorMessage = 'انتهت مهلة الاتصال بالخادم. حاول مرة أخرى';
@@ -52,17 +52,14 @@ api.interceptors.response.use(
         // Queue this request until refresh completes
         return new Promise((resolve: any, reject: any) => {
           failedQueue.push({ resolve, reject });
-        }).then((token: any) => {
-          originalRequest.headers.Authorization = `Bearer ${token}`;
-          return api.request(originalRequest);
-        });
+        }).then(() => api.request(originalRequest));
       }
 
       originalRequest._retry = true;
       isRefreshing = true;
 
       try {
-        const res = await axios.post(
+        await axios.post(
           `${api.defaults.baseURL}/auth/refresh`,
           {},
           {
@@ -70,32 +67,14 @@ api.interceptors.response.use(
             headers: { 'Content-Type': 'application/json' },
           },
         );
-        const { token: newToken } = res.data?.data || res.data || {};
-        if (newToken) {
-          localStorage.setItem('token', newToken);
-          api.defaults.headers.common.Authorization = `Bearer ${newToken}`;
-          processQueue(null, newToken);
-          originalRequest.headers.Authorization = `Bearer ${newToken}`;
-          return api.request(originalRequest);
-        }
-        // نجح الطلب لكن بدون توكن صالح — نعاملها كفشل تحديث حتى لا تبقى الطلبات معلّقة للأبد
-        originalRequest._retry = true;
-        const noTokenErr: any = {
-          message: 'انتهت الجلسة. يرجى تسجيل الدخول مرة أخرى',
-          status: 401,
-        };
-        processQueue(noTokenErr, null);
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        if (!window.location.pathname.includes('/login')) {
-          window.location.replace('/login');
-        }
-        return Promise.reject(noTokenErr);
+        processQueue(null, null);
+        return api.request(originalRequest);
       } catch (refreshErr: any) {
         processQueue(refreshErr, null);
-        // Refresh failed — clear tokens and redirect (replace بدل href لتجنّب تلويث التاريخ)
-        localStorage.removeItem('token');
+        // فشل التجديد — مسح الجلسة وإعادة التوجيه (replace بدل href لتجنّب تلويث التاريخ)
         localStorage.removeItem('user');
+        // تنظيف بقايا فترة الانتقال
+        localStorage.removeItem('token');
         if (!window.location.pathname.includes('/login')) {
           window.location.replace('/login');
         }
@@ -136,5 +115,38 @@ api.interceptors.response.use(
     return Promise.reject({ message, status: err.response?.status });
   },
 );
+
+// ─── مساعدات مُنمّطة ──────────────────────────────────────────────────────────
+// المعترض أعلاه يفكّ الاستجابة (يعيد res.data) — هذه الدوال تعكس ذلك في النظام النوعي
+// بحيث تُعيد Promise<ApiEnvelope<T>> بدل Promise<AxiosResponse> المضلِّل.
+export type Api<T = any> = Promise<ApiEnvelope<T>>;
+
+export const get = <T = any>(url: string, config?: AxiosRequestConfig): Api<T> =>
+  api.get(url, config) as unknown as Api<T>;
+
+export const post = <T = any>(url: string, data?: unknown, config?: AxiosRequestConfig): Api<T> =>
+  api.post(url, data, config) as unknown as Api<T>;
+
+export const put = <T = any>(url: string, data?: unknown, config?: AxiosRequestConfig): Api<T> =>
+  api.put(url, data, config) as unknown as Api<T>;
+
+export const patch = <T = any>(url: string, data?: unknown, config?: AxiosRequestConfig): Api<T> =>
+  api.patch(url, data, config) as unknown as Api<T>;
+
+export const del = <T = any>(url: string, config?: AxiosRequestConfig): Api<T> =>
+  api.delete(url, config) as unknown as Api<T>;
+
+/** طلب ملف ثنائي — المعترض يعيد Blob مباشرة عند responseType: 'blob'. */
+export const getBlob = (url: string, config?: AxiosRequestConfig): Promise<Blob> =>
+  api.get(url, { ...config, responseType: 'blob' }) as unknown as Promise<Blob>;
+
+/** رفع ملف multipart. */
+export const uploadFile = <T = any>(url: string, file: File, fieldName = 'file'): Api<T> => {
+  const form = new FormData();
+  form.append(fieldName, file);
+  return api.post(url, form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }) as unknown as Api<T>;
+};
 
 export default api;

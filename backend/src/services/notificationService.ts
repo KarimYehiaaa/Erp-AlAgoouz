@@ -17,7 +17,7 @@ const persistNotification = async (
       [type === 'error' ? 'danger' : type, String(subject).slice(0, 200), message],
     );
   } catch (err: any) {
-    logger.warn('⚠️ [Notifications] فشل حفظ التنبيه في قاعدة البيانات: %s', err.message);
+    logger.warn(' [Notifications] فشل حفظ التنبيه في قاعدة البيانات: %s', err.message);
   }
 };
 
@@ -47,7 +47,7 @@ export const sendAlert = async (subject: string, message: string, type: string =
     const payload = {
       embeds: [
         {
-          title: `🔔 ${subject}`,
+          title: ` ${subject}`,
           description: message,
           color: color,
           timestamp: new Date().toISOString(),
@@ -68,10 +68,10 @@ export const sendAlert = async (subject: string, message: string, type: string =
       });
 
       if (!response.ok) {
-        logger.warn('⚠️ [بن العجوز ERP] فشل إرسال التنبيه لـ Discord: %s', response.statusText);
+        logger.warn(' [بن العجوز ERP] فشل إرسال التنبيه لـ Discord: %s', response.statusText);
       }
     } catch (err: any) {
-      logger.error('⚠️ [بن العجوز ERP] فشل الاتصال بخدمة تنبيهات Discord: %s', err.message);
+      logger.error(' [بن العجوز ERP] فشل الاتصال بخدمة تنبيهات Discord: %s', err.message);
     }
   }
 
@@ -83,7 +83,7 @@ export const sendAlert = async (subject: string, message: string, type: string =
       // الهروب الرمزي لـ MarkdownV2 في تيليجرام لمنع أخطاء التفسير
       const cleanMessage = String(message || '').replace(/[_*[\]()~`>#+\-=|{}.!]/g, '\\$&');
       const cleanSubject = String(subject || '').replace(/[_*[\]()~`>#+\-=|{}.!]/g, '\\$&');
-      const tgText = `🔔 *${cleanSubject}*\n\n${cleanMessage}\n\n_نظام إدارة بن العجوز ERP_`;
+      const tgText = ` *${cleanSubject}*\n\n${cleanMessage}\n\n_نظام إدارة بن العجوز ERP_`;
 
       const response = await fetch(`https://api.telegram.org/bot${tgToken}/sendMessage`, {
         method: 'POST',
@@ -98,10 +98,10 @@ export const sendAlert = async (subject: string, message: string, type: string =
       });
 
       if (!response.ok) {
-        logger.warn('⚠️ [بن العجوز ERP] فشل إرسال التنبيه لـ Telegram: %s', response.statusText);
+        logger.warn(' [بن العجوز ERP] فشل إرسال التنبيه لـ Telegram: %s', response.statusText);
       }
     } catch (err: any) {
-      logger.error('⚠️ [بن العجوز ERP] فشل الاتصال بخدمة تنبيهات Telegram: %s', err.message);
+      logger.error(' [بن العجوز ERP] فشل الاتصال بخدمة تنبيهات Telegram: %s', err.message);
     }
   }
 };

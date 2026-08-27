@@ -1,6 +1,5 @@
 /**
  * saleInventoryOps.ts — عمليات المخزون المرتبطة بدورة المبيعات
- * ═════════════════════════════════════════════════════════
  * منطق المخزون استُخرج من salesService.ts لتقليل حجم الملف المركزي:
  *  - resolveSaleWarehouseId   : تحديد مخزن البيع تلقائيًا (أساسي/مشترك/افتراضي)
  *  - applySaleItems           : تطبيق أصناف البيع على المخزون (قفل + خصم + حركات)
@@ -103,7 +102,7 @@ const applySaleItems = async (
   const productNamesMap = new Map(productNamesRes.rows.map((row) => [Number(row.id), row.name_ar]));
   const nonRecipeProductIds = productIds.filter((id) => !recipeSet.has(id));
   const globalStocksRes = await client.query(
-    `SELECT product_id, COALESCE(SUM(quantity), 0) AS total 
+    `SELECT product_id, COALESCE(SUM(quantity), 0) AS total
      FROM inventory WHERE product_id = ANY($1::int[]) GROUP BY product_id`,
     [productIds],
   );

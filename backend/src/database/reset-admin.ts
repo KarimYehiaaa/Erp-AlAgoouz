@@ -4,7 +4,7 @@ import pool from './pool.ts';
 // حماية: منع إعادة تعيين المدير في الإنتاج إلا بتجاوز صريح
 if (process.env.NODE_ENV === 'production' && process.env.ALLOW_ADMIN_RESET !== 'true') {
   throw new Error(
-    '⛔ Admin reset is blocked in production. Set ALLOW_ADMIN_RESET=true explicitly to override.',
+    ' Admin reset is blocked in production. Set ALLOW_ADMIN_RESET=true explicitly to override.',
   );
 }
 
@@ -26,12 +26,12 @@ const res = await pool.query(
 );
 
 if (res.rowCount === 0) {
-  console.log(`⚠️ لم يتم العثور على مستخدم بالاسم: ${username}`);
+  console.log(` لم يتم العثور على مستخدم بالاسم: ${username}`);
   console.log(
     `   يمكنك تشغيل السكربت وتمرير اسم مستخدم صحيح: node src/database/reset-admin.ts [username] [password]`,
   );
 } else {
-  console.log(`✅ تم تحديث كلمة مرور الحساب بنجاح!`);
+  console.log(` تم تحديث كلمة مرور الحساب بنجاح!`);
   console.log(`   المستخدم: ${username}`);
 }
 

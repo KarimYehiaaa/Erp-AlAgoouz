@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import pool, { query } from '../src/database/pool.js';
-import { 
-  createStocktake, 
-  getStocktakeDetails, 
-  updateStocktakeItems, 
+import {
+  createStocktake,
+  getStocktakeDetails,
+  updateStocktakeItems,
   completeStocktake,
   deleteStocktake
 } from '../src/services/stocktakeService.ts';
@@ -28,22 +28,22 @@ test('Full stocktake lifecycle integration test', async () => {
   try {
     // 1. Setup temporary test data (warehouse, product, inventory)
     const whRes = await query(
-      `INSERT INTO warehouses (code, name_ar, type, is_active) 
-       VALUES ('TST-WH', 'مخزن اختبار الجرد', 'store', true) 
+      `INSERT INTO warehouses (code, name_ar, type, is_active)
+       VALUES ('TST-WH', 'مخزن اختبار الجرد', 'store', true)
        RETURNING id`
     );
     warehouseId = whRes.rows[0].id;
 
     const catRes = await query(
-      `INSERT INTO product_categories (name_ar) 
-       VALUES ('تصنيف اختبار الجرد') 
+      `INSERT INTO product_categories (name_ar)
+       VALUES ('تصنيف اختبار الجرد')
        RETURNING id`
     );
     categoryId = catRes.rows[0].id;
 
     const prodRes = await query(
-      `INSERT INTO products (sku, name_ar, purchase_price, sale_price, category_id, is_active) 
-       VALUES ('SKU-TST-1', 'منتج اختبار جرد 1', 10.00, 15.00, $1, true) 
+      `INSERT INTO products (sku, name_ar, purchase_price, sale_price, category_id, is_active)
+       VALUES ('SKU-TST-1', 'منتج اختبار جرد 1', 10.00, 15.00, $1, true)
        RETURNING id`,
       [categoryId]
     );
@@ -51,7 +51,7 @@ test('Full stocktake lifecycle integration test', async () => {
 
     // Insert initial inventory quantity of 10
     await query(
-      `INSERT INTO inventory (product_id, warehouse_id, quantity) 
+      `INSERT INTO inventory (product_id, warehouse_id, quantity)
        VALUES ($1, $2, 10.000)`,
       [productId, warehouseId]
     );
@@ -100,7 +100,7 @@ test('Full stocktake lifecycle integration test', async () => {
 
     // Check that a stock movement of type 'adjustment' was created
     const smRes = await query(
-      `SELECT * FROM stock_movements 
+      `SELECT * FROM stock_movements
        WHERE product_id = $1 AND to_warehouse_id = $2 AND movement_type = 'adjustment'`,
       [productId, warehouseId]
     );

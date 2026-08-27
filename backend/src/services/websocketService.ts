@@ -5,6 +5,24 @@ import config from '../config/index.ts';
 const clients = new Set<import('ws').WebSocket>();
 
 /**
+ * قراءة قيمة كوكي محددة من ترويسة Cookie للطلب.
+ * @param {import('http').IncomingMessage} req طلب الترقية
+ * @param {string} name اسم الكوكي
+ * @returns {string | null}
+ */
+const getCookie = (req: import('http').IncomingMessage, name: string): string | null => {
+  const header = req.headers.cookie;
+  if (!header) return null;
+  for (const part of header.split(';')) {
+    const idx = part.indexOf('=');
+    if (idx === -1) continue;
+    const key = part.slice(0, idx).trim();
+    if (key === name) return decodeURIComponent(part.slice(idx + 1).trim());
+  }
+  return null;
+};
+
+/**
  * تفعيل WebSocket للمزامنة اللحظية (مصادقة بالتوكن).
  * @param {import('http').Server} server خادم HTTP
  * @returns {void}
@@ -16,8 +34,6 @@ export const initWebSocket = (server: import('http').Server) => {
 
   wss.on('connection', (ws, req) => {
     try {
-      const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
-
       // التحقق من Origin لمنع Cross-Site WebSocket Hijacking
       const origin = req.headers.origin;
       if (origin && !config.corsOrigin.includes(origin) && !config.isDevelopment) {
@@ -25,7 +41,9 @@ export const initWebSocket = (server: import('http').Server) => {
         return;
       }
 
-      const token = url.searchParams.get('token');
+      // المصادقة عبر HttpOnly cookie المرفق تلقائياً مع ترقية الاتصال (نفس الأصل)
+      // — لا يُقبل توكن عبر الـ URL لتفادي تسريبه في سجلات الخوادم والبروكسي.
+      const token = getCookie(req, 'access_token');
 
       if (!token) {
         ws.close(4001, 'Unauthorized: No token provided');

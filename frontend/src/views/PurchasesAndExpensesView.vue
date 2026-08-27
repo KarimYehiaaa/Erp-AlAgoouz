@@ -73,7 +73,7 @@
                   <th style="width: 120px">الكمية</th>
                   <th style="width: 140px">السعر</th>
                   <th style="width: 150px">الإجمالي</th>
-                  <th style="width: 50px"></th>
+                  <th style="width: 50px">حذف</th>
                 </tr>
               </thead>
               <tbody>
@@ -319,7 +319,7 @@
           format="currency"
         />
         <StatCard
-          label="🛒 المصروفات المتغيرة والتشغيلية"
+          label="⚡ المصروفات المتغيرة والتشغيلية"
           :value="formatMoney(periodVariableExpensesTotal)"
           icon="wallet"
           format="currency"
@@ -365,7 +365,7 @@
             :class="{ active: expenseTypeFilter === 'variable' }"
             @click="expenseTypeFilter = 'variable'"
           >
-            🛒 المصروفات المتغيرة ({{
+            ⚡ المصروفات المتغيرة ({{
               periodVariableExpensesTotal ? formatMoney(periodVariableExpensesTotal) : '0'
             }})
           </button>
@@ -381,7 +381,7 @@
               <th>النوع</th>
               <th>المبلغ</th>
               <th>التاريخ</th>
-              <th></th>
+              <th>الإجراءات</th>
             </tr>
           </thead>
           <tbody>
@@ -407,7 +407,7 @@
                   v-else
                   class="badge badge-neutral"
                   style="font-size: 0.75rem; padding: 3px 8px"
-                  >🛒 متغير</span
+                  >⚡ متغير</span
                 >
               </td>
               <td style="font-weight: 800; color: var(--accent)">{{ formatMoney(e.amount) }}</td>
@@ -480,17 +480,16 @@
                 <span
                   v-if="expenseForm.is_fixed"
                   style="color: var(--info); font-size: 0.78rem; font-weight: 800"
-                  >🏢 مصروف ثابت (Overhead)</span
                 >
-                <span v-else style="color: var(--text-muted); font-size: 0.78rem; font-weight: 700"
-                  >🛒 مصروف متغير / تشغيلي</span
+                  مصروف ثابت (Overhead)</span
+                >
+                <span v-else style="color: var(--text-muted); font-size: 0.78rem; font-weight: 700">
+                  مصروف متغير / تشغيلي</span
                 >
               </label>
               <select v-model="expenseForm.is_fixed" class="field-like">
-                <option :value="false">🛒 مصروف متغير / تشغيلي (ضيافة، صيانة طارئة، نقل...)</option>
-                <option :value="true">
-                  🏢 مصروف ثابت / شهري (إيجار، مرتبات، كهرباء، مرافق...)
-                </option>
+                <option :value="false">مصروف متغير / تشغيلي (ضيافة، صيانة طارئة، نقل...)</option>
+                <option :value="true">مصروف ثابت / شهري (إيجار، مرتبات، كهرباء، مرافق...)</option>
               </select>
             </div>
             <div class="form-group" style="margin-bottom: 12px">
@@ -579,9 +578,7 @@ const toDecimal = (value: any, fallback = 0) => {
   return Number.isFinite(parsed) ? parsed : fallback;
 };
 
-// ====================================================
 // PURCHASES LOGIC
-// ====================================================
 const { loadMeta, unitLabel, unitNames } = useProductMeta();
 
 const products = ref<any[]>([]);
@@ -770,9 +767,7 @@ const savePurchaseInvoice = async () => {
   }
 };
 
-// ====================================================
 // EXPENSES LOGIC
-// ====================================================
 const expensesList = ref<any[]>([]);
 const expenseCategories = ref<any[]>([]);
 const expensesSaving = ref(false);

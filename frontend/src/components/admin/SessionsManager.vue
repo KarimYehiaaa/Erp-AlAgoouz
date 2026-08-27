@@ -1,7 +1,7 @@
 <template>
   <div class="sessions-panel">
     <div class="sessions-header">
-      <h3 class="sessions-title">👥 الجلسات النشطة</h3>
+      <h3 class="sessions-title">الجلسات النشطة</h3>
       <span class="sessions-count">{{ sessions.length }} جلسة</span>
     </div>
 
@@ -15,8 +15,8 @@
         <div class="session-info">
           <div class="session-name">{{ session.full_name || session.username }}</div>
           <div class="session-meta">
-            <span v-if="session.ip_address" class="session-ip">🌐 {{ session.ip_address }}</span>
-            <span class="session-time">⏱️ {{ formatTime(session.created_at) }}</span>
+            <span v-if="session.ip_address" class="session-ip"> {{ session.ip_address }}</span>
+            <span class="session-time">⏱ {{ formatTime(session.created_at) }}</span>
           </div>
           <div v-if="session.user_agent" class="session-agent" :title="session.user_agent">
             {{ shortenAgent(session.user_agent) }}
@@ -29,7 +29,7 @@
             title="إنهاء هذه الجلسة"
             :disabled="revoking === session.id"
           >
-            {{ revoking === session.id ? '...' : '✕' }}
+            {{ revoking === session.id ? '...' : '' }}
           </button>
         </div>
       </div>
@@ -37,10 +37,10 @@
 
     <!-- Failed Logins Section -->
     <div v-if="failedLogins.length" class="failed-section">
-      <h4 class="failed-title">🔒 محاولات دخول فاشلة (آخر 24 ساعة)</h4>
+      <h4 class="failed-title">محاولات دخول فاشلة (آخر 24 ساعة)</h4>
       <div class="failed-list">
         <div v-for="(attempt, idx) in failedLogins.slice(0, 10)" :key="idx" class="failed-item">
-          <span class="failed-icon">⛔</span>
+          <span class="failed-icon"></span>
           <span class="failed-text">{{ attempt.action_ar || 'محاولة دخول فاشلة' }}</span>
           <span class="failed-time">{{ formatTime(attempt.created_at) }}</span>
           <span v-if="attempt.ip_address" class="failed-ip">{{ attempt.ip_address }}</span>
@@ -103,11 +103,11 @@ const formatTime = (ts: string | undefined) => {
 
 const shortenAgent = (ua: any) => {
   if (!ua) return '';
-  if (ua.includes('Chrome')) return '🌐 Chrome';
-  if (ua.includes('Firefox')) return '🦊 Firefox';
-  if (ua.includes('Safari')) return '🧭 Safari';
-  if (ua.includes('Edge')) return '🔷 Edge';
-  if (ua.includes('axios') || ua.includes('node')) return '🤖 API Client';
+  if (ua.includes('Chrome')) return ' Chrome';
+  if (ua.includes('Firefox')) return ' Firefox';
+  if (ua.includes('Safari')) return ' Safari';
+  if (ua.includes('Edge')) return ' Edge';
+  if (ua.includes('axios') || ua.includes('node')) return ' API Client';
   return ua.substring(0, 30) + '...';
 };
 </script>

@@ -1,6 +1,6 @@
 <template>
   <div class="quick-actions">
-    <h3 class="qa-title">⚡ إجراءات سريعة</h3>
+    <h3 class="qa-title">إجراءات سريعة</h3>
     <div class="qa-grid">
       <button
         v-for="action in actions"
@@ -26,12 +26,12 @@ const router = useRouter();
 const loading = ref<any>(null);
 
 const actions = [
-  { key: 'backup', icon: '💾', label: 'تنزيل نسخة احتياطية', colorClass: 'action-blue' },
-  { key: 'repairSequences', icon: '🛠️', label: 'إصلاح متسلسلات DB', colorClass: 'action-indigo' },
-  { key: 'purgeLogs', icon: '🧹', label: 'تنظيف السجلات القديمة', colorClass: 'action-purple' },
-  { key: 'broadcast', icon: '📢', label: 'إرسال تنبيه عام', colorClass: 'action-orange' },
-  { key: 'addUser', icon: '👤', label: 'إدارة المستخدمين', colorClass: 'action-teal' },
-  { key: 'operations', icon: '🔧', label: 'مركز التشغيل', colorClass: 'action-green' },
+  { key: 'backup', icon: '', label: 'تنزيل نسخة احتياطية', colorClass: 'action-blue' },
+  { key: 'repairSequences', icon: '', label: 'إصلاح متسلسلات DB', colorClass: 'action-indigo' },
+  { key: 'purgeLogs', icon: '', label: 'تنظيف السجلات القديمة', colorClass: 'action-purple' },
+  { key: 'broadcast', icon: '', label: 'إرسال تنبيه عام', colorClass: 'action-orange' },
+  { key: 'addUser', icon: '', label: 'إدارة المستخدمين', colorClass: 'action-teal' },
+  { key: 'operations', icon: '', label: 'مركز التشغيل', colorClass: 'action-green' },
 ];
 
 const handleAction = async (action: any) => {

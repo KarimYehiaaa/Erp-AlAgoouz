@@ -7,48 +7,28 @@ import { AppError } from '../types/errors.ts';
  */
 const classifyDbError = (err) => {
   if (err.code === '23505') {
-    const col = err.detail?.match(/Key \((.+?)\)/)?.[1] || '\u0627\u0644\u062D\u0642\u0644';
-    return new AppError(
-      `\u0627\u0644\u0642\u064A\u0645\u0629 \u0645\u0643\u0631\u0631\u0629 \u0641\u064A: ${col}`,
-      409,
-      'DUPLICATE_KEY',
-    );
+    const col = err.detail?.match(/Key \((.+?)\)/)?.[1] || 'الحقل';
+    return new AppError(`القيمة مكررة في: ${col}`, 409, 'DUPLICATE_KEY');
   }
   if (err.code === '23503') {
     return new AppError(
-      '\u0644\u0627 \u064A\u0645\u0643\u0646 \u0627\u0644\u062D\u0630\u0641: \u064A\u0648\u062C\u062F \u0628\u064A\u0627\u0646\u0627\u062A \u0645\u0631\u062A\u0628\u0637\u0629',
+      'لا يمكن الحذف: يوجد بيانات مرتبطة بهذا السجل',
       409,
       'FOREIGN_KEY_VIOLATION',
     );
   }
   if (err.code === '23502') {
-    const col = err.column || '\u062D\u0642\u0644 \u0645\u0637\u0644\u0648\u0628';
-    return new AppError(
-      `${col} \u0645\u0637\u0644\u0648\u0628 \u0648\u0644\u0627 \u064A\u0645\u0643\u0646 \u0623\u0646 \u064A\u0643\u0648\u0646 \u0641\u0627\u0631\u063A\u0627\u064B`,
-      400,
-      'NOT_NULL_VIOLATION',
-    );
+    const col = err.column || 'حقل مطلوب';
+    return new AppError(`${col} مطلوب ولا يمكن أن يكون فارغاً`, 400, 'NOT_NULL_VIOLATION');
   }
   if (err.code === '57014') {
-    return new AppError(
-      '\u0627\u0646\u062A\u0647\u062A \u0645\u0647\u0644\u0629 \u0627\u0644\u0639\u0645\u0644\u064A\u0629 \u2014 \u0627\u0644\u0627\u0633\u062A\u0639\u0644\u0627\u0645 \u0627\u0633\u062A\u063A\u0631\u0642 \u0648\u0642\u062A\u0627\u064B \u0637\u0648\u064A\u0644\u0627\u064B',
-      504,
-      'QUERY_TIMEOUT',
-    );
+    return new AppError('انتهت مهلة العملية — الاستعلام استغرق وقتاً طويلاً', 504, 'QUERY_TIMEOUT');
   }
   if (['ECONNREFUSED', 'ENOTFOUND', '08003', '08006', '08001', '08004'].includes(err.code)) {
-    return new AppError(
-      '\u0642\u0627\u0639\u062F\u0629 \u0627\u0644\u0628\u064A\u0627\u0646\u0627\u062A \u063A\u064A\u0631 \u0645\u062A\u0627\u062D\u0629 \u2014 \u062A\u062D\u0642\u0642 \u0645\u0646 \u0627\u0644\u0627\u062A\u0635\u0627\u0644',
-      503,
-      'DB_UNAVAILABLE',
-    );
+    return new AppError('قاعدة البيانات غير متاحة — تحقق من الاتصال', 503, 'DB_UNAVAILABLE');
   }
   if (err.code === '23514') {
-    return new AppError(
-      '\u0627\u0644\u0642\u064A\u0645\u0629 \u0627\u0644\u0645\u062F\u062E\u0644\u0629 \u063A\u064A\u0631 \u0645\u0633\u0645\u0648\u062D \u0628\u0647\u0627',
-      400,
-      'CHECK_VIOLATION',
-    );
+    return new AppError('القيمة المدخلة غير مسموح بها', 400, 'CHECK_VIOLATION');
   }
   return null;
 };
@@ -59,13 +39,7 @@ const classifyDbError = (err) => {
  * @param {import('express').NextFunction} next تمرير الخطأ
  */
 const notFound = (req, res, next) => {
-  next(
-    new AppError(
-      `\u0627\u0644\u0635\u0641\u062D\u0629 \u063A\u064A\u0631 \u0645\u0648\u062C\u0648\u062F\u0629: ${req.originalUrl}`,
-      404,
-      'NOT_FOUND',
-    ),
-  );
+  next(new AppError(`الصفحة غير موجودة: ${req.originalUrl}`, 404, 'NOT_FOUND'));
 };
 /**
  * معالج الأخطاء المركزي: تصنيف، تسجيل، واستجابة JSON موحدة.
@@ -79,15 +53,13 @@ const errorHandler = (err, req, res, _next) => {
   const finalErr = classified || err;
   const statusCode = finalErr.statusCode || (classified ? 500 : err.statusCode || 500);
   const isAppError = !classified && finalErr instanceof AppError;
-  // رسالة عامة للأخطاء الداخلية — منع تسريب تفاصيل قاعدة البيانات/المكتبات للعميل
-  const GENERIC_MESSAGE =
-    '\u062D\u062F\u062B \u062E\u0637\u0623 \u063A\u064A\u0631 \u0645\u062A\u0648\u0642\u0639 \u2014 \u062D\u0627\u0648\u0644 \u0645\u0631\u0629 \u0623\u062E\u0631\u0649 \u0623\u0648 \u062A\u0648\u0627\u0635\u0644 \u0645\u0639 \u0627\u0644\u062F\u0639\u0645';
+  // رسالة عامة للأخطاء الداخلية غير المصنفة — منع تسريب تفاصيل قاعدة البيانات/المكتبات للعميل
+  const GENERIC_MESSAGE = 'حدث خطأ غير متوقع — حاول مرة أخرى أو تواصل مع الدعم الفني';
+  const knownError = isAppError || !!classified;
   const isClientError = statusCode >= 400 && statusCode < 500;
   const message =
-    isAppError || isClientError
-      ? finalErr.message || '\u0637\u0644\u0628 \u063A\u064A\u0631 \u0635\u0627\u0644\u062D'
-      : GENERIC_MESSAGE;
-  const code = isAppError || isClientError ? finalErr.code || 'REQUEST_ERROR' : 'INTERNAL_ERROR';
+    knownError || isClientError ? finalErr.message || 'طلب غير صالح' : GENERIC_MESSAGE;
+  const code = knownError || isClientError ? finalErr.code || 'REQUEST_ERROR' : 'INTERNAL_ERROR';
   const requestId = req.requestId || 'N/A';
   const userId = req.user?.id;
   if (statusCode >= 500) {

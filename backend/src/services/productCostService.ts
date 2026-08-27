@@ -1,8 +1,8 @@
 import { appCache } from '../utils/cache.ts';
 import { roundMoney } from '../utils/money.ts';
 
-//   UNIT_ALIASES   E5/1 'D-BJB) 'DEH-Q/ DCD 'DEDA'*
-// EO5/NQ1 DJO3*H1N/ AJ recipesService.js H costsService.js (/D'K EF 'D*C1'1
+// UNIT_ALIASES: المصدر الموحد لتعريف ومطابقة وحدات القياس عبر كامل النظام
+// يُصدّر ليُستخدم في recipesService.ts و costsService.ts منعاً للتكرار
 /** خريطة أسماء الوحدات وأشكالها المختلفة إلى الوحدة الموحدة. */
 export const UNIT_ALIASES = {
   kg: 'kg',

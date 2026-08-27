@@ -1,9 +1,9 @@
 <template>
   <div v-if="invoice" class="invoice-page">
     <div class="inv-actions no-print">
-      <button type="button" class="btn btn-primary" @click="printInvoice">🖨️ طباعة</button>
+      <button type="button" class="btn btn-primary" @click="printInvoice">طباعة</button>
       <button type="button" class="btn btn-outline" :disabled="pdfLoading" @click="downloadPdf">
-        {{ pdfLoading ? 'جاري التحميل...' : '📄 تحميل PDF' }}
+        {{ pdfLoading ? 'جاري التحميل...' : ' تحميل PDF' }}
       </button>
       <router-link to="/invoices" class="btn btn-outline">رجوع</router-link>
       <router-link to="/invoices/create" class="btn btn-outline">فاتورة جديدة</router-link>
@@ -24,6 +24,7 @@ import { ref, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import InvoiceDocument from '@/components/InvoiceDocument.vue';
 import { invoices as api } from '@/api';
+import { exportElementToPdf } from '@/utils/pdfExport';
 
 const route = useRoute();
 const invoice = ref<any>(null);
@@ -61,20 +62,11 @@ const downloadPdf = async () => {
   }
 };
 
-const downloadClientPdf = async (el: any) => {
-  const module = await import('html2pdf.js');
-  const html2pdf = (module.default || module) as any;
-  await html2pdf()
-    .set({
-      margin: [8, 8, 8, 8],
-      filename: `invoice-${invoice.value.invoice_number}.pdf`,
-      image: { type: 'jpeg', quality: 0.95 },
-      html2canvas: { scale: 2, useCORS: true, logging: false },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-    })
-    .from(el)
-    .save();
-};
+const downloadClientPdf = (el: any) =>
+  exportElementToPdf({
+    element: el,
+    filename: `invoice-${invoice.value.invoice_number}.pdf`,
+  });
 
 const downloadServerPdf = async () => {
   const blob = (await api.downloadPdf(String(route.params.id))) as unknown as Blob;

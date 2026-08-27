@@ -1,7 +1,7 @@
 <template>
   <div class="activity-feed">
     <div class="feed-header">
-      <h3 class="feed-title">📡 النشاط الحي</h3>
+      <h3 class="feed-title">النشاط الحي</h3>
       <div class="feed-actions">
         <select v-model="filterModule" class="feed-filter">
           <option value="">الكل</option>
@@ -14,7 +14,7 @@
           <option value="hr">موارد بشرية</option>
           <option value="backup">نسخ احتياطي</option>
         </select>
-        <button class="feed-refresh" @click="$emit('refresh')" title="تحديث">🔄</button>
+        <button class="feed-refresh" @click="$emit('refresh')" title="تحديث"></button>
       </div>
     </div>
 

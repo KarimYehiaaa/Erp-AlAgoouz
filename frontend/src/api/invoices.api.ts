@@ -8,9 +8,8 @@ export const invoices = {
 
   delete: (id: number | string) => api.delete(`/invoices/${id}`),
   downloadPdf: async (id: number | string) => {
-    const token = localStorage.getItem('token');
     const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/v1/invoices/${id}/pdf`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      credentials: 'include',
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));

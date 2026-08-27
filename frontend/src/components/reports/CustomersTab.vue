@@ -2,7 +2,7 @@
   <div>
     <div class="kpi-grid kpi-grid-3">
       <div class="kpi-card customers">
-        <div class="kpi-icon">👥</div>
+        <div class="kpi-icon"></div>
         <div class="kpi-body">
           <div class="kpi-label">أعلى عميل إنفاقاً</div>
           <div class="kpi-value">
@@ -14,14 +14,14 @@
         </div>
       </div>
       <div class="kpi-card danger">
-        <div class="kpi-icon">📄</div>
+        <div class="kpi-icon"></div>
         <div class="kpi-body">
           <div class="kpi-label">فواتير غير مدفوعة</div>
           <div class="kpi-value">{{ (customers?.unpaidInvoices || []).length }}</div>
         </div>
       </div>
       <div class="kpi-card">
-        <div class="kpi-icon">💳</div>
+        <div class="kpi-icon"></div>
         <div class="kpi-body">
           <div class="kpi-label">إجمالي مشتريات العملاء</div>
           <div class="kpi-value">{{ formatMoney(total) }}</div>
@@ -30,7 +30,7 @@
     </div>
     <div class="grid grid-2 mt-4">
       <div class="card">
-        <h3>🏆 أعلى العملاء إنفاقاً</h3>
+        <h3>أعلى العملاء إنفاقاً</h3>
         <table class="report-table">
           <thead>
             <tr>
@@ -85,7 +85,7 @@
               </td>
             </tr>
             <tr v-if="!(customers?.unpaidInvoices || []).length">
-              <td colspan="4" class="empty">✅ لا توجد فواتير معلقة</td>
+              <td colspan="4" class="empty">لا توجد فواتير معلقة</td>
             </tr>
           </tbody>
         </table>

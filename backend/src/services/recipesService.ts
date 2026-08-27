@@ -71,9 +71,9 @@ export const consumeRecipeForSale = async (
 
   const ingredientIds = itemsRes.rows.map((row) => Number(row.ingredient_product_id));
   const globalStocks = await client.query(
-    `SELECT product_id, COALESCE(SUM(quantity), 0) AS total 
-     FROM inventory 
-     WHERE product_id = ANY($1::int[]) 
+    `SELECT product_id, COALESCE(SUM(quantity), 0) AS total
+     FROM inventory
+     WHERE product_id = ANY($1::int[])
      GROUP BY product_id`,
     [ingredientIds],
   );

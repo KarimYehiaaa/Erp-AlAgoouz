@@ -1,4 +1,5 @@
 import { query } from '../database/pool.ts';
+import { logger } from './loggerService.ts';
 
 /**
  * جلب مؤشرات النظام وتوليد سياق للذكاء الاصطناعي
@@ -8,7 +9,7 @@ const getErpContext = async () => {
     // تنفيذ الاستعلامات الخمسة بالتوازي (Promise.all) بدل التسلسل — يخفض زمن الرد بشكل كبير
     // 1. مبيعات آخر 30 يوم
     const salesSql = `
-      SELECT 
+      SELECT
         COALESCE(SUM(total_amount), 0) AS revenue,
         COALESCE(SUM(profit_amount), 0) AS profit,
         COUNT(*) AS count
@@ -82,7 +83,7 @@ const getErpContext = async () => {
       customers: customerStats,
     };
   } catch (err: any) {
-    console.error('⚠️ فشل جلب سياق الـ ERP للـ Copilot:', err.message);
+    logger.error(' فشل جلب سياق الـ ERP للـ Copilot:', err.message);
     return null;
   }
 };
@@ -102,7 +103,7 @@ export const askCopilot = async (userPrompt: string, chatHistory: any[] = []) =>
   const model = process.env.GEMINI_MODEL || 'gemini-3.5-flash';
 
   if (!apiKey || apiKey.trim() === '' || apiKey === 'YOUR_GEMINI_API_KEY') {
-    return '⚠️ لم يتم تفعيل المساعد الذكي بعد: مفتاح GEMINI_API_KEY غير موجود في ملف backend/.env. احصل على مفتاح مجاني من https://aistudio.google.com/apikey ثم أضف السطر GEMINI_API_KEY=مفتاحك في backend/.env وأعد تشغيل الخادم.';
+    return ' لم يتم تفعيل المساعد الذكي بعد: مفتاح GEMINI_API_KEY غير موجود في ملف backend/.env. احصل على مفتاح مجاني من https://aistudio.google.com/apikey ثم أضف السطر GEMINI_API_KEY=مفتاحك في backend/.env وأعد تشغيل الخادم.';
   }
 
   // 1. جلب مؤشرات النظام اللحظية
@@ -114,6 +115,22 @@ export const askCopilot = async (userPrompt: string, chatHistory: any[] = []) =>
 تتحدث باللغة العربية بأسلوب لبق ومحاسبي ومهني مبسط.
 تساعد المدير في اتخاذ القرارات الإدارية والمالية بناءً على أرقام النظام.
 
+═══ قواعد العمل الصارمة (يجب فهمها والإجابة بناءً عليها) ═══
+
+القاعدة 1 — الإدخال اليومي اليدوي (Manual Daily Entry):
+  تسجيل مبيعات عادي يخصم مباشرة من المخزن.
+
+القاعدة 2 — فواتير الجملة (Wholesale Invoices):
+  يجب أن تخصم مباشرة من المخزن الرئيسي عند التأكيد.
+  لا تمر عبر محرك الوصفات أبداً.
+
+القاعدة 3 — استيراد تقرير الكاشير (Cashier Report Import):
+  يجب أن يمر إلزامياً عبر محرك الوصفات (Recipe Engine).
+  لا يمكن أن يخصم من المخزون مباشرة أبداً.
+  يتم حساب الخصومات بناءً على وصفات التحضير المحددة مسبقاً.
+
+═══ تقرير الأداء اللحظي (آخر 30 يوماً) ═══
+
 إليك تقرير الأداء اللحظي الحالي للنظام لآخر 30 يوماً لمساعدتك في إجاباتك:
 - إحصائيات المبيعات: إجمالي المبيعات = ${erp?.sales?.revenue || 0} ج.م، الأرباح الصافية = ${erp?.sales?.profit || 0} ج.م، عدد الفواتير = ${erp?.sales?.count || 0}.
 - المنتجات الأكثر مبيعاً: ${erp?.topProducts || 'لا يوجد'}.
@@ -124,7 +141,8 @@ export const askCopilot = async (userPrompt: string, chatHistory: any[] = []) =>
 توجيهات الإجابة:
 1. استخدم البيانات السابقة حصرياً عند الاستفسار عن مبيعاتك وأرباحك ومخزنك.
 2. إذا سألك المستخدم أسئلة عامة عن كيفية تحسين مبيعات الكوفي شوب، تحميص البن، وصفات القهوة، أو كيفية إدارة الأعمال، أجب بذكاء اعتماداً على خبرتك الواسعة كخبير استشاري تجاري.
-3. أجب باختصار منسق، واستخدم القوائم المنقطة أو الجداول إذا كانت الأرقام متعددة، لتكون القراءة سريعة ومريحة على شاشات الموبايل والكمبيوتر.
+3. إذا سُئلت عن آلية خصم المخزون أو سير العمل، أجب بناءً على القواعد الثلاث الصارمة أعلاه حصرياً.
+4. أجب باختصار منسق، واستخدم القوائم المنقطة أو الجداول إذا كانت الأرقام متعددة، لتكون القراءة سريعة ومريحة على شاشات الموبايل والكمبيوتر.
 `;
 
   // 3. بناء هيكلية طلب Gemini API
@@ -154,14 +172,14 @@ export const askCopilot = async (userPrompt: string, chatHistory: any[] = []) =>
     const resData = await response.json();
 
     if (resData.error) {
-      console.error('Gemini API error:', resData.error);
+      logger.error('Gemini API error:', resData.error);
       return `حدث خطأ أثناء التواصل مع سيرفر الذكاء الاصطناعي: ${resData.error.message}`;
     }
 
     const replyText = resData.candidates?.[0]?.content?.parts?.[0]?.text;
     return replyText || 'لم أتمكن من صياغة إجابة مناسبة حالياً، يرجى المحاولة لاحقاً.';
   } catch (err: any) {
-    console.error('❌ فشل استدعاء Gemini API:', err.message);
+    logger.error(' فشل استدعاء Gemini API:', err.message);
     return 'لا يمكن الاتصال بسيرفر الذكاء الاصطناعي حالياً، تأكد من اتصال الإنترنت وصلاحية مفتاح API الخاص بك.';
   }
 };

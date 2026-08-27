@@ -1,6 +1,6 @@
 <template>
   <div class="card table-card">
-    <h3>💵 توقع التدفقات النقدية والسيولة (Cash Flow Runway)</h3>
+    <h3>توقع التدفقات النقدية والسيولة (Cash Flow Runway)</h3>
     <p class="section-desc">
       تقدير السيولة النقدية المتوفرة للـ 30 يوماً القادمة بناءً على متوسطات المبيعات اليومية
       التاريخية، مقارنةً بمتوسط المصاريف والمشتريات اليومية.
@@ -10,14 +10,14 @@
       <!-- Mini stats inside cashflow tab -->
       <div class="grid grid-4 cashflow-mini-stats">
         <div class="card mini-stat-card">
-          <span class="mini-icon">💰</span>
+          <span class="mini-icon"></span>
           <div class="mini-meta">
             <h4>السيولة الحالية</h4>
             <p class="font-bold">{{ formatMoney(cashflowData.currentBalance) }}</p>
           </div>
         </div>
         <div class="card mini-stat-card">
-          <span class="mini-icon">📊</span>
+          <span class="mini-icon"></span>
           <div class="mini-meta">
             <h4>الرصيد المتوقع (30 يوم)</h4>
             <p
@@ -29,7 +29,7 @@
           </div>
         </div>
         <div class="card mini-stat-card">
-          <span class="mini-icon">🔄</span>
+          <span class="mini-icon"></span>
           <div class="mini-meta">
             <h4>صافي التغيير المتوقع</h4>
             <p
@@ -63,13 +63,7 @@
       <!-- Alert banner inside cashflow tab -->
       <div class="cashflow-alert-bar" :class="'status-' + cashflowData.status">
         <span class="alert-icon">
-          {{
-            cashflowData.status === 'healthy'
-              ? '✅'
-              : cashflowData.status === 'warning'
-                ? '⚠️'
-                : '🚨'
-          }}
+          {{ cashflowData.status === 'healthy' ? '' : cashflowData.status === 'warning' ? '' : '' }}
         </span>
         <p class="alert-text">{{ cashflowData.warningMsg }}</p>
       </div>

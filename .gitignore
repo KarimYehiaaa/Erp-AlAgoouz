@@ -48,3 +48,6 @@ tmp/
 scratch/
 coverage/
 .nyc_output/
+test-results/
+frontend/test-results/
+playwright-report/

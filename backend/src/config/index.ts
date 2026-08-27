@@ -72,7 +72,7 @@ if (process.env.DATABASE_URL) {
   const dbPassword = process.env.DB_PASSWORD?.trim();
   if (!dbUser || !dbPassword) {
     console.warn(
-      '[Config] ⚠️  DB_USER/DB_PASSWORD أو DATABASE_URL غير محددين بالكامل — تأكد من ضبط متغيرات البيئة في لوحة الاستضافة السحابية',
+      '[Config]   DB_USER/DB_PASSWORD أو DATABASE_URL غير محددين بالكامل — تأكد من ضبط متغيرات البيئة في لوحة الاستضافة السحابية',
     );
   }
   dbConfig = {
@@ -111,7 +111,7 @@ if (envJwtSecret) {
   finalJwtSecret = envJwtSecret;
 } else {
   // توليد سر آمن في حال عدم التعيين لضمان استمرارية تشغيل النظام السحابي
-  console.warn('[Config] ⚠️  JWT_SECRET غير موجود في متغيرات البيئة — تم توليد سر آمن تلقائي');
+  console.warn('[Config]   JWT_SECRET غير موجود في متغيرات البيئة — تم توليد سر آمن تلقائي');
   finalJwtSecret = crypto.randomBytes(48).toString('base64');
 }
 
@@ -127,11 +127,11 @@ if (envRefreshSecret) {
     .digest('hex');
   if (isProdEnv) {
     console.warn(
-      '[Config] ℹ️ تم اشتقاق JWT_REFRESH_SECRET تلقائياً من JWT_SECRET بنجاح لضمان استمرارية التشغيل.',
+      '[Config] ℹ تم اشتقاق JWT_REFRESH_SECRET تلقائياً من JWT_SECRET بنجاح لضمان استمرارية التشغيل.',
     );
   }
 } else {
-  console.warn('[Config] ⚠️  JWT_REFRESH_SECRET غير موجود — تم توليد سر آمن تلقائي');
+  console.warn('[Config]   JWT_REFRESH_SECRET غير موجود — تم توليد سر آمن تلقائي');
   finalRefreshSecret = crypto.randomBytes(48).toString('base64');
 }
 
@@ -149,8 +149,8 @@ const config = {
   // ── JWT ──
   jwt: {
     secret: finalJwtSecret,
-    // إصلاح التجمّد: مهلة أطول (8 ساعات) — كانت 15 دقيقة تُسقط الجلسات أثناء الاستخدام
-    expiresIn: optionalEnv('JWT_EXPIRES_IN', '8h'),
+    // توكن وصول قصير الأجل (ساعتان) مع تجديد صامت عبر refresh token — يقلل نافذة سرقة التوكن
+    expiresIn: optionalEnv('JWT_EXPIRES_IN', '2h'),
     refreshSecret: finalRefreshSecret,
     refreshExpiresIn: optionalEnv('JWT_REFRESH_EXPIRES_IN', '7d'),
   },
@@ -169,6 +169,12 @@ const config = {
     : ['http://localhost:3000', 'http://127.0.0.1:3000', 'https://agoouz.vercel.app'],
   // السماح بأي معاينة *.vercel.app — يُعطَّل افتراضياً (أي تطبيق على Vercel يمكنه محاولة الاتصال)
   corsAllowVercelPreviews: process.env.CORS_ALLOW_VERCEL_PREVIEWS === 'true',
+  // أصول LAN صريحة فقط (مثال: CORS_LAN_ORIGINS=http://192.168.1.50:5173) — لا wildcard للشبكة الداخلية
+  lanOrigins: process.env.CORS_LAN_ORIGINS
+    ? process.env.CORS_LAN_ORIGINS.split(',')
+        .map((o) => o.trim())
+        .filter(Boolean)
+    : [],
   // ثقة البروكسي لتصحيح req.ip (مطلوب خلف Vercel؛ عطّله عند التشغيل المباشر لمنع تزوير X-Forwarded-For وتجاوز rate-limit)
   trustProxy: process.env.TRUST_PROXY
     ? process.env.TRUST_PROXY === 'true'
@@ -204,7 +210,7 @@ const config = {
 // ─── Validation at Startup ─────────────────────────────────────────────────────
 // التحقق من وجود إعدادات DB الأساسية
 if (!process.env.DATABASE_URL && !config.db.host) {
-  throw new Error('❌ لا يوجد إعداد قاعدة بيانات: يجب توفير DATABASE_URL أو DB_HOST');
+  throw new Error(' لا يوجد إعداد قاعدة بيانات: يجب توفير DATABASE_URL أو DB_HOST');
 }
 
 // طباعة ملخص الإعدادات عند التشغيل (في بيئة التطوير فقط)
@@ -212,8 +218,8 @@ if (config.isDevelopment && !process.env.SUPPRESS_CONFIG_LOG) {
   const dbInfo = process.env.DATABASE_URL
     ? `DATABASE_URL (Cloud)`
     : `${config.db.host}:${config.db.port}/${config.db.database}`;
-  console.log(`[Config] 🗄️  DB: ${dbInfo} | SSL: ${sslEnabled} | Env: ${config.nodeEnv}`);
-  console.log(`[Config] 🏢  الشركة: ${config.company.name} | Port: ${config.port}`);
+  console.log(`[Config]   DB: ${dbInfo} | SSL: ${sslEnabled} | Env: ${config.nodeEnv}`);
+  console.log(`[Config]   الشركة: ${config.company.name} | Port: ${config.port}`);
 }
 
 export default config;

@@ -68,10 +68,10 @@ function getMigrationFiles() {
 }
 
 async function main() {
-  console.log('\n☕ بن العجوز — إعداد PostgreSQL\n');
+  console.log('\n بن العجوز — إعداد PostgreSQL\n');
 
   if (!DB_PASSWORD) {
-    console.error('❌ مطلوب DB_PASSWORD في backend/.env');
+    console.error(' مطلوب DB_PASSWORD في backend/.env');
     console.error('   مثال: DB_PASSWORD=replace_with_strong_password\n');
     process.exit(1);
   }
@@ -80,15 +80,15 @@ async function main() {
   try {
     const app = await connectAsApp();
     const check = await app.query(`SELECT COUNT(*) FROM users`);
-    console.log(`✅ القاعدة موجودة ومعدّة (${check.rows[0].count} مستخدمين)`);
+    console.log(` القاعدة موجودة ومعدّة (${check.rows[0].count} مستخدمين)`);
     await app.end();
     return;
   } catch {
-    console.log('ℹ️  القاعدة تحتاج إعداد...\n');
+    console.log('ℹ  القاعدة تحتاج إعداد...\n');
   }
 
   if (!ADMIN_PASSWORD) {
-    console.error('❌ مطلوب كلمة مرور postgres.');
+    console.error(' مطلوب كلمة مرور postgres.');
     console.error('   نفّذ في PowerShell:\n');
     console.error('   $env:POSTGRES_PASSWORD="كلمة_المرور_التي_اخترتها_عند_التثبيت"');
     console.error('   node src/database/setup.ts\n');
@@ -96,23 +96,23 @@ async function main() {
   }
 
   const admin = await connectAsAdmin();
-  console.log('✅ اتصال بـ postgres');
+  console.log(' اتصال بـ postgres');
 
   const userExists = await admin.query(`SELECT 1 FROM pg_roles WHERE rolname = $1`, [DB_USER]);
   if (!userExists.rows.length) {
     await admin.query(`CREATE USER ${DB_USER} WITH PASSWORD '${DB_PASSWORD.replace(/'/g, "''")}'`);
-    console.log(`✅ إنشاء المستخدم: ${DB_USER}`);
+    console.log(` إنشاء المستخدم: ${DB_USER}`);
   } else {
     await admin.query(`ALTER USER ${DB_USER} WITH PASSWORD '${DB_PASSWORD.replace(/'/g, "''")}'`);
-    console.log(`✅ تحديث كلمة مرور: ${DB_USER}`);
+    console.log(` تحديث كلمة مرور: ${DB_USER}`);
   }
 
   const dbExists = await admin.query(`SELECT 1 FROM pg_database WHERE datname = $1`, [DB_NAME]);
   if (!dbExists.rows.length) {
     await admin.query(`CREATE DATABASE ${DB_NAME} OWNER ${DB_USER}`);
-    console.log(`✅ إنشاء قاعدة البيانات: ${DB_NAME}`);
+    console.log(` إنشاء قاعدة البيانات: ${DB_NAME}`);
   } else {
-    console.log(`ℹ️  قاعدة البيانات موجودة: ${DB_NAME}`);
+    console.log(`ℹ  قاعدة البيانات موجودة: ${DB_NAME}`);
   }
 
   await admin.query(`GRANT ALL PRIVILEGES ON DATABASE ${DB_NAME} TO ${DB_USER}`);
@@ -130,13 +130,13 @@ async function main() {
   await app.query('GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO ' + DB_USER);
   await app.end();
 
-  console.log('\n🎉 تم الإعداد بنجاح!');
+  console.log('\n تم الإعداد بنجاح!');
   console.log('   شغّل Backend: npm run dev');
   console.log('   غيّر كلمة مرور المدير قبل أي استخدام حقيقي.\n');
 }
 
 main().catch((err) => {
-  console.error('\n❌ فشل الإعداد:', err.message);
+  console.error('\n فشل الإعداد:', err.message);
   if (err.message.includes('password authentication failed')) {
     console.error('   تحقق من POSTGRES_PASSWORD (كلمة مرور المستخدم postgres)');
   }

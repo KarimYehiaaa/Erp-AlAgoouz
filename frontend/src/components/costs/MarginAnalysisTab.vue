@@ -7,7 +7,7 @@
           :value="search"
           @input="emit('update:search', ($event.target as HTMLInputElement).value)"
           type="text"
-          placeholder="🔍 بحث باسم المنتج أو الكود..."
+          placeholder=" بحث باسم المنتج أو الكود..."
           class="search-input"
         />
       </div>
@@ -49,28 +49,28 @@
     <!-- Summary Cards -->
     <div class="grid grid-4 summary-row">
       <div class="summary-card">
-        <div class="summary-icon">💰</div>
+        <div class="summary-icon"></div>
         <div class="summary-body">
           <div class="summary-label">إجمالي المبيعات</div>
           <div class="summary-value">{{ formatMoney(totalSales) }}</div>
         </div>
       </div>
       <div class="summary-card">
-        <div class="summary-icon">📦</div>
+        <div class="summary-icon"></div>
         <div class="summary-body">
           <div class="summary-label">إجمالي التكلفة</div>
           <div class="summary-value">{{ formatMoney(totalCost) }}</div>
         </div>
       </div>
       <div class="summary-card profit">
-        <div class="summary-icon">📈</div>
+        <div class="summary-icon"></div>
         <div class="summary-body">
           <div class="summary-label">إجمالي الربح</div>
           <div class="summary-value">{{ formatMoney(totalProfit) }}</div>
         </div>
       </div>
       <div class="summary-card">
-        <div class="summary-icon">🔢</div>
+        <div class="summary-icon"></div>
         <div class="summary-body">
           <div class="summary-label">إجمالي الوحدات المباعة</div>
           <div class="summary-value">{{ totalUnitsSold.toLocaleString('en-GB') }}</div>
@@ -82,7 +82,7 @@
     <div class="card table-card">
       <div v-if="loading" class="loading-state">⏳ جاري تحميل البيانات...</div>
       <div v-else-if="!filteredProducts.length" class="empty-state">
-        <span>🔍</span>
+        <span></span>
         <p>لا توجد منتجات مطابقة</p>
       </div>
       <div v-else class="table-wrap">
@@ -115,8 +115,7 @@
                     v-if="marginPct(p) < 25"
                     class="alert-indicator"
                     title="هامش ربح منخفض أقل من 25%"
-                    >⚠️</span
-                  >
+                  ></span>
                   <div>
                     <div class="product-name">{{ p.name_ar }}</div>
                     <div class="product-sku">{{ p.sku }}</div>
@@ -161,12 +160,12 @@
                   class="recipe-btn has-recipe"
                   @click="emit('openRecipe', p.recipe_id)"
                 >
-                  🧾 {{ p.recipe_items_count }} مكونات
+                  {{ p.recipe_items_count }} مكونات
                 </button>
                 <span v-else class="recipe-badge no-recipe">شراء مباشر</span>
               </td>
               <td>
-                <button class="btn-edit-price" @click="emit('edit', p)">✏️ تعديل</button>
+                <button class="btn-edit-price" @click="emit('edit', p)">تعديل</button>
               </td>
             </tr>
           </tbody>

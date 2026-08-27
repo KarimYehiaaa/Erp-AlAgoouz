@@ -91,13 +91,13 @@
     <main class="digital-menu-body">
       <!-- حالة التحميل -->
       <div v-if="isLoading" class="menu-loading-state">
-        <div class="coffee-cup-loader">☕</div>
+        <div class="coffee-cup-loader"></div>
         <p>جاري تحضير قائمة بن العجوز الفاخرة...</p>
       </div>
 
       <!-- حالة الخطأ أو عدم وجود أصناف -->
       <div v-else-if="!visibleCategories.length" class="menu-empty-state">
-        <span class="empty-icon">📜</span>
+        <span class="empty-icon">☕</span>
         <h3>لم يتم العثور على أصناف مطابقة</h3>
         <p>جرب البحث بكلمات أخرى أو اختر قسماً مختلفاً.</p>
         <button type="button" class="btn-reset-search" @click="searchQuery = ''">
@@ -291,7 +291,7 @@
       </div>
       <button type="button" class="btn-open-tray" @click="showTrayDrawer = true">
         <span>مراجعة وإرسال الطلب</span>
-        <span class="arrow-icon">⬅️</span>
+        <span class="arrow-icon">←</span>
       </button>
     </div>
 
@@ -301,7 +301,7 @@
         <div class="tray-drawer-card">
           <div class="drawer-header">
             <div class="drawer-title-box">
-              <span class="drawer-icon">🛒</span>
+              <span class="drawer-icon">🛍️</span>
               <div>
                 <h3>صينية طلباتك</h3>
                 <p>مراجعة الأصناف قبل الإرسال للفرع أو الكاشير</p>
@@ -392,7 +392,7 @@
       <div v-if="showShareModal" class="share-modal-overlay" @click.self="showShareModal = false">
         <div class="share-modal-card">
           <div class="share-modal-header">
-            <h3>📲 رمز الـ QR Code للمنيو</h3>
+            <h3>📱 رمز الـ QR Code للمنيو</h3>
             <button type="button" class="btn-close-modal" @click="showShareModal = false">✕</button>
           </div>
 
@@ -518,19 +518,19 @@ const onLogoError = (e: Event) => {
 const getCatIcon = (iconName?: string) => {
   switch (iconName) {
     case 'star':
-      return '⭐';
+      return '';
     case 'coffee':
-      return '☕';
+      return '';
     case 'sparkles':
-      return '✨';
+      return '';
     case 'cup':
-      return '🍵';
+      return '';
     case 'snowflake':
-      return '❄️';
+      return '';
     case 'cake':
-      return '🍰';
+      return '';
     default:
-      return '☕';
+      return '';
   }
 };
 
@@ -785,10 +785,10 @@ const sendOrderViaWhatsApp = () => {
   if (!trayItems.value.length) return;
 
   const phone = cleanPhone(menuData.phone_primary || '01012345678');
-  let msg = `☕ *طلب جديد من المنيو الرقمي (بن العجوز)* ☕\n\n`;
+  let msg = ` *طلب جديد من المنيو الرقمي (بن العجوز)* \n\n`;
 
   if (orderCustomerInfo.value.trim()) {
-    msg += `📍 *العميل / الطاولة:* ${orderCustomerInfo.value.trim()}\n`;
+    msg += ` *العميل / الطاولة:* ${orderCustomerInfo.value.trim()}\n`;
   }
   msg += `─────────────────────\n`;
 
@@ -799,13 +799,13 @@ const sendOrderViaWhatsApp = () => {
   });
 
   msg += `─────────────────────\n`;
-  msg += `💰 *المجموع النهائي:* ${totalTrayPrice.value} ج.م\n`;
+  msg += ` *المجموع النهائي:* ${totalTrayPrice.value} ج.م\n`;
 
   if (orderNotes.value.trim()) {
-    msg += `📝 *ملاحظات خاصة:* ${orderNotes.value.trim()}\n`;
+    msg += ` *ملاحظات خاصة:* ${orderNotes.value.trim()}\n`;
   }
 
-  msg += `\nتم إرسال الطلب عبر المنيو الإلكتروني لبن العجوز ✨`;
+  msg += `\nتم إرسال الطلب عبر المنيو الإلكتروني لبن العجوز `;
 
   const url = `https://wa.me/2${phone}?text=${encodeURIComponent(msg)}`;
   window.open(url, '_blank');
@@ -834,9 +834,7 @@ const downloadQr = () => {
 </script>
 
 <style scoped>
-/* ═══════════════════════════════════════════════════════════════════
-   DIGITAL QR MENU — LUXURY RESPONSIVE MOBILE-FIRST STYLES
-   ═══════════════════════════════════════════════════════════════════ */
+/* DIGITAL QR MENU — LUXURY RESPONSIVE MOBILE-FIRST STYLES */
 
 .digital-menu-container {
   min-height: 100vh;

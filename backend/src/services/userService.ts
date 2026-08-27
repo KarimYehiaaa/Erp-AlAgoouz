@@ -414,7 +414,7 @@ const getPurchasesReport = async (filters: Record<string, any> = {}) => {
 };
 const getWastageReport = async (filters: Record<string, any> = {}) => {
   const result = await query(
-    `SELECT 
+    `SELECT
        p.id,
        p.name_ar as name,
        p.unit,
@@ -423,13 +423,13 @@ const getWastageReport = async (filters: Record<string, any> = {}) => {
        COALESCE(SUM(CASE WHEN sm.movement_type = 'adjustment' AND sm.from_warehouse_id IS NOT NULL AND sm.to_warehouse_id IS NULL THEN sm.quantity ELSE 0 END), 0)::numeric as actual_waste
      FROM products p
      LEFT JOIN product_categories pc ON p.category_id = pc.id
-     LEFT JOIN stock_movements sm ON p.id = sm.product_id 
+     LEFT JOIN stock_movements sm ON p.id = sm.product_id
        AND ($1::date IS NULL OR sm.created_at::date >= $1)
        AND ($2::date IS NULL OR sm.created_at::date <= $2)
      WHERE p.deleted_at IS NULL
      GROUP BY p.id, p.name_ar, p.unit, pc.name_ar
-     HAVING 
-       SUM(CASE WHEN sm.movement_type = 'consumption' THEN sm.quantity ELSE 0 END) > 0 
+     HAVING
+       SUM(CASE WHEN sm.movement_type = 'consumption' THEN sm.quantity ELSE 0 END) > 0
        OR SUM(CASE WHEN sm.movement_type = 'adjustment' AND sm.from_warehouse_id IS NOT NULL AND sm.to_warehouse_id IS NULL THEN sm.quantity ELSE 0 END) > 0
      ORDER BY actual_waste DESC`,
     [filters.from_date || null, filters.to_date || null],

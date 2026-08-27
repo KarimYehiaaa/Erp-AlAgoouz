@@ -6,7 +6,7 @@
         <div class="back-link-wrap">
           <router-link to="/stocktakes" class="back-link">← العودة لقائمة الجرد</router-link>
         </div>
-        <h1>📋 جرد مخزن: {{ stocktake.warehouse_name }}</h1>
+        <h1>جرد مخزن: {{ stocktake.warehouse_name }}</h1>
         <div class="metadata">
           <span class="meta-item"><strong>بواسطة:</strong> {{ stocktake.creator_name }}</span>
           <span class="meta-item"
@@ -18,16 +18,16 @@
           <span
             :class="['badge', stocktake.status === 'completed' ? 'badge-success' : 'badge-warning']"
           >
-            {{ stocktake.status === 'completed' ? '✅ معتمد ومسوى' : '📝 مسودة معلقة' }}
+            {{ stocktake.status === 'completed' ? ' معتمد ومسوى' : ' مسودة معلقة' }}
           </span>
         </div>
       </div>
       <div class="header-actions" v-if="stocktake.status === 'draft'">
         <button class="btn btn-outline" @click="handleSave(false)" :disabled="saving">
-          {{ saving ? 'جاري الحفظ...' : '💾 حفظ كمسودة' }}
+          {{ saving ? 'جاري الحفظ...' : ' حفظ كمسودة' }}
         </button>
         <button class="btn btn-primary" @click="openConfirmModal" :disabled="saving">
-          ⚡ اعتماد الجرد وتسوية الفروق
+          اعتماد الجرد وتسوية الفروق
         </button>
       </div>
     </div>
@@ -40,7 +40,7 @@
     <!-- Summary Cards -->
     <div class="summary-cards" v-if="stocktake">
       <div class="summary-card">
-        <div class="card-icon">📦</div>
+        <div class="card-icon"></div>
         <div class="card-body">
           <span class="card-label">إجمالي الأصناف</span>
           <span class="card-value">{{ stocktake.items.length }}</span>
@@ -48,7 +48,7 @@
       </div>
 
       <div class="summary-card" :class="{ 'warning-border': countedCount > 0 }">
-        <div class="card-icon">✏️</div>
+        <div class="card-icon"></div>
         <div class="card-body">
           <span class="card-label">أصناف تم جردها</span>
           <span class="card-value">{{ countedCount }} / {{ stocktake.items.length }}</span>
@@ -56,7 +56,7 @@
       </div>
 
       <div class="summary-card" :class="{ 'danger-border': liveDeficitValue > 0 }">
-        <div class="card-icon">🔻</div>
+        <div class="card-icon"></div>
         <div class="card-body">
           <span class="card-label">إجمالي قيمة العجز</span>
           <span class="card-value danger-text">{{ fmtCurrency(liveDeficitValue) }}</span>
@@ -64,7 +64,7 @@
       </div>
 
       <div class="summary-card" :class="{ 'success-border': liveSurplusValue > 0 }">
-        <div class="card-icon">🔺</div>
+        <div class="card-icon"></div>
         <div class="card-body">
           <span class="card-label">إجمالي قيمة الزيادة</span>
           <span class="card-value success-text">{{ fmtCurrency(liveSurplusValue) }}</span>
@@ -75,7 +75,7 @@
     <!-- Filter Bar -->
     <div class="card filter-bar" v-if="stocktake">
       <div class="search-input-wrap">
-        <span class="search-icon">🔍</span>
+        <span class="search-icon"></span>
         <input
           type="text"
           v-model="searchQuery"
@@ -100,7 +100,7 @@
       <table class="items-table">
         <thead>
           <tr>
-            <th>SKU</th>
+            <th>كود الصنف (SKU)</th>
             <th>اسم المنتج</th>
             <th>الوحدة</th>
             <th class="num-col">الدفترية (السيستم)</th>
@@ -154,7 +154,7 @@
     <div v-if="showConfirmModal" class="modal">
       <div class="card modal-content confirm-reconcile-modal">
         <div class="modal-header">
-          <h3 class="warning-title">⚡ اعتماد الجرد النهائي والتسوية</h3>
+          <h3 class="warning-title">اعتماد الجرد النهائي والتسوية</h3>
           <button class="close-btn" @click="showConfirmModal = false">×</button>
         </div>
         <div class="modal-body">
@@ -192,7 +192,7 @@
           </div>
 
           <p class="caution-alert">
-            ⚠️ تحذير: بعد الاعتماد، لن تتمكن من تعديل كميات هذا الجرد مرة أخرى نهائياً.
+            تحذير: بعد الاعتماد، لن تتمكن من تعديل كميات هذا الجرد مرة أخرى نهائياً.
           </p>
         </div>
         <div class="modal-actions">
@@ -215,7 +215,7 @@ import { stocktakes as stocktakeApi } from '@/api';
 
 const route = useRoute();
 
-const stocktakeId = route.params.id;
+const stocktakeId = String(route.params.id ?? '');
 const stocktake = ref<any>(null);
 const loading = ref(false);
 const saving = ref(false);

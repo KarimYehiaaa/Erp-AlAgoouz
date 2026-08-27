@@ -11,10 +11,10 @@ import { getProductsEffectiveCosts } from './productCostService.ts';
 export const getSmartPricingAlerts = async () => {
   // 1. جلب كافة المنتجات الفعالة
   const productsSql = `
-    SELECT 
-      p.id, p.sku, p.name_ar, p.unit, 
-      COALESCE(p.sale_price, 0) AS sale_price, 
-      COALESCE(p.purchase_price, 0) AS purchase_price, 
+    SELECT
+      p.id, p.sku, p.name_ar, p.unit,
+      COALESCE(p.sale_price, 0) AS sale_price,
+      COALESCE(p.purchase_price, 0) AS purchase_price,
       pc.name_ar AS category_name,
       r.id AS recipe_id,
       CASE WHEN r.id IS NOT NULL THEN TRUE ELSE FALSE END AS has_recipe

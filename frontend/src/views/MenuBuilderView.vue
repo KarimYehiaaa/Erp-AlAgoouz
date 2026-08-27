@@ -3,7 +3,7 @@
     <!-- ═══════════════════ Header الرئيسي المتناسق مع النظام ═══════════════════ -->
     <div class="page-header card">
       <div class="header-title">
-        <span class="header-icon">📜</span>
+        <span class="header-icon"></span>
         <div>
           <h2>إدارة وتصميم المنيو</h2>
           <p>تخصيص وتوزيع أصناف المنيو وتصديرها كملف PDF جاهز للطباعة الفورية (وش وظهر)</p>
@@ -29,7 +29,7 @@
             @click="activeMainTab = 'preview'"
           >
             <AppIcon name="print" :size="16" />
-            <span>المعاينة والطباعة 👁️</span>
+            <span>المعاينة والطباعة </span>
           </button>
         </div>
 
@@ -50,7 +50,7 @@
 
         <button type="button" class="btn btn-outline" @click="openDigitalMenu">
           <AppIcon name="coffee" :size="16" />
-          <span>المنيو الرقمي (QR) 📲</span>
+          <span>المنيو الرقمي (QR) </span>
         </button>
 
         <button
@@ -197,12 +197,12 @@
                   </div>
                   <div class="flex gap-2">
                     <select v-model="cat.icon_name" class="form-select text-xs">
-                      <option value="coffee">☕ قهوة وبن</option>
-                      <option value="star">⭐ توليفة مميزة</option>
-                      <option value="sparkles">✨ تحويجات وبهارات</option>
-                      <option value="flame">🔥 مشروبات ساخنة</option>
-                      <option value="snowflake">❄️ مشروبات مثلجة</option>
-                      <option value="heart">❤️ إضافات وحلويات</option>
+                      <option value="coffee">قهوة وبن</option>
+                      <option value="star">توليفة مميزة</option>
+                      <option value="sparkles">تحويجات وبهارات</option>
+                      <option value="flame">مشروبات ساخنة</option>
+                      <option value="snowflake">مشروبات مثلجة</option>
+                      <option value="heart">إضافات وحلويات</option>
                     </select>
                     <select v-model="cat.column_span" class="form-select text-xs">
                       <option :value="1">عمود واحد (1 Col)</option>
@@ -245,7 +245,7 @@
                         class="form-select item-pricing-type-select"
                       >
                         <option value="single">سعر موحد</option>
-                        <option value="weights">⚖️ أوزان بن (ثمن/ربع/نص/كيلو)</option>
+                        <option value="weights">أوزان بن (ثمن/ربع/نص/كيلو)</option>
                         <option value="dual">حجمين (سنجل/دبل)</option>
                       </select>
                     </div>
@@ -303,7 +303,7 @@
                           title="حساب بقية الأوزان تلقائياً بناءً على سعر الكيلو"
                           @click="autoFillWeights(item)"
                         >
-                          ⚡ حساب تلقائي (ثمن، ربع، نصف) بناءً على سعر الكيلو
+                          حساب تلقائي (ثمن، ربع، نصف) بناءً على سعر الكيلو
                         </button>
                       </div>
 
@@ -366,7 +366,7 @@
                         :title="item.is_featured ? 'صنف مميز (انقر للإلغاء)' : 'تمييز الصنف'"
                         @click="item.is_featured = !item.is_featured"
                       >
-                        {{ item.is_featured ? '⭐ مميز' : '☆ عادي' }}
+                        {{ item.is_featured ? '⭐ مميز' : '⚪ عادي' }}
                       </button>
                       <button
                         type="button"
@@ -375,7 +375,7 @@
                         :title="item.is_new ? 'صنف جديد (انقر للإلغاء)' : 'تحديد كصنف جديد'"
                         @click="item.is_new = !item.is_new"
                       >
-                        {{ item.is_new ? '✨ جديد' : 'قديم' }}
+                        {{ item.is_new ? '✨ جديد' : '⚪ عادي' }}
                       </button>
                       <button
                         type="button"
@@ -505,7 +505,7 @@
               <div class="qr-management-card mt-4">
                 <div class="qr-mgmt-header">
                   <div class="qr-mgmt-title">
-                    <span class="qr-mgmt-icon">📲</span>
+                    <span class="qr-mgmt-icon"></span>
                     <div>
                       <h4 class="font-bold text-sm text-gold">
                         المنيو الرقمي ورمز الاستجابة السريعة (QR Code)
@@ -550,14 +550,14 @@
                           class="form-input qr-url-input"
                         />
                         <button type="button" class="btn btn-secondary btn-sm" @click="copyMenuUrl">
-                          {{ isCopiedUrl ? 'تم النسخ! ✅' : 'نسخ الرابط' }}
+                          {{ isCopiedUrl ? 'تم النسخ! ' : 'نسخ الرابط' }}
                         </button>
                         <button
                           type="button"
                           class="btn btn-primary btn-sm"
                           @click="openDigitalMenu"
                         >
-                          فتح المنيو ↗️
+                          فتح المنيو ↗
                         </button>
                       </div>
                     </div>
@@ -601,9 +601,9 @@
                 <span>الثيم:</span>
               </label>
               <select v-model="menuForm.theme" class="form-select theme-select">
-                <option value="coffee-gold">☕ بن العجوز الملكي (بني وذهبي)</option>
-                <option value="modern-dark">🌙 دارك كافيه مودرن (فخم داكن)</option>
-                <option value="warm-cream">📜 كريمي كلاسيك (دافئ عتيق)</option>
+                <option value="coffee-gold">بن العجوز الملكي (بني وذهبي)</option>
+                <option value="modern-dark">دارك كافيه مودرن (فخم داكن)</option>
+                <option value="warm-cream">كريمي كلاسيك (دافئ عتيق)</option>
               </select>
             </div>
 
@@ -670,7 +670,7 @@
             <AppIcon name="products" :size="20" />
             <h3>إضافة منتجات من المخزن إلى المنيو</h3>
           </div>
-          <button type="button" class="btn-close" @click="showProductsModal = false">✕</button>
+          <button type="button" class="btn-close" @click="showProductsModal = false"></button>
         </div>
 
         <div class="modal-body">
@@ -687,7 +687,7 @@
             <input
               v-model="productsSearch"
               type="text"
-              placeholder="🔍 ابحث بالاسم، الباركود، أو التصنيف..."
+              placeholder=" ابحث بالاسم، الباركود، أو التصنيف..."
               class="form-input search-products-input"
             />
           </div>
@@ -730,6 +730,7 @@ import { menu as menuApi, products as productsApi } from '@/api';
 import AppIcon from '@/components/AppIcon.vue';
 import MenuPageLayout from '@/components/menu/MenuPageLayout.vue';
 import { generateQrDataUrl, downloadQrImage } from '@/utils/qrCode';
+import { exportElementToPdf } from '@/utils/pdfExport';
 
 const activeMainTab = ref<'builder' | 'preview'>('builder');
 const activeSubTab = ref<'content' | 'branding'>('content');
@@ -772,7 +773,7 @@ const copyMenuUrl = async () => {
   try {
     await navigator.clipboard.writeText(publicMenuUrl.value);
     isCopiedUrl.value = true;
-    showFeedback('تم نسخ رابط المنيو بنجاح! 📋');
+    showFeedback('تم نسخ رابط المنيو بنجاح! ');
     setTimeout(() => {
       isCopiedUrl.value = false;
     }, 2500);
@@ -784,7 +785,7 @@ const copyMenuUrl = async () => {
 const downloadBuilderQr = () => {
   if (builderQrDataUrl.value) {
     downloadQrImage(builderQrDataUrl.value, 'bin-alagoouz-menu-qr.png');
-    showFeedback('تم تحميل صورة الـ QR Code بنجاح! 📥');
+    showFeedback('تم تحميل صورة الـ QR Code بنجاح! ');
   }
 };
 
@@ -1009,7 +1010,7 @@ const handleSaveMenu = async () => {
     if (res.data?.id) {
       menuForm.id = res.data.id;
     }
-    showFeedback('تم حفظ وتحديث المنيو بنجاح! 🎉');
+    showFeedback('تم حفظ وتحديث المنيو بنجاح! ');
   } catch (err: any) {
     showFeedback(err?.response?.data?.message || 'تعذر حفظ المنيو', 'error');
   } finally {
@@ -1034,23 +1035,15 @@ const handleExportPdf = async () => {
       return;
     }
 
-    const { default: html2pdf } = await import('html2pdf.js');
-
-    const opt = {
-      margin: 0,
+    await exportElementToPdf({
+      element: exportNode,
       filename: `منيو_بن_العجوز_${new Date().toISOString().slice(0, 10)}.pdf`,
-      image: { type: 'jpeg' as const, quality: 0.98 },
-      html2canvas: {
-        scale: 2.5,
-        useCORS: true,
-        logging: false,
-        backgroundColor: '#1b120c',
-      },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const },
-    };
-
-    await html2pdf().set(opt).from(exportNode).save();
-    showFeedback('تم تصدير ملف الـ PDF بنجاح! 📥');
+      margin: 0,
+      scale: 2.5,
+      quality: 0.98,
+      backgroundColor: '#1b120c',
+    });
+    showFeedback('تم تصدير ملف الـ PDF بنجاح! ');
   } catch (_err) {
     showFeedback('حدث خطأ أثناء تصدير الـ PDF', 'error');
   } finally {
@@ -1130,9 +1123,7 @@ const addProductToMenu = (prod: any) => {
 </script>
 
 <style scoped>
-/* ═══════════════════════════════════════════════════════════════════
-   MENU BUILDER ERP UNIFIED DESIGN & SYSTEM TOKENS
-   ═══════════════════════════════════════════════════════════════════ */
+/* MENU BUILDER ERP UNIFIED DESIGN & SYSTEM TOKENS */
 
 .menu-builder-page {
   display: flex;

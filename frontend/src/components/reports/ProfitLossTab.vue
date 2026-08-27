@@ -1,18 +1,18 @@
 <template>
   <div>
     <div v-if="plLoading" class="loading-state card">⏳ جاري تحميل تقرير الربح والخسارة...</div>
-    <div v-else-if="plError" class="error-msg">⚠️ {{ plError }}</div>
+    <div v-else-if="plError" class="error-msg">{{ plError }}</div>
     <template v-else-if="plData">
       <!-- ملاحظة طريقة حساب التكلفة -->
       <div v-if="plData.cogs_basis === 'purchases'" class="pl-notice card">
-        💡 <strong>ملاحظة:</strong> المبيعات مسجلة كإجمالي يومي بدون تفصيل أصناف، لذا يُستخدم
+        <strong>ملاحظة:</strong> المبيعات مسجلة كإجمالي يومي بدون تفصيل أصناف، لذا يُستخدم
         <strong>إجمالي المشتريات</strong> كتقريب لتكلفة البضاعة المباعة.
       </div>
 
       <!-- KPIs الرئيسية -->
       <div class="kpi-grid kpi-grid-4">
         <div class="kpi-card">
-          <div class="kpi-icon">🏦</div>
+          <div class="kpi-icon"></div>
           <div class="kpi-body">
             <div class="kpi-label">رصيد أول المدة</div>
             <div class="kpi-value">{{ formatMoney(plData.opening_balance) }}</div>
@@ -20,7 +20,7 @@
           </div>
         </div>
         <div class="kpi-card sales">
-          <div class="kpi-icon">💰</div>
+          <div class="kpi-icon"></div>
           <div class="kpi-body">
             <div class="kpi-label">صافي الإيرادات</div>
             <div class="kpi-value">{{ formatMoney(plData.revenue?.net) }}</div>
@@ -30,7 +30,7 @@
           </div>
         </div>
         <div class="kpi-card" :class="plData.gross_profit?.amount >= 0 ? 'profit' : 'danger'">
-          <div class="kpi-icon">📈</div>
+          <div class="kpi-icon"></div>
           <div class="kpi-body">
             <div class="kpi-label">هامش الربح الإجمالي</div>
             <div class="kpi-value">{{ formatMoney(plData.gross_profit?.amount) }}</div>
@@ -38,7 +38,7 @@
           </div>
         </div>
         <div class="kpi-card" :class="plData.net_profit?.amount >= 0 ? 'profit' : 'danger'">
-          <div class="kpi-icon">{{ plData.net_profit?.amount >= 0 ? '✅' : '⚠️' }}</div>
+          <div class="kpi-icon">{{ plData.net_profit?.amount >= 0 ? '' : '' }}</div>
           <div class="kpi-body">
             <div class="kpi-label">صافي الربح</div>
             <div class="kpi-value">{{ formatMoney(plData.net_profit?.amount) }}</div>
@@ -50,7 +50,7 @@
       <!-- KPI التدفق النقدي المنفصل -->
       <div class="kpi-grid kpi-grid-3 mt-0">
         <div class="kpi-card">
-          <div class="kpi-icon">🛒</div>
+          <div class="kpi-icon"></div>
           <div class="kpi-body">
             <div class="kpi-label">تكلفة البضاعة</div>
             <div class="kpi-value">{{ formatMoney(plData.cogs?.total) }}</div>
@@ -58,7 +58,7 @@
           </div>
         </div>
         <div class="kpi-card expenses">
-          <div class="kpi-icon">💸</div>
+          <div class="kpi-icon"></div>
           <div class="kpi-body">
             <div class="kpi-label">المصاريف التشغيلية</div>
             <div class="kpi-value">{{ formatMoney(plData.operating_expenses?.total) }}</div>
@@ -66,7 +66,7 @@
           </div>
         </div>
         <div class="kpi-card" :class="plData.cash_flow?.closing >= 0 ? 'profit' : 'danger'">
-          <div class="kpi-icon">💵</div>
+          <div class="kpi-icon"></div>
           <div class="kpi-body">
             <div class="kpi-label">رصيد آخر المدة</div>
             <div class="kpi-value">{{ formatMoney(plData.cash_flow?.closing) }}</div>
@@ -79,7 +79,7 @@
       <div class="grid grid-2 mt-4">
         <!-- قائمة الدخل المفصلة -->
         <div class="card pl-statement">
-          <h3>📋 قائمة الدخل</h3>
+          <h3>قائمة الدخل</h3>
           <div class="pl-row pl-header"><span>البند</span><span>المبلغ</span></div>
 
           <div class="pl-section-title">الإيرادات</div>
@@ -143,7 +143,7 @@
 
         <!-- التدفق النقدي -->
         <div class="card">
-          <h3>💵 التدفق النقدي</h3>
+          <h3>التدفق النقدي</h3>
           <div class="pl-statement">
             <div class="pl-row pl-header"><span>البند</span><span>المبلغ</span></div>
             <div class="pl-row">
@@ -200,7 +200,7 @@
 
       <!-- الرسم البياني الشهري -->
       <div v-if="plTrend.length" class="card mt-4">
-        <h3>📈 الاتجاه الشهري — آخر {{ plTrend.length }} شهور</h3>
+        <h3>الاتجاه الشهري — آخر {{ plTrend.length }} شهور</h3>
         <div class="table-wrap">
           <table class="report-table">
             <thead>
@@ -268,7 +268,7 @@
       </div>
     </template>
     <div v-else class="empty-state card">
-      <span>📊</span>
+      <span></span>
       <p>اضغط تحديث لتحميل تقرير الربح والخسارة</p>
       <button class="btn btn-primary" @click="$emit('retry')">تحميل التقرير</button>
     </div>

@@ -3,7 +3,7 @@
     <!-- Header -->
     <div class="page-header card">
       <div class="header-title">
-        <span class="header-icon">🥣</span>
+        <span class="header-icon">🧪</span>
         <div>
           <h2>وصفات المنتجات</h2>
           <p>تعريف مكونات كل منتج — يُخصم المخزون تلقائياً عند البيع</p>
@@ -22,21 +22,21 @@
     <!-- Stats -->
     <div class="grid grid-3 stats-row">
       <div class="stat-card card">
-        <div class="stat-icon">🧾</div>
+        <div class="stat-icon">📖</div>
         <div class="stat-body">
           <div class="stat-label">إجمالي الوصفات</div>
           <div class="stat-value">{{ recipes.length }}</div>
         </div>
       </div>
       <div class="stat-card card">
-        <div class="stat-icon">📦</div>
+        <div class="stat-icon">⚠️</div>
         <div class="stat-body">
           <div class="stat-label">منتجات بدون وصفة</div>
           <div class="stat-value warn">{{ productsWithoutRecipe.length }}</div>
         </div>
       </div>
       <div class="stat-card card">
-        <div class="stat-icon">⚠️</div>
+        <div class="stat-icon">🚨</div>
         <div class="stat-body">
           <div class="stat-label">مخزون منخفض</div>
           <div class="stat-value danger">{{ lowStockIngredients }}</div>
@@ -47,7 +47,7 @@
     <!-- Recipes List -->
     <div v-if="loading" class="loading-state card">⏳ جاري التحميل...</div>
     <div v-else-if="!recipes.length" class="empty-state card">
-      <span>🥣</span>
+      <span>🧪</span>
       <p>لا توجد وصفات بعد. أضف وصفة لكل منتج في المحل.</p>
       <button class="btn btn-add" @click="openNewRecipe">
         <AppIcon name="add" :size="16" /> إضافة أول وصفة
@@ -61,7 +61,7 @@
               class="recipe-type-badge"
               :class="recipe.items.length === 1 ? 'simple' : 'compound'"
             >
-              {{ recipe.items.length === 1 ? '⚡ بسيط' : '🔗 مركب' }}
+              {{ recipe.items.length === 1 ? '☕ بسيط' : '🧪 مركب' }}
             </span>
             <div>
               <div class="recipe-product-name">{{ recipe.product_name }}</div>
@@ -123,7 +123,7 @@
               {{
                 recipe.can_produce > 0
                   ? `يمكن إنتاج ${formatQty(recipe.can_produce)} وحدة`
-                  : '⚠️ مخزون غير كافٍ'
+                  : ' مخزون غير كافٍ'
               }}
             </span>
           </div>
@@ -133,7 +133,7 @@
 
     <!-- Products Without Recipe Warning -->
     <div v-if="productsWithoutRecipe.length" class="card warning-card">
-      <h3>⚠️ منتجات بدون وصفة ({{ productsWithoutRecipe.length }})</h3>
+      <h3>منتجات بدون وصفة ({{ productsWithoutRecipe.length }})</h3>
       <p class="warning-note">هذه المنتجات سيتم خصمها مباشرة من مخزون المنتج نفسه عند البيع.</p>
       <div class="no-recipe-list">
         <div v-for="p in productsWithoutRecipe" :key="p.id" class="no-recipe-item">
@@ -196,19 +196,19 @@
     <div class="card productions-section">
       <div class="productions-header">
         <div>
-          <h3>🏭 سجل عمليات الإنتاج</h3>
+          <h3>سجل عمليات الإنتاج</h3>
           <p>كل الدفعات المنتجة — يمكن عكس أي عملية لاسترداد المكونات وطرح المنتج</p>
         </div>
         <div class="productions-filters">
           <input v-model="prodFilter.from_date" type="date" class="filter-input" title="من تاريخ" />
           <input v-model="prodFilter.to_date" type="date" class="filter-input" title="إلى تاريخ" />
-          <button class="btn btn-outline" @click="loadProductions">🔄</button>
+          <button class="btn btn-outline" @click="loadProductions"></button>
         </div>
       </div>
 
       <div v-if="productionsLoading" class="loading-state">⏳ جاري التحميل...</div>
       <div v-else-if="!productions.length" class="empty-state">
-        <span>🏭</span>
+        <span></span>
         <p>لا توجد عمليات إنتاج بعد</p>
       </div>
       <div v-else class="productions-table">
@@ -240,7 +240,7 @@
             {{ formatQty(prod.current_stock) }}
           </span>
           <span class="col-status">
-            <span v-if="prod.is_reversed" class="badge-reversed">✓ تم العكس</span>
+            <span v-if="prod.is_reversed" class="badge-reversed"> تم العكس</span>
             <span v-else class="badge-active">نشط</span>
           </span>
           <span class="col-actions">
@@ -250,7 +250,7 @@
               :disabled="reversing === prod.movement_id"
               @click="confirmReverse(prod)"
             >
-              {{ reversing === prod.movement_id ? '...' : '↩️ عكس' }}
+              {{ reversing === prod.movement_id ? '...' : '↩ عكس' }}
             </button>
             <span v-else class="text-muted">—</span>
           </span>
@@ -262,8 +262,8 @@
     <div v-if="showReverseModal" class="modal-overlay" @click.self="showReverseModal = false">
       <div class="modal-card reverse-modal">
         <div class="modal-header">
-          <h3>↩️ تأكيد عكس عملية الإنتاج</h3>
-          <button class="close-btn" @click="showReverseModal = false">✕</button>
+          <h3>↩ تأكيد عكس عملية الإنتاج</h3>
+          <button class="close-btn" @click="showReverseModal = false"></button>
         </div>
         <div class="form-section" v-if="reverseTarget">
           <div class="reverse-summary">
@@ -307,7 +307,7 @@
             />
           </div>
           <div class="reverse-warning">
-            ⚠️ هذا الإجراء سيطرح المنتج النهائي من المخزون ويُعيد المكونات — لا يمكن التراجع.
+            هذا الإجراء سيطرح المنتج النهائي من المخزون ويُعيد المكونات — لا يمكن التراجع.
           </div>
           <p v-if="reverseError" class="form-error">{{ reverseError }}</p>
         </div>

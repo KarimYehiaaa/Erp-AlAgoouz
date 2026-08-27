@@ -1,5 +1,6 @@
 import { query } from '../database/pool.ts';
 import { convertQty, normalizeUnit } from './productCostService.ts';
+import { logger } from './loggerService.ts';
 
 // Fit simple linear regression on a dataset
 const fitLinearRegression = (y) => {
@@ -40,7 +41,7 @@ export const getDemandForecast = async (filters: Record<string, any> = {}) => {
 
   // 1. Fetch current available stock for all products in this warehouse
   const stockSql = `
-    SELECT 
+    SELECT
       p.id, p.sku, p.name_ar, p.unit, p.sale_price, p.purchase_price, p.category_id,
       pc.name_ar AS category_name,
       COALESCE((SELECT SUM(quantity) FROM inventory i WHERE i.product_id = p.id AND i.warehouse_id = $1), 0) AS stock_available,
@@ -55,7 +56,7 @@ export const getDemandForecast = async (filters: Record<string, any> = {}) => {
 
   // 2. Fetch active recipe details
   const recipeItemsSql = `
-    SELECT 
+    SELECT
       ri.recipe_id, ri.ingredient_product_id, ri.quantity, ri.unit_code,
       ip.name_ar AS ingredient_name, ip.unit AS ingredient_unit
     FROM product_recipe_items ri
@@ -76,7 +77,7 @@ export const getDemandForecast = async (filters: Record<string, any> = {}) => {
 
   // 3. Fetch sales historical daily quantity sold for the last 90 days
   const salesSql = `
-    SELECT 
+    SELECT
       si.product_id,
       s.sale_date AS date,
       SUM(si.quantity) AS qty_sold
@@ -235,7 +236,7 @@ export const getDemandForecast = async (filters: Record<string, any> = {}) => {
             convertedQty = Number(ing.quantity) * factor;
           } else {
             // وحدات غير قابلة للتحويل (مثل كجم ↔ عدد) — لا نجري تحويلاً صامتاً خاطئاً
-            console.warn(
+            logger.warn(
               `[Forecasting] تعذر تحويل الوحدات (${fromUnit} ← ${toUnit}) للمكوّن ${ing.ingredient_product_id} — استُخدمت الكمية كما هي`,
             );
           }

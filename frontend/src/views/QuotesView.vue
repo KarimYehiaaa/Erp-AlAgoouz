@@ -171,6 +171,7 @@ import { onMounted, reactive, ref } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
 import { quotes as quotesApi } from '@/api';
 import { formatMoney } from '@/utils/currency';
+import { exportElementToPdf } from '@/utils/pdfExport';
 
 const templateStorageKey = 'quote_template';
 const makeKey = () => {
@@ -341,19 +342,10 @@ const downloadPdf = async () => {
 
   saving.value = true;
   try {
-    const el = document.querySelector('.preview-doc');
-    const module = await import('html2pdf.js');
-    const html2pdf = (module.default || module) as any;
-    await html2pdf()
-      .set({
-        margin: [8, 8, 8, 8],
-        filename: `quote-${new Date().toISOString().slice(0, 10)}.pdf`,
-        image: { type: 'jpeg', quality: 0.95 },
-        html2canvas: { scale: 2, useCORS: true, logging: false },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-      })
-      .from(el)
-      .save();
+    await exportElementToPdf({
+      element: '.preview-doc',
+      filename: `quote-${new Date().toISOString().slice(0, 10)}.pdf`,
+    });
     success.value = 'تم تنزيل عرض السعر بنجاح.';
   } catch (e: any) {
     error.value = e?.message || 'فشل إنشاء ملف PDF';

@@ -1,5 +1,6 @@
 import pg from 'pg';
 import config from '../config/index.ts';
+import { logger } from '../services/loggerService.ts';
 const { Pool, types } = pg;
 types.setTypeParser(1082, (value) => value);
 types.setTypeParser(1700, (value) => {
@@ -30,16 +31,16 @@ const pool = new Pool({
   allowExitOnIdle: true,
 });
 pool.on('error', (err, __client) => {
-  console.error('[DB Pool] خطأ غير متوقع في اتصال قاعدة البيانات:', err.message);
+  logger.error('[DB Pool] خطأ غير متوقع في اتصال قاعدة البيانات:', err.message);
 });
 pool.on('connect', (_client) => {
   if (process.env.NODE_ENV === 'development') {
-    console.log(`[DB Pool] اتصال جديد — إجمالي: ${pool.totalCount} / ${maxConnections}`);
+    logger.info(`[DB Pool] اتصال جديد — إجمالي: ${pool.totalCount} / ${maxConnections}`);
   }
 });
 pool.on('remove', (_client) => {
   if (process.env.NODE_ENV === 'development') {
-    console.log(`[DB Pool] إزالة اتصال — متبقٍ: ${pool.totalCount}`);
+    logger.info(`[DB Pool] إزالة اتصال — متبقٍ: ${pool.totalCount}`);
   }
 });
 /**
@@ -56,7 +57,7 @@ const query = async (
     return await pool.query(text, params);
   } catch (err: any) {
     if (err.message && err.message.includes('EMAXCONNSESSION')) {
-      console.warn('⚠️ [DB Pool] Supabase pooler full, retrying query in 500ms...');
+      logger.warn(' [DB Pool] Supabase pooler full, retrying query in 500ms...');
       await new Promise((res) => setTimeout(res, 500));
       return await pool.query(text, params);
     }
@@ -107,13 +108,9 @@ const checkHealth = async () => {
   }
 };
 const closePool = async () => {
-  console.log(
-    '[DB Pool] \u0625\u063A\u0644\u0627\u0642 \u062C\u0645\u064A\u0639 \u0627\u0644\u0627\u062A\u0635\u0627\u0644\u0627\u062A...',
-  );
+  logger.info('[DB Pool] إغلاق جميع الاتصالات...');
   await pool.end();
-  console.log(
-    '[DB Pool] \u062A\u0645 \u0625\u063A\u0644\u0627\u0642 \u0627\u0644\u0640 Pool \u0628\u0646\u062C\u0627\u062D',
-  );
+  logger.info('[DB Pool] تم إغلاق الـ Pool بنجاح');
 };
 const pool_default = pool;
 export { checkHealth, closePool, pool_default as default, getClient, query, withTransaction };

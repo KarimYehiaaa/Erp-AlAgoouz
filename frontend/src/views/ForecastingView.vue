@@ -3,7 +3,7 @@
     <!-- Header -->
     <div class="page-header card">
       <div class="header-title">
-        <span class="header-icon">🧠</span>
+        <span class="header-icon">🔮</span>
         <div>
           <h2>التنبؤ الذكي وتحليل الطلب</h2>
           <p>
@@ -86,21 +86,21 @@
           :class="{ active: activeTab === 'runway' }"
           @click="activeTab = 'runway'"
         >
-          🎛️ مؤشر نفاد المخزون (Runway)
+          📉 مؤشر نفاد المخزون (Runway)
         </button>
         <button
           type="button"
           :class="{ active: activeTab === 'sales' }"
           @click="activeTab = 'sales'"
         >
-          📈 توقع طلب المنتجات (7 أيام)
+          📊 توقع طلب المنتجات (7 أيام)
         </button>
         <button
           type="button"
           :class="{ active: activeTab === 'ingredients' }"
           @click="activeTab = 'ingredients'"
         >
-          📦 توقع استهلاك المكونات (7 أيام)
+          🧪 توقع استهلاك المكونات (7 أيام)
         </button>
         <button
           type="button"

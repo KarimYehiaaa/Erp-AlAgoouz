@@ -27,13 +27,13 @@ describe('Financial Reports (P&L)', () => {
       RETURNING id
     `);
     saleId = invRes.rows[0].id;
-    
+
     // 3. Add sale items
     await query(`
       INSERT INTO sale_items (sale_id, product_id, quantity, unit_price, total_amount, cost_price)
       VALUES ($1, $2, $3, $4, $5, $6)
     `, [saleId, productId, 2, 200, 400, 100]); // Revenue 400, COGS 200 (2 * 100)
-    
+
     // 4. Add an expense
     await query(`
       INSERT INTO expenses (expense_number, title, amount, expense_date)
@@ -58,12 +58,12 @@ describe('Financial Reports (P&L)', () => {
     // حتى يطابق sale_date دائمًا مهما كانت المنطقة الزمنية للخادم.
     const today = (await query(`SELECT CURRENT_DATE::text AS d`)).rows[0].d as string;
     const pl = await getProfitAndLoss(today, today);
-    
+
     expect(pl).toBeDefined();
-    
+
     // Test that the revenue reflects the test invoice (400)
     const revenue = pl.revenue?.net || pl.summary?.sales || 0;
-    
+
     // We expect revenue to be at least 400 since there might be other transactions in DB
     expect(revenue).toBeGreaterThanOrEqual(400);
 

@@ -29,7 +29,7 @@ app.config.errorHandler = (err: any, instance: any, info: any) => {
 
 app.mount('#app');
 
-// 📲 Register PWA Service Worker
+//  Register PWA Service Worker
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js').catch((err: any) => {
@@ -38,19 +38,16 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
   });
 }
 
-// 🔌 Connect Real-time WebSocket Channel
+//  Connect Real-time WebSocket Channel
 // ── إصلاح التجمّد: نفس host الصفحة (يعمل DEV + PROD)، backoff تصاعدي،
 //    إيقاف كامل عند إخفاء التبويب، وإزالة الإغلاق المزدوج في onerror.
 import { useAppStore } from './stores/app';
 const appStore = useAppStore(pinia);
 
 const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-// الباك يخدم الـ WebSocket على نفس host/port الصفحة — لا نكتب المنفذ يدويًا بعد الآن.
-// الخادم يطالب بـ JWT عبر ?token= (websocketService) وإلا يغلق الاتصال برمز 4001.
-const buildWsUrl = () => {
-  const token = localStorage.getItem('token');
-  return `${wsProtocol}//${window.location.host}/ws${token ? `?token=${encodeURIComponent(token)}` : ''}`;
-};
+// الباك يخدم الـ WebSocket على نفس host/port الصفحة — المصادقة عبر HttpOnly cookie
+// المرفق تلقائياً مع ترقية الاتصال (نفس الأصل) — لا توكن في الـ URL.
+const buildWsUrl = () => `${wsProtocol}//${window.location.host}/ws`;
 
 let ws: WebSocket | null = null;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;

@@ -1,6 +1,5 @@
 /**
  * routes/sync.routes.ts — مسارات فحص ومراقبة التزامن والاتصال
- * ════════════════════════════════════════════════════════════
  */
 import { Router } from 'express';
 import { syncMonitorController } from '../controllers/syncMonitorController.ts';

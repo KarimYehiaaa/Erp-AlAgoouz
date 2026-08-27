@@ -20,7 +20,7 @@ describe('LoginView.vue', () => {
   it('renders login form properly', () => {
     const wrapper = mount(LoginView);
     expect(wrapper.exists()).toBe(true);
-    
+
     // Check if the submit button exists
     const button = wrapper.find('button[type="submit"]');
     expect(button.exists()).toBe(true);

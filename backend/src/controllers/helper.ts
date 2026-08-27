@@ -12,3 +12,14 @@ export const ok = (
   message?: string,
   meta?: unknown,
 ) => res.json({ success: true, data, message, meta });
+
+/**
+ * يلفّ معالجاً غير متزامن ويحوّل أي خطأ إلى next() — يلغي حاجة try/catch اليدوية.
+ * @param {Function} fn المعالج غير المتزامن
+ * @returns {import('express').RequestHandler}
+ */
+export const wrap =
+  (fn: (...args: any[]) => unknown): import('express').RequestHandler =>
+  (req, res, next) => {
+    Promise.resolve(fn(req, res, next)).catch(next);
+  };

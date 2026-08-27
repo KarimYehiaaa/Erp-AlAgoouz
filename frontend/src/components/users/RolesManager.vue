@@ -13,7 +13,7 @@
     >
       <div class="title-info">
         <h3 style="margin: 0; font-size: 1.1rem; font-weight: 850; color: var(--text-strong)">
-          🏷️ إدارة المناصب والأدوار
+          إدارة المناصب والأدوار
         </h3>
         <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: var(--text-muted)">
           أنشئ وعدّل وحذف المناصب في النظام
@@ -51,7 +51,7 @@
       <h4
         style="margin: 0 0 16px 0; font-size: 0.95rem; font-weight: 800; color: var(--primary-dark)"
       >
-        {{ editingRole ? '✏️ تعديل منصب: ' + editingRole.name_ar : '➕ إنشاء منصب جديد' }}
+        {{ editingRole ? ' تعديل منصب: ' + editingRole.name_ar : ' إنشاء منصب جديد' }}
       </h4>
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px">
         <div class="form-group" v-if="!editingRole">
@@ -235,7 +235,7 @@
                   :style="role.name === 'admin' ? 'opacity: 0.4; cursor: not-allowed;' : ''"
                   title="تعديل المنصب"
                 >
-                  ✏️ تعديل
+                  تعديل
                 </button>
                 <button
                   type="button"
@@ -256,7 +256,7 @@
                       : 'حذف المنصب'
                   "
                 >
-                  🗑️ حذف
+                  حذف
                 </button>
               </div>
             </td>

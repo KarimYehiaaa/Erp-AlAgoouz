@@ -346,7 +346,7 @@ export const exportProductsToExcel = async () => {
   const storeWarehouseId = await getWarehouseIdByCode('STORE');
   const products = (
     await query(
-      `SELECT 
+      `SELECT
       p.sku,
       p.barcode,
       p.name_ar,

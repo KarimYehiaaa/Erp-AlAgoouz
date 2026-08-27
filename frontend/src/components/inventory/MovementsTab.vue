@@ -1,6 +1,5 @@
 <!--
   MovementsTab.vue — تبويب "حركة المخزون": سجل الحركات مع الفلترة
-  ═════════════════════════════════════════════════════════════════
   جدول حركات المخزون مع فلتر النوع (تحويلات/مبيعات/مشتريات/هالك/تعديل)
   وزر طباعة إذن التحويل للحركات من نوع transfer.
   استُخرج من InventoryView.vue (كان 1,594 سطرًا).
@@ -17,7 +16,7 @@
         gap: 10px;
       "
     >
-      <h3 style="margin: 0">📋 سجل حركة المخزون</h3>
+      <h3 style="margin: 0">سجل حركة المخزون</h3>
       <div style="display: flex; align-items: center; gap: 8px">
         <label style="font-size: 0.84rem; font-weight: 700">تصفية الحركات:</label>
         <select
@@ -27,11 +26,11 @@
           @change="onFilterChange"
         >
           <option value="">كل الحركات</option>
-          <option value="transfer">🔄 التحويلات فقط</option>
-          <option value="sale">🛒 مبيعات</option>
-          <option value="purchase">📥 مشتريات</option>
-          <option value="wastage">🗑️ هالك</option>
-          <option value="adjustment">✏️ تعديل مخزون</option>
+          <option value="transfer">التحويلات فقط</option>
+          <option value="sale">مبيعات</option>
+          <option value="purchase">مشتريات</option>
+          <option value="wastage">هالك</option>
+          <option value="adjustment">تعديل مخزون</option>
         </select>
       </div>
     </div>
@@ -77,9 +76,7 @@
           class="icon-btn"
           title="طباعة إذن التحويل المخزني"
           @click="$emit('printVoucher', item)"
-        >
-          🖨️
-        </button>
+        ></button>
       </template>
     </BaseTable>
   </div>

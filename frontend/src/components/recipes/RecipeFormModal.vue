@@ -2,8 +2,8 @@
   <div class="modal-overlay" @click.self="emit('close')">
     <div class="modal-card">
       <div class="modal-header">
-        <h3>{{ form.id ? '✏️ تعديل وصفة' : '➕ وصفة جديدة' }}</h3>
-        <button class="close-btn" @click="emit('close')">✕</button>
+        <h3>{{ form.id ? ' تعديل وصفة' : ' وصفة جديدة' }}</h3>
+        <button class="close-btn" @click="emit('close')"></button>
       </div>
 
       <div class="form-section">
@@ -28,11 +28,11 @@
         <div class="ingredients-header">
           <h4>المكونات</h4>
           <div class="recipe-type-hint">
-            <span v-if="form.items.length === 1" class="type-badge simple"
-              >⚡ وصفة بسيطة (مكون واحد)</span
+            <span v-if="form.items.length === 1" class="type-badge simple">
+              وصفة بسيطة (مكون واحد)</span
             >
-            <span v-else class="type-badge compound"
-              >🔗 وصفة مركبة ({{ form.items.length }} مكونات)</span
+            <span v-else class="type-badge compound">
+              وصفة مركبة ({{ form.items.length }} مكونات)</span
             >
           </div>
         </div>
@@ -81,9 +81,7 @@
               :title="
                 form.items.length === 1 ? 'يجب أن يكون هناك مكون واحد على الأقل' : 'حذف المكون'
               "
-            >
-              ✕
-            </button>
+            ></button>
           </div>
         </div>
 

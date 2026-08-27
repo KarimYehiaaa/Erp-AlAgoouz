@@ -20,7 +20,7 @@
     <!-- Live Date & Clock -->
     <div class="header-center">
       <div class="clock-badge">
-        <span class="clock-icon">🕒</span>
+        <span class="clock-icon"></span>
         <span class="time-display">{{ currentTime }}</span>
         <span class="date-sep">|</span>
         <span class="date-display">{{ currentDate }}</span>
@@ -30,7 +30,7 @@
     <!-- Cashier Info & Actions -->
     <div class="header-actions">
       <div class="cashier-pill">
-        <span class="cashier-avatar">☕</span>
+        <span class="cashier-avatar"></span>
         <span class="cashier-label">الكاشير:</span>
         <span class="cashier-name">{{ cashierName }}</span>
       </div>
@@ -44,7 +44,7 @@
           :title="isFullscreen ? 'الخروج من ملء الشاشة (Esc)' : 'ملء الشاشة (F11)'"
           type="button"
         >
-          <span>{{ isFullscreen ? '🗗' : '⛶' }}</span>
+          <span>{{ isFullscreen ? '' : '' }}</span>
         </button>
 
         <!-- Logout Button -->
@@ -54,7 +54,7 @@
           title="تسجيل الخروج وإنهاء الشفت"
           type="button"
         >
-          <span>🚪</span>
+          <span></span>
           <span class="logout-text">خروج</span>
         </button>
       </div>

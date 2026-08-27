@@ -48,7 +48,7 @@ test('auto-backup runs successfully and creates file', async () => {
   process.env.AUTO_BACKUP_DIR = backupDir;
   process.env.AUTO_BACKUP_SKIP_CLEANUP = '1';
   process.env.AUTO_BACKUP_SKIP_EXTERNAL = '1';
-  
+
   try {
     await fs.rm(backupDir, { recursive: true, force: true });
     await fs.mkdir(backupDir, { recursive: true });

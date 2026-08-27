@@ -57,7 +57,7 @@
           "
         >
           <h3 style="margin: 0; color: var(--text-strong); font-size: 1.15rem; font-weight: 850">
-            ⌨️ لوحة اختصارات النظام السريعة
+            ⌨ لوحة اختصارات النظام السريعة
           </h3>
           <button
             @click="showShortcutsHUD = false"
@@ -68,9 +68,7 @@
               cursor: pointer;
               color: var(--text-muted);
             "
-          >
-            ✕
-          </button>
+          ></button>
         </div>
         <div class="hud-body" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px">
           <div class="hud-group">
@@ -85,7 +83,7 @@
                 margin-bottom: 10px;
               "
             >
-              🗺️ التنقل السريع (Alt + مفتاح)
+              التنقل السريع (Alt + مفتاح)
             </h4>
             <ul style="list-style: none; padding: 0; margin: 0; display: grid; gap: 8px">
               <li
@@ -228,7 +226,7 @@
                 margin-bottom: 10px;
               "
             >
-              💡 مفاتيح عامة ومساعدة
+              مفاتيح عامة ومساعدة
             </h4>
             <ul style="list-style: none; padding: 0; margin: 0; display: grid; gap: 8px">
               <li

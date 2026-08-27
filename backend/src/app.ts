@@ -1,6 +1,5 @@
 /**
  * app.ts — بناء تطبيق Express (بدون تشغيل)
- * ═══════════════════════════════════════════════
  * يبني تطبيق Express كاملًا:
  *  - الـ middleware: الأمان (helmet/cors/rate-limit)، تسجيل الطلبات (morgan)،
  *    تحليل JSON/cookies، ومعرّف الطلب (requestId)
@@ -31,6 +30,7 @@ import cookieParser from 'cookie-parser';
 import { checkHealth } from './database/pool.ts';
 import { initSentry } from './services/sentry.ts';
 import { syncMonitorController } from './controllers/syncMonitorController.ts';
+import { logger } from './services/loggerService.ts';
 
 // ─── تحديد مجلد العمل (يعمل في ESM وفي العقدة العادية) ───────────────────────
 let __dirname = process.cwd();
@@ -89,12 +89,11 @@ app.use(
         return callback(null, true);
       }
 
-      // 3. بيئات التطوير المحلية والشبكة الداخلية للفرع (Localhost / LAN IP)
+      // 3. بيئات التطوير المحلية فقط (Localhost) — شبكات LAN تُضبط صراحةً عبر CORS_LAN_ORIGINS
       if (
         origin.startsWith('http://localhost') ||
         origin.startsWith('http://127.0.0.1') ||
-        origin.startsWith('http://192.168.') ||
-        origin.startsWith('http://10.')
+        config.lanOrigins.includes(origin)
       ) {
         return callback(null, true);
       }
@@ -137,7 +136,7 @@ app.use('/v1', routes);
  * نقطة تشخيص — متاحة فقط للمدير في بيئة غير الإنتاج.
  * تعرض تفاصيل الطلب الحالي (URL، headers، env) للمساعدة في تتبع المشاكل.
  */
-app.get('/api/debug', authenticate, (req, res) => {
+const handleDebug = (req: any, res: any) => {
   if (config.nodeEnv === 'production' || req.user?.role_name !== 'admin') {
     return res.status(404).json({
       success: false,
@@ -156,29 +155,8 @@ app.get('/api/debug', authenticate, (req, res) => {
       VERCEL: process.env.VERCEL,
     },
   });
-});
-
-/** نسخة مختصرة من نقطة التشخيص (بدون بادئة /api). */
-app.get('/debug', authenticate, (req, res) => {
-  if (config.nodeEnv === 'production' || req.user?.role_name !== 'admin') {
-    return res.status(404).json({
-      success: false,
-      message: 'الصفحة غير موجودة',
-    });
-  }
-  res.json({
-    success: true,
-    url: req.url,
-    originalUrl: req.originalUrl,
-    path: req.path,
-    method: req.method,
-    headers: req.headers,
-    env: {
-      NODE_ENV: process.env.NODE_ENV,
-      VERCEL: process.env.VERCEL,
-    },
-  });
-});
+};
+app.get('/api/debug', authenticate, handleDebug);
 
 /**
  * نقطة فحص الصحة — تتحقق من اتصال قاعدة البيانات وتعيد حالة الـ Pool.
@@ -214,7 +192,7 @@ app.get('/sync/status', syncMonitorController.getStatus);
 // ─── تقديم الواجهة المبنية (SPA) ──────────────────────────────────────────────
 const frontendDist = resolveFrontendDist();
 if (frontendDist) {
-  console.log(`📦 Serving frontend from: ${frontendDist}`);
+  logger.info(` Serving frontend from: ${frontendDist}`);
   app.use(express.static(frontendDist));
   // أي مسار ليس API → index.html (دعم History Mode في Vue Router)
   app.use((req, res, next) => {
@@ -224,7 +202,7 @@ if (frontendDist) {
     next();
   });
 } else {
-  console.log('⚠️ Frontend dist not found - API only mode');
+  logger.info(' Frontend dist not found - API only mode');
   app.get('/', (_req, res) => res.redirect('/api/health'));
 }
 

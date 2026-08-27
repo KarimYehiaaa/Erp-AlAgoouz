@@ -119,7 +119,6 @@ describe('خوارزميات لوحة التحكم (dashboardService)', () => {
     if (customerId) await query(`DELETE FROM customers WHERE id = $1`, [customerId]);
     if (productId) await query(`DELETE FROM products WHERE id = $1`, [productId]);
     invalidateDashboardCache();
-    await pool.end();
   });
 
   const getStatsFor = async (date: string) => {

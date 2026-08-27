@@ -1,6 +1,5 @@
 <!--
   BranchSalesPanel.vue — تبويب "يومي": نموذج تسجيل/تعديل + سجل مبيعات الفرع
-  ═════════════════════════════════════════════════════════════════════
   النموذج يُعرض داخل مودال عند التعديل (Teleport إلى body) وكرت عادي عند
   التسجيل. الجدول يعرض سجل المبيعات اليومية مع خيار التعديل.
   استُخرج من SalesView لتقليل حجم الملف المركزي (كان 2,463 سطرًا).
@@ -58,7 +57,7 @@
                 placeholder="أدخل المبلغ المدفوع"
               />
               <div v-if="remainingAmount > 0" class="field-hint warning">
-                ⚠️ سيُضاف {{ formatMoney(remainingAmount) }} لرصيد العميل المستحق
+                سيُضاف {{ formatMoney(remainingAmount) }} لرصيد العميل المستحق
               </div>
             </div>
             <div class="form-group">
@@ -81,7 +80,7 @@
         </div>
         <div style="display: flex; align-items: center; gap: 12px">
           <router-link to="/branch-sales" class="btn btn-outline btn-sm">
-            <span>🛒 شاشة الكاشير والمبيعات السريعة</span>
+            <span> شاشة الكاشير والمبيعات السريعة</span>
           </router-link>
           <span class="history-total">{{ formatMoney(periodTotal) }}</span>
         </div>

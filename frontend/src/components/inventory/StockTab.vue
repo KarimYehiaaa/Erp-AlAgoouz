@@ -1,6 +1,5 @@
 <!--
   StockTab.vue — تبويب "المخزون": بطاقات التقييم + جدول المخزون
-  ═══════════════════════════════════════════════════════════════
   يعرض تقييم قيمة المخزون (الإجمالي/الرئيسي/الفرع) وجدول المنتجات مع
   الخلايا المخصصة (الكود، الكميات، الحد الأدنى، الحالة) وأزرار الإجراءات
   (تحويل/تعديل/هالك). استُخرج من InventoryView.vue (كان 1,594 سطرًا).
@@ -9,19 +8,19 @@
   <!-- Inventory Valuation Summary Cards -->
   <div class="grid grid-3 valuation-cards-row">
     <div class="card val-card val-total">
-      <span class="val-label">💵 إجمالي تقييم رصيد المخزون (بالتكلفة)</span>
+      <span class="val-label"> إجمالي تقييم رصيد المخزون (بالتكلفة)</span>
       <h3 class="val-amount">
         {{ formatMoney(totalInventoryValue) }}
       </h3>
     </div>
     <div class="card val-card val-main">
-      <span class="val-label">🏢 قيمة مخزون الرئيسي</span>
+      <span class="val-label"> قيمة مخزون الرئيسي</span>
       <h3 class="val-amount">
         {{ formatMoney(mainWarehouseValue) }}
       </h3>
     </div>
     <div class="card val-card val-branch">
-      <span class="val-label">🏪 قيمة مخزون الفرع / المحل</span>
+      <span class="val-label"> قيمة مخزون الفرع / المحل</span>
       <h3 class="val-amount">
         {{ formatMoney(branchWarehouseValue) }}
       </h3>
@@ -64,10 +63,10 @@
       </span>
     </template>
     <template #cell-main_quantity="{ item }">
-      <span class="pill pill-main"> 🏢 {{ fmtQty(getMainQty(item)) }} </span>
+      <span class="pill pill-main"> {{ fmtQty(getMainQty(item)) }} </span>
     </template>
     <template #cell-branch_quantity="{ item }">
-      <span class="pill pill-branch"> 🏪 {{ fmtQty(getBranchQty(item)) }} </span>
+      <span class="pill pill-branch"> {{ fmtQty(getBranchQty(item)) }} </span>
     </template>
     <template #cell-min_stock="{ item }">
       <span class="min-stock-tag" title="الحد الأدنى محسوب ومطبق بناءً على إجمالي رصيد المنشأة">
@@ -76,7 +75,7 @@
     </template>
     <template #cell-status="{ item }">
       <span :class="['badge', item.is_low ? 'badge-danger' : 'badge-success']">
-        {{ item.is_low ? '⚠️ أقل من الحد الأدنى' : '✅ متوفر بالكامل' }}
+        {{ item.is_low ? ' أقل من الحد الأدنى' : ' متوفر بالكامل' }}
       </span>
     </template>
     <template #cell-actions="{ item }">
@@ -85,9 +84,7 @@
         class="icon-btn"
         title="تحويل بين المخزن الرئيسي وصالة البيع"
         @click="$emit('openTransfer', item)"
-      >
-        🔄
-      </button>
+      ></button>
       <button
         v-permission="'inventory.edit'"
         class="icon-btn"
@@ -97,17 +94,13 @@
           item.has_active_recipe ? 'منتج وصفة نشطة: يتم تحديثه من مكونات الوصفة فقط' : 'تعديل'
         "
         @click="$emit('openEdit', item)"
-      >
-        ✎
-      </button>
+      ></button>
       <button
         v-permission="'inventory.edit'"
         class="icon-btn btn-danger"
         title="تسجيل هالك"
         @click="$emit('openWastage', item)"
-      >
-        🗑️
-      </button>
+      ></button>
     </template>
   </BaseTable>
 </template>

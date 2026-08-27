@@ -61,15 +61,15 @@ if (!isVercel) {
   probeRedis()
     .then((available) => {
       if (!available) {
-        console.log(
-          '[Queue] ⚠️ Redis غير متاح — نظام الطوابير (BullMQ) معطّل. ' +
+        logger.info(
+          '[Queue]  Redis غير متاح — نظام الطوابير (BullMQ) معطّل. ' +
             'لتفعيله: ثبّت Redis أو أضف REDIS_URL في .env',
         );
         return;
       }
 
       redisReady = true;
-      console.log('[Queue] ✅ تم الاتصال بـ Redis — نظام الطوابير مُفعّل');
+      logger.info('[Queue]  تم الاتصال بـ Redis — نظام الطوابير مُفعّل');
 
       const connection = new IORedis(REDIS_URL, {
         maxRetriesPerRequest: null,
@@ -77,7 +77,7 @@ if (!isVercel) {
 
       // كتم أخطاء الاتصال بعد الإنشاء
       connection.on('error', (err) => {
-        console.error(`[Queue] خطأ Redis: ${err.message}`);
+        logger.error(`[Queue] خطأ Redis: ${err.message}`);
       });
 
       // Setup Main Queue
@@ -111,7 +111,7 @@ if (!isVercel) {
       });
     })
     .catch((err) => {
-      console.warn(`[Queue] ⚠️ فشل تهيئة نظام الطوابير: ${err.message}`);
+      logger.warn(`[Queue]  فشل تهيئة نظام الطوابير: ${err.message}`);
     });
 }
 

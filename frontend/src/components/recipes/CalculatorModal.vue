@@ -2,8 +2,8 @@
   <div class="modal-overlay" @click.self="emit('close')">
     <div class="modal-card">
       <div class="modal-header">
-        <h3>🧮 حاسبة تكلفة وهامش ربح التوليفات</h3>
-        <button class="close-btn" @click="emit('close')">✕</button>
+        <h3>حاسبة تكلفة وهامش ربح التوليفات</h3>
+        <button class="close-btn" @click="emit('close')"></button>
       </div>
 
       <div class="form-section">
@@ -59,9 +59,7 @@
               class="remove-ingredient-btn"
               :disabled="calcForm.items.length === 1"
               @click="removeCalcItem(i)"
-            >
-              ✕
-            </button>
+            ></button>
           </div>
         </div>
 
@@ -298,8 +296,8 @@ const calcProfitStatusText = computed(() => {
   const price = Number(calcForm.value.target_price || 0);
   const margin = Number(calcForm.value.target_margin || 0);
   if (!price || price <= 0) return 'الرجاء إدخال سعر البيع';
-  if (price < cost) return `⚠️ بيع بخسارة! هامش الربح: ${margin}%`;
-  return `✅ هامش الربح المحقق: ${margin}% (الربح للكيلو: ${props.formatMoney(price - cost)})`;
+  if (price < cost) return ` بيع بخسارة! هامش الربح: ${margin}%`;
+  return ` هامش الربح المحقق: ${margin}% (الربح للكيلو: ${props.formatMoney(price - cost)})`;
 });
 
 const isCalcValid = computed(() => {

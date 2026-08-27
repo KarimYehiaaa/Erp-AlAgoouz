@@ -3,7 +3,7 @@
     <div class="card modal-content sale-detail-modal">
       <div class="modal-header">
         <h3>تفاصيل الفاتورة #{{ sale.sale_number }}</h3>
-        <button type="button" class="btn-close" @click="$emit('close')">✕</button>
+        <button type="button" class="btn-close" @click="$emit('close')"></button>
       </div>
 
       <div class="sale-info-grid">

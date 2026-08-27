@@ -70,7 +70,7 @@ export const getSystemHealth = async () => {
     );
     healthData.database.activeConnections = parseInt(activeConnsRes.rows[0]?.count || 0, 10);
   } catch (err: any) {
-    console.error('Error fetching database stats for health check:', err);
+    logger.error('Error fetching database stats for health check:', err);
   }
 
   return healthData;

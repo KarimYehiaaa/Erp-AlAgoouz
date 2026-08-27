@@ -40,7 +40,7 @@
         :class="{ active: activeTab === 'branch' }"
         @click="switchTab('branch')"
       >
-        🏪 يومي
+        ☕ يومي
       </button>
       <button
         type="button"
@@ -54,7 +54,7 @@
         :class="{ active: activeTab === 'monthly' }"
         @click="switchTab('monthly')"
       >
-        📊 شهري
+        📅 شهري
       </button>
     </div>
 
@@ -596,7 +596,7 @@ const deleteAllSales = async () => {
 };
 
 const deleteSalesByType = async (saleType: any) => {
-  const label = saleType === 'branch' ? 'مبيعات الفرع 🏪' : 'مبيعات الجملة 📦';
+  const label = saleType === 'branch' ? 'مبيعات الفرع ' : 'مبيعات الجملة ';
   const confirmed = window.confirm(`تأكيد نهائي: سيتم حذف كل ${label} بشكل دائم.\nهل أنت متأكد؟`);
   if (!confirmed) return;
   saving.value = true;
@@ -604,7 +604,7 @@ const deleteSalesByType = async (saleType: any) => {
     const res = await salesApi.deleteByType(saleType);
     const count = res?.data?.deletedCount ?? 0;
     importErr.value = false;
-    importMsg.value = `✅ تم حذف ${count} سجل من ${label} بنجاح`;
+    importMsg.value = ` تم حذف ${count} سجل من ${label} بنجاح`;
     importDetails.value = [];
     await load();
   } catch (e: any) {
@@ -661,7 +661,7 @@ const showImportResult = (d: any, isValidate = false) => {
       importDetails.value.unshift(
         ...d.preview.map(
           (r: any, i: any) =>
-            `✓ مثال سطر ${i + 2}: ${r.sale_date} | ${r.sale_type} | ${r.total_amount} ج.م`,
+            ` مثال سطر ${i + 2}: ${r.sale_date} | ${r.sale_type} | ${r.total_amount} ج.م`,
         ),
       );
     }
@@ -691,7 +691,7 @@ const showMonthlyImportResult = (d: any, isValidate = false) => {
     if (d.ok && d.preview?.length) {
       monthlyImportDetails.value.unshift(
         ...d.preview.map(
-          (r: any) => `✓ ${r.sale_date} | ${r.payment_method} | ${r.items_count} صنف | ${r.sample}`,
+          (r: any) => ` ${r.sale_date} | ${r.payment_method} | ${r.items_count} صنف | ${r.sample}`,
         ),
       );
     }

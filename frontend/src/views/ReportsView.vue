@@ -3,7 +3,7 @@
     <!-- Header -->
     <div class="reports-header card">
       <div class="header-title">
-        <span class="header-icon">📊</span>
+        <span class="header-icon"></span>
         <div>
           <h2>التقارير الشاملة</h2>
           <p>ملخص كامل لكل أقسام النظام — مبيعات، مخزون، أرباح، مصروفات، عملاء، مشتريات</p>
@@ -33,7 +33,7 @@
           <button @click="setQuick('all')">الكل</button>
         </div>
         <button class="btn btn-primary" :disabled="loading" @click="loadActiveTab">
-          {{ loading ? '⏳' : '🔄 تحديث' }}
+          {{ loading ? '⏳' : ' تحديث' }}
         </button>
       </div>
     </div>
@@ -51,7 +51,7 @@
       </button>
     </div>
 
-    <div v-if="error" class="error-msg">⚠️ {{ error }}</div>
+    <div v-if="error" class="error-msg">{{ error }}</div>
     <div v-if="loading" class="loading-state card">⏳ جاري تحميل التقرير...</div>
 
     <!-- ===== TAB COMPONENTS ===== -->

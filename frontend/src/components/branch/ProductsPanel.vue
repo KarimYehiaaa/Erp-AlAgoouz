@@ -4,7 +4,7 @@
     <div class="catalog-top-header">
       <div class="search-and-status-row">
         <div class="search-box">
-          <span class="search-icon">🔍</span>
+          <span class="search-icon"></span>
           <input
             ref="searchInputRef"
             :value="productSearch"
@@ -22,12 +22,10 @@
               emit('filter');
             "
             title="مسح البحث"
-          >
-            ✕
-          </button>
+          ></button>
         </div>
 
-        <!-- 🎛️ أزرار التبديل بين كثافة العرض والأنماط (Point 7: Grid Density & View Mode Switcher) -->
+        <!--  أزرار التبديل بين كثافة العرض والأنماط (Point 7: Grid Density & View Mode Switcher) -->
         <div class="view-mode-switch-group">
           <button
             type="button"
@@ -36,7 +34,7 @@
             @click="setViewMode('3d')"
             title="الوضع المجسم ثلاثي الأبعاد (3D Tactile)"
           >
-            <span class="btn-icon">🧱</span>
+            <span class="btn-icon"></span>
             <span class="btn-label">3D مجسم</span>
           </button>
 
@@ -47,7 +45,7 @@
             @click="setViewMode('compact')"
             title="الوضع المدمج السريع للشاشات العريضة (Compact Grid)"
           >
-            <span class="btn-icon">🎛️</span>
+            <span class="btn-icon"></span>
             <span class="btn-label">مدمج</span>
           </button>
 
@@ -58,7 +56,7 @@
             @click="setViewMode('color')"
             title="الوضع الملون بحسب الأقسام (Color-Coded)"
           >
-            <span class="btn-icon">🎨</span>
+            <span class="btn-icon"></span>
             <span class="btn-label">ملون</span>
           </button>
         </div>
@@ -71,10 +69,10 @@
         </div>
       </div>
 
-      <!-- ⭐ شريط المفاتيح الذهبية والأكثر طلباً (Point 2: Pinned Fast Keys Ribbon) -->
+      <!--  شريط المفاتيح الذهبية والأكثر طلباً (Point 2: Pinned Fast Keys Ribbon) -->
       <div v-if="fastKeyProducts.length && !productSearch" class="fast-keys-ribbon">
         <div class="fast-keys-header">
-          <span class="ribbon-icon">⭐</span>
+          <span class="ribbon-icon"></span>
           <span class="ribbon-title">الأكثر طلباً:</span>
         </div>
         <div class="fast-keys-scroll">
@@ -96,7 +94,7 @@
         </div>
       </div>
 
-      <!-- 📂 شريط التصنيفات الأفقي الفاخر (Horizontal Category Pills Bar) -->
+      <!--  شريط التصنيفات الأفقي الفاخر (Horizontal Category Pills Bar) -->
       <nav v-if="categories.length" class="horizontal-categories-nav">
         <div class="categories-scroll-track">
           <button
@@ -105,7 +103,7 @@
             :class="{ active: !selectedCategory }"
             @click="selectCategory('')"
           >
-            <span class="pill-icon">✨</span>
+            <span class="pill-icon"></span>
             <span class="pill-label">كل المنتجات</span>
           </button>
 
@@ -135,7 +133,7 @@
 
       <!-- حالة عدم وجود نتائج -->
       <div v-else-if="!filteredProducts.length" class="empty-catalog-state">
-        <span class="empty-icon">🔍</span>
+        <span class="empty-icon"></span>
         <h3>لم يتم العثور على منتجات مطابقة</h3>
         <p>تأكد من كتابة الاسم بشكل صحيح أو اختر قسماً آخر.</p>
         <button
@@ -171,7 +169,7 @@
           @touchend="cancelLongPress"
           @click="handleCardClick(product)"
           :title="
-            product.name_ar + (isCoffeeProduct(product) ? ' (انقر مطولاً أو انقر ⚙️ للتخصيص)' : '')
+            product.name_ar + (isCoffeeProduct(product) ? ' (انقر مطولاً أو انقر  للتخصيص)' : '')
           "
         >
           <!-- زاوية مؤشر المخزون المضيء -->
@@ -181,23 +179,21 @@
             :title="getProductStockTitle(product)"
           ></span>
 
-          <!-- ⚙️ زر التخصيص السريع للبن والمشروبات (Point 1: Coffee Customizer Trigger) -->
+          <!--  زر التخصيص السريع للبن والمشروبات (Point 1: Coffee Customizer Trigger) -->
           <button
             v-if="isCoffeeProduct(product)"
             type="button"
             class="tile-customize-btn"
             @click.stop="openCustomizer(product)"
             title="تخصيص درجة الطحن، التحميص، والإضافات"
-          >
-            ⚙️
-          </button>
+          ></button>
 
           <!-- شارة عدد القطع المختارة في السلة (3D Floating Badge) -->
           <span v-if="isInCart(product.id)" class="tile-qty-badge">
             {{ getCartQty(product.id) }}
           </span>
 
-          <!-- ✨ اسم المنتج الرئيسي -->
+          <!--  اسم المنتج الرئيسي -->
           <div class="tile-center-content">
             <span class="product-main-name">{{ product.name_ar }}</span>
           </div>
@@ -218,19 +214,19 @@
         <!-- Header -->
         <div class="customizer-header">
           <div class="header-title-wrap">
-            <span class="modal-coffee-icon">🫘</span>
+            <span class="modal-coffee-icon"></span>
             <div>
               <h3>تخصيص مواصفات البن / الطلب</h3>
               <p class="custom-prod-title">{{ activeCustomProduct.name_ar }}</p>
             </div>
           </div>
-          <button type="button" class="close-custom-btn" @click="closeCustomizer">✕</button>
+          <button type="button" class="close-custom-btn" @click="closeCustomizer"></button>
         </div>
 
         <div class="customizer-body">
           <!-- 1. درجة الطحن -->
           <div class="custom-section">
-            <label class="custom-sec-title">🪓 درجة الطحن المطلوبة:</label>
+            <label class="custom-sec-title"> درجة الطحن المطلوبة:</label>
             <div class="custom-options-grid">
               <button
                 v-for="grind in grindOptions"
@@ -248,7 +244,7 @@
 
           <!-- 2. درجة التحميص -->
           <div class="custom-section">
-            <label class="custom-sec-title">🔥 درجة التحميص:</label>
+            <label class="custom-sec-title"> درجة التحميص:</label>
             <div class="custom-options-grid cols-4">
               <button
                 v-for="roast in roastOptions"
@@ -266,7 +262,7 @@
 
           <!-- 3. إضافات التحويجة -->
           <div class="custom-section">
-            <label class="custom-sec-title">🌿 إضافات التحويجة والحبهان:</label>
+            <label class="custom-sec-title"> إضافات التحويجة والحبهان:</label>
             <div class="custom-options-grid cols-3">
               <button
                 v-for="spice in spiceOptions"
@@ -284,7 +280,7 @@
 
           <!-- 4. الوزن / الكمية السريعة -->
           <div class="custom-section">
-            <label class="custom-sec-title">⚖️ الوزن / الحجم المطلوب:</label>
+            <label class="custom-sec-title"> الوزن / الحجم المطلوب:</label>
             <div class="custom-options-grid cols-4">
               <button
                 type="button"
@@ -338,7 +334,7 @@
             class="btn btn-primary add-custom-btn"
             @click="confirmCustomization"
           >
-            ✓ إضافة للسلة مع المواصفات (Enter)
+            إضافة للسلة مع المواصفات (Enter)
           </button>
         </div>
       </div>
@@ -374,7 +370,7 @@ const emit = defineEmits<{
 
 const searchInputRef = ref<HTMLInputElement | null>(null);
 
-// ─── 🎛️ Point 7: View Mode State (3d | compact | color) ───
+// ───  Point 7: View Mode State (3d | compact | color) ───
 const viewMode = ref<'3d' | 'compact' | 'color'>(
   (localStorage.getItem('pos_view_mode') as any) || '3d',
 );
@@ -384,40 +380,40 @@ const setViewMode = (mode: '3d' | 'compact' | 'color') => {
   localStorage.setItem('pos_view_mode', mode);
 };
 
-// ─── ⭐ Point 2: Pinned Fast Keys Logic (Top Popular Items) ───
+// ───  Point 2: Pinned Fast Keys Logic (Top Popular Items) ───
 const fastKeyProducts = computed(() => {
   if (!props.filteredProducts.length) return [];
   // Return first 6 items or items with high velocity
   return props.filteredProducts.slice(0, 6);
 });
 
-// ─── 🫘 Point 1: Coffee Customizer State & Options ───
+// ───  Point 1: Coffee Customizer State & Options ───
 const showCustomizerModal = ref(false);
 const activeCustomProduct = ref<any>(null);
 
 const grindOptions = [
-  { id: 'beans', label: 'حبوب كاملة', icon: '🫘' },
-  { id: 'turkish', label: 'تركي ناعم', icon: '☕' },
-  { id: 'espresso', label: 'إسبريسو', icon: '⚡' },
-  { id: 'v60', label: 'فلتر V60', icon: '🍵' },
-  { id: 'french', label: 'فرنش برس', icon: '🫖' },
-  { id: 'moka', label: 'موكا بوت', icon: '🏺' },
+  { id: 'beans', label: 'حبوب كاملة', icon: '' },
+  { id: 'turkish', label: 'تركي ناعم', icon: '' },
+  { id: 'espresso', label: 'إسبريسو', icon: '' },
+  { id: 'v60', label: 'فلتر V60', icon: '' },
+  { id: 'french', label: 'فرنش برس', icon: '' },
+  { id: 'moka', label: 'موكا بوت', icon: '' },
 ];
 
 const roastOptions = [
-  { id: 'light', label: 'فاتح', icon: '🟡' },
-  { id: 'medium', label: 'وسط', icon: '🟤' },
-  { id: 'dark', label: 'غامق', icon: '⚫' },
-  { id: 'med_dark', label: 'وسط مع غامق', icon: '🌓' },
+  { id: 'light', label: 'فاتح', icon: '' },
+  { id: 'medium', label: 'وسط', icon: '' },
+  { id: 'dark', label: 'غامق', icon: '' },
+  { id: 'med_dark', label: 'وسط مع غامق', icon: '' },
 ];
 
 const spiceOptions = [
-  { id: 'plain', label: 'بدون حبهان (سادة)', icon: '🌿' },
-  { id: 'light_card', label: 'حبهان خفيف', icon: '✨' },
-  { id: 'med_card', label: 'حبهان مظبوط', icon: '⭐' },
-  { id: 'extra_card', label: 'حبهان زيادة', icon: '👑' },
-  { id: 'mastic', label: 'مستكة وحبهان', icon: '💎' },
-  { id: 'special', label: 'تحويجة العجوز الملكية', icon: '👑' },
+  { id: 'plain', label: 'بدون حبهان (سادة)', icon: '' },
+  { id: 'light_card', label: 'حبهان خفيف', icon: '' },
+  { id: 'med_card', label: 'حبهان مظبوط', icon: '' },
+  { id: 'extra_card', label: 'حبهان زيادة', icon: '' },
+  { id: 'mastic', label: 'مستكة وحبهان', icon: '' },
+  { id: 'special', label: 'تحويجة العجوز الملكية', icon: '' },
 ];
 
 const selectedGrind = ref('تركي ناعم');
@@ -486,10 +482,10 @@ const cancelLongPress = () => {
 };
 
 const getCategoryIcon = (name: string) => {
-  if (!name) return '✨';
+  if (!name) return '';
   const n = name.toLowerCase();
-  if (n.includes('ساخن') || n.includes('قهو') || n.includes('اسبريسو')) return '☕';
-  if (n.includes('بارد') || n.includes('مثلج') || n.includes('ايس')) return '🧊';
+  if (n.includes('ساخن') || n.includes('قهو') || n.includes('اسبريسو')) return '';
+  if (n.includes('بارد') || n.includes('مثلج') || n.includes('ايس')) return '';
   if (
     n.includes('بن') ||
     n.includes('حبوب') ||
@@ -497,16 +493,15 @@ const getCategoryIcon = (name: string) => {
     n.includes('تركي') ||
     n.includes('توليف')
   )
-    return '🫘';
+    return '';
   if (n.includes('حلوي') || n.includes('كيك') || n.includes('شوكولات') || n.includes('وافل'))
-    return '🍰';
-  if (n.includes('عصير') || n.includes('سموذي') || n.includes('موهيتو')) return '🥤';
-  if (n.includes('شاي') || n.includes('أعشاب') || n.includes('كركديه')) return '🫖';
+    return '';
+  if (n.includes('عصير') || n.includes('سموذي') || n.includes('موهيتو')) return '';
+  if (n.includes('شاي') || n.includes('أعشاب') || n.includes('كركديه')) return '';
   if (n.includes('ساندوتش') || n.includes('اكل') || n.includes('وجب') || n.includes('كرواسون'))
-    return '🥪';
-  if (n.includes('صوص') || n.includes('نكه') || n.includes('سيرب') || n.includes('إضاف'))
-    return '🍯';
-  return '📁';
+    return '';
+  if (n.includes('صوص') || n.includes('نكه') || n.includes('سيرب') || n.includes('إضاف')) return '';
+  return '';
 };
 
 const getCategoryColorKey = (catName: string) => {
@@ -527,9 +522,9 @@ const currentCategoryName = computed(() => {
 });
 
 const currentCategoryIcon = computed(() => {
-  if (!props.selectedCategory) return '✨';
+  if (!props.selectedCategory) return '';
   const cat = props.categories.find((c: any) => String(c.id) === String(props.selectedCategory));
-  return cat ? getCategoryIcon(cat.name_ar) : '✨';
+  return cat ? getCategoryIcon(cat.name_ar) : '';
 });
 
 const onSearch = (e: Event) => {
@@ -560,9 +555,7 @@ defineExpose({
 </script>
 
 <style lang="scss" scoped>
-/* ═══════════════════════════════════════════════════════════════════
-   FULL CATALOG PANEL WITH 3D TACTILE BUTTON CARDS & DENSITY MODES
-   ═══════════════════════════════════════════════════════════════════ */
+/* FULL CATALOG PANEL WITH 3D TACTILE BUTTON CARDS & DENSITY MODES */
 
 .full-catalog-panel {
   padding: 16px;
@@ -648,7 +641,7 @@ defineExpose({
   }
 }
 
-/* ── 🎛️ Point 7: View Mode Switch Group ── */
+/* ──  Point 7: View Mode Switch Group ── */
 .view-mode-switch-group {
   display: flex;
   background: rgba(0, 0, 0, 0.3);
@@ -713,7 +706,7 @@ defineExpose({
   }
 }
 
-/* ── ⭐ Point 2: Pinned Fast Keys Ribbon ── */
+/* ──  Point 2: Pinned Fast Keys Ribbon ── */
 .fast-keys-ribbon {
   display: flex;
   align-items: center;
@@ -831,9 +824,7 @@ defineExpose({
   }
 }
 
-/* ═══════════════════════════════════════════════════════════════════
-   GRID DENSITY AND CARD MODES
-   ═══════════════════════════════════════════════════════════════════ */
+/* GRID DENSITY AND CARD MODES */
 
 .catalog-grid-wrapper {
   flex: 1;
@@ -1117,9 +1108,7 @@ defineExpose({
   }
 }
 
-/* ═══════════════════════════════════════════════════════════════════
-   CUSTOMIZER MODAL (Point 1: Long-Press / Customizer Modal)
-   ═══════════════════════════════════════════════════════════════════ */
+/* CUSTOMIZER MODAL (Point 1: Long-Press / Customizer Modal) */
 
 .customizer-modal-backdrop {
   position: fixed;

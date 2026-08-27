@@ -65,7 +65,7 @@ const assertNotRecipeProduct = async (client, productId) => {
     );
   }
 };
-const ADJUSTMENT_MOVEMENT_TYPES = /* @__PURE__ */ new Set(['adjustment']);
+const ADJUSTMENT_MOVEMENT_TYPES = new Set(['adjustment']);
 const ensureStockTarget = async (client, productId, warehouseId) => {
   const product = await client.query(
     `SELECT id

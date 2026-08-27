@@ -1,6 +1,6 @@
 <template>
   <div class="card table-card">
-    <h3>🔋 مدى كفاية المخزون الحالي (Inventory Runway)</h3>
+    <h3>مدى كفاية المخزون الحالي (Inventory Runway)</h3>
     <p class="section-desc">
       يحسب المدة الزمنية بالأيام المتبقية قبل نفاد رصيد المخزن الحالي لكل صنف بناءً على استهلاكه
       اليومي المتوقع.
@@ -82,7 +82,7 @@ const getProgressBarClass = (days: any) => {
 
 const getRunwayText = (days: any) => {
   if (days === 999) return 'مستقر (أكثر من شهر)';
-  if (days === 0) return 'منفد حالياً 🚨';
+  if (days === 0) return 'منفد حالياً ';
   if (days === 1) return 'يوم واحد فقط';
   if (days === 2) return 'يومين';
   if (days <= 10) return `${days} أيام`;

@@ -1,6 +1,5 @@
 <!--
   BranchLiquidity.vue — بطاقات مؤشر سيولة واحتياطي الصندوق للفروع (Battery)
-  ════════════════════════════════════════════════════════════════
   تعرض لكل فرع مؤشر بطارية يوضح مدى تغطية المصاريف التشغيلية
   (المعيار: تغطية 15 يوماً). استُخرجت من DashboardView لتقليل حجمه
   (كان الملف 2,483 سطرًا) — بنفس نمط SalesSummaryCard.
@@ -81,7 +80,7 @@ const props = defineProps<{
 <style lang="scss" scoped>
 @use './dashboardShared.scss';
 
-/* 🔋 Branch Liquidity Battery Indicators */
+/*  Branch Liquidity Battery Indicators */
 .branch-liquidity-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

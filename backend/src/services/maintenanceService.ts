@@ -9,7 +9,7 @@ let lastRunDate = '';
  * @returns {Promise<any>}
  */
 export const runDatabaseMaintenance = async () => {
-  logger.info('🧹 [بن العجوز ERP] بدء عملية صيانة قاعدة البيانات التلقائية (VACUUM ANALYZE)...');
+  logger.info(' [بن العجوز ERP] بدء عملية صيانة قاعدة البيانات التلقائية (VACUUM ANALYZE)...');
   const startTime = Date.now();
 
   try {
@@ -17,14 +17,14 @@ export const runDatabaseMaintenance = async () => {
     await query('VACUUM ANALYZE');
 
     const duration = ((Date.now() - startTime) / 1000).toFixed(2);
-    const msg = `✅ [بن العجوز ERP] اكتملت صيانة قاعدة البيانات بنجاح (VACUUM ANALYZE) خلال ${duration} ثانية.`;
+    const msg = ` [بن العجوز ERP] اكتملت صيانة قاعدة البيانات بنجاح (VACUUM ANALYZE) خلال ${duration} ثانية.`;
 
     logger.info(msg);
-    await sendAlert('🧹 صيانة قاعدة البيانات', msg, 'info');
+    await sendAlert(' صيانة قاعدة البيانات', msg, 'info');
   } catch (err: any) {
-    const errorMsg = `❌ [بن العجوز ERP] فشلت صيانة قاعدة البيانات التلقائية: ${err.message}`;
+    const errorMsg = ` [بن العجوز ERP] فشلت صيانة قاعدة البيانات التلقائية: ${err.message}`;
     logger.error(errorMsg);
-    await sendAlert('🧹 صيانة قاعدة البيانات', errorMsg, 'error');
+    await sendAlert(' صيانة قاعدة البيانات', errorMsg, 'error');
   }
 };
 
@@ -34,7 +34,7 @@ export const runDatabaseMaintenance = async () => {
  */
 export const initDatabaseMaintenanceScheduler = () => {
   logger.info(
-    '📅 [بن العجوز ERP] تم تفعيل جدولة صيانة قاعدة البيانات (كل يوم أحد الساعة 3:00 صباحاً).',
+    ' [بن العجوز ERP] تم تفعيل جدولة صيانة قاعدة البيانات (كل يوم أحد الساعة 3:00 صباحاً).',
   );
 
   // Check every 30 minutes

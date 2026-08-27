@@ -1,6 +1,5 @@
 /**
  * useInventoryExcel — منطق تبويب "استرداد بـ Excel" في شاشة المخزون
- * ═══════════════════════════════════════════════════════════════
  * تحميل قالب الاسترداد + فحص الملف + تنفيذ الاسترداد الجماعي،
  * مع عرض النتيجة (معاينة/تفاصيل/أخطاء) في بطاقة النتيجة.
  * استُخرج من InventoryView.vue (كان السكربت 1,564 سطرًا).
@@ -62,7 +61,7 @@ export function useInventoryExcel(ctx: InventoryExcelContext) {
       const success = Number(d.success || 0);
       excelResult.value = {
         ok: success > 0,
-        title: success > 0 ? `✅ تم استرداد ${success} منتج بنجاح` : `❌ لم يتم تطبيق أي صف صالح`,
+        title: success > 0 ? ` تم استرداد ${success} منتج بنجاح` : ` لم يتم تطبيق أي صف صالح`,
         summary: `${d.skipped || 0} صف تم تخطيه · ${d.failed?.length || 0} فشل`,
         details: d.details || [],
         failed: d.failed || [],
@@ -89,7 +88,7 @@ export function useInventoryExcel(ctx: InventoryExcelContext) {
       const d = res?.data || res;
       excelResult.value = {
         ok: true,
-        title: `✅ تم استرداد ${d.success} منتج بنجاح`,
+        title: ` تم استرداد ${d.success} منتج بنجاح`,
         summary: `${d.skipped || 0} صف تم تخطيه · ${d.failed?.length || 0} فشل`,
         details: d.details || [],
         failed: d.failed || [],

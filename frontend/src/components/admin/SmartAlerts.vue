@@ -1,13 +1,11 @@
 <template>
   <div class="alerts-panel">
     <div class="alerts-header">
-      <h3 class="alerts-title">⚠️ تنبيهات ذكية</h3>
+      <h3 class="alerts-title">تنبيهات ذكية</h3>
       <span v-if="totalAlerts" class="alerts-badge">{{ totalAlerts }}</span>
     </div>
 
-    <div v-if="!groups.length" class="alerts-empty">
-      ✅ لا توجد تنبيهات — النظام يعمل بشكل ممتاز
-    </div>
+    <div v-if="!groups.length" class="alerts-empty">لا توجد تنبيهات — النظام يعمل بشكل ممتاز</div>
 
     <div v-else class="alerts-list">
       <div v-for="group in groups" :key="group.key" class="alert-group">
@@ -45,7 +43,7 @@ const groups = computed(() => {
   if (a.lowStockProducts?.length) {
     result.push({
       key: 'lowStock',
-      icon: '📦',
+      icon: '',
       label: 'منتجات تحت حد الطلب',
       severity: 'critical',
       count: a.lowStockProducts.length,
@@ -60,7 +58,7 @@ const groups = computed(() => {
   if (a.noCostProducts?.length) {
     result.push({
       key: 'noCost',
-      icon: '💰',
+      icon: '',
       label: 'منتجات بدون سعر تكلفة',
       severity: 'warning',
       count: a.noCostProducts.length,
@@ -72,7 +70,7 @@ const groups = computed(() => {
   if (a.customerDebts?.length) {
     result.push({
       key: 'debts',
-      icon: '👥',
+      icon: '',
       label: 'مديونيات عملاء',
       severity: 'warning',
       count: a.customerDebts.length,
@@ -87,7 +85,7 @@ const groups = computed(() => {
   if (a.supplierBalances?.length) {
     result.push({
       key: 'suppliers',
-      icon: '🚚',
+      icon: '',
       label: 'أرصدة موردين مستحقة',
       severity: 'info',
       count: a.supplierBalances.length,
@@ -102,7 +100,7 @@ const groups = computed(() => {
   if (a.pendingCreditSales?.length) {
     result.push({
       key: 'credit',
-      icon: '🧾',
+      icon: '',
       label: 'مبيعات آجلة مفتوحة',
       severity: 'info',
       count: a.pendingCreditSales.length,

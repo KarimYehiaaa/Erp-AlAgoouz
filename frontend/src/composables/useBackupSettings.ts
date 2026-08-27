@@ -61,12 +61,12 @@ export function useBackupSettings() {
     try {
       const res = (await backupApi.cloudTest(cloudBackupSettings.value)) as any;
       if (res?.data?.success || res?.success) {
-        alert('✅ نجح الاتصال والرفع السحابي التجريبي!');
+        alert(' نجح الاتصال والرفع السحابي التجريبي!');
       } else {
-        alert(`❌ فشل الرفع التجريبي: ${res?.message || 'خطأ غير معروف'}`);
+        alert(` فشل الرفع التجريبي: ${res?.message || 'خطأ غير معروف'}`);
       }
     } catch (e: any) {
-      alert(`❌ فشل الفحص: ${e.response?.data?.message || e.message}`);
+      alert(` فشل الفحص: ${e.response?.data?.message || e.message}`);
     } finally {
       cloudTesting.value = false;
     }

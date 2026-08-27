@@ -316,7 +316,7 @@ export const uploadBackupToCloud = async (
       formData.append(
         'payload_json',
         JSON.stringify({
-          content: `🔒 **نسخة احتياطية سحابية جديدة**\n📂 الملف: \`${fileName}\`\n📅 التاريخ: \`${new Date().toLocaleString('ar-EG')}\``,
+          content: ` **نسخة احتياطية سحابية جديدة**\n الملف: \`${fileName}\`\n التاريخ: \`${new Date().toLocaleString('ar-EG')}\``,
         }),
       );
     }

@@ -24,7 +24,7 @@
 
     <!-- High Wastage Warning Alert -->
     <div v-if="highWastageItems.length" class="alert alert-danger animate-fade-in">
-      <strong>⚠️ تنبيه هدر مرتفع:</strong> هناك منتجات تجاوزت نسبة الفاقد بها 15% خلال هذه الفترة:
+      <strong> تنبيه هدر مرتفع:</strong> هناك منتجات تجاوزت نسبة الفاقد بها 15% خلال هذه الفترة:
       <ul>
         <li v-for="item in highWastageItems" :key="item.id">
           {{ item.name }} (نسبة الفاقد: {{ computeWastePct(item).toFixed(1) }}%) - الهدر الفعلي:
@@ -37,7 +37,7 @@
     <div class="card table-card">
       <div v-if="loadingWastage" class="loading-state">⏳ جاري حساب الهدر والفواقد...</div>
       <div v-else-if="!wastageReport.length" class="empty-state">
-        <span>📉</span>
+        <span></span>
         <p>لا توجد حركات استهلاك أو تسويات هدر خلال الفترة المحددة</p>
       </div>
       <div v-else class="table-wrap">
@@ -116,7 +116,7 @@ const wasteStatusLabel = (row: any) => {
   const pct = computeWastePct(row);
   if (pct < 5) return 'ممتاز (آمن)';
   if (pct < 15) return 'مقبول (متوسط)';
-  return 'مرتفع (خطر ⚠️)';
+  return 'مرتفع (خطر )';
 };
 
 const wasteStatusClass = (row: any) => {

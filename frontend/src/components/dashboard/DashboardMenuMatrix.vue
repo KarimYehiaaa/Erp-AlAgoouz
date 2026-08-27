@@ -18,7 +18,7 @@
       <div class="menu-engineering-grid">
         <div class="menu-matrix-quadrant star">
           <div class="quadrant-header">
-            <span class="quadrant-badge">⭐ النجوم (Star)</span>
+            <span class="quadrant-badge"> النجوم (Star)</span>
             <span class="quadrant-desc">أصناف عالية الربحية والطلب</span>
           </div>
           <ul class="quadrant-list">
@@ -29,7 +29,7 @@
         </div>
         <div class="menu-matrix-quadrant plowhorse">
           <div class="quadrant-header">
-            <span class="quadrant-badge">🐎 الحصان (Plowhorse)</span>
+            <span class="quadrant-badge"> الحصان (Plowhorse)</span>
             <span class="quadrant-desc">شعبية عالية بربحية أقل</span>
           </div>
           <ul class="quadrant-list">
@@ -39,7 +39,7 @@
         </div>
         <div class="menu-matrix-quadrant puzzle">
           <div class="quadrant-header">
-            <span class="quadrant-badge">🧩 الألغاز (Puzzle)</span>
+            <span class="quadrant-badge"> الألغاز (Puzzle)</span>
             <span class="quadrant-desc">ربحية عالية وشعبية منخفضة</span>
           </div>
           <ul class="quadrant-list">
@@ -49,7 +49,7 @@
         </div>
         <div class="menu-matrix-quadrant dog">
           <div class="quadrant-header">
-            <span class="quadrant-badge">⚠️ الأصناف الراكدة (Dog)</span>
+            <span class="quadrant-badge"> الأصناف الراكدة (Dog)</span>
             <span class="quadrant-desc">ربحية منخفضة وطلب راكد</span>
           </div>
           <ul class="quadrant-list">

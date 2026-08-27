@@ -2,7 +2,7 @@
   <div class="tab-content animate-fade-in">
     <div class="simulator-panel card">
       <div class="simulator-controls">
-        <h3>🔮 محاكي تضخم أسعار المواد الخام (What-If)</h3>
+        <h3>محاكي تضخم أسعار المواد الخام (What-If)</h3>
         <p>
           قم بمحاكاة أثر ارتفاع أسعار المواد الخام على تكلفة منتجاتك وهامش الربح فورياً دون حفظ في
           قاعدة البيانات.
@@ -74,7 +74,7 @@
           font-size: 0.85rem;
         "
       >
-        <strong>⚠️ تحذيرات تحويل الوحدات ({{ simulationWarnings.length }}):</strong>
+        <strong> تحذيرات تحويل الوحدات ({{ simulationWarnings.length }}):</strong>
         <ul style="margin: 6px 18px 0 0; padding: 0">
           <li v-for="(w, i) in simulationWarnings" :key="i">{{ w }}</li>
         </ul>
@@ -139,8 +139,8 @@
                 }}{{ (p.simulated_margin - marginPct(p)).toFixed(1) }}%
               </td>
               <td>
-                <span v-if="p.has_recipe" class="badge-recipe">🧾 وصفة</span>
-                <span v-else class="badge-raw">📦 خامة</span>
+                <span v-if="p.has_recipe" class="badge-recipe"> وصفة</span>
+                <span v-else class="badge-raw"> خامة</span>
               </td>
             </tr>
           </tbody>
@@ -148,7 +148,7 @@
       </div>
     </div>
     <div v-else class="empty-state card">
-      <span>🔮</span>
+      <span></span>
       <p>قم بتفعيل محاكي التضخم لرؤية أثر الأسعار على المنتجات</p>
     </div>
   </div>

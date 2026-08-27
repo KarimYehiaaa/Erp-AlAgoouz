@@ -67,14 +67,14 @@ export function useRolesManagement(deps: RolesManagementDeps) {
           name_ar: roleForm.value.name_ar,
           description: roleForm.value.description,
         });
-        addToast('تم تعديل المنصب بنجاح ✅', 'success');
+        addToast('تم تعديل المنصب بنجاح ', 'success');
       } else {
         await api.createRole({
           name: roleForm.value.name,
           name_ar: roleForm.value.name_ar,
           description: roleForm.value.description,
         });
-        addToast('تم إنشاء المنصب بنجاح ✅', 'success');
+        addToast('تم إنشاء المنصب بنجاح ', 'success');
       }
       cancelRoleForm();
       await reload();

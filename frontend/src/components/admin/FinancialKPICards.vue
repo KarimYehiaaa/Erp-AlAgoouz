@@ -42,7 +42,7 @@ const cards = computed(() => {
   return [
     {
       key: 'todaySales',
-      icon: '💰',
+      icon: '',
       label: 'مبيعات اليوم',
       value: today.totalSales || 0,
       change: comparison.salesChange ?? null,
@@ -51,7 +51,7 @@ const cards = computed(() => {
     },
     {
       key: 'todayProfit',
-      icon: '📈',
+      icon: '',
       label: 'أرباح اليوم',
       value: today.profit || 0,
       change: comparison.profitChange ?? null,
@@ -59,7 +59,7 @@ const cards = computed(() => {
     },
     {
       key: 'monthSales',
-      icon: '🧾',
+      icon: '',
       label: 'مبيعات الشهر',
       value: month.totalSales || 0,
       change: null,
@@ -67,7 +67,7 @@ const cards = computed(() => {
     },
     {
       key: 'monthExpenses',
-      icon: '💸',
+      icon: '',
       label: 'مصروفات الشهر',
       value: month.expenses || 0,
       change: null,
@@ -75,7 +75,7 @@ const cards = computed(() => {
     },
     {
       key: 'treasury',
-      icon: '🏦',
+      icon: '',
       label: 'رصيد الخزينة',
       value: month.cashNet || 0,
       change: null,
@@ -83,16 +83,16 @@ const cards = computed(() => {
     },
     {
       key: 'products',
-      icon: '📦',
+      icon: '',
       label: 'المنتجات',
       value: c.totalProducts || 0,
       change: null,
       colorClass: 'cyan',
-      sub: c.lowStockCount ? `⚠️ ${c.lowStockCount} تحت الحد` : null,
+      sub: c.lowStockCount ? ` ${c.lowStockCount} تحت الحد` : null,
     },
     {
       key: 'customers',
-      icon: '👥',
+      icon: '',
       label: 'العملاء',
       value: c.totalCustomers || 0,
       change: null,
@@ -100,7 +100,7 @@ const cards = computed(() => {
     },
     {
       key: 'debts',
-      icon: '💳',
+      icon: '',
       label: 'مستحقات للمحل (ديون)',
       value: d.unpaidInvoices?.amount || 0,
       change: null,
@@ -109,7 +109,7 @@ const cards = computed(() => {
     },
     {
       key: 'activeUsers',
-      icon: '🟢',
+      icon: '',
       label: 'مستخدمون نشطون (24 ساعة)',
       value: c.activeUsers24h || 0,
       change: null,

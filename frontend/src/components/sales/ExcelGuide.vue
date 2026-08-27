@@ -1,12 +1,11 @@
 <!--
   ExcelGuide.vue — دليل شكل ملف Excel الصحيح لاستيراد المبيعات
-  ═══════════════════════════════════════════════════════════
   جدول توضيحي ثابت + قواعد كتابة الأعمدة (فرع/جملة/delete_all).
   استُخرج من SalesView لتقليل حجم الملف المركزي (كان 2,463 سطرًا).
 -->
 <template>
   <details class="excel-guide card" open>
-    <summary>📋 شكل الملف الصحيح (ورقة «مبيعات» فقط)</summary>
+    <summary>شكل الملف الصحيح (ورقة «مبيعات» فقط)</summary>
     <p class="guide-note">السطر 1 = عناوين ثابتة. من السطر 2 = بياناتك. لا تعدّل أسماء الأعمدة.</p>
     <div class="guide-table-wrap">
       <table class="guide-table">
@@ -55,7 +54,7 @@
           </tr>
           <tr class="bad-row">
             <td colspan="8">
-              ❌ خطأ شائع: كتابة «مبيعات فرع» في نوع_البيع — الصحيح: branch أو wholesale فقط
+              خطأ شائع: كتابة «مبيعات فرع» في نوع_البيع — الصحيح: branch أو wholesale فقط
             </td>
           </tr>
         </tbody>

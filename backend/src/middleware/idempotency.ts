@@ -1,6 +1,5 @@
 /**
  * middleware/idempotency.ts — حماية تكرار العمليات المالية والحرجة
- * ═════════════════════════════════════════════════════════════
  * يتحقق من وجود رأس Idempotency-Key أو X-Idempotency-Key لمنع تكرار
  * العمليات المالية (مثل إنشاء الفواتير أو تسديد الدفعات) في حال انقطاع الاتصال
  * أو إعادة إرسال الطلب من العميل.
@@ -10,6 +9,7 @@
  */
 import type { Request, Response, NextFunction } from 'express';
 import { query } from '../database/pool.ts';
+import { logger } from '../services/loggerService.ts';
 
 interface CachedResponse {
   statusCode: number;
@@ -84,9 +84,9 @@ export const requireIdempotency = async (
   // 2. فحص قاعدة البيانات المركزية
   try {
     const dbResult = await query(
-      `SELECT status_code, response_body 
-       FROM idempotency_records 
-       WHERE key = $1 AND expires_at > NOW() 
+      `SELECT status_code, response_body
+       FROM idempotency_records
+       WHERE key = $1 AND expires_at > NOW()
        LIMIT 1`,
       [scopedKey],
     );
@@ -107,7 +107,7 @@ export const requireIdempotency = async (
   } catch (err: any) {
     // في حال عدم وجود الجدول بعد أو تعذر الاتصال، نستمر بالذاكرة المحلية دون كسر الطلب
     if (process.env.NODE_ENV === 'development') {
-      console.warn('[Idempotency] DB lookup bypassed:', err.message);
+      logger.warn('[Idempotency] DB lookup bypassed:', err.message);
     }
   }
 
@@ -133,13 +133,13 @@ export const requireIdempotency = async (
       query(
         `INSERT INTO idempotency_records (key, user_id, request_path, status_code, response_body)
          VALUES ($1, $2, $3, $4, $5)
-         ON CONFLICT (key) DO UPDATE 
-         SET status_code = EXCLUDED.status_code, 
+         ON CONFLICT (key) DO UPDATE
+         SET status_code = EXCLUDED.status_code,
              response_body = EXCLUDED.response_body`,
         [scopedKey, userId, requestPath, res.statusCode, JSON.stringify(body)],
       ).catch((err: any) => {
         if (process.env.NODE_ENV === 'development') {
-          console.warn('[Idempotency] Failed to persist key to DB:', err.message);
+          logger.warn('[Idempotency] Failed to persist key to DB:', err.message);
         }
       });
     } else {

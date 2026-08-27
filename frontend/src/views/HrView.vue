@@ -67,7 +67,7 @@
     <div v-if="activeTab === 'employees'" class="tab-panel">
       <div class="card form-card" style="margin-bottom: 24px">
         <h3 style="margin-bottom: 16px; font-weight: 700">
-          {{ editingEmployeeId ? '📝 تعديل بيانات الموظف' : '👤 تسجيل موظف جديد' }}
+          {{ editingEmployeeId ? ' تعديل بيانات الموظف' : ' تسجيل موظف جديد' }}
         </h3>
         <form @submit.prevent="saveEmployee">
           <div class="fields-grid">
@@ -214,7 +214,7 @@
 
     <div v-if="activeTab === 'attendance'" class="tab-panel">
       <div class="card form-card" style="margin-bottom: 24px">
-        <h3 style="margin-bottom: 16px; font-weight: 700">📅 تسجيل حضور وانصراف الموظفين</h3>
+        <h3 style="margin-bottom: 16px; font-weight: 700">تسجيل حضور وانصراف الموظفين</h3>
         <form @submit.prevent="saveAttendance">
           <div class="fields-grid">
             <div class="form-group">
@@ -333,7 +333,7 @@
 
     <div v-if="activeTab === 'advances'" class="tab-panel">
       <div class="card form-card" style="margin-bottom: 24px">
-        <h3 style="margin-bottom: 16px; font-weight: 700">💰 صرف سلفة جديدة</h3>
+        <h3 style="margin-bottom: 16px; font-weight: 700">صرف سلفة جديدة</h3>
         <form @submit.prevent="createAdvance">
           <div class="fields-grid">
             <div class="form-group">
@@ -477,7 +477,7 @@
               @click="loadPayrollPreview"
               :disabled="loading"
             >
-              🔍 معاينة الحساب
+              معاينة الحساب
             </button>
             <button
               type="button"
@@ -485,7 +485,7 @@
               @click="createPayroll"
               :disabled="loading"
             >
-              ⚡ إنشاء / إعادة حساب المسير
+              إنشاء / إعادة حساب المسير
             </button>
             <button
               v-if="selectedRun && selectedRun.status !== 'paid'"
@@ -494,7 +494,7 @@
               @click="payPayroll"
               :disabled="loading"
             >
-              💵 صرف المرتبات وتسجيل المصروف
+              صرف المرتبات وتسجيل المصروف
             </button>
           </div>
         </div>
@@ -638,7 +638,7 @@
             @click="openRun(run.id)"
             style="display: flex; gap: 6px; align-items: center"
           >
-            <span>📅 {{ String(run.period_month).slice(0, 7) }}</span>
+            <span> {{ String(run.period_month).slice(0, 7) }}</span>
             <span
               class="pill"
               :class="run.status === 'paid' ? 'success' : 'warning'"

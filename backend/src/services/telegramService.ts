@@ -1,6 +1,5 @@
 /**
  * services/telegramService.ts — خدمة إرسال التنبيهات والتقارير عبر Telegram Bot API
- * ════════════════════════════════════════════════════════════════════════════════
  * خدمة خفيفة ومباشرة تتصل بـ Telegram Bot API بدون أي مكتبات إضافية.
  */
 
@@ -80,11 +79,10 @@ export class TelegramService {
     config: TelegramConfig,
   ): Promise<{ success: boolean; error?: string }> {
     const testMsg = `
-☕ <b>بن العجوز ERP — فحص اتصال بوت تليجرام</b> 🤖
-═════════════════════════
-✅ تم توصيل نظام الأتمتة بنجاح مع هذا الشات!
-🕒 <b>التاريخ والوقت:</b> ${new Date().toLocaleString('ar-EG', { timeZone: 'Africa/Cairo' })}
-🚀 <i>التقارير اليومية والإنذارات اللحظية ستصلك هنا تلقائياً.</i>
+ <b>بن العجوز ERP — فحص اتصال بوت تليجرام</b>
+ تم توصيل نظام الأتمتة بنجاح مع هذا الشات!
+ <b>التاريخ والوقت:</b> ${new Date().toLocaleString('ar-EG', { timeZone: 'Africa/Cairo' })}
+ <i>التقارير اليومية والإنذارات اللحظية ستصلك هنا تلقائياً.</i>
     `.trim();
 
     return await this.sendMessage(testMsg, config, 'HTML');

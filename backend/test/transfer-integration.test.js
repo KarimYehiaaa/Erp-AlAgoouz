@@ -20,38 +20,38 @@ test('Stock transfer integration tests', async () => {
   try {
     // 1. Setup Test Warehouses
     const wh1Res = await query(
-      `INSERT INTO warehouses (code, name_ar, type, is_active) 
-       VALUES ('TST-WH1', 'مخزن اختبار تحويل 1', 'main', true) 
+      `INSERT INTO warehouses (code, name_ar, type, is_active)
+       VALUES ('TST-WH1', 'مخزن اختبار تحويل 1', 'main', true)
        RETURNING id`
     );
     wh1Id = wh1Res.rows[0].id;
 
     const wh2Res = await query(
-      `INSERT INTO warehouses (code, name_ar, type, is_active) 
-       VALUES ('TST-WH2', 'مخزن اختبار تحويل 2', 'store', true) 
+      `INSERT INTO warehouses (code, name_ar, type, is_active)
+       VALUES ('TST-WH2', 'مخزن اختبار تحويل 2', 'store', true)
        RETURNING id`
     );
     wh2Id = wh2Res.rows[0].id;
 
     // 2. Setup Test Category & Products
     const catRes = await query(
-      `INSERT INTO product_categories (name_ar) 
-       VALUES ('تصنيف اختبار التحويل') 
+      `INSERT INTO product_categories (name_ar)
+       VALUES ('تصنيف اختبار التحويل')
        RETURNING id`
     );
     catId = catRes.rows[0].id;
 
     const prod1Res = await query(
-      `INSERT INTO products (sku, name_ar, purchase_price, sale_price, category_id, is_active) 
-       VALUES ('SKU-TRF-1', 'منتج تحويل مصدر', 10.00, 15.00, $1, true) 
+      `INSERT INTO products (sku, name_ar, purchase_price, sale_price, category_id, is_active)
+       VALUES ('SKU-TRF-1', 'منتج تحويل مصدر', 10.00, 15.00, $1, true)
        RETURNING id`,
       [catId]
     );
     p1Id = prod1Res.rows[0].id;
 
     const prod2Res = await query(
-      `INSERT INTO products (sku, name_ar, purchase_price, sale_price, category_id, is_active) 
-       VALUES ('SKU-TRF-2', 'منتج تحويل هدف', 20.00, 30.00, $1, true) 
+      `INSERT INTO products (sku, name_ar, purchase_price, sale_price, category_id, is_active)
+       VALUES ('SKU-TRF-2', 'منتج تحويل هدف', 20.00, 30.00, $1, true)
        RETURNING id`,
       [catId]
     );
@@ -60,14 +60,14 @@ test('Stock transfer integration tests', async () => {
     // 3. Setup Initial Stock
     // Product 1 has 10 units in Warehouse 1
     await query(
-      `INSERT INTO inventory (product_id, warehouse_id, quantity) 
+      `INSERT INTO inventory (product_id, warehouse_id, quantity)
        VALUES ($1, $2, 10.000)`,
       [p1Id, wh1Id]
     );
 
     // Product 2 has 2 units in Warehouse 2
     await query(
-      `INSERT INTO inventory (product_id, warehouse_id, quantity) 
+      `INSERT INTO inventory (product_id, warehouse_id, quantity)
        VALUES ($1, $2, 2.000)`,
       [p2Id, wh2Id]
     );
@@ -110,7 +110,7 @@ test('Stock transfer integration tests', async () => {
 
     assert.equal(res2.success, true);
 
-    // Check stock: 
+    // Check stock:
     // Product 1 in WH1 should decrease by 3 (from 6 to 3)
     const stockP1WH1 = await query(`SELECT quantity FROM inventory WHERE product_id = $1 AND warehouse_id = $2`, [p1Id, wh1Id]);
     assert.equal(Number(stockP1WH1.rows[0].quantity), 3);
@@ -122,7 +122,7 @@ test('Stock transfer integration tests', async () => {
     // Check movements: Should have 2 transfer movements (one outward from P1, one inward to P2)
     const movs2 = await query(`SELECT * FROM stock_movements WHERE notes LIKE '%TST-TRF: Cross product transfer%' ORDER BY id`);
     assert.equal(movs2.rows.length, 2);
-    
+
     // First movement should be for Product 1 (outward)
     assert.equal(movs2.rows[0].product_id, p1Id);
     assert.equal(Number(movs2.rows[0].quantity), 3);

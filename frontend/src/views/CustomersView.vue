@@ -3,7 +3,7 @@
     <!-- Header -->
     <div class="page-header">
       <div class="search-wrap">
-        <span class="search-icon">🔍</span>
+        <span class="search-icon"></span>
         <input
           v-model="search"
           type="text"
@@ -27,21 +27,21 @@
     <!-- Summary Cards -->
     <div class="grid grid-3 summary-row">
       <div class="summary-card card">
-        <div class="summary-icon">👥</div>
+        <div class="summary-icon"></div>
         <div>
           <div class="summary-label">إجمالي العملاء</div>
           <div class="summary-value">{{ customers.length }}</div>
         </div>
       </div>
       <div class="summary-card card">
-        <div class="summary-icon">🏷️</div>
+        <div class="summary-icon"></div>
         <div>
           <div class="summary-label">عملاء الجملة</div>
           <div class="summary-value">{{ wholesaleCount }}</div>
         </div>
       </div>
       <div class="summary-card card warn">
-        <div class="summary-icon">💳</div>
+        <div class="summary-icon"></div>
         <div>
           <div class="summary-label">إجمالي الديون</div>
           <div class="summary-value">{{ formatMoney(totalBalance) }}</div>
@@ -93,7 +93,7 @@
                 class="type-badge"
                 :class="c.customer_type === 'wholesale' ? 'wholesale' : 'retail'"
               >
-                {{ c.customer_type === 'wholesale' ? '🏷️ جملة' : '🛍️ تجزئة' }}
+                {{ c.customer_type === 'wholesale' ? ' جملة' : ' تجزئة' }}
               </span>
             </td>
             <td class="amount-cell">{{ formatMoney(c.total_purchased || 0) }}</td>
@@ -140,13 +140,13 @@
       <div class="statement-modal">
         <div class="statement-header">
           <div class="statement-title">
-            <span class="statement-icon">📊</span>
+            <span class="statement-icon"></span>
             <div>
               <h2>الحساب الجاري</h2>
               <p>{{ statement?.customer?.name_ar }} · {{ statement?.customer?.code }}</p>
             </div>
           </div>
-          <button class="close-btn" @click="showStatement = false">✕</button>
+          <button class="close-btn" @click="showStatement = false"></button>
         </div>
 
         <div v-if="loadingStatement" class="statement-loading">⏳ جاري التحميل...</div>
@@ -168,14 +168,14 @@
               <div class="si-label">الرصيد المتبقي</div>
               <div class="si-value">{{ formatMoney(statement.summary.total_balance) }}</div>
               <div class="si-sub">
-                {{ statement.summary.total_balance > 0 ? '⚠️ مستحق السداد' : '✅ لا يوجد رصيد' }}
+                {{ statement.summary.total_balance > 0 ? ' مستحق السداد' : ' لا يوجد رصيد' }}
               </div>
             </div>
           </div>
 
           <!-- Record Payment -->
           <div v-if="statement.summary.total_balance > 0" class="payment-form card">
-            <h4>💵 تسجيل دفعة</h4>
+            <h4>تسجيل دفعة</h4>
             <div class="payment-fields">
               <div class="form-group">
                 <label>المبلغ (ج.م) *</label>
@@ -225,7 +225,7 @@
 
           <!-- Transactions Table -->
           <div class="transactions-section">
-            <h4>📋 سجل المعاملات ({{ statement.transactions.length }})</h4>
+            <h4>سجل المعاملات ({{ statement.transactions.length }})</h4>
             <div class="transactions-wrap">
               <table class="transactions-table">
                 <thead>
@@ -289,7 +289,7 @@
                         @click="openSalePayment(t)"
                         title="تسجيل دفعة على هذه الفاتورة"
                       >
-                        💵 دفع
+                        دفع
                       </button>
                     </td>
                   </tr>
@@ -309,8 +309,8 @@
           >
             <div class="sale-pay-card">
               <div class="sale-pay-header">
-                <span>💵 دفعة على فاتورة {{ activeSalePayment.sale_number }}</span>
-                <button class="close-btn-sm" @click="activeSalePayment = null">✕</button>
+                <span> دفعة على فاتورة {{ activeSalePayment.sale_number }}</span>
+                <button class="close-btn-sm" @click="activeSalePayment = null"></button>
               </div>
               <div class="sale-pay-info">
                 <span
@@ -419,7 +419,7 @@
                 margin-top: 4px;
               "
             >
-              💡 تُضاف هذه المديونية تلقائياً وحسابياً في رصيد ومديونية العميل الكلية المستحقة.
+              تُضاف هذه المديونية تلقائياً وحسابياً في رصيد ومديونية العميل الكلية المستحقة.
             </small>
           </div>
           <div class="form-group">
@@ -568,7 +568,7 @@ const submitPayment = async () => {
   payErr.value = false;
   try {
     await api.recordPayment(statement.value.customer.id, payForm.value);
-    payMsg.value = `✅ تم تسجيل دفعة ${formatMoney(payForm.value.amount)} بنجاح`;
+    payMsg.value = ` تم تسجيل دفعة ${formatMoney(payForm.value.amount)} بنجاح`;
     payForm.value.amount = null;
     payForm.value.notes = '';
     // إعادة تحميل الحساب
@@ -597,7 +597,7 @@ const submitSalePayment = async () => {
   salePayErr.value = false;
   try {
     await api.recordSalePayment(activeSalePayment.value.id, salePayForm.value);
-    salePayMsg.value = `✅ تم تسجيل ${formatMoney(salePayForm.value.amount)} بنجاح`;
+    salePayMsg.value = ` تم تسجيل ${formatMoney(salePayForm.value.amount)} بنجاح`;
     salePayForm.value.amount = null;
     // إعادة تحميل الحساب
     const res = await api.statement(statement.value.customer.id);

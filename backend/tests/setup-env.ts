@@ -39,7 +39,7 @@ const isRemoteUrl = connStr !== '' && !/localhost|127\.0\.0\.1/.test(connStr);
 
 if (isRemoteHost || isRemoteUrl) {
   throw new Error(
-    '⛔ أمان الاختبارات: رفض الاتصال بقاعدة بيانات بعيدة!\n' +
+    ' أمان الاختبارات: رفض الاتصال بقاعدة بيانات بعيدة!\n' +
       `  DB_HOST="${host}"  DATABASE_URL="${connStr ? '(معرّفة — يُشتبه أنها بعيدة)' : ''}"\n` +
       '  اختبارات قاعدة البيانات تكتب بيانات ولا يمكن تشغيلها ضد الإنتاج/Supabase.\n' +
       '  للتشغيل بأمان محليًا:  npm run test:local   (قاعدة معزولة: bin_al_ajouz_test)\n' +

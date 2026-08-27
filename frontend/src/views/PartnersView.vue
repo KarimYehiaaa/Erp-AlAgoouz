@@ -169,9 +169,9 @@
                 <span class="share-badge">الحصة: {{ partner.share_percentage }}% من الأرباح</span>
               </div>
               <div class="status-indicator-badge" :class="partner.status">
-                <span v-if="partner.status === 'payable'">🟢 مستحق للاستلام</span>
-                <span v-else-if="partner.status === 'overdrawn'">🔴 مسحوبات زائدة</span>
-                <span v-else>⚪ مسوّى</span>
+                <span v-if="partner.status === 'payable'"> مستحق للاستلام</span>
+                <span v-else-if="partner.status === 'overdrawn'"> مسحوبات زائدة</span>
+                <span v-else> مسوّى</span>
               </div>
             </div>
 
@@ -367,15 +367,15 @@
                 <td class="amount-cell">{{ formatMoney(drw.amount) }}</td>
                 <td>
                   <span v-if="drw.source_type === 'cash_drawer'" class="badge badge-cash">
-                    🏪 درج الكاشير ({{ drw.warehouse_name || 'فرع' }})
+                    درج الكاشير ({{ drw.warehouse_name || 'فرع' }})
                   </span>
                   <span
                     v-else-if="drw.source_type === 'main_treasury'"
                     class="badge badge-treasury"
                   >
-                    🏦 الخزينة الرئيسية
+                    الخزينة الرئيسية
                   </span>
-                  <span v-else class="badge badge-bank"> 💳 الحساب البنكي </span>
+                  <span v-else class="badge badge-bank"> الحساب البنكي </span>
                 </td>
                 <td>{{ drw.recipient_name || drw.partner_name }}</td>
                 <td class="notes-cell" :title="drw.notes">{{ drw.notes || '—' }}</td>
@@ -503,7 +503,7 @@
             <AppIcon name="money" :size="20" />
             <span>تسجيل سند صرف مسحوبات شريك</span>
           </h3>
-          <button type="button" class="close-btn" @click="showDrawingModal = false">✕</button>
+          <button type="button" class="close-btn" @click="showDrawingModal = false"></button>
         </div>
 
         <form @submit.prevent="saveDrawing">
@@ -551,12 +551,10 @@
               <div class="form-group">
                 <label>الخزينة المصروف منها <span class="required">*</span></label>
                 <select v-model="drawingForm.source_type" class="input-control" required>
-                  <option value="cash_drawer">
-                    🏪 درج الكاشير / الفرع (يخصم من الوردية فوراً)
-                  </option>
-                  <option value="main_treasury">🏦 الخزينة الرئيسية للإدارة</option>
+                  <option value="cash_drawer">درج الكاشير / الفرع (يخصم من الوردية فوراً)</option>
+                  <option value="main_treasury">الخزينة الرئيسية للإدارة</option>
                   <option value="bank_account">
-                    💳 الحساب البنكي / تحويل فودافون كاش أو إنستاباي
+                    الحساب البنكي / تحويل فودافون كاش أو إنستاباي
                   </option>
                 </select>
               </div>
@@ -617,7 +615,7 @@
             <AppIcon name="users" :size="20" />
             <span>{{ editingPartnerId ? 'تعديل بيانات الشريك' : 'إضافة شريك جديد' }}</span>
           </h3>
-          <button type="button" class="close-btn" @click="showPartnerModal = false">✕</button>
+          <button type="button" class="close-btn" @click="showPartnerModal = false"></button>
         </div>
 
         <form @submit.prevent="savePartner">
@@ -921,7 +919,7 @@ const loadPartners = async () => {
 
 const loadWarehouses = async () => {
   try {
-    const res = await inventoryApi.getWarehouses();
+    const res = await inventoryApi.warehouses();
     warehousesList.value = res.data?.data || res.data || [];
   } catch (err: any) {
     console.error('فشل جلب المخازن:', err);

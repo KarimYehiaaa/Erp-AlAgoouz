@@ -1,6 +1,5 @@
 <!--
   WholesaleSalesPanel.vue — تبويب "جملة": جدول فواتير الجملة للعملاء
-  ═════════════════════════════════════════════════════════════════
   يعرض فواتير مبيعات الجملة مع روابط العرض/الطباعة والتعديل.
   استُخرج من SalesView لتقليل حجم الملف المركزي (كان 2,463 سطرًا).
 -->
@@ -56,7 +55,7 @@
         </template>
         <template #cell-customer_name="{ item }">
           <span class="customer-chip" style="font-weight: 800; color: var(--accent, #c77a2f)">
-            👤 {{ item.customer_name || item.customer_name_ar || 'عميل جملة' }}
+            {{ item.customer_name || item.customer_name_ar || 'عميل جملة' }}
           </span>
         </template>
         <template #cell-total_amount="{ item }">

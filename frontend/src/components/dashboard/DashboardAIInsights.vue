@@ -40,14 +40,14 @@ const aiInsights = computed(() => {
     insights.push({
       title: 'مراجعة طلبات التوريد',
       text: `يوجد ${stockAlerts} منتجات تقل كميتها عن حد الطلب. نقترح مراجعة صفحة المخزون وإعداد طلبات التوريد لتفادي النقص.`,
-      icon: '⚠️',
+      icon: '',
       tone: 'danger',
     });
   } else {
     insights.push({
       title: 'استقرار المخزون',
       text: 'جميع المنتجات الأساسية أعلى من حد الأمان حالياً. لا يوجد خطر نقص وشيك.',
-      icon: '✅',
+      icon: '',
       tone: 'success',
     });
   }
@@ -57,14 +57,14 @@ const aiInsights = computed(() => {
     insights.push({
       title: 'تنبيه التدفقات النقدية (آجل مرتفع)',
       text: `نسبة تحصيل المبيعات الآجلة للشهر الحالي منخفضة (${collectionRate.toFixed(1)}%). نوصي بالتواصل مع العملاء الذين لديهم مديونيات متأخرة لزيادة التدفقات النقدية.`,
-      icon: '💳',
+      icon: '',
       tone: 'warning',
     });
   } else {
     insights.push({
       title: 'كفاءة التحصيل المالي',
       text: `معدل تحصيل ممتاز للمبيعات الآجلة للشهر الحالي يبلغ ${collectionRate.toFixed(1)}%. استمر على هذا الأداء.`,
-      icon: '💰',
+      icon: '',
       tone: 'success',
     });
   }
@@ -74,7 +74,7 @@ const aiInsights = computed(() => {
     insights.push({
       title: 'عائق تصنيعي محتمل',
       text: `يوجد ${shortageRecipes} وصفة تحتوي على مواد أولية قاربت على النفاد، مما قد يعطل إنتاج هذه الدفعات.`,
-      icon: '🥣',
+      icon: '',
       tone: 'warning',
     });
   }
@@ -84,7 +84,7 @@ const aiInsights = computed(() => {
     insights.push({
       title: 'معدل نشاط مرتفع',
       text: `سجل النظام ${salesCount} عملية بيع خلال هذه الفترة. نقترح مراقبة ساعات الذروة (بين 4 و 7 مساءً) لتنظيم العمالة بشكل أفضل.`,
-      icon: '🔥',
+      icon: '',
       tone: 'info',
     });
   }

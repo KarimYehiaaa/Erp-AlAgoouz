@@ -1,7 +1,7 @@
 <template>
   <div class="risk-radar">
     <div class="radar-header">
-      <h3 class="radar-title">🚨 رادار المخاطر والتنبيهات التشغيلية</h3>
+      <h3 class="radar-title">رادار المخاطر والتنبيهات التشغيلية</h3>
       <span class="radar-badge">تحديث فوري</span>
     </div>
 
@@ -11,7 +11,7 @@
       <!-- 1. Overdue Customers Debt -->
       <div class="radar-card warning">
         <div class="card-head">
-          <span class="card-icon">👥</span>
+          <span class="card-icon"></span>
           <h4>أعلى ديون العملاء</h4>
         </div>
         <ul v-if="data.overdueCustomers?.length" class="radar-list">
@@ -26,7 +26,7 @@
       <!-- 2. Low Margin Products -->
       <div class="radar-card danger">
         <div class="card-head">
-          <span class="card-icon">📉</span>
+          <span class="card-icon"></span>
           <h4>منتجات بهامش ربح ضعيف (أقل من 10%)</h4>
         </div>
         <ul v-if="data.lowMarginProducts?.length" class="radar-list">
@@ -35,13 +35,13 @@
             <span class="item-val danger">{{ p.margin_percent }}% هامش</span>
           </li>
         </ul>
-        <div v-else class="radar-empty">جميع تسعيرات المنتجات ممتازة 👍</div>
+        <div v-else class="radar-empty">جميع تسعيرات المنتجات ممتازة</div>
       </div>
 
       <!-- 3. Out of Stock Items -->
       <div class="radar-card critical">
         <div class="card-head">
-          <span class="card-icon">📦</span>
+          <span class="card-icon"></span>
           <h4>منتجات برصيد 0 بالمخزون</h4>
         </div>
         <ul v-if="data.outOfStockProducts?.length" class="radar-list">

@@ -1,7 +1,7 @@
 <template>
   <div class="card backup-settings-card">
     <div class="card-header">
-      <h3>💾 إدارة النسخ الاحتياطي والنظام</h3>
+      <h3>إدارة النسخ الاحتياطي والنظام</h3>
       <p class="hint">حفظ وتنزيل نسخة من قواعد البيانات أو استعادة البيانات</p>
     </div>
 

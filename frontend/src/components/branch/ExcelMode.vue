@@ -1,6 +1,6 @@
 <template>
   <div class="excel-mode card">
-    <h3>📊 استيراد مبيعات الفرع من Excel</h3>
+    <h3>استيراد مبيعات الفرع من Excel</h3>
     <p class="excel-note">
       حمّل القالب — فيه كل منتجات الفرع جاهزة بالكود والاسم والسعر. اكتب الكمية فقط لكل منتج بيع، ثم
       ارفع الملف.
@@ -8,14 +8,14 @@
 
     <div class="excel-actions">
       <button class="btn btn-primary" @click="emit('download')" :disabled="downloadingTemplate">
-        {{ downloadingTemplate ? '⏳ جاري التحميل...' : '📥 تحميل القالب (منتجات جاهزة)' }}
+        {{ downloadingTemplate ? '⏳ جاري التحميل...' : ' تحميل القالب (منتجات جاهزة)' }}
       </button>
       <label class="btn btn-outline import-label">
-        🔍 فحص الملف قبل الرفع
+        فحص الملف قبل الرفع
         <input type="file" accept=".xlsx,.xls" hidden @change="onValidate($event)" />
       </label>
       <label class="btn btn-outline import-label">
-        📤 رفع واستيراد
+        رفع واستيراد
         <input type="file" accept=".xlsx,.xls" hidden @change="onImport($event)" />
       </label>
     </div>
@@ -55,7 +55,7 @@
 
     <!-- معاينة المنتجات في القالب -->
     <details class="excel-guide" open>
-      <summary>👁️ معاينة شكل القالب ({{ allProducts.length }} منتج)</summary>
+      <summary>معاينة شكل القالب ({{ allProducts.length }} منتج)</summary>
       <div class="guide-table-wrap">
         <table class="guide-table">
           <thead>
@@ -89,7 +89,7 @@
           </tbody>
         </table>
       </div>
-      <p class="guide-note">⚠️ لا تعدّل عمود «كود_المنتج» — هو المرجع الأساسي للاستيراد</p>
+      <p class="guide-note">لا تعدّل عمود «كود_المنتج» — هو المرجع الأساسي للاستيراد</p>
     </details>
   </div>
 </template>

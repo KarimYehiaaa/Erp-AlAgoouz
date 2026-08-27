@@ -58,13 +58,13 @@ export const createStocktake = async (warehouseId: number, userId: number, notes
        SELECT $1, p.id, COALESCE(i.quantity, 0), COALESCE(p.purchase_price, 0)
        FROM products p
        LEFT JOIN inventory i ON i.product_id = p.id AND i.warehouse_id = $2
-       WHERE p.deleted_at IS NULL 
+       WHERE p.deleted_at IS NULL
          AND p.is_active = TRUE
          AND NOT EXISTS (
-           SELECT 1 
-           FROM product_recipes r 
-           WHERE r.product_id = p.id 
-             AND r.deleted_at IS NULL 
+           SELECT 1
+           FROM product_recipes r
+           WHERE r.product_id = p.id
+             AND r.deleted_at IS NULL
              AND r.is_active = TRUE
          )`,
       [stocktake.id, warehouseId],
@@ -90,7 +90,7 @@ export const createStocktake = async (warehouseId: number, userId: number, notes
  */
 export const getStocktakeList = async () => {
   const res = await query(
-    `SELECT 
+    `SELECT
        s.id,
        s.warehouse_id,
        s.status,
@@ -117,7 +117,7 @@ export const getStocktakeList = async () => {
 /** جلب تفاصيل جرد (الأصناف والكميات الفعلية). */
 export const getStocktakeDetails = async (stocktakeId: number) => {
   const stocktakeRes = await query(
-    `SELECT 
+    `SELECT
        s.id,
        s.warehouse_id,
        s.status,
@@ -141,7 +141,7 @@ export const getStocktakeDetails = async (stocktakeId: number) => {
   }
 
   const itemsRes = await query(
-    `SELECT 
+    `SELECT
        si.id,
        si.stocktake_id,
        si.product_id,
@@ -267,8 +267,8 @@ export const completeStocktake = async (stocktakeId: number, userId: number) => 
 
     // 2. سحب جميع بنود الجرد
     const itemsRes = await client.query(
-      `SELECT si.*, p.name_ar 
-       FROM stocktake_items si 
+      `SELECT si.*, p.name_ar
+       FROM stocktake_items si
        JOIN products p ON si.product_id = p.id
        WHERE si.stocktake_id = $1`,
       [stocktakeId],
@@ -336,7 +336,7 @@ export const completeStocktake = async (stocktakeId: number, userId: number) => 
 
         await client.query(
           `INSERT INTO stock_movements (
-             product_id, from_warehouse_id, to_warehouse_id, movement_type, 
+             product_id, from_warehouse_id, to_warehouse_id, movement_type,
              quantity, user_id, notes, unit_cost, total_cost
            ) VALUES ($1, $2, $3, 'adjustment', $4, $5, $6, $7, $8)`,
           [item.product_id, fromWh, toWh, movementQty, userId, note, cost, movementValue],
@@ -346,7 +346,7 @@ export const completeStocktake = async (stocktakeId: number, userId: number) => 
 
     // 4. تحديث حالة الجرد الرئيسي وقيم الفروقات الإجمالية
     await client.query(
-      `UPDATE stocktakes 
+      `UPDATE stocktakes
        SET status = 'completed',
            completed_at = NOW(),
            total_deficit_value = $1,

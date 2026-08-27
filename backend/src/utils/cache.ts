@@ -10,8 +10,8 @@ class InMemoryCache {
   lastSweepAt;
 
   constructor() {
-    this.cache = /* @__PURE__ */ new Map();
-    this.tagIndex = /* @__PURE__ */ new Map();
+    this.cache = new Map();
+    this.tagIndex = new Map();
     this.maxSize = 2000;
     this.sweepIntervalMs = 60 * 1000;
     this.lastSweepAt = Date.now();

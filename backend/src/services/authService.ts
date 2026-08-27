@@ -5,6 +5,7 @@ import { v4 as uuidv4 } from 'uuid';
 import config from '../config/index.ts';
 import { query, withTransaction } from '../database/pool.ts';
 import { AppError } from '../types/errors.ts';
+import { logger } from './loggerService.ts';
 const hashToken = (token) => crypto.createHash('sha256').update(token).digest('hex');
 const logFailedLogin = async (
   username: string,
@@ -27,7 +28,7 @@ const logFailedLogin = async (
       ],
     );
   } catch (err: any) {
-    console.error(
+    logger.error(
       '[Auth] \u0641\u0634\u0644 \u062A\u0633\u062C\u064A\u0644 \u0645\u062D\u0627\u0648\u0644\u0629 \u062F\u062E\u0648\u0644 \u0641\u0627\u0634\u0644\u0629:',
       err.message,
     );
@@ -76,9 +77,9 @@ const login = async (username: string, password: string, meta: Record<string, an
       401,
     );
   }
-  if (user.locked_until && new Date(user.locked_until) > /* @__PURE__ */ new Date()) {
+  if (user.locked_until && new Date(user.locked_until) > new Date()) {
     const remainingMin = Math.ceil(
-      (new Date(user.locked_until).getTime() - /* @__PURE__ */ new Date().getTime()) / 6e4,
+      (new Date(user.locked_until).getTime() - new Date().getTime()) / 6e4,
     );
     throw new AppError(
       `\u062A\u0645 \u0642\u0641\u0644 \u0627\u0644\u062D\u0633\u0627\u0628 \u0645\u0624\u0642\u062A\u0627\u064B \u0644\u062D\u0645\u0627\u064A\u062A\u0647. \u064A\u0631\u062C\u0649 \u0627\u0644\u0645\u062D\u0627\u0648\u0644\u0629 \u0628\u0639\u062F ${remainingMin} \u062F\u0642\u064A\u0642\u0629.`,
@@ -107,7 +108,7 @@ const login = async (username: string, password: string, meta: Record<string, an
       valid = true;
       const newHash = await bcrypt.hash(password, 10);
       await query('UPDATE users SET password_hash = $1 WHERE id = $2', [newHash, user.id]);
-      console.log(
+      logger.info(
         `\u{1F512} [\u0628\u0646 \u0627\u0644\u0639\u062C\u0648\u0632 ERP] \u062A\u0645 \u062A\u0631\u0642\u064A\u0629 \u0643\u0644\u0645\u0629 \u0627\u0644\u0645\u0631\u0648\u0631 \u062A\u0644\u0642\u0627\u0626\u064A\u0627\u064B \u0644\u0640 ${user.username} \u0625\u0644\u0649 bcrypt.`,
       );
     }
@@ -162,7 +163,7 @@ const login = async (username: string, password: string, meta: Record<string, an
   const isDefaultAdminPassword =
     user.username === 'admin' && (password === 'admin123' || user.password_hash === 'admin123');
   if (isDefaultAdminPassword) {
-    console.warn(
+    logger.warn(
       `\u26A0\uFE0F [\u0623\u0645\u0627\u0646 \u0627\u0644\u0646\u0638\u0627\u0645] \u062A\u0645 \u062A\u0633\u062C\u064A\u0644 \u0627\u0644\u062F\u062E\u0648\u0644 \u0628\u062D\u0633\u0627\u0628 \u0627\u0644\u0645\u062F\u064A\u0631 \u0627\u0644\u0627\u0641\u062A\u0631\u0627\u0636\u064A (${user.username}). \u064A\u064F\u0646\u0635\u062D \u0628\u062A\u063A\u064A\u064A\u0631 \u0643\u0644\u0645\u0629 \u0627\u0644\u0645\u0631\u0648\u0631 \u0641\u0648\u0631\u0627\u064B.`,
     );
   }

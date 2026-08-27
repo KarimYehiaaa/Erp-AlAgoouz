@@ -3,6 +3,7 @@ import path from 'path';
 import { query, getClient } from '../database/pool.ts';
 import { AppError } from '../types/errors.ts';
 import { encrypt, decrypt } from '../utils/crypto.ts';
+import { logger } from './loggerService.ts';
 
 const BACKUP_DIR = path.join(process.cwd(), 'backups');
 
@@ -250,7 +251,7 @@ export const clearAllData = async () => {
       await client.query("SET LOCAL session_replication_role = 'replica'");
     } catch {
       // If we cannot change role, continue and rely on careful ordering
-      console.warn(
+      logger.warn(
         '[Restore] could not set session_replication_role, continuing with triggers enabled',
       );
     }
@@ -308,14 +309,14 @@ export const restoreBackup = async (name: string) => {
     try {
       await client.query("SET LOCAL session_replication_role = 'replica'");
     } catch {
-      console.warn(
+      logger.warn(
         '[Restore] could not set session_replication_role, continuing with triggers enabled',
       );
     }
     // تصفية الجداول المسموح بها أولاً لمنع TRUNCATE على جداول غير مصرح بها (SQL Injection)
     const validRestoreTables = restoreTables.filter((table) => {
       if (!ALLOWED_RESTORE_TABLES.has(table)) {
-        console.warn(`[Restore] تجاهل جدول غير مصرح به: ${table}`);
+        logger.warn(`[Restore] تجاهل جدول غير مصرح به: ${table}`);
         return false;
       }
       return true;

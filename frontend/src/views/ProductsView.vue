@@ -3,7 +3,7 @@
     <div class="page-header">
       <div class="tabs inline-tabs">
         <button type="button" :class="{ active: tab === 'list' }" @click="tab = 'list'">
-          📋 المنتجات
+          🏷️ المنتجات
         </button>
         <button
           type="button"
@@ -13,7 +13,7 @@
             loadReturns();
           "
         >
-          ↩️ استرداد منتجات
+          ↩ استرداد منتجات
         </button>
       </div>
       <div v-if="tab === 'list'" class="header-actions">
@@ -309,7 +309,7 @@
                     gap: 6px;
                   "
                 >
-                  📦 توزيع كميات المخزون بالمنشأة
+                  توزيع كميات المخزون بالمنشأة
                 </label>
                 <small
                   style="
@@ -345,7 +345,8 @@
                           padding: 2px 6px;
                           border-radius: 4px;
                         "
-                        >🏢 مخزن رئيسي</span
+                      >
+                        مخزن رئيسي</span
                       >
                       <span
                         v-else
@@ -357,7 +358,8 @@
                           padding: 2px 6px;
                           border-radius: 4px;
                         "
-                        >🏪 محل البيع / الفرع</span
+                      >
+                        محل البيع / الفرع</span
                       >
                     </label>
                     <input
@@ -536,9 +538,9 @@ const refreshNextSkuPreview = async () => {
 };
 
 const returnForm = ref({
-  product_id: null,
+  product_id: null as number | string | null,
   product_name: '',
-  warehouse_id: null,
+  warehouse_id: null as number | string | null,
   quantity: 1,
   reason: 'customer_return',
   notes: '',
@@ -571,7 +573,7 @@ const load = async () => {
     warehouses.value = w.data;
     nextSkuPreview.value = buildNextSku(products.value);
     if (!returnForm.value.warehouse_id && w.data?.length)
-      returnForm.value.warehouse_id = w.data[0].id;
+      returnForm.value.warehouse_id = w.data[0]!.id;
   } catch (e: any) {
     console.error('فشل تحميل المنتجات:', e);
   } finally {

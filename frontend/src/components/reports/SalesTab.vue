@@ -2,21 +2,21 @@
   <div>
     <div class="kpi-grid kpi-grid-3">
       <div class="kpi-card sales">
-        <div class="kpi-icon">💰</div>
+        <div class="kpi-icon"></div>
         <div class="kpi-body">
           <div class="kpi-label">إجمالي المبيعات</div>
           <div class="kpi-value">{{ formatMoney(total) }}</div>
         </div>
       </div>
       <div class="kpi-card profit">
-        <div class="kpi-icon">📈</div>
+        <div class="kpi-icon"></div>
         <div class="kpi-body">
           <div class="kpi-label">إجمالي الأرباح</div>
           <div class="kpi-value">{{ formatMoney(profit) }}</div>
         </div>
       </div>
       <div class="kpi-card">
-        <div class="kpi-icon">🧾</div>
+        <div class="kpi-icon"></div>
         <div class="kpi-body">
           <div class="kpi-label">عدد العمليات</div>
           <div class="kpi-value">{{ count }}</div>
@@ -25,7 +25,7 @@
     </div>
     <div class="card">
       <div class="table-header">
-        <h3>📋 تفاصيل المبيعات</h3>
+        <h3>تفاصيل المبيعات</h3>
         <div class="type-filter">
           <button :class="{ active: filter === '' }" @click="$emit('filter', '')">الكل</button>
           <button :class="{ active: filter === 'branch' }" @click="$emit('filter', 'branch')">

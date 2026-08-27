@@ -8,7 +8,7 @@ export const getStaffingForecast = async (params: Record<string, any> = {}) => {
 
   // 1. استعلام لحساب عدد الفواتير وإجمالي المبيعات لكل يوم ساعة بساعة لآخر 90 يوماً
   const sql = `
-    SELECT 
+    SELECT
       EXTRACT(DOW FROM created_at) AS dow,
       EXTRACT(HOUR FROM created_at) AS hour,
       COUNT(*) AS tx_count,

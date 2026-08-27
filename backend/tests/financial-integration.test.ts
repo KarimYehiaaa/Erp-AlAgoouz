@@ -1,13 +1,8 @@
-import { test, afterAll } from 'vitest';
+import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import { createExpense } from '../src/services/expenseService.ts';
 import { roundMoney } from '../src/utils/money.js';
 import { AppError } from '../src/types/errors.js';
-import pool from '../src/database/pool.js';
-
-afterAll(async () => {
-  await pool.end();
-});
 
 test('يمنع تسجيل مصروف بقيمة سالبة', async () => {
   try {
@@ -35,5 +30,5 @@ test('دقة الأرقام تعمل بشكل صحيح لتجنب مشكلة ا�
   // 1.005 * 100 = 100.49999999999999 in JS
   // roundMoney fixes this floating point math
   const total = roundMoney(quantity * unitPrice);
-  assert.equal(total, 100.5); 
+  assert.equal(total, 100.5);
 });

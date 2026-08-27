@@ -1,12 +1,11 @@
 <!--
   SalesDangerActions.vue — إدارة الحذف: حسب النوع / يوم محدد / شامل
-  ════════════════════════════════════════════════════════════════
   أزرار حذف مبيعات الفرع/الجملة أو يوم محدد أو كل المبيعات (للمدير).
   استُخرج من SalesView لتقليل حجم الملف المركزي (كان 2,463 سطرًا).
 -->
 <template>
   <div class="danger-actions card">
-    <div class="danger-title">🗑️ إدارة الحذف</div>
+    <div class="danger-title">إدارة الحذف</div>
 
     <!-- حذف حسب النوع -->
     <div class="danger-row">
@@ -18,7 +17,7 @@
         @click="$emit('deleteType', 'branch')"
         title="حذف كل مبيعات الفرع نهائياً"
       >
-        <span class="btn-icon">🏪</span>
+        <span class="btn-icon"></span>
         <span class="btn-text">حذف مبيعات الفرع</span>
       </button>
       <button
@@ -28,7 +27,7 @@
         @click="$emit('deleteType', 'wholesale')"
         title="حذف كل مبيعات الجملة نهائياً"
       >
-        <span class="btn-icon">📦</span>
+        <span class="btn-icon"></span>
         <span class="btn-text">حذف مبيعات الجملة</span>
       </button>
     </div>
@@ -44,7 +43,7 @@
         @click="$emit('deleteDay')"
         title="حذف مبيعات هذا اليوم فقط"
       >
-        <span class="btn-icon">🗓️</span>
+        <span class="btn-icon"></span>
         <span class="btn-text">حذف مبيعات اليوم</span>
       </button>
     </div>
@@ -59,7 +58,7 @@
         @click="$emit('deleteAll')"
         title="حذف كل المبيعات نهائياً"
       >
-        <span class="btn-icon">⚠️</span>
+        <span class="btn-icon"></span>
         <span class="btn-text">حذف كل المبيعات</span>
       </button>
     </div>

@@ -3,7 +3,7 @@
     <!-- Header -->
     <div class="page-header card glass-header">
       <div class="header-title">
-        <span class="header-icon sparkles-anim">✨</span>
+        <span class="header-icon sparkles-anim"></span>
         <div>
           <h2>المساعد المالي والتشغيلي الذكي</h2>
           <p>
@@ -19,7 +19,7 @@
           class="btn btn-outline btn-sm clear-btn"
           title="مسح محادثة اليوم"
         >
-          <span>🗑️</span> مسح المحادثة
+          <span></span> مسح المحادثة
         </button>
       </div>
     </div>
@@ -28,7 +28,7 @@
     <div class="chat-wrapper card">
       <!-- Welcome screen when history is empty -->
       <div v-if="history.length === 0" class="welcome-screen">
-        <div class="welcome-icon">🔮</div>
+        <div class="welcome-icon"></div>
         <h3>أهلاً بك في المساعد الذكي لـ "بن العجوز"</h3>
         <p>
           يمكنني مساعدتك في تحليل أداء المبيعات، ومراقبة المصاريف، وتوقع نسب الازدحام، وتقديم
@@ -60,7 +60,7 @@
           :class="msg.role === 'user' ? 'user-row' : 'assistant-row'"
         >
           <div class="avatar">
-            {{ msg.role === 'user' ? '👨‍💼' : '🤖' }}
+            {{ msg.role === 'user' ? '' : '' }}
           </div>
           <div class="message-bubble" :class="msg.role">
             <div class="message-content" v-html="formatMessage(msg.content)"></div>
@@ -70,7 +70,7 @@
 
         <!-- Typing Indicator -->
         <div v-if="loading" class="message-row assistant-row">
-          <div class="avatar">🤖</div>
+          <div class="avatar"></div>
           <div class="message-bubble assistant typing-bubble">
             <div class="typing-indicator">
               <span></span>
@@ -112,7 +112,7 @@
             :disabled="!inputText.trim() || loading"
           >
             <span v-if="loading">جاري التفكير...</span>
-            <span v-else>إرسال 🚀</span>
+            <span v-else>إرسال </span>
           </button>
         </form>
       </div>
@@ -133,7 +133,7 @@ const inputArea = ref<any>(null);
 
 const suggestedPrompts = [
   {
-    icon: '📊',
+    icon: '',
     title: 'أداء المبيعات والمصاريف',
     text: 'أعطني ملخصاً شاملاً للمبيعات والمصاريف وصافي الربح في آخر 30 يوماً.',
   },
@@ -143,12 +143,12 @@ const suggestedPrompts = [
     text: 'ما هي أكثر الساعات والمستويات ازدحاماً خلال الأسبوع وما هي توصيتك للشيفتات؟',
   },
   {
-    icon: '💰',
+    icon: '',
     title: 'التسعير وهامش الربح',
     text: 'هل هناك مشروبات أو منتجات تباع بهامش ربح منخفض بناءً على أسعار التكلفة؟',
   },
   {
-    icon: '☕',
+    icon: '',
     title: 'توصيات لزيادة الأرباح',
     text: 'كيف يمكنني تقليل الفاقد في الحليب والبن وزيادة متوسط قيمة سلة الشراء للمقهى؟',
   },

@@ -347,9 +347,9 @@ const { init: initParticles } = useParticles({
 
 // ─── Brand Features ───────────────────────────────────────
 const features = [
-  { icon: '☕', label: 'إدارة المنتجات والمخزون' },
-  { icon: '📊', label: 'تقارير مالية لحظية' },
-  { icon: '🔒', label: 'حماية بيانات متقدمة' },
+  { icon: '', label: 'إدارة المنتجات والمخزون' },
+  { icon: '', label: 'تقارير مالية لحظية' },
+  { icon: '', label: 'حماية بيانات متقدمة' },
 ];
 const featuresVisible = ref(false);
 
@@ -430,9 +430,7 @@ onMounted(async () => {
 */
 @import url('https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@400;700&family=Cairo:wght@400;500;600;700;800&display=swap');
 
-/* ════════════════════════════════════════════════════════════════════
-   CSS CUSTOM PROPERTIES (Warm Light Theme)
-   ════════════════════════════════════════════════════════════════════ */
+/* CSS CUSTOM PROPERTIES (Warm Light Theme) */
 .login-page {
   --bg-cream: #fdf8f3;
   --bg-white: #ffffff;
@@ -466,16 +464,11 @@ onMounted(async () => {
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-/* ════════════════════════════════════════════════════════════════════
-   DARK MODE (Espresso) — نفس هوية القهوة بدرجات داكنة
-   تُفعَّل عبر data-theme="dark" على <html> (يُدار من stores/app.ts)
-   ملاحظة: مُستخرجة في كتلة style غير معزولة في نهاية الملف لأن :global()
-   داخل النمط المعزول كان يُسقط جزء .login-page أثناء التجميع (Sass modern-compiler).
-   ════════════════════════════════════════════════════════════════════ */
+/* DARK MODE (Espresso) — نفس هوية القهوة بدرجات داكنة
+   تُفعَّل عبر data-theme="dark" على <html> (يُدار من stores/app.ts) */
+/* ملاحظة: مُستخرجة في كتلة style غير معزولة في نهاية الملف لأن :global() داخل النمط المعزول كان يُسقط جزء .login-page أثناء التجميع (Sass modern-compiler). */
 
-/* ════════════════════════════════════════════════════════════════════
-   ROOT LAYOUT
-   ════════════════════════════════════════════════════════════════════ */
+/* ROOT LAYOUT */
 .login-page {
   display: flex;
   min-height: 100dvh;
@@ -485,9 +478,7 @@ onMounted(async () => {
   color: var(--text-primary);
 }
 
-/* ════════════════════════════════════════════════════════════════════
-   BRAND PANEL (Right Side — Desktop Only)
-   ════════════════════════════════════════════════════════════════════ */
+/* BRAND PANEL (Right Side — Desktop Only) */
 .brand-panel {
   position: relative;
   display: none;
@@ -722,9 +713,7 @@ onMounted(async () => {
   background: rgba(200, 149, 110, 0.6);
 }
 
-/* ════════════════════════════════════════════════════════════════════
-   FORM PANEL (Left Side — Always Visible)
-   ════════════════════════════════════════════════════════════════════ */
+/* FORM PANEL (Left Side — Always Visible) */
 .form-panel {
   flex: 1;
   display: flex;
@@ -1285,9 +1274,7 @@ onMounted(async () => {
   }
 }
 
-/* ════════════════════════════════════════════════════════════════════
-   RESPONSIVE ADJUSTMENTS
-   ════════════════════════════════════════════════════════════════════ */
+/* RESPONSIVE ADJUSTMENTS */
 @media (max-width: 480px) {
   .form-panel {
     padding: 16px 12px;

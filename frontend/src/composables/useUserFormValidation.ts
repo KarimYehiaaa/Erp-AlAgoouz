@@ -22,7 +22,7 @@ export interface UserFormValidations {
 export interface PasswordStrength {
   /** النسبة المئوية 0-100 */
   percent: number;
-  /** النص العربي (قوية جداً ✨ / متوسطة ⚡ / ضعيفة ⚠️...) */
+  /** النص العربي (قوية جداً  / متوسطة  / ضعيفة ...) */
   text: string;
   /** لون الشريط (hex) */
   color: string;
@@ -51,7 +51,7 @@ export function validateUsernameValue(username: string): ValidationState {
   if (val.length < 3) {
     return { valid: false, msg: 'يجب أن يكون 3 حروف على الأقل' };
   }
-  return { valid: true, msg: 'اسم المستخدم متاح ✓' };
+  return { valid: true, msg: 'اسم المستخدم متاح ' };
 }
 
 /**
@@ -68,7 +68,7 @@ export function validateEmailValue(email: string): ValidationState {
   if (!emailRegex.test(val)) {
     return { valid: false, msg: 'صيغة البريد الإلكتروني غير صحيحة' };
   }
-  return { valid: true, msg: 'بريد إلكتروني صالح ✓' };
+  return { valid: true, msg: 'بريد إلكتروني صالح ' };
 }
 
 /**
@@ -79,7 +79,7 @@ export function validateEmailValue(email: string): ValidationState {
 export function evaluatePasswordStrengthValue(password: string): PasswordStrength {
   const pwd = password || '';
   if (!pwd) {
-    return { percent: 0, text: 'ضعيفة جداً ⚠️', color: '#dc2626' };
+    return { percent: 0, text: 'ضعيفة جداً ', color: '#dc2626' };
   }
   let score = 0;
   if (pwd.length >= 6) score += 20;
@@ -89,12 +89,12 @@ export function evaluatePasswordStrengthValue(password: string): PasswordStrengt
   if (/[^A-Za-z0-9]/.test(pwd)) score += 20;
 
   if (score <= 40) {
-    return { percent: score, text: 'ضعيفة ⚠️', color: '#dc2626' };
+    return { percent: score, text: 'ضعيفة ', color: '#dc2626' };
   }
   if (score <= 80) {
-    return { percent: score, text: 'متوسطة ⚡', color: '#d97706' };
+    return { percent: score, text: 'متوسطة ', color: '#d97706' };
   }
-  return { percent: score, text: 'قوية جداً ✨', color: '#16a34a' };
+  return { percent: score, text: 'قوية جداً ', color: '#16a34a' };
 }
 
 /**
@@ -106,7 +106,7 @@ export function evaluatePasswordStrengthValue(password: string): PasswordStrengt
 export function useUserFormValidation() {
   const validations = ref<UserFormValidations>(emptyValidations());
   const strengthPercent = ref(0);
-  const strengthText = ref('ضعيفة جداً ⚠️');
+  const strengthText = ref('ضعيفة جداً ');
   const strengthColor = ref('#dc2626');
 
   /** تحقق اسم الدخول وتحديث الحالة. */
@@ -131,7 +131,7 @@ export function useUserFormValidation() {
   const resetValidations = () => {
     validations.value = emptyValidations();
     strengthPercent.value = 0;
-    strengthText.value = 'ضعيفة جداً ⚠️';
+    strengthText.value = 'ضعيفة جداً ';
     strengthColor.value = '#dc2626';
   };
 

@@ -1,5 +1,5 @@
 import * as hrService from '../services/hrService.ts';
-import { ok } from './helper.ts';
+import { ok, wrap } from './helper.ts';
 
 export const hr = {
   /**
@@ -8,244 +8,172 @@ export const hr = {
    * @param {import('express').Response} res استجابة HTTP
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
-  summary: async (req, res, next) => {
-    try {
-      ok(res, await hrService.getHrSummary(req.query.period_month));
-    } catch (e: any) {
-      next(e);
-    }
-  },
+  summary: wrap(async (req, res) => {
+    ok(res, await hrService.getHrSummary(req.query.period_month));
+  }),
   /**
    * قائمة الورديات.
    * @param {import('express').Request} req طلب HTTP
    * @param {import('express').Response} res استجابة HTTP
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
-  shifts: async (_req, res, next) => {
-    try {
-      ok(res, await hrService.listShifts());
-    } catch (e: any) {
-      next(e);
-    }
-  },
+  shifts: wrap(async (_req, res) => {
+    ok(res, await hrService.listShifts());
+  }),
   /**
    * إنشاء وردية جديدة.
    * @param {import('express').Request} req طلب HTTP
    * @param {import('express').Response} res استجابة HTTP
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
-  createShift: async (req, res, next) => {
-    try {
-      ok(res, await hrService.createShift(req.body), 'تم إنشاء الشيفت');
-    } catch (e: any) {
-      next(e);
-    }
-  },
+  createShift: wrap(async (req, res) => {
+    ok(res, await hrService.createShift(req.body), 'تم إنشاء الشيفت');
+  }),
   /**
    * قائمة الموظفين.
    * @param {import('express').Request} req طلب HTTP
    * @param {import('express').Response} res استجابة HTTP
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
-  employees: async (req, res, next) => {
-    try {
-      ok(res, await hrService.listEmployees(req.query));
-    } catch (e: any) {
-      next(e);
-    }
-  },
+  employees: wrap(async (req, res) => {
+    ok(res, await hrService.listEmployees(req.query));
+  }),
   /**
    * إنشاء موظف جديد.
    * @param {import('express').Request} req طلب HTTP
    * @param {import('express').Response} res استجابة HTTP
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
-  createEmployee: async (req, res, next) => {
-    try {
-      ok(res, await hrService.createEmployee(req.body), 'تم إنشاء الموظف');
-    } catch (e: any) {
-      next(e);
-    }
-  },
+  createEmployee: wrap(async (req, res) => {
+    ok(res, await hrService.createEmployee(req.body), 'تم إنشاء الموظف');
+  }),
   /**
    * تحديث بيانات موظف.
    * @param {import('express').Request} req طلب HTTP
    * @param {import('express').Response} res استجابة HTTP
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
-  updateEmployee: async (req, res, next) => {
-    try {
-      ok(res, await hrService.updateEmployee(req.params.id, req.body), 'تم تحديث الموظف');
-    } catch (e: any) {
-      next(e);
-    }
-  },
+  updateEmployee: wrap(async (req, res) => {
+    ok(res, await hrService.updateEmployee(req.params.id, req.body), 'تم تحديث الموظف');
+  }),
   /**
    * حذف موظف.
    * @param {import('express').Request} req طلب HTTP
    * @param {import('express').Response} res استجابة HTTP
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
-  deleteEmployee: async (req, res, next) => {
-    try {
-      ok(res, await hrService.deleteEmployee(req.params.id), 'تم إيقاف الموظف');
-    } catch (e: any) {
-      next(e);
-    }
-  },
+  deleteEmployee: wrap(async (req, res) => {
+    ok(res, await hrService.deleteEmployee(req.params.id), 'تم إيقاف الموظف');
+  }),
   /**
    * سجل الحضور والانصراف مع التصفية.
    * @param {import('express').Request} req طلب HTTP
    * @param {import('express').Response} res استجابة HTTP
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
-  attendance: async (req, res, next) => {
-    try {
-      ok(res, await hrService.listAttendance(req.query));
-    } catch (e: any) {
-      next(e);
-    }
-  },
+  attendance: wrap(async (req, res) => {
+    ok(res, await hrService.listAttendance(req.query));
+  }),
   /**
    * حفظ سجلات الحضور والانصراف.
    * @param {import('express').Request} req طلب HTTP
    * @param {import('express').Response} res استجابة HTTP
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
-  saveAttendance: async (req, res, next) => {
-    try {
-      const result =
-        req.body?.to_date || req.body?.from_date
-          ? await hrService.saveAttendanceRange(req.body, req.user.id)
-          : await hrService.saveAttendance(req.body, req.user.id);
-      ok(res, result, 'تم حفظ الحضور');
-    } catch (e: any) {
-      next(e);
-    }
-  },
+  saveAttendance: wrap(async (req, res) => {
+    const result =
+      req.body?.to_date || req.body?.from_date
+        ? await hrService.saveAttendanceRange(req.body, req.user.id)
+        : await hrService.saveAttendance(req.body, req.user.id);
+    ok(res, result, 'تم حفظ الحضور');
+  }),
   /**
    * حذف سجل حضور.
    * @param {import('express').Request} req طلب HTTP
    * @param {import('express').Response} res استجابة HTTP
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
-  deleteAttendance: async (req, res, next) => {
-    try {
-      ok(res, await hrService.deleteAttendance(req.params.id), 'تم حذف سجل الحضور');
-    } catch (e: any) {
-      next(e);
-    }
-  },
+  deleteAttendance: wrap(async (req, res) => {
+    ok(res, await hrService.deleteAttendance(req.params.id), 'تم حذف سجل الحضور');
+  }),
   /**
    * قائمة سلف الموظفين.
    * @param {import('express').Request} req طلب HTTP
    * @param {import('express').Response} res استجابة HTTP
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
-  advances: async (req, res, next) => {
-    try {
-      ok(res, await hrService.listAdvances(req.query));
-    } catch (e: any) {
-      next(e);
-    }
-  },
+  advances: wrap(async (req, res) => {
+    ok(res, await hrService.listAdvances(req.query));
+  }),
   /**
    * إنشاء سلفة لموظف.
    * @param {import('express').Request} req طلب HTTP
    * @param {import('express').Response} res استجابة HTTP
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
-  createAdvance: async (req, res, next) => {
-    try {
-      ok(res, await hrService.createAdvance(req.body, req.user.id), 'تم صرف السلفة');
-    } catch (e: any) {
-      next(e);
-    }
-  },
+  createAdvance: wrap(async (req, res) => {
+    ok(res, await hrService.createAdvance(req.body, req.user.id), 'تم صرف السلفة');
+  }),
   /**
    * حذف سلفة.
    * @param {import('express').Request} req طلب HTTP
    * @param {import('express').Response} res استجابة HTTP
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
-  deleteAdvance: async (req, res, next) => {
-    try {
-      ok(res, await hrService.deleteAdvance(req.params.id), 'تم حذف السلفة');
-    } catch (e: any) {
-      next(e);
-    }
-  },
+  deleteAdvance: wrap(async (req, res) => {
+    ok(res, await hrService.deleteAdvance(req.params.id), 'تم حذف السلفة');
+  }),
   /**
    * قائمة دورات الرواتب المنفذة.
    * @param {import('express').Request} req طلب HTTP
    * @param {import('express').Response} res استجابة HTTP
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
-  payrollRuns: async (_req, res, next) => {
-    try {
-      ok(res, await hrService.listPayrollRuns());
-    } catch (e: any) {
-      next(e);
-    }
-  },
+  payrollRuns: wrap(async (_req, res) => {
+    ok(res, await hrService.listPayrollRuns());
+  }),
   /**
    * معاينة كشف رواتب قبل الاعتماد.
    * @param {import('express').Request} req طلب HTTP
    * @param {import('express').Response} res استجابة HTTP
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
-  previewPayroll: async (req, res, next) => {
-    try {
-      ok(res, await hrService.previewPayroll(req.query.period_month));
-    } catch (e: any) {
-      next(e);
-    }
-  },
+  previewPayroll: wrap(async (req, res) => {
+    ok(res, await hrService.previewPayroll(req.query.period_month));
+  }),
   /**
    * إنشاء دورة رواتب جديدة.
    * @param {import('express').Request} req طلب HTTP
    * @param {import('express').Response} res استجابة HTTP
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
-  createPayroll: async (req, res, next) => {
-    try {
-      ok(
-        res,
-        await hrService.createOrRecalculatePayroll(req.body.period_month, req.user.id),
-        'تم حساب مسير المرتبات',
-      );
-    } catch (e: any) {
-      next(e);
-    }
-  },
+  createPayroll: wrap(async (req, res) => {
+    ok(
+      res,
+      await hrService.createOrRecalculatePayroll(req.body.period_month, req.user.id),
+      'تم حساب مسير المرتبات',
+    );
+  }),
   /**
    * جلب كشف رواتب دورة محددة.
    * @param {import('express').Request} req طلب HTTP
    * @param {import('express').Response} res استجابة HTTP
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
-  getPayroll: async (req, res, next) => {
-    try {
-      ok(res, await hrService.getPayrollRun(req.params.id));
-    } catch (e: any) {
-      next(e);
-    }
-  },
+  getPayroll: wrap(async (req, res) => {
+    ok(res, await hrService.getPayrollRun(req.params.id));
+  }),
   /**
    * تسجيل صرف رواتب دورة محددة.
    * @param {import('express').Request} req طلب HTTP
    * @param {import('express').Response} res استجابة HTTP
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
-  payPayroll: async (req, res, next) => {
-    try {
-      ok(
-        res,
-        await hrService.payPayrollRun(req.params.id, req.user.id, req.body?.payment_method),
-        'تم صرف المرتبات',
-      );
-    } catch (e: any) {
-      next(e);
-    }
-  },
+  payPayroll: wrap(async (req, res) => {
+    ok(
+      res,
+      await hrService.payPayrollRun(req.params.id, req.user.id, req.body?.payment_method),
+      'تم صرف المرتبات',
+    );
+  }),
 };

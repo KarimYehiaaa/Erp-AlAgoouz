@@ -61,9 +61,7 @@ const refresh = async (req, res, next) => {
   try {
     const refreshToken = req.cookies?.refresh_token;
     if (!refreshToken)
-      return res
-        .status(401)
-        .json({ success: false, message: 'Refresh token \u0645\u0637\u0644\u0648\u0628' });
+      return res.status(401).json({ success: false, message: 'رمز التحديث (Refresh token) مطلوب' });
     const data = await authService.refreshAccessToken(refreshToken);
     // تحديث الـ cookies بالتوكنات الجديدة
     res.cookie('access_token', data.token, {
@@ -96,8 +94,7 @@ const logoutHandler = async (req, res, next) => {
     res.clearCookie('refresh_token', { path: '/api/v1/auth' });
     res.json({
       success: true,
-      message:
-        '\u062A\u0645 \u062A\u0633\u062C\u064A\u0644 \u0627\u0644\u062E\u0631\u0648\u062C \u0628\u0646\u062C\u0627\u062D',
+      message: 'تم تسجيل الخروج بنجاح',
     });
   } catch (err: any) {
     next(err);

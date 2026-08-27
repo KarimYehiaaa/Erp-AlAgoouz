@@ -1,6 +1,5 @@
 /**
  * routes/menu.routes.ts — مسارات موديول إدارة وتصميم المنيو
- * ═════════════════════════════════════════════════════════
  */
 import { Router } from 'express';
 import { authenticate, authorize, auditLog } from '../middleware/auth.ts';

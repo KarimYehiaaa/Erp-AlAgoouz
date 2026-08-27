@@ -130,20 +130,8 @@ const icons = {
 };
 
 const aliases = {
-  // Emoji compatibility mappings
-  '💰': 'coins',
-  '🧾': 'receipt',
-  '📅': 'calendar',
-  '🕐': 'clock',
-  '✅': 'check',
-  '⚠️': 'warning',
-  '👥': 'customers',
-  '✏️': 'edit',
-  '🗑️': 'delete',
+  // Alias mappings
   '+': 'plus',
-  '➕': 'plus',
-
-  // Original aliases
   product: 'products',
   invoice: 'invoices',
   supplier: 'suppliers',

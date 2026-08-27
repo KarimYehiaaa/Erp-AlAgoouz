@@ -80,6 +80,8 @@ export const permissionEquivalents = {
   'hr.pay': ['hr.pay'],
   'hr.edit': ['hr.edit', 'shifts.edit'],
   'hr.delete': ['hr.delete', 'shifts.delete'],
+  'automation.view': ['automation.view', 'settings.view', 'dashboard.view'],
+  'automation.manage': ['automation.manage', 'settings.edit', 'settings.view'],
 
   // ── أكواد قديمة/مجمّعة — للواجهة فقط (لا تطلبها الـ routes) ──
   'sales.branch': ['pos.view', 'sales.view'],

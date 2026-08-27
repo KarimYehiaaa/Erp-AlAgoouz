@@ -7,6 +7,7 @@ import { getDefaultWarehouseId } from './warehouseService.ts';
 import { ensureInventoryRow } from './inventoryService.ts';
 import { invoicesRepository } from '../repositories/invoices.repository.ts';
 import { invalidateDashboardCache } from './dashboardService.ts';
+import { logger } from './loggerService.ts';
 const generateInvoiceNumber = async (client) => {
   const settings = await client.query(`SELECT value FROM settings WHERE key = 'invoice'`);
   const config = settings.rows[0]?.value || { prefix: 'INV' };
@@ -250,7 +251,7 @@ const createInvoice = async (data: Record<string, any>, userId: number) => {
         taxAmount,
         totalAmount,
         paymentStatus,
-        data.issued_at || /* @__PURE__ */ new Date(),
+        data.issued_at || new Date(),
         data.due_date || null,
         data.notes || null,
         userId,
@@ -444,7 +445,7 @@ const updateInvoice = async (id: number, data: Record<string, any>, userId: numb
         taxAmount,
         totalAmount,
         paymentStatus,
-        data.issued_at || invoice.issued_at || /* @__PURE__ */ new Date(),
+        data.issued_at || invoice.issued_at || new Date(),
         data.due_date || null,
         data.notes || null,
         userId,
@@ -709,7 +710,7 @@ const syncStandaloneInvoicesToWholesaleSales = async () => {
       await client.query(`UPDATE invoices SET sale_id = $1 WHERE id = $2`, [saleId, inv.id]);
     }
   } catch (err: any) {
-    console.error('Failed to sync standalone invoices to wholesale sales:', err);
+    logger.error('Failed to sync standalone invoices to wholesale sales:', err);
   } finally {
     client.release();
   }

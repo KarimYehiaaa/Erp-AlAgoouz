@@ -5,6 +5,7 @@ import { getCloudConfig, uploadBackupToCloud } from './cloudBackupService.ts';
 import { sendAlert } from './notificationService.ts';
 import { encrypt } from '../utils/crypto.ts';
 import { enqueueBackup } from '../jobs/queue.ts';
+import { logger } from './loggerService.ts';
 
 const getAutoBackupDir = () =>
   process.env.AUTO_BACKUP_DIR || path.join(process.cwd(), 'backups', 'auto-backups');
@@ -93,11 +94,11 @@ const cleanupOldBackups = async () => {
     for (const file of fileStats) {
       if (!keptFiles.has(file.name)) {
         await fs.unlink(file.path);
-        console.log(`🗑️ تم حذف نسخة احتياطية قديمة وفق سياسة GFS: ${file.name}`);
+        logger.info(` تم حذف نسخة احتياطية قديمة وفق سياسة GFS: ${file.name}`);
       }
     }
   } catch (err: any) {
-    console.error('⚠️ فشل تنظيف النسخ الاحتياطية القديمة:', err.message);
+    logger.error(' فشل تنظيف النسخ الاحتياطية القديمة:', err.message);
   }
 };
 
@@ -165,7 +166,7 @@ export const runAutoBackup = async () => {
 
     await fs.writeFile(filePath, backupJson, 'utf8');
 
-    console.log(`💾 [بن العجوز ERP] تم أخذ نسخة احتياطية تلقائية بنجاح: ${fileName}`);
+    logger.info(` [بن العجوز ERP] تم أخذ نسخة احتياطية تلقائية بنجاح: ${fileName}`);
 
     // Copy to external local path if configured in .env
     const skipExternal = process.env.AUTO_BACKUP_SKIP_EXTERNAL === '1';
@@ -176,12 +177,12 @@ export const runAutoBackup = async () => {
         await fs.mkdir(externalPath, { recursive: true });
         const externalFilePath = path.join(externalPath, fileName);
         await fs.copyFile(filePath, externalFilePath);
-        console.log(
-          `💾 [بن العجوز ERP] تم نسخ نسخة احتياطية إضافية إلى المسار الخارجي: ${externalFilePath}`,
+        logger.info(
+          ` [بن العجوز ERP] تم نسخ نسخة احتياطية إضافية إلى المسار الخارجي: ${externalFilePath}`,
         );
         externalCopied = true;
       } catch (extErr: any) {
-        console.error(`⚠️ [بن العجوز ERP] فشل نسخ الملف للمسار الخارجي المساعد:`, extErr.message);
+        logger.error(` [بن العجوز ERP] فشل نسخ الملف للمسار الخارجي المساعد:`, extErr.message);
       }
     }
 
@@ -190,45 +191,45 @@ export const runAutoBackup = async () => {
       await cleanupOldBackups();
     }
 
-    // 🔒 الرفع السحابي التلقائي
+    //  الرفع السحابي التلقائي
     let cloudUploaded = false;
     let cloudProvider = 'none';
     try {
       const cloudConfig = skipExternal ? null : await getCloudConfig();
       if (cloudConfig && cloudConfig.provider !== 'none') {
         cloudProvider = cloudConfig.provider;
-        console.log(
-          `☁️ [بن العجوز ERP] جاري رفع النسخة الاحتياطية سحابياً إلى (${cloudConfig.provider})...`,
+        logger.info(
+          ` [بن العجوز ERP] جاري رفع النسخة الاحتياطية سحابياً إلى (${cloudConfig.provider})...`,
         );
         const uploadRes = await uploadBackupToCloud(backupData, fileName, cloudConfig);
         if (uploadRes.success) {
-          console.log(
-            `✅ [بن العجوز ERP] تم رفع النسخة الاحتياطية بنجاح إلى السحابة: ${uploadRes.path || cloudConfig.provider}`,
+          logger.info(
+            ` [بن العجوز ERP] تم رفع النسخة الاحتياطية بنجاح إلى السحابة: ${uploadRes.path || cloudConfig.provider}`,
           );
           cloudUploaded = true;
         } else {
-          console.warn(`⚠️ [بن العجوز ERP] تنبيه الرفع السحابي: ${uploadRes.message}`);
+          logger.warn(` [بن العجوز ERP] تنبيه الرفع السحابي: ${uploadRes.message}`);
         }
       }
     } catch (cloudErr: any) {
-      console.error(
-        '⚠️ [بن العجوز ERP] فشل الرفع السحابي للنسخة الاحتياطية التلقائية:',
+      logger.error(
+        ' [بن العجوز ERP] فشل الرفع السحابي للنسخة الاحتياطية التلقائية:',
         cloudErr.message,
       );
     }
 
     // Send Discord notification
-    let backupMsg = `💾 تم أخذ نسخة احتياطية تلقائية بنجاح:\n\`${fileName}\``;
-    if (externalCopied) backupMsg += `\n📂 تم النسخ للمسار الخارجي المساعد: \`${externalPath}\``;
-    if (cloudUploaded) backupMsg += `\n☁️ تم الرفع بنجاح للسحابة: \`${cloudProvider}\``;
+    let backupMsg = ` تم أخذ نسخة احتياطية تلقائية بنجاح:\n\`${fileName}\``;
+    if (externalCopied) backupMsg += `\n تم النسخ للمسار الخارجي المساعد: \`${externalPath}\``;
+    if (cloudUploaded) backupMsg += `\n تم الرفع بنجاح للسحابة: \`${cloudProvider}\``;
     if (!skipExternal) {
-      await sendAlert('💾 النسخ الاحتياطي التلقائي', backupMsg, 'success');
+      await sendAlert(' النسخ الاحتياطي التلقائي', backupMsg, 'success');
     }
   } catch (err: any) {
-    console.error('❌ [بن العجوز ERP] فشل النسخ الاحتياطي التلقائي الصامت:', err.message);
+    logger.error(' [بن العجوز ERP] فشل النسخ الاحتياطي التلقائي الصامت:', err.message);
     if (process.env.AUTO_BACKUP_SKIP_EXTERNAL !== '1') {
       await sendAlert(
-        '❌ فشل النسخ الاحتياطي التلقائي',
+        ' فشل النسخ الاحتياطي التلقائي',
         `فشل النسخ الاحتياطي الصامت:\n\`${err.message}\``,
         'error',
       );
@@ -252,7 +253,7 @@ export const initAutoBackupScheduler = () => {
   };
   // 1. تشغيل نسخة احتياطية فورية عند تشغيل السيرفر
   setTimeout(async () => {
-    console.log('🚀 [بن العجوز ERP] تفعيل نظام النسخ الاحتياطي الصامت المحلي...');
+    logger.info(' [بن العجوز ERP] تفعيل نظام النسخ الاحتياطي الصامت المحلي...');
     await trigger();
   }, 5000); // الانتظار 5 ثوان بعد التشغيل لتفادي التداخل مع بدء الاتصالات
 

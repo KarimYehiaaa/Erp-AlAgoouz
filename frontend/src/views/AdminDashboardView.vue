@@ -3,13 +3,13 @@
     <!-- Page Header -->
     <div class="admin-header">
       <div class="header-text">
-        <h1 class="admin-title">🎛️ مركز التحكم الإداري</h1>
+        <h1 class="admin-title">مركز التحكم الإداري</h1>
         <p class="admin-subtitle">مراقبة شاملة لصحة النظام والعمليات والأداء المالي</p>
       </div>
       <div class="header-actions">
         <span class="last-update"> آخر تحديث: {{ lastUpdateStr }} </span>
         <button class="btn-refresh" @click="refreshAll" :disabled="loading">
-          <span :class="{ spin: loading }">🔄</span>
+          <span :class="{ spin: loading }"></span>
           {{ loading ? 'جاري التحديث...' : 'تحديث' }}
         </button>
       </div>
@@ -25,7 +25,7 @@
       <!-- Section 1: System Health -->
       <section class="admin-section">
         <h2 class="section-title">
-          <span class="section-icon">🖥️</span>
+          <span class="section-icon"></span>
           صحة النظام
           <span class="status-dot" :class="systemOk ? 'ok' : 'critical'"></span>
         </h2>
@@ -35,7 +35,7 @@
       <!-- Section 2: Financial KPIs -->
       <section class="admin-section">
         <h2 class="section-title">
-          <span class="section-icon">💰</span>
+          <span class="section-icon"></span>
           المؤشرات المالية والمستهدفات
         </h2>
         <FinancialKPICards :dashboard="dashboardData" :counts="countsData" />
@@ -92,7 +92,7 @@
             border-radius: 16px;
           "
         >
-          <h3 style="margin-top: 0">📢 إرسال تنبيه عام لجميع المستخدمين</h3>
+          <h3 style="margin-top: 0">إرسال تنبيه عام لجميع المستخدمين</h3>
           <form @submit.prevent="submitBroadcast">
             <div class="form-group" style="margin-bottom: 12px">
               <label>عنوان التنبيه</label>
@@ -124,9 +124,9 @@
                   color: #fff;
                 "
               >
-                <option value="info">ℹ️ معلومات عادية</option>
-                <option value="warning">⚠️ تحذير هام</option>
-                <option value="danger">🚨 تنبيه عاجل / طوارئ</option>
+                <option value="info">ℹ معلومات عادية</option>
+                <option value="warning">تحذير هام</option>
+                <option value="danger">تنبيه عاجل / طوارئ</option>
               </select>
             </div>
             <div class="form-group" style="margin-bottom: 16px">
@@ -329,18 +329,18 @@ const handleBackup = async () => {
     document.body.appendChild(link);
     link.click();
     link.remove();
-    alert('✅ تم تنزيل نسخة احتياطية كاملة لقاعدة البيانات بنجاح');
+    alert(' تم تنزيل نسخة احتياطية كاملة لقاعدة البيانات بنجاح');
   } catch (e: any) {
-    alert('❌ فشل تنزيل النسخة الاحتياطية: ' + (e.response?.data?.message || e.message));
+    alert(' فشل تنزيل النسخة الاحتياطية: ' + (e.response?.data?.message || e.message));
   }
 };
 
 const handleRepairSequences = async () => {
   try {
     const res = await api.post('/admin/repair-sequences');
-    alert(`✅ ${res.data?.message || 'تم إصلاح متسلسلات قاعدة البيانات بنجاح'}`);
+    alert(` ${res.data?.message || 'تم إصلاح متسلسلات قاعدة البيانات بنجاح'}`);
   } catch (e: any) {
-    alert('❌ فشل إصلاح المتسلسلات: ' + (e.response?.data?.message || e.message));
+    alert(' فشل إصلاح المتسلسلات: ' + (e.response?.data?.message || e.message));
   }
 };
 
@@ -348,10 +348,10 @@ const handlePurgeLogs = async () => {
   if (!confirm('هل تريد تنظيف سجلات النشاط القادمة من أكثر من 90 يوماً؟')) return;
   try {
     const res = await api.post('/admin/purge-logs', { days: 90 });
-    alert(`✅ تم حذف ${res.data?.data?.deletedCount || 0} سجل نشاط قديم`);
+    alert(` تم حذف ${res.data?.data?.deletedCount || 0} سجل نشاط قديم`);
     loadActivity();
   } catch (e: any) {
-    alert('❌ فشل تنظيف السجلات: ' + (e.response?.data?.message || e.message));
+    alert(' فشل تنظيف السجلات: ' + (e.response?.data?.message || e.message));
   }
 };
 
@@ -359,11 +359,11 @@ const submitBroadcast = async () => {
   if (!broadcastForm.value.message) return;
   try {
     await api.post('/admin/broadcast', broadcastForm.value);
-    alert('✅ تم نشر التنبيه العام لجميع المستخدمين بالنظام بنجاح');
+    alert(' تم نشر التنبيه العام لجميع المستخدمين بالنظام بنجاح');
     showBroadcastModal.value = false;
     broadcastForm.value = { title: '', message: '', level: 'info' };
   } catch (e: any) {
-    alert('❌ فشل إرسال التنبيه: ' + (e.response?.data?.message || e.message));
+    alert(' فشل إرسال التنبيه: ' + (e.response?.data?.message || e.message));
   }
 };
 

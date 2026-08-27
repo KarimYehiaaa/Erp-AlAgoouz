@@ -9,19 +9,19 @@ export const getCashFlowProjection = async (params: Record<string, any> = {}) =>
   // 1. حساب السيولة الحالية المتوفرة بالخزنة كخط أساس (Baseline Cash)
   // السيولة التقريبية = إجمالي المبيعات المكتملة - إجمالي المصاريف الموزعة - إجمالي مشتريات المستودع
   const salesSumRes = await query(
-    `SELECT COALESCE(SUM(total_amount), 0) AS val 
-     FROM sales 
+    `SELECT COALESCE(SUM(total_amount), 0) AS val
+     FROM sales
      WHERE status = 'completed' AND deleted_at IS NULL AND warehouse_id = $1`,
     [warehouseId],
   );
   const expensesSumRes = await query(
-    `SELECT COALESCE(SUM(amount), 0) AS val 
-     FROM expenses 
+    `SELECT COALESCE(SUM(amount), 0) AS val
+     FROM expenses
      WHERE deleted_at IS NULL`,
   );
   const purchasesSumRes = await query(
-    `SELECT COALESCE(SUM(total_amount), 0) AS val 
-     FROM purchase_invoices 
+    `SELECT COALESCE(SUM(total_amount), 0) AS val
+     FROM purchase_invoices
      WHERE deleted_at IS NULL AND warehouse_id = $1`,
     [warehouseId],
   );

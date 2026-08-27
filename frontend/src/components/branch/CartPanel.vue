@@ -2,7 +2,7 @@
   <div class="card checkout-cart-panel" :class="{ 'mobile-hidden': activeTab !== 'cart' }">
     <div class="cart-title-row">
       <div class="title-with-badge">
-        <span class="cart-icon">🛒</span>
+        <span class="cart-icon"></span>
         <h3>سلة ومحاسبة الفاتورة</h3>
       </div>
       <div class="cart-header-actions">
@@ -12,15 +12,13 @@
           class="btn-close-cart"
           @click="emit('closeDrawer')"
           title="إغلاق والعودة للكتالوج (Esc)"
-        >
-          ✕
-        </button>
+        ></button>
       </div>
     </div>
 
     <!-- Cart Items -->
     <div v-if="!cart.length" class="empty-cart">
-      <span class="empty-cart-icon">🛒</span>
+      <span class="empty-cart-icon"></span>
       <p>السلة فارغة حالياً</p>
       <span class="empty-hint">اختر أصنافاً من الكتالوج لإضافتها للسلة</span>
     </div>
@@ -30,7 +28,7 @@
         <div class="item-main-details">
           <span class="item-name">{{ item.name_ar }}</span>
           <span class="item-unit-price">{{ formatMoney(item.unit_price) }} / للوحدة</span>
-          <span v-if="item.custom_notes" class="item-custom-notes">📌 {{ item.custom_notes }}</span>
+          <span v-if="item.custom_notes" class="item-custom-notes"> {{ item.custom_notes }}</span>
         </div>
 
         <div class="item-touch-controls">
@@ -43,7 +41,7 @@
             −
           </button>
 
-          <!-- 🔢 زر تعديل الكمية والوزن بالنقر لفتح لوحة الأرقام -->
+          <!--  زر تعديل الكمية والوزن بالنقر لفتح لوحة الأرقام -->
           <button
             type="button"
             class="touch-qty-display"
@@ -52,7 +50,7 @@
           >
             <span class="qty-val">{{ item.quantity }}</span>
             <span class="qty-unit-label">{{ getWeightLabel(item.quantity) }}</span>
-            <span class="qty-pencil">✏️</span>
+            <span class="qty-pencil"></span>
           </button>
 
           <button
@@ -69,9 +67,7 @@
             class="touch-delete-btn"
             @click="emit('removeFromCart', idx)"
             title="حذف من السلة"
-          >
-            🗑️
-          </button>
+          ></button>
         </div>
 
         <div class="item-line-total">
@@ -82,7 +78,7 @@
 
     <!-- Suggested Complementary Items (Market Basket Analysis) -->
     <div v-if="cart.length && recommendedItems.length" class="cart-recommendations">
-      <div class="rec-title">✨ مقترحات ذكية ترافق السلة:</div>
+      <div class="rec-title">مقترحات ذكية ترافق السلة:</div>
       <div class="rec-list">
         <div
           v-for="rec in recommendedItems"
@@ -97,7 +93,7 @@
           </div>
           <div class="rec-action">
             <span class="rec-price">{{ formatMoney(rec.sale_price) }}</span>
-            <span class="rec-add-icon">➕</span>
+            <span class="rec-add-icon"></span>
           </div>
         </div>
       </div>
@@ -129,7 +125,7 @@
 
     <!-- Sale Form & Payments -->
     <form v-if="cart.length" @submit.prevent="emit('submitSale')" class="checkout-payment-form">
-      <!-- 💳 شبكة أزرار طرق الدفع السريعة (Payment Methods Grid) -->
+      <!--  شبكة أزرار طرق الدفع السريعة (Payment Methods Grid) -->
       <div class="payment-section-box">
         <label class="section-title">طريقة الدفع (اضغط للاختيار):</label>
         <div class="payment-tiles-grid">
@@ -139,7 +135,7 @@
             :class="{ selected: saleForm.payment_method === 'cash' }"
             @click="saleForm.payment_method = 'cash'"
           >
-            <span class="tile-icon">💵</span>
+            <span class="tile-icon"></span>
             <span class="tile-title">نقدي (كاش)</span>
           </button>
 
@@ -149,7 +145,7 @@
             :class="{ selected: saleForm.payment_method === 'card' }"
             @click="saleForm.payment_method = 'card'"
           >
-            <span class="tile-icon">💳</span>
+            <span class="tile-icon"></span>
             <span class="tile-title">فيزا / مدى</span>
           </button>
 
@@ -159,7 +155,7 @@
             :class="{ selected: saleForm.payment_method === 'transfer' }"
             @click="saleForm.payment_method = 'transfer'"
           >
-            <span class="tile-icon">📱</span>
+            <span class="tile-icon"></span>
             <span class="tile-title">إنستاباي / محفظة</span>
           </button>
 
@@ -175,10 +171,10 @@
         </div>
       </div>
 
-      <!-- 💵 حاسبة الباقي وفئات النقود السريعة عند الدفع كاش -->
+      <!--  حاسبة الباقي وفئات النقود السريعة عند الدفع كاش -->
       <div v-if="saleForm.payment_method === 'cash'" class="cash-calc-box">
         <div class="calc-header">
-          <span class="calc-title">💵 أزرار النقدية السريعة:</span>
+          <span class="calc-title"> أزرار النقدية السريعة:</span>
         </div>
 
         <div class="preset-bills-row">
@@ -227,7 +223,7 @@
           }"
         >
           <span class="change-label">{{
-            changeAmount >= 0 ? '🟢 الباقي المستحق للعميل:' : '⚠️ المبلغ المتبقي للدفع:'
+            changeAmount >= 0 ? ' الباقي المستحق للعميل:' : ' المبلغ المتبقي للدفع:'
           }}</span>
           <strong class="change-val">{{ formatMoney(Math.abs(changeAmount)) }}</strong>
         </div>
@@ -241,7 +237,7 @@
             :checked="autoPrint"
             @change="emit('update:autoPrint', ($event.target as HTMLInputElement).checked)"
           />
-          <span>🖨️ طباعة إيصال فوري تلقائياً عند الحفظ</span>
+          <span> طباعة إيصال فوري تلقائياً عند الحفظ</span>
         </label>
 
         <button
@@ -266,7 +262,7 @@
           :class="{ 'btn-loading': saving }"
           :disabled="saving || !cart.length"
         >
-          <span class="btn-icon">🖨️</span>
+          <span class="btn-icon"></span>
           <div class="btn-text-col">
             <span class="btn-title">{{
               saving ? 'جاري الحفظ والتجهيز...' : 'حفظ وطباعة الفاتورة الفورية'
@@ -282,7 +278,7 @@
             @click="emit('holdOrder')"
             title="تعليق الطلب في الانتظار (F4)"
           >
-            ⏸️ تعليق الطلب (F4)
+            ⏸ تعليق الطلب (F4)
           </button>
 
           <button
@@ -291,19 +287,19 @@
             @click="emit('clearCart')"
             title="إفراغ السلة"
           >
-            🗑️ مسح السلة
+            مسح السلة
           </button>
         </div>
       </div>
     </form>
 
-    <!-- 🔢 On-Screen Numeric Keypad Modal (لوحة أرقام اللمس السريعة للوزن والجرامات) -->
+    <!--  On-Screen Numeric Keypad Modal (لوحة أرقام اللمس السريعة للوزن والجرامات) -->
     <div v-if="numpadModal" class="modal numpad-modal-backdrop" @click.self="closeNumpad">
       <div class="card modal-content numpad-modal-card">
         <!-- Header -->
         <div class="numpad-header">
           <div class="numpad-title-wrap">
-            <span class="numpad-icon">⚖️</span>
+            <span class="numpad-icon"></span>
             <div>
               <h4>تعديل الكمية والوزن</h4>
               <p v-if="activeNumpadItem" class="numpad-prod-name">
@@ -314,7 +310,7 @@
               </p>
             </div>
           </div>
-          <button type="button" class="close-numpad-btn" @click="closeNumpad">✕</button>
+          <button type="button" class="close-numpad-btn" @click="closeNumpad"></button>
         </div>
 
         <!-- Live Display Screen -->
@@ -387,7 +383,7 @@
         <div class="numpad-actions">
           <button type="button" class="btn btn-outline" @click="closeNumpad">إلغاء (Esc)</button>
           <button type="button" class="btn btn-primary confirm-btn" @click="confirmNumpad">
-            ✓ تأكيد الكمية (Enter)
+            تأكيد الكمية (Enter)
           </button>
         </div>
       </div>
@@ -432,7 +428,7 @@ const discountInputRef = ref<HTMLInputElement | null>(null);
 const receivedInputRef = ref<HTMLInputElement | null>(null);
 const receivedAmount = ref<number | null>(null);
 
-// ─── 🔢 Numpad State & Logic ───
+// ───  Numpad State & Logic ───
 const numpadModal = ref(false);
 const editingIndex = ref<number | null>(null);
 const numpadValue = ref('1');
@@ -507,12 +503,12 @@ const getWeightLabel = (qty: number) => {
 
 const getDetailedWeightMeaning = (val: number) => {
   if (!val || isNaN(val)) return '—';
-  if (val === 0.125) return '⚖️ 125 جرام (ثمن كيلو)';
-  if (val === 0.25) return '⚖️ 250 جرام (ربع كيلو)';
-  if (val === 0.5) return '⚖️ 500 جرام (نصف كيلو)';
-  if (val === 0.75) return '⚖️ 750 جرام (ثلاثة أرباع كيلو)';
-  if (val < 1) return `⚖️ ${Math.round(val * 1000)} جرام`;
-  return `⚖️ ${val} كجم`;
+  if (val === 0.125) return ' 125 جرام (ثمن كيلو)';
+  if (val === 0.25) return ' 250 جرام (ربع كيلو)';
+  if (val === 0.5) return ' 500 جرام (نصف كيلو)';
+  if (val === 0.75) return ' 750 جرام (ثلاثة أرباع كيلو)';
+  if (val < 1) return ` ${Math.round(val * 1000)} جرام`;
+  return ` ${val} كجم`;
 };
 
 const handleNumpadKey = (e: KeyboardEvent) => {
@@ -565,9 +561,7 @@ defineExpose({
 </script>
 
 <style lang="scss" scoped>
-/* ═══════════════════════════════════════════════════════════════════
-   CHECKOUT CART PANEL (ON-DEMAND SLIDE-OVER LAYER STYLES)
-   ═══════════════════════════════════════════════════════════════════ */
+/* CHECKOUT CART PANEL (ON-DEMAND SLIDE-OVER LAYER STYLES) */
 
 .checkout-cart-panel {
   display: flex;

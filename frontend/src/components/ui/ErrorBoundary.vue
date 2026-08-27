@@ -1,17 +1,17 @@
 <template>
   <div v-if="hasError" class="error-boundary card">
     <div class="error-boundary-content">
-      <div class="error-icon">⚠️</div>
+      <div class="error-icon"></div>
       <h3>حدث خطأ غير متوقع في هذه الشاشة</h3>
       <p class="error-msg">
         {{ errorMessage || 'عفواً، واجه التطبيق خطأ غير متوقع أثناء معالجة البيانات.' }}
       </p>
       <div class="error-actions">
         <button type="button" class="btn btn-primary" @click="resetError">
-          🔄 إعادة محاولة الشاشة
+          إعادة محاولة الشاشة
         </button>
         <button type="button" class="btn btn-outline" @click="reloadPage">
-          🌐 تحديث الصفحة بالكامل
+          تحديث الصفحة بالكامل
         </button>
       </div>
     </div>

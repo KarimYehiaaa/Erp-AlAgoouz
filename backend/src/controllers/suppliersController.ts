@@ -1,5 +1,5 @@
 import * as supplierService from '../services/supplierService.ts';
-import { ok } from './helper.ts';
+import { ok, wrap } from './helper.ts';
 
 export const suppliers = {
   /**
@@ -8,106 +8,74 @@ export const suppliers = {
    * @param {import('express').Response} res استجابة HTTP
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
-  list: async (req, res, next) => {
-    try {
-      ok(res, await supplierService.getSuppliers());
-    } catch (e: any) {
-      next(e);
-    }
-  },
+  list: wrap(async (req, res) => {
+    ok(res, await supplierService.getSuppliers());
+  }),
   /**
    * جلب مورد حسب معرفه.
    * @param {import('express').Request} req طلب HTTP
    * @param {import('express').Response} res استجابة HTTP
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
-  get: async (req, res, next) => {
-    try {
-      ok(res, await supplierService.getSupplierById(req.params.id));
-    } catch (e: any) {
-      next(e);
-    }
-  },
+  get: wrap(async (req, res) => {
+    ok(res, await supplierService.getSupplierById(req.params.id));
+  }),
   /**
    * إنشاء مورد جديد.
    * @param {import('express').Request} req طلب HTTP
    * @param {import('express').Response} res استجابة HTTP
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
-  create: async (req, res, next) => {
-    try {
-      ok(res, await supplierService.createSupplier(req.body, req.user.id));
-    } catch (e: any) {
-      next(e);
-    }
-  },
+  create: wrap(async (req, res) => {
+    ok(res, await supplierService.createSupplier(req.body, req.user.id));
+  }),
   /**
    * تحديث بيانات مورد.
    * @param {import('express').Request} req طلب HTTP
    * @param {import('express').Response} res استجابة HTTP
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
-  update: async (req, res, next) => {
-    try {
-      ok(res, await supplierService.updateSupplier(req.params.id, req.body, req.user.id));
-    } catch (e: any) {
-      next(e);
-    }
-  },
+  update: wrap(async (req, res) => {
+    ok(res, await supplierService.updateSupplier(req.params.id, req.body, req.user.id));
+  }),
   /**
    * حذف مورد.
    * @param {import('express').Request} req طلب HTTP
    * @param {import('express').Response} res استجابة HTTP
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
-  delete: async (req, res, next) => {
-    try {
-      ok(res, await supplierService.deleteSupplier(req.params.id, req.user.id), 'تم الحذف');
-    } catch (e: any) {
-      next(e);
-    }
-  },
+  delete: wrap(async (req, res) => {
+    ok(res, await supplierService.deleteSupplier(req.params.id, req.user.id), 'تم الحذف');
+  }),
   /**
    * فواتير الشراء الخاصة بمورد مع المبالغ المدفوعة.
    * @param {import('express').Request} req طلب HTTP
    * @param {import('express').Response} res استجابة HTTP
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
-  invoices: async (req, res, next) => {
-    try {
-      ok(res, await supplierService.getSupplierInvoices(req.params.id));
-    } catch (e: any) {
-      next(e);
-    }
-  },
+  invoices: wrap(async (req, res) => {
+    ok(res, await supplierService.getSupplierInvoices(req.params.id));
+  }),
   /**
    * مدفوعات مورد.
    * @param {import('express').Request} req طلب HTTP
    * @param {import('express').Response} res استجابة HTTP
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
-  payments: async (req, res, next) => {
-    try {
-      ok(res, await supplierService.getSupplierPayments(req.params.id));
-    } catch (e: any) {
-      next(e);
-    }
-  },
+  payments: wrap(async (req, res) => {
+    ok(res, await supplierService.getSupplierPayments(req.params.id));
+  }),
   /**
    * تسجيل دفعة لمورد وتحديث رصيده.
    * @param {import('express').Request} req طلب HTTP
    * @param {import('express').Response} res استجابة HTTP
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
-  recordPayment: async (req, res, next) => {
-    try {
-      ok(
-        res,
-        await supplierService.recordSupplierPayment(req.params.id, req.body, req.user.id),
-        'تم تسجيل سداد المورد بنجاح',
-      );
-    } catch (e: any) {
-      next(e);
-    }
-  },
+  recordPayment: wrap(async (req, res) => {
+    ok(
+      res,
+      await supplierService.recordSupplierPayment(req.params.id, req.body, req.user.id),
+      'تم تسجيل سداد المورد بنجاح',
+    );
+  }),
 };

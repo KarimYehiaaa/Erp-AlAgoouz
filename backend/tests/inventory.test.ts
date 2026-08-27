@@ -38,7 +38,7 @@ describe('Inventory Calculations', () => {
     `, [productId, warehouse1, 0.1]);
 
     await query(`
-      UPDATE inventory 
+      UPDATE inventory
       SET quantity = quantity + 0.2
       WHERE product_id = $1 AND warehouse_id = $2
     `, [productId, warehouse1]);
@@ -59,16 +59,16 @@ describe('Inventory Calculations', () => {
   it('should correctly sum and round fractional inventory quantities', async () => {
     const inventoryList = await inventoryRepository.getInventoryList();
     const testItem = inventoryList.find(i => i.product_id === productId);
-    
+
     expect(testItem).toBeDefined();
-    
+
     if (testItem) {
       const expectedTotal = 0.8;
       const expectedMain = 0.3;
-      
+
       const mQty = roundMoney(testItem.main_quantity);
       expect(mQty).toBe(expectedMain);
-      
+
       const tQty = roundMoney(testItem.total_quantity);
       expect(tQty).toBe(expectedTotal);
     }

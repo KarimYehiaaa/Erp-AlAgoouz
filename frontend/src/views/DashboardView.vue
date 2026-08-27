@@ -151,7 +151,7 @@
             <div>
               <h2>
                 <AppIcon name="trendingUp" style="margin-left: 8px; color: var(--primary)" />
-                التنبؤ الذكي بالطلب (AI Demand Forecast)
+                التنبؤ الذكي بالطلب
               </h2>
               <p>مقارنة المبيعات الفعلية للأسبوع الماضي مع التوقعات الذكية للأيام السبعة القادمة</p>
             </div>
@@ -325,7 +325,7 @@
         </article>
       </section>
 
-      <!-- 🎛️ لوحة تخصيص الودجت الجانبية -->
+      <!--  لوحة تخصيص الودجت الجانبية -->
       <div class="widget-drawer" :class="{ open: showWidgetSettings }">
         <div class="drawer-overlay" @click="showWidgetSettings = false"></div>
         <div class="drawer-content">
@@ -465,8 +465,7 @@ const toggleAutoRefresh = () => {
   }
 };
 
-
-// 🎛️ تخصيص الودجت
+//  تخصيص الودجت
 const showWidgetSettings = ref(false);
 const widgetVisibility = ref({
   metrics: true,
@@ -679,8 +678,7 @@ const chartColors = () => ({
     getComputedStyle(document.documentElement).getPropertyValue('--warning').trim() || '#b45309',
   // ألوان ديناميكية تتكيف مع الوضع الفاتح/الداكن (تقرأ من متغيرات CSS)
   text:
-    getComputedStyle(document.documentElement).getPropertyValue('--text-muted').trim() ||
-    '#78716C',
+    getComputedStyle(document.documentElement).getPropertyValue('--text-muted').trim() || '#78716C',
   border:
     getComputedStyle(document.documentElement).getPropertyValue('--border').trim() ||
     'rgba(102,112,133,0.18)',
@@ -701,7 +699,12 @@ const baseOptions = (moneyTooltip = true) => {
       legend: {
         display: true,
         position: 'bottom',
-        labels: { boxWidth: 10, usePointStyle: true, color: colors.text, font: { family: 'Cairo' } },
+        labels: {
+          boxWidth: 10,
+          usePointStyle: true,
+          color: colors.text,
+          font: { family: 'Cairo' },
+        },
       },
       tooltip: {
         rtl: true,

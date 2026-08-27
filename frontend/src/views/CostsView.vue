@@ -3,7 +3,7 @@
     <!-- Header -->
     <div class="page-header card">
       <div class="header-title">
-        <span class="header-icon">🧪</span>
+        <span class="header-icon">💰</span>
         <div>
           <h2>تكاليف المنتجات والوصفات</h2>
           <p>تحليل التكاليف، هوامش الربح، محاكاة التضخم، تعديل الأسعار، والتحكم في الهدر</p>
@@ -35,21 +35,21 @@
         :class="{ active: activeTab === 'simulator' }"
         @click="activeTab = 'simulator'"
       >
-        🔮 محاكي التضخم (What-If)
+        📈 محاكي التضخم (What-If)
       </button>
       <button
         class="tab-btn"
         :class="{ active: activeTab === 'bulk_adjust' }"
         @click="activeTab = 'bulk_adjust'"
       >
-        ⚙️ تعديل الأسعار جماعياً
+        🏷️ تعديل الأسعار جماعياً
       </button>
       <button
         class="tab-btn"
         :class="{ active: activeTab === 'wastage' }"
         @click="activeTab = 'wastage'"
       >
-        ⚠️ تقرير الهدر والفواقد
+        🗑️ تقرير الهدر والفواقد
       </button>
     </div>
 
@@ -97,7 +97,7 @@
     <!-- Edit Price Modal -->
     <div v-if="editingProduct" class="modal-overlay" @click.self="editingProduct = null">
       <div class="modal-card">
-        <h3>✏️ تعديل أسعار: {{ editingProduct.name_ar }}</h3>
+        <h3>تعديل أسعار: {{ editingProduct.name_ar }}</h3>
         <div class="form-group">
           <label>سعر الشراء / التكلفة (ج.م)</label>
           <input v-model.number="editForm.purchase_price" type="number" min="0" step="0.01" />
@@ -129,13 +129,13 @@
       <div class="modal-card recipe-breakdown-card">
         <div v-if="loadingRecipe" class="loading-state">⏳ جاري تحميل تفاصيل الوصفة...</div>
         <div v-else-if="recipeError" class="error-state">
-          <span>❌</span>
+          <span></span>
           <p>{{ recipeError }}</p>
           <button class="btn btn-outline" @click="selectedRecipe = null">إغلاق</button>
         </div>
         <div v-else-if="selectedRecipe">
           <div class="modal-header">
-            <h3>🔬 محلل مكونات التكلفة: {{ selectedRecipe.product_name }}</h3>
+            <h3>محلل مكونات التكلفة: {{ selectedRecipe.product_name }}</h3>
             <span class="recipe-sku-badge">{{ selectedRecipe.product_sku }}</span>
           </div>
 

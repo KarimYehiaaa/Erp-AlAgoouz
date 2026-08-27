@@ -222,7 +222,7 @@ const refreshPurchasePrices = async (client, productIds) => {
         updated_at = NOW()
     FROM (
       SELECT DISTINCT ON (pii.product_id)
-             pii.product_id, 
+             pii.product_id,
              pii.unit_price
       FROM purchase_invoice_items pii
       JOIN purchase_invoices pi ON pi.id = pii.purchase_invoice_id

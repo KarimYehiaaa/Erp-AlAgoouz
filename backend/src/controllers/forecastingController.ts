@@ -5,7 +5,7 @@ import * as staffingForecastService from '../services/staffingForecastService.ts
 import * as dynamicPricingService from '../services/dynamicPricingService.ts';
 import * as expenseService from '../services/expenseService.ts';
 import * as cashFlowProjectionService from '../services/cashFlowProjectionService.ts';
-import { ok } from './helper.ts';
+import { ok, wrap } from './helper.ts';
 
 export const forecasting = {
   /**
@@ -14,14 +14,10 @@ export const forecasting = {
    * @param {import('express').Response} res استجابة HTTP
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
-  getDemandForecast: async (req, res, next) => {
-    try {
-      const data = await forecastingService.getDemandForecast(req.query);
-      ok(res, data);
-    } catch (e: any) {
-      next(e);
-    }
-  },
+  getDemandForecast: wrap(async (req, res) => {
+    const data = await forecastingService.getDemandForecast(req.query);
+    ok(res, data);
+  }),
 
   /**
    * تحليل ارتباطات سلة المشتريات (منتجات تُشترى معًا).
@@ -29,14 +25,10 @@ export const forecasting = {
    * @param {import('express').Response} res استجابة HTTP
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
-  getBasketAssociations: async (req, res, next) => {
-    try {
-      const data = await marketBasketService.getMarketBasketRecommendations(req.query);
-      ok(res, data);
-    } catch (e: any) {
-      next(e);
-    }
-  },
+  getBasketAssociations: wrap(async (req, res) => {
+    const data = await marketBasketService.getMarketBasketRecommendations(req.query);
+    ok(res, data);
+  }),
 
   /**
    * سؤال المساعد الذكي (AI) مع سياق المحادثة.
@@ -44,15 +36,11 @@ export const forecasting = {
    * @param {import('express').Response} res استجابة HTTP
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
-  askCopilot: async (req, res, next) => {
-    try {
-      const { prompt, history } = req.body;
-      const data = await aiCopilotService.askCopilot(prompt, history || []);
-      ok(res, { reply: data });
-    } catch (e: any) {
-      next(e);
-    }
-  },
+  askCopilot: wrap(async (req, res) => {
+    const { prompt, history } = req.body;
+    const data = await aiCopilotService.askCopilot(prompt, history || []);
+    ok(res, { reply: data });
+  }),
 
   /**
    * توقع احتياج الموظفين حسب حجم العمل.
@@ -60,14 +48,10 @@ export const forecasting = {
    * @param {import('express').Response} res استجابة HTTP
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
-  getStaffingForecast: async (req, res, next) => {
-    try {
-      const data = await staffingForecastService.getStaffingForecast(req.query);
-      ok(res, data);
-    } catch (e: any) {
-      next(e);
-    }
-  },
+  getStaffingForecast: wrap(async (req, res) => {
+    const data = await staffingForecastService.getStaffingForecast(req.query);
+    ok(res, data);
+  }),
 
   /**
    * تنبيهات التسعير الذكي للمنتجات.
@@ -75,14 +59,10 @@ export const forecasting = {
    * @param {import('express').Response} res استجابة HTTP
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
-  getSmartPricingAlerts: async (req, res, next) => {
-    try {
-      const data = await dynamicPricingService.getSmartPricingAlerts();
-      ok(res, data);
-    } catch (e: any) {
-      next(e);
-    }
-  },
+  getSmartPricingAlerts: wrap(async (req, res) => {
+    const data = await dynamicPricingService.getSmartPricingAlerts();
+    ok(res, data);
+  }),
 
   /**
    * توقع التدفق النقدي المستقبلي.
@@ -90,14 +70,10 @@ export const forecasting = {
    * @param {import('express').Response} res استجابة HTTP
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
-  getCashFlowProjection: async (req, res, next) => {
-    try {
-      const data = await cashFlowProjectionService.getCashFlowProjection(req.query);
-      ok(res, data);
-    } catch (e: any) {
-      next(e);
-    }
-  },
+  getCashFlowProjection: wrap(async (req, res) => {
+    const data = await cashFlowProjectionService.getCashFlowProjection(req.query);
+    ok(res, data);
+  }),
 
   /**
    * اقتراح تصنيف مصروف بناءً على الوصف.
@@ -105,13 +81,9 @@ export const forecasting = {
    * @param {import('express').Response} res استجابة HTTP
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
-  suggestExpenseCategory: async (req, res, next) => {
-    try {
-      const { title } = req.query;
-      const data = await expenseService.suggestCategory(title);
-      ok(res, data);
-    } catch (e: any) {
-      next(e);
-    }
-  },
+  suggestExpenseCategory: wrap(async (req, res) => {
+    const { title } = req.query;
+    const data = await expenseService.suggestCategory(title);
+    ok(res, data);
+  }),
 };

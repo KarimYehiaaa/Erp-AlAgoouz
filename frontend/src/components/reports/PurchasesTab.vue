@@ -2,7 +2,7 @@
   <div>
     <div class="kpi-grid kpi-grid-3">
       <div class="kpi-card">
-        <div class="kpi-icon">🛒</div>
+        <div class="kpi-icon"></div>
         <div class="kpi-body">
           <div class="kpi-label">إجمالي المشتريات</div>
           <div class="kpi-value">
@@ -12,7 +12,7 @@
         </div>
       </div>
       <div class="kpi-card profit">
-        <div class="kpi-icon">✅</div>
+        <div class="kpi-icon"></div>
         <div class="kpi-body">
           <div class="kpi-label">المدفوع</div>
           <div class="kpi-value">
@@ -32,7 +32,7 @@
     </div>
     <div class="grid grid-2 mt-4">
       <div class="card">
-        <h3>🏢 حسب المورد</h3>
+        <h3>حسب المورد</h3>
         <table class="report-table">
           <thead>
             <tr>
@@ -56,7 +56,7 @@
         </table>
       </div>
       <div class="card">
-        <h3>🕐 آخر الفواتير</h3>
+        <h3>آخر الفواتير</h3>
         <table class="report-table">
           <thead>
             <tr>

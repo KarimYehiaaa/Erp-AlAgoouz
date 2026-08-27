@@ -3,14 +3,14 @@
     <!-- Header -->
     <div class="page-header">
       <div class="header-title">
-        <h1>📊 جرد المخازن والتسويات</h1>
+        <h1>جرد المخازن والتسويات</h1>
         <p>
           إدارة ومطابقة كميات المخازن الفعلية بالكميات الدفترية وتسوية الفروقات مالياً ومخزنياً.
         </p>
       </div>
       <div class="header-actions">
         <button v-permission="'inventory.add'" class="btn btn-primary" @click="openCreateModal">
-          <span class="btn-icon">➕</span> بدء جرد جديد
+          <span class="btn-icon"></span> بدء جرد جديد
         </button>
       </div>
     </div>
@@ -23,7 +23,7 @@
     <!-- Stocktakes List Table -->
     <div class="card table-wrap">
       <div class="table-header-filters">
-        <h3>📋 سجل عمليات الجرد السابقة</h3>
+        <h3>سجل عمليات الجرد السابقة</h3>
       </div>
 
       <table class="data-table">
@@ -60,7 +60,7 @@
               <span
                 :class="['badge', s.status === 'completed' ? 'badge-success' : 'badge-warning']"
               >
-                {{ s.status === 'completed' ? '✅ معتمد ومسوى' : '📝 مسودة معلقة' }}
+                {{ s.status === 'completed' ? ' معتمد ومسوى' : ' مسودة معلقة' }}
               </span>
             </td>
             <td class="date-col">{{ s.completed_at ? fmtDateTime(s.completed_at) : '-' }}</td>
@@ -70,10 +70,10 @@
                 class="btn btn-xs btn-primary"
                 @click="goToDetails(s.id)"
               >
-                ✏️ استكمال الجرد
+                استكمال الجرد
               </button>
               <button v-else class="btn btn-xs btn-outline" @click="goToDetails(s.id)">
-                👁️ عرض التفاصيل
+                عرض التفاصيل
               </button>
 
               <button
@@ -82,9 +82,7 @@
                 class="btn btn-xs btn-danger-link"
                 title="حذف المسودة"
                 @click="confirmDelete(s)"
-              >
-                🗑️
-              </button>
+              ></button>
             </td>
           </tr>
           <tr v-if="!stocktakesList.length && !loading">
@@ -140,7 +138,7 @@
     <div v-if="stocktakeToDelete" class="modal">
       <div class="card modal-content confirm-modal">
         <div class="modal-header">
-          <h3 class="danger-title">⚠️ تأكيد حذف مسودة الجرد</h3>
+          <h3 class="danger-title">تأكيد حذف مسودة الجرد</h3>
           <button class="close-btn" @click="stocktakeToDelete = null">×</button>
         </div>
         <div class="modal-body">

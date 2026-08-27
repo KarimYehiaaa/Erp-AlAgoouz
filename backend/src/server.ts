@@ -1,6 +1,5 @@
 /**
  * server.ts — تشغيل الخادم (Boot)
- * ═══════════════════════════════════════════════
  * يفصل منطق التشغيل عن بناء التطبيق (app.ts):
  *  - تشغيل الهجرات ومزامنة الفواتير قبل الاستماع
  *  - خادم HTTP (المنفذ من config) + خادم HTTPS آمن (اختياري — certs)
@@ -22,10 +21,10 @@ import { initWebSocket } from './services/websocketService.ts';
 // نظام الطوابير (BullMQ) يعتمد على Redis — يُحمَّل فقط عند توفر REDIS_URL.
 if (!process.env.VERCEL && process.env.REDIS_URL) {
   import('./jobs/queue.ts').catch((err) => {
-    console.warn(`[Queue] ⚠️ فشل تحميل نظام الطوابير: ${err.message}`);
+    console.warn(`[Queue]  فشل تحميل نظام الطوابير: ${err.message}`);
   });
 } else if (!process.env.VERCEL) {
-  console.log('[Queue] ℹ️ نظام الطوابير (BullMQ) معطّل — لتفعيله أضف REDIS_URL في .env');
+  console.log('[Queue] ℹ نظام الطوابير (BullMQ) معطّل — لتفعيله أضف REDIS_URL في .env');
 }
 
 // ─── تحديد مجلد العمل (يعمل في ESM وفي العقدة العادية) ───────────────────────
@@ -53,15 +52,9 @@ if (!process.env.VERCEL) {
 
     const server = app.listen(config.port, async () => {
       console.log(`☕ بن العجوز ERP يعمل على البورت الموحد: http://localhost:${config.port}`);
-      console.log(`📊 Dashboard API: http://localhost:${config.port}/api/v1/dashboard`);
+      console.log(`📊 لوحة التحكم: http://localhost:${config.port}`);
       initWebSocket(server);
       initAutoBackupScheduler();
-      try {
-        const { default: SchedulerService } = await import('./services/schedulerService.ts');
-        await SchedulerService.init();
-      } catch (e: any) {
-        console.error('Failed to start Automation Scheduler:', e.message);
-      }
       try {
         const { default: TelegramBotService } = await import('./services/telegramBotService.ts');
         await TelegramBotService.startListening();
@@ -79,13 +72,13 @@ if (!process.env.VERCEL) {
 
     server.on('error', (err: any) => {
       if (err.code === 'EADDRINUSE') {
-        console.error(`\n❌ [خطأ تشغيل الخادم] البورت ${config.port} مشغول حالياً بعملية أخرى!`);
+        console.error(`\n [خطأ تشغيل الخادم] البورت ${config.port} مشغول حالياً بعملية أخرى!`);
         console.error(
-          `👉 لإيقاف العملية التي تشغل البورت ${config.port}، يمكنك تنفيذ: npm run kill:port أو استخدام scripts\\stop-erp.ps1\n`,
+          ` لإيقاف العملية التي تشغل البورت ${config.port}، يمكنك تنفيذ: npm run kill:port أو استخدام scripts\\stop-erp.ps1\n`,
         );
         process.exit(1);
       } else {
-        console.error('❌ [خطأ في الخادم]:', err);
+        console.error(' [خطأ في الخادم]:', err);
         process.exit(1);
       }
     });
@@ -105,17 +98,17 @@ if (!process.env.VERCEL) {
           // EADDRINUSE يحدث كحدث غير متزامن ولا يلتقطه try/catch — لا نسمح له بإسقاط الخادم كله
           const errCode = (err as Error & { code?: string }).code;
           if (errCode === 'EADDRINUSE') {
-            console.warn(`⚠️ HTTPS port ${httpsPort} مشغول — تخطي خادم HTTPS الآمن`);
+            console.warn(` HTTPS port ${httpsPort} مشغول — تخطي خادم HTTPS الآمن`);
           } else {
-            console.error(`⚠️ Failed to start HTTPS Server:`, err.message);
+            console.error(` Failed to start HTTPS Server:`, err.message);
           }
         });
         httpsServer.listen(httpsPort, () => {
-          console.log(`🔒 Secure HTTPS Server → https://localhost:${httpsPort}`);
+          console.log(` Secure HTTPS Server → https://localhost:${httpsPort}`);
           initWebSocket(httpsServer);
         });
       } catch (sslErr) {
-        console.error('⚠️ Failed to start HTTPS Server:', sslErr.message);
+        console.error(' Failed to start HTTPS Server:', sslErr.message);
       }
     }
   });

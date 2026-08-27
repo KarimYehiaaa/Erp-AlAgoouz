@@ -4,34 +4,78 @@
     <div class="page-header card glass-header">
       <div class="header-title">
         <span class="header-icon sparkles-anim">🤖</span>
-        <div>
-          <h2>محرك الأتمتة والوكلاء الأذكياء (Automation & AI Engine)</h2>
+        <div class="title-text-wrap">
+          <h2>محرك الأتمتة والوكلاء الأذكياء</h2>
           <p>لوحة التحكم التفاعلية للرسم البياني ومحاكاة سير العمليات وبوت تليجرام</p>
         </div>
       </div>
       <div class="header-actions">
-        <button class="btn btn-primary btn-sm" @click="openAddNodeModal">➕ إضافة عقدة</button>
-        <button class="btn btn-outline btn-sm" @click="openAddEdgeModal">🔗 ربط عقدتين</button>
+        <button class="btn btn-primary btn-sm" @click="openAddNodeModal">
+          <span class="btn-icon">➕</span>
+          <span class="btn-text">إضافة عقدة</span>
+        </button>
+        <button class="btn btn-outline btn-sm" @click="openAddEdgeModal">
+          <span class="btn-icon">🔗</span>
+          <span class="btn-text">ربط عقدتين</span>
+        </button>
         <button
-          class="btn btn-sm"
+          class="btn btn-sm action-simulate-btn"
           :class="isSimulating ? 'btn-danger' : 'btn-success'"
           @click="toggleSimulation"
         >
-          {{ isSimulating ? '⏹ إيقاف المحاكاة' : '🚀 تشغيل محاكاة التدفق' }}
+          <span class="btn-icon">{{ isSimulating ? '⏹' : '🚀' }}</span>
+          <span class="btn-text">{{ isSimulating ? 'إيقاف المحاكاة' : 'محاكاة التدفق' }}</span>
         </button>
-        <button class="btn btn-outline btn-sm" @click="showSettings = !showSettings">
+        <button
+          class="btn btn-outline btn-sm desktop-only-btn"
+          @click="showSettings = !showSettings"
+        >
           ⚙️ {{ showSettings ? 'إخفاء اللوحة' : 'لوحة التحكم' }}
         </button>
       </div>
     </div>
 
+    <!-- Mobile Segmented View Switcher (Visible on screens < 1024px) -->
+    <div class="mobile-view-switcher mobile-only-block" role="tablist">
+      <button
+        type="button"
+        class="switcher-btn"
+        :class="{ active: mobileView === 'graph' }"
+        @click="mobileView = 'graph'"
+        role="tab"
+        :aria-selected="mobileView === 'graph'"
+      >
+        <span class="switcher-icon">🕸️</span>
+        <span class="switcher-label">الشبكة التفاعلية</span>
+      </button>
+      <button
+        type="button"
+        class="switcher-btn"
+        :class="{ active: mobileView === 'panel' }"
+        @click="mobileView = 'panel'"
+        role="tab"
+        :aria-selected="mobileView === 'panel'"
+      >
+        <span class="switcher-icon">🛡️</span>
+        <span class="switcher-label">لوحة التحكم والوكلاء ({{ tasks.length }})</span>
+      </button>
+    </div>
+
     <!-- Main Content Area -->
     <div class="graph-layout">
       <!-- Force-Graph Canvas Area -->
-      <div class="graph-panel card" ref="graphContainer">
+      <div
+        class="graph-panel card"
+        :class="{
+          'mobile-view-active': mobileView === 'graph',
+          'mobile-hidden': mobileView !== 'graph',
+        }"
+        ref="graphContainer"
+      >
         <!-- Floating Canvas Controls -->
         <div class="canvas-controls">
           <button
+            class="desktop-only-btn"
             @click="showSettings = !showSettings"
             :title="showSettings ? 'وضع ملء الشاشة (إخفاء لوحة التحكم)' : 'إظهار لوحة التحكم'"
             :class="{ active: !showSettings }"
@@ -44,6 +88,14 @@
           <button @click="applyTreeLayout" title="تخطيط شجري منظم">🌲</button>
           <button @click="applyCircularLayout" title="تخطيط دائري">⭕</button>
           <button @click="resetToDefaultGraph" title="استعادة الشبكة الافتراضية">🔄</button>
+          <button
+            class="mobile-only-btn legend-toggle-btn"
+            @click="showLegendMobile = !showLegendMobile"
+            :class="{ active: showLegendMobile }"
+            title="دليل ألوان العقد"
+          >
+            🎨
+          </button>
         </div>
 
         <!-- Canvas -->
@@ -55,13 +107,23 @@
           @mouseleave="onMouseUp"
           @wheel.prevent="onWheel"
           @dblclick="onDoubleClick"
+          @touchstart.passive="onTouchStart"
+          @touchmove.prevent="onTouchMove"
+          @touchend="onTouchEnd"
+          @touchcancel="onTouchEnd"
         />
 
         <!-- Legend -->
-        <div class="graph-legend">
-          <div class="legend-item" v-for="g in legendGroups" :key="g.label">
-            <span class="legend-dot" :style="{ background: g.color }" />
-            <span>{{ g.label }}</span>
+        <div class="graph-legend" :class="{ 'mobile-open': showLegendMobile }">
+          <div class="legend-header-mobile mobile-only-flex">
+            <span>دليل مجموعات الأتمتة</span>
+            <button class="legend-close-btn" @click="showLegendMobile = false">✕</button>
+          </div>
+          <div class="legend-items-list">
+            <div class="legend-item" v-for="g in legendGroups" :key="g.label">
+              <span class="legend-dot" :style="{ background: g.color }" />
+              <span>{{ g.label }}</span>
+            </div>
           </div>
         </div>
 
@@ -90,7 +152,14 @@
 
       <!-- Settings & Tools Side Panel -->
       <transition name="slide">
-        <div v-if="showSettings" class="settings-panel card">
+        <div
+          v-if="showSettings || mobileView === 'panel'"
+          class="settings-panel card"
+          :class="{
+            'mobile-view-active': mobileView === 'panel',
+            'mobile-hidden': mobileView !== 'panel',
+          }"
+        >
           <!-- Panel Navigation Tabs -->
           <div class="panel-tabs">
             <button :class="{ active: activeTab === 'tasks' }" @click="activeTab = 'tasks'">
@@ -830,6 +899,8 @@ const DEFAULT_SEED_EDGES: GraphEdge[] = [
 
 const loading = ref(false);
 const showSettings = ref(true);
+const mobileView = ref<'graph' | 'panel'>('graph');
+const showLegendMobile = ref(false);
 const activeTab = ref<'tasks' | 'telegram' | 'ai' | 'physics' | 'nodes'>('tasks');
 const canvas = ref<HTMLCanvasElement | null>(null);
 const graphContainer = ref<HTMLElement | null>(null);
@@ -1925,6 +1996,130 @@ function onDoubleClick() {
   resetView();
 }
 
+// ─── تفاعل اللمس على الكانفاس (Mobile Touch Interactions) ───
+
+let touchStartDistance = 0;
+let initialZoom = 1;
+let touchStartTime = 0;
+let lastTouchPos = { x: 0, y: 0 };
+let hasTouchMoved = false;
+
+function getTouchPos(touch: Touch) {
+  const rect = canvas.value?.getBoundingClientRect();
+  if (!rect) return { sx: 0, sy: 0 };
+  return {
+    sx: touch.clientX - rect.left,
+    sy: touch.clientY - rect.top,
+  };
+}
+
+function getTouchesDistance(t1: Touch, t2: Touch) {
+  const dx = t1.clientX - t2.clientX;
+  const dy = t1.clientY - t2.clientY;
+  return Math.hypot(dx, dy);
+}
+
+function onTouchStart(e: TouchEvent) {
+  if (e.touches.length === 1) {
+    const touch = e.touches[0];
+    const { sx, sy } = getTouchPos(touch);
+    touchStartTime = performance.now();
+    hasTouchMoved = false;
+    lastTouchPos = { x: touch.clientX, y: touch.clientY };
+
+    const node = findNodeAt(sx, sy);
+    if (node) {
+      dragging.value = node.id;
+      node.fx = node.x;
+      node.fy = node.y;
+      alpha = 0.4;
+    } else {
+      isPanning = true;
+    }
+  } else if (e.touches.length === 2) {
+    // بدء قرصة التكبير/التصغير (Pinch Zoom)
+    isPanning = false;
+    dragging.value = null;
+    touchStartDistance = getTouchesDistance(e.touches[0], e.touches[1]);
+    initialZoom = zoom.value;
+  }
+}
+
+function onTouchMove(e: TouchEvent) {
+  if (e.touches.length === 1) {
+    const touch = e.touches[0];
+    const { sx, sy } = getTouchPos(touch);
+    const { x, y } = screenToWorld(sx, sy);
+    mouseWorld.x = x;
+    mouseWorld.y = y;
+
+    const dx = touch.clientX - lastTouchPos.x;
+    const dy = touch.clientY - lastTouchPos.y;
+    if (Math.hypot(dx, dy) > 3) {
+      hasTouchMoved = true;
+    }
+
+    if (dragging.value !== null) {
+      const node = nodes.value.find((n) => n.id === dragging.value);
+      if (node) {
+        node.fx = x;
+        node.fy = y;
+        node.x = x;
+        node.y = y;
+      }
+    } else if (isPanning) {
+      pan.x += dx;
+      pan.y += dy;
+    }
+    lastTouchPos = { x: touch.clientX, y: touch.clientY };
+  } else if (e.touches.length === 2) {
+    // تحديث التكبير بالقرصة (Pinch to Zoom)
+    const currentDist = getTouchesDistance(e.touches[0], e.touches[1]);
+    if (touchStartDistance > 0) {
+      const scaleFactor = currentDist / touchStartDistance;
+      const targetZoom = Math.max(0.25, Math.min(3.5, initialZoom * scaleFactor));
+
+      const rect = canvas.value?.getBoundingClientRect();
+      if (rect) {
+        const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2 - rect.left;
+        const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2 - rect.top;
+        pan.x = midX - ((midX - pan.x) / zoom.value) * targetZoom;
+        pan.y = midY - ((midY - pan.y) / zoom.value) * targetZoom;
+      }
+      zoom.value = targetZoom;
+    }
+  }
+}
+
+function onTouchEnd(e: TouchEvent) {
+  const touchDuration = performance.now() - touchStartTime;
+
+  if (dragging.value !== null) {
+    const node = nodes.value.find((n) => n.id === dragging.value);
+    if (node) {
+      delete node.fx;
+      delete node.fy;
+      automation
+        .updateNode(node.id, { position_x: node.x, position_y: node.y } as any)
+        .catch(() => {});
+    }
+    dragging.value = null;
+  }
+
+  // إذا كانت نقرة لمس سريعة بدون سحب على عقدة، نفتح تفاصيل العقدة
+  if (!hasTouchMoved && touchDuration < 350 && e.changedTouches.length === 1) {
+    const touch = e.changedTouches[0];
+    const { sx, sy } = getTouchPos(touch);
+    const node = findNodeAt(sx, sy);
+    if (node) {
+      selectNode(node);
+    }
+  }
+
+  isPanning = false;
+  touchStartDistance = 0;
+}
+
 // ─── التحكم في العرض والتخطيط ────────────────────────
 
 function zoomIn() {
@@ -2190,10 +2385,12 @@ function formatTime(ts: string) {
   display: flex;
   flex-direction: column;
   height: calc(100vh - var(--navbar-height) - 36px);
-  gap: 14px;
+  gap: 12px;
   direction: rtl;
+  position: relative;
 }
 
+/* ─── Header & Actions ─── */
 .glass-header {
   background: var(--header-bg);
   border: 1px solid var(--card-border);
@@ -2202,21 +2399,102 @@ function formatTime(ts: string) {
   align-items: center;
   flex-wrap: wrap;
   gap: 12px;
-  padding: 14px 20px;
+  padding: 12px 18px;
+  border-radius: var(--radius-lg);
+
+  .header-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+
+    .header-icon {
+      font-size: 1.6rem;
+      flex-shrink: 0;
+    }
+
+    .title-text-wrap {
+      h2 {
+        font-size: 1.05rem;
+        font-weight: 900;
+        color: var(--text-strong);
+        margin: 0;
+        line-height: 1.25;
+      }
+
+      p {
+        font-size: 0.78rem;
+        color: var(--text-muted);
+        margin: 2px 0 0;
+        line-height: 1.35;
+      }
+    }
+  }
 }
 
 .header-actions {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+  align-items: center;
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 700;
+    white-space: nowrap;
+    border-radius: var(--radius-sm);
+  }
 }
 
+/* ─── Mobile View Switcher (Segmented Tab Bar) ─── */
+.mobile-view-switcher {
+  display: none;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 4px;
+  gap: 6px;
+  margin-bottom: 2px;
+
+  .switcher-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px 12px;
+    border: none;
+    background: transparent;
+    border-radius: var(--radius-sm);
+    font-size: 0.84rem;
+    font-weight: 800;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all var(--transition);
+    min-height: 44px;
+
+    .switcher-icon {
+      font-size: 1rem;
+    }
+
+    &.active {
+      background: var(--bg-card);
+      color: var(--primary-strong);
+      box-shadow: var(--shadow-sm);
+      border: 1px solid var(--card-border);
+    }
+  }
+}
+
+/* ─── Main Graph Layout ─── */
 .graph-layout {
   flex: 1;
   display: flex;
   gap: 14px;
   min-height: 0;
   width: 100%;
+  position: relative;
 }
 
 .graph-panel {
@@ -2228,44 +2506,54 @@ function formatTime(ts: string) {
   background: var(--bg-card);
   border-radius: var(--radius-lg);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
 
   canvas {
     width: 100%;
     height: 100%;
     display: block;
+    touch-action: none;
   }
 }
 
-/* Controls */
+/* ─── Canvas Floating Controls ─── */
 .canvas-controls {
   position: absolute;
-  top: 14px;
-  left: 14px;
+  top: 12px;
+  left: 12px;
   display: flex;
   flex-direction: column;
   gap: 6px;
   z-index: 10;
 
   button {
-    width: 34px;
-    height: 34px;
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    min-height: 36px;
     border-radius: var(--radius-md);
     background: var(--bg-elevated, #fff);
     border: 1px solid var(--border);
     color: var(--text-strong);
     font-weight: 800;
-    font-size: 1rem;
+    font-size: 0.95rem;
     cursor: pointer;
     box-shadow: var(--shadow-sm);
     display: flex;
     align-items: center;
     justify-content: center;
     transition: all var(--transition);
+    user-select: none;
 
     &:hover {
       background: var(--primary-soft);
       color: var(--primary-strong);
       transform: scale(1.05);
+    }
+
+    &:active {
+      transform: scale(0.95);
     }
 
     &.active {
@@ -2277,50 +2565,81 @@ function formatTime(ts: string) {
   }
 }
 
+/* ─── Graph Legend ─── */
 .graph-legend {
   position: absolute;
-  bottom: 14px;
-  right: 14px;
+  bottom: 12px;
+  right: 12px;
   background: var(--bg-elevated, rgba(255, 255, 255, 0.95));
   backdrop-filter: blur(10px);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  padding: 10px 14px;
+  padding: 8px 12px;
   display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  font-size: 0.78rem;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.76rem;
   font-weight: 700;
   z-index: 10;
+  box-shadow: var(--shadow-md);
+  max-width: 260px;
+
+  .legend-items-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .legend-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
 }
 
-.legend-item {
-  display: flex;
+.legend-header-mobile {
+  display: none;
+  justify-content: space-between;
   align-items: center;
-  gap: 6px;
+  padding-bottom: 6px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+  font-weight: 900;
+  font-size: 0.82rem;
+  color: var(--text-strong);
+
+  .legend-close-btn {
+    background: none;
+    border: none;
+    font-size: 1rem;
+    cursor: pointer;
+    color: var(--text-muted);
+    padding: 2px 6px;
+  }
 }
 
-.legend-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
+/* ─── Node Quick Tooltip ─── */
 .node-tooltip {
   position: absolute;
   background: var(--bg-elevated, #1e293b);
   color: var(--text-strong, #fff);
-  padding: 10px 14px;
+  padding: 9px 12px;
   border-radius: var(--radius-md);
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   pointer-events: none;
   z-index: 100;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
-  max-width: 280px;
+  max-width: 260px;
 
   .tooltip-type {
-    font-size: 0.75rem;
+    font-size: 0.72rem;
     opacity: 0.75;
     margin-top: 2px;
   }
@@ -2329,14 +2648,14 @@ function formatTime(ts: string) {
     margin-top: 6px;
     padding-top: 6px;
     border-top: 1px solid rgba(255, 255, 255, 0.15);
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     color: #fbbf24;
   }
 
   .tooltip-hint {
     display: block;
     margin-top: 4px;
-    font-size: 0.7rem;
+    font-size: 0.68rem;
     color: var(--accent);
   }
 }
@@ -2361,12 +2680,12 @@ function formatTime(ts: string) {
   }
 }
 
-/* Settings Side Panel */
+/* ─── Settings Side Panel ─── */
 .settings-panel {
   width: 360px;
   flex-shrink: 0;
   overflow-y: auto;
-  padding: 16px;
+  padding: 14px;
   border: 1px solid var(--card-border);
   background: var(--bg-card);
   border-radius: var(--radius-lg);
@@ -2380,7 +2699,7 @@ function formatTime(ts: string) {
   background: var(--surface-2);
   padding: 4px;
   border-radius: var(--radius-md);
-  margin-bottom: 16px;
+  margin-bottom: 14px;
 
   button {
     flex: 1;
@@ -2393,6 +2712,7 @@ function formatTime(ts: string) {
     border-radius: var(--radius-xs);
     cursor: pointer;
     transition: all var(--transition);
+    white-space: nowrap;
 
     &.active {
       background: var(--bg-card);
@@ -2415,10 +2735,10 @@ function formatTime(ts: string) {
   }
 
   .tab-desc {
-    font-size: 0.8rem;
+    font-size: 0.78rem;
     color: var(--text-muted);
     margin: 0;
-    line-height: 1.4;
+    line-height: 1.45;
   }
 }
 
@@ -2427,7 +2747,7 @@ function formatTime(ts: string) {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
 }
 
 .tasks-cards-list {
@@ -2474,11 +2794,12 @@ function formatTime(ts: string) {
   .task-title-group {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 3px;
 
     strong {
       font-size: 0.88rem;
       color: var(--text-strong);
+      line-height: 1.3;
     }
   }
 
@@ -2491,7 +2812,7 @@ function formatTime(ts: string) {
   .task-desc-text {
     font-size: 0.78rem;
     color: var(--text-muted);
-    line-height: 1.4;
+    line-height: 1.45;
     margin: 0;
   }
 
@@ -2501,8 +2822,9 @@ function formatTime(ts: string) {
     align-items: center;
     gap: 8px;
     margin-top: 4px;
-    padding-top: 6px;
+    padding-top: 8px;
     border-top: 1px solid var(--border);
+    flex-wrap: wrap;
   }
 
   .task-meta {
@@ -2521,6 +2843,7 @@ function formatTime(ts: string) {
   .run-now-btn {
     font-weight: 800;
     white-space: nowrap;
+    min-height: 32px;
   }
 
   .task-feedback-toast {
@@ -2539,13 +2862,18 @@ function formatTime(ts: string) {
   background: none;
   border: none;
   cursor: pointer;
-  padding: 0;
+  padding: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 32px;
 
   .toggle-track-mini {
     display: block;
-    width: 32px;
-    height: 18px;
-    border-radius: 9px;
+    width: 36px;
+    height: 20px;
+    border-radius: 10px;
     background: var(--border);
     position: relative;
     transition: background 0.3s;
@@ -2554,8 +2882,8 @@ function formatTime(ts: string) {
       position: absolute;
       top: 2px;
       right: 2px;
-      width: 14px;
-      height: 14px;
+      width: 16px;
+      height: 16px;
       border-radius: 50%;
       background: #fff;
       box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
@@ -2566,7 +2894,7 @@ function formatTime(ts: string) {
   &.active .toggle-track-mini {
     background: var(--success, #10b981);
     .toggle-thumb-mini {
-      transform: translateX(-14px);
+      transform: translateX(-16px);
     }
   }
 }
@@ -2583,11 +2911,12 @@ function formatTime(ts: string) {
   input[type='range'] {
     width: 100%;
     accent-color: var(--primary);
+    min-height: 28px;
   }
 
   .setting-value {
     display: block;
-    font-size: 0.8rem;
+    font-size: 0.82rem;
     font-weight: 800;
     color: var(--primary-strong);
     margin-top: 2px;
@@ -2605,12 +2934,18 @@ function formatTime(ts: string) {
   }
 
   .preset-buttons {
-    display: flex;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
     gap: 6px;
+
+    .btn {
+      min-height: 36px;
+      justify-content: center;
+    }
   }
 }
 
-/* Telegram Tab Styles */
+/* ─── Telegram Tab Styles ─── */
 .bot-status-card {
   padding: 12px 14px;
   border-radius: var(--radius-md);
@@ -2650,15 +2985,18 @@ function formatTime(ts: string) {
   .status-details {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 4px;
     margin-top: 8px;
     color: var(--text-muted);
     font-size: 0.75rem;
 
     code {
       background: var(--surface-2);
-      padding: 1px 4px;
+      padding: 2px 6px;
       border-radius: 4px;
+      overflow-wrap: anywhere;
+      word-break: break-all;
+      font-size: 0.72rem;
     }
   }
 }
@@ -2669,13 +3007,19 @@ function formatTime(ts: string) {
   align-items: center;
   font-size: 0.85rem;
   font-weight: 700;
+  gap: 10px;
 }
 
 .toggle-btn {
   background: none;
   border: none;
   cursor: pointer;
-  padding: 0;
+  padding: 6px;
+  min-width: 52px;
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 
   .toggle-track {
     display: block;
@@ -2724,7 +3068,7 @@ function formatTime(ts: string) {
     width: 100%;
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
-    padding: 8px;
+    padding: 8px 10px;
     font-family: inherit;
     font-size: 0.82rem;
     margin-bottom: 8px;
@@ -2898,11 +3242,11 @@ function formatTime(ts: string) {
   }
 }
 
-/* Modals */
+/* ─── Modals ─── */
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.5);
+  background: rgba(15, 23, 42, 0.6);
   backdrop-filter: blur(4px);
   z-index: 1000;
   display: flex;
@@ -2912,19 +3256,21 @@ function formatTime(ts: string) {
 }
 
 .modal-card {
-  width: min(440px, 94vw);
+  width: min(460px, 94vw);
+  max-height: 90vh;
+  overflow-y: auto;
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
-  padding: 20px;
+  padding: 18px;
 }
 
 .modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
 
   h3 {
     font-size: 1rem;
@@ -2935,9 +3281,15 @@ function formatTime(ts: string) {
   .btn-close {
     background: none;
     border: none;
-    font-size: 1.1rem;
+    font-size: 1.2rem;
     cursor: pointer;
     color: var(--text-muted);
+    padding: 4px 8px;
+    min-width: 36px;
+    min-height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 }
 
@@ -2953,7 +3305,7 @@ function formatTime(ts: string) {
     gap: 4px;
 
     label {
-      font-size: 0.8rem;
+      font-size: 0.82rem;
       font-weight: 700;
       color: var(--text-muted);
     }
@@ -2962,11 +3314,12 @@ function formatTime(ts: string) {
     select {
       border: 1px solid var(--border);
       border-radius: var(--radius-sm);
-      padding: 8px 10px;
+      padding: 10px 12px;
       background: var(--surface-2);
       color: var(--text);
       font-family: inherit;
-      font-size: 0.85rem;
+      font-size: 0.88rem;
+      min-height: 44px;
     }
   }
 }
@@ -2975,6 +3328,11 @@ function formatTime(ts: string) {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
+  flex-wrap: wrap;
+
+  .btn {
+    min-height: 38px;
+  }
 }
 
 .btn-block {
@@ -2987,7 +3345,7 @@ function formatTime(ts: string) {
   border-radius: 4px;
 }
 
-/* Animations */
+/* ─── Animations ─── */
 .slide-enter-active,
 .slide-leave-active {
   transition: all 0.3s ease;
@@ -3018,6 +3376,196 @@ function formatTime(ts: string) {
 @keyframes spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   MEDIA QUERIES (Mobile & Tablet Responsiveness)
+   ══════════════════════════════════════════════════════════════ */
+
+@media (min-width: 1024px) {
+  .mobile-only-block,
+  .mobile-only-btn,
+  .mobile-only-flex {
+    display: none !important;
+  }
+}
+
+@media (max-width: 1023px) {
+  .automation-container {
+    height: auto;
+    min-height: calc(100dvh - var(--navbar-height) - 24px);
+  }
+
+  .desktop-only-btn {
+    display: none !important;
+  }
+
+  .mobile-only-block {
+    display: flex !important;
+  }
+
+  .mobile-only-btn {
+    display: flex !important;
+  }
+
+  .mobile-only-flex {
+    display: flex !important;
+  }
+
+  .graph-layout {
+    flex-direction: column;
+    min-height: calc(100dvh - var(--navbar-height) - 180px);
+  }
+
+  .graph-panel {
+    width: 100%;
+    height: 70vh;
+    min-height: 480px;
+
+    &.mobile-hidden {
+      display: none !important;
+    }
+
+    &.mobile-view-active {
+      display: flex !important;
+      flex: 1;
+      height: 72vh;
+    }
+  }
+
+  .settings-panel {
+    width: 100%;
+    max-height: none;
+
+    &.mobile-hidden {
+      display: none !important;
+    }
+
+    &.mobile-view-active {
+      display: flex !important;
+      width: 100%;
+    }
+  }
+
+  /* Horizontal Scrollable Tabs on Mobile */
+  .panel-tabs {
+    overflow-x: auto;
+    white-space: nowrap;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    padding: 6px;
+    gap: 6px;
+
+    &::-webkit-scrollbar {
+      display: none;
+    }
+
+    button {
+      flex: 0 0 auto;
+      padding: 8px 14px;
+      font-size: 0.82rem;
+      border-radius: var(--radius-sm);
+    }
+  }
+
+  /* Canvas Controls Position on Tablet/Mobile */
+  .canvas-controls {
+    top: 10px;
+    left: 10px;
+    flex-direction: row;
+    flex-wrap: wrap;
+    max-width: calc(100% - 20px);
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(8px);
+    padding: 4px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border);
+
+    button {
+      width: 38px;
+      height: 38px;
+      min-width: 38px;
+      min-height: 38px;
+    }
+  }
+
+  /* Collapsible Legend Drawer on Mobile */
+  .graph-legend {
+    display: none;
+    bottom: 10px;
+    right: 10px;
+    left: 10px;
+    max-width: none;
+    background: var(--bg-elevated, #fff);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-lg);
+
+    &.mobile-open {
+      display: flex;
+    }
+  }
+}
+
+@media (max-width: 767px) {
+  .page-header {
+    padding: 10px 14px;
+
+    .header-title {
+      width: 100%;
+
+      .title-text-wrap h2 {
+        font-size: 0.96rem;
+      }
+    }
+  }
+
+  .header-actions {
+    width: 100%;
+    justify-content: stretch;
+
+    .btn {
+      flex: 1 1 calc(50% - 6px);
+      justify-content: center;
+      min-height: 38px;
+      font-size: 0.78rem;
+    }
+  }
+
+  .graph-panel {
+    height: 64vh;
+    min-height: 420px;
+
+    &.mobile-view-active {
+      height: 66vh;
+    }
+  }
+
+  .modal-card {
+    width: 95vw;
+    padding: 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  .header-actions {
+    .btn {
+      flex: 1 1 100%;
+    }
+  }
+
+  .mobile-view-switcher .switcher-btn {
+    font-size: 0.78rem;
+    padding: 8px 6px;
+  }
+
+  .task-card .task-card-footer {
+    flex-direction: column;
+    align-items: stretch;
+
+    .run-now-btn {
+      width: 100%;
+    }
   }
 }
 </style>

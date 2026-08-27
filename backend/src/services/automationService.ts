@@ -318,7 +318,7 @@ export class AutomationService {
   /**
    * 📊 توليد تقرير الإغلاق اليومي الذكي للمبيعات
    */
-  private static async generateDailySalesReport(_config: any) {
+  static async generateDailySalesReport(_config: any) {
     const today = new Date().toISOString().slice(0, 10);
 
     // إجمالي المبيعات وعدد الفواتير
@@ -398,7 +398,7 @@ ${topItemsText}
   /**
    * 🚨 توليد تقرير نواقص المخزون
    */
-  private static async generateLowStockAlert(_config: any) {
+  static async generateLowStockAlert(_config: any) {
     const { rows } = await db.query(
       `SELECT p.name_ar, p.sku, p.unit, COALESCE(SUM(inv.quantity), 0) as current_stock, p.min_stock
        FROM products p
@@ -449,7 +449,7 @@ ${itemsList}
   /**
    * 🛡️ توليد ملخص فحص السيرفر والبيانات
    */
-  private static async generateSystemHealthSummary() {
+  static async generateSystemHealthSummary() {
     const counts = await db.query(`
       SELECT
         (SELECT COUNT(*) FROM products WHERE deleted_at IS NULL) as products_count,
@@ -479,7 +479,7 @@ ${itemsList}
   /**
    * 💰 درع حماية التدفقات النقدية والتنبؤ بالعجز المالي
    */
-  private static async generateCashFlowRiskReport() {
+  static async generateCashFlowRiskReport() {
     // جلب متوسط المبيعات اليومية لآخر 30 يوم
     const avgSalesRes = await db.query(`
       SELECT COALESCE(SUM(total_amount), 0) / 30.0 as avg_daily_sales

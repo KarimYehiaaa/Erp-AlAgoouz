@@ -13,6 +13,7 @@ const router = Router();
 router.use('/automations', authenticate);
 
 router.get('/automations', AutomationController.list);
+router.get('/automations/graph', AutomationController.getGraph);
 router.get('/automations/logs', AutomationController.getLogs);
 router.post('/automations/test-telegram', AutomationController.testTelegram);
 router.get('/automations/:id', AutomationController.getOne);

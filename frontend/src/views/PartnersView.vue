@@ -921,7 +921,7 @@ const loadPartners = async () => {
 
 const loadWarehouses = async () => {
   try {
-    const res = await inventoryApi.getWarehouses();
+    const res = await inventoryApi.warehouses();
     warehousesList.value = res.data?.data || res.data || [];
   } catch (err: any) {
     console.error('فشل جلب المخازن:', err);

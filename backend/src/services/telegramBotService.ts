@@ -2,19 +2,31 @@
  * services/telegramBotService.ts — محرك الأوامر التفاعلية ثنائية الاتجاه لبوت تليجرام
  * ═════════════════════════════════════════════════════════════════════════════════
  * يستمع لأوامر المالك والمديرين على تليجرام ويرد فوراً ببيانات وتقارير النظام الحية.
+ *
+ * إعادة التنظيم الجذري: كل المسارات/المعالجات نُقلت إلى السجل المركزي
+ * config/telegramCommands.ts، وهذه الخدمة مسؤوليتها فقط:
+ *   الاستماع (Long Polling) → التوحيد → البحث في السجل → التنفيذ → الرد.
+ * وبذلك يظهر البوت على اللوحة ثلاثية الأبعاد كعقدة انطلاق (Trigger Node)
+ * متصلة مباشرة بمحرك الأتمتة عبر GET /automations/graph.
  */
 
 import TelegramService from './telegramService.ts';
-import AutomationService from './automationService.ts';
-import BranchBalancingService from './branchBalancingService.ts';
 import db from '../database/pool.ts';
 import logger from './loggerService.ts';
+import {
+  TELEGRAM_COMMANDS,
+  findCommand,
+  normalizeCommand,
+  UNKNOWN_COMMAND_REPLY,
+  type TelegramCommandContext,
+} from '../config/telegramCommands.ts';
 
 export class TelegramBotService {
   private static isPolling = false;
   private static lastUpdateId = 0;
   private static pollingInterval: NodeJS.Timeout | null = null;
   private static cachedToken: string | null = null;
+  private static lastActivityAt: string | null = null;
 
   /**
    * جلب بيانات اعتماد بوت تليجرام (من المتغيرات البيئية أو قاعدة البيانات)
@@ -45,6 +57,23 @@ export class TelegramBotService {
   }
 
   /**
+   * حالة المحرك للوحة الشبكة ثلاثية الأبعاد (بدون كشف أي أسرار)
+   */
+  static getStatus(): {
+    listening: boolean;
+    commandsCount: number;
+    lastActivityAt: string | null;
+    tokenConfiguredInEnv: boolean;
+  } {
+    return {
+      listening: this.isPolling,
+      commandsCount: TELEGRAM_COMMANDS.length,
+      lastActivityAt: this.lastActivityAt,
+      tokenConfiguredInEnv: Boolean((process.env.TELEGRAM_BOT_TOKEN || '').trim()),
+    };
+  }
+
+  /**
    * بدء الاستماع التلقائي للأوامر الواردة (Long Polling)
    */
   static async startListening() {
@@ -72,7 +101,7 @@ export class TelegramBotService {
     this.pollingInterval = setInterval(async () => {
       try {
         await this.pollUpdates();
-      } catch (err: any) {
+      } catch {
         // Silent loop error
       }
     }, 2000);
@@ -114,13 +143,13 @@ export class TelegramBotService {
           await this.handleIncomingMessage(update.message, token);
         }
       }
-    } catch (err: any) {
+    } catch {
       // Ignore polling timeout/network hiccups
     }
   }
 
   /**
-   * معالجة الرسالة الواردة وتنفيذ الأمر المناسب
+   * معالجة الرسالة الواردة: توحيد → بحث في السجل المركزي → تنفيذ → رد
    */
   static async handleIncomingMessage(message: any, overrideToken?: string) {
     const rawText = (message.text || '').trim();
@@ -132,162 +161,29 @@ export class TelegramBotService {
     const { token: defaultToken } = await this.getBotCredentials();
     const token = overrideToken || defaultToken;
 
-    // توحيد الحروف وإزالة اللواحق والتنقيط
-    const normalized = rawText
-      .replace(/^[/\\#@]/, '')
-      .split('@')[0]
-      .trim()
-      .toLowerCase();
+    const normalized = normalizeCommand(rawText);
 
-    logger.info(`📨 [Telegram Bot] استلام أمر: "${rawText}" (${normalized}) من شات: ${chatId}`);
+    logger.info(
+      `📨 [Telegram Bot] استلام أمر: "${rawText}" (${normalized}) من شات: ${chatId} ← سجل الأوامر المركزي (${TELEGRAM_COMMANDS.length} أوامر)`,
+    );
+    this.lastActivityAt = new Date().toISOString();
 
     const reply = async (htmlContent: string) => {
       await TelegramService.sendMessage(htmlContent, { chatId, botToken: token }, 'HTML');
     };
 
+    const ctx: TelegramCommandContext = { normalized, rawText, chatId, userName, reply };
+
     try {
-      // 1. أوامر المساعدة والترحيب
-      if (
-        [
-          'start',
-          'help',
-          'اوامر',
-          'أوامر',
-          'الاوامر',
-          'الأوامر',
-          'مساعدة',
-          'مساعده',
-          'هلا',
-          'مرحبا',
-          'سلام',
-          'menu',
-        ].includes(normalized)
-      ) {
-        const welcomeText = `
-☕ <b>أهلاً بك في بوت بن العجوز ERP الذكي</b> 🤖
-═════════════════════════
-مرحباً <b>${userName}</b>، يمكنك التحكم في النظام والاستعلام عن الأرقام الحية عبر الأوامر التالية:
+      const command = findCommand(normalized);
 
-📊 <b>/sales أو /مبيعات</b> ⬅️ تقرير مبيعات وأرباح اليوم الحية
-📦 <b>/stock أو /نواقص</b> ⬅️ فحص خامات البن والأصناف الناقصة
-💵 <b>/cash أو /خزينة</b> ⬅️ إجمالي السيولة النقدية والمصروفات
-🔄 <b>/balance أو /مناقلات</b> ⬅️ اقتراحات توازن المخزون بين الفروع
-💰 <b>/cashflow أو /سيولة</b> ⬅️ درع وتوقعات السيولة للـ 14 يوماً القادمة
-⚡ <b>/health أو /سيرفر</b> ⬅️ حالة السيرفر وسلامة قاعدة البيانات
-
-═════════════════════════
-🚀 <i>اكتب أي أمر مباشرة وسأجيبك بأحدث أرقام النظام فوراً!</i>
-        `.trim();
-        await reply(welcomeText);
+      if (command) {
+        await command.run(ctx);
         return;
       }
 
-      // 2. أمر المبيعات الحية
-      if (
-        [
-          'sales',
-          'مبيعات',
-          'المبيعات',
-          'تقرير_المبيعات',
-          'تقرير',
-          'التقرير',
-          'تقرير_اليوم',
-        ].includes(normalized)
-      ) {
-        const auto = await AutomationService.getAutomationByKey('daily_sales_report');
-        const report = await (AutomationService as any).generateDailySalesReport(
-          auto?.config || {},
-        );
-        await reply(report.htmlMessage);
-        return;
-      }
-
-      // 3. أمر النواقص والمخزون
-      if (
-        ['stock', 'نواقص', 'النواقص', 'مخزون', 'المخزون', 'خامات', 'الخامات'].includes(normalized)
-      ) {
-        const stockAlert = await (AutomationService as any).generateLowStockAlert({});
-        await reply(stockAlert.htmlMessage);
-        return;
-      }
-
-      // 4. أمر الخزينة والسيولة النقدية الحية
-      if (
-        [
-          'cash',
-          'خزينة',
-          'الخزينة',
-          'خزينه',
-          'الخزينه',
-          'كاش',
-          'الكاش',
-          'درج',
-          'الدرج',
-          'فلوس',
-        ].includes(normalized)
-      ) {
-        const today = new Date().toISOString().slice(0, 10);
-        const cashRes = await db.query(
-          `SELECT
-             COALESCE(SUM(total_amount), 0) as total_collected,
-             COALESCE(SUM(profit_amount), 0) as total_profit
-           FROM sales
-           WHERE (sale_date = $1 OR DATE(created_at AT TIME ZONE 'Africa/Cairo') = $1)
-             AND status = 'completed' AND deleted_at IS NULL`,
-          [today],
-        );
-        const c = cashRes.rows[0];
-
-        const expRes = await db.query(
-          `SELECT COALESCE(SUM(amount), 0) as exp_today FROM expenses WHERE DATE(expense_date) = $1 AND deleted_at IS NULL`,
-          [today],
-        );
-        const expToday = Number(expRes.rows[0]?.exp_today || 0);
-        const netCash = Number(c.total_collected) - expToday;
-
-        const cashMsg = `
-💵 <b>تقرير الخزينة والسيولة النقدية اليوم</b> 🏦
-═════════════════════════
-📅 <b>التاريخ:</b> ${today}
-
-💰 <b>إجمالي المبيعات المحصلة:</b> ${Number(c.total_collected).toLocaleString()} ج.م
-📈 <b>أرباح اليوم التقديرية:</b> ${Number(c.total_profit).toLocaleString()} ج.م
-📉 <b>مصروفات نقدية خرجت اليوم:</b> ${expToday.toLocaleString()} ج.م
-⚖️ <b>صافي السيولة النقدية بالدرج:</b> <b>${netCash.toLocaleString()} ج.م</b>
-        `.trim();
-        await reply(cashMsg);
-        return;
-      }
-
-      // 5. أمر مناقلات الفروع الذكية
-      if (['balance', 'مناقلات', 'المناقلات', 'فروع', 'الفروع', 'توازن'].includes(normalized)) {
-        const bal = await BranchBalancingService.generateBalancingRecommendations();
-        await reply(bal.htmlReport);
-        return;
-      }
-
-      // 6. أمر توقعات درع السيولة
-      if (
-        ['cashflow', 'سيولة', 'السيولة', 'سيوله', 'السيوله', 'تدفق', 'التدفق'].includes(normalized)
-      ) {
-        const shield = await (AutomationService as any).generateCashFlowRiskReport();
-        await reply(shield.htmlMessage);
-        return;
-      }
-
-      // 7. أمر فحص حالة السيرفر
-      if (['health', 'سيرفر', 'السيرفر', 'سيستم', 'السيستم', 'فحص', 'الفحص'].includes(normalized)) {
-        const health = await (AutomationService as any).generateSystemHealthSummary();
-        await reply(health.htmlMessage);
-        return;
-      }
-
-      // 8. في حال عدم التعرف على الأمر
-      const unknownText = `
-❓ <b>عفواً، لم أتعرف على الأمر "${rawText}".</b>
-اكتب <b>/اوامر</b> لعرض قائمة الأوامر التفاعلية المتاحة للنظام. ☕
-      `.trim();
-      await reply(unknownText);
+      // في حال عدم التعرف على الأمر
+      await reply(UNKNOWN_COMMAND_REPLY(rawText));
     } catch (err: any) {
       logger.error(`❌ [Telegram Bot] خطأ أثناء معالجة الأمر: ${err.message}`);
       await reply(`⚠️ <b>عفواً، حدث خطأ أثناء تنفيذ الأمر:</b> ${err.message}`);

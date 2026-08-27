@@ -5,6 +5,7 @@
 
 import type { Request, Response, NextFunction } from 'express';
 import AutomationService from '../services/automationService.ts';
+import AutomationGraphService from '../services/automationGraphService.ts';
 import SchedulerService from '../services/schedulerService.ts';
 import TelegramService from '../services/telegramService.ts';
 import TelegramBotService from '../services/telegramBotService.ts';
@@ -24,6 +25,19 @@ export class AutomationController {
           activeCronTasks: activeTasks,
         },
       });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
+   * خريطة شبكة الأتمتة الحية — مصدر اللوحة ثلاثية الأبعاد في الواجهة
+   * (يجب تسجيل المسار قبل /automations/:id حتى لا يُلتقط كمعرّف)
+   */
+  static async getGraph(_req: Request, res: Response, next: NextFunction) {
+    try {
+      const graph = await AutomationGraphService.buildLiveGraph();
+      res.json({ success: true, data: graph });
     } catch (err) {
       next(err);
     }

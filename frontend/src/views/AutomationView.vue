@@ -1,6 +1,6 @@
 <template>
   <div class="automations-page">
-    <!-- ═══════════════════ Header الرئيسي الفاخر ═══════════════════ -->
+    <!-- ═══════════════════ Header الرئيسي ═══════════════════ -->
     <div class="page-header card">
       <div class="header-title">
         <div class="header-icon-wrap">
@@ -8,41 +8,29 @@
           <span class="pulse-ring"></span>
         </div>
         <div>
-          <h2>استوديو واللوحة التفاعلية للأتمتة الذكية</h2>
-          <p>خريطة التدفق الحي، مسارات التشغيل التلقائي، إنذارات الرقابة، وبوت تليجرام الفوري</p>
+          <h2>الفضاء التفاعلي ثلاثي الأبعاد للأتمتة</h2>
+          <p>خريطة حية للوكلاء والبوتات ومسارات تدفق البيانات بينها — دوران، تحريك، وتكبير حر</p>
         </div>
       </div>
 
       <div class="header-actions">
-        <button
-          type="button"
-          class="btn btn-secondary"
-          :disabled="isLoading"
-          @click="fetchAutomations"
-          title="تحديث البيانات"
-        >
+        <button type="button" class="btn btn-secondary" :disabled="isLoading" @click="refreshAll" title="تحديث البيانات">
           <AppIcon name="refresh" :size="16" />
           <span>تحديث</span>
         </button>
 
-        <button
-          type="button"
-          class="btn btn-warning-soft"
-          :disabled="isFiringAll"
-          @click="triggerAllAutomations"
-          title="إرسال نبضة فحص شاملة لكافة مسارات الشبكة"
-        >
+        <button type="button" class="btn btn-warning-soft" :disabled="isFiringAll" @click="triggerAllAutomations" title="إرسال نبضة فحص شاملة لكافة مسارات الشبكة">
           <span>{{ isFiringAll ? 'جاري الفحص الشامل...' : '⚡ فحص الشبكة بالكامل' }}</span>
         </button>
 
         <button type="button" class="btn btn-primary" @click="showTelegramModal = true">
           <AppIcon name="settings" :size="16" />
-          <span>إعدادات البوت والقنوات 📲</span>
+          <span>بوت تليجرام 📲</span>
         </button>
       </div>
     </div>
 
-    <!-- رسائل التنبيه والنجاح الحركية -->
+    <!-- رسائل التنبيه -->
     <transition name="slide-fade">
       <div v-if="feedbackMessage" :class="`feedback-alert ${feedbackType}`">
         <span class="alert-icon">{{ feedbackType === 'success' ? '✨' : '⚠️' }}</span>
@@ -50,47 +38,37 @@
       </div>
     </transition>
 
-    <!-- ═══════════════════ شريط الإحصائيات (Modern Glass Bento Cards) ═══════════════════ -->
+    <!-- ═══════════════════ شريط الإحصائيات ═══════════════════ -->
     <div class="stats-grid">
       <div class="stat-card">
-        <div class="stat-icon bg-primary-soft">
-          <span>⚡</span>
-        </div>
+        <div class="stat-icon bg-primary-soft"><span>⚡</span></div>
         <div class="stat-info">
           <span class="stat-label">المسارات المفعلة بالشبكة</span>
-          <h3 class="stat-value">
-            {{ activeCount }} <small>/ {{ automationsList.length }} مسار</small>
-          </h3>
+          <h3 class="stat-value">{{ graphStats.enabledAgents }} <small>/ {{ graphStats.totalAgents }} وكيل</small></h3>
         </div>
       </div>
 
       <div class="stat-card">
-        <div class="stat-icon bg-success-soft">
-          <span>🤖</span>
-        </div>
+        <div class="stat-icon bg-success-soft"><span>🤖</span></div>
         <div class="stat-info">
-          <span class="stat-label">حالة بوت تليجرام</span>
+          <span class="stat-label">عقدة انطلاق بوت تليجرام</span>
           <h3 class="stat-value text-success">
-            <span class="status-pulse-dot" :class="{ active: isTelegramConfigured }"></span>
-            <span>{{ isTelegramConfigured ? 'متصل ومستعد 24/7' : 'بحاجة للضبط' }}</span>
+            <span class="status-pulse-dot" :class="{ active: isTelegramReady }"></span>
+            <span>{{ telegramStatusLabel }}</span>
           </h3>
         </div>
       </div>
 
       <div class="stat-card">
-        <div class="stat-icon bg-accent-soft">
-          <span>📊</span>
-        </div>
+        <div class="stat-icon bg-accent-soft"><span>🕸️</span></div>
         <div class="stat-info">
-          <span class="stat-label">تقرير الإغلاق القادم</span>
-          <h3 class="stat-value text-primary">11:30 م <small>تلقائياً</small></h3>
+          <span class="stat-label">مسارات التدفق الحية</span>
+          <h3 class="stat-value">{{ graphStats.totalLinks }} <small>رابط</small></h3>
         </div>
       </div>
 
       <div class="stat-card">
-        <div class="stat-icon bg-warning-soft">
-          <span>📜</span>
-        </div>
+        <div class="stat-icon bg-warning-soft"><span>📜</span></div>
         <div class="stat-info">
           <span class="stat-label">إجمالي العمليات المنفذة</span>
           <h3 class="stat-value">{{ logsList.length }} <small>عملية</small></h3>
@@ -98,898 +76,207 @@
       </div>
     </div>
 
-    <!-- ═══════════════════ اللوحة التفاعلية البصرية المطورة (Visual Matrix Hub) ═══════════════════ -->
-    <!-- ═══════════════════ اللوحة التفاعلية الحركية (Obsidian Kinetic Automation Canvas Engine) ═══════════════════ -->
+    <!-- ═══════════════════ اللوحة ثلاثية الأبعاد (Interactive 3D Canvas) ═══════════════════ -->
     <div class="canvas-section-card card">
       <div class="canvas-toolbar">
         <div class="canvas-title-group">
           <div class="canvas-badge-live">
             <span class="live-dot"></span>
-            <span>الشبكة التفاعلية الحركية للأتمتة (Obsidian Kinetic Canvas)</span>
+            <span>الشبكة ثلاثية الأبعاد للأتمتة (Live 3D Graph)</span>
           </div>
-          <span class="canvas-subtitle">
-            💡 اسحب أي عقدة بالماوس لترتيبها بحرية • مرر الفأرة لمعاينة الروابط • انقر للإجراءات
-            السريعة
-          </span>
+          <span class="canvas-subtitle">💡 اسحب للتدوير • عجلة الفأرة للتكبير • انقر أي عقدة لتفاصيلها وإجراءاتها</span>
         </div>
 
-        <!-- أدوات التحكم في اللوحة والمنظور والتكبير -->
         <div class="canvas-controls-group">
-          <!-- تبديل المنظور الحركي -->
+          <!-- تبديل نمط التوزيع ثلاثي الأبعاد -->
           <div class="layout-toggle-pill">
-            <button
-              type="button"
-              class="layout-btn"
-              :class="{ active: canvasLayout === 'obsidian' }"
-              @click="canvasLayout = 'obsidian'"
-              title="توزيع عنقودي شبكي بتفاعل أوبسيديان المتناغم"
-            >
-              🕸️ أوبسيديان
-            </button>
-            <button
-              type="button"
-              class="layout-btn"
-              :class="{ active: canvasLayout === 'orbit' }"
-              @click="canvasLayout = 'orbit'"
-              title="توزيع مداري كهروميكانيكي كوكبي"
-            >
-              🪐 مداري
-            </button>
-            <button
-              type="button"
-              class="layout-btn"
-              :class="{ active: canvasLayout === 'matrix' }"
-              @click="canvasLayout = 'matrix'"
-              title="مصفوفة تدفق رقمية متوازنة"
-            >
-              🔀 شبكي
+            <button v-for="mode in LAYOUT_MODES" :key="mode.key" type="button" class="layout-btn" :class="{ active: canvasLayout === mode.key }" :title="mode.hint" @click="canvasLayout = mode.key">
+              {{ mode.label }}
             </button>
           </div>
 
-          <!-- أدوات التكبير والتصغير وإعادة الضبط -->
           <div class="zoom-controls-pill">
-            <button type="button" class="zoom-btn" @click="zoomIn" title="تكبير">+</button>
-            <span class="zoom-level-text">{{ Math.round(zoomLevel * 100) }}%</span>
-            <button type="button" class="zoom-btn" @click="zoomOut" title="تصغير">−</button>
-            <button
-              type="button"
-              class="zoom-btn reset-btn"
-              @click="resetView"
-              title="إعادة ضبط الموضع والحجم"
-            >
-              ↺ إعادة ضبط
-            </button>
+            <button type="button" class="zoom-btn" @click="graph3dRef?.zoomIn()" title="تكبير">+</button>
+            <button type="button" class="zoom-btn" @click="graph3dRef?.zoomOut()" title="تصغير">−</button>
+            <button type="button" class="zoom-btn reset-btn" @click="resetCanvasView" title="إعادة ضبط الكاميرا">↺ إعادة ضبط</button>
           </div>
 
-          <button
-            type="button"
-            class="btn btn-xs btn-outline pulse-btn"
-            @click="pulseNetwork"
-            title="إرسال موجة صدمية كهروميكانيكية في كافة المسارات"
-          >
-            💫 ضخ نبضة طاقة
-          </button>
+          <button type="button" class="btn btn-xs btn-outline pulse-btn" @click="pulseNetwork" title="دوران فحص سريع لكافة العقد">💫 ضخ نبضة طاقة</button>
 
-          <button
-            type="button"
-            class="btn btn-xs btn-outline"
-            @click="selectedNodeId = null"
-            v-if="selectedNodeId"
-            title="إلغاء التحديد"
-          >
-            ✕ إلغاء التحديد
-          </button>
+          <button v-if="selectedNodeId" type="button" class="btn btn-xs btn-outline" @click="clearSelection" title="إلغاء التحديد">✕ إلغاء التحديد</button>
         </div>
       </div>
 
       <!-- فلاتر الفئات على اللوحة -->
       <div class="canvas-categories-bar">
-        <button
-          v-for="cat in categoryTabs"
-          :key="cat.key"
-          type="button"
-          class="canvas-cat-pill"
-          :class="{ active: selectedCategory === cat.key }"
-          @click="selectedCategory = cat.key"
-        >
+        <button v-for="cat in categoryTabs" :key="cat.key" type="button" class="canvas-cat-pill" :class="{ active: selectedCategory === cat.key }" @click="selectedCategory = cat.key">
           <span>{{ cat.icon }}</span>
           <span>{{ cat.label }}</span>
           <span class="cat-pill-count">{{ getCategoryCount(cat.key) }}</span>
         </button>
       </div>
 
-      <!-- مساحة الرسم التفاعلي الحركية الهجينة (Hybrid SVG Conduits + HTML Drag Nodes) -->
-      <div
-        ref="canvasContainerRef"
-        class="interactive-canvas-viewport"
-        :class="{ 'is-pulsing': isNetworkPulsing, 'is-dragging-any': Boolean(draggingNodeId) }"
+      <AutomationGraph3D
+        ref="graph3dRef"
+        :nodes="graphNodes"
+        :links="graphLinks"
+        :layout="canvasLayout"
+        :selected-id="selectedNodeId"
+        :loading="isLoading"
+        @select="onNodeSelect"
       >
-        <!-- اللوحة الداخلية القابلة للتكبير والتحريك (1000x620 Virtual Canvas) -->
-        <div class="canvas-scalable-board" :style="{ transform: `scale(${zoomLevel})` }">
-          <!-- 1. طبقة الليزر ومسارات الطاقة الخلفية SVG -->
-          <svg class="canvas-svg-layer" viewBox="0 0 1000 620" preserveAspectRatio="xMidYMid meet">
-            <!-- التدرجات والأنماط المعرفة (Defs) -->
-            <defs>
-              <pattern id="grid-dots-pattern" width="28" height="28" patternUnits="userSpaceOnUse">
-                <circle cx="2" cy="2" r="1.2" fill="rgba(212, 163, 115, 0.14)" />
-                <line
-                  x1="0"
-                  y1="14"
-                  x2="28"
-                  y2="14"
-                  stroke="rgba(212, 163, 115, 0.03)"
-                  stroke-width="0.5"
-                />
-                <line
-                  x1="14"
-                  y1="0"
-                  x2="14"
-                  y2="28"
-                  stroke="rgba(212, 163, 115, 0.03)"
-                  stroke-width="0.5"
-                />
-              </pattern>
-
-              <linearGradient id="radar-sweep-cone" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stop-color="rgba(212, 163, 115, 0.3)" />
-                <stop offset="70%" stop-color="rgba(212, 163, 115, 0.06)" />
-                <stop offset="100%" stop-color="rgba(212, 163, 115, 0)" />
-              </linearGradient>
-
-              <radialGradient id="ambient-center-glow" cx="50%" cy="50%" r="50%">
-                <stop offset="0%" stop-color="rgba(212, 163, 115, 0.35)" />
-                <stop offset="50%" stop-color="rgba(212, 163, 115, 0.08)" />
-                <stop offset="100%" stop-color="rgba(0, 0, 0, 0)" />
-              </radialGradient>
-
-              <filter id="glow-photon" x="-40%" y="-40%" width="180%" height="180%">
-                <feGaussianBlur stdDeviation="4" result="blur" />
-                <feComposite in="SourceGraphic" in2="blur" operator="over" />
-              </filter>
-            </defs>
-
-            <!-- خلفية الشبكة الهندسية -->
-            <rect width="1000" height="620" fill="url(#grid-dots-pattern)" />
-            <circle cx="500" cy="310" r="290" fill="url(#ambient-center-glow)" />
-
-            <!-- دوائر المعايرة المدارية الميكانيكية -->
-            <circle
-              cx="500"
-              cy="310"
-              r="175"
-              fill="none"
-              stroke="rgba(212, 163, 115, 0.14)"
-              stroke-width="1.5"
-              stroke-dasharray="8, 6"
-              class="mechanical-orbit-track-1"
-            />
-            <circle
-              cx="500"
-              cy="310"
-              r="265"
-              fill="none"
-              stroke="rgba(212, 163, 115, 0.1)"
-              stroke-width="1.5"
-              stroke-dasharray="12, 8"
-              class="mechanical-orbit-track-2"
-            />
-
-            <!-- مخروط ماسح الرادار الدوار 360 درجة -->
-            <g transform="translate(500, 310)" class="mechanical-radar-scanner">
-              <path d="M 0 0 L 265 0 A 265 265 0 0 1 187 187 Z" fill="url(#radar-sweep-cone)" />
-              <line
-                x1="0"
-                y1="0"
-                x2="265"
-                y2="0"
-                stroke="rgba(250, 237, 205, 0.45)"
-                stroke-width="1.5"
-              />
-            </g>
-
-            <!-- 2. شبكة الروابط البينية العنقودية أوبسيديان (Obsidian Mesh Conduits) -->
-            <g class="obsidian-mesh-layer">
-              <template v-for="link in interNodeLinks" :key="link.id">
-                <path
-                  :d="
-                    generateConduitPath(link.source.x, link.source.y, link.target.x, link.target.y)
-                  "
-                  fill="none"
-                  class="obsidian-mesh-conduit"
-                  :class="{
-                    'is-highlighted': link.isHighlighted,
-                    'is-active': link.active,
-                  }"
-                />
-              </template>
-            </g>
-
-            <!-- 3. خطوط الطاقة الانسيابية من المركز للعقد -->
-            <g class="conduits-layer">
-              <template v-for="node in nodeLayouts" :key="`conduit-${node.id}`">
-                <!-- خط القاعدة الخافت -->
-                <path
-                  :d="generateConduitPath(500, 310, node.x, node.y)"
-                  fill="none"
-                  class="conduit-base-line"
-                  :class="{
-                    'is-focused-conduit': isNodeFocused(node.id),
-                    'is-disabled-conduit': !node.is_enabled,
-                  }"
-                />
-
-                <!-- خط الليزر النشط المتدفق -->
-                <path
-                  v-if="node.is_enabled"
-                  :d="generateConduitPath(500, 310, node.x, node.y)"
-                  fill="none"
-                  :stroke="getCategoryColor(node.category)"
-                  stroke-width="2.5"
-                  stroke-linecap="round"
-                  class="energy-flowing-beam"
-                  :class="{
-                    'active-selected': selectedNodeId === node.id || hoveredNodeId === node.id,
-                    'is-firing': triggeringId === node.id,
-                  }"
-                />
-
-                <!-- جزيئة الطاقة المتحركة على المسار -->
-                <circle
-                  v-if="node.is_enabled"
-                  r="3.5"
-                  :fill="getCategoryColor(node.category)"
-                  filter="url(#glow-photon)"
-                  class="pulsing-energy-particle"
-                >
-                  <animateMotion
-                    :path="generateConduitPath(500, 310, node.x, node.y)"
-                    :dur="getParticleSpeed(node.id)"
-                    repeatCount="indefinite"
-                  />
-                </circle>
-              </template>
-            </g>
-          </svg>
-
-          <!-- 4. محطة الذكاء الاصطناعي المركزية التفاعلية (Interactive Center AI Core) -->
-          <div
-            class="dom-central-core"
-            :style="{ left: '500px', top: '310px' }"
-            @click="selectedNodeId = null"
-          >
-            <div class="core-gear-ring-cw"></div>
-            <div class="core-gear-ring-ccw"></div>
-            <div class="core-pulse-wave"></div>
-            <div class="core-glass-disc">
-              <AppIcon name="coffee" :size="28" class="core-vector-icon" />
-            </div>
-            <div class="core-info-plaque">
-              <span class="core-title-text">محرك الأتمتة المركزي</span>
-              <span class="core-metric-text">{{ activeCount }} مسار نشط 24/7</span>
-            </div>
-          </div>
-
-          <!-- 5. طبقة عقد ومحطات الأتمتة الموحدة التفاعلية ذات السحب والإفلات (Draggable Cyber-Pods) -->
-          <div class="dom-nodes-container">
-            <div
-              v-for="node in nodeLayouts"
-              :key="`dom-node-${node.id}`"
-              class="dom-node-pod"
-              :class="[
-                node.harmonicClass,
-                {
-                  'is-selected': selectedNodeId === node.id,
-                  'is-hovered': hoveredNodeId === node.id,
-                  'is-focused': isNodeFocused(node.id),
-                  'is-disabled': !node.is_enabled,
-                  'is-firing': triggeringId === node.id,
-                  'is-dragging': draggingNodeId === node.id,
-                  'is-dimmed':
-                    (selectedCategory !== 'all' && node.category !== selectedCategory) ||
-                    ((hoveredNodeId || selectedNodeId) && !isNodeFocused(node.id)),
-                },
-              ]"
-              :style="{
-                left: `${node.x}px`,
-                top: `${node.y}px`,
-                '--node-accent': getCategoryColor(node.category),
-              }"
-              @mousedown="startNodeDrag(node, $event)"
-              @mouseenter="hoveredNodeId = node.id"
-              @mouseleave="hoveredNodeId = null"
-              @click.stop="handleNodeClick(node)"
-            >
-              <!-- حلقة المعايرة الدوارة Reticle -->
-              <div class="pod-caliper-ring"></div>
-
-              <!-- كبسولة الأيقونة الموحدة الدقيقة (Crisp Vector AppIcon) -->
-              <div class="pod-icon-capsule">
-                <span class="pod-status-led" :class="{ 'is-active': node.is_enabled }"></span>
-                <AppIcon :name="getScenarioIcon(node.key)" :size="24" class="pod-svg-icon" />
-              </div>
-
-              <!-- لوحة المعلومات الموحدة بالكامل أسفل الأيقونة -->
-              <div class="pod-info-plaque">
-                <span class="pod-title-text" :title="node.name_ar">
-                  {{ formatNodeTitle(node.name_ar) }}
-                </span>
-                <div class="pod-badge-row">
-                  <span class="pod-trigger-pill">
-                    {{
-                      node.trigger_type === 'cron'
-                        ? '⏰ ' + formatCronShort(node.cron_expression)
-                        : '⚡ فوري'
-                    }}
-                  </span>
-                  <span class="pod-state-pill" :class="{ 'is-active': node.is_enabled }">
-                    {{ node.is_enabled ? 'مفعل' : 'معطل' }}
-                  </span>
-                </div>
-
-                <!-- أزرار الإجراءات السريعة المباشرة عند التحويم -->
-                <div class="pod-hover-actions" @click.stop>
-                  <button
-                    type="button"
-                    class="pod-mini-btn run-btn"
-                    :disabled="triggeringId === node.id"
-                    @click="triggerTestRun(node)"
-                    title="تشغيل تجريبي فوري"
-                  >
-                    <span>{{ triggeringId === node.id ? '⏳' : '⚡ تشغيل' }}</span>
-                  </button>
-                  <button
-                    type="button"
-                    class="pod-mini-btn toggle-btn"
-                    @click="toggleAutomation(node)"
-                    :title="node.is_enabled ? 'إيقاف مؤقت' : 'تفعيل المسار'"
-                  >
-                    <span>{{ node.is_enabled ? '⏸' : '▶' }}</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- ═══════════════════ بطاقة العقدة المحددة التفاعلية السريعة (HUD Node Card) ═══════════════════ -->
-        <transition name="pop-in">
-          <div v-if="selectedNode" class="node-hud-card">
-            <div class="hud-header">
-              <div class="hud-title-wrap">
-                <span class="hud-emoji">{{ getScenarioEmoji(selectedNode.key) }}</span>
-                <div>
-                  <h4 class="hud-title">{{ selectedNode.name_ar }}</h4>
-                  <div class="hud-badges">
-                    <span :class="`category-pill ${selectedNode.category}`">
-                      {{ getCategoryLabel(selectedNode.category) }}
-                    </span>
-                    <span class="trigger-type-pill" :class="selectedNode.trigger_type">
-                      {{
-                        selectedNode.trigger_type === 'cron'
-                          ? '⏰ ' + formatCronHuman(selectedNode.cron_expression)
-                          : '⚡ حدث فوري'
-                      }}
-                    </span>
-                  </div>
-                </div>
-              </div>
-              <button type="button" class="hud-close-btn" @click="selectedNodeId = null">✕</button>
-            </div>
-
-            <p class="hud-desc">{{ selectedNode.description_ar }}</p>
-
-            <div class="hud-meta-row">
-              <div class="hud-meta-item">
-                <span class="meta-lbl">الحالة:</span>
-                <span :class="`status-tag ${selectedNode.is_enabled ? 'success' : 'failed'}`">
-                  {{ selectedNode.is_enabled ? 'مفعل ونشط 🟢' : 'معطل مؤقتاً ⚪' }}
-                </span>
-              </div>
-              <div class="hud-meta-item" v-if="selectedNode.last_run_at">
-                <span class="meta-lbl">آخر تشغيل:</span>
-                <span class="meta-val">{{ formatRelativeTime(selectedNode.last_run_at) }}</span>
-              </div>
-            </div>
-
-            <div class="hud-actions-row">
-              <button
-                type="button"
-                class="btn btn-sm btn-outline"
-                @click="toggleAutomation(selectedNode)"
-              >
-                {{ selectedNode.is_enabled ? '⏸️ إيقاف مؤقت' : '▶️ تفعيل المسار' }}
-              </button>
-
-              <button
-                type="button"
-                class="btn btn-sm btn-outline"
-                @click="openConfigModal(selectedNode)"
-              >
-                ⚙️ الإعدادات
-              </button>
-
-              <button
-                type="button"
-                class="btn btn-sm btn-primary"
-                :disabled="triggeringId === selectedNode.id"
-                @click="triggerTestRun(selectedNode)"
-              >
-                <span>{{
-                  triggeringId === selectedNode.id ? 'جاري التنفيذ...' : '⚡ تشغيل فوري'
-                }}</span>
-              </button>
-            </div>
-          </div>
-        </transition>
-      </div>
-    </div>
-
-    <!-- ═══════════════════ استوديو مسارات الأتمتة (Automation Pipelines Studio) ═══════════════════ -->
-    <div class="section-card card">
-      <div class="section-header">
-        <div class="section-title-wrap">
-          <AppIcon name="cpu" :size="20" />
-          <h3 class="text-lg font-black text-strong">
-            مسارات الأتمتة التفصيلية (Workflow Pipelines)
-          </h3>
-        </div>
-
-        <!-- 📂 تبويبات التصنيف الذكية -->
-        <div class="category-filters-tabs">
-          <button
-            v-for="cat in categoryTabs"
-            :key="cat.key"
-            type="button"
-            class="cat-tab-btn"
-            :class="{ active: selectedCategory === cat.key }"
-            @click="selectedCategory = cat.key"
-          >
-            <span class="tab-icon">{{ cat.icon }}</span>
-            <span class="tab-label">{{ cat.label }}</span>
-            <span class="tab-count">{{ getCategoryCount(cat.key) }}</span>
-          </button>
-        </div>
-      </div>
-
-      <!-- حالة التحميل -->
-      <div v-if="isLoading" class="loading-state">
-        <span class="spinner"></span>
-        <span>جاري تحميل مسارات الأتمتة...</span>
-      </div>
-
-      <!-- شبكة بطاقات خطوط الأنابيب التفاعلية (Pipeline Flow Cards) -->
-      <div v-else class="pipelines-grid">
-        <div
-          v-for="item in filteredAutomations"
-          :key="item.id"
-          class="pipeline-card"
-          :class="{
-            'is-disabled': !item.is_enabled,
-            'is-firing': triggeringId === item.id,
-            'is-selected-card': selectedNodeId === item.id,
-          }"
-          @click="selectedNodeId = item.id"
-        >
-          <!-- ترويسة الكارت -->
-          <div class="pipeline-header">
-            <div class="pipeline-title-group">
-              <div class="pipeline-scenario-icon">
-                {{ getScenarioEmoji(item.key) }}
-              </div>
-              <div>
-                <h4 class="pipeline-name">{{ item.name_ar }}</h4>
-                <div class="pipeline-badges-row">
-                  <span :class="`category-pill ${item.category}`">
-                    {{ getCategoryLabel(item.category) }}
-                  </span>
-                  <span class="trigger-type-pill" :class="item.trigger_type">
-                    {{ item.trigger_type === 'cron' ? '⏰ مجدول دورياً' : '⚡ حدث فوري لحظي' }}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <!-- مفتاح التشغيل والإيقاف السريع -->
-            <div class="toggle-switch-wrap" @click.stop="toggleAutomation(item)">
-              <div class="toggle-track" :class="{ 'is-on': item.is_enabled }">
-                <div class="toggle-knob"></div>
-              </div>
-              <span class="toggle-status-text">{{ item.is_enabled ? 'مفعل' : 'معطل' }}</span>
-            </div>
-          </div>
-
-          <!-- وصف المسار -->
-          <p class="pipeline-desc">{{ item.description_ar }}</p>
-
-          <!-- ═══════════════════ مسار التدفق البصري (4-Stage Visual Pipeline Flow) ═══════════════════ -->
-          <div class="pipeline-flow-container">
-            <!-- المرحلة 1: المحفز (Trigger) -->
-            <div class="flow-step-node">
-              <span class="node-badge trigger">1. المحفز</span>
-              <div class="node-content">
-                <span class="node-icon">{{ item.trigger_type === 'cron' ? '⏰' : '⚡' }}</span>
-                <span class="node-text">{{ formatTriggerSummary(item) }}</span>
-              </div>
-            </div>
-
-            <!-- موصل التدفق البصري 1 -->
-            <div class="flow-connector">
-              <div class="connector-line">
-                <span class="pulse-dot"></span>
-              </div>
-            </div>
-
-            <!-- المرحلة 2: الشروط والذكاء (Logic & Rules) -->
-            <div class="flow-step-node">
-              <span class="node-badge rule">2. الشروط والذكاء</span>
-              <div class="node-content">
-                <span class="node-icon">🧠</span>
-                <span class="node-text">{{ formatLogicSummary(item) }}</span>
-              </div>
-            </div>
-
-            <!-- موصل التدفق البصري 2 -->
-            <div class="flow-connector">
-              <div class="connector-line">
-                <span class="pulse-dot"></span>
-              </div>
-            </div>
-
-            <!-- المرحلة 3: الإجراء (Action) -->
-            <div class="flow-step-node">
-              <span class="node-badge action">3. الإجراء</span>
-              <div class="node-content">
-                <span class="node-icon">🚀</span>
-                <span class="node-text">{{ formatActionSummary(item) }}</span>
-              </div>
-            </div>
-
-            <!-- موصل التدفق البصري 3 -->
-            <div class="flow-connector">
-              <div class="connector-line">
-                <span class="pulse-dot"></span>
-              </div>
-            </div>
-
-            <!-- المرحلة 4: قنوات التوزيع (Delivery) -->
-            <div class="flow-step-node">
-              <span class="node-badge channel">4. القنوات</span>
-              <div class="node-content channels-list">
-                <span
-                  class="chan-pill"
-                  :class="{ active: item.channels?.telegram }"
-                  title="إشعار عبر تليجرام"
-                >
-                  📲 تليجرام
-                </span>
-                <span
-                  class="chan-pill"
-                  :class="{ active: item.channels?.in_app }"
-                  title="إشعار داخل النظام"
-                >
-                  🔔 داخلي
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <!-- تذييل الكارت والإجراءات السريعة -->
-          <div class="pipeline-footer">
-            <div class="last-run-info">
-              <span v-if="item.last_run_at">
-                آخر تشغيل: <b>{{ formatRelativeTime(item.last_run_at) }}</b>
-                <span
-                  :class="`status-tag ${item.last_status === 'success' ? 'success' : 'failed'}`"
-                >
-                  {{ item.last_status === 'success' ? 'نجح ✨' : 'فشل ❌' }}
-                </span>
+        <template #node-details="{ node }">
+          <div v-if="node.kind === 'agent'" class="selected-actions">
+            <div class="live-meta">
+              <span v-if="node.live?.cron_expression" class="meta-chip">⏰ {{ formatCronHuman(node.live.cron_expression) }}</span>
+              <span v-if="node.live?.last_status" class="meta-chip" :class="`status-${node.live.last_status}`">
+                {{ node.live.last_status === 'success' ? '✅ آخر تشغيل ناجح' : node.live.last_status === 'failed' ? '❌ آخر تشغيل فاشل' : '⚠️ تحذير' }}
               </span>
-              <span v-else class="text-muted text-xs">لم يتم التشغيل بعد</span>
+              <span v-if="node.live?.is_enabled === false" class="meta-chip muted">⚪ معطل حالياً</span>
             </div>
-
-            <div class="pipeline-actions-group">
-              <button
-                type="button"
-                class="btn btn-xs btn-outline"
-                @click.stop="openConfigModal(item)"
-                title="تعديل المواعيد والحدود والقنوات"
-              >
-                <AppIcon name="settings" :size="12" />
-                <span>تعديل الإعدادات</span>
+            <div class="actions-row">
+              <button type="button" class="btn-action primary" :disabled="triggeringDbId === node.live?.dbId || !node.live?.dbId" @click="triggerAgent(node)">
+                {{ triggeringDbId === node.live?.dbId ? 'جاري التنفيذ...' : '▶ تشغيل الآن' }}
               </button>
-
-              <button
-                type="button"
-                class="btn btn-xs btn-primary btn-trigger-test"
-                :disabled="triggeringId === item.id"
-                @click.stop="triggerTestRun(item)"
-                title="تشغيل تجريبي فوري لهذا المسار"
-              >
-                <AppIcon name="play" :size="12" />
-                <span>{{ triggeringId === item.id ? 'جاري التنفيذ...' : '⚡ تشغيل فوري' }}</span>
+              <button type="button" class="btn-action ghost" :disabled="!node.live?.dbId" @click="toggleAgent(node)">
+                {{ node.live?.is_enabled ? '⏸ تعطيل' : '⏵ تفعيل' }}
               </button>
+              <button type="button" class="btn-action ghost" :disabled="!node.live?.dbId" @click="openConfigModalById(node.live!.dbId!)">⚙ الإعدادات</button>
             </div>
           </div>
+          <p v-else-if="node.id === 'telegram-bot'" class="telegram-node-hint">
+            {{ isTelegramReady ? '🟢 البوت يستقبل أوامر المالك ويرسلها لمحرك الأتمتة لحظياً' : '🟡 اضبط بيانات البوت من زر «بوت تليجرام» بالأعلى' }}
+          </p>
+        </template>
+      </AutomationGraph3D>
+
+      <!-- دليل ألوان العقد -->
+      <div class="canvas-legend">
+        <span class="legend-item"><i class="legend-dot" style="background: #229ed9"></i> عقدة انطلاق (تليجرام)</span>
+        <span class="legend-item"><i class="legend-dot" style="background: #d4a373"></i> محرك الأتمتة</span>
+        <span class="legend-item"><i class="legend-dot" style="background: #f59e0b"></i> وكلاء المبيعات</span>
+        <span class="legend-item"><i class="legend-dot" style="background: #22c55e"></i> وكلاء المخزون</span>
+        <span class="legend-item"><i class="legend-dot" style="background: #ef4444"></i> وكلاء الرقابة</span>
+        <span class="legend-item"><i class="legend-dot" style="background: #38bdf8"></i> النظام والقنوات</span>
+      </div>
+    </div>
+
+    <!-- ═══════════════════ سجل العمليات ═══════════════════ -->
+    <div class="logs-card card">
+      <div class="logs-head">
+        <h3>📜 سجل العمليات الأخيرة</h3>
+        <button v-if="logsList.length > logsPageSize" type="button" class="btn btn-xs btn-outline" @click="showAllLogs = !showAllLogs">
+          {{ showAllLogs ? 'عرض أقل' : `عرض الكل (${logsList.length})` }}
+        </button>
+      </div>
+
+      <div v-if="visibleLogs.length === 0" class="logs-empty">لا توجد عمليات مسجلة بعد — جرّب «فحص الشبكة بالكامل».</div>
+
+      <table v-else class="logs-table">
+        <thead>
+          <tr>
+            <th>الحالة</th>
+            <th>العملية</th>
+            <th>المسار</th>
+            <th>الوقت</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="log in visibleLogs" :key="log.id">
+            <td><span class="log-status-badge" :class="log.status">{{ log.status === 'success' ? 'نجاح' : log.status === 'failed' ? 'فشل' : 'تحذير' }}</span></td>
+            <td class="log-title-cell">{{ log.title }}</td>
+            <td>{{ log.automation_name || '—' }}</td>
+            <td class="log-time">{{ formatDateTime(log.created_at) }}</td>
+            <td><button type="button" class="btn btn-xs btn-outline" @click="selectedLog = log">عرض</button></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ═══════════════════ نافذة تفاصيل السجل ═══════════════════ -->
+    <div v-if="selectedLog" class="modal-overlay" @click.self="selectedLog = null">
+      <div class="modal-box">
+        <div class="modal-header">
+          <h4>{{ selectedLog.title }}</h4>
+          <button type="button" class="modal-close" @click="selectedLog = null">✕</button>
+        </div>
+        <pre class="modal-log-body">{{ selectedLog.message }}</pre>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" @click="selectedLog = null">إغلاق</button>
         </div>
       </div>
     </div>
 
-    <!-- ═══════════════════ سجل عمليات وتشغيل الأتمتة (Live Execution Logs) ═══════════════════ -->
-    <div class="section-card card">
-      <div class="section-header">
-        <div class="flex items-center gap-2">
-          <AppIcon name="invoices" :size="20" />
-          <h3 class="text-lg font-black text-strong">
-            سجل العمليات والإنذارات اللحظية (Automation Live Stream)
-          </h3>
-          <span v-if="logsList.length" class="logs-count-badge">{{ logsList.length }} سجل</span>
+    <!-- ═══════════════════ نافذة بوت تليجرام ═══════════════════ -->
+    <div v-if="showTelegramModal" class="modal-overlay" @click.self="showTelegramModal = false">
+      <div class="modal-box">
+        <div class="modal-header">
+          <h4>📲 بوت تليجرام — عقدة الانطلاق</h4>
+          <button type="button" class="modal-close" @click="showTelegramModal = false">✕</button>
         </div>
 
-        <div class="flex items-center gap-2">
-          <button type="button" class="btn btn-xs btn-outline" @click="fetchLogs">
-            <AppIcon name="refresh" :size="12" /> تحديث السجل
+        <div class="telegram-status-banner" :class="telegramStatusClass">
+          <span class="status-pulse-dot big" :class="{ active: isTelegramReady }"></span>
+          <div>
+            <strong>{{ telegramStatusLabel }}</strong>
+            <small v-if="isTelegramReady">التوثيق يُدار مركزياً من متغيرات البيئة على الخادم (لا تُخزَّن هنا أبداً)</small>
+            <small v-else>أضف TELEGRAM_BOT_TOKEN و TELEGRAM_CHAT_ID إلى backend/.env ثم أعد تشغيل الخادم</small>
+          </div>
+        </div>
+
+        <p class="field-hint-main">
+          اختياري: يمكنك اختبار توكن مؤقت قبل ضبطه على الخادم. اترك الحقول فارغة لتجربة الإعدادات المركزية الحالية.
+        </p>
+
+        <label class="field">
+          <span>Bot Token (اختياري للتجربة)</span>
+          <input v-model="telegramForm.botToken" type="password" placeholder="اتركه فارغاً لاستخدام إعدادات الخادم" autocomplete="off" />
+        </label>
+
+        <label class="field">
+          <span>Chat ID (اختياري للتجربة)</span>
+          <input v-model="telegramForm.chatId" type="text" placeholder="اتركه فارغاً لاستخدام إعدادات الخادم" autocomplete="off" />
+        </label>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" @click="showTelegramModal = false">إغلاق</button>
+          <button type="button" class="btn btn-primary" :disabled="isTestingTelegram" @click="handleTestTelegram">
+            {{ isTestingTelegram ? 'جاري الإرسال...' : '🚀 إرسال رسالة تجريبية' }}
           </button>
         </div>
       </div>
-
-      <div class="logs-table-wrapper">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th style="width: 160px">الوقت والتاريخ</th>
-              <th style="width: 240px">المسار والحدث</th>
-              <th style="width: 110px">الحالة</th>
-              <th>ملخص الرسالة والنتيجة</th>
-              <th style="width: 100px; text-align: center">معاينة</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-if="!logsList.length">
-              <td colspan="5" class="text-center py-6 text-muted">
-                لا توجد سجلات تشغيل بعد. جرب الضغط على "⚡ تشغيل فوري" لأي مسار أعلاه.
-              </td>
-            </tr>
-            <tr v-for="log in visibleLogs" :key="log.id" class="log-row">
-              <td class="text-xs font-bold text-muted">
-                {{ formatDateTime(log.created_at) }}
-              </td>
-              <td>
-                <div class="flex items-center gap-2">
-                  <span class="scenario-mini-emoji">{{
-                    getScenarioEmoji(log.automation_key || log.event_name)
-                  }}</span>
-                  <span class="text-sm font-extrabold text-strong">{{
-                    log.automation_name || log.event_name
-                  }}</span>
-                </div>
-              </td>
-              <td>
-                <span :class="`badge-status ${log.status}`">
-                  {{
-                    log.status === 'success'
-                      ? 'نجحت ✨'
-                      : log.status === 'warning'
-                        ? 'تنبيه ⚠️'
-                        : 'فشلت ❌'
-                  }}
-                </span>
-              </td>
-              <td>
-                <div class="log-title-text">{{ log.title }}</div>
-              </td>
-              <td style="text-align: center">
-                <button
-                  type="button"
-                  class="btn btn-xs btn-outline"
-                  title="عرض الرسالة كاملة"
-                  @click="openMessageModal(log)"
-                >
-                  👁️ عرض
-                </button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <!-- أزرار التحكم في عرض المزيد -->
-      <div v-if="logsList.length > logsPageSize" class="logs-pagination-bar">
-        <button
-          v-if="!showAllLogs"
-          type="button"
-          class="btn btn-sm btn-outline logs-expand-btn"
-          @click="showAllLogs = true"
-        >
-          📋 عرض كل السجلات ({{ logsList.length }}) ↓
-        </button>
-        <button
-          v-else
-          type="button"
-          class="btn btn-sm btn-outline logs-expand-btn"
-          @click="showAllLogs = false"
-        >
-          🔼 تقليص العرض إلى آخر {{ logsPageSize }} سجلات
-        </button>
-      </div>
     </div>
 
-    <!-- ═══════════════════ مودال تخصيص إعدادات المسار (Automation Config Modal) ═══════════════════ -->
+    <!-- ═══════════════════ نافذة تعديل إعدادات الوكيل ═══════════════════ -->
     <div v-if="editingAutomation" class="modal-overlay" @click.self="editingAutomation = null">
-      <div class="modal-box config-modal">
+      <div class="modal-box">
         <div class="modal-header">
-          <div class="flex items-center gap-2">
-            <span class="text-xl">{{ getScenarioEmoji(editingAutomation.key) }}</span>
-            <div>
-              <h3 class="font-black text-base">إعدادات مسار: {{ editingAutomation.name_ar }}</h3>
-              <span class="text-xs text-muted"
-                >تخصيص مواعيد التشغيل وقنوات الإشعار والحدود الحاكمة</span
-              >
-            </div>
-          </div>
-          <button type="button" class="btn-close" @click="editingAutomation = null">✕</button>
+          <h4>⚙ إعدادات: {{ editingAutomation.name_ar }}</h4>
+          <button type="button" class="modal-close" @click="editingAutomation = null">✕</button>
         </div>
 
-        <div class="modal-body">
-          <!-- 1. تفعيل / تعطيل المسار -->
-          <div class="form-group mb-3">
-            <label class="form-label font-bold">حالة المسار:</label>
-            <div class="flex items-center gap-3">
-              <label class="radio-label">
-                <input type="radio" :value="true" v-model="editingAutomation.is_enabled" />
-                <span>مفعل ونشط 🟢</span>
-              </label>
-              <label class="radio-label">
-                <input type="radio" :value="false" v-model="editingAutomation.is_enabled" />
-                <span>معطل مؤقتاً ⚪</span>
-              </label>
-            </div>
-          </div>
+        <label class="switch-row">
+          <span>تفعيل المسار</span>
+          <input v-model="editingAutomation.is_enabled" type="checkbox" />
+          <i class="switch-ui"></i>
+        </label>
 
-          <!-- 2. التوقيت المجدول إذا كان من نوع cron -->
-          <div v-if="editingAutomation.trigger_type === 'cron'" class="form-group mb-3">
-            <label class="form-label font-bold">توقيت التشغيل المجدول (Cron Expression):</label>
-            <input
-              v-model="editingAutomation.cron_expression"
-              type="text"
-              class="form-input font-mono text-sm"
-              placeholder="مثال: 30 23 * * *"
-            />
-            <div class="cron-presets-row mt-2">
-              <span class="text-xs text-muted">مواعيد سريعة:</span>
-              <button
-                type="button"
-                class="btn btn-xs btn-outline"
-                @click="editingAutomation.cron_expression = '30 23 * * *'"
-              >
-                يومياً 11:30 م
-              </button>
-              <button
-                type="button"
-                class="btn btn-xs btn-outline"
-                @click="editingAutomation.cron_expression = '0 10,18 * * *'"
-              >
-                مرتين يومياً (10ص و 6م)
-              </button>
-              <button
-                type="button"
-                class="btn btn-xs btn-outline"
-                @click="editingAutomation.cron_expression = '0 9 * * 1'"
-              >
-                كل إثنين 9:00 ص
-              </button>
-            </div>
-          </div>
+        <label class="field">
+          <span>الموعد المجدول (Cron)</span>
+          <input v-model="editingAutomation.cron_expression" type="text" placeholder="30 23 * * *" dir="ltr" />
+        </label>
 
-          <!-- 3. قنوات الإرسال -->
-          <div class="form-group mb-4">
-            <label class="form-label font-bold">قنوات الإشعار المعتمدة:</label>
-            <div class="channels-checkbox-group">
-              <label class="channel-check-item">
-                <input type="checkbox" v-model="editingAutomation.channels.telegram" />
-                <span>📲 بوت تليجرام الفوري</span>
-              </label>
-
-              <label class="channel-check-item">
-                <input type="checkbox" v-model="editingAutomation.channels.in_app" />
-                <span>🔔 إشعارات النظام الداخلية</span>
-              </label>
-            </div>
-          </div>
-
-          <!-- أزرار الإجراءات -->
-          <div class="flex gap-2">
-            <button type="button" class="btn btn-outline flex-1" @click="editingAutomation = null">
-              إلغاء
-            </button>
-            <button
-              type="button"
-              class="btn btn-primary flex-1"
-              :disabled="isSavingConfig"
-              @click="saveAutomationConfig"
-            >
-              <span>{{ isSavingConfig ? 'جاري الحفظ...' : '💾 حفظ التعديلات' }}</span>
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ═══════════════════ مودال إعدادات بوت تليجرام ═══════════════════ -->
-    <div v-if="showTelegramModal" class="modal-overlay" @click.self="showTelegramModal = false">
-      <div class="modal-box tg-modal">
-        <div class="modal-header">
-          <div class="flex items-center gap-2">
-            <span class="text-xl">📲</span>
-            <h3 class="font-black text-lg">إعدادات وقناة بوت تليجرام</h3>
-          </div>
-          <button type="button" class="btn-close" @click="showTelegramModal = false">✕</button>
-        </div>
-
-        <div class="modal-body">
-          <div class="alert-box-info mb-4">
-            <p class="text-xs leading-relaxed">
-              💡 يمكنك إنشاء بوت تليجرام مجاني خاص بـ <b>"بن العجوز"</b> في دقيقة واحدة عبر مراسلة
-              <b>@BotFather</b> على تليجرام، ثم الحصول على الـ <b>Bot Token</b> والـ
-              <b>Chat ID</b> الخاص بك من <b>@userinfobot</b>.
-            </p>
-          </div>
-
-          <div class="form-group mb-3">
-            <label class="form-label font-bold">Bot Token (رمز توكن البوت):</label>
-            <input
-              v-model="telegramForm.botToken"
-              type="text"
-              placeholder="مثال: 123456789:ABCdefGHIjklMNO..."
-              class="form-input font-mono text-xs"
-            />
-          </div>
-
-          <div class="form-group mb-4">
-            <label class="form-label font-bold">Chat ID (معرف الشات أو المجموعة):</label>
-            <input
-              v-model="telegramForm.chatId"
-              type="text"
-              placeholder="مثال: 987654321 أو -1001234567890..."
-              class="form-input font-mono text-xs"
-            />
-          </div>
-
-          <div class="flex gap-2">
-            <button
-              type="button"
-              class="btn btn-outline flex-1"
-              :disabled="isTestingTelegram"
-              @click="handleTestTelegram"
-            >
-              <span>{{
-                isTestingTelegram ? 'جاري الإرسال...' : '🚀 إرسال رسالة تجريبية الآن'
-              }}</span>
-            </button>
-            <button type="button" class="btn btn-primary flex-1" @click="saveTelegramConfig">
-              <span>💾 حفظ الإعدادات</span>
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ═══════════════════ مودال معاينة نص الرسالة ═══════════════════ -->
-    <div v-if="selectedLog" class="modal-overlay" @click.self="selectedLog = null">
-      <div class="modal-box message-modal">
-        <div class="modal-header">
-          <div class="flex items-center gap-2">
-            <span class="text-xl">📩</span>
-            <h3 class="font-black text-base">{{ selectedLog.title }}</h3>
-          </div>
-          <button type="button" class="btn-close" @click="selectedLog = null">✕</button>
-        </div>
-
-        <div class="modal-body">
-          <div class="rendered-message-box custom-scrollbar" v-html="selectedLog.message"></div>
+        <div class="channels-grid">
+          <label class="channel-check"><input v-model="editingAutomation.channels.telegram" type="checkbox" /> قناة تليجرام 📲</label>
+          <label class="channel-check"><input v-model="editingAutomation.channels.in_app" type="checkbox" /> الإشعارات الداخلية 🔔</label>
         </div>
 
         <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" @click="selectedLog = null">إغلاق</button>
+          <button type="button" class="btn btn-secondary" @click="editingAutomation = null">إلغاء</button>
+          <button type="button" class="btn btn-primary" :disabled="isSavingConfig" @click="saveAutomationConfig">
+            {{ isSavingConfig ? 'جاري الحفظ...' : '💾 حفظ الإعدادات' }}
+          </button>
         </div>
       </div>
     </div>
@@ -1000,477 +287,80 @@
 import { ref, computed, onMounted } from 'vue';
 import { automations as automationsApi } from '@/api';
 import AppIcon from '@/components/AppIcon.vue';
+import AutomationGraph3D, { type Graph3DLink, type Graph3DNode } from '@/components/AutomationGraph3D.vue';
+import type { LayoutMode } from '@/utils/automationGraphLayout';
 
-const automationsList = ref<any[]>([]);
-const logsList = ref<any[]>([]);
+/* ─── الحالة العامة ─── */
 const isLoading = ref(false);
-const triggeringId = ref<number | null>(null);
+const triggeringDbId = ref<number | null>(null);
 const isFiringAll = ref(false);
-
 const feedbackMessage = ref('');
 const feedbackType = ref<'success' | 'error'>('success');
 
-const selectedCategory = ref<string>('all');
-const showTelegramModal = ref(false);
-const isTestingTelegram = ref(false);
-const selectedLog = ref<any | null>(null);
-const editingAutomation = ref<any | null>(null);
-const isSavingConfig = ref(false);
+const graphNodes = ref<Graph3DNode[]>([]);
+const graphLinks = ref<Graph3DLink[]>([]);
+const graphStats = ref({ enabledAgents: 0, totalAgents: 0, totalLinks: 0 });
+const telegramInfo = ref({ configured: false, listening: false });
 
-// ─── اللوحة التفاعلية البصرية الحركية (Obsidian / Kinetic Canvas Engine) ───
-const canvasLayout = ref<'obsidian' | 'orbit' | 'matrix'>('obsidian');
-const selectedNodeId = ref<number | null>(null);
-const hoveredNodeId = ref<number | null>(null);
-const isNetworkPulsing = ref(false);
-const zoomLevel = ref<number>(1);
-
-// سحب وإفلات العقد تفاعلياً (Interactive Drag & Drop Coordinates)
-const customPositions = ref<Record<number, { x: number; y: number }>>({});
-const draggingNodeId = ref<number | null>(null);
-const canvasContainerRef = ref<HTMLElement | null>(null);
-const dragStartMouse = ref({ x: 0, y: 0 });
-const dragStartNode = ref({ x: 0, y: 0 });
-
+const logsList = ref<any[]>([]);
 const showAllLogs = ref(false);
 const logsPageSize = 15;
 const visibleLogs = computed(() =>
   showAllLogs.value ? logsList.value : logsList.value.slice(0, logsPageSize),
 );
 
-const telegramForm = ref({
-  botToken: '',
-  chatId: '',
-});
+const selectedCategory = ref<string>('all');
+const selectedNodeId = ref<string | null>(null);
+const canvasLayout = ref<LayoutMode>('obsidian');
+const graph3dRef = ref<InstanceType<typeof AutomationGraph3D> | null>(null);
 
-// ─── فئات وتصنيفات الأتمتة ───
+const showTelegramModal = ref(false);
+const isTestingTelegram = ref(false);
+const selectedLog = ref<any | null>(null);
+const editingAutomation = ref<any | null>(null);
+const isSavingConfig = ref(false);
+
+/** نسخة كاملة من سجلات قاعدة البيانات (للتعديل والتشغيل اليدوي) */
+let dbRecordsByKey = new Map<string, any>();
+
+const telegramForm = ref({ botToken: '', chatId: '' });
+
+const LAYOUT_MODES: Array<{ key: LayoutMode; label: string; hint: string }> = [
+  { key: 'obsidian', label: '🕸️ عنقودي', hint: 'عناقيد الفئات حول المحرك في الفضاء' },
+  { key: 'orbit', label: '🪐 مداري', hint: 'حلقتان مداريتان مائلتان حول المحرك' },
+  { key: 'matrix', label: '🔀 شبكي', hint: 'مصفوفة شبكية متوازنة' },
+];
+
 const categoryTabs = [
   { key: 'all', label: 'كافة المسارات', icon: '🌟' },
   { key: 'sales', label: 'المبيعات والسيولة', icon: '☕' },
-  { key: 'inventory', label: 'المخزون والتحميص والهدر', icon: '🫘' },
-  { key: 'security', label: 'الرقابة والأمان والشيفت', icon: '🛡️' },
-  { key: 'system', label: 'النظام والنسخ الاحتياطي', icon: '⚙️' },
+  { key: 'inventory', label: 'المخزون والتحميص', icon: '🫘' },
+  { key: 'security', label: 'الرقابة والأمان', icon: '🛡️' },
+  { key: 'system', label: 'النظام والنسخ', icon: '⚙️' },
 ];
 
-const filteredAutomations = computed(() => {
-  const list = Array.isArray(automationsList.value) ? automationsList.value : [];
-  if (selectedCategory.value === 'all') return list;
-  return list.filter((a) => a.category === selectedCategory.value);
+/* ─── مشتقات ─── */
+const isTelegramReady = computed(() => telegramInfo.value.configured && telegramInfo.value.listening);
+const telegramStatusLabel = computed(() => {
+  if (!telegramInfo.value.configured) return 'بحاجة للضبط';
+  return telegramInfo.value.listening ? 'متصل ويستمع للأوامر 24/7' : 'مهيأ — بانتظار بدء الاستماع';
+});
+const telegramStatusClass = computed(() => (telegramInfo.value.configured ? 'ok' : 'warn'));
+
+const visibleGraphNodes = computed<Graph3DNode[]>(() => {
+  // البنية التحتية دائماً ظاهرة؛ الوكلاء يتأثرون بفلتر الفئات
+  const infra = graphNodes.value.filter((n) => n.kind !== 'agent');
+  if (selectedCategory.value === 'all') return graphNodes.value;
+  const agents = graphNodes.value.filter((n) => n.kind === 'agent' && n.category === selectedCategory.value);
+  return [...infra, ...agents];
 });
 
-const activeCount = computed(() => {
-  const list = Array.isArray(automationsList.value) ? automationsList.value : [];
-  return list.filter((a) => a.is_enabled).length;
-});
+function getCategoryCount(catKey: string) {
+  if (catKey === 'all') return graphNodes.value.filter((n) => n.kind === 'agent').length;
+  return graphNodes.value.filter((n) => n.kind === 'agent' && n.category === catKey).length;
+}
 
-const isTelegramConfigured = computed(() => {
-  return Boolean(telegramForm.value.botToken && telegramForm.value.chatId);
-});
-
-const selectedNode = computed(() => {
-  if (!selectedNodeId.value) return null;
-  const list = Array.isArray(automationsList.value) ? automationsList.value : [];
-  return list.find((a) => a.id === selectedNodeId.value) || null;
-});
-
-const getCategoryCount = (catKey: string) => {
-  const list = Array.isArray(automationsList.value) ? automationsList.value : [];
-  if (catKey === 'all') return list.length;
-  return list.filter((a) => a.category === catKey).length;
-};
-
-const getCategoryLabel = (category: string) => {
-  const map: Record<string, string> = {
-    sales: 'مبيعات وسيولة',
-    inventory: 'مخزون وتحميص',
-    security: 'رقابة وأمان',
-    system: 'نظام وخادم',
-    general: 'عام',
-  };
-  return map[category] || category;
-};
-
-const getCategoryColor = (category: string) => {
-  const map: Record<string, string> = {
-    sales: '#f59e0b',
-    inventory: '#22c55e',
-    security: '#ef4444',
-    system: '#38bdf8',
-    general: '#d4a373',
-  };
-  return map[category] || '#d4a373';
-};
-
-const getScenarioEmoji = (key: string) => {
-  const map: Record<string, string> = {
-    daily_sales_report: '📊',
-    low_stock_alert: '🚨',
-    void_invoice_alert: '⚠️',
-    large_discount_alert: '💸',
-    daily_backup_reminder: '🛡️',
-    branch_stock_balancing: '🔄',
-    cashflow_risk_shield: '💰',
-    shift_handover_reconciliation: '💵',
-    roastery_recipe_waste_guard: '🫘',
-    supplier_payment_due_alert: '🚚',
-    customer_loyalty_dormant_winback: '🎁',
-    daily_profit_margin_anomaly: '📈',
-  };
-  return map[key] || '⚡';
-};
-
-// أيقونات فيكتور دقيقة وموحدة من Lucide
-const getScenarioIcon = (key: string): string => {
-  const map: Record<string, string> = {
-    daily_sales_report: 'reports',
-    low_stock_alert: 'warning',
-    void_invoice_alert: 'invoices',
-    large_discount_alert: 'money',
-    daily_backup_reminder: 'users',
-    branch_stock_balancing: 'refresh',
-    cashflow_risk_shield: 'expenses',
-    shift_handover_reconciliation: 'costs',
-    roastery_recipe_waste_guard: 'coffee',
-    supplier_payment_due_alert: 'suppliers',
-    customer_loyalty_dormant_winback: 'customers',
-    daily_profit_margin_anomaly: 'trendingUp',
-  };
-  return map[key] || 'zap';
-};
-
-const formatNodeTitle = (title: string) => {
-  if (!title) return '';
-  return title.length > 20 ? title.slice(0, 18) + '..' : title;
-};
-
-const formatCronShort = (cronStr: string) => {
-  if (!cronStr) return 'فوري';
-  if (cronStr === '30 23 * * *') return '11:30 م';
-  if (cronStr === '0 10,18 * * *') return '10ص و 6م';
-  if (cronStr === '0 9 * * *') return '9:00 ص';
-  if (cronStr === '0 10 * * 1') return 'إثنين 10ص';
-  if (cronStr === '0 3 * * *') return '3:00 ص';
-  if (cronStr === '0 22 * * *') return '10:00 م';
-  if (cronStr === '0 11 * * *') return '11:00 ص';
-  if (cronStr === '0 12 * * 0') return 'أحد 12م';
-  return 'مجدول';
-};
-
-// ─── التحكم في التكبير والتصغير وإعادة الضبط ───
-const zoomIn = () => {
-  zoomLevel.value = Math.min(1.5, Math.round((zoomLevel.value + 0.1) * 10) / 10);
-};
-
-const zoomOut = () => {
-  zoomLevel.value = Math.max(0.7, Math.round((zoomLevel.value - 0.1) * 10) / 10);
-};
-
-const resetView = () => {
-  zoomLevel.value = 1;
-  customPositions.value = {};
-  selectedNodeId.value = null;
-};
-
-// ─── سحب وإفلات العقد بالماوس واللمس (Drag & Drop Engine) ───
-const startNodeDrag = (node: any, e: MouseEvent) => {
-  if (e.button !== 0) return;
-  draggingNodeId.value = node.id;
-  dragStartMouse.value = { x: e.clientX, y: e.clientY };
-  dragStartNode.value = { x: node.x, y: node.y };
-
-  window.addEventListener('mousemove', onNodeDragging);
-  window.addEventListener('mouseup', stopNodeDrag);
-};
-
-const onNodeDragging = (e: MouseEvent) => {
-  if (!draggingNodeId.value || !canvasContainerRef.value) return;
-  const deltaX = (e.clientX - dragStartMouse.value.x) / zoomLevel.value;
-  const deltaY = (e.clientY - dragStartMouse.value.y) / zoomLevel.value;
-
-  const newX = Math.max(70, Math.min(930, Math.round(dragStartNode.value.x + deltaX)));
-  const newY = Math.max(70, Math.min(550, Math.round(dragStartNode.value.y + deltaY)));
-
-  customPositions.value = {
-    ...customPositions.value,
-    [draggingNodeId.value]: { x: newX, y: newY },
-  };
-};
-
-const stopNodeDrag = () => {
-  draggingNodeId.value = null;
-  window.removeEventListener('mousemove', onNodeDragging);
-  window.removeEventListener('mouseup', stopNodeDrag);
-};
-
-const getParticleSpeed = (id: number) => {
-  const speeds = ['3s', '3.8s', '3.4s', '4.2s', '2.8s', '3.6s'];
-  return speeds[id % speeds.length];
-};
-
-// ─── الحسابات الهندسية لمواقع العقد ودمج الإحداثيات المسحوبة تفاعلياً ───
-const nodeLayouts = computed(() => {
-  const list = Array.isArray(automationsList.value) ? automationsList.value : [];
-  const count = list.length;
-  if (!count) return [];
-
-  const centerX = 500;
-  const centerY = 310;
-  let baseNodes: any[] = [];
-
-  if (canvasLayout.value === 'obsidian') {
-    // 🕸️ شبكة أوبسيديان العنقودية التفاعلية (Obsidian Dynamic Force Clusters)
-    const clusterPositions: Record<string, { baseAngle: number; distance: number }> = {
-      sales: { baseAngle: -Math.PI / 4, distance: 235 }, // الربع الأول: أعلى اليمين
-      inventory: { baseAngle: Math.PI / 4, distance: 240 }, // الربع الثاني: أسفل اليمين
-      security: { baseAngle: (3 * Math.PI) / 4, distance: 235 }, // الربع الثالث: أسفل اليسار
-      system: { baseAngle: (-3 * Math.PI) / 4, distance: 240 }, // الربع الرابع: أعلى اليسار
-    };
-
-    const categoryBuckets: Record<string, any[]> = {
-      sales: [],
-      inventory: [],
-      security: [],
-      system: [],
-    };
-    list.forEach((item) => {
-      const cat = categoryBuckets[item.category] ? item.category : 'sales';
-      categoryBuckets[cat].push(item);
-    });
-
-    const result: any[] = [];
-    Object.keys(categoryBuckets).forEach((cat) => {
-      const items = categoryBuckets[cat];
-      const cluster = clusterPositions[cat] || { baseAngle: 0, distance: 220 };
-      const spreadAngle = 0.52;
-      items.forEach((item, idx) => {
-        const offset =
-          items.length > 1
-            ? (idx - (items.length - 1) / 2) * (spreadAngle / Math.max(items.length - 1, 1))
-            : 0;
-        const finalAngle = cluster.baseAngle + offset;
-        const radialDist = cluster.distance + (idx % 2 === 1 ? 22 : -12);
-        const x = Math.round(centerX + radialDist * Math.cos(finalAngle));
-        const y = Math.round(centerY + radialDist * Math.sin(finalAngle));
-        result.push({
-          ...item,
-          x,
-          y,
-          harmonicClass: `harmonic-float-${result.length % 4}`,
-        });
-      });
-    });
-
-    baseNodes = result;
-  } else if (canvasLayout.value === 'orbit') {
-    // 🪐 مدار كهروميكانيكي ثنائي الحلقات (Dual Planetary Orbit)
-    const innerRadius = 175;
-    const outerRadius = 265;
-
-    baseNodes = list.map((item, idx) => {
-      const isOuter = idx % 2 === 1;
-      const radius = isOuter ? outerRadius : innerRadius;
-      const angleStep = (2 * Math.PI) / count;
-      const angle = idx * angleStep - Math.PI / 2;
-
-      const x = Math.round(centerX + radius * Math.cos(angle));
-      const y = Math.round(centerY + radius * Math.sin(angle));
-
-      return {
-        ...item,
-        x,
-        y,
-        harmonicClass: `harmonic-float-${idx % 4}`,
-      };
-    });
-  } else {
-    // 🔀 مصفوفة التدفق المتوازن (High-Tech Matrix Grid)
-    const cols = Math.min(count, 4);
-    const rows = Math.ceil(count / cols);
-    const startX = 140;
-    const endX = 860;
-    const startY = 110;
-    const endY = 520;
-    const stepX = (endX - startX) / Math.max(cols - 1, 1);
-    const stepY = (endY - startY) / Math.max(rows - 1, 1);
-
-    baseNodes = list.map((item, idx) => {
-      const row = Math.floor(idx / cols);
-      const col = idx % cols;
-      const x = Math.round(startX + col * stepX);
-      const y = Math.round(startY + row * stepY);
-
-      return {
-        ...item,
-        x,
-        y,
-        harmonicClass: `harmonic-float-${idx % 4}`,
-      };
-    });
-  }
-
-  // دمج أي إحداثيات تم سحبها يدوياً بواسطة المستخدم (Live Drag Overlay)
-  return baseNodes.map((n) => {
-    if (customPositions.value[n.id]) {
-      return {
-        ...n,
-        x: customPositions.value[n.id].x,
-        y: customPositions.value[n.id].y,
-      };
-    }
-    return n;
-  });
-});
-
-// ─── الروابط العنقودية البينية بين العقد ذات الصلة (Obsidian Cross-Links) ───
-const interNodeConnections = [
-  ['daily_sales_report', 'cashflow_risk_shield'],
-  ['cashflow_risk_shield', 'supplier_payment_due_alert'],
-  ['shift_handover_reconciliation', 'daily_sales_report'],
-  ['void_invoice_alert', 'large_discount_alert'],
-  ['low_stock_alert', 'roastery_recipe_waste_guard'],
-  ['roastery_recipe_waste_guard', 'branch_stock_balancing'],
-  ['daily_profit_margin_anomaly', 'daily_sales_report'],
-  ['customer_loyalty_dormant_winback', 'daily_sales_report'],
-];
-
-const interNodeLinks = computed(() => {
-  const nodes = nodeLayouts.value;
-  const nodeMap = new Map(nodes.map((n) => [n.key, n]));
-  const links: any[] = [];
-
-  interNodeConnections.forEach(([key1, key2]) => {
-    const n1 = nodeMap.get(key1);
-    const n2 = nodeMap.get(key2);
-    if (n1 && n2) {
-      const isHighlighted =
-        hoveredNodeId.value === n1.id ||
-        hoveredNodeId.value === n2.id ||
-        selectedNodeId.value === n1.id ||
-        selectedNodeId.value === n2.id;
-      links.push({
-        source: n1,
-        target: n2,
-        id: `link-${n1.id}-${n2.id}`,
-        isHighlighted,
-        active: n1.is_enabled && n2.is_enabled,
-      });
-    }
-  });
-
-  return links;
-});
-
-// التحقق من تركيز العقدة في وضع أوبسيديان
-const isNodeFocused = (nodeId: number) => {
-  if (!hoveredNodeId.value && !selectedNodeId.value) return false;
-  if (hoveredNodeId.value === nodeId || selectedNodeId.value === nodeId) return true;
-  return interNodeLinks.value.some(
-    (l) => l.isHighlighted && (l.source.id === nodeId || l.target.id === nodeId),
-  );
-};
-
-// توليد مسار انسيابي سلس (Smooth Cubic Bézier Conduit)
-const generateConduitPath = (x1: number, y1: number, x2: number, y2: number) => {
-  const dx = x2 - x1;
-  const dy = y2 - y1;
-  const cx1 = x1 + dx * 0.35;
-  const cy1 = y1 + dy * 0.15;
-  const cx2 = x1 + dx * 0.65;
-  const cy2 = y1 + dy * 0.85;
-
-  return `M ${x1} ${y1} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${x2} ${y2}`;
-};
-
-const handleNodeClick = (node: any) => {
-  selectedNodeId.value = node.id;
-};
-
-const pulseNetwork = () => {
-  isNetworkPulsing.value = true;
-  setTimeout(() => {
-    isNetworkPulsing.value = false;
-  }, 2500);
-};
-
-// ─── ملخص مراحل التدفق الأربعة (4-Stage Summaries) ───
-const formatTriggerSummary = (item: any) => {
-  if (item.trigger_type === 'cron') {
-    return formatCronHuman(item.cron_expression);
-  }
-  if (item.key === 'void_invoice_alert') return 'عند إلغاء فاتورة مبيعات';
-  if (item.key === 'large_discount_alert') return 'عند تطبيق خصم مرتفع';
-  if (item.key === 'shift_handover_reconciliation') return 'عند إغلاق شيفت الكاشير';
-  return 'حدث لحظي 24/7';
-};
-
-const formatLogicSummary = (item: any) => {
-  if (item.key === 'daily_sales_report') return 'تجميع المبيعات والأرباح والمصروفات';
-  if (item.key === 'low_stock_alert') return 'فحص خامات البن تحت حد الطلب';
-  if (item.key === 'void_invoice_alert') return 'التحقق من هوية الكاشير وسبب الإلغاء';
-  if (item.key === 'large_discount_alert') return 'مقارنة الخصم بالحد الأقصى (15%)';
-  if (item.key === 'branch_stock_balancing') return 'تحليل معدلات السحب الراكد والنشط';
-  if (item.key === 'cashflow_risk_shield') return 'توقع السيولة والالتزامات لـ 14 يوماً';
-  if (item.key === 'shift_handover_reconciliation') return 'مطابقة الدرج مع الفواتير المسجلة';
-  if (item.key === 'roastery_recipe_waste_guard') return 'مقارنة الاستهلاك الفعلي مع الوصفة (3%)';
-  if (item.key === 'supplier_payment_due_alert') return 'حصر الفواتير المستحقة خلال 3 أيام';
-  if (item.key === 'customer_loyalty_dormant_winback')
-    return 'حصر العملاء الغائبين لأكثر من 30 يوماً';
-  if (item.key === 'daily_profit_margin_anomaly') return 'حساب متوسط هامش الربح اليومي (28%)';
-  return 'معالجة الشروط المحددة';
-};
-
-const formatActionSummary = (item: any) => {
-  if (item.key === 'daily_sales_report') return 'توليد تقرير الإغلاق المالي الشامل';
-  if (item.key === 'low_stock_alert') return 'إصدار قائمة النواقص ومشتريات البن';
-  if (item.key === 'void_invoice_alert') return 'بث إنذار أمني فوري للمالك';
-  if (item.key === 'large_discount_alert') return 'تنبيه مالي بتفاصيل الفاتورة';
-  if (item.key === 'branch_stock_balancing') return 'إعداد مقترحات أوامر المناقلة';
-  if (item.key === 'cashflow_risk_shield') return 'توليد تقرير استباقي لتفادي العجز';
-  if (item.key === 'shift_handover_reconciliation') return 'اعتماد الإغلاق أو تسجيل تنبيه عجز';
-  if (item.key === 'roastery_recipe_waste_guard') return 'توصيات ضبط عيار الطحن والكيل';
-  if (item.key === 'supplier_payment_due_alert') return 'تجهيز جدول سداد دفعات الموردين';
-  if (item.key === 'customer_loyalty_dormant_winback') return 'توليد أكواد خصم وعروض استعادة';
-  if (item.key === 'daily_profit_margin_anomaly') return 'إنذار تدقيق التكاليف والأسعار';
-  return 'تنفيذ الإجراء التلقائي';
-};
-
-const formatCronHuman = (cronStr: string) => {
-  if (!cronStr) return 'حدث فوري';
-  if (cronStr === '30 23 * * *') return 'يومياً 11:30 م';
-  if (cronStr === '0 10,18 * * *') return 'مرتين يومياً (10 ص و 6 م)';
-  if (cronStr === '0 9 * * *') return 'يومياً 9:00 ص';
-  if (cronStr === '0 10 * * 1') return 'كل إثنين 10:00 ص';
-  if (cronStr === '0 3 * * *') return 'يومياً 3:00 ص';
-  if (cronStr === '0 22 * * *') return 'يومياً 10:00 م';
-  if (cronStr === '0 11 * * *') return 'يومياً 11:00 ص';
-  if (cronStr === '0 12 * * 0') return 'كل أحد 12:00 م';
-  return cronStr;
-};
-
-const formatRelativeTime = (isoString: string) => {
-  if (!isoString) return '';
-  const date = new Date(isoString);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-  if (diffMins < 1) return 'الآن';
-  if (diffMins < 60) return `منذ ${diffMins} دقيقة`;
-  const diffHours = Math.floor(diffMins / 60);
-  if (diffHours < 24) return `منذ ${diffHours} ساعة`;
-  const diffDays = Math.floor(diffHours / 24);
-  return `منذ ${diffDays} يوم`;
-};
-
-const formatDateTime = (isoString: string) => {
-  if (!isoString) return '';
-  const d = new Date(isoString);
-  return d.toLocaleString('ar-EG', {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-};
-
+/* ─── أدوات مساعدة ─── */
 const setFeedback = (msg: string, type: 'success' | 'error' = 'success') => {
   feedbackMessage.value = msg;
   feedbackType.value = type;
@@ -1479,54 +369,133 @@ const setFeedback = (msg: string, type: 'success' | 'error' = 'success') => {
   }, 4500);
 };
 
-// ─── جلب البيانات ───
-const fetchAutomations = async () => {
-  isLoading.value = true;
-  try {
-    const res = await automationsApi.list();
-    const raw = res.data?.data || res.data || {};
-    automationsList.value = Array.isArray(raw) ? raw : raw.automations || [];
+const formatCronHuman = (cronStr?: string | null) => {
+  if (!cronStr) return 'حدث فوري';
+  const map: Record<string, string> = {
+    '30 23 * * *': 'يومياً 11:30 م',
+    '0 10,18 * * *': 'مرتين يومياً (10 ص و 6 م)',
+    '0 9 * * *': 'يومياً 9:00 ص',
+    '0 10 * * 1': 'كل إثنين 10:00 ص',
+    '0 3 * * *': 'يومياً 3:00 ص',
+    '0 22 * * *': 'يومياً 10:00 م',
+    '0 11 * * *': 'يومياً 11:00 ص',
+    '0 12 * * 0': 'كل أحد 12:00 م',
+  };
+  return map[cronStr] || cronStr;
+};
 
-    // استخراج إعدادات تليجرام من أول أتمتة
-    const firstWithConfig = (automationsList.value || []).find(
-      (a: any) => a.config?.bot_token || a.config?.chat_id,
-    );
-    if (firstWithConfig) {
-      telegramForm.value.botToken = firstWithConfig.config?.bot_token || '';
-      telegramForm.value.chatId = firstWithConfig.config?.chat_id || '';
-    }
+const formatDateTime = (isoString: string) => {
+  if (!isoString) return '';
+  return new Date(isoString).toLocaleString('ar-EG', {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
+
+/* ─── جلب البيانات ─── */
+const fetchGraph = async () => {
+  const res: any = await automationsApi.graph();
+  const data = res?.data ?? res ?? {};
+  graphNodes.value = Array.isArray(data.nodes) ? data.nodes : [];
+  graphLinks.value = Array.isArray(data.links) ? data.links : [];
+  graphStats.value = {
+    enabledAgents: data.stats?.enabledAgents ?? 0,
+    totalAgents: data.stats?.totalAgents ?? 0,
+    totalLinks: data.stats?.totalLinks ?? 0,
+  };
+  telegramInfo.value = {
+    configured: Boolean(data.telegram?.configured),
+    listening: Boolean(data.telegram?.listening),
+  };
+};
+
+const fetchRecords = async () => {
+  try {
+    const res: any = await automationsApi.list();
+    const raw = res?.data ?? res ?? {};
+    const list = Array.isArray(raw) ? raw : raw.automations || [];
+    dbRecordsByKey = new Map(list.map((a: any) => [a.key, a]));
   } catch (err: any) {
     console.error('Failed to fetch automations:', err);
-    setFeedback('فشل تحميل إعدادات الأتمتة: ' + err.message, 'error');
-  } finally {
-    isLoading.value = false;
   }
 };
 
 const fetchLogs = async () => {
   try {
-    const res = await automationsApi.getLogs();
-    const raw = res.data?.data || res.data || {};
+    const res: any = await automationsApi.getLogs();
+    const raw = res?.data ?? res ?? {};
     logsList.value = Array.isArray(raw) ? raw : raw.logs || [];
   } catch (err: any) {
     console.error('Failed to fetch logs:', err);
   }
 };
 
-const toggleAutomation = async (item: any) => {
-  const newStatus = !item.is_enabled;
-  item.is_enabled = newStatus;
+const refreshAll = async () => {
+  isLoading.value = true;
   try {
-    await automationsApi.update(item.id, { is_enabled: newStatus });
-    setFeedback(`تم ${newStatus ? 'تفعيل 🟢' : 'تعطيل ⚪'} مسار (${item.name_ar}) بنجاح`);
+    await Promise.all([fetchGraph(), fetchRecords(), fetchLogs()]);
   } catch (err: any) {
-    item.is_enabled = !newStatus; // revert
+    setFeedback('فشل تحميل شبكة الأتمتة: ' + err.message, 'error');
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+/* ─── تفاعل اللوحة ثلاثية الأبعاد ─── */
+const onNodeSelect = (node: Graph3DNode | null) => {
+  selectedNodeId.value = node ? node.id : null;
+};
+const clearSelection = () => {
+  selectedNodeId.value = null;
+};
+const resetCanvasView = () => {
+  graph3dRef.value?.resetView();
+};
+const pulseNetwork = () => {
+  graph3dRef.value?.pulseAll();
+};
+
+/* ─── إجراءات الوكيل ─── */
+const triggerAgent = async (node: Graph3DNode) => {
+  const dbId = node.live?.dbId;
+  if (!dbId) return;
+  triggeringDbId.value = dbId;
+  try {
+    const res: any = await automationsApi.trigger(dbId, { isManualRun: true });
+    setFeedback(`✨ ${res?.message || res?.data?.message || 'تم تشغيل المسار بنجاح وإرسال الإشعارات'}`);
+    await fetchLogs();
+  } catch (err: any) {
+    setFeedback('فشل التشغيل: ' + (err.message || 'خطأ غير معروف'), 'error');
+  } finally {
+    triggeringDbId.value = null;
+  }
+};
+
+const toggleAgent = async (node: Graph3DNode) => {
+  const dbId = node.live?.dbId;
+  if (!dbId || !node.live) return;
+  const newStatus = !node.live.is_enabled;
+  // تحديث فوري متفائل ثم إعادة جلب الشبكة
+  node.live.is_enabled = newStatus;
+  try {
+    await automationsApi.update(dbId, { is_enabled: newStatus });
+    setFeedback(`تم ${newStatus ? 'تفعيل 🟢' : 'تعطيل ⚪'} مسار (${node.label_ar}) بنجاح`);
+    await fetchGraph();
+  } catch (err: any) {
+    node.live.is_enabled = !newStatus;
     setFeedback('فشل تعديل حالة المسار: ' + err.message, 'error');
   }
 };
 
-const openConfigModal = (item: any) => {
-  editingAutomation.value = JSON.parse(JSON.stringify(item));
+const openConfigModalById = (dbId: number) => {
+  const record = Array.from(dbRecordsByKey.values()).find((r) => r.id === dbId);
+  if (!record) {
+    setFeedback('لم يتم العثور على سجل المسار', 'error');
+    return;
+  }
+  editingAutomation.value = JSON.parse(JSON.stringify(record));
   if (!editingAutomation.value.channels) {
     editingAutomation.value.channels = { telegram: true, in_app: true, whatsapp: false };
   }
@@ -1545,7 +514,7 @@ const saveAutomationConfig = async () => {
     await automationsApi.update(editingAutomation.value.id, payload);
     setFeedback(`تم حفظ إعدادات مسار (${editingAutomation.value.name_ar}) بنجاح ✨`);
     editingAutomation.value = null;
-    await fetchAutomations();
+    await Promise.all([fetchGraph(), fetchRecords()]);
   } catch (err: any) {
     setFeedback('فشل حفظ الإعدادات: ' + err.message, 'error');
   } finally {
@@ -1553,27 +522,15 @@ const saveAutomationConfig = async () => {
   }
 };
 
-const triggerTestRun = async (item: any) => {
-  triggeringId.value = item.id;
-  try {
-    const res = await automationsApi.trigger(item.id, { isManualRun: true });
-    setFeedback(`✨ ${res.data?.message || 'تم تشغيل المسار بنجاح وإرسال الإشعارات'}`);
-    await fetchLogs();
-  } catch (err: any) {
-    setFeedback('فشل التشغيل: ' + (err.response?.data?.message || err.message), 'error');
-  } finally {
-    triggeringId.value = null;
-  }
-};
-
+/* ─── الفحص الشامل ─── */
 const triggerAllAutomations = async () => {
   isFiringAll.value = true;
   setFeedback('جاري فحص وضخ كافة مسارات الأتمتة المجدولة...');
+  pulseNetwork();
   try {
-    const list = Array.isArray(automationsList.value) ? automationsList.value : [];
-    for (const auto of list) {
-      if (auto.is_enabled) {
-        await automationsApi.trigger(auto.id, { isManualRun: true });
+    for (const [, record] of dbRecordsByKey) {
+      if (record.is_enabled) {
+        await automationsApi.trigger(record.id, { isManualRun: true });
       }
     }
     setFeedback('✨ تم اكتمال فحص وتشغيل شبكة الأتمتة بالكامل بنجاح!');
@@ -1585,59 +542,33 @@ const triggerAllAutomations = async () => {
   }
 };
 
-const saveTelegramConfig = async () => {
-  try {
-    const list = Array.isArray(automationsList.value) ? automationsList.value : [];
-    for (const item of list) {
-      const newConfig = {
-        ...(item.config || {}),
-        bot_token: telegramForm.value.botToken,
-        chat_id: telegramForm.value.chatId,
-      };
-      await automationsApi.update(item.id, { config: newConfig });
-    }
-    setFeedback('تم حفظ وتحديث إعدادات بوت تليجرام لكافة المسارات بنجاح ✨');
-    showTelegramModal.value = false;
-  } catch (err: any) {
-    setFeedback('فشل حفظ إعدادات البوت: ' + err.message, 'error');
-  }
-};
-
+/* ─── تليجرام ─── */
 const handleTestTelegram = async () => {
-  if (!telegramForm.value.botToken || !telegramForm.value.chatId) {
-    setFeedback('يرجى إدخال Bot Token و Chat ID أولاً', 'error');
-    return;
-  }
   isTestingTelegram.value = true;
   try {
-    const res = await automationsApi.testTelegram({
-      botToken: telegramForm.value.botToken,
-      chatId: telegramForm.value.chatId,
+    const res: any = await automationsApi.testTelegram({
+      botToken: telegramForm.value.botToken || undefined,
+      chatId: telegramForm.value.chatId || undefined,
     });
-    if (res.data?.success) {
+    if (res?.success !== false) {
       setFeedback('تم إرسال الرسالة التجريبية إلى تليجرام بنجاح! تفقد هاتفك 📲');
+      await fetchGraph();
     } else {
-      setFeedback(`فشل إرسال تليجرام: ${res.data?.error || 'تحقق من صحة التوكن والشات'}`, 'error');
+      setFeedback(`فشل إرسال تليجرام: ${res?.message || 'تحقق من صحة التوكن والشات'}`, 'error');
     }
   } catch (err: any) {
-    setFeedback('فشل الاتصال بتليجرام: ' + (err.response?.data?.message || err.message), 'error');
+    setFeedback('فشل الاتصال بتليجرام: ' + (err.message || 'خطأ غير معروف'), 'error');
   } finally {
     isTestingTelegram.value = false;
   }
 };
 
-const openMessageModal = (log: any) => {
-  selectedLog.value = log;
-};
-
-onMounted(async () => {
-  await Promise.all([fetchAutomations(), fetchLogs()]);
-});
+onMounted(refreshAll);
 </script>
 
-<style lang="scss" scoped>
+<style scoped lang="scss">
 /* ═══════════════════════════════════════════════════════════════════
-   MASTER AUTOMATION STUDIO & LIVE PIPELINES (Cyber-Glass Bento)
+   الفضاء ثلاثي الأبعاد للأتمتة (3D Automation Studio)
    ═══════════════════════════════════════════════════════════════════ */
 
 .automations-page {
@@ -1647,7 +578,7 @@ onMounted(async () => {
   padding-bottom: 40px;
 }
 
-/* ── Top Header ── */
+/* ── الهيدر ── */
 .page-header {
   display: flex;
   justify-content: space-between;
@@ -1701,17 +632,14 @@ onMounted(async () => {
 }
 
 @keyframes pulseGlow {
-  0% {
+  0%,
+  100% {
     transform: scale(0.95);
     opacity: 0.8;
   }
   50% {
     transform: scale(1.08);
     opacity: 0.2;
-  }
-  100% {
-    transform: scale(0.95);
-    opacity: 0.8;
   }
 }
 
@@ -1738,7 +666,17 @@ onMounted(async () => {
   }
 }
 
-/* ── Feedback Alert ── */
+.slide-fade-enter-active,
+.slide-fade-leave-active {
+  transition: all 0.3s ease;
+}
+.slide-fade-enter-from,
+.slide-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
+}
+
+/* ── التنبيهات ── */
 .feedback-alert {
   display: flex;
   align-items: center;
@@ -1761,7 +699,7 @@ onMounted(async () => {
   }
 }
 
-/* ── Stats Grid ── */
+/* ── الإحصائيات ── */
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -1807,50 +745,60 @@ onMounted(async () => {
     .stat-label {
       font-size: 0.76rem;
       color: var(--text-muted, #a89f91);
-      font-weight: 700;
     }
 
     .stat-value {
-      margin: 2px 0 0;
+      margin: 4px 0 0;
       font-size: 1.15rem;
       font-weight: 900;
       color: #faedcd;
 
       small {
-        font-size: 0.74rem;
+        font-size: 0.72rem;
         color: var(--text-muted, #a89f91);
-        font-weight: normal;
+        font-weight: 600;
       }
     }
   }
 }
 
+.text-success {
+  color: #86efac !important;
+}
 .status-pulse-dot {
   display: inline-block;
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
-  background: #ef4444;
-  margin-left: 6px;
+  background: #6b7280;
+  margin-inline-end: 6px;
 
   &.active {
     background: #22c55e;
-    box-shadow: 0 0 6px #22c55e;
+    box-shadow: 0 0 8px rgba(34, 197, 94, 0.8);
+    animation: dotPulse 1.8s infinite;
+  }
+  &.big {
+    width: 14px;
+    height: 14px;
+  }
+}
+@keyframes dotPulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.35);
   }
 }
 
-/* ═══════════════════════════════════════════════════════════════════
-   اللوحة التفاعلية البصرية المطورة (VISUAL MATRIX CANVAS)
-   ═══════════════════════════════════════════════════════════════════ */
-
+/* ── بطاقة اللوحة ثلاثية الأبعاد ── */
 .canvas-section-card {
-  padding: 20px;
-  background: radial-gradient(circle at 50% 50%, #20130b 0%, #120904 100%);
-  border: 1.5px solid rgba(212, 163, 115, 0.35);
-  border-radius: 20px;
-  position: relative;
-  overflow: hidden;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6);
+  padding: 18px;
+  background: var(--surface, #1b120c);
+  border: 1px solid var(--border, rgba(212, 163, 115, 0.2));
+  border-radius: 18px;
 }
 
 .canvas-toolbar {
@@ -1858,1535 +806,539 @@ onMounted(async () => {
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: 12px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid rgba(212, 163, 115, 0.2);
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.canvas-title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .canvas-badge-live {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-size: 1rem;
-  font-weight: 900;
+  padding: 5px 14px;
+  border-radius: 999px;
+  background: rgba(212, 163, 115, 0.1);
+  border: 1px solid rgba(212, 163, 115, 0.3);
   color: #faedcd;
+  font-weight: 800;
+  font-size: 0.82rem;
+  align-self: flex-start;
 
   .live-dot {
-    width: 10px;
-    height: 10px;
+    width: 9px;
+    height: 9px;
     border-radius: 50%;
     background: #22c55e;
-    box-shadow: 0 0 10px #22c55e;
-    animation: livePulse 1.8s infinite;
-  }
-}
-
-@keyframes livePulse {
-  0% {
-    transform: scale(0.9);
-    opacity: 0.7;
-  }
-  50% {
-    transform: scale(1.3);
-    opacity: 1;
-  }
-  100% {
-    transform: scale(0.9);
-    opacity: 0.7;
+    animation: dotPulse 1.6s infinite;
   }
 }
 
 .canvas-subtitle {
   font-size: 0.78rem;
   color: var(--text-muted, #a89f91);
-  display: block;
-  margin-top: 2px;
 }
 
 .canvas-controls-group {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   flex-wrap: wrap;
 }
 
-.layout-toggle-pill {
-  display: flex;
-  background: rgba(0, 0, 0, 0.4);
-  border: 1px solid rgba(212, 163, 115, 0.3);
-  border-radius: 10px;
-  padding: 2px;
+.layout-toggle-pill,
+.zoom-controls-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  background: rgba(12, 8, 5, 0.5);
+  border: 1px solid rgba(212, 163, 115, 0.25);
+}
 
-  .layout-btn {
-    border: none;
-    background: transparent;
-    color: var(--text-muted, #a89f91);
-    font-size: 0.76rem;
-    font-weight: 800;
-    padding: 4px 10px;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.15s ease;
+.layout-btn {
+  border: none;
+  background: transparent;
+  color: #cdbfa8;
+  font-weight: 700;
+  font-size: 0.76rem;
+  padding: 6px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.18s ease;
 
-    &.active {
-      background: #d4a373;
-      color: #140d08;
-      font-weight: 900;
-    }
+  &.active {
+    background: rgba(212, 163, 115, 0.85);
+    color: #17100a;
   }
 }
 
+.zoom-btn {
+  border: none;
+  background: transparent;
+  color: #cdbfa8;
+  font-size: 1rem;
+  font-weight: 900;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &:hover {
+    background: rgba(212, 163, 115, 0.2);
+    color: #fff;
+  }
+
+  &.reset-btn {
+    width: auto;
+    border-radius: 999px;
+    padding: 0 12px;
+    font-size: 0.74rem;
+    font-weight: 700;
+  }
+}
+
+.pulse-btn {
+  color: #38bdf8 !important;
+  border-color: rgba(56, 189, 248, 0.4) !important;
+}
+
+.btn.btn-xs.btn-outline {
+  font-size: 0.74rem;
+}
+
+/* ── فلاتر الفئات ── */
 .canvas-categories-bar {
   display: flex;
   gap: 8px;
-  margin-top: 12px;
-  overflow-x: auto;
-  padding-bottom: 4px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
 }
 
 .canvas-cat-pill {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 5px 12px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(212, 163, 115, 0.2);
-  border-radius: 10px;
-  color: var(--text-muted, #a89f91);
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: rgba(12, 8, 5, 0.5);
+  border: 1px solid rgba(212, 163, 115, 0.25);
+  color: #cdbfa8;
   font-size: 0.76rem;
-  font-weight: 750;
+  font-weight: 700;
   cursor: pointer;
-  transition: all 0.15s ease;
-  white-space: nowrap;
-
-  .cat-pill-count {
-    background: rgba(255, 255, 255, 0.1);
-    font-size: 0.68rem;
-    padding: 1px 6px;
-    border-radius: 8px;
-  }
-
-  &:hover {
-    background: rgba(212, 163, 115, 0.12);
-    color: #faedcd;
-  }
-
-  &.active {
-    background: #d4a373;
-    color: #140d08;
-    border-color: #faedcd;
-    font-weight: 850;
-
-    .cat-pill-count {
-      background: #140d08;
-      color: #faedcd;
-    }
-  }
-}
-
-.zoom-controls-pill {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  background: rgba(0, 0, 0, 0.4);
-  border: 1px solid rgba(212, 163, 115, 0.3);
-  border-radius: 10px;
-  padding: 2px 4px;
-
-  .zoom-btn {
-    background: transparent;
-    border: none;
-    color: var(--text-muted, #a89f91);
-    font-weight: 900;
-    font-size: 0.88rem;
-    width: 26px;
-    height: 26px;
-    border-radius: 6px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.15s ease;
-
-    &:hover {
-      background: rgba(212, 163, 115, 0.2);
-      color: #faedcd;
-    }
-
-    &.reset-btn {
-      width: auto;
-      font-size: 0.72rem;
-      padding: 0 6px;
-      font-weight: 800;
-    }
-  }
-
-  .zoom-level-text {
-    font-size: 0.72rem;
-    font-weight: 800;
-    color: #faedcd;
-    min-width: 34px;
-    text-align: center;
-  }
-}
-
-/* ── مساحة الرسم التفاعلي الهجينة (Hybrid Interactive Canvas Engine) ── */
-.interactive-canvas-viewport {
-  position: relative;
-  width: 100%;
-  min-height: 620px;
-  height: 620px;
-  overflow: hidden;
-  border-radius: 18px;
-  background: radial-gradient(circle at 50% 50%, #20130b 0%, #0d0603 100%);
-  border: 1px solid rgba(212, 163, 115, 0.2);
-  margin-top: 10px;
-  user-select: none;
-  box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.8);
-
-  &.is-pulsing {
-    box-shadow:
-      inset 0 0 50px rgba(212, 163, 115, 0.3),
-      0 0 20px rgba(212, 163, 115, 0.4);
-  }
-
-  &.is-dragging-any {
-    cursor: grabbing;
-  }
-}
-
-.canvas-scalable-board {
-  position: absolute;
-  width: 1000px;
-  height: 620px;
-  left: 50%;
-  top: 50%;
-  margin-left: -500px;
-  margin-top: -310px;
-  transform-origin: center center;
-  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.canvas-svg-layer {
-  position: absolute;
-  inset: 0;
-  width: 1000px;
-  height: 620px;
-  pointer-events: none;
-}
-
-/* ── محطة الذكاء الاصطناعي المركزية التفاعلية DOM ── */
-.dom-central-core {
-  position: absolute;
-  transform: translate(-50%, -50%);
-  width: 80px;
-  height: 80px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 10;
-  cursor: pointer;
-  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-
-  &:hover {
-    transform: translate(-50%, -50%) scale(1.08);
-  }
-
-  .core-gear-ring-cw {
-    position: absolute;
-    width: 84px;
-    height: 84px;
-    border-radius: 50%;
-    border: 2px dashed rgba(212, 163, 115, 0.4);
-    animation: gearRotateCw 24s linear infinite;
-  }
-
-  .core-gear-ring-ccw {
-    position: absolute;
-    width: 72px;
-    height: 72px;
-    border-radius: 50%;
-    border: 1.5px dashed rgba(250, 237, 205, 0.3);
-    animation: gearRotateCcw 16s linear infinite;
-  }
-
-  .core-pulse-wave {
-    position: absolute;
-    width: 96px;
-    height: 96px;
-    border-radius: 50%;
-    border: 1.5px solid rgba(212, 163, 115, 0.25);
-    animation: domPulseWave 3s infinite ease-out;
-  }
-
-  .core-glass-disc {
-    width: 58px;
-    height: 58px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #381f10 0%, #1c0e07 100%);
-    border: 2.5px solid #d4a373;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow:
-      0 0 20px rgba(212, 163, 115, 0.7),
-      inset 0 0 10px rgba(250, 237, 205, 0.3);
-    z-index: 2;
-
-    .core-vector-icon {
-      color: #faedcd;
-      filter: drop-shadow(0 0 8px rgba(250, 237, 205, 0.8));
-    }
-  }
-
-  .core-info-plaque {
-    position: absolute;
-    top: 70px;
-    width: 140px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    pointer-events: none;
-
-    .core-title-text {
-      font-size: 0.78rem;
-      font-weight: 900;
-      color: #faedcd;
-      text-shadow: 0 2px 6px rgba(0, 0, 0, 0.9);
-      white-space: nowrap;
-    }
-
-    .core-metric-text {
-      font-size: 0.68rem;
-      font-weight: 750;
-      color: #a89f91;
-      text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9);
-    }
-  }
-}
-
-@keyframes domPulseWave {
-  0% {
-    transform: scale(0.7);
-    opacity: 0.9;
-  }
-  100% {
-    transform: scale(1.3);
-    opacity: 0;
-  }
-}
-
-/* ── حاوية وعقد الأتمتة الموحدة التفاعلية (Draggable Cyber-Pods) ── */
-.dom-nodes-container {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 15;
-}
-
-.dom-node-pod {
-  position: absolute;
-  transform: translate(-50%, -50%);
-  width: 144px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  cursor: grab;
-  pointer-events: auto;
-  transition:
-    transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
-    opacity 0.3s ease,
-    filter 0.3s ease;
-
-  &.is-dragging {
-    cursor: grabbing !important;
-    z-index: 30 !important;
-    transform: translate(-50%, -50%) scale(1.16) !important;
-    transition: none !important;
-
-    .pod-icon-capsule {
-      box-shadow: 0 0 24px var(--node-accent, #d4a373) !important;
-    }
-  }
-
-  &:hover {
-    transform: translate(-50%, -50%) scale(1.12);
-    z-index: 22;
-
-    .pod-icon-capsule {
-      box-shadow: 0 0 20px var(--node-accent, #d4a373);
-      border-color: #faedcd;
-    }
-
-    .pod-info-plaque {
-      border-color: var(--node-accent, #d4a373);
-      background: rgba(28, 15, 8, 0.97);
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7);
-    }
-
-    .pod-hover-actions {
-      display: flex;
-    }
-  }
-
-  &.is-selected {
-    z-index: 25;
-
-    .pod-icon-capsule {
-      border-width: 3px;
-      box-shadow: 0 0 26px var(--node-accent, #d4a373);
-    }
-    .pod-info-plaque {
-      border-width: 2px;
-      border-color: var(--node-accent, #d4a373);
-    }
-  }
-
-  &.is-focused {
-    opacity: 1 !important;
-    filter: none !important;
-  }
-
-  &.is-disabled {
-    opacity: 0.45;
-    filter: grayscale(0.6);
-  }
-
-  &.is-dimmed {
-    opacity: 0.15;
-    filter: grayscale(0.85) blur(0.4px);
-  }
-
-  &.is-firing {
-    animation: firingBounce 0.4s infinite alternate;
-  }
-
-  /* حلقة المعايرة الدوارة Reticle */
-  .pod-caliper-ring {
-    position: absolute;
-    top: -5px;
-    width: 62px;
-    height: 62px;
-    border-radius: 50%;
-    border: 1.2px dashed rgba(212, 163, 115, 0.3);
-    animation: caliperSpin 16s linear infinite;
-    pointer-events: none;
-  }
-
-  /* كبسولة الأيقونة الموحدة */
-  .pod-icon-capsule {
-    width: 52px;
-    height: 52px;
-    border-radius: 16px;
-    background: linear-gradient(145deg, #24140a 0%, #120904 100%);
-    border: 2.2px solid var(--node-accent, #d4a373);
-    box-shadow:
-      0 6px 16px rgba(0, 0, 0, 0.7),
-      0 0 12px rgba(212, 163, 115, 0.25);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: relative;
-    transition: all 0.2s ease;
-
-    .pod-status-led {
-      position: absolute;
-      top: -3px;
-      right: -3px;
-      width: 11px;
-      height: 11px;
-      border-radius: 50%;
-      background: #6b7280;
-      border: 2px solid #120904;
-
-      &.is-active {
-        background: #22c55e;
-        box-shadow: 0 0 8px #22c55e;
-      }
-    }
-
-    .pod-svg-icon {
-      color: #faedcd;
-      filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
-    }
-  }
-
-  /* لوحة المعلومات الموحدة بالكامل أسفل الأيقونة */
-  .pod-info-plaque {
-    width: 140px;
-    background: rgba(18, 9, 4, 0.94);
-    backdrop-filter: blur(10px);
-    border: 1.5px solid rgba(212, 163, 115, 0.25);
-    border-radius: 12px;
-    padding: 6px 8px;
-    margin-top: 6px;
-    text-align: center;
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.6);
-    transition: all 0.2s ease;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-
-    .pod-title-text {
-      font-size: 0.76rem;
-      font-weight: 850;
-      color: #faedcd;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      display: block;
-    }
-
-    .pod-badge-row {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 4px;
-      flex-wrap: wrap;
-    }
-
-    .pod-trigger-pill {
-      font-size: 0.66rem;
-      font-weight: 750;
-      color: #d4a373;
-      background: rgba(212, 163, 115, 0.12);
-      padding: 1px 6px;
-      border-radius: 6px;
-    }
-
-    .pod-state-pill {
-      font-size: 0.66rem;
-      font-weight: 800;
-      color: #9ca3af;
-      background: rgba(255, 255, 255, 0.08);
-      padding: 1px 5px;
-      border-radius: 6px;
-
-      &.is-active {
-        color: #86efac;
-        background: rgba(34, 197, 94, 0.15);
-      }
-    }
-
-    /* أزرار الإجراءات السريعة المباشرة */
-    .pod-hover-actions {
-      display: none;
-      align-items: center;
-      justify-content: center;
-      gap: 4px;
-      margin-top: 2px;
-      padding-top: 4px;
-      border-top: 1px solid rgba(212, 163, 115, 0.15);
-
-      .pod-mini-btn {
-        padding: 2px 8px;
-        font-size: 0.68rem;
-        font-weight: 800;
-        border-radius: 6px;
-        border: 1px solid rgba(212, 163, 115, 0.3);
-        background: rgba(255, 255, 255, 0.06);
-        color: #faedcd;
-        cursor: pointer;
-        transition: all 0.15s ease;
-
-        &:hover {
-          background: #d4a373;
-          color: #140d08;
-        }
-
-        &.run-btn {
-          background: rgba(34, 197, 94, 0.2);
-          border-color: rgba(34, 197, 94, 0.4);
-          color: #86efac;
-
-          &:hover {
-            background: #22c55e;
-            color: #0d0603;
-          }
-        }
-      }
-    }
-  }
-}
-
-/* ── Mechanical Radar Scanner & Orbit Tracks ── */
-.mechanical-radar-scanner {
-  animation: radarSweep 12s linear infinite;
-  transform-origin: 500px 310px;
-  pointer-events: none;
-}
-
-.mechanical-orbit-track-1 {
-  animation: orbitTrackCw 80s linear infinite;
-  transform-origin: 500px 310px;
-}
-
-.mechanical-orbit-track-2 {
-  animation: orbitTrackCcw 120s linear infinite;
-  transform-origin: 500px 310px;
-}
-
-/* ── Obsidian Inter-Node Mesh Conduits ── */
-.obsidian-mesh-conduit {
-  stroke: rgba(212, 163, 115, 0.1);
-  stroke-width: 1.2;
-  stroke-dasharray: 4, 8;
-  transition: all 0.3s ease;
-
-  &.is-active {
-    stroke: rgba(212, 163, 115, 0.18);
-  }
-
-  &.is-highlighted {
-    stroke: #faedcd;
-    stroke-width: 2.5;
-    stroke-dasharray: 6, 4;
-    animation: beamFlow 1s linear infinite;
-    filter: drop-shadow(0 0 8px rgba(250, 237, 205, 0.8));
-  }
-}
-
-/* ── Energy Conduits & Particles ── */
-.conduit-base-line {
-  stroke: rgba(212, 163, 115, 0.2);
-  stroke-width: 1.8;
-  transition: all 0.3s ease;
-
-  &.is-focused-conduit {
-    stroke: rgba(212, 163, 115, 0.4);
-    stroke-width: 2.2;
-  }
-
-  &.is-disabled-conduit {
-    stroke: rgba(255, 255, 255, 0.05);
-  }
-}
-
-.energy-flowing-beam {
-  stroke-dasharray: 8, 8;
-  animation: beamFlow 1.6s linear infinite;
-
-  &.active-selected {
-    stroke-width: 4;
-    filter: drop-shadow(0 0 10px currentColor);
-  }
-
-  &.is-firing {
-    stroke-width: 5.5;
-    animation: beamFire 0.35s linear infinite;
-  }
-}
-
-.pulsing-energy-particle {
-  filter: drop-shadow(0 0 6px currentColor);
-}
-
-/* ── Harmonic Kinetic Floating Oscillations (Obsidian Dynamics) ── */
-.harmonic-float-0 {
-  animation: harmonicFloat0 5.2s ease-in-out infinite alternate;
-}
-.harmonic-float-1 {
-  animation: harmonicFloat1 6.1s ease-in-out infinite alternate;
-}
-.harmonic-float-2 {
-  animation: harmonicFloat2 4.6s ease-in-out infinite alternate;
-}
-.harmonic-float-3 {
-  animation: harmonicFloat3 5.8s ease-in-out infinite alternate;
-}
-
-/* ── Keyframe Animations ── */
-@keyframes radarSweep {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@keyframes gearRotateCw {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@keyframes gearRotateCcw {
-  from {
-    transform: rotate(360deg);
-  }
-  to {
-    transform: rotate(0deg);
-  }
-}
-
-@keyframes orbitTrackCw {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@keyframes orbitTrackCcw {
-  from {
-    transform: rotate(360deg);
-  }
-  to {
-    transform: rotate(0deg);
-  }
-}
-
-@keyframes caliperSpin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@keyframes harmonicFloat0 {
-  0% {
-    transform: translate(-50%, -50%) translateY(0px) translateX(0px);
-  }
-  50% {
-    transform: translate(-50%, -50%) translateY(-6px) translateX(3px);
-  }
-  100% {
-    transform: translate(-50%, -50%) translateY(5px) translateX(-2px);
-  }
-}
-
-@keyframes harmonicFloat1 {
-  0% {
-    transform: translate(-50%, -50%) translateY(0px) translateX(0px);
-  }
-  50% {
-    transform: translate(-50%, -50%) translateY(6px) translateX(-4px);
-  }
-  100% {
-    transform: translate(-50%, -50%) translateY(-5px) translateX(2px);
-  }
-}
-
-@keyframes harmonicFloat2 {
-  0% {
-    transform: translate(-50%, -50%) translateY(0px) translateX(0px);
-  }
-  50% {
-    transform: translate(-50%, -50%) translateY(-7px) translateX(-3px);
-  }
-  100% {
-    transform: translate(-50%, -50%) translateY(4px) translateX(3px);
-  }
-}
-
-@keyframes harmonicFloat3 {
-  0% {
-    transform: translate(-50%, -50%) translateY(0px) translateX(0px);
-  }
-  50% {
-    transform: translate(-50%, -50%) translateY(5px) translateX(3px);
-  }
-  100% {
-    transform: translate(-50%, -50%) translateY(-6px) translateX(-2px);
-  }
-}
-
-@keyframes beamFlow {
-  from {
-    stroke-dashoffset: 32;
-  }
-  to {
-    stroke-dashoffset: 0;
-  }
-}
-
-@keyframes beamFire {
-  0% {
-    opacity: 0.3;
-  }
-  50% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 0.3;
-  }
-}
-
-@keyframes corePulseOuter {
-  0% {
-    r: 44px;
-    opacity: 0.8;
-  }
-  100% {
-    r: 74px;
-    opacity: 0;
-  }
-}
-
-@keyframes corePulseMiddle {
-  0% {
-    r: 40px;
-    opacity: 0.9;
-  }
-  100% {
-    r: 58px;
-    opacity: 0;
-  }
-}
-
-@keyframes beamFlow {
-  from {
-    stroke-dashoffset: 32;
-  }
-  to {
-    stroke-dashoffset: 0;
-  }
-}
-
-@keyframes beamFire {
-  0% {
-    opacity: 0.3;
-  }
-  50% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 0.3;
-  }
-}
-
-@keyframes spinHalo {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@keyframes firingBounce {
-  0% {
-    transform: scale(1);
-  }
-  100% {
-    transform: scale(1.18);
-  }
-}
-
-/* ── HUD Node Card (Floating Info Card) ── */
-.node-hud-card {
-  position: absolute;
-  bottom: 16px;
-  right: 16px;
-  background: rgba(22, 13, 7, 0.94);
-  backdrop-filter: blur(12px);
-  border: 1.5px solid #d4a373;
-  border-radius: 16px;
-  padding: 16px;
-  width: 330px;
-  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.7);
-  z-index: 20;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.hud-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 8px;
-}
-
-.hud-title-wrap {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-
-  .hud-emoji {
-    font-size: 1.6rem;
-    padding: 6px;
-    background: rgba(212, 163, 115, 0.15);
-    border-radius: 10px;
-  }
-
-  .hud-title {
-    margin: 0 0 4px;
-    font-size: 0.96rem;
-    font-weight: 850;
-    color: #faedcd;
-  }
-
-  .hud-badges {
-    display: flex;
-    gap: 4px;
-    flex-wrap: wrap;
-  }
-}
-
-.hud-close-btn {
-  background: rgba(255, 255, 255, 0.08);
-  border: none;
-  color: #fff;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  font-size: 0.75rem;
-  cursor: pointer;
-
-  &:hover {
-    background: rgba(239, 68, 68, 0.3);
-    color: #f87171;
-  }
-}
-
-.hud-desc {
-  margin: 0;
-  font-size: 0.78rem;
-  color: var(--text-muted, #d4a373);
-  line-height: 1.4;
-}
-
-.hud-meta-row {
-  display: flex;
-  justify-content: space-between;
-  background: rgba(0, 0, 0, 0.3);
-  padding: 6px 10px;
-  border-radius: 8px;
-  font-size: 0.74rem;
-
-  .meta-lbl {
-    color: var(--text-muted, #a89f91);
-    font-weight: 700;
-  }
-
-  .meta-val {
-    color: #faedcd;
-    font-weight: 800;
-  }
-}
-
-.hud-actions-row {
-  display: flex;
-  gap: 6px;
-}
-
-/* ═══════════════════════════════════════════════════════════════════
-   SECTION CARDS & 4-STAGE PIPELINES
-   ═══════════════════════════════════════════════════════════════════ */
-
-.section-card {
-  padding: 20px;
-  background: var(--surface, #1b120c);
-  border: 1px solid var(--border, rgba(212, 163, 115, 0.2));
-  border-radius: 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.section-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 14px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid rgba(212, 163, 115, 0.2);
-}
-
-.section-title-wrap {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.category-filters-tabs {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
-.cat-tab-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(212, 163, 115, 0.2);
-  border-radius: 12px;
-  color: var(--text-muted, #a89f91);
-  font-size: 0.8rem;
-  font-weight: 750;
-  cursor: pointer;
-  transition: all 0.15s ease;
-
-  .tab-count {
-    background: rgba(255, 255, 255, 0.1);
-    font-size: 0.7rem;
-    padding: 1px 6px;
-    border-radius: 10px;
-  }
-
-  &:hover {
-    background: rgba(212, 163, 115, 0.12);
-    color: #faedcd;
-  }
-
-  &.active {
-    background: #d4a373;
-    color: #140d08;
-    border-color: #faedcd;
-    font-weight: 850;
-
-    .tab-count {
-      background: #140d08;
-      color: #faedcd;
-    }
-  }
-}
-
-.pipelines-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 16px;
-}
-
-@media (min-width: 1200px) {
-  .pipelines-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-.pipeline-card {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  padding: 18px;
-  background: linear-gradient(180deg, #22150d 0%, #170d07 100%);
-  border: 1.5px solid rgba(212, 163, 115, 0.25);
-  border-radius: 18px;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
-  transition: all 0.2s ease;
-  cursor: pointer;
+  transition: all 0.18s ease;
 
   &:hover {
     border-color: rgba(212, 163, 115, 0.55);
-    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.6);
   }
 
-  &.is-selected-card {
-    border-color: #d4a373;
-    box-shadow: 0 0 18px rgba(212, 163, 115, 0.4);
-  }
-
-  &.is-disabled {
-    opacity: 0.65;
-    filter: grayscale(0.3);
-  }
-
-  &.is-firing {
-    border-color: #22c55e;
-    box-shadow: 0 0 20px rgba(34, 197, 94, 0.35);
-  }
-}
-
-.pipeline-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 12px;
-}
-
-.pipeline-title-group {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-
-  .pipeline-scenario-icon {
-    font-size: 1.6rem;
-    padding: 8px;
-    background: rgba(212, 163, 115, 0.12);
-    border: 1px solid rgba(212, 163, 115, 0.3);
-    border-radius: 14px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .pipeline-name {
-    margin: 0 0 6px;
-    font-size: 1.05rem;
-    font-weight: 850;
+  &.active {
+    background: rgba(212, 163, 115, 0.18);
+    border-color: rgba(212, 163, 115, 0.65);
     color: #faedcd;
-    line-height: 1.3;
   }
 
-  .pipeline-badges-row {
+  .cat-pill-count {
+    padding: 1px 8px;
+    border-radius: 999px;
+    background: rgba(212, 163, 115, 0.2);
+    font-size: 0.68rem;
+  }
+}
+
+/* ── بطاقة العقدة داخل اللوحة (slot) ── */
+.selected-actions {
+  margin-top: 10px;
+
+  .live-meta {
     display: flex;
+    flex-wrap: wrap;
     gap: 6px;
+    margin-bottom: 10px;
+  }
+
+  .meta-chip {
+    font-size: 0.68rem;
+    padding: 3px 9px;
+    border-radius: 999px;
+    background: rgba(212, 163, 115, 0.12);
+    border: 1px solid rgba(212, 163, 115, 0.28);
+
+    &.status-success {
+      color: #86efac;
+    }
+    &.status-failed {
+      color: #fca5a5;
+    }
+    &.muted {
+      color: #a89f91;
+    }
+  }
+
+  .actions-row {
+    display: flex;
+    gap: 8px;
     flex-wrap: wrap;
   }
 }
 
-.category-pill {
-  font-size: 0.72rem;
-  font-weight: 750;
-  padding: 2px 8px;
-  border-radius: 6px;
-  background: rgba(212, 163, 115, 0.15);
-  color: #d4a373;
+.btn-action {
+  border: none;
+  padding: 7px 13px;
+  border-radius: 10px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.18s ease;
 
-  &.sales {
-    background: rgba(245, 158, 11, 0.15);
-    color: #f59e0b;
+  &.primary {
+    background: rgba(245, 158, 11, 0.9);
+    color: #17100a;
+
+    &:hover:not(:disabled) {
+      background: #f59e0b;
+    }
   }
-  &.inventory {
+
+  &.ghost {
+    background: rgba(212, 163, 115, 0.12);
+    border: 1px solid rgba(212, 163, 115, 0.35);
+    color: #faedcd;
+
+    &:hover:not(:disabled) {
+      background: rgba(212, 163, 115, 0.25);
+    }
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+}
+
+.telegram-node-hint {
+  margin: 10px 0 0;
+  font-size: 0.75rem;
+  line-height: 1.6;
+  color: #9fd8ff;
+}
+
+/* ── الدليل ── */
+.canvas-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed rgba(212, 163, 115, 0.18);
+
+  .legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.72rem;
+    color: var(--text-muted, #a89f91);
+  }
+
+  .legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+}
+
+/* ── السجلات ── */
+.logs-card {
+  padding: 18px;
+  background: var(--surface, #1b120c);
+  border: 1px solid var(--border, rgba(212, 163, 115, 0.2));
+  border-radius: 18px;
+}
+
+.logs-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+
+  h3 {
+    margin: 0;
+    font-size: 1rem;
+    color: #faedcd;
+  }
+}
+
+.logs-empty {
+  padding: 26px;
+  text-align: center;
+  color: var(--text-muted, #a89f91);
+  font-size: 0.84rem;
+}
+
+.logs-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+
+  th {
+    text-align: right;
+    padding: 8px 10px;
+    color: var(--text-muted, #a89f91);
+    font-size: 0.72rem;
+    border-bottom: 1px solid rgba(212, 163, 115, 0.2);
+  }
+
+  td {
+    padding: 9px 10px;
+    color: #e7dcc8;
+    border-bottom: 1px solid rgba(212, 163, 115, 0.08);
+  }
+
+  .log-title-cell {
+    max-width: 340px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .log-time {
+    white-space: nowrap;
+    color: var(--text-muted, #a89f91);
+  }
+}
+
+.log-status-badge {
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 800;
+
+  &.success {
     background: rgba(34, 197, 94, 0.15);
     color: #86efac;
   }
-  &.security {
+  &.failed {
     background: rgba(239, 68, 68, 0.15);
     color: #fca5a5;
   }
-  &.system {
-    background: rgba(56, 189, 248, 0.15);
-    color: #7dd3fc;
-  }
-}
-
-.trigger-type-pill {
-  font-size: 0.72rem;
-  font-weight: 750;
-  padding: 2px 8px;
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.08);
-  color: var(--text-muted, #a89f91);
-
-  &.cron {
-    color: #38bdf8;
-    border: 1px solid rgba(56, 189, 248, 0.3);
-  }
-  &.event {
-    color: #f43f5e;
-    border: 1px solid rgba(244, 63, 94, 0.3);
-  }
-}
-
-.toggle-switch-wrap {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  user-select: none;
-}
-
-.toggle-track {
-  width: 44px;
-  height: 24px;
-  background: #332014;
-  border: 1px solid rgba(212, 163, 115, 0.3);
-  border-radius: 12px;
-  position: relative;
-  transition: all 0.2s ease;
-
-  .toggle-knob {
-    position: absolute;
-    top: 2px;
-    right: 2px;
-    width: 18px;
-    height: 18px;
-    background: #a89f91;
-    border-radius: 50%;
-    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-  }
-
-  &.is-on {
-    background: #22c55e;
-    border-color: #86efac;
-
-    .toggle-knob {
-      right: 22px;
-      background: #ffffff;
-      box-shadow: 0 0 6px rgba(0, 0, 0, 0.4);
-    }
-  }
-}
-
-.toggle-status-text {
-  font-size: 0.76rem;
-  font-weight: 800;
-  color: var(--text-muted, #a89f91);
-}
-
-.pipeline-desc {
-  margin: 0;
-  font-size: 0.84rem;
-  line-height: 1.45;
-  color: var(--text-muted, #d4a373);
-}
-
-.pipeline-flow-container {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr auto 1fr auto 1fr;
-  align-items: center;
-  background: rgba(0, 0, 0, 0.35);
-  border: 1px solid rgba(212, 163, 115, 0.2);
-  border-radius: 14px;
-  padding: 12px 10px;
-  gap: 4px;
-}
-
-@media (max-width: 768px) {
-  .pipeline-flow-container {
-    grid-template-columns: 1fr;
-    gap: 8px;
-
-    .flow-connector {
-      display: none;
-    }
-  }
-}
-
-.flow-step-node {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  border-radius: 10px;
-  padding: 8px 6px;
-  text-align: center;
-  min-height: 68px;
-  justify-content: space-between;
-
-  .node-badge {
-    font-size: 0.65rem;
-    font-weight: 800;
-    padding: 1px 4px;
-    border-radius: 4px;
-
-    &.trigger {
-      color: #38bdf8;
-      background: rgba(56, 189, 248, 0.12);
-    }
-    &.rule {
-      color: #a855f7;
-      background: rgba(168, 85, 247, 0.12);
-    }
-    &.action {
-      color: #f59e0b;
-      background: rgba(245, 158, 11, 0.12);
-    }
-    &.channel {
-      color: #22c55e;
-      background: rgba(34, 197, 94, 0.12);
-    }
-  }
-
-  .node-content {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 2px;
-
-    .node-icon {
-      font-size: 0.95rem;
-    }
-
-    .node-text {
-      font-size: 0.72rem;
-      font-weight: 700;
-      color: #f7ede2;
-      line-height: 1.2;
-      display: -webkit-box;
-      -webkit-line-clamp: 2;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
-    }
-
-    &.channels-list {
-      flex-direction: column;
-      gap: 3px;
-    }
-  }
-}
-
-.chan-pill {
-  font-size: 0.68rem;
-  font-weight: 750;
-  padding: 1px 6px;
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.06);
-  color: #a89f91;
-
-  &.active {
-    background: rgba(34, 197, 94, 0.2);
-    color: #86efac;
-    border: 1px solid rgba(34, 197, 94, 0.4);
-  }
-}
-
-.flow-connector {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 18px;
-
-  .connector-line {
-    position: relative;
-    width: 100%;
-    height: 2px;
-    background: rgba(212, 163, 115, 0.35);
-
-    .pulse-dot {
-      position: absolute;
-      top: -3px;
-      right: 0;
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: #d4a373;
-      box-shadow: 0 0 6px #d4a373;
-      animation: pipePulse 1.8s infinite linear;
-    }
-  }
-}
-
-@keyframes pipePulse {
-  0% {
-    right: 0;
-    opacity: 1;
-  }
-  100% {
-    right: 100%;
-    opacity: 0.2;
-  }
-}
-
-.pipeline-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 10px;
-  padding-top: 10px;
-  border-top: 1px dashed rgba(212, 163, 115, 0.2);
-}
-
-.last-run-info {
-  font-size: 0.78rem;
-  color: var(--text-muted, #a89f91);
-
-  b {
-    color: #faedcd;
-  }
-
-  .status-tag {
-    font-size: 0.7rem;
-    font-weight: 800;
-    padding: 1px 6px;
-    border-radius: 6px;
-    margin-right: 6px;
-
-    &.success {
-      background: rgba(34, 197, 94, 0.2);
-      color: #86efac;
-    }
-    &.failed {
-      background: rgba(239, 68, 68, 0.2);
-      color: #fca5a5;
-    }
-  }
-}
-
-.pipeline-actions-group {
-  display: flex;
-  gap: 6px;
-}
-
-.btn-trigger-test {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-weight: 800;
-}
-
-/* ═══════════════════════════════════════════════════════════════════
-   LOGS TABLE & MODALS
-   ═══════════════════════════════════════════════════════════════════ */
-
-.logs-count-badge {
-  background: rgba(212, 163, 115, 0.15);
-  color: #d4a373;
-  font-size: 0.74rem;
-  font-weight: 800;
-  padding: 2px 8px;
-  border-radius: 8px;
-}
-
-.logs-table-wrapper {
-  overflow-x: auto;
-}
-
-.scenario-mini-emoji {
-  font-size: 1.1rem;
-}
-
-.log-title-text {
-  font-size: 0.84rem;
-  font-weight: 700;
-  color: #faedcd;
-}
-
-.badge-status {
-  font-size: 0.74rem;
-  font-weight: 800;
-  padding: 2px 8px;
-  border-radius: 8px;
-
-  &.success {
-    background: rgba(34, 197, 94, 0.2);
-    color: #86efac;
-  }
   &.warning {
-    background: rgba(245, 158, 11, 0.2);
-    color: #fde047;
-  }
-  &.failed {
-    background: rgba(239, 68, 68, 0.2);
-    color: #fca5a5;
+    background: rgba(245, 158, 11, 0.15);
+    color: #fbbf24;
   }
 }
 
-.logs-pagination-bar {
-  display: flex;
-  justify-content: center;
-  padding-top: 10px;
-}
-
-/* ── Modals ── */
+/* ── النوافذ المنبثقة ── */
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.8);
-  backdrop-filter: blur(6px);
-  z-index: 200;
+  z-index: 90;
+  background: rgba(8, 5, 3, 0.72);
+  backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 16px;
+  padding: 20px;
 }
 
 .modal-box {
-  background: #1b120c;
-  border: 1.5px solid #d4a373;
+  width: min(520px, 100%);
+  max-height: 86vh;
+  overflow-y: auto;
+  background: #1e140d;
+  border: 1px solid rgba(212, 163, 115, 0.35);
   border-radius: 18px;
   padding: 20px;
-  width: 100%;
-  max-width: 520px;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.8);
 }
 
 .modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding-bottom: 12px;
-  border-bottom: 1px solid rgba(212, 163, 115, 0.25);
   margin-bottom: 14px;
 
-  h3 {
+  h4 {
     margin: 0;
     color: #faedcd;
+    font-size: 1rem;
+  }
+
+  .modal-close {
+    background: none;
+    border: none;
+    color: #a89f91;
+    font-size: 1.05rem;
+    cursor: pointer;
+
+    &:hover {
+      color: #fff;
+    }
   }
 }
 
-.btn-close {
-  background: rgba(255, 255, 255, 0.08);
-  border: none;
-  color: #fff;
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  font-size: 0.9rem;
-  cursor: pointer;
-
-  &:hover {
-    background: rgba(239, 68, 68, 0.2);
-    color: #f87171;
-  }
-}
-
-.channels-checkbox-group {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.channel-check-item,
-.radio-label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: #faedcd;
-  cursor: pointer;
-}
-
-.cron-presets-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
-.rendered-message-box {
-  background: #120904;
-  border: 1px solid rgba(212, 163, 115, 0.25);
+.modal-log-body {
+  margin: 0 0 14px;
+  padding: 14px;
+  background: rgba(12, 8, 5, 0.6);
   border-radius: 12px;
-  padding: 16px;
+  white-space: pre-wrap;
+  word-break: break-word;
   font-family: inherit;
-  font-size: 0.88rem;
-  line-height: 1.6;
-  color: #f7ede2;
-  max-height: 55vh;
-  overflow-y: auto;
-  white-space: pre-line;
+  font-size: 0.8rem;
+  line-height: 1.9;
+  color: #e7dcc8;
+  direction: rtl;
 }
 
 .modal-footer {
   display: flex;
   justify-content: flex-end;
-  margin-top: 14px;
+  gap: 10px;
 }
 
-.loading-state {
+/* ── نافذة تليجرام ── */
+.telegram-status-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 13px 15px;
+  border-radius: 13px;
+  margin-bottom: 14px;
+
+  strong {
+    display: block;
+    font-size: 0.88rem;
+  }
+  small {
+    font-size: 0.72rem;
+    opacity: 0.8;
+  }
+
+  &.ok {
+    background: rgba(34, 197, 94, 0.12);
+    border: 1px solid rgba(34, 197, 94, 0.35);
+    color: #bbf7d0;
+  }
+
+  &.warn {
+    background: rgba(245, 158, 11, 0.12);
+    border: 1px solid rgba(245, 158, 11, 0.35);
+    color: #fde68a;
+  }
+}
+
+.field-hint-main {
+  font-size: 0.75rem;
+  color: var(--text-muted, #a89f91);
+  margin: 0 0 12px;
+  line-height: 1.7;
+}
+
+.field {
+  display: block;
+  margin-bottom: 13px;
+
+  span {
+    display: block;
+    font-size: 0.76rem;
+    color: #cdbfa8;
+    margin-bottom: 6px;
+    font-weight: 700;
+  }
+
+  input {
+    width: 100%;
+    padding: 10px 13px;
+    border-radius: 11px;
+    border: 1px solid rgba(212, 163, 115, 0.3);
+    background: rgba(12, 8, 5, 0.55);
+    color: #f7ecd9;
+    font-size: 0.84rem;
+    outline: none;
+    transition: border-color 0.18s ease;
+
+    &:focus {
+      border-color: rgba(212, 163, 115, 0.7);
+    }
+  }
+}
+
+/* ── نافذة الإعدادات ── */
+.switch-row {
   display: flex;
   align-items: center;
-  justify-content: center;
   gap: 10px;
-  padding: 40px;
-  color: var(--text-muted, #d4a373);
-  font-weight: 750;
+  margin-bottom: 14px;
+  cursor: pointer;
+
+  span {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #e7dcc8;
+  }
+
+  input {
+    display: none;
+  }
+
+  .switch-ui {
+    width: 42px;
+    height: 23px;
+    border-radius: 999px;
+    background: rgba(107, 98, 90, 0.5);
+    position: relative;
+    transition: background 0.2s ease;
+
+    &::after {
+      content: '';
+      position: absolute;
+      top: 3px;
+      right: 3px;
+      width: 17px;
+      height: 17px;
+      border-radius: 50%;
+      background: #f7ecd9;
+      transition: transform 0.2s ease;
+    }
+  }
+
+  input:checked + .switch-ui {
+    background: #22c55e;
+
+    &::after {
+      transform: translateX(-19px);
+    }
+  }
 }
 
-/* ── Pop-in Animation ── */
-.pop-in-enter-active,
-.pop-in-leave-active {
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+.channels-grid {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
 }
-.pop-in-enter-from,
-.pop-in-leave-to {
-  opacity: 0;
-  transform: translateY(12px) scale(0.95);
+
+.channel-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 13px;
+  border-radius: 11px;
+  background: rgba(212, 163, 115, 0.09);
+  border: 1px solid rgba(212, 163, 115, 0.25);
+  font-size: 0.78rem;
+  color: #e7dcc8;
+  cursor: pointer;
+
+  input {
+    accent-color: #d4a373;
+  }
 }
 </style>

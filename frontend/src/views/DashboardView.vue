@@ -10,10 +10,25 @@
       :aria-label="refreshing ? 'جاري تحديث البيانات' : 'الوقت المتبقي حتى التحديث التلقائي التالي'"
     ></div>
 
-    <section class="dashboard-header">
-      <div>
-        <h1>لوحة التحكم</h1>
-        <p>ملخص تنفيذي للمبيعات والتحصيل والمخزون والمصروفات خلال الفترة المختارة.</p>
+    <section class="dashboard-header glass-glow-card mb-4">
+      <div class="header-main-info">
+        <div class="flex items-center gap-3">
+          <span class="header-brand-icon">
+            <AppIcon name="dashboard" :size="22" />
+          </span>
+          <div>
+            <div class="flex items-center gap-2">
+              <h1 class="header-title">لوحة التحكم</h1>
+              <span class="header-status-badge">
+                <span class="live-beacon"></span>
+                مباشر
+              </span>
+            </div>
+            <p class="header-desc">
+              ملخص تنفيذي للمبيعات والتحصيل والمخزون والمصروفات خلال الفترة المختارة.
+            </p>
+          </div>
+        </div>
       </div>
 
       <div class="header-actions">
@@ -29,23 +44,22 @@
             {{ option.label }}
           </button>
         </div>
-        <button class="btn btn-outline btn-sm" type="button" @click="showWidgetSettings = true">
-          <AppIcon name="theme" style="margin-left: 6px; font-size: 0.9rem" />
-          تخصيص الودجت
+        <button
+          class="btn btn-outline btn-sm action-btn"
+          type="button"
+          @click="showWidgetSettings = true"
+        >
+          <AppIcon name="theme" :size="14" />
+          <span>تخصيص الودجت</span>
         </button>
         <button
-          class="btn btn-outline btn-sm"
+          class="btn btn-outline btn-sm action-btn"
           type="button"
           :disabled="loading"
           @click="loadDashboard"
         >
-          <AppIcon
-            name="refresh"
-            :size="14"
-            style="margin-left: 6px"
-            :class="{ 'spin-icon': loading }"
-          />
-          تحديث
+          <AppIcon name="refresh" :size="14" :class="{ 'spin-icon': loading }" />
+          <span>تحديث</span>
         </button>
 
         <!-- مؤشر آخر تحديث + زر التحديث التلقائي الدوري (60 ثانية) -->
@@ -1343,26 +1357,87 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  padding: 20px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: var(--header-bg);
-  box-shadow: var(--shadow-sm);
+  gap: 20px;
+  padding: 16px 22px;
+  border: 1.5px solid var(--border);
+  border-radius: 18px;
+  background: var(--bg-card);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
   backdrop-filter: blur(16px) saturate(1.08);
   -webkit-backdrop-filter: blur(16px) saturate(1.08);
-}
+  flex-wrap: wrap;
 
-.dashboard-header h1 {
-  color: var(--text-strong);
-  font-size: 1.45rem;
-  font-weight: 900;
-}
+  .header-main-info {
+    min-width: 260px;
+  }
 
-.dashboard-header p {
-  margin-top: 4px;
-  color: var(--text-muted);
-  font-size: 0.9rem;
+  .header-brand-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--primary) 12%, var(--bg-soft));
+    color: var(--primary);
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.1);
+  }
+
+  .header-title {
+    color: var(--text-strong);
+    font-size: 1.45rem;
+    font-weight: 900;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    margin: 0;
+  }
+
+  .header-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.65rem;
+    font-weight: 800;
+    padding: 2px 7px;
+    border-radius: 999px;
+    background: rgba(34, 197, 94, 0.12);
+    color: #16a34a;
+    border: 1px solid rgba(34, 197, 94, 0.25);
+  }
+
+  .live-beacon {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #16a34a;
+    box-shadow: 0 0 6px rgba(22, 163, 74, 0.8);
+    animation: live-pulse 2s infinite;
+  }
+
+  .header-desc {
+    margin-top: 4px;
+    color: var(--text-muted);
+    font-size: 0.82rem;
+    font-weight: 700;
+    line-height: 1.35;
+    margin-bottom: 0;
+  }
+
+  .action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 800;
+    border-radius: 10px;
+    padding: 6px 12px;
+    border: 1px solid var(--border);
+    transition: all 0.15s ease;
+
+    &:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+  }
 }
 
 .header-actions,

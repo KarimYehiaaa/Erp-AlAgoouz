@@ -1,9 +1,9 @@
 <template>
-  <section class="metric-grid bento-metric-grid">
+  <section class="metric-grid circular-grid">
     <div
       v-for="(metric, index) in orderedMetrics"
       :key="metric.key"
-      class="metric-card-draggable stagger-fade-item"
+      class="metric-card-draggable circular-draggable stagger-fade-item"
       :class="'stagger-delay-' + ((index % 10) + 1)"
       draggable="true"
       @dragstart="onDragStart($event, index)"
@@ -13,45 +13,37 @@
     >
       <RouterLink
         v-spotlight
-        class="metric-card bento-metric-card hover-lift glass-glow-card"
+        class="metric-card circular-card hover-lift glass-glow-card"
         :class="metric.tone"
         :to="metric.to"
       >
         <div class="metric-top-bar">
-          <span class="metric-icon-box" :class="metric.tone">
-            <AppIcon :name="metric.icon" :size="18" />
-          </span>
+          <span class="metric-icon"><AppIcon :name="metric.icon" :size="18" /></span>
           <span
             v-if="metric.delta !== undefined"
             class="trend-delta-pill"
             :class="metric.delta >= 0 ? 'up' : 'down'"
           >
-            <AppIcon :name="metric.delta >= 0 ? 'trendingUp' : 'trendingDown'" :size="12" />
+            <AppIcon :name="metric.delta >= 0 ? 'trendingUp' : 'trendingDown'" :size="11" />
             {{ metric.delta >= 0 ? '+' : '' }}{{ metric.delta }}%
           </span>
         </div>
-
-        <div class="metric-main-body">
-          <span class="metric-label">
-            {{ metric.label }}
-            <span v-if="metric.estimate" class="estimate-pill" :title="metric.estimateNote"
-              >≈ تقديري</span
-            >
-          </span>
-          <strong class="metric-value">
-            <AnimatedNumber :value="metric.raw" :format="metric.format" />
-          </strong>
-        </div>
-
-        <div class="metric-footer">
-          <small class="metric-sub">{{ metric.sub }}</small>
-          <Sparkline
-            v-if="metric.spark && metric.spark.length > 1"
-            :data="metric.spark"
-            :color="metric.sparkColor"
-            class="metric-spark"
-          />
-        </div>
+        <span class="metric-label">
+          {{ metric.label }}
+          <span v-if="metric.estimate" class="estimate-pill" :title="metric.estimateNote"
+            >≈ تقديري</span
+          >
+        </span>
+        <strong class="metric-num">
+          <AnimatedNumber :value="metric.raw" :format="metric.format" />
+        </strong>
+        <small class="metric-sub">{{ metric.sub }}</small>
+        <Sparkline
+          v-if="metric.spark && metric.spark.length > 1"
+          :data="metric.spark"
+          :color="metric.sparkColor"
+          class="metric-spark"
+        />
       </RouterLink>
     </div>
   </section>

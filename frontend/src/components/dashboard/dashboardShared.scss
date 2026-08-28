@@ -167,182 +167,162 @@
   font-size: 0.82rem;
 }
 
-.alert-item {
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  padding: 10px 12px;
-}
-
-/* Modern Bento Metric Grid & Cards */
-.bento-metric-grid {
+/* Circular metric cards */
+.circular-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 14px;
-  margin-bottom: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 18px;
+  justify-content: center;
+  margin-bottom: 20px;
 }
 
-.metric-card-draggable {
+.circular-draggable {
   display: flex;
-  min-width: 0;
+  justify-content: center;
+  align-items: center;
 }
 
-.metric-card.bento-metric-card {
+.metric-card.circular-card {
   position: relative;
   display: flex !important;
   flex-direction: column !important;
-  justify-content: space-between !important;
-  width: 100%;
-  min-height: 136px;
-  border-radius: 16px !important;
-  padding: 15px 16px !important;
-  border: 1.5px solid var(--border);
-  background: var(--bg-card);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  box-shadow: var(--shadow-xs);
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+  width: 170px;
+  height: 170px;
+  aspect-ratio: 1 / 1 !important;
+  border-radius: 50% !important;
+  padding: 14px !important;
+  border: 1.5px solid color-mix(in srgb, var(--border) 80%, transparent);
+  background: color-mix(in srgb, var(--bg-card) 85%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
   text-decoration: none;
+  transition:
+    transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1),
+    box-shadow 0.3s ease,
+    border-color 0.3s ease;
+  animation: dashboardRise 560ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
   overflow: hidden;
   box-sizing: border-box;
-  transition:
-    transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
-    box-shadow 0.2s ease,
-    border-color 0.2s ease;
 
   &:hover {
-    transform: translateY(-3px);
+    transform: scale(1.06) translateY(-4px);
     border-color: var(--primary);
-    box-shadow: var(--shadow-md);
+    box-shadow: 0 10px 24px rgba(161, 98, 7, 0.2);
   }
 
   &:active {
-    transform: scale(0.98);
+    transform: scale(0.96);
   }
 
   .metric-top-bar {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    width: 100%;
-    margin-bottom: 6px;
+    justify-content: center;
+    gap: 6px;
+    margin-bottom: 2px;
   }
 
-  .metric-icon-box {
-    width: 34px;
-    height: 34px;
+  .metric-icon {
+    width: 32px;
+    height: 32px;
     display: grid;
     place-items: center;
-    border-radius: 10px;
+    border-radius: 50%;
     background: color-mix(in srgb, var(--primary) 12%, var(--bg-soft));
     color: var(--primary);
-    transition: transform 0.2s ease;
-
-    &.sales {
-      color: #d97706;
-      background: rgba(217, 119, 6, 0.12);
-    }
-    &.profit {
-      color: #16a34a;
-      background: rgba(22, 163, 74, 0.12);
-    }
-    &.warning {
-      color: #ea580c;
-      background: rgba(234, 88, 12, 0.12);
-    }
-    &.danger {
-      color: #dc2626;
-      background: rgba(220, 38, 38, 0.12);
-    }
-    &.success {
-      color: #16a34a;
-      background: rgba(22, 163, 74, 0.12);
-    }
-    &.inventory {
-      color: #8b5cf6;
-      background: rgba(139, 92, 246, 0.12);
-    }
-    &.info {
-      color: #0284c7;
-      background: rgba(2, 132, 199, 0.12);
-    }
+    transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
   }
 
-  &:hover .metric-icon-box {
-    transform: scale(1.08);
+  &:hover .metric-icon {
+    transform: scale(1.15) rotate(10deg);
   }
 
   .trend-delta-pill {
     display: inline-flex;
     align-items: center;
-    gap: 3px;
-    font-size: 0.68rem;
+    gap: 2px;
+    font-size: 0.62rem;
     font-weight: 800;
-    padding: 2px 7px;
+    padding: 1px 5px;
     border-radius: 999px;
     white-space: nowrap;
 
     &.up {
-      background: rgba(34, 197, 94, 0.12);
+      background: rgba(34, 197, 94, 0.15);
       color: #16a34a;
-      border: 1px solid rgba(34, 197, 94, 0.25);
+      border: 1px solid rgba(34, 197, 94, 0.3);
     }
     &.down {
-      background: rgba(239, 68, 68, 0.12);
+      background: rgba(239, 68, 68, 0.15);
       color: #dc2626;
-      border: 1px solid rgba(239, 68, 68, 0.25);
+      border: 1px solid rgba(239, 68, 68, 0.3);
     }
-  }
-
-  .metric-main-body {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    margin: 2px 0 4px;
   }
 
   .metric-label {
     color: var(--text-muted);
-    font-size: 0.78rem;
+    font-size: 0.72rem;
     font-weight: 800;
+    max-width: 140px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 2px;
+  }
+
+  .metric-num,
+  strong {
+    color: var(--text-strong);
+    font-size: 1.05rem;
+    font-weight: 900;
+    line-height: 1.15;
+    margin-bottom: 2px;
+    direction: ltr;
+  }
+
+  .metric-sub {
+    color: var(--text-muted);
+    font-size: 0.62rem;
+    line-height: 1.2;
+    max-width: 135px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
 
-  .metric-value {
-    color: var(--text-strong);
-    font-size: 1.35rem;
-    font-weight: 900;
-    line-height: 1.15;
-    letter-spacing: -0.01em;
-    direction: ltr;
-    text-align: right;
+  .metric-spark {
+    margin-top: 2px;
+    opacity: 0.88;
+    width: 50px;
+    height: 16px;
   }
 
-  .metric-footer {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    margin-top: auto;
-    padding-top: 4px;
-    border-top: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
-
-    .metric-sub {
-      color: var(--text-muted);
-      font-size: 0.7rem;
-      font-weight: 700;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      flex: 1;
-    }
-
-    .metric-spark {
-      flex-shrink: 0;
-      width: 54px;
-      height: 22px;
-    }
+  &.danger .metric-icon {
+    color: var(--danger);
+    background: color-mix(in srgb, var(--danger) 12%, transparent);
   }
+  &.success .metric-icon {
+    color: var(--success);
+    background: color-mix(in srgb, var(--success) 12%, transparent);
+  }
+  &.warning .metric-icon {
+    color: var(--warning);
+    background: color-mix(in srgb, var(--warning) 12%, transparent);
+  }
+  &.sales .metric-icon {
+    color: #d97706;
+    background: rgba(217, 119, 6, 0.12);
+  }
+}
+
+.alert-item {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
 }
 
 /* Command strip (priority alerts) */

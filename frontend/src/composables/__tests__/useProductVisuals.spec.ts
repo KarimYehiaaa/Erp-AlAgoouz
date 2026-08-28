@@ -75,4 +75,18 @@ describe('useProductVisuals composable', () => {
     expect(PRODUCT_THEMES.sunset).toBeDefined();
     expect(PRODUCT_THEMES.caramel).toBeDefined();
   });
+
+  it('assigns 3D image paths for coffee, drinks, beans, and bakery', () => {
+    const coffee = getProductVisual({ name_ar: 'إسبريسو سينجل' });
+    expect(coffee.threeDImage).toBe('/3d-icons/coffee-hot.jpg');
+
+    const iced = getProductVisual({ name_ar: 'آيس موكا مثلج' });
+    expect(iced.threeDImage).toBe('/3d-icons/iced-drink.jpg');
+
+    const beans = getProductVisual({ name_ar: 'حبوب بن كولومبي' });
+    expect(beans.threeDImage).toBe('/3d-icons/beans.jpg');
+
+    const croissant = getProductVisual({ name_ar: 'كرواسون شوكولاتة' });
+    expect(croissant.threeDImage).toBe('/3d-icons/bakery-croissant.jpg');
+  });
 });

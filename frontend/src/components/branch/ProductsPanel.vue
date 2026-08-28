@@ -173,18 +173,14 @@
             {{ getCartQty(product.id) }}
           </span>
 
-          <!-- 1. صورة المنتج أو الأيقونة المعبرة الفاخرة في الأعلى -->
+          <!-- 1. صورة المنتج ثلاثية الأبعاد الفاخرة في الأعلى -->
           <div class="card-image-box" :class="getProductVisual(product).iconBgClass">
             <img
-              v-if="product.image || product.image_url"
-              :src="product.image || product.image_url"
+              :src="getProductVisual(product).threeDImage"
               :alt="product.name_ar"
-              class="card-img"
+              class="card-3d-img"
               loading="lazy"
             />
-            <div v-else class="card-fallback-icon">
-              <AppIcon :name="getProductVisual(product).icon" :size="26" />
-            </div>
           </div>
 
           <!-- 2. شارة المنتج الذكية -->
@@ -900,38 +896,37 @@ defineExpose({
   }
 }
 
-/* Image / Icon Container */
+/* 3D Image Container */
 .card-image-box {
-  width: 52px;
-  height: 52px;
+  width: 64px;
+  height: 64px;
   border-radius: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
   background: var(--bg-soft);
   overflow: hidden;
-  margin-top: 4px;
+  margin-top: 2px;
   margin-bottom: 6px;
   flex-shrink: 0;
-  border: 1px solid var(--border);
+  border: 1.5px solid var(--border);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
   transition: transform 0.15s ease;
 
-  .card-img {
+  .card-3d-img {
     width: 100%;
     height: 100%;
     object-fit: cover;
-  }
-
-  .card-fallback-icon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: transform 0.15s ease;
+    transition: transform 0.25s ease;
   }
 }
 
-.pos-product-card:hover .card-image-box .card-fallback-icon {
-  transform: scale(1.08);
+.pos-product-card:hover .card-image-box .card-3d-img {
+  transform: scale(1.06);
+}
+
+.pos-product-card:active .card-image-box .card-3d-img {
+  transform: scale(0.96);
 }
 
 /* Expressive Product Badge */

@@ -13,6 +13,7 @@ export interface ProductVisual {
   badgeClass: string;
   glowColor: string;
   accentColor: string;
+  threeDImage: string;
 }
 
 export interface ColorThemeDefinition {
@@ -267,7 +268,7 @@ export function getProductVisual(product: any): ProductVisual {
     fullText.includes('صودا') ||
     fullText.includes('غازية') ||
     fullText.includes('بيبسي') ||
-    fullText.includes('كولا') ||
+    (fullText.includes('كولا') && !fullText.includes('شوكولات')) ||
     fullText.includes('سفن') ||
     fullText.includes('شويبس') ||
     fullText.includes('ريد بول') ||
@@ -564,6 +565,95 @@ export function getProductVisual(product: any): ProductVisual {
     categoryEmoji = '🍯';
   }
 
+  // 12. تعيين الصورة ثلاثية الأبعاد الفاخرة (3D Rendered Illustration)
+  let threeDImage = '/3d-icons/coffee-hot.jpg';
+
+  if (product?.image || product?.image_url) {
+    threeDImage = product.image || product.image_url;
+  } else if (
+    fullText.includes('ملكي') ||
+    fullText.includes('توليفة خاصة') ||
+    fullText.includes('توليفة العجوز') ||
+    fullText.includes('فاخر') ||
+    fullText.includes('سبيشال') ||
+    fullText.includes('توليفة')
+  ) {
+    threeDImage = '/3d-icons/special-blend.jpg';
+  } else if (
+    fullText.includes('حبوب') ||
+    fullText.includes('بن أخضر') ||
+    fullText.includes('مطحون') ||
+    fullText.includes('كجم') ||
+    fullText.includes('كيلو') ||
+    fullText.includes('ربع') ||
+    fullText.includes('نصف') ||
+    fullText.includes('طحن') ||
+    icon === 'bean' ||
+    categoryEmoji === '🫘'
+  ) {
+    threeDImage = '/3d-icons/beans.jpg';
+  } else if (
+    colorTheme === 'ice' ||
+    icon === 'cupSoda' ||
+    fullText.includes('ايس') ||
+    fullText.includes('مثلج') ||
+    fullText.includes('بارد') ||
+    fullText.includes('فرابيه') ||
+    fullText.includes('لاتيه بارد')
+  ) {
+    threeDImage = '/3d-icons/iced-drink.jpg';
+  } else if (
+    colorTheme === 'amber' ||
+    colorTheme === 'sunset' ||
+    icon === 'citrus' ||
+    fullText.includes('عصير') ||
+    fullText.includes('سموذي') ||
+    fullText.includes('موهيتو') ||
+    fullText.includes('ليمون') ||
+    fullText.includes('برتقال') ||
+    fullText.includes('مانجو') ||
+    fullText.includes('فراولة')
+  ) {
+    threeDImage = '/3d-icons/mojito-juice.jpg';
+  } else if (
+    icon === 'croissant' ||
+    icon === 'sandwich' ||
+    fullText.includes('كرواسون') ||
+    fullText.includes('croissant') ||
+    fullText.includes('مخبوز') ||
+    fullText.includes('باتيه') ||
+    fullText.includes('ساندوتش') ||
+    fullText.includes('توست')
+  ) {
+    threeDImage = '/3d-icons/bakery-croissant.jpg';
+  } else if (
+    colorTheme === 'berry' ||
+    icon === 'cake' ||
+    icon === 'cookie' ||
+    icon === 'iceCream' ||
+    fullText.includes('كيك') ||
+    fullText.includes('شوكولات') ||
+    fullText.includes('تورت') ||
+    fullText.includes('حلوي') ||
+    fullText.includes('وافل') ||
+    fullText.includes('كوكيز') ||
+    fullText.includes('براونيز')
+  ) {
+    threeDImage = '/3d-icons/dessert-cake.jpg';
+  } else if (
+    colorTheme === 'emerald' ||
+    fullText.includes('شاي') ||
+    fullText.includes('أعشاب') ||
+    fullText.includes('نعناع') ||
+    fullText.includes('يانسون') ||
+    fullText.includes('كركديه') ||
+    fullText.includes('ماتشا')
+  ) {
+    threeDImage = '/3d-icons/herbal-tea.jpg';
+  } else {
+    threeDImage = '/3d-icons/coffee-hot.jpg';
+  }
+
   const themeDef = PRODUCT_THEMES[colorTheme] || PRODUCT_THEMES.espresso;
 
   return {
@@ -576,6 +666,7 @@ export function getProductVisual(product: any): ProductVisual {
     badgeClass: `badge-${colorTheme}`,
     glowColor: themeDef.glow,
     accentColor: themeDef.accent,
+    threeDImage,
   };
 }
 

@@ -11,7 +11,7 @@
       <!-- 1. Overdue Customers Debt -->
       <div class="radar-card warning">
         <div class="card-head">
-          <span class="card-icon"></span>
+          <span class="card-icon"><AppIcon name="warning" :size="18" /></span>
           <h4>أعلى ديون العملاء</h4>
         </div>
         <ul v-if="data.overdueCustomers?.length" class="radar-list">
@@ -26,7 +26,7 @@
       <!-- 2. Low Margin Products -->
       <div class="radar-card danger">
         <div class="card-head">
-          <span class="card-icon"></span>
+          <span class="card-icon"><AppIcon name="trendingDown" :size="18" /></span>
           <h4>منتجات بهامش ربح ضعيف (أقل من 10%)</h4>
         </div>
         <ul v-if="data.lowMarginProducts?.length" class="radar-list">
@@ -41,7 +41,7 @@
       <!-- 3. Out of Stock Items -->
       <div class="radar-card critical">
         <div class="card-head">
-          <span class="card-icon"></span>
+          <span class="card-icon"><AppIcon name="inventory" :size="18" /></span>
           <h4>منتجات برصيد 0 بالمخزون</h4>
         </div>
         <ul v-if="data.outOfStockProducts?.length" class="radar-list">
@@ -56,7 +56,7 @@
       <!-- 4. Stale Unpaid Invoices -->
       <div class="radar-card info">
         <div class="card-head">
-          <span class="card-icon">⏳</span>
+          <span class="card-icon"><AppIcon name="clock" :size="18" /></span>
           <h4>فواتير آجة ومتأخرة (> 30 يوم)</h4>
         </div>
         <ul v-if="data.staleInvoices?.length" class="radar-list">
@@ -76,6 +76,7 @@
 </template>
 
 <script setup lang="ts">
+import AppIcon from '@/components/AppIcon.vue';
 import { formatMoney } from '@/utils/currency';
 
 defineProps({
@@ -116,7 +117,7 @@ defineProps({
 
 .radar-badge {
   background: rgba(239, 68, 68, 0.15);
-  color: #ef4444;
+  color: var(--danger);
   padding: 4px 10px;
   border-radius: 12px;
   font-size: 0.75rem;
@@ -184,13 +185,13 @@ defineProps({
 }
 
 .item-val.danger {
-  color: #ef4444;
+  color: var(--danger);
 }
 .item-val.warning {
-  color: #f59e0b;
+  color: var(--warning);
 }
 .item-val.muted {
-  color: #94a3b8;
+  color: var(--text-muted);
 }
 
 .radar-empty {

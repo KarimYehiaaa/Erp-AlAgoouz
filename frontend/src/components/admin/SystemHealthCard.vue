@@ -269,39 +269,39 @@ const tableCount = computed(() => db.value?.tableCount || 0);
 
 .health-icon.uptime {
   background: rgba(59, 130, 246, 0.12);
-  color: #3b82f6;
+  color: var(--info);
 }
 .health-icon.memory.ok {
   background: rgba(16, 185, 129, 0.12);
-  color: #10b981;
+  color: var(--success);
 }
 .health-icon.memory.warning {
   background: rgba(245, 158, 11, 0.12);
-  color: #f59e0b;
+  color: var(--warning);
 }
 .health-icon.memory.critical {
   background: rgba(239, 68, 68, 0.12);
-  color: #ef4444;
+  color: var(--danger);
 }
 .health-icon.db.ok {
   background: rgba(16, 185, 129, 0.12);
-  color: #10b981;
+  color: var(--success);
 }
 .health-icon.db.critical {
   background: rgba(239, 68, 68, 0.12);
-  color: #ef4444;
+  color: var(--danger);
 }
 .health-icon.pool {
   background: rgba(139, 92, 246, 0.12);
-  color: #8b5cf6;
+  color: var(--accent);
 }
 .health-icon.node {
   background: rgba(34, 197, 94, 0.12);
-  color: #22c55e;
+  color: var(--success);
 }
 .health-icon.dbinfo {
   background: rgba(14, 165, 233, 0.12);
-  color: #0ea5e9;
+  color: var(--info);
 }
 
 .health-info {
@@ -328,16 +328,16 @@ const tableCount = computed(() => db.value?.tableCount || 0);
 }
 
 .text-ok {
-  color: #10b981;
+  color: var(--success);
 }
 .text-critical {
-  color: #ef4444;
+  color: var(--danger);
 }
 
 .latency-badge {
   font-size: 0.7rem;
   background: rgba(16, 185, 129, 0.15);
-  color: #10b981;
+  color: var(--success);
   padding: 2px 7px;
   border-radius: 6px;
   font-weight: 700;
@@ -365,12 +365,12 @@ const tableCount = computed(() => db.value?.tableCount || 0);
 }
 
 .health-bar-fill.ok {
-  background: linear-gradient(90deg, #10b981, #34d399);
+  background: linear-gradient(90deg, var(--success), var(--success));
 }
 .health-bar-fill.warning {
-  background: linear-gradient(90deg, #f59e0b, #fbbf24);
+  background: linear-gradient(90deg, var(--warning), #fbbf24);
 }
 .health-bar-fill.critical {
-  background: linear-gradient(90deg, #ef4444, #f87171);
+  background: linear-gradient(90deg, var(--danger), #f87171);
 }
 </style>

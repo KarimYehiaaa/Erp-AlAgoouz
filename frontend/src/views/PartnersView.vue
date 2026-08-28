@@ -503,7 +503,9 @@
             <AppIcon name="money" :size="20" />
             <span>تسجيل سند صرف مسحوبات شريك</span>
           </h3>
-          <button type="button" class="close-btn" @click="showDrawingModal = false"></button>
+          <button type="button" class="close-btn" @click="showDrawingModal = false">
+            <AppIcon name="close" :size="16" />
+          </button>
         </div>
 
         <form @submit.prevent="saveDrawing">
@@ -615,7 +617,9 @@
             <AppIcon name="users" :size="20" />
             <span>{{ editingPartnerId ? 'تعديل بيانات الشريك' : 'إضافة شريك جديد' }}</span>
           </h3>
-          <button type="button" class="close-btn" @click="showPartnerModal = false"></button>
+          <button type="button" class="close-btn" @click="showPartnerModal = false">
+            <AppIcon name="close" :size="16" />
+          </button>
         </div>
 
         <form @submit.prevent="savePartner">
@@ -1263,15 +1267,15 @@ onMounted(() => {
     }
 
     &.is-payable {
-      border-top: 4px solid #10b981;
+      border-top: 4px solid var(--success);
     }
 
     &.is-overdrawn {
-      border-top: 4px solid #ef4444;
+      border-top: 4px solid var(--danger);
     }
 
     &.is-settled {
-      border-top: 4px solid #64748b;
+      border-top: 4px solid var(--text-muted);
     }
 
     .card-partner-header {
@@ -1283,7 +1287,7 @@ onMounted(() => {
         width: 42px;
         height: 42px;
         border-radius: 50%;
-        background: linear-gradient(135deg, var(--primary, #0284c7), #38bdf8);
+        background: linear-gradient(135deg, var(--primary), var(--info));
         color: #fff;
         font-weight: 850;
         font-size: 1.1rem;
@@ -1299,12 +1303,12 @@ onMounted(() => {
           margin: 0;
           font-size: 1.05rem;
           font-weight: 800;
-          color: var(--text-strong, #fff);
+          color: var(--text-strong);
         }
 
         .share-badge {
           font-size: 0.78rem;
-          color: var(--accent, #f59e0b);
+          color: var(--accent);
           font-weight: 750;
         }
       }
@@ -1316,16 +1320,16 @@ onMounted(() => {
         border-radius: 6px;
 
         &.payable {
-          background: rgba(16, 185, 129, 0.15);
-          color: #10b981;
+          background: color-mix(in srgb, var(--success) 15%, transparent);
+          color: var(--success);
         }
         &.overdrawn {
-          background: rgba(239, 68, 68, 0.15);
-          color: #ef4444;
+          background: color-mix(in srgb, var(--danger) 15%, transparent);
+          color: var(--danger);
         }
         &.settled {
-          background: rgba(100, 116, 139, 0.15);
-          color: #94a3b8;
+          background: color-mix(in srgb, var(--text-muted) 15%, transparent);
+          color: var(--text-muted);
         }
       }
     }
@@ -1668,7 +1672,7 @@ onMounted(() => {
 
         &.active {
           background: rgba(16, 185, 129, 0.15);
-          color: #10b981;
+          color: var(--success);
         }
         &.inactive {
           background: rgba(100, 116, 139, 0.15);

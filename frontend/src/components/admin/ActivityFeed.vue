@@ -14,7 +14,9 @@
           <option value="hr">موارد بشرية</option>
           <option value="backup">نسخ احتياطي</option>
         </select>
-        <button class="feed-refresh" @click="$emit('refresh')" title="تحديث"></button>
+        <button class="feed-refresh" @click="$emit('refresh')" title="تحديث">
+          <AppIcon name="refresh" :size="14" />
+        </button>
       </div>
     </div>
 
@@ -50,6 +52,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
+import AppIcon from '@/components/AppIcon.vue';
 
 interface ActivityItem {
   id: number | string;
@@ -214,37 +217,37 @@ const formatTime = (ts: string | undefined) => {
 }
 
 .feed-dot.mod-auth {
-  background: #3b82f6;
+  background: var(--info);
 }
 .feed-dot.mod-sales {
-  background: #10b981;
+  background: var(--success);
 }
 .feed-dot.mod-inventory {
-  background: #8b5cf6;
+  background: var(--accent);
 }
 .feed-dot.mod-products {
-  background: #f59e0b;
+  background: var(--warning);
 }
 .feed-dot.mod-purchases {
-  background: #06b6d4;
+  background: var(--info);
 }
 .feed-dot.mod-expenses {
-  background: #ef4444;
+  background: var(--danger);
 }
 .feed-dot.mod-hr {
-  background: #ec4899;
+  background: var(--accent);
 }
 .feed-dot.mod-backup {
-  background: #6366f1;
+  background: var(--accent);
 }
 .feed-dot.mod-users {
-  background: #14b8a6;
+  background: var(--success);
 }
 .feed-dot.mod-admin {
-  background: #f97316;
+  background: var(--warning);
 }
 .feed-dot.mod-default {
-  background: #6b7280;
+  background: var(--text-muted);
 }
 
 .feed-content {
@@ -274,47 +277,47 @@ const formatTime = (ts: string | undefined) => {
 
 .feed-module-badge.mod-auth {
   background: rgba(59, 130, 246, 0.12);
-  color: #3b82f6;
+  color: var(--info);
 }
 .feed-module-badge.mod-sales {
   background: rgba(16, 185, 129, 0.12);
-  color: #10b981;
+  color: var(--success);
 }
 .feed-module-badge.mod-inventory {
   background: rgba(139, 92, 246, 0.12);
-  color: #8b5cf6;
+  color: var(--accent);
 }
 .feed-module-badge.mod-products {
   background: rgba(245, 158, 11, 0.12);
-  color: #f59e0b;
+  color: var(--warning);
 }
 .feed-module-badge.mod-purchases {
   background: rgba(6, 182, 212, 0.12);
-  color: #06b6d4;
+  color: var(--info);
 }
 .feed-module-badge.mod-expenses {
   background: rgba(239, 68, 68, 0.12);
-  color: #ef4444;
+  color: var(--danger);
 }
 .feed-module-badge.mod-hr {
   background: rgba(236, 72, 153, 0.12);
-  color: #ec4899;
+  color: var(--accent);
 }
 .feed-module-badge.mod-backup {
   background: rgba(99, 102, 241, 0.12);
-  color: #6366f1;
+  color: var(--accent);
 }
 .feed-module-badge.mod-users {
   background: rgba(20, 184, 166, 0.12);
-  color: #14b8a6;
+  color: var(--success);
 }
 .feed-module-badge.mod-admin {
   background: rgba(249, 115, 22, 0.12);
-  color: #f97316;
+  color: var(--warning);
 }
 .feed-module-badge.mod-default {
   background: rgba(107, 114, 128, 0.12);
-  color: #6b7280;
+  color: var(--text-muted);
 }
 
 .feed-action {

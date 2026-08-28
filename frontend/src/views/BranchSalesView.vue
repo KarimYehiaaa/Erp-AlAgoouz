@@ -3,7 +3,7 @@
     <!-- Header (Admin/Manager only) -->
     <div v-if="!authStore.isCashier" class="page-header card">
       <div class="header-title">
-        <span class="header-icon"></span>
+        <span class="header-icon"><AppIcon name="shop" :size="24" /></span>
         <div>
           <h2>شاشة مبيعات الفرع</h2>
           <p>إدخال مبيعات محل البيع مع خصم المخزون تلقائياً</p>
@@ -31,17 +31,17 @@
     <!-- Compact POS Ribbon for Cashier -->
     <div v-if="authStore.isCashier" class="cashier-compact-bar">
       <div class="stat-pill">
-        <span class="pill-icon"></span>
+        <span class="pill-icon"><AppIcon name="coins" :size="16" /></span>
         <span class="pill-label">مبيعات اليوم:</span>
         <strong class="pill-val highlight">{{ formatMoney(todayTotal) }}</strong>
       </div>
       <div class="stat-pill">
-        <span class="pill-icon"></span>
+        <span class="pill-icon"><AppIcon name="receipt" :size="16" /></span>
         <span class="pill-label">الفواتير:</span>
         <strong class="pill-val">{{ todayCount }}</strong>
       </div>
       <div v-if="lastSaleTime && lastSaleTime !== '—'" class="stat-pill">
-        <span class="pill-icon">⏰</span>
+        <span class="pill-icon"><AppIcon name="clock" :size="16" /></span>
         <span class="pill-label">آخر فاتورة:</span>
         <strong class="pill-val">{{ lastSaleTime }}</strong>
       </div>
@@ -146,7 +146,7 @@
             title="انقر لفتح سلة ومحاسبة الفاتورة"
           >
             <div class="bar-badge-pill">
-              <span class="bar-icon"></span>
+              <span class="bar-icon"><AppIcon name="coffee" :size="20" /></span>
               <span class="bar-items-count">{{ cart.length }} صنف في السلة</span>
             </div>
             <div class="bar-price-block">
@@ -283,8 +283,10 @@
     <div v-if="shortcutsModal" class="modal" @click.self="shortcutsModal = false">
       <div class="card modal-content shortcuts-modal">
         <div class="modal-header-row">
-          <h3>⌨ دليل اختصارات لوحة المفاتيح للكاشير</h3>
-          <button type="button" class="close-modal-btn" @click="shortcutsModal = false"></button>
+          <h3><AppIcon name="keyboard" :size="18" /> دليل اختصارات لوحة المفاتيح للكاشير</h3>
+          <button type="button" class="close-modal-btn" @click="shortcutsModal = false">
+            <AppIcon name="close" :size="16" />
+          </button>
         </div>
         <div class="shortcuts-grid">
           <div class="shortcut-item">
@@ -339,11 +341,13 @@
       <div class="card modal-content returns-modal">
         <div class="modal-header-row">
           <h3>↩ فواتير اليوم والمرتجع السريع</h3>
-          <button type="button" class="close-modal-btn" @click="returnsModal = false"></button>
+          <button type="button" class="close-modal-btn" @click="returnsModal = false">
+            <AppIcon name="close" :size="16" />
+          </button>
         </div>
 
         <div class="returns-search-box">
-          <span class="search-icon"></span>
+          <span class="search-icon"><AppIcon name="search" :size="16" /></span>
           <input
             v-model="returnInvoiceSearch"
             type="text"

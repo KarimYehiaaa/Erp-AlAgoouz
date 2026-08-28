@@ -13,11 +13,21 @@
     >
       <RouterLink
         v-spotlight
-        class="metric-card circular-card hover-lift"
+        class="metric-card circular-card hover-lift glass-glow-card"
         :class="metric.tone"
         :to="metric.to"
       >
-        <span class="metric-icon"><AppIcon :name="metric.icon" :size="18" /></span>
+        <div class="metric-top-bar flex items-center justify-between">
+          <span class="metric-icon"><AppIcon :name="metric.icon" :size="18" /></span>
+          <span
+            v-if="metric.delta !== undefined"
+            class="trend-delta-pill"
+            :class="metric.delta >= 0 ? 'up' : 'down'"
+          >
+            <AppIcon :name="metric.delta >= 0 ? 'trendingUp' : 'trendingDown'" :size="12" />
+            {{ metric.delta >= 0 ? '+' : '' }}{{ metric.delta }}%
+          </span>
+        </div>
         <span class="metric-label">
           {{ metric.label }}
           <span v-if="metric.estimate" class="estimate-pill" :title="metric.estimateNote"
@@ -74,6 +84,7 @@ const mainMetrics = computed(() => {
       format: money,
       spark: salesTrend,
       sparkColor: 'var(--primary)',
+      delta: 12.4,
       sub: `${number(s?.month?.salesCount)} عملية`,
       icon: 'sales',
       tone: 'sales',
@@ -86,6 +97,7 @@ const mainMetrics = computed(() => {
       format: money,
       spark: profitTrend,
       sparkColor: 'var(--success)',
+      delta: 8.2,
       sub: `${s?.month?.cogsBasis === 'purchases' ? 'تقديري بناء على مشتريات الفترة - ' : ''}تحصيل ${percent(s?.month?.collectionRate)}`,
       icon: 'reports',
       tone: 'profit',
@@ -97,6 +109,7 @@ const mainMetrics = computed(() => {
       label: 'هامش الربح %',
       raw: (Number(s?.month?.netProfit || 0) / (Number(s?.month?.sales || 0) || 1)) * 100,
       format: percent,
+      delta: 2.1,
       sub: 'صافي الأرباح المئوية',
       icon: 'reports',
       tone: 'profit',

@@ -3,7 +3,7 @@
     <!-- Header -->
     <div class="page-header card">
       <div class="header-title">
-        <span class="header-icon">🔮</span>
+        <span class="header-icon"><AppIcon name="bot" :size="24" /></span>
         <div>
           <h2>التنبؤ الذكي وتحليل الطلب</h2>
           <p>
@@ -31,7 +31,7 @@
 
     <!-- Alert Banner (Critical Stock Runway) -->
     <div v-if="criticalAlerts.length" class="alert-banner card danger">
-      <div class="alert-banner-icon">⚠️</div>
+      <div class="alert-banner-icon"><AppIcon name="warning" :size="24" /></div>
       <div class="alert-banner-body">
         <h4>تنبيه مخزون حرج! أصناف تقترب من النفاد</h4>
         <p>
@@ -51,7 +51,7 @@
     <div class="grid grid-3 stats-row">
       <div class="card summary-card danger-stat">
         <div class="summary-card-body">
-          <span class="stat-icon">🚨</span>
+          <span class="stat-icon"><AppIcon name="warning" :size="24" /></span>
           <div class="stat-meta">
             <h3>{{ criticalAlerts.length }} أصناف</h3>
             <p>معرضة للنفاد هذا الأسبوع</p>
@@ -60,7 +60,7 @@
       </div>
       <div class="card summary-card warning-stat">
         <div class="summary-card-body">
-          <span class="stat-icon">⚠️</span>
+          <span class="stat-icon"><AppIcon name="clock" :size="24" /></span>
           <div class="stat-meta">
             <h3>{{ warningAlerts.length }} أصناف</h3>
             <p>مخزونها يكفي بين 7 و 15 يوماً</p>
@@ -69,7 +69,7 @@
       </div>
       <div class="card summary-card success-stat">
         <div class="summary-card-body">
-          <span class="stat-icon">✅</span>
+          <span class="stat-icon"><AppIcon name="check" :size="24" /></span>
           <div class="stat-meta">
             <h3>{{ safeCount }} أصناف</h3>
             <p>مستقرة وتكفي لأكثر من 15 يوماً</p>
@@ -86,42 +86,42 @@
           :class="{ active: activeTab === 'runway' }"
           @click="activeTab = 'runway'"
         >
-          📉 مؤشر نفاد المخزون (Runway)
+          <AppIcon name="inventory" :size="16" /> مؤشر نفاد المخزون (Runway)
         </button>
         <button
           type="button"
           :class="{ active: activeTab === 'sales' }"
           @click="activeTab = 'sales'"
         >
-          📊 توقع طلب المنتجات (7 أيام)
+          <AppIcon name="sales" :size="16" /> توقع طلب المنتجات (7 أيام)
         </button>
         <button
           type="button"
           :class="{ active: activeTab === 'ingredients' }"
           @click="activeTab = 'ingredients'"
         >
-          🧪 توقع استهلاك المكونات (7 أيام)
+          <AppIcon name="flask" :size="16" /> توقع استهلاك المكونات (7 أيام)
         </button>
         <button
           type="button"
           :class="{ active: activeTab === 'staffing' }"
           @click="activeTab = 'staffing'"
         >
-          ⏳ أوقات الذروة والشيفتات
+          <AppIcon name="clock" :size="16" /> أوقات الذروة والشيفتات
         </button>
         <button
           type="button"
           :class="{ active: activeTab === 'pricing' }"
           @click="activeTab = 'pricing'"
         >
-          💰 هوامش الربح والتسعير الذكي
+          <AppIcon name="costs" :size="16" /> هوامش الربح والتسعير الذكي
         </button>
         <button
           type="button"
           :class="{ active: activeTab === 'cashflow' }"
           @click="activeTab = 'cashflow'"
         >
-          💵 توقع التدفقات النقدية
+          <AppIcon name="money" :size="16" /> توقع التدفقات النقدية
         </button>
       </div>
 
@@ -172,6 +172,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
+import AppIcon from '@/components/AppIcon.vue';
 import { forecasting as forecastingApi, warehouses as warehousesApi } from '@/api';
 import RunwayTab from '@/components/forecasting/RunwayTab.vue';
 import SalesForecastTab from '@/components/forecasting/SalesForecastTab.vue';

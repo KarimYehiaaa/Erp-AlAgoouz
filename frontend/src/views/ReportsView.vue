@@ -1,113 +1,193 @@
 <template>
   <div class="reports-page">
-    <!-- Header -->
-    <div class="reports-header card">
-      <div class="header-title">
-        <span class="header-icon"></span>
-        <div>
-          <h2>التقارير الشاملة</h2>
-          <p>ملخص كامل لكل أقسام النظام — مبيعات، مخزون، أرباح، مصروفات، عملاء، مشتريات</p>
-        </div>
-      </div>
-      <div class="header-filters">
-        <div class="form-group">
-          <label>من</label>
-          <input v-model="filters.from_date" type="date" />
-        </div>
-        <div class="form-group">
-          <label>إلى</label>
-          <input v-model="filters.to_date" type="date" />
-        </div>
-        <div class="form-group month-picker-group">
-          <label>&nbsp;</label>
-          <div class="month-filter-btn" title="اختر الشهر بالكامل">
-            <AppIcon name="calendar" :size="18" />
-            <input type="month" class="month-picker-overlay" @change="selectMonth" />
-          </div>
-        </div>
-        <div class="quick-dates">
-          <button @click="setQuick('today')">اليوم</button>
-          <button @click="setQuick('week')">أسبوع</button>
-          <button @click="setQuick('month')">شهر</button>
-          <button @click="setQuick('year')">سنة</button>
-          <button @click="setQuick('all')">الكل</button>
-        </div>
-        <button class="btn btn-primary" :disabled="loading" @click="loadActiveTab">
-          {{ loading ? '⏳' : ' تحديث' }}
-        </button>
-      </div>
-    </div>
-
-    <!-- Tabs -->
-    <div class="report-tabs">
+    <!-- Hub Navigation -->
+    <div class="hub-tabs">
       <button
-        v-for="t in tabs"
-        :key="t.id"
-        :class="['tab-btn', { active: activeTab === t.id }]"
-        @click="loadTab(t.id)"
+        type="button"
+        class="hub-tab"
+        :class="{ active: hubTab === 'reports' }"
+        @click="switchHubTab('reports')"
       >
-        <span class="tab-icon">{{ t.icon }}</span>
-        <span>{{ t.label }}</span>
+        <AppIcon name="reports" :size="16" />
+        <span>التقارير المالية والتشغيلية</span>
+      </button>
+      <button
+        type="button"
+        class="hub-tab"
+        :class="{ active: hubTab === 'operations' }"
+        @click="switchHubTab('operations')"
+      >
+        <AppIcon name="operations" :size="16" />
+        <span>مركز التشغيل اللحظي</span>
+      </button>
+      <button
+        type="button"
+        class="hub-tab"
+        :class="{ active: hubTab === 'forecasting' }"
+        @click="switchHubTab('forecasting')"
+      >
+        <AppIcon name="trendingUp" :size="16" />
+        <span>التنبؤ الذكي بالطلب</span>
+      </button>
+      <button
+        type="button"
+        class="hub-tab"
+        :class="{ active: hubTab === 'copilot' }"
+        @click="switchHubTab('copilot')"
+      >
+        <AppIcon name="copilot" :size="16" />
+        <span>المساعد الذكي (AI Copilot)</span>
+      </button>
+      <button
+        type="button"
+        class="hub-tab"
+        :class="{ active: hubTab === 'automation' }"
+        @click="switchHubTab('automation')"
+      >
+        <AppIcon name="bot" :size="16" />
+        <span>محرك الأتمتة والوكلاء</span>
       </button>
     </div>
 
-    <div v-if="error" class="error-msg">{{ error }}</div>
-    <div v-if="loading" class="loading-state card">⏳ جاري تحميل التقرير...</div>
+    <Transition name="hub-fade" mode="out-in">
+      <div :key="hubTab">
+        <!-- ===== HUB SECTION 1: REPORTS ===== -->
+        <div v-if="hubTab === 'reports'">
+          <!-- Header -->
+          <div class="reports-header card">
+            <div class="header-title">
+              <span class="header-icon"><AppIcon name="reports" :size="24" /></span>
+              <div>
+                <h2>التقارير الشاملة</h2>
+                <p>ملخص كامل لكل أقسام النظام — مبيعات، مخزون، أرباح، مصروفات، عملاء، مشتريات</p>
+              </div>
+            </div>
+            <div class="header-filters">
+              <div class="form-group">
+                <label>من</label>
+                <input v-model="filters.from_date" type="date" />
+              </div>
+              <div class="form-group">
+                <label>إلى</label>
+                <input v-model="filters.to_date" type="date" />
+              </div>
+              <div class="form-group month-picker-group">
+                <label>&nbsp;</label>
+                <div class="month-filter-btn" title="اختر الشهر بالكامل">
+                  <AppIcon name="calendar" :size="18" />
+                  <input type="month" class="month-picker-overlay" @change="selectMonth" />
+                </div>
+              </div>
+              <div class="quick-dates">
+                <button @click="setQuick('today')">اليوم</button>
+                <button @click="setQuick('week')">أسبوع</button>
+                <button @click="setQuick('month')">شهر</button>
+                <button @click="setQuick('year')">سنة</button>
+                <button @click="setQuick('all')">الكل</button>
+              </div>
+              <button class="btn btn-primary" :disabled="loading" @click="loadActiveTab">
+                {{ loading ? '⏳' : ' تحديث' }}
+              </button>
+            </div>
+          </div>
 
-    <!-- ===== TAB COMPONENTS ===== -->
-    <SummaryTab
-      v-if="!loading && activeTab === 'summary'"
-      :summary="summary"
-      :profit-margin-pct="profitMarginPct"
-    />
-    <ProfitLossTab
-      v-if="activeTab === 'pl'"
-      :pl-data="plData"
-      :pl-trend="plTrend"
-      :pl-loading="plLoading"
-      :pl-error="plError"
-      @retry="loadTab('pl')"
-    />
-    <SalesTab
-      v-if="!loading && activeTab === 'sales'"
-      :rows="filteredSalesRows"
-      :filter="salesFilter"
-      :total="salesTotal"
-      :profit="salesProfit"
-      :count="salesCount"
-      @filter="salesFilter = $event"
-    />
-    <InventoryTab
-      v-if="!loading && activeTab === 'inventory'"
-      :inventory="reportData.inventory"
-      :low-stock="lowStockProducts"
-      :low-stock-count="lowStockCount"
-      :total-value="totalInventoryValue"
-    />
-    <ProfitTab
-      v-if="!loading && activeTab === 'profit'"
-      :profit="reportData.profit"
-      :total-revenue="profitTotalRevenue"
-      :total-cost="profitTotalCost"
-      :total-net="profitTotalNet"
-    />
-    <ExpensesTab
-      v-if="!loading && activeTab === 'expenses'"
-      :expenses="reportData.expenses"
-      :total="expensesTotal"
-      :count="expensesCount"
-    />
-    <PurchasesTab v-if="!loading && activeTab === 'purchases'" :purchases="reportData.purchases" />
-    <CustomersTab
-      v-if="!loading && activeTab === 'customers'"
-      :customers="reportData.customers"
-      :total="customersTotal"
-    />
+          <!-- Tabs -->
+          <div class="report-tabs">
+            <button
+              v-for="t in tabs"
+              :key="t.id"
+              :class="['tab-btn', { active: activeTab === t.id }]"
+              @click="loadTab(t.id)"
+            >
+              <AppIcon :name="t.icon" :size="16" class="tab-icon" />
+              <span>{{ t.label }}</span>
+            </button>
+          </div>
+
+          <div v-if="error" class="error-msg">{{ error }}</div>
+          <div v-if="loading" class="loading-state card">⏳ جاري تحميل التقرير...</div>
+
+          <!-- ===== TAB COMPONENTS ===== -->
+          <SummaryTab
+            v-if="!loading && activeTab === 'summary'"
+            :summary="summary"
+            :profit-margin-pct="profitMarginPct"
+          />
+          <ProfitLossTab
+            v-if="activeTab === 'pl'"
+            :pl-data="plData"
+            :pl-trend="plTrend"
+            :pl-loading="plLoading"
+            :pl-error="plError"
+            @retry="loadTab('pl')"
+          />
+          <SalesTab
+            v-if="!loading && activeTab === 'sales'"
+            :rows="filteredSalesRows"
+            :filter="salesFilter"
+            :total="salesTotal"
+            :profit="salesProfit"
+            :count="salesCount"
+            @filter="salesFilter = $event"
+          />
+          <InventoryTab
+            v-if="!loading && activeTab === 'inventory'"
+            :inventory="reportData.inventory"
+            :low-stock="lowStockProducts"
+            :low-stock-count="lowStockCount"
+            :total-value="totalInventoryValue"
+          />
+          <ProfitTab
+            v-if="!loading && activeTab === 'profit'"
+            :profit="reportData.profit"
+            :total-revenue="profitTotalRevenue"
+            :total-cost="profitTotalCost"
+            :total-net="profitTotalNet"
+          />
+          <ExpensesTab
+            v-if="!loading && activeTab === 'expenses'"
+            :expenses="reportData.expenses"
+            :total="expensesTotal"
+            :count="expensesCount"
+          />
+          <PurchasesTab
+            v-if="!loading && activeTab === 'purchases'"
+            :purchases="reportData.purchases"
+          />
+          <CustomersTab
+            v-if="!loading && activeTab === 'customers'"
+            :customers="reportData.customers"
+            :total="customersTotal"
+          />
+        </div>
+
+        <!-- ===== HUB SECTION 2: OPERATIONS ===== -->
+        <div v-else-if="hubTab === 'operations'" class="tab-view-container">
+          <OperationsView />
+        </div>
+
+        <!-- ===== HUB SECTION 3: FORECASTING ===== -->
+        <div v-else-if="hubTab === 'forecasting'" class="tab-view-container">
+          <ForecastingView />
+        </div>
+
+        <!-- ===== HUB SECTION 4: AI COPILOT ===== -->
+        <div v-else-if="hubTab === 'copilot'" class="tab-view-container">
+          <AiCopilotView />
+        </div>
+
+        <!-- ===== HUB SECTION 5: AUTOMATION ===== -->
+        <div v-else-if="hubTab === 'automation'" class="tab-view-container">
+          <AutomationGraphView />
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue';
+import { ref, onMounted, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import AppIcon from '@/components/AppIcon.vue';
 import { useReportsData } from '@/composables/useReportsData';
 import SummaryTab from '@/components/reports/SummaryTab.vue';
@@ -118,6 +198,38 @@ import ProfitTab from '@/components/reports/ProfitTab.vue';
 import ExpensesTab from '@/components/reports/ExpensesTab.vue';
 import PurchasesTab from '@/components/reports/PurchasesTab.vue';
 import CustomersTab from '@/components/reports/CustomersTab.vue';
+import OperationsView from '@/views/OperationsView.vue';
+import ForecastingView from '@/views/ForecastingView.vue';
+import AiCopilotView from '@/views/AiCopilotView.vue';
+import AutomationGraphView from '@/views/AutomationGraphView.vue';
+
+const route = useRoute();
+const router = useRouter();
+
+const validHubTabs = ['reports', 'operations', 'forecasting', 'copilot', 'automation'];
+const currentParamTab = String(route.query.tab || '');
+const initialHubTab = validHubTabs.includes(currentParamTab) ? currentParamTab : 'reports';
+const hubTab = ref(initialHubTab);
+
+watch(
+  () => route.query.tab,
+  (newTab) => {
+    const tabStr = String(newTab || '');
+    if (validHubTabs.includes(tabStr)) {
+      hubTab.value = tabStr;
+    } else if (!tabStr) {
+      hubTab.value = 'reports';
+    }
+  },
+);
+
+const switchHubTab = (tab: string) => {
+  hubTab.value = tab;
+  router.replace({ query: { ...route.query, tab } }).catch(() => {});
+  if (tab === 'reports') {
+    loadActiveTab();
+  }
+};
 
 const {
   tabs,
@@ -290,7 +402,7 @@ onMounted(() => loadTab('summary'));
     }
     &.active {
       background: linear-gradient(135deg, var(--primary), var(--primary-strong));
-      color: #fff;
+      color: var(--bg-card);
       border-color: transparent;
       box-shadow: 0 4px 12px color-mix(in srgb, var(--primary) 35%, transparent);
     }

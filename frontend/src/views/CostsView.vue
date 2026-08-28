@@ -3,7 +3,7 @@
     <!-- Header -->
     <div class="page-header card">
       <div class="header-title">
-        <span class="header-icon">💰</span>
+        <span class="header-icon"><AppIcon name="costs" :size="24" /></span>
         <div>
           <h2>تكاليف المنتجات والوصفات</h2>
           <p>تحليل التكاليف، هوامش الربح، محاكاة التضخم، تعديل الأسعار، والتحكم في الهدر</p>
@@ -28,28 +28,28 @@
         :class="{ active: activeTab === 'analysis' }"
         @click="activeTab = 'analysis'"
       >
-        📊 تحليل هوامش الربح
+        <AppIcon name="trendingUp" :size="16" /> تحليل هوامش الربح
       </button>
       <button
         class="tab-btn"
         :class="{ active: activeTab === 'simulator' }"
         @click="activeTab = 'simulator'"
       >
-        📈 محاكي التضخم (What-If)
+        <AppIcon name="reports" :size="16" /> محاكي التضخم (What-If)
       </button>
       <button
         class="tab-btn"
         :class="{ active: activeTab === 'bulk_adjust' }"
         @click="activeTab = 'bulk_adjust'"
       >
-        🏷️ تعديل الأسعار جماعياً
+        <AppIcon name="tags" :size="16" /> تعديل الأسعار جماعياً
       </button>
       <button
         class="tab-btn"
         :class="{ active: activeTab === 'wastage' }"
         @click="activeTab = 'wastage'"
       >
-        🗑️ تقرير الهدر والفواقد
+        <AppIcon name="trash" :size="16" /> تقرير الهدر والفواقد
       </button>
     </div>
 
@@ -129,7 +129,7 @@
       <div class="modal-card recipe-breakdown-card">
         <div v-if="loadingRecipe" class="loading-state">⏳ جاري تحميل تفاصيل الوصفة...</div>
         <div v-else-if="recipeError" class="error-state">
-          <span></span>
+          <AppIcon name="warning" :size="36" />
           <p>{{ recipeError }}</p>
           <button class="btn btn-outline" @click="selectedRecipe = null">إغلاق</button>
         </div>
@@ -217,6 +217,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
+import AppIcon from '@/components/AppIcon.vue';
 import MarginAnalysisTab from '@/components/costs/MarginAnalysisTab.vue';
 import InflationSimulatorTab from '@/components/costs/InflationSimulatorTab.vue';
 import BulkAdjusterTab from '@/components/costs/BulkAdjusterTab.vue';

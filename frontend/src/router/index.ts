@@ -23,79 +23,30 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/layouts/MainLayout.vue'),
     meta: { requiresAuth: true },
     children: [
+      // 0. Dashboard & POS
       { path: '', name: 'Dashboard', component: () => import('@/views/DashboardView.vue') },
-      {
-        path: 'copilot',
-        name: 'AiCopilot',
-        component: () => import('@/views/AiCopilotView.vue'),
-        meta: { permission: 'dashboard.view' },
-      },
       {
         path: 'branch-sales',
         name: 'BranchSales',
         component: () => import('@/views/BranchSalesView.vue'),
+        meta: { permission: 'pos.view' },
       },
-      { path: 'sales', name: 'Sales', component: () => import('@/views/SalesView.vue') },
       { path: 'pos', redirect: '/branch-sales' },
+
+      // 1. Sales & Customers Hub
       {
-        path: 'products',
-        name: 'Products',
-        component: () => import('@/views/ProductsView.vue'),
-        meta: { permission: 'products.view' },
-      },
-      {
-        path: 'purchases',
-        name: 'Purchases',
-        component: () => import('@/views/PurchasesAndExpensesView.vue'),
-        meta: { permission: ['inventory.view', 'expenses.view'] },
-      },
-      {
-        path: 'inventory',
-        name: 'Inventory',
-        component: () => import('@/views/InventoryView.vue'),
-        meta: { permission: 'inventory.view' },
-      },
-      {
-        path: 'stocktakes',
-        name: 'Stocktakes',
-        component: () => import('@/views/StocktakesView.vue'),
-        meta: { permission: 'inventory.view' },
-      },
-      {
-        path: 'stocktakes/:id',
-        name: 'StocktakeDetails',
-        component: () => import('@/views/StocktakeFormView.vue'),
-        meta: { permission: 'inventory.view' },
-      },
-      {
-        path: 'costs',
-        name: 'Costs',
-        component: () => import('@/views/CostsView.vue'),
-        meta: { permission: 'recipes.view' },
-      },
-      {
-        path: 'recipes',
-        name: 'Recipes',
-        component: () => import('@/views/RecipesView.vue'),
-        meta: { permission: 'recipes.view' },
-      },
-      {
-        path: 'menu-builder',
-        name: 'MenuBuilder',
-        component: () => import('@/views/MenuBuilderView.vue'),
-        meta: { permission: 'products.view' },
+        path: 'sales',
+        name: 'Sales',
+        component: () => import('@/views/SalesView.vue'),
+        meta: { permission: 'sales.view' },
       },
       {
         path: 'customers',
-        name: 'Customers',
-        component: () => import('@/views/CustomersView.vue'),
-        meta: { permission: 'customers.view' },
+        redirect: () => ({ path: '/sales', query: { tab: 'customers' } }),
       },
       {
         path: 'invoices',
-        name: 'Invoices',
-        component: () => import('@/views/InvoicesView.vue'),
-        meta: { permission: 'invoices.view' },
+        redirect: () => ({ path: '/sales', query: { tab: 'invoices' } }),
       },
       {
         path: 'invoices/create',
@@ -121,25 +72,66 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/InvoicePrintView.vue'),
         meta: { permission: 'invoices.view' },
       },
-      { path: 'expenses', redirect: '/purchases?tab=expenses' },
+
+      // 2. Inventory Hub
+      {
+        path: 'inventory',
+        name: 'Inventory',
+        component: () => import('@/views/InventoryView.vue'),
+        meta: { permission: 'inventory.view' },
+      },
+      {
+        path: 'stocktakes',
+        redirect: () => ({ path: '/inventory', query: { tab: 'stocktakes' } }),
+      },
+      {
+        path: 'stocktakes/:id',
+        name: 'StocktakeDetails',
+        component: () => import('@/views/StocktakeFormView.vue'),
+        meta: { permission: 'inventory.view' },
+      },
+
+      // 3. Products, Recipes & Costs Hub
+      {
+        path: 'products',
+        name: 'Products',
+        component: () => import('@/views/ProductsView.vue'),
+        meta: { permission: 'products.view' },
+      },
+      {
+        path: 'recipes',
+        redirect: () => ({ path: '/products', query: { tab: 'recipes' } }),
+      },
+      {
+        path: 'costs',
+        redirect: () => ({ path: '/products', query: { tab: 'costs' } }),
+      },
+      {
+        path: 'menu-builder',
+        redirect: () => ({ path: '/products', query: { tab: 'menu-builder' } }),
+      },
+
+      // 4. Finance, Purchases & Suppliers Hub
+      {
+        path: 'purchases',
+        name: 'Purchases',
+        component: () => import('@/views/PurchasesAndExpensesView.vue'),
+        meta: { permission: ['inventory.view', 'expenses.view'] },
+      },
+      {
+        path: 'expenses',
+        redirect: () => ({ path: '/purchases', query: { tab: 'expenses' } }),
+      },
       {
         path: 'suppliers',
-        name: 'Suppliers',
-        component: () => import('@/views/SuppliersView.vue'),
-        meta: { permission: 'suppliers.view' },
+        redirect: () => ({ path: '/purchases', query: { tab: 'suppliers' } }),
       },
       {
         path: 'partners',
-        name: 'Partners',
-        component: () => import('@/views/PartnersView.vue'),
-        meta: { permission: 'reports.view' },
+        redirect: () => ({ path: '/purchases', query: { tab: 'partners' } }),
       },
-      {
-        path: 'hr',
-        name: 'HR',
-        component: () => import('@/views/HrView.vue'),
-        meta: { permission: 'hr.view' },
-      },
+
+      // 5. Analytics, Reports & AI Hub
       {
         path: 'reports',
         name: 'Reports',
@@ -148,22 +140,22 @@ const routes: RouteRecordRaw[] = [
       },
       {
         path: 'operations',
-        name: 'Operations',
-        component: () => import('@/views/OperationsView.vue'),
-        meta: { permission: 'reports.view' },
+        redirect: () => ({ path: '/reports', query: { tab: 'operations' } }),
       },
       {
         path: 'forecasting',
-        name: 'Forecasting',
-        component: () => import('@/views/ForecastingView.vue'),
-        meta: { permission: 'reports.view' },
+        redirect: () => ({ path: '/reports', query: { tab: 'forecasting' } }),
       },
       {
-        path: 'users',
-        name: 'Users',
-        component: () => import('@/views/UsersView.vue'),
-        meta: { permission: 'users.view' },
+        path: 'copilot',
+        redirect: () => ({ path: '/reports', query: { tab: 'copilot' } }),
       },
+      {
+        path: 'automation',
+        redirect: () => ({ path: '/reports', query: { tab: 'automation' } }),
+      },
+
+      // 6. Settings & Administration Hub
       {
         path: 'settings',
         name: 'Settings',
@@ -171,16 +163,16 @@ const routes: RouteRecordRaw[] = [
         meta: { permission: 'settings.view' },
       },
       {
-        path: 'automation',
-        name: 'AutomationGraph',
-        component: () => import('@/views/AutomationGraphView.vue'),
-        meta: { permission: 'automation.view' },
+        path: 'hr',
+        redirect: () => ({ path: '/settings', query: { tab: 'hr' } }),
+      },
+      {
+        path: 'users',
+        redirect: () => ({ path: '/settings', query: { tab: 'users' } }),
       },
       {
         path: 'admin-dashboard',
-        name: 'AdminDashboard',
-        component: () => import('@/views/AdminDashboardView.vue'),
-        meta: { requireAdmin: true },
+        redirect: () => ({ path: '/settings', query: { tab: 'admin' } }),
       },
     ],
   },

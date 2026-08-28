@@ -100,61 +100,41 @@ function handleItemClick() {
 
 const rawMenuGroups = [
   {
-    label: 'المركز',
+    label: 'الرئيسية',
     items: [
       { to: '/', label: 'لوحة التحكم', icon: 'dashboard', perm: null },
-      { to: '/copilot', label: 'المساعد الذكي', icon: 'copilot', perm: 'dashboard.view' },
-      { to: '/automation', label: 'محرك الأتمتة والوكلاء', icon: 'bot', perm: 'automation.view' },
-      { to: '/reports', label: 'التقارير', icon: 'reports', perm: 'reports.view' },
-      { to: '/operations', label: 'مركز التشغيل', icon: 'operations', perm: 'reports.view' },
-      { to: '/forecasting', label: 'التنبؤ بالطلب', icon: 'trendingUp', perm: 'reports.view' },
+      { to: '/branch-sales', label: 'الكاشير المباشر (POS)', icon: 'shop', perm: 'pos.view' },
     ],
   },
   {
-    label: 'التشغيل والبيع',
+    label: 'مراكز العمليات',
     items: [
-      { to: '/branch-sales', label: 'شاشة الكاشير (POS)', icon: 'shop', perm: 'pos.view' },
-      { to: '/sales', label: 'المبيعات', icon: 'sales', perm: 'sales.view' },
-      { to: '/invoices', label: 'الفواتير', icon: 'invoices', perm: 'invoices.view' },
-      { to: '/customers', label: 'العملاء والمديونيات', icon: 'customers', perm: 'customers.view' },
-    ],
-  },
-  {
-    label: 'المخزون والإنتاج',
-    items: [
-      { to: '/products', label: 'المنتجات', icon: 'products', perm: 'products.view' },
-      { to: '/menu-builder', label: 'تصميم المنيو', icon: 'quotes', perm: 'products.view' },
-      { to: '/inventory', label: 'المخزون', icon: 'inventory', perm: 'inventory.view' },
+      { to: '/sales', label: 'المبيعات والعملاء', icon: 'sales', perm: 'sales.view' },
+      { to: '/inventory', label: 'المخزون والمستودعات', icon: 'inventory', perm: 'inventory.view' },
       {
-        to: '/stocktakes',
-        label: 'جرد المخازن والتسويات',
-        icon: 'stocktake',
-        perm: 'inventory.view',
+        to: '/products',
+        label: 'المنتجات والإنتاج والوصفات',
+        icon: 'products',
+        perm: 'products.view',
       },
-      { to: '/recipes', label: 'الوصفات', icon: 'recipes', perm: 'recipes.view' },
-      { to: '/costs', label: 'التكاليف', icon: 'costs', perm: 'recipes.view' },
-    ],
-  },
-  {
-    label: 'المالية والموردين',
-    items: [
       {
         to: '/purchases',
-        label: 'المشتريات والمصروفات',
+        label: 'المالية والمشتريات والموردين',
         icon: 'purchases',
-        perm: ['inventory.view', 'expenses.view'],
+        perm: ['inventory.view', 'expenses.view', 'suppliers.view', 'reports.view'],
       },
-      { to: '/suppliers', label: 'الموردين', icon: 'suppliers', perm: 'suppliers.view' },
-      { to: '/partners', label: 'جاري ومسحوبات الشركاء', icon: 'money', perm: 'reports.view' },
-    ],
-  },
-  {
-    label: 'الإدارة',
-    items: [
-      { to: '/hr', label: 'الموظفين والرواتب', icon: 'hr', perm: 'hr.view' },
-      { to: '/users', label: 'المستخدمين', icon: 'users', perm: 'users.view' },
-      { to: '/settings', label: 'الإعدادات', icon: 'settings', perm: 'settings.view' },
-      { to: '/admin-dashboard', label: 'مركز التحكم', icon: 'gauge', perm: 'users.view' },
+      {
+        to: '/reports',
+        label: 'التقارير والتحليلات والذكاء',
+        icon: 'reports',
+        perm: 'reports.view',
+      },
+      {
+        to: '/settings',
+        label: 'إدارة النظام والموظفين',
+        icon: 'settings',
+        perm: 'settings.view',
+      },
     ],
   },
 ];

@@ -5,9 +5,9 @@
       <div class="header-bg-glow"></div>
 
       <div class="brand-badge-top">
-        <span class="bean-icon">☕</span>
+        <span class="bean-icon"><AppIcon name="coffee" :size="14" /></span>
         <span>تأسس عام 1980 • تحميص طازج يومياً</span>
-        <span class="bean-icon">☕</span>
+        <span class="bean-icon"><AppIcon name="coffee" :size="14" /></span>
       </div>
 
       <!-- شعار بن العجوز في ميدالية ذهبية -->
@@ -34,7 +34,7 @@
           :href="`tel:${menuData.phone_primary}`"
           class="contact-chip"
         >
-          <span class="chip-icon">📞</span>
+          <span class="chip-icon"><AppIcon name="send" :size="14" /></span>
           <span>اتصال: {{ menuData.phone_primary }}</span>
         </a>
 
@@ -44,19 +44,19 @@
           target="_blank"
           class="contact-chip wa"
         >
-          <span class="chip-icon">💬</span>
+          <span class="chip-icon"><AppIcon name="send" :size="14" /></span>
           <span>واتساب المحمصة</span>
         </a>
 
         <button type="button" class="contact-chip share-btn" @click="openShareModal">
-          <span class="chip-icon">📲</span>
+          <span class="chip-icon"><AppIcon name="monitor" :size="14" /></span>
           <span>مشاركة المنيو / QR</span>
         </button>
       </div>
 
       <!-- حقل البحث السريع في المنيو -->
       <div class="menu-search-bar">
-        <span class="search-icon">🔍</span>
+        <span class="search-icon"><AppIcon name="search" :size="16" /></span>
         <input
           v-model="searchQuery"
           type="text"
@@ -64,7 +64,7 @@
           placeholder="ابحث عن توليفة، نوع بن، مشروب، مثلجات..."
         />
         <button v-if="searchQuery" type="button" class="clear-search-btn" @click="searchQuery = ''">
-          ✕
+          <AppIcon name="close" :size="14" />
         </button>
       </div>
     </header>
@@ -80,7 +80,9 @@
           :class="{ active: activeCategoryIdx === idx }"
           @click="scrollToCategory(idx)"
         >
-          <span class="cat-pill-icon">{{ getCatIcon(cat.icon_name) }}</span>
+          <span class="cat-pill-icon"
+            ><AppIcon :name="getCatIcon(cat.icon_name)" :size="16"
+          /></span>
           <span class="cat-pill-title">{{ cat.name_ar }}</span>
           <span class="cat-pill-count">{{ (cat.items || []).length }}</span>
         </button>
@@ -97,9 +99,9 @@
 
       <!-- حالة الخطأ أو عدم وجود أصناف -->
       <div v-else-if="!visibleCategories.length" class="menu-empty-state">
-        <span class="empty-icon">☕</span>
-        <h3>لم يتم العثور على أصناف مطابقة</h3>
-        <p>جرب البحث بكلمات أخرى أو اختر قسماً مختلفاً.</p>
+        <span class="empty-icon"><AppIcon name="coffee" :size="48" /></span>
+        <h3>لا توجد أصناف تطابق بحثك حالياً</h3>
+        <p>جرب البحث بكلمة أخرى أو تصفح القائمة كاملة</p>
         <button type="button" class="btn-reset-search" @click="searchQuery = ''">
           عرض كل المنيو
         </button>
@@ -116,7 +118,9 @@
           <!-- رأس القسم الفاخر -->
           <div class="category-section-header">
             <div class="cat-header-title-box">
-              <span class="cat-header-icon">{{ getCatIcon(cat.icon_name) }}</span>
+              <span class="cat-header-icon"
+                ><AppIcon :name="getCatIcon(cat.icon_name)" :size="20"
+              /></span>
               <div>
                 <h2 class="cat-title">{{ cat.name_ar }}</h2>
                 <p v-if="cat.subtitle_ar" class="cat-subtitle">{{ cat.subtitle_ar }}</p>
@@ -137,8 +141,12 @@
                 <div class="item-title-col">
                   <h3 class="item-name">{{ item.name_ar }}</h3>
                   <div class="item-badges-wrap">
-                    <span v-if="item.is_featured" class="badge-featured">⭐ الأكثر طلباً</span>
-                    <span v-if="item.is_new" class="badge-new">✨ جديد</span>
+                    <span v-if="item.is_featured" class="badge-featured">
+                      <AppIcon name="sparkles" :size="12" /> الأكثر طلباً
+                    </span>
+                    <span v-if="item.is_new" class="badge-new">
+                      <AppIcon name="sparkles" :size="12" /> جديد
+                    </span>
                   </div>
                 </div>
               </div>
@@ -240,7 +248,7 @@
                   class="btn-add-to-tray"
                   @click="addItemToTray(item, cat.name_ar)"
                 >
-                  <span class="btn-icon">🛒</span>
+                  <AppIcon name="coffee" :size="16" />
                   <span>إضافة لطلبي</span>
                   <span class="calculated-price-tag">{{ getCurrentItemPrice(item) }} ج.م</span>
                 </button>
@@ -253,9 +261,12 @@
 
     <!-- ═══════════════════ التذييل ومعلومات المحمصة ═══════════════════ -->
     <footer class="digital-menu-footer">
-      <div class="footer-gold-emblem">☕ بن العجوز ☕</div>
+      <div class="footer-gold-emblem">
+        <AppIcon name="coffee" :size="16" /> بن العجوز <AppIcon name="coffee" :size="16" />
+      </div>
       <p class="footer-address">
-        📍 {{ menuData.address_ar || 'الفرع الرئيسي - جمهورية مصر العربية' }}
+        <AppIcon name="building" :size="14" />
+        {{ menuData.address_ar || 'الفرع الرئيسي - جمهورية مصر العربية' }}
       </p>
       <div class="footer-social-links">
         <a
@@ -291,7 +302,7 @@
       </div>
       <button type="button" class="btn-open-tray" @click="showTrayDrawer = true">
         <span>مراجعة وإرسال الطلب</span>
-        <span class="arrow-icon">←</span>
+        <AppIcon name="arrowLeft" :size="14" />
       </button>
     </div>
 
@@ -301,14 +312,14 @@
         <div class="tray-drawer-card">
           <div class="drawer-header">
             <div class="drawer-title-box">
-              <span class="drawer-icon">🛍️</span>
+              <span class="drawer-icon"><AppIcon name="shoppingBag" :size="20" /></span>
               <div>
                 <h3>صينية طلباتك</h3>
                 <p>مراجعة الأصناف قبل الإرسال للفرع أو الكاشير</p>
               </div>
             </div>
             <button type="button" class="btn-close-drawer" @click="showTrayDrawer = false">
-              ✕
+              <AppIcon name="close" :size="16" />
             </button>
           </div>
 
@@ -333,7 +344,7 @@
                 <div class="titem-total-col">
                   <span class="titem-total">{{ tItem.unit_price * tItem.quantity }} ج.م</span>
                   <button type="button" class="titem-del-btn" @click="removeTrayItem(tIdx)">
-                    🗑️
+                    <AppIcon name="trash" :size="14" />
                   </button>
                 </div>
               </div>
@@ -377,7 +388,7 @@
 
           <div class="drawer-footer">
             <button type="button" class="btn-send-whatsapp" @click="sendOrderViaWhatsApp">
-              <span class="wa-icon">💬</span>
+              <AppIcon name="send" :size="16" />
               <span>إرسال الطلب عبر واتساب المحمصة</span>
             </button>
 
@@ -392,8 +403,10 @@
       <div v-if="showShareModal" class="share-modal-overlay" @click.self="showShareModal = false">
         <div class="share-modal-card">
           <div class="share-modal-header">
-            <h3>📱 رمز الـ QR Code للمنيو</h3>
-            <button type="button" class="btn-close-modal" @click="showShareModal = false">✕</button>
+            <h3><AppIcon name="monitor" :size="18" /> رمز الـ QR Code للمنيو</h3>
+            <button type="button" class="btn-close-modal" @click="showShareModal = false">
+              <AppIcon name="close" :size="16" />
+            </button>
           </div>
 
           <div class="share-modal-body">
@@ -407,14 +420,15 @@
             <div class="share-url-box">
               <input :value="currentMenuUrl" type="text" readonly class="share-url-input" />
               <button type="button" class="btn-copy-url" @click="copyMenuUrl">
-                {{ isCopied ? 'تم النسخ! ✅' : 'نسخ الرابط' }}
+                <AppIcon v-if="isCopied" name="check" :size="14" />
+                <span>{{ isCopied ? 'تم النسخ!' : 'نسخ الرابط' }}</span>
               </button>
             </div>
           </div>
 
           <div class="share-modal-footer">
             <button type="button" class="btn-download-qr" @click="downloadQr">
-              📥 تحميل الـ QR كصورة
+              <AppIcon name="download" :size="16" /> تحميل الـ QR كصورة
             </button>
             <button type="button" class="btn-secondary" @click="showShareModal = false">
               إغلاق
@@ -428,6 +442,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue';
+import AppIcon from '@/components/AppIcon.vue';
 import { menu as menuApi } from '@/api';
 import { generateQrDataUrl, downloadQrImage } from '@/utils/qrCode';
 
@@ -518,19 +533,19 @@ const onLogoError = (e: Event) => {
 const getCatIcon = (iconName?: string) => {
   switch (iconName) {
     case 'star':
-      return '';
+      return 'sparkles';
     case 'coffee':
-      return '';
+      return 'coffee';
     case 'sparkles':
-      return '';
+      return 'sparkles';
     case 'cup':
-      return '';
+      return 'coffee';
     case 'snowflake':
-      return '';
+      return 'zap';
     case 'cake':
-      return '';
+      return 'shoppingBag';
     default:
-      return '';
+      return iconName || 'coffee';
   }
 };
 

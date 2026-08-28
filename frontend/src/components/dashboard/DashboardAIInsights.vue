@@ -13,7 +13,7 @@
       </div>
       <div class="insights-list">
         <div v-for="ins in aiInsights" :key="ins.title" class="insight-item" :class="ins.tone">
-          <span class="insight-icon">{{ ins.icon }}</span>
+          <AppIcon :name="ins.icon" :size="20" class="insight-icon" />
           <div class="insight-body">
             <strong>{{ ins.title }}</strong>
             <p>{{ ins.text }}</p>
@@ -26,6 +26,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
+import AppIcon from '@/components/AppIcon.vue';
 
 const props = defineProps({
   stats: { type: Object, required: true },
@@ -40,14 +41,14 @@ const aiInsights = computed(() => {
     insights.push({
       title: 'مراجعة طلبات التوريد',
       text: `يوجد ${stockAlerts} منتجات تقل كميتها عن حد الطلب. نقترح مراجعة صفحة المخزون وإعداد طلبات التوريد لتفادي النقص.`,
-      icon: '',
+      icon: 'warning',
       tone: 'danger',
     });
   } else {
     insights.push({
       title: 'استقرار المخزون',
       text: 'جميع المنتجات الأساسية أعلى من حد الأمان حالياً. لا يوجد خطر نقص وشيك.',
-      icon: '',
+      icon: 'check',
       tone: 'success',
     });
   }
@@ -57,14 +58,14 @@ const aiInsights = computed(() => {
     insights.push({
       title: 'تنبيه التدفقات النقدية (آجل مرتفع)',
       text: `نسبة تحصيل المبيعات الآجلة للشهر الحالي منخفضة (${collectionRate.toFixed(1)}%). نوصي بالتواصل مع العملاء الذين لديهم مديونيات متأخرة لزيادة التدفقات النقدية.`,
-      icon: '',
+      icon: 'coins',
       tone: 'warning',
     });
   } else {
     insights.push({
       title: 'كفاءة التحصيل المالي',
       text: `معدل تحصيل ممتاز للمبيعات الآجلة للشهر الحالي يبلغ ${collectionRate.toFixed(1)}%. استمر على هذا الأداء.`,
-      icon: '',
+      icon: 'trendingUp',
       tone: 'success',
     });
   }
@@ -74,7 +75,7 @@ const aiInsights = computed(() => {
     insights.push({
       title: 'عائق تصنيعي محتمل',
       text: `يوجد ${shortageRecipes} وصفة تحتوي على مواد أولية قاربت على النفاد، مما قد يعطل إنتاج هذه الدفعات.`,
-      icon: '',
+      icon: 'coffee',
       tone: 'warning',
     });
   }
@@ -84,7 +85,7 @@ const aiInsights = computed(() => {
     insights.push({
       title: 'معدل نشاط مرتفع',
       text: `سجل النظام ${salesCount} عملية بيع خلال هذه الفترة. نقترح مراقبة ساعات الذروة (بين 4 و 7 مساءً) لتنظيم العمالة بشكل أفضل.`,
-      icon: '',
+      icon: 'activity',
       tone: 'info',
     });
   }

@@ -29,7 +29,8 @@
             title="إنهاء هذه الجلسة"
             :disabled="revoking === session.id"
           >
-            {{ revoking === session.id ? '...' : '' }}
+            <span v-if="revoking === session.id">...</span>
+            <AppIcon v-else name="logout" :size="14" />
           </button>
         </div>
       </div>
@@ -40,7 +41,7 @@
       <h4 class="failed-title">محاولات دخول فاشلة (آخر 24 ساعة)</h4>
       <div class="failed-list">
         <div v-for="(attempt, idx) in failedLogins.slice(0, 10)" :key="idx" class="failed-item">
-          <span class="failed-icon"></span>
+          <span class="failed-icon"><AppIcon name="warning" :size="14" /></span>
           <span class="failed-text">{{ attempt.action_ar || 'محاولة دخول فاشلة' }}</span>
           <span class="failed-time">{{ formatTime(attempt.created_at) }}</span>
           <span v-if="attempt.ip_address" class="failed-ip">{{ attempt.ip_address }}</span>
@@ -51,6 +52,7 @@
 </template>
 
 <script setup lang="ts">
+import AppIcon from '@/components/AppIcon.vue';
 interface SessionRecord {
   id: number | string;
   full_name?: string;
@@ -141,7 +143,7 @@ const shortenAgent = (ua: any) => {
   padding: 3px 10px;
   border-radius: 8px;
   background: rgba(59, 130, 246, 0.12);
-  color: #3b82f6;
+  color: var(--info);
 }
 
 .sessions-empty {
@@ -218,7 +220,7 @@ const shortenAgent = (ua: any) => {
   border-radius: 8px;
   border: 1px solid rgba(239, 68, 68, 0.2);
   background: rgba(239, 68, 68, 0.08);
-  color: #ef4444;
+  color: var(--danger);
   font-size: 0.9rem;
   cursor: pointer;
   display: flex;
@@ -247,7 +249,7 @@ const shortenAgent = (ua: any) => {
   padding: 14px 20px 8px;
   font-size: 0.88rem;
   font-weight: 800;
-  color: #ef4444;
+  color: var(--danger);
 }
 
 .failed-list {

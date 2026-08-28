@@ -3,7 +3,7 @@
     <!-- Header -->
     <div class="page-header card glass-header">
       <div class="header-title">
-        <span class="header-icon sparkles-anim"></span>
+        <span class="header-icon sparkles-anim"><AppIcon name="copilot" :size="24" /></span>
         <div>
           <h2>المساعد المالي والتشغيلي الذكي</h2>
           <p>
@@ -19,7 +19,7 @@
           class="btn btn-outline btn-sm clear-btn"
           title="مسح محادثة اليوم"
         >
-          <span></span> مسح المحادثة
+          <AppIcon name="trash" :size="14" /> مسح المحادثة
         </button>
       </div>
     </div>
@@ -28,7 +28,7 @@
     <div class="chat-wrapper card">
       <!-- Welcome screen when history is empty -->
       <div v-if="history.length === 0" class="welcome-screen">
-        <div class="welcome-icon"></div>
+        <div class="welcome-icon"><AppIcon name="copilot" :size="48" /></div>
         <h3>أهلاً بك في المساعد الذكي لـ "بن العجوز"</h3>
         <p>
           يمكنني مساعدتك في تحليل أداء المبيعات، ومراقبة المصاريف، وتوقع نسب الازدحام، وتقديم
@@ -42,7 +42,7 @@
             class="prompt-card"
             @click="sendSuggestedPrompt(prompt.text)"
           >
-            <span class="prompt-icon">{{ prompt.icon }}</span>
+            <span class="prompt-icon"><AppIcon :name="prompt.icon" :size="22" /></span>
             <div class="prompt-info">
               <h4>{{ prompt.title }}</h4>
               <p>{{ prompt.text }}</p>
@@ -60,7 +60,8 @@
           :class="msg.role === 'user' ? 'user-row' : 'assistant-row'"
         >
           <div class="avatar">
-            {{ msg.role === 'user' ? '' : '' }}
+            <AppIcon v-if="msg.role === 'user'" name="userCheck" :size="16" />
+            <AppIcon v-else name="bot" :size="16" />
           </div>
           <div class="message-bubble" :class="msg.role">
             <div class="message-content" v-html="formatMessage(msg.content)"></div>
@@ -70,7 +71,9 @@
 
         <!-- Typing Indicator -->
         <div v-if="loading" class="message-row assistant-row">
-          <div class="avatar"></div>
+          <div class="avatar">
+            <AppIcon name="bot" :size="16" />
+          </div>
           <div class="message-bubble assistant typing-bubble">
             <div class="typing-indicator">
               <span></span>
@@ -122,6 +125,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, nextTick } from 'vue';
+import AppIcon from '@/components/AppIcon.vue';
 import DOMPurify from 'dompurify';
 import { forecasting } from '@/api';
 
@@ -133,22 +137,22 @@ const inputArea = ref<any>(null);
 
 const suggestedPrompts = [
   {
-    icon: '',
+    icon: 'reports',
     title: 'أداء المبيعات والمصاريف',
     text: 'أعطني ملخصاً شاملاً للمبيعات والمصاريف وصافي الربح في آخر 30 يوماً.',
   },
   {
-    icon: '⏳',
+    icon: 'clock',
     title: 'توقع أوقات الذروة',
     text: 'ما هي أكثر الساعات والمستويات ازدحاماً خلال الأسبوع وما هي توصيتك للشيفتات؟',
   },
   {
-    icon: '',
+    icon: 'costs',
     title: 'التسعير وهامش الربح',
     text: 'هل هناك مشروبات أو منتجات تباع بهامش ربح منخفض بناءً على أسعار التكلفة؟',
   },
   {
-    icon: '',
+    icon: 'trendingUp',
     title: 'توصيات لزيادة الأرباح',
     text: 'كيف يمكنني تقليل الفاقد في الحليب والبن وزيادة متوسط قيمة سلة الشراء للمقهى؟',
   },

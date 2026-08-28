@@ -2,21 +2,21 @@
   <div>
     <div class="kpi-grid kpi-grid-3">
       <div class="kpi-card inventory">
-        <div class="kpi-icon"></div>
+        <div class="kpi-icon"><AppIcon name="inventory" :size="24" /></div>
         <div class="kpi-body">
           <div class="kpi-label">إجمالي المنتجات</div>
           <div class="kpi-value">{{ (inventory?.products || []).length }}</div>
         </div>
       </div>
       <div class="kpi-card danger">
-        <div class="kpi-icon"></div>
+        <div class="kpi-icon"><AppIcon name="warning" :size="24" /></div>
         <div class="kpi-body">
           <div class="kpi-label">منتجات منخفضة</div>
           <div class="kpi-value">{{ lowStockCount }}</div>
         </div>
       </div>
       <div class="kpi-card">
-        <div class="kpi-icon"></div>
+        <div class="kpi-icon"><AppIcon name="money" :size="24" /></div>
         <div class="kpi-body">
           <div class="kpi-label">قيمة المخزون</div>
           <div class="kpi-value">{{ formatMoney(totalValue) }}</div>
@@ -109,6 +109,7 @@
 </template>
 
 <script setup lang="ts">
+import AppIcon from '@/components/AppIcon.vue';
 import { formatMoney } from '@/utils/currency';
 import { fmtQty } from '@/utils/reportLabels';
 

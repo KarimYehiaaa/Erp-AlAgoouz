@@ -2,7 +2,7 @@
   <div>
     <div class="kpi-grid kpi-grid-3">
       <div class="kpi-card">
-        <div class="kpi-icon"></div>
+        <div class="kpi-icon"><AppIcon name="purchases" :size="24" /></div>
         <div class="kpi-body">
           <div class="kpi-label">إجمالي المشتريات</div>
           <div class="kpi-value">
@@ -12,7 +12,7 @@
         </div>
       </div>
       <div class="kpi-card profit">
-        <div class="kpi-icon"></div>
+        <div class="kpi-icon"><AppIcon name="check" :size="24" /></div>
         <div class="kpi-body">
           <div class="kpi-label">المدفوع</div>
           <div class="kpi-value">
@@ -21,7 +21,7 @@
         </div>
       </div>
       <div class="kpi-card danger">
-        <div class="kpi-icon">⏳</div>
+        <div class="kpi-icon"><AppIcon name="clock" :size="24" /></div>
         <div class="kpi-body">
           <div class="kpi-label">المتبقي</div>
           <div class="kpi-value">
@@ -88,6 +88,7 @@
 </template>
 
 <script setup lang="ts">
+import AppIcon from '@/components/AppIcon.vue';
 import { formatMoney } from '@/utils/currency';
 import { purchaseStatusLabel } from '@/utils/reportLabels';
 

@@ -2,7 +2,7 @@
   <div class="kpi-grid">
     <div v-for="card in cards" :key="card.key" class="kpi-card" :class="card.colorClass">
       <div class="kpi-header">
-        <span class="kpi-icon">{{ card.icon }}</span>
+        <AppIcon :name="card.icon" :size="20" class="kpi-icon" />
         <span
           v-if="card.change !== null"
           class="kpi-change"
@@ -20,6 +20,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
+import AppIcon from '@/components/AppIcon.vue';
 
 const props = defineProps({
   dashboard: { type: Object, default: () => ({}) },
@@ -42,7 +43,7 @@ const cards = computed(() => {
   return [
     {
       key: 'todaySales',
-      icon: '',
+      icon: 'sales',
       label: 'مبيعات اليوم',
       value: today.totalSales || 0,
       change: comparison.salesChange ?? null,
@@ -51,7 +52,7 @@ const cards = computed(() => {
     },
     {
       key: 'todayProfit',
-      icon: '',
+      icon: 'trendingUp',
       label: 'أرباح اليوم',
       value: today.profit || 0,
       change: comparison.profitChange ?? null,
@@ -59,7 +60,7 @@ const cards = computed(() => {
     },
     {
       key: 'monthSales',
-      icon: '',
+      icon: 'coins',
       label: 'مبيعات الشهر',
       value: month.totalSales || 0,
       change: null,
@@ -67,7 +68,7 @@ const cards = computed(() => {
     },
     {
       key: 'monthExpenses',
-      icon: '',
+      icon: 'expenses',
       label: 'مصروفات الشهر',
       value: month.expenses || 0,
       change: null,
@@ -75,7 +76,7 @@ const cards = computed(() => {
     },
     {
       key: 'treasury',
-      icon: '',
+      icon: 'wallet',
       label: 'رصيد الخزينة',
       value: month.cashNet || 0,
       change: null,
@@ -83,7 +84,7 @@ const cards = computed(() => {
     },
     {
       key: 'products',
-      icon: '',
+      icon: 'products',
       label: 'المنتجات',
       value: c.totalProducts || 0,
       change: null,
@@ -92,7 +93,7 @@ const cards = computed(() => {
     },
     {
       key: 'customers',
-      icon: '',
+      icon: 'customers',
       label: 'العملاء',
       value: c.totalCustomers || 0,
       change: null,
@@ -100,7 +101,7 @@ const cards = computed(() => {
     },
     {
       key: 'debts',
-      icon: '',
+      icon: 'warning',
       label: 'مستحقات للمحل (ديون)',
       value: d.unpaidInvoices?.amount || 0,
       change: null,
@@ -109,7 +110,7 @@ const cards = computed(() => {
     },
     {
       key: 'activeUsers',
-      icon: '',
+      icon: 'users',
       label: 'مستخدمون نشطون (24 ساعة)',
       value: c.activeUsers24h || 0,
       change: null,
@@ -150,28 +151,28 @@ const cards = computed(() => {
 }
 
 .kpi-card.green::before {
-  background: #10b981;
+  background: var(--success);
 }
 .kpi-card.emerald::before {
-  background: #34d399;
+  background: var(--success);
 }
 .kpi-card.blue::before {
-  background: #3b82f6;
+  background: var(--info);
 }
 .kpi-card.orange::before {
-  background: #f59e0b;
+  background: var(--warning);
 }
 .kpi-card.purple::before {
-  background: #8b5cf6;
+  background: var(--accent);
 }
 .kpi-card.cyan::before {
-  background: #06b6d4;
+  background: var(--info);
 }
 .kpi-card.indigo::before {
-  background: #6366f1;
+  background: var(--accent);
 }
 .kpi-card.teal::before {
-  background: #14b8a6;
+  background: var(--success);
 }
 
 .kpi-card:hover {
@@ -199,12 +200,12 @@ const cards = computed(() => {
 
 .kpi-change.up {
   background: rgba(16, 185, 129, 0.12);
-  color: #10b981;
+  color: var(--success);
 }
 
 .kpi-change.down {
   background: rgba(239, 68, 68, 0.12);
-  color: #ef4444;
+  color: var(--danger);
 }
 
 .kpi-value {

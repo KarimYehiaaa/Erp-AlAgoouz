@@ -3,7 +3,7 @@
     <!-- ═══════════════════ Header الرئيسي المتناسق مع النظام ═══════════════════ -->
     <div class="page-header card">
       <div class="header-title">
-        <span class="header-icon"></span>
+        <span class="header-icon"><AppIcon name="quotes" :size="24" /></span>
         <div>
           <h2>إدارة وتصميم المنيو</h2>
           <p>تخصيص وتوزيع أصناف المنيو وتصديرها كملف PDF جاهز للطباعة الفورية (وش وظهر)</p>
@@ -77,7 +77,9 @@
     <!-- رسائل التنبيه والنجاح -->
     <transition name="fade">
       <div v-if="feedbackMessage" :class="`feedback-alert ${feedbackType}`">
-        <span class="alert-icon">{{ feedbackType === 'success' ? '✅' : '⚠️' }}</span>
+        <span class="alert-icon">
+          <AppIcon :name="feedbackType === 'success' ? 'check' : 'warning'" :size="16" />
+        </span>
         <span>{{ feedbackMessage }}</span>
       </div>
     </transition>
@@ -366,7 +368,8 @@
                         :title="item.is_featured ? 'صنف مميز (انقر للإلغاء)' : 'تمييز الصنف'"
                         @click="item.is_featured = !item.is_featured"
                       >
-                        {{ item.is_featured ? '⭐ مميز' : '⚪ عادي' }}
+                        <AppIcon v-if="item.is_featured" name="sparkles" :size="12" />
+                        <span>{{ item.is_featured ? 'مميز' : 'عادي' }}</span>
                       </button>
                       <button
                         type="button"
@@ -375,7 +378,8 @@
                         :title="item.is_new ? 'صنف جديد (انقر للإلغاء)' : 'تحديد كصنف جديد'"
                         @click="item.is_new = !item.is_new"
                       >
-                        {{ item.is_new ? '✨ جديد' : '⚪ عادي' }}
+                        <AppIcon v-if="item.is_new" name="sparkles" :size="12" />
+                        <span>{{ item.is_new ? 'جديد' : 'عادي' }}</span>
                       </button>
                       <button
                         type="button"
@@ -505,7 +509,7 @@
               <div class="qr-management-card mt-4">
                 <div class="qr-mgmt-header">
                   <div class="qr-mgmt-title">
-                    <span class="qr-mgmt-icon"></span>
+                    <span class="qr-mgmt-icon"><AppIcon name="bot" :size="20" /></span>
                     <div>
                       <h4 class="font-bold text-sm text-gold">
                         المنيو الرقمي ورمز الاستجابة السريعة (QR Code)
@@ -670,7 +674,9 @@
             <AppIcon name="products" :size="20" />
             <h3>إضافة منتجات من المخزن إلى المنيو</h3>
           </div>
-          <button type="button" class="btn-close" @click="showProductsModal = false"></button>
+          <button type="button" class="btn-close" @click="showProductsModal = false">
+            <AppIcon name="close" :size="16" />
+          </button>
         </div>
 
         <div class="modal-body">

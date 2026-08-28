@@ -40,7 +40,7 @@
     <!-- Summary Cards -->
     <div class="summary-cards" v-if="stocktake">
       <div class="summary-card">
-        <div class="card-icon"></div>
+        <div class="card-icon"><AppIcon name="products" :size="22" /></div>
         <div class="card-body">
           <span class="card-label">إجمالي الأصناف</span>
           <span class="card-value">{{ stocktake.items.length }}</span>
@@ -48,7 +48,7 @@
       </div>
 
       <div class="summary-card" :class="{ 'warning-border': countedCount > 0 }">
-        <div class="card-icon"></div>
+        <div class="card-icon"><AppIcon name="check" :size="22" /></div>
         <div class="card-body">
           <span class="card-label">أصناف تم جردها</span>
           <span class="card-value">{{ countedCount }} / {{ stocktake.items.length }}</span>
@@ -56,7 +56,7 @@
       </div>
 
       <div class="summary-card" :class="{ 'danger-border': liveDeficitValue > 0 }">
-        <div class="card-icon"></div>
+        <div class="card-icon"><AppIcon name="warning" :size="22" /></div>
         <div class="card-body">
           <span class="card-label">إجمالي قيمة العجز</span>
           <span class="card-value danger-text">{{ fmtCurrency(liveDeficitValue) }}</span>
@@ -64,7 +64,7 @@
       </div>
 
       <div class="summary-card" :class="{ 'success-border': liveSurplusValue > 0 }">
-        <div class="card-icon"></div>
+        <div class="card-icon"><AppIcon name="trendingUp" :size="22" /></div>
         <div class="card-body">
           <span class="card-label">إجمالي قيمة الزيادة</span>
           <span class="card-value success-text">{{ fmtCurrency(liveSurplusValue) }}</span>
@@ -75,7 +75,7 @@
     <!-- Filter Bar -->
     <div class="card filter-bar" v-if="stocktake">
       <div class="search-input-wrap">
-        <span class="search-icon"></span>
+        <span class="search-icon"><AppIcon name="search" :size="16" /></span>
         <input
           type="text"
           v-model="searchQuery"
@@ -211,6 +211,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
+import AppIcon from '@/components/AppIcon.vue';
 import { stocktakes as stocktakeApi } from '@/api';
 
 const route = useRoute();

@@ -49,7 +49,7 @@
             :style="{ transitionDelay: `${0.4 + i * 0.12}s` }"
             :class="{ show: featuresVisible }"
           >
-            <span class="feature-icon" v-html="feature.icon"></span>
+            <span class="feature-icon"><AppIcon :name="feature.icon" :size="18" /></span>
             <span class="feature-label">{{ feature.label }}</span>
           </div>
         </div>
@@ -299,6 +299,7 @@
 <script setup lang="ts">
 import { ref, onMounted, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
+import AppIcon from '@/components/AppIcon.vue';
 import { useAuthStore } from '@/stores/auth';
 import { useTypingEffect } from '@/composables/useTypingEffect';
 import { useParticles } from '@/composables/useParticles';
@@ -347,9 +348,9 @@ const { init: initParticles } = useParticles({
 
 // ─── Brand Features ───────────────────────────────────────
 const features = [
-  { icon: '', label: 'إدارة المنتجات والمخزون' },
-  { icon: '', label: 'تقارير مالية لحظية' },
-  { icon: '', label: 'حماية بيانات متقدمة' },
+  { icon: 'inventory', label: 'إدارة المنتجات والمخزون' },
+  { icon: 'reports', label: 'تقارير مالية لحظية' },
+  { icon: 'shield', label: 'حماية بيانات متقدمة' },
 ];
 const featuresVisible = ref(false);
 

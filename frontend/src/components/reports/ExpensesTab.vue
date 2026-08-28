@@ -2,21 +2,21 @@
   <div>
     <div class="kpi-grid kpi-grid-3">
       <div class="kpi-card expenses">
-        <div class="kpi-icon"></div>
+        <div class="kpi-icon"><AppIcon name="expenses" :size="24" /></div>
         <div class="kpi-body">
           <div class="kpi-label">إجمالي المصروفات</div>
           <div class="kpi-value">{{ formatMoney(total) }}</div>
         </div>
       </div>
       <div class="kpi-card">
-        <div class="kpi-icon"></div>
+        <div class="kpi-icon"><AppIcon name="categories" :size="24" /></div>
         <div class="kpi-body">
           <div class="kpi-label">عدد التصنيفات</div>
           <div class="kpi-value">{{ (expenses?.byCategory || []).length }}</div>
         </div>
       </div>
       <div class="kpi-card">
-        <div class="kpi-icon"></div>
+        <div class="kpi-icon"><AppIcon name="receipt" :size="24" /></div>
         <div class="kpi-body">
           <div class="kpi-label">عدد المصروفات</div>
           <div class="kpi-value">{{ count }}</div>
@@ -99,6 +99,7 @@
 </template>
 
 <script setup lang="ts">
+import AppIcon from '@/components/AppIcon.vue';
 import { formatMoney } from '@/utils/currency';
 
 defineProps<{

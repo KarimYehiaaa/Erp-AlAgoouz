@@ -97,6 +97,9 @@
     </div>
 
     <template v-else-if="stats">
+      <!-- شريط النبض اللحظي وتارجت اليوم -->
+      <DashboardLivePulse :stats="stats" />
+
       <DashboardMetrics v-if="widgetVisibility.metrics" :stats="stats" />
 
       <DashboardPriorityAlerts v-if="widgetVisibility.alertsTables" :stats="stats" />
@@ -104,7 +107,7 @@
       <section class="overview-grid">
         <article
           v-if="authStore.hasPermission('reports.view') && widgetVisibility.financialChart"
-          class="panel chart-panel wide"
+          class="panel chart-panel wide glass-glow-card"
         >
           <div class="panel-head">
             <div>
@@ -134,11 +137,28 @@
         <DashboardHealthPulse v-if="widgetVisibility.pulse" :stats="stats" />
       </section>
 
+      <!-- Bento Grid: الخريطة الحرارية لساعات العمل ورادار التوازن السداسي -->
+      <section class="bento-grid mt-4">
+        <div class="bento-col-7">
+          <DashboardSalesHeatmap :stats="stats" />
+        </div>
+        <div class="bento-col-5">
+          <DashboardOperationalRadar :stats="stats" />
+        </div>
+      </section>
+
+      <!-- Bento Grid: سباق المنتجات الأكثر مبيعاً وهندسة المنيو -->
+      <section class="bento-grid">
+        <div class="bento-col-6">
+          <DashboardTopItemsRace :stats="stats" />
+        </div>
+        <div class="bento-col-6">
+          <DashboardMenuMatrix v-if="widgetVisibility.aiInsights" />
+        </div>
+      </section>
+
       <!-- AI Insights Section -->
       <DashboardAIInsights v-if="widgetVisibility.aiInsights" :stats="stats" />
-
-      <!-- Menu Engineering Analysis (Menu Matrix) -->
-      <DashboardMenuMatrix v-if="widgetVisibility.aiInsights" />
 
       <!-- Demand Forecasting Section -->
       <section
@@ -325,6 +345,9 @@
         </article>
       </section>
 
+      <!-- شريط البث الحي للعمليات المتدفقة -->
+      <DashboardLiveTicker :stats="stats" />
+
       <!--  لوحة تخصيص الودجت الجانبية -->
       <div class="widget-drawer" :class="{ open: showWidgetSettings }">
         <div class="drawer-overlay" @click="showWidgetSettings = false"></div>
@@ -382,6 +405,9 @@
         </div>
       </div>
     </template>
+
+    <!-- زر العمليات السريع العائم -->
+    <DashboardQuickFAB />
   </div>
 </template>
 
@@ -397,6 +423,12 @@ import DashboardAIInsights from '@/components/dashboard/DashboardAIInsights.vue'
 import DashboardMenuMatrix from '@/components/dashboard/DashboardMenuMatrix.vue';
 import DashboardHealthPulse from '@/components/dashboard/DashboardHealthPulse.vue';
 import BranchLiquidity from '@/components/dashboard/BranchLiquidity.vue';
+import DashboardLivePulse from '@/components/dashboard/DashboardLivePulse.vue';
+import DashboardSalesHeatmap from '@/components/dashboard/DashboardSalesHeatmap.vue';
+import DashboardOperationalRadar from '@/components/dashboard/DashboardOperationalRadar.vue';
+import DashboardTopItemsRace from '@/components/dashboard/DashboardTopItemsRace.vue';
+import DashboardLiveTicker from '@/components/dashboard/DashboardLiveTicker.vue';
+import DashboardQuickFAB from '@/components/dashboard/DashboardQuickFAB.vue';
 
 let Chart: any;
 const loadChartLib = async () => {
@@ -669,23 +701,28 @@ const destroyCharts = () => {
 
 const chartColors = () => ({
   primary:
-    getComputedStyle(document.documentElement).getPropertyValue('--primary').trim() || '#2563eb',
+    getComputedStyle(document.documentElement).getPropertyValue('--primary').trim() ||
+    'var(--primary)',
   accent:
-    getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#0f766e',
+    getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() ||
+    'var(--accent)',
   danger:
-    getComputedStyle(document.documentElement).getPropertyValue('--danger').trim() || '#dc2626',
+    getComputedStyle(document.documentElement).getPropertyValue('--danger').trim() ||
+    'var(--danger)',
   warning:
-    getComputedStyle(document.documentElement).getPropertyValue('--warning').trim() || '#b45309',
+    getComputedStyle(document.documentElement).getPropertyValue('--warning').trim() ||
+    'var(--warning)',
   // ألوان ديناميكية تتكيف مع الوضع الفاتح/الداكن (تقرأ من متغيرات CSS)
   text:
-    getComputedStyle(document.documentElement).getPropertyValue('--text-muted').trim() || '#78716C',
+    getComputedStyle(document.documentElement).getPropertyValue('--text-muted').trim() ||
+    'var(--text-muted)',
   border:
     getComputedStyle(document.documentElement).getPropertyValue('--border').trim() ||
-    'rgba(102,112,133,0.18)',
+    'var(--border)',
   grid:
     'color-mix(in srgb, ' +
     (getComputedStyle(document.documentElement).getPropertyValue('--border').trim() ||
-      'rgba(102,112,133,0.18)') +
+      'var(--border)') +
     ' 80%, transparent)',
 });
 
@@ -709,10 +746,10 @@ const baseOptions = (moneyTooltip = true) => {
       tooltip: {
         rtl: true,
         textDirection: 'rtl',
-        backgroundColor: '#1C1917',
-        titleColor: '#FAFAF9',
-        bodyColor: '#FAFAF9',
-        borderColor: '#A16207',
+        backgroundColor: 'var(--bg-elevated)',
+        titleColor: 'var(--text-strong)',
+        bodyColor: 'var(--text-strong)',
+        borderColor: 'var(--warning)',
         borderWidth: 1,
         cornerRadius: 8,
         padding: 12,
@@ -1813,18 +1850,18 @@ onBeforeUnmount(() => {
 
 .module-badge.users,
 .module-badge.auth {
-  color: #7c3aed;
-  background: rgba(124, 58, 237, 0.08);
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 8%, transparent);
 }
 
 .module-badge.hr {
-  color: #059669;
-  background: rgba(5, 150, 105, 0.08);
+  color: var(--success);
+  background: color-mix(in srgb, var(--success) 8%, transparent);
 }
 
 .module-badge.settings {
-  color: #4b5563;
-  background: rgba(75, 85, 99, 0.08);
+  color: var(--text-muted);
+  background: color-mix(in srgb, var(--text-muted) 8%, transparent);
 }
 
 .activity-text {
@@ -1851,13 +1888,13 @@ onBeforeUnmount(() => {
 }
 .timeline-marker.users,
 .timeline-marker.auth {
-  background: #7c3aed;
+  background: var(--primary);
 }
 .timeline-marker.hr {
-  background: #059669;
+  background: var(--success);
 }
 .timeline-marker.settings {
-  background: #4b5563;
+  background: var(--text-muted);
 }
 
 /* Draggable Metrics & AI Insights styling */

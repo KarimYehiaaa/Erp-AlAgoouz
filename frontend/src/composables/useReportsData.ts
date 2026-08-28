@@ -7,14 +7,14 @@ import { reports as reportsApi, pl as plApi } from '@/api';
  */
 export function useReportsData() {
   const tabs = [
-    { id: 'summary', icon: '', label: 'الملخص العام' },
-    { id: 'pl', icon: '', label: 'الربح والخسارة' },
-    { id: 'sales', icon: '', label: 'المبيعات' },
-    { id: 'inventory', icon: '', label: 'المخزون' },
-    { id: 'profit', icon: '', label: 'الأرباح' },
-    { id: 'expenses', icon: '', label: 'المصروفات' },
-    { id: 'purchases', icon: '', label: 'المشتريات' },
-    { id: 'customers', icon: '', label: 'العملاء' },
+    { id: 'summary', icon: 'dashboard', label: 'الملخص العام' },
+    { id: 'pl', icon: 'wallet', label: 'الربح والخسارة' },
+    { id: 'sales', icon: 'sales', label: 'المبيعات' },
+    { id: 'inventory', icon: 'inventory', label: 'المخزون' },
+    { id: 'profit', icon: 'trendingUp', label: 'الأرباح' },
+    { id: 'expenses', icon: 'expenses', label: 'المصروفات' },
+    { id: 'purchases', icon: 'purchases', label: 'المشتريات' },
+    { id: 'customers', icon: 'customers', label: 'العملاء' },
   ];
 
   const activeTab = ref('summary');

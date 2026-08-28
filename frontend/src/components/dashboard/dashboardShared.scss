@@ -476,7 +476,129 @@
 
 @media (prefers-reduced-motion: reduce) {
   .metric-card,
-  .command-strip {
+  .command-strip,
+  .race-bar-fill,
+  .pulse-glow {
     animation: none !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   Bento Grid & Next-Gen Glass Card Systems
+   ═══════════════════════════════════════════════════════════════════════════════ */
+.bento-grid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
+}
+
+.bento-col-12 {
+  grid-column: span 12;
+}
+.bento-col-8 {
+  grid-column: span 8;
+}
+.bento-col-7 {
+  grid-column: span 7;
+}
+.bento-col-6 {
+  grid-column: span 6;
+}
+.bento-col-5 {
+  grid-column: span 5;
+}
+.bento-col-4 {
+  grid-column: span 4;
+}
+.bento-col-3 {
+  grid-column: span 3;
+}
+
+@media (max-width: 1024px) {
+  .bento-col-8,
+  .bento-col-7,
+  .bento-col-6,
+  .bento-col-5,
+  .bento-col-4,
+  .bento-col-3 {
+    grid-column: span 12;
+  }
+}
+
+/* Glassmorphic Glow Card */
+.glass-glow-card {
+  position: relative;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  box-shadow: var(--shadow-sm);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  transition:
+    transform var(--transition),
+    box-shadow var(--transition),
+    border-color var(--transition);
+  overflow: hidden;
+
+  /* Top Hairline Light Reflection */
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    opacity: 0.7;
+  }
+
+  &:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-md);
+    border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+  }
+}
+
+/* Trend Delta Pill */
+.trend-delta-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: var(--radius-full, 9999px);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  line-height: 1.2;
+
+  &.up {
+    background: var(--success-soft);
+    color: var(--success);
+  }
+  &.down {
+    background: var(--danger-soft);
+    color: var(--danger);
+  }
+  &.neutral {
+    background: var(--info-soft);
+    color: var(--info);
+  }
+}
+
+/* Live Pulse Beacon */
+.live-beacon {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--success);
+  box-shadow: 0 0 0 0 rgba(21, 128, 61, 0.7);
+  animation: beaconPulse 2s infinite cubic-bezier(0.66, 0, 0, 1);
+}
+
+@keyframes beaconPulse {
+  to {
+    box-shadow: 0 0 0 10px rgba(21, 128, 61, 0);
   }
 }

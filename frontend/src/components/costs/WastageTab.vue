@@ -24,7 +24,8 @@
 
     <!-- High Wastage Warning Alert -->
     <div v-if="highWastageItems.length" class="alert alert-danger animate-fade-in">
-      <strong> تنبيه هدر مرتفع:</strong> هناك منتجات تجاوزت نسبة الفاقد بها 15% خلال هذه الفترة:
+      <strong><AppIcon name="warning" :size="16" /> تنبيه هدر مرتفع:</strong> هناك منتجات تجاوزت
+      نسبة الفاقد بها 15% خلال هذه الفترة:
       <ul>
         <li v-for="item in highWastageItems" :key="item.id">
           {{ item.name }} (نسبة الفاقد: {{ computeWastePct(item).toFixed(1) }}%) - الهدر الفعلي:
@@ -37,7 +38,7 @@
     <div class="card table-card">
       <div v-if="loadingWastage" class="loading-state">⏳ جاري حساب الهدر والفواقد...</div>
       <div v-else-if="!wastageReport.length" class="empty-state">
-        <span></span>
+        <AppIcon name="trash" :size="48" />
         <p>لا توجد حركات استهلاك أو تسويات هدر خلال الفترة المحددة</p>
       </div>
       <div v-else class="table-wrap">
@@ -84,6 +85,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue';
+import AppIcon from '@/components/AppIcon.vue';
 import { reports as reportsApi } from '@/api';
 
 /**

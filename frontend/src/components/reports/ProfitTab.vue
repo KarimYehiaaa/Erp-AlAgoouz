@@ -2,21 +2,23 @@
   <div>
     <div class="kpi-grid kpi-grid-3">
       <div class="kpi-card profit">
-        <div class="kpi-icon"></div>
+        <div class="kpi-icon"><AppIcon name="sales" :size="24" /></div>
         <div class="kpi-body">
           <div class="kpi-label">إجمالي الإيرادات</div>
           <div class="kpi-value">{{ formatMoney(totalRevenue) }}</div>
         </div>
       </div>
       <div class="kpi-card">
-        <div class="kpi-icon"></div>
+        <div class="kpi-icon"><AppIcon name="coffee" :size="24" /></div>
         <div class="kpi-body">
           <div class="kpi-label">إجمالي التكلفة</div>
           <div class="kpi-value">{{ formatMoney(totalCost) }}</div>
         </div>
       </div>
       <div class="kpi-card" :class="totalNet >= 0 ? 'profit' : 'danger'">
-        <div class="kpi-icon">{{ totalNet >= 0 ? '' : '' }}</div>
+        <div class="kpi-icon">
+          <AppIcon :name="totalNet >= 0 ? 'trendingUp' : 'trendingDown'" :size="24" />
+        </div>
         <div class="kpi-body">
           <div class="kpi-label">صافي الربح</div>
           <div class="kpi-value">{{ formatMoney(totalNet) }}</div>
@@ -85,6 +87,7 @@
 </template>
 
 <script setup lang="ts">
+import AppIcon from '@/components/AppIcon.vue';
 import { formatMoney } from '@/utils/currency';
 
 defineProps<{

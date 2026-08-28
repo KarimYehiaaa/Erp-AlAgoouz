@@ -47,9 +47,9 @@
             <!-- اسم البراند والشعار -->
             <div class="brand-headings">
               <div class="brand-crest-tag">
-                <span class="bean-icon"></span>
+                <span class="bean-icon"><AppIcon name="coffee" :size="12" /></span>
                 <span>تأسس عام 1980 • تحميص طازج يومياً</span>
-                <span class="bean-icon"></span>
+                <span class="bean-icon"><AppIcon name="coffee" :size="12" /></span>
               </div>
               <h1 class="brand-main-title">{{ menuData.title_ar || 'بن العجوز' }}</h1>
               <p class="brand-tagline">
@@ -190,11 +190,11 @@
           <!-- شريط سفلي جمالي للصفحة الأولى -->
           <footer class="front-luxury-footer">
             <div class="footer-guarantee">
-              <span class="seal-star"></span>
+              <AppIcon name="sparkles" :size="12" class="seal-star" />
               <span
                 >نضمن لك حبوب بن نقية 100% منتقاة من أفضل مزارع البرازيل وكولومبيا وإثيوبيا</span
               >
-              <span class="seal-star"></span>
+              <AppIcon name="sparkles" :size="12" class="seal-star" />
             </div>
             <div class="page-count-badge">الصفحة ١ من ٢</div>
           </footer>
@@ -311,7 +311,7 @@
           <footer class="master-luxury-footer">
             <div class="footer-roastery-seal">
               <div class="seal-badge-box">
-                <span class="seal-icon"></span>
+                <span class="seal-icon"><AppIcon name="badge" :size="14" /></span>
                 <span class="seal-title">تحميص إيطالي عالي الجودة</span>
               </div>
             </div>
@@ -340,7 +340,7 @@
                     <span>/{{ menuData.facebook_handle }}</span>
                   </div>
                   <div v-if="menuData.instagram_handle" class="social-pill insta">
-                    <span class="soc-icon"></span>
+                    <span class="soc-icon"><AppIcon name="camera" :size="12" /></span>
                     <span>@{{ menuData.instagram_handle }}</span>
                   </div>
                 </div>
@@ -383,6 +383,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
+import AppIcon from '@/components/AppIcon.vue';
 import { generateQrDataUrl } from '@/utils/qrCode';
 
 const qrCodeDataUrl = ref('');

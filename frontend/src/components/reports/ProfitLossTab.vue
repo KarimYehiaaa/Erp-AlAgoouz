@@ -12,7 +12,7 @@
       <!-- KPIs الرئيسية -->
       <div class="kpi-grid kpi-grid-4">
         <div class="kpi-card">
-          <div class="kpi-icon"></div>
+          <div class="kpi-icon"><AppIcon name="wallet" :size="24" /></div>
           <div class="kpi-body">
             <div class="kpi-label">رصيد أول المدة</div>
             <div class="kpi-value">{{ formatMoney(plData.opening_balance) }}</div>
@@ -20,7 +20,7 @@
           </div>
         </div>
         <div class="kpi-card sales">
-          <div class="kpi-icon"></div>
+          <div class="kpi-icon"><AppIcon name="sales" :size="24" /></div>
           <div class="kpi-body">
             <div class="kpi-label">صافي الإيرادات</div>
             <div class="kpi-value">{{ formatMoney(plData.revenue?.net) }}</div>
@@ -30,7 +30,7 @@
           </div>
         </div>
         <div class="kpi-card" :class="plData.gross_profit?.amount >= 0 ? 'profit' : 'danger'">
-          <div class="kpi-icon"></div>
+          <div class="kpi-icon"><AppIcon name="trendingUp" :size="24" /></div>
           <div class="kpi-body">
             <div class="kpi-label">هامش الربح الإجمالي</div>
             <div class="kpi-value">{{ formatMoney(plData.gross_profit?.amount) }}</div>
@@ -38,7 +38,12 @@
           </div>
         </div>
         <div class="kpi-card" :class="plData.net_profit?.amount >= 0 ? 'profit' : 'danger'">
-          <div class="kpi-icon">{{ plData.net_profit?.amount >= 0 ? '' : '' }}</div>
+          <div class="kpi-icon">
+            <AppIcon
+              :name="plData.net_profit?.amount >= 0 ? 'trendingUp' : 'trendingDown'"
+              :size="24"
+            />
+          </div>
           <div class="kpi-body">
             <div class="kpi-label">صافي الربح</div>
             <div class="kpi-value">{{ formatMoney(plData.net_profit?.amount) }}</div>
@@ -50,7 +55,7 @@
       <!-- KPI التدفق النقدي المنفصل -->
       <div class="kpi-grid kpi-grid-3 mt-0">
         <div class="kpi-card">
-          <div class="kpi-icon"></div>
+          <div class="kpi-icon"><AppIcon name="coffee" :size="24" /></div>
           <div class="kpi-body">
             <div class="kpi-label">تكلفة البضاعة</div>
             <div class="kpi-value">{{ formatMoney(plData.cogs?.total) }}</div>
@@ -58,7 +63,7 @@
           </div>
         </div>
         <div class="kpi-card expenses">
-          <div class="kpi-icon"></div>
+          <div class="kpi-icon"><AppIcon name="expenses" :size="24" /></div>
           <div class="kpi-body">
             <div class="kpi-label">المصاريف التشغيلية</div>
             <div class="kpi-value">{{ formatMoney(plData.operating_expenses?.total) }}</div>
@@ -66,7 +71,7 @@
           </div>
         </div>
         <div class="kpi-card" :class="plData.cash_flow?.closing >= 0 ? 'profit' : 'danger'">
-          <div class="kpi-icon"></div>
+          <div class="kpi-icon"><AppIcon name="money" :size="24" /></div>
           <div class="kpi-body">
             <div class="kpi-label">رصيد آخر المدة</div>
             <div class="kpi-value">{{ formatMoney(plData.cash_flow?.closing) }}</div>
@@ -268,7 +273,7 @@
       </div>
     </template>
     <div v-else class="empty-state card">
-      <span></span>
+      <AppIcon name="reports" :size="48" />
       <p>اضغط تحديث لتحميل تقرير الربح والخسارة</p>
       <button class="btn btn-primary" @click="$emit('retry')">تحميل التقرير</button>
     </div>
@@ -276,6 +281,7 @@
 </template>
 
 <script setup lang="ts">
+import AppIcon from '@/components/AppIcon.vue';
 import { formatMoney } from '@/utils/currency';
 
 defineProps<{

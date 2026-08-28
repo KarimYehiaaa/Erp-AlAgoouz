@@ -1,167 +1,203 @@
 <template>
   <div class="sales-page">
-    <SalesToolbar
-      :active-tab="activeTab"
-      :filters="filters"
-      @download-template="downloadTemplate"
-      @validate="onValidate"
-      @import="onImport"
-      @update:from_date="onFromDateChange"
-      @update:to_date="onToDateChange"
-      @select-month="selectMonth"
-    />
-
-    <OpeningBalanceLedger
-      :form="openingBalanceForm"
-      :loading="openingBalanceLoading"
-      :saving="openingBalanceSaving"
-      :editing="openingBalanceEditing"
-      :msg="openingBalanceMsg"
-      :err="openingBalanceErr"
-      :format-money="formatMoney"
-      @start-edit="startOpeningBalanceEdit"
-      @save="saveOpeningBalance"
-    />
-
-    <div class="tabs" style="position: relative">
-      <div
-        class="tab-slider"
-        :style="{
-          transform:
-            activeTab === 'branch'
-              ? 'translateX(0)'
-              : activeTab === 'wholesale'
-                ? 'translateX(calc(-100% - 7px))'
-                : 'translateX(calc(-200% - 14px))',
-        }"
-      ></div>
+    <!-- Main Hub Navigation Tabs -->
+    <div class="hub-tabs card">
       <button
         type="button"
+        class="hub-tab"
         :class="{ active: activeTab === 'branch' }"
         @click="switchTab('branch')"
       >
-        ☕ يومي
+        <AppIcon name="coffee" :size="16" /> يومي
       </button>
       <button
         type="button"
+        class="hub-tab"
         :class="{ active: activeTab === 'wholesale' }"
         @click="switchTab('wholesale')"
       >
-        📦 جملة
+        <AppIcon name="inventory" :size="16" /> جملة
       </button>
       <button
         type="button"
+        class="hub-tab"
         :class="{ active: activeTab === 'monthly' }"
         @click="switchTab('monthly')"
       >
-        📅 شهري
+        <AppIcon name="calendar" :size="16" /> شهري
       </button>
+      <button
+        type="button"
+        class="hub-tab"
+        :class="{ active: activeTab === 'invoices' }"
+        @click="switchTab('invoices')"
+      >
+        <AppIcon name="invoices" :size="16" /> الفواتير وعروض الأسعار
+      </button>
+      <button
+        type="button"
+        class="hub-tab"
+        :class="{ active: activeTab === 'customers' }"
+        @click="switchTab('customers')"
+      >
+        <AppIcon name="customers" :size="16" /> العملاء والمديونيات
+      </button>
+      <router-link
+        to="/branch-sales"
+        class="btn btn-outline btn-sm ms-auto inline-flex items-center gap-2"
+      >
+        <AppIcon name="shop" :size="16" />
+        <span>فتح الكاشير المباشر (POS)</span>
+      </router-link>
     </div>
 
-    <SalesSummaryCard
-      :sales-health="salesHealth"
-      :active-tab="activeTab"
-      :total-opening-balance-debts="totalOpeningBalanceDebts"
-      :opening-balance-form="openingBalanceForm"
-      :collected-total="collectedTotal"
-      :open-credit-total="openCreditTotal"
-      :period-cash-total="periodCashTotal"
-      :format-money="formatMoney"
-    />
+    <Transition name="hub-fade" mode="out-in">
+      <!-- ===== SECTION 1: REGULAR SALES (Branch, Wholesale, Monthly) ===== -->
+      <div
+        v-if="['branch', 'wholesale', 'monthly'].includes(activeTab)"
+        key="sales"
+        class="sales-tab-content"
+      >
+        <SalesToolbar
+          :active-tab="activeTab"
+          :filters="filters"
+          @download-template="downloadTemplate"
+          @validate="onValidate"
+          @import="onImport"
+          @update:from_date="onFromDateChange"
+          @update:to_date="onToDateChange"
+          @select-month="selectMonth"
+        />
 
-    <div v-if="activeTab === 'wholesale'" class="grid grid-4 stats-row">
-      <StatCard label="مبيعات جملة الفترة" :value="periodTotal" icon="coins" />
-      <StatCard label="المحصل المباشر" :value="collectedTotal" icon="check" />
-      <StatCard
-        label="ديون مرحلة سابقة/افتتاحية"
-        :value="totalOpeningBalanceDebts"
-        icon="reports"
-      />
-      <StatCard label="إجمالي ديون العملاء الكلية" :value="totalCustomerDebts" icon="warning" />
-    </div>
-    <div v-else class="grid grid-3 stats-row">
-      <StatCard label="إجمالي الفترة" :value="periodTotal" icon="coins" />
-      <StatCard label="المحصل" :value="collectedTotal" icon="check" />
-      <StatCard label="آجل/جزئي" :value="openCreditTotal" icon="warning" />
-    </div>
+        <OpeningBalanceLedger
+          :form="openingBalanceForm"
+          :loading="openingBalanceLoading"
+          :saving="openingBalanceSaving"
+          :editing="openingBalanceEditing"
+          :msg="openingBalanceMsg"
+          :err="openingBalanceErr"
+          :format-money="formatMoney"
+          @start-edit="startOpeningBalanceEdit"
+          @save="saveOpeningBalance"
+        />
 
-    <!-- 1. المبيعات اليومية (الفرع): نموذج الإدخال اليدوي + سجل مبيعات الفرع اليومية -->
-    <BranchSalesPanel
-      v-if="activeTab === 'branch'"
-      :editing-sale-id="editingSaleId"
-      :editing-sale-number="editingSaleNumber"
-      :form="form"
-      :saving="saving"
-      :remaining-amount="remainingAmount"
-      :sales="sales"
-      :active-columns="activeColumns"
-      :loading-sales="loadingSales"
-      :period-total="periodTotal"
-      :format-money="formatMoney"
-      :format-date="formatDate"
-      :payment-badge="paymentBadge"
-      :payment-status-label="paymentStatusLabel"
-      @submit="submitSale"
-      @cancel-edit="cancelEdit"
-      @start-edit="startEdit"
-    />
+        <SalesSummaryCard
+          :sales-health="salesHealth"
+          :active-tab="activeTab"
+          :total-opening-balance-debts="totalOpeningBalanceDebts"
+          :opening-balance-form="openingBalanceForm"
+          :collected-total="collectedTotal"
+          :open-credit-total="openCreditTotal"
+          :period-cash-total="periodCashTotal"
+          :format-money="formatMoney"
+        />
 
-    <!-- 2. مبيعات الجملة (wholesale): جدول فواتير الجملة للعملاء فقط -->
-    <WholesaleSalesPanel
-      v-else-if="activeTab === 'wholesale'"
-      :sales="sales"
-      :active-columns="activeColumns"
-      :loading-sales="loadingSales"
-      :period-total="periodTotal"
-      :format-money="formatMoney"
-      :format-date="formatDate"
-      :payment-badge="paymentBadge"
-      :payment-status-label="paymentStatusLabel"
-    />
+        <div v-if="activeTab === 'wholesale'" class="grid grid-4 stats-row">
+          <StatCard label="مبيعات جملة الفترة" :value="periodTotal" icon="coins" />
+          <StatCard label="المحصل المباشر" :value="collectedTotal" icon="check" />
+          <StatCard
+            label="ديون مرحلة سابقة/افتتاحية"
+            :value="totalOpeningBalanceDebts"
+            icon="reports"
+          />
+          <StatCard label="إجمالي ديون العملاء الكلية" :value="totalCustomerDebts" icon="warning" />
+        </div>
+        <div v-else class="grid grid-3 stats-row">
+          <StatCard label="إجمالي الفترة" :value="periodTotal" icon="coins" />
+          <StatCard label="المحصل" :value="collectedTotal" icon="check" />
+          <StatCard label="آجل/جزئي" :value="openCreditTotal" icon="warning" />
+        </div>
 
-    <!-- 3. المبيعات الشهرية (monthly): رفع واستيراد ملفات Excel فقط -->
-    <MonthlyImportPanel
-      v-else-if="activeTab === 'monthly'"
-      :importing="monthlyImporting"
-      :validating="monthlyValidating"
-      :msg="monthlyImportMsg"
-      :err="monthlyImportErr"
-      :details="monthlyImportDetails"
-      @download-template="downloadMonthlyTemplate"
-      @validate="onValidateMonthly"
-      @import="onImportMonthly"
-    />
+        <!-- 1. المبيعات اليومية (الفرع) -->
+        <BranchSalesPanel
+          v-if="activeTab === 'branch'"
+          :editing-sale-id="editingSaleId"
+          :editing-sale-number="editingSaleNumber"
+          :form="form"
+          :saving="saving"
+          :remaining-amount="remainingAmount"
+          :sales="sales"
+          :active-columns="activeColumns"
+          :loading-sales="loadingSales"
+          :period-total="periodTotal"
+          :format-money="formatMoney"
+          :format-date="formatDate"
+          :payment-badge="paymentBadge"
+          :payment-status-label="paymentStatusLabel"
+          @submit="submitSale"
+          @cancel-edit="cancelEdit"
+          @start-edit="startEdit"
+        />
 
-    <ExcelGuide :customer-codes-hint="customerCodesHint" />
+        <!-- 2. مبيعات الجملة (wholesale) -->
+        <WholesaleSalesPanel
+          v-else-if="activeTab === 'wholesale'"
+          :sales="sales"
+          :active-columns="activeColumns"
+          :loading-sales="loadingSales"
+          :period-total="periodTotal"
+          :format-money="formatMoney"
+          :format-date="formatDate"
+          :payment-badge="paymentBadge"
+          :payment-status-label="paymentStatusLabel"
+        />
 
-    <div
-      v-if="importMsg || importDetails.length"
-      class="import-result card"
-      :class="{ err: importErr }"
-    >
-      <p class="import-msg" :class="{ err: importErr }">{{ importMsg }}</p>
-      <ul v-if="importDetails.length" class="import-details">
-        <li v-for="(d, i) in importDetails" :key="i">{{ d }}</li>
-      </ul>
-      <p v-if="importDetails.length" class="import-hint">
-        التحذيرات = صفوف لم تُستورد (بيانات ناقصة أو غير صحيحة). احذف صفوف الأمثلة/التعليمات من ورقة
-        «مبيعات» قبل الرفع.
-      </p>
-    </div>
+        <!-- 3. المبيعات الشهرية (monthly) -->
+        <MonthlyImportPanel
+          v-else-if="activeTab === 'monthly'"
+          :importing="monthlyImporting"
+          :validating="monthlyValidating"
+          :msg="monthlyImportMsg"
+          :err="monthlyImportErr"
+          :details="monthlyImportDetails"
+          @download-template="downloadMonthlyTemplate"
+          @validate="onValidateMonthly"
+          @import="onImportMonthly"
+        />
 
-    <SalesDangerActions
-      :saving="saving"
-      v-model:delete-date="deleteDate"
-      @delete-type="deleteSalesByType"
-      @delete-day="deleteSalesForOneDay"
-      @delete-all="deleteAllSales"
-    />
+        <ExcelGuide :customer-codes-hint="customerCodesHint" />
+
+        <div
+          v-if="importMsg || importDetails.length"
+          class="import-result card"
+          :class="{ err: importErr }"
+        >
+          <p class="import-msg" :class="{ err: importErr }">{{ importMsg }}</p>
+          <ul v-if="importDetails.length" class="import-details">
+            <li v-for="(d, i) in importDetails" :key="i">{{ d }}</li>
+          </ul>
+          <p v-if="importDetails.length" class="import-hint">
+            التحذيرات = صفوف لم تُستورد (بيانات ناقصة أو غير صحيحة). احذف صفوف الأمثلة/التعليمات من
+            ورقة «مبيعات» قبل الرفع.
+          </p>
+        </div>
+
+        <SalesDangerActions
+          :saving="saving"
+          v-model:delete-date="deleteDate"
+          @delete-type="deleteSalesByType"
+          @delete-day="deleteSalesForOneDay"
+          @delete-all="deleteAllSales"
+        />
+      </div>
+
+      <!-- ===== SECTION 2: INVOICES & QUOTATIONS ===== -->
+      <div v-else-if="activeTab === 'invoices'" key="invoices" class="tab-view-container">
+        <InvoicesView />
+      </div>
+
+      <!-- ===== SECTION 3: CUSTOMERS & LEDGER ===== -->
+      <div v-else-if="activeTab === 'customers'" key="customers" class="tab-view-container">
+        <CustomersView />
+      </div>
+    </Transition>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import AppIcon from '@/components/AppIcon.vue';
 import StatCard from '@/components/StatCard.vue';
 import SalesSummaryCard from '@/components/sales/SalesSummaryCard.vue';
 import SalesToolbar from '@/components/sales/SalesToolbar.vue';
@@ -171,6 +207,8 @@ import WholesaleSalesPanel from '@/components/sales/WholesaleSalesPanel.vue';
 import MonthlyImportPanel from '@/components/sales/MonthlyImportPanel.vue';
 import ExcelGuide from '@/components/sales/ExcelGuide.vue';
 import SalesDangerActions from '@/components/sales/SalesDangerActions.vue';
+import InvoicesView from '@/views/InvoicesView.vue';
+import CustomersView from '@/views/CustomersView.vue';
 import { sales as salesApi, customers as customersApi } from '@/api';
 import { formatMoney } from '@/utils/currency';
 import { resolveStatusMeta } from '@/utils/statusMeta';
@@ -828,59 +866,6 @@ onMounted(async () => {
   --sales-panel-border: color-mix(in srgb, var(--primary) 15%, var(--card-border));
   --sales-soft: color-mix(in srgb, var(--primary) 8%, transparent);
   --sales-grid-line: color-mix(in srgb, var(--primary) 5%, transparent);
-}
-.tabs {
-  position: relative;
-  display: flex;
-  width: fit-content;
-  max-width: 100%;
-  gap: 7px;
-  padding: 7px;
-  border-radius: 999px;
-  border: 1px solid var(--sales-panel-border);
-  background: linear-gradient(
-    135deg,
-    color-mix(in srgb, var(--bg-elevated) 86%, transparent),
-    color-mix(in srgb, var(--primary) 5%, transparent)
-  );
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.26),
-    var(--shadow-xs);
-
-  .tab-slider {
-    position: absolute;
-    top: 7px;
-    bottom: 7px;
-    right: 7px;
-    width: calc(33.333% - 9px);
-    border-radius: 999px;
-    background: linear-gradient(135deg, var(--primary), var(--primary-strong));
-    box-shadow: 0 10px 24px color-mix(in srgb, var(--primary) 30%, transparent);
-    transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
-    z-index: 1;
-  }
-
-  button {
-    position: relative;
-    z-index: 2;
-    padding: 11px 24px;
-    border: none !important;
-    border-radius: 999px;
-    background: transparent !important;
-    color: var(--text-muted);
-    cursor: pointer;
-    font-weight: 900;
-    transition: color 0.28s ease;
-    box-shadow: none !important;
-    transform: none !important;
-
-    &:hover {
-      color: var(--text-strong);
-    }
-    &.active {
-      color: #fff !important;
-    }
-  }
 }
 .stats-row {
   gap: 14px;

@@ -3,7 +3,7 @@
     <!-- Header -->
     <div class="page-header card glass-header">
       <div class="header-title">
-        <span class="header-icon sparkles-anim">🤖</span>
+        <span class="header-icon sparkles-anim"><AppIcon name="bot" :size="24" /></span>
         <div class="title-text-wrap">
           <h2>محرك الأتمتة والوكلاء الأذكياء</h2>
           <p>لوحة التحكم التفاعلية للرسم البياني ومحاكاة سير العمليات وبوت تليجرام</p>
@@ -11,11 +11,11 @@
       </div>
       <div class="header-actions">
         <button class="btn btn-primary btn-sm" @click="openAddNodeModal">
-          <span class="btn-icon">➕</span>
+          <AppIcon name="add" :size="16" />
           <span class="btn-text">إضافة عقدة</span>
         </button>
         <button class="btn btn-outline btn-sm" @click="openAddEdgeModal">
-          <span class="btn-icon">🔗</span>
+          <AppIcon name="arrowRightLeft" :size="16" />
           <span class="btn-text">ربط عقدتين</span>
         </button>
         <button
@@ -23,14 +23,15 @@
           :class="isSimulating ? 'btn-danger' : 'btn-success'"
           @click="toggleSimulation"
         >
-          <span class="btn-icon">{{ isSimulating ? '⏹' : '🚀' }}</span>
+          <AppIcon :name="isSimulating ? 'close' : 'zap'" :size="16" />
           <span class="btn-text">{{ isSimulating ? 'إيقاف المحاكاة' : 'محاكاة التدفق' }}</span>
         </button>
         <button
           class="btn btn-outline btn-sm desktop-only-btn"
           @click="showSettings = !showSettings"
         >
-          ⚙️ {{ showSettings ? 'إخفاء اللوحة' : 'لوحة التحكم' }}
+          <AppIcon name="settings" :size="16" />
+          <span>{{ showSettings ? 'إخفاء اللوحة' : 'لوحة التحكم' }}</span>
         </button>
       </div>
     </div>
@@ -45,7 +46,7 @@
         role="tab"
         :aria-selected="mobileView === 'graph'"
       >
-        <span class="switcher-icon">🕸️</span>
+        <span class="switcher-icon"><AppIcon name="activity" :size="16" /></span>
         <span class="switcher-label">الشبكة التفاعلية</span>
       </button>
       <button
@@ -56,7 +57,7 @@
         role="tab"
         :aria-selected="mobileView === 'panel'"
       >
-        <span class="switcher-icon">🛡️</span>
+        <span class="switcher-icon"><AppIcon name="shield" :size="16" /></span>
         <span class="switcher-label">لوحة التحكم والوكلاء ({{ tasks.length }})</span>
       </button>
     </div>
@@ -80,21 +81,29 @@
             :title="showSettings ? 'وضع ملء الشاشة (إخفاء لوحة التحكم)' : 'إظهار لوحة التحكم'"
             :class="{ active: !showSettings }"
           >
-            {{ showSettings ? '⛶' : '🎛️' }}
+            <AppIcon name="settings" :size="14" />
           </button>
           <button @click="zoomIn" title="تكبير">+</button>
           <button @click="zoomOut" title="تصغير">−</button>
-          <button @click="resetView" title="إعادة ضبط العرض">🎯</button>
-          <button @click="applyTreeLayout" title="تخطيط شجري منظم">🌲</button>
-          <button @click="applyCircularLayout" title="تخطيط دائري">⭕</button>
-          <button @click="resetToDefaultGraph" title="استعادة الشبكة الافتراضية">🔄</button>
+          <button @click="resetView" title="إعادة ضبط العرض">
+            <AppIcon name="monitor" :size="14" />
+          </button>
+          <button @click="applyTreeLayout" title="تخطيط شجري منظم">
+            <AppIcon name="layers" :size="14" />
+          </button>
+          <button @click="applyCircularLayout" title="تخطيط دائري">
+            <AppIcon name="refresh" :size="14" />
+          </button>
+          <button @click="resetToDefaultGraph" title="استعادة الشبكة الافتراضية">
+            <AppIcon name="history" :size="14" />
+          </button>
           <button
             class="mobile-only-btn legend-toggle-btn"
             @click="showLegendMobile = !showLegendMobile"
             :class="{ active: showLegendMobile }"
             title="دليل ألوان العقد"
           >
-            🎨
+            <AppIcon name="palette" :size="14" />
           </button>
         </div>
 
@@ -117,7 +126,9 @@
         <div class="graph-legend" :class="{ 'mobile-open': showLegendMobile }">
           <div class="legend-header-mobile mobile-only-flex">
             <span>دليل مجموعات الأتمتة</span>
-            <button class="legend-close-btn" @click="showLegendMobile = false">✕</button>
+            <button class="legend-close-btn" @click="showLegendMobile = false">
+              <AppIcon name="close" :size="14" />
+            </button>
           </div>
           <div class="legend-items-list">
             <div class="legend-item" v-for="g in legendGroups" :key="g.label">
@@ -163,27 +174,29 @@
           <!-- Panel Navigation Tabs -->
           <div class="panel-tabs">
             <button :class="{ active: activeTab === 'tasks' }" @click="activeTab = 'tasks'">
-              🛡️ الوكلاء ({{ tasks.length }})
+              <AppIcon name="shield" :size="14" /> الوكلاء ({{ tasks.length }})
             </button>
             <button :class="{ active: activeTab === 'telegram' }" @click="activeTab = 'telegram'">
-              📡 تليجرام
+              <AppIcon name="send" :size="14" /> تليجرام
             </button>
             <button :class="{ active: activeTab === 'ai' }" @click="activeTab = 'ai'">
-              🧠 الذكاء
+              <AppIcon name="brain" :size="14" /> الذكاء
             </button>
             <button :class="{ active: activeTab === 'physics' }" @click="activeTab = 'physics'">
-              ⚙️ الفيزياء
+              <AppIcon name="sliders" :size="14" /> الفيزياء
             </button>
             <button :class="{ active: activeTab === 'nodes' }" @click="activeTab = 'nodes'">
-              📋 العقد
+              <AppIcon name="boxes" :size="14" /> العقد
             </button>
           </div>
 
           <!-- TAB 0: Active Automation Agents & Tasks -->
           <div v-if="activeTab === 'tasks'" class="tab-content">
             <div class="tasks-header">
-              <h3>🛡️ وكلاء الأتمتة والرقابة الذكية</h3>
-              <button class="btn btn-outline btn-xs" @click="loadAutomations">🔄 تحديث</button>
+              <h3><AppIcon name="shield" :size="18" /> وكلاء الأتمتة والرقابة الذكية</h3>
+              <button class="btn btn-outline btn-xs" @click="loadAutomations">
+                <AppIcon name="refresh" :size="12" /> تحديث
+              </button>
             </div>
             <p class="tab-desc">
               وكلاء استباقيون ينفذون مهام الرقابة والتوازن والإغلاق ويرسلون تنبيهات فورية لتليجرام.
@@ -243,7 +256,7 @@
 
           <!-- TAB 1: Physics Settings -->
           <div v-if="activeTab === 'physics'" class="tab-content">
-            <h3>⚙️ معايير محاكاة الفيزياء</h3>
+            <h3><AppIcon name="sliders" :size="18" /> معايير محاكاة الفيزياء</h3>
             <p class="tab-desc">تحكم بحرية في قوة التنافر ومسافات الروابط وجاذبية المركز.</p>
 
             <div class="setting-group">
@@ -302,19 +315,21 @@
               <h4>نماذج التخطيط الجاهزة</h4>
               <div class="preset-buttons">
                 <button class="btn btn-outline btn-xs" @click="applyTreeLayout">
-                  🌲 شجري منظم
+                  <AppIcon name="layers" :size="12" /> شجري منظم
                 </button>
                 <button class="btn btn-outline btn-xs" @click="applyCircularLayout">
-                  ⭕ دائري متزن
+                  <AppIcon name="refresh" :size="12" /> دائري متزن
                 </button>
-                <button class="btn btn-outline btn-xs" @click="applyForceLayout">⚡ تحرر حر</button>
+                <button class="btn btn-outline btn-xs" @click="applyForceLayout">
+                  <AppIcon name="zap" :size="12" /> تحرر حر
+                </button>
               </div>
             </div>
           </div>
 
           <!-- TAB 2: Telegram Bot Controls -->
           <div v-if="activeTab === 'telegram'" class="tab-content">
-            <h3>📡 إدارة بوت تليجرام التفاعلي</h3>
+            <h3><AppIcon name="send" :size="18" /> إدارة بوت تليجرام التفاعلي</h3>
 
             <!-- Status Indicator -->
             <div class="bot-status-card" :class="telegramActive ? 'online' : 'offline'">
@@ -347,7 +362,7 @@
 
             <!-- Test Message Sender -->
             <div class="telegram-test-box">
-              <h4>📩 إرسال رسالة تجريبية مباشرة</h4>
+              <h4>إرسال رسالة تجريبية مباشرة</h4>
               <textarea
                 v-model="customTelegramMsg"
                 placeholder="اكتب نص الرسالة أو اتركها فارغة للإرسال القياسي..."
@@ -358,7 +373,8 @@
                 :disabled="sendingTelegramTest"
                 @click="sendTestTelegram"
               >
-                {{ sendingTelegramTest ? 'جاري الإرسال...' : '📤 إرسال الآن لتليجرام' }}
+                <AppIcon name="send" :size="14" />
+                {{ sendingTelegramTest ? 'جاري الإرسال...' : 'إرسال الآن لتليجرام' }}
               </button>
               <small
                 v-if="telegramSendFeedback"
@@ -373,8 +389,10 @@
             <!-- Recent Logs Stream -->
             <div class="logs-section">
               <div class="logs-header">
-                <h4>💬 آخر الرسائل والسجلات</h4>
-                <button class="btn btn-outline btn-xs" @click="refreshLogs">🔄 تحديث</button>
+                <h4>آخر الرسائل والسجلات</h4>
+                <button class="btn btn-outline btn-xs" @click="refreshLogs">
+                  <AppIcon name="refresh" :size="12" /> تحديث
+                </button>
               </div>
               <div class="telegram-logs-list">
                 <div
@@ -403,11 +421,11 @@
 
           <!-- TAB 3: Gemini AI Agent -->
           <div v-if="activeTab === 'ai'" class="tab-content">
-            <h3>🧠 وكيل الذكاء الاصطناعي (Gemini)</h3>
+            <h3><AppIcon name="brain" :size="18" /> وكيل الذكاء الاصطناعي (Gemini)</h3>
             <p class="tab-desc">اختبر استجابة المساعد الذكي لقواعد النظام واستفساراتك.</p>
 
             <div class="rules-summary-cards">
-              <h4>📌 القواعد المحاسبية الصارمة المحقونة:</h4>
+              <h4>القواعد المحاسبية الصارمة المحقونة:</h4>
               <div class="rule-card">
                 <strong>1. إدخال يدوي:</strong> تسجيل وخصم مباشر من المخزن.
               </div>
@@ -421,7 +439,7 @@
             </div>
 
             <div class="ai-test-box">
-              <h4>💬 اختبار استفسار حي مع Gemini:</h4>
+              <h4>اختبار استفسار حي مع Gemini:</h4>
               <textarea
                 v-model="aiTestPrompt"
                 placeholder="اسأل الذكاء الاصطناعي عن المبيعات أو القواعد... مثال: كيف يتم خصم فواتير الجملة؟"
@@ -432,7 +450,8 @@
                 :disabled="testingAi || !aiTestPrompt.trim()"
                 @click="runAiTest"
               >
-                {{ testingAi ? 'جاري التفكير...' : '🤖 اسأل Gemini' }}
+                <AppIcon name="bot" :size="14" />
+                {{ testingAi ? 'جاري التفكير...' : 'اسأل Gemini' }}
               </button>
               <div v-if="aiTestReply" class="ai-reply-box">
                 <strong>إجابة الوكيل:</strong>
@@ -445,7 +464,9 @@
           <div v-if="activeTab === 'nodes'" class="tab-content">
             <div class="nodes-list-header">
               <h3>قائمة العقد المسجلة ({{ nodes.length }})</h3>
-              <button class="btn btn-primary btn-xs" @click="openAddNodeModal">➕ إضافة</button>
+              <button class="btn btn-primary btn-xs" @click="openAddNodeModal">
+                <AppIcon name="add" :size="12" /> إضافة
+              </button>
             </div>
             <div class="nodes-scroll-list">
               <div
@@ -463,7 +484,7 @@
                   <small>{{ typeLabels[node.type] }} · {{ node.group }}</small>
                 </div>
                 <button class="btn btn-outline btn-xs delete-btn" @click.stop="deleteNode(node.id)">
-                  🗑
+                  <AppIcon name="trash" :size="12" />
                 </button>
               </div>
             </div>
@@ -477,7 +498,9 @@
       <div class="modal-card card">
         <div class="modal-header">
           <h3>تفاصيل العقدة: {{ selectedNode.label_ar || selectedNode.label }}</h3>
-          <button class="btn-close" @click="selectedNode = null">✕</button>
+          <button class="btn-close" @click="selectedNode = null">
+            <AppIcon name="close" :size="16" />
+          </button>
         </div>
         <div class="modal-body">
           <div class="form-row">
@@ -517,8 +540,10 @@
     <div v-if="showAddNodeModal" class="modal-overlay" @click.self="showAddNodeModal = false">
       <div class="modal-card card">
         <div class="modal-header">
-          <h3>➕ إضافة عقدة أتمتة جديدة</h3>
-          <button class="btn-close" @click="showAddNodeModal = false">✕</button>
+          <h3><AppIcon name="add" :size="18" /> إضافة عقدة أتمتة جديدة</h3>
+          <button class="btn-close" @click="showAddNodeModal = false">
+            <AppIcon name="close" :size="16" />
+          </button>
         </div>
         <div class="modal-body">
           <div class="form-row">
@@ -566,8 +591,10 @@
     <div v-if="showAddEdgeModal" class="modal-overlay" @click.self="showAddEdgeModal = false">
       <div class="modal-card card">
         <div class="modal-header">
-          <h3>🔗 ربط عقدتين بمسار أتمتة</h3>
-          <button class="btn-close" @click="showAddEdgeModal = false">✕</button>
+          <h3><AppIcon name="arrowRightLeft" :size="18" /> ربط عقدتين بمسار أتمتة</h3>
+          <button class="btn-close" @click="showAddEdgeModal = false">
+            <AppIcon name="close" :size="16" />
+          </button>
         </div>
         <div class="modal-body">
           <div class="form-row">
@@ -612,6 +639,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted, onUnmounted, nextTick, watch } from 'vue';
+import AppIcon from '@/components/AppIcon.vue';
 import { automation } from '@/api';
 import type { GraphNode, GraphEdge, PhysicsSettings, AutomationTask } from '@/api/automation.api';
 
@@ -2649,7 +2677,7 @@ function formatTime(ts: string) {
     padding-top: 6px;
     border-top: 1px solid rgba(255, 255, 255, 0.15);
     font-size: 0.75rem;
-    color: #fbbf24;
+    color: var(--warning);
   }
 
   .tooltip-hint {
@@ -2772,16 +2800,16 @@ function formatTime(ts: string) {
   }
 
   &.security {
-    border-right: 4px solid #ef4444;
+    border-right: 4px solid var(--danger);
   }
   &.sales {
-    border-right: 4px solid #10b981;
+    border-right: 4px solid var(--success);
   }
   &.inventory {
-    border-right: 4px solid #3b82f6;
+    border-right: 4px solid var(--info);
   }
   &.system {
-    border-right: 4px solid #8b5cf6;
+    border-right: 4px solid var(--accent);
   }
 
   .task-card-top {

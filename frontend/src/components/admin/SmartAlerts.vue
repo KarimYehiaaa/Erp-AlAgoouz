@@ -10,7 +10,7 @@
     <div v-else class="alerts-list">
       <div v-for="group in groups" :key="group.key" class="alert-group">
         <div class="alert-group-header" :class="group.severity">
-          <span class="alert-group-icon">{{ group.icon }}</span>
+          <AppIcon :name="group.icon" :size="16" class="alert-group-icon" />
           <span class="alert-group-label">{{ group.label }}</span>
           <span class="alert-group-count">{{ group.count }}</span>
         </div>
@@ -30,6 +30,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
+import AppIcon from '@/components/AppIcon.vue';
 
 const props = defineProps({
   alerts: { type: Object, default: () => ({}) },
@@ -43,7 +44,7 @@ const groups = computed(() => {
   if (a.lowStockProducts?.length) {
     result.push({
       key: 'lowStock',
-      icon: '',
+      icon: 'inventory',
       label: 'منتجات تحت حد الطلب',
       severity: 'critical',
       count: a.lowStockProducts.length,
@@ -58,7 +59,7 @@ const groups = computed(() => {
   if (a.noCostProducts?.length) {
     result.push({
       key: 'noCost',
-      icon: '',
+      icon: 'costs',
       label: 'منتجات بدون سعر تكلفة',
       severity: 'warning',
       count: a.noCostProducts.length,
@@ -70,7 +71,7 @@ const groups = computed(() => {
   if (a.customerDebts?.length) {
     result.push({
       key: 'debts',
-      icon: '',
+      icon: 'warning',
       label: 'مديونيات عملاء',
       severity: 'warning',
       count: a.customerDebts.length,
@@ -85,7 +86,7 @@ const groups = computed(() => {
   if (a.supplierBalances?.length) {
     result.push({
       key: 'suppliers',
-      icon: '',
+      icon: 'truck',
       label: 'أرصدة موردين مستحقة',
       severity: 'info',
       count: a.supplierBalances.length,
@@ -100,7 +101,7 @@ const groups = computed(() => {
   if (a.pendingCreditSales?.length) {
     result.push({
       key: 'credit',
-      icon: '',
+      icon: 'clock',
       label: 'مبيعات آجلة مفتوحة',
       severity: 'info',
       count: a.pendingCreditSales.length,
@@ -146,13 +147,13 @@ const totalAlerts = computed(() => groups.value.reduce((sum: any, g: any) => sum
   padding: 3px 10px;
   border-radius: 8px;
   background: rgba(239, 68, 68, 0.15);
-  color: #ef4444;
+  color: var(--danger);
 }
 
 .alerts-empty {
   padding: 30px 20px;
   text-align: center;
-  color: #10b981;
+  color: var(--success);
   font-size: 0.9rem;
   font-weight: 600;
 }
@@ -180,15 +181,15 @@ const totalAlerts = computed(() => groups.value.reduce((sum: any, g: any) => sum
 }
 
 .alert-group-header.critical {
-  color: #ef4444;
+  color: var(--danger);
   background: rgba(239, 68, 68, 0.06);
 }
 .alert-group-header.warning {
-  color: #f59e0b;
+  color: var(--warning);
   background: rgba(245, 158, 11, 0.06);
 }
 .alert-group-header.info {
-  color: #3b82f6;
+  color: var(--info);
   background: rgba(59, 130, 246, 0.06);
 }
 

@@ -2,7 +2,7 @@
   <div class="card checkout-cart-panel" :class="{ 'mobile-hidden': activeTab !== 'cart' }">
     <div class="cart-title-row">
       <div class="title-with-badge">
-        <span class="cart-icon"></span>
+        <span class="cart-icon"><AppIcon name="shoppingBag" :size="20" /></span>
         <h3>سلة ومحاسبة الفاتورة</h3>
       </div>
       <div class="cart-header-actions">
@@ -12,13 +12,15 @@
           class="btn-close-cart"
           @click="emit('closeDrawer')"
           title="إغلاق والعودة للكتالوج (Esc)"
-        ></button>
+        >
+          <AppIcon name="close" :size="16" />
+        </button>
       </div>
     </div>
 
     <!-- Cart Items -->
     <div v-if="!cart.length" class="empty-cart">
-      <span class="empty-cart-icon"></span>
+      <span class="empty-cart-icon"><AppIcon name="shoppingBag" :size="36" /></span>
       <p>السلة فارغة حالياً</p>
       <span class="empty-hint">اختر أصنافاً من الكتالوج لإضافتها للسلة</span>
     </div>
@@ -50,7 +52,7 @@
           >
             <span class="qty-val">{{ item.quantity }}</span>
             <span class="qty-unit-label">{{ getWeightLabel(item.quantity) }}</span>
-            <span class="qty-pencil"></span>
+            <AppIcon name="edit" :size="12" class="qty-pencil" />
           </button>
 
           <button
@@ -93,7 +95,7 @@
           </div>
           <div class="rec-action">
             <span class="rec-price">{{ formatMoney(rec.sale_price) }}</span>
-            <span class="rec-add-icon"></span>
+            <span class="rec-add-icon"><AppIcon name="add" :size="14" /></span>
           </div>
         </div>
       </div>
@@ -135,7 +137,7 @@
             :class="{ selected: saleForm.payment_method === 'cash' }"
             @click="saleForm.payment_method = 'cash'"
           >
-            <span class="tile-icon"></span>
+            <span class="tile-icon"><AppIcon name="money" :size="18" /></span>
             <span class="tile-title">نقدي (كاش)</span>
           </button>
 
@@ -145,7 +147,7 @@
             :class="{ selected: saleForm.payment_method === 'card' }"
             @click="saleForm.payment_method = 'card'"
           >
-            <span class="tile-icon"></span>
+            <span class="tile-icon"><AppIcon name="creditCard" :size="18" /></span>
             <span class="tile-title">فيزا / مدى</span>
           </button>
 
@@ -155,7 +157,7 @@
             :class="{ selected: saleForm.payment_method === 'transfer' }"
             @click="saleForm.payment_method = 'transfer'"
           >
-            <span class="tile-icon"></span>
+            <span class="tile-icon"><AppIcon name="arrowRightLeft" :size="18" /></span>
             <span class="tile-title">إنستاباي / محفظة</span>
           </button>
 
@@ -165,7 +167,7 @@
             :class="{ selected: saleForm.payment_method === 'credit' }"
             @click="saleForm.payment_method = 'credit'"
           >
-            <span class="tile-icon">⏳</span>
+            <span class="tile-icon"><AppIcon name="clock" :size="18" /></span>
             <span class="tile-title">آجل / ذمم</span>
           </button>
         </div>
@@ -262,7 +264,7 @@
           :class="{ 'btn-loading': saving }"
           :disabled="saving || !cart.length"
         >
-          <span class="btn-icon"></span>
+          <span class="btn-icon"><AppIcon name="print" :size="20" /></span>
           <div class="btn-text-col">
             <span class="btn-title">{{
               saving ? 'جاري الحفظ والتجهيز...' : 'حفظ وطباعة الفاتورة الفورية'
@@ -299,7 +301,7 @@
         <!-- Header -->
         <div class="numpad-header">
           <div class="numpad-title-wrap">
-            <span class="numpad-icon"></span>
+            <span class="numpad-icon"><AppIcon name="keyboard" :size="20" /></span>
             <div>
               <h4>تعديل الكمية والوزن</h4>
               <p v-if="activeNumpadItem" class="numpad-prod-name">
@@ -310,7 +312,9 @@
               </p>
             </div>
           </div>
-          <button type="button" class="close-numpad-btn" @click="closeNumpad"></button>
+          <button type="button" class="close-numpad-btn" @click="closeNumpad">
+            <AppIcon name="close" :size="16" />
+          </button>
         </div>
 
         <!-- Live Display Screen -->
@@ -393,6 +397,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue';
+import AppIcon from '@/components/AppIcon.vue';
 
 const props = defineProps<{
   cart: any[];

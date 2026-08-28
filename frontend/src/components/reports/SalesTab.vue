@@ -2,21 +2,21 @@
   <div>
     <div class="kpi-grid kpi-grid-3">
       <div class="kpi-card sales">
-        <div class="kpi-icon"></div>
+        <div class="kpi-icon"><AppIcon name="sales" :size="24" /></div>
         <div class="kpi-body">
           <div class="kpi-label">إجمالي المبيعات</div>
           <div class="kpi-value">{{ formatMoney(total) }}</div>
         </div>
       </div>
       <div class="kpi-card profit">
-        <div class="kpi-icon"></div>
+        <div class="kpi-icon"><AppIcon name="trendingUp" :size="24" /></div>
         <div class="kpi-body">
           <div class="kpi-label">إجمالي الأرباح</div>
           <div class="kpi-value">{{ formatMoney(profit) }}</div>
         </div>
       </div>
       <div class="kpi-card">
-        <div class="kpi-icon"></div>
+        <div class="kpi-icon"><AppIcon name="receipt" :size="24" /></div>
         <div class="kpi-body">
           <div class="kpi-label">عدد العمليات</div>
           <div class="kpi-value">{{ count }}</div>
@@ -78,6 +78,7 @@
 </template>
 
 <script setup lang="ts">
+import AppIcon from '@/components/AppIcon.vue';
 import { formatMoney } from '@/utils/currency';
 import { saleTypeLabel } from '@/utils/reportLabels';
 

@@ -10,7 +10,7 @@
       </div>
       <div class="header-actions">
         <button v-permission="'inventory.add'" class="btn btn-primary" @click="openCreateModal">
-          <span class="btn-icon"></span> بدء جرد جديد
+          <AppIcon name="add" :size="16" /> بدء جرد جديد
         </button>
       </div>
     </div>
@@ -167,6 +167,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
+import AppIcon from '@/components/AppIcon.vue';
 import { stocktakes as stocktakeApi, warehouses as warehousesApi } from '@/api';
 
 const router = useRouter();

@@ -7,7 +7,7 @@
     <div class="drawer-panel card">
       <div class="drawer-header">
         <div class="header-title">
-          <span class="bell-icon"></span>
+          <span class="bell-icon"><AppIcon name="bell" :size="18" /></span>
           <h3>مركز تنبيهات التشغيل</h3>
         </div>
         <div class="header-actions">
@@ -18,9 +18,11 @@
             title="تحديث التنبيهات"
           >
             <span v-if="loading">⏳</span>
-            <AppIcon v-else name="theme" :size="16" />
+            <AppIcon v-else name="refresh" :size="16" />
           </button>
-          <button class="close-btn" @click="appStore.toggleNotificationDrawer"></button>
+          <button class="close-btn" @click="appStore.toggleNotificationDrawer">
+            <AppIcon name="close" :size="16" />
+          </button>
         </div>
       </div>
 
@@ -30,7 +32,7 @@
       </div>
 
       <div v-else-if="!appStore.notifications.length" class="drawer-empty">
-        <span class="shield-icon"></span>
+        <span class="shield-icon"><AppIcon name="shield" :size="36" /></span>
         <h4>النظام يعمل بشكل ممتاز</h4>
         <p>لا توجد تنبيهات تشغيل أو مديونيات متأخرة حالياً.</p>
       </div>

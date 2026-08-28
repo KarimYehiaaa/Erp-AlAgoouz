@@ -17,7 +17,7 @@
         @click="$emit('deleteType', 'branch')"
         title="حذف كل مبيعات الفرع نهائياً"
       >
-        <span class="btn-icon"></span>
+        <span class="btn-icon"><AppIcon name="delete" :size="14" /></span>
         <span class="btn-text">حذف مبيعات الفرع</span>
       </button>
       <button
@@ -27,7 +27,7 @@
         @click="$emit('deleteType', 'wholesale')"
         title="حذف كل مبيعات الجملة نهائياً"
       >
-        <span class="btn-icon"></span>
+        <span class="btn-icon"><AppIcon name="delete" :size="14" /></span>
         <span class="btn-text">حذف مبيعات الجملة</span>
       </button>
     </div>
@@ -43,7 +43,7 @@
         @click="$emit('deleteDay')"
         title="حذف مبيعات هذا اليوم فقط"
       >
-        <span class="btn-icon"></span>
+        <span class="btn-icon"><AppIcon name="calendar" :size="14" /></span>
         <span class="btn-text">حذف مبيعات اليوم</span>
       </button>
     </div>
@@ -58,7 +58,7 @@
         @click="$emit('deleteAll')"
         title="حذف كل المبيعات نهائياً"
       >
-        <span class="btn-icon"></span>
+        <span class="btn-icon"><AppIcon name="warning" :size="14" /></span>
         <span class="btn-text">حذف كل المبيعات</span>
       </button>
     </div>
@@ -67,6 +67,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
+import AppIcon from '@/components/AppIcon.vue';
 
 /**
  * إدارة الحذف — يستهلك من SalesView.

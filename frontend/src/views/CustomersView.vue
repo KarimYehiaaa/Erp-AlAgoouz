@@ -3,7 +3,7 @@
     <!-- Header -->
     <div class="page-header">
       <div class="search-wrap">
-        <span class="search-icon"></span>
+        <span class="search-icon"><AppIcon name="search" :size="16" /></span>
         <input
           v-model="search"
           type="text"
@@ -27,21 +27,21 @@
     <!-- Summary Cards -->
     <div class="grid grid-3 summary-row">
       <div class="summary-card card">
-        <div class="summary-icon"></div>
+        <div class="summary-icon"><AppIcon name="customers" :size="24" /></div>
         <div>
           <div class="summary-label">إجمالي العملاء</div>
           <div class="summary-value">{{ customers.length }}</div>
         </div>
       </div>
       <div class="summary-card card">
-        <div class="summary-icon"></div>
+        <div class="summary-icon"><AppIcon name="shop" :size="24" /></div>
         <div>
           <div class="summary-label">عملاء الجملة</div>
           <div class="summary-value">{{ wholesaleCount }}</div>
         </div>
       </div>
       <div class="summary-card card warn">
-        <div class="summary-icon"></div>
+        <div class="summary-icon"><AppIcon name="warning" :size="24" /></div>
         <div>
           <div class="summary-label">إجمالي الديون</div>
           <div class="summary-value">{{ formatMoney(totalBalance) }}</div>
@@ -140,13 +140,15 @@
       <div class="statement-modal">
         <div class="statement-header">
           <div class="statement-title">
-            <span class="statement-icon"></span>
+            <span class="statement-icon"><AppIcon name="fileText" :size="20" /></span>
             <div>
               <h2>الحساب الجاري</h2>
               <p>{{ statement?.customer?.name_ar }} · {{ statement?.customer?.code }}</p>
             </div>
           </div>
-          <button class="close-btn" @click="showStatement = false"></button>
+          <button class="close-btn" @click="showStatement = false">
+            <AppIcon name="close" :size="16" />
+          </button>
         </div>
 
         <div v-if="loadingStatement" class="statement-loading">⏳ جاري التحميل...</div>
@@ -310,7 +312,9 @@
             <div class="sale-pay-card">
               <div class="sale-pay-header">
                 <span> دفعة على فاتورة {{ activeSalePayment.sale_number }}</span>
-                <button class="close-btn-sm" @click="activeSalePayment = null"></button>
+                <button class="close-btn-sm" @click="activeSalePayment = null">
+                  <AppIcon name="close" :size="14" />
+                </button>
               </div>
               <div class="sale-pay-info">
                 <span

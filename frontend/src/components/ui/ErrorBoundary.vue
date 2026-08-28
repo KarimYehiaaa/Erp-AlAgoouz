@@ -1,7 +1,7 @@
 <template>
   <div v-if="hasError" class="error-boundary card">
     <div class="error-boundary-content">
-      <div class="error-icon"></div>
+      <div class="error-icon"><AppIcon name="warning" :size="48" /></div>
       <h3>حدث خطأ غير متوقع في هذه الشاشة</h3>
       <p class="error-msg">
         {{ errorMessage || 'عفواً، واجه التطبيق خطأ غير متوقع أثناء معالجة البيانات.' }}
@@ -21,6 +21,7 @@
 
 <script setup lang="ts">
 import { ref, onErrorCaptured } from 'vue';
+import AppIcon from '@/components/AppIcon.vue';
 
 const hasError = ref(false);
 const errorMessage = ref('');

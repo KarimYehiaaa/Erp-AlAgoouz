@@ -49,28 +49,28 @@
     <!-- Summary Cards -->
     <div class="grid grid-4 summary-row">
       <div class="summary-card">
-        <div class="summary-icon"></div>
+        <div class="summary-icon"><AppIcon name="sales" :size="22" /></div>
         <div class="summary-body">
           <div class="summary-label">إجمالي المبيعات</div>
           <div class="summary-value">{{ formatMoney(totalSales) }}</div>
         </div>
       </div>
       <div class="summary-card">
-        <div class="summary-icon"></div>
+        <div class="summary-icon"><AppIcon name="coffee" :size="22" /></div>
         <div class="summary-body">
           <div class="summary-label">إجمالي التكلفة</div>
           <div class="summary-value">{{ formatMoney(totalCost) }}</div>
         </div>
       </div>
       <div class="summary-card profit">
-        <div class="summary-icon"></div>
+        <div class="summary-icon"><AppIcon name="trendingUp" :size="22" /></div>
         <div class="summary-body">
           <div class="summary-label">إجمالي الربح</div>
           <div class="summary-value">{{ formatMoney(totalProfit) }}</div>
         </div>
       </div>
       <div class="summary-card">
-        <div class="summary-icon"></div>
+        <div class="summary-icon"><AppIcon name="products" :size="22" /></div>
         <div class="summary-body">
           <div class="summary-label">إجمالي الوحدات المباعة</div>
           <div class="summary-value">{{ totalUnitsSold.toLocaleString('en-GB') }}</div>
@@ -82,7 +82,7 @@
     <div class="card table-card">
       <div v-if="loading" class="loading-state">⏳ جاري تحميل البيانات...</div>
       <div v-else-if="!filteredProducts.length" class="empty-state">
-        <span></span>
+        <AppIcon name="search" :size="32" />
         <p>لا توجد منتجات مطابقة</p>
       </div>
       <div v-else class="table-wrap">
@@ -194,6 +194,7 @@
 </template>
 
 <script setup lang="ts">
+import AppIcon from '@/components/AppIcon.vue';
 /**
  * تبويب تحليل هوامش الربح — الفلاتر + بطاقات الملخص + جدول التكاليف.
  *

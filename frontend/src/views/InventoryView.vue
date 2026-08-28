@@ -2,13 +2,26 @@
   <div class="inventory-page">
     <!-- Header -->
     <div class="page-header">
-      <div class="tabs inline-tabs">
-        <button :class="{ active: tab === 'stock' }" @click="tab = 'stock'">📦 المخزون</button>
-        <button :class="{ active: tab === 'return' }" @click="tab = 'return'">
-          📥 استرداد بـ Excel
+      <div class="hub-tabs">
+        <button class="hub-tab" :class="{ active: tab === 'stock' }" @click="switchTab('stock')">
+          <AppIcon name="inventory" :size="16" /> المخزون
         </button>
-        <button :class="{ active: tab === 'movements' }" @click="tab = 'movements'">
-          🔄 حركة المخزون
+        <button
+          class="hub-tab"
+          :class="{ active: tab === 'stocktakes' }"
+          @click="switchTab('stocktakes')"
+        >
+          <AppIcon name="stocktake" :size="16" /> جرد المخازن والتسويات
+        </button>
+        <button
+          class="hub-tab"
+          :class="{ active: tab === 'movements' }"
+          @click="switchTab('movements')"
+        >
+          <AppIcon name="activity" :size="16" /> حركة المخزون
+        </button>
+        <button class="hub-tab" :class="{ active: tab === 'return' }" @click="switchTab('return')">
+          <AppIcon name="upload" :size="16" /> استرداد بـ Excel
         </button>
       </div>
       <div class="header-actions">
@@ -22,7 +35,7 @@
           class="btn btn-outline"
           @click="openTransferModal"
         >
-          🚚 تحويل جديد
+          <AppIcon name="truck" :size="16" /> تحويل جديد
         </button>
       </div>
     </div>
@@ -30,44 +43,58 @@
     <p v-if="msg" :class="['msg', err ? 'err' : 'ok']">{{ msg }}</p>
 
     <!-- ===== STOCK TAB ===== -->
-    <StockTab
-      :items="items"
-      :loading="loading"
-      :stock-columns="stockColumns"
-      :total-inventory-value="totalInventoryValue"
-      :main-warehouse-value="mainWarehouseValue"
-      :branch-warehouse-value="branchWarehouseValue"
-      :get-item-stock-value="getItemStockValue"
-      :get-main-qty="getMainQty"
-      :get-branch-qty="getBranchQty"
-      :is-highlighted="isHighlighted"
-      :fmt-qty="fmtQty"
-      :format-money="formatMoney"
-      @open-transfer="openTransferProduct"
-      @open-edit="openEdit"
-      @open-wastage="openWastage"
-    />
+    <Transition name="hub-fade" mode="out-in">
+      <!-- ===== STOCK TAB ===== -->
+      <StockTab
+        v-if="tab === 'stock'"
+        key="stock"
+        :items="items"
+        :loading="loading"
+        :stock-columns="stockColumns"
+        :total-inventory-value="totalInventoryValue"
+        :main-warehouse-value="mainWarehouseValue"
+        :branch-warehouse-value="branchWarehouseValue"
+        :get-item-stock-value="getItemStockValue"
+        :get-main-qty="getMainQty"
+        :get-branch-qty="getBranchQty"
+        :is-highlighted="isHighlighted"
+        :fmt-qty="fmtQty"
+        :format-money="formatMoney"
+        @open-transfer="openTransferProduct"
+        @open-edit="openEdit"
+        @open-wastage="openWastage"
+      />
 
-    <!-- ===== EXCEL RETURN TAB ===== -->
-    <ReturnTab
-      :warehouses="warehouses"
-      v-model:return-warehouse-id="returnWarehouseId"
-      :downloading-template="downloadingTemplate"
-      :excel-result="excelResult"
-      @download="downloadTemplate"
-      @validate="onValidate"
-      @import="onImport"
-    />
+      <!-- ===== STOCKTAKES TAB ===== -->
+      <div v-else-if="tab === 'stocktakes'" key="stocktakes" class="tab-view-container">
+        <StocktakesView />
+      </div>
 
-    <!-- ===== MOVEMENTS TAB ===== -->
-    <MovementsTab
-      :items="filteredMovements"
-      :columns="movementsColumns"
-      v-model:movement-type-filter="movementTypeFilter"
-      :movement-label="movementLabel"
-      :fmt-qty="fmtQty"
-      @print-voucher="printTransferVoucherFromMovement"
-    />
+      <!-- ===== MOVEMENTS TAB ===== -->
+      <MovementsTab
+        v-else-if="tab === 'movements'"
+        key="movements"
+        :items="filteredMovements"
+        :columns="movementsColumns"
+        v-model:movement-type-filter="movementTypeFilter"
+        :movement-label="movementLabel"
+        :fmt-qty="fmtQty"
+        @print-voucher="printTransferVoucherFromMovement"
+      />
+
+      <!-- ===== EXCEL RETURN TAB ===== -->
+      <ReturnTab
+        v-else-if="tab === 'return'"
+        key="return"
+        :warehouses="warehouses"
+        v-model:return-warehouse-id="returnWarehouseId"
+        :downloading-template="downloadingTemplate"
+        :excel-result="excelResult"
+        @download="downloadTemplate"
+        @validate="onValidate"
+        @import="onImport"
+      />
+    </Transition>
 
     <!-- Edit Modal -->
     <div v-if="showEdit" class="modal" @click.self="showEdit = false">
@@ -91,50 +118,17 @@
             />
           </div>
 
-          <div class="form-group" v-if="warehouses.length" style="margin-top: 10px">
-            <div
-              style="
-                background: var(--bg-elevated, rgba(255, 255, 255, 0.03));
-                border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
-                padding: 14px;
-                border-radius: 12px;
-              "
-            >
-              <label
-                style="
-                  font-weight: 800;
-                  font-size: 0.92rem;
-                  color: var(--accent, #c77a2f);
-                  margin-bottom: 4px;
-                  display: flex;
-                  align-items: center;
-                  gap: 6px;
-                "
-              >
+          <div class="form-group mt-2" v-if="warehouses.length">
+            <div class="p-3 bg-elevated border border-border rounded-xl">
+              <label class="flex items-center gap-2 mb-1 font-extrabold text-sm text-accent">
                 توزيع رصيد المخزون بالمنشأة
               </label>
-              <small
-                style="
-                  display: block;
-                  color: var(--text-muted, #888);
-                  font-size: 0.78rem;
-                  margin-bottom: 12px;
-                "
-              >
+              <small class="block mb-3 text-xs text-muted">
                 حدد الكميات المتاحة في المخزن الرئيسي وفي مخزن المحل / الفرع:
               </small>
-              <div class="grid grid-2" style="gap: 12px">
-                <div v-for="w in warehouses" :key="w.id" class="form-group" style="margin: 0">
-                  <label
-                    style="
-                      font-size: 0.82rem;
-                      font-weight: 700;
-                      display: flex;
-                      align-items: center;
-                      justify-content: space-between;
-                      margin-bottom: 4px;
-                    "
-                  >
+              <div class="grid grid-2 gap-3">
+                <div v-for="w in warehouses" :key="w.id" class="form-group m-0">
+                  <label class="flex items-center justify-between mb-1 text-sm font-bold">
                     <span>{{ w.name_ar }}</span>
                     <span
                       v-if="
@@ -142,28 +136,11 @@
                         w.code === 'MAIN' ||
                         (w.name_ar && w.name_ar.includes('رئيسي'))
                       "
-                      style="
-                        font-size: 0.72rem;
-                        color: #3b82f6;
-                        font-weight: 800;
-                        background: rgba(59, 130, 246, 0.1);
-                        padding: 2px 6px;
-                        border-radius: 4px;
-                      "
+                      class="badge badge-info text-xs px-1.5 py-0.5"
                     >
                       مخزن رئيسي</span
                     >
-                    <span
-                      v-else
-                      style="
-                        font-size: 0.72rem;
-                        color: #10b981;
-                        font-weight: 800;
-                        background: rgba(16, 185, 129, 0.1);
-                        padding: 2px 6px;
-                        border-radius: 4px;
-                      "
-                    >
+                    <span v-else class="badge badge-success text-xs px-1.5 py-0.5">
                       مخزن المحل / الفرع</span
                     >
                   </label>
@@ -173,7 +150,7 @@
                     min="0"
                     step="0.001"
                     placeholder="أدخل الكمية..."
-                    style="font-weight: 700; font-size: 1rem"
+                    class="font-bold text-base"
                   />
                 </div>
               </div>
@@ -213,37 +190,26 @@
           </button>
         </div>
 
-        <div style="display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap">
+        <div class="flex flex-wrap gap-2 mb-4">
           <button
             type="button"
-            class="btn btn-sm btn-outline"
-            style="
-              font-size: 0.78rem;
-              font-weight: 800;
-              color: #3b82f6;
-              border-color: rgba(59, 130, 246, 0.3);
-            "
+            class="btn btn-sm btn-outline text-info font-extrabold text-xs"
+            style="border-color: color-mix(in srgb, var(--info) 30%, transparent)"
             @click="setTransferDirection('main', 'store')"
           >
             من الرئيسي للفرع
           </button>
           <button
             type="button"
-            class="btn btn-sm btn-outline"
-            style="
-              font-size: 0.78rem;
-              font-weight: 800;
-              color: #10b981;
-              border-color: rgba(16, 185, 129, 0.3);
-            "
+            class="btn btn-sm btn-outline text-success font-extrabold text-xs"
+            style="border-color: color-mix(in srgb, var(--success) 30%, transparent)"
             @click="setTransferDirection('store', 'main')"
           >
             من الفرع للرئيسي
           </button>
           <button
             type="button"
-            class="btn btn-sm btn-outline"
-            style="font-size: 0.78rem; font-weight: 700"
+            class="btn btn-sm btn-outline font-bold text-xs"
             @click="swapTransferDirection"
           >
             عكس الاتجاه
@@ -315,20 +281,13 @@
               />
               <div
                 v-if="selectedTransferProduct"
-                style="
-                  margin-top: 8px;
-                  display: flex;
-                  flex-direction: column;
-                  gap: 6px;
-                  font-size: 0.82rem;
-                  font-weight: 700;
-                "
+                class="mt-2 flex flex-col gap-1.5 text-sm font-bold"
               >
-                <small style="color: #2e7d4f; display: block">
+                <small class="text-success block">
                   ℹ الكمية المتوفرة حالياً في مخزن المصدر:
                   {{ fmtQty(selectedTransferProduct.quantity) }}
                 </small>
-                <small style="color: #64748b; display: block">
+                <small class="text-muted block">
                   ℹ الكمية المتوفرة حالياً في مخزن الوجهة:
                   {{
                     fmtQty(selectedTransferDestProduct ? selectedTransferDestProduct.quantity : 0)
@@ -349,7 +308,7 @@
                   margin-bottom: 8px;
                 "
               >
-                <label style="font-weight: 800; font-size: 0.9rem; color: var(--accent, #c77a2f)">
+                <label class="font-extrabold text-sm text-accent">
                   بنود إذن التحويل المخزني ({{ batchItems.length }})
                 </label>
                 <button type="button" class="btn btn-sm btn-outline" @click="addBatchRow">
@@ -416,78 +375,48 @@
     <div v-if="showVoucherModal" class="modal" @click.self="showVoucherModal = false">
       <div class="card modal-content transfer-voucher-doc" style="max-width: 650px; padding: 24px">
         <div
-          class="voucher-header"
-          style="
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 2px solid var(--border, #ccc);
-            padding-bottom: 12px;
-            margin-bottom: 16px;
-          "
+          class="voucher-header pb-3 mb-4 flex justify-between items-center"
+          style="border-bottom: 2px solid var(--border)"
         >
           <div>
-            <h2
-              style="margin: 0; font-size: 1.3rem; font-weight: 800; color: var(--accent, #c77a2f)"
-            >
-              بن العجوز ERP
-            </h2>
-            <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: var(--text-muted)">
-              إذن نقل وتحويل مخزني رسمي
-            </p>
+            <h2 class="m-0 text-xl font-extrabold text-accent">بن العجوز ERP</h2>
+            <p class="m-0 mt-1 text-sm text-muted">إذن نقل وتحويل مخزني رسمي</p>
           </div>
-          <div style="text-align: left">
-            <span
-              class="badge badge-info"
-              style="font-size: 0.9rem; font-weight: 800; padding: 4px 10px"
-              >{{ currentVoucher?.transfer_number || 'TRF-VOUCHER' }}</span
-            >
-            <small style="display: block; margin-top: 4px; color: var(--text-muted)">{{
+          <div class="text-left">
+            <span class="badge badge-info text-sm font-extrabold px-2.5 py-1">
+              {{ currentVoucher?.transfer_number || 'TRF-VOUCHER' }}
+            </span>
+            <small class="block mt-1 text-muted">{{
               formatDateTime(currentVoucher?.created_at || Date.now())
             }}</small>
           </div>
         </div>
 
         <div
-          class="voucher-meta"
-          style="
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
-            background: rgba(0, 0, 0, 0.03);
-            padding: 12px;
-            border-radius: 8px;
-            margin-bottom: 16px;
-          "
+          class="voucher-meta grid grid-cols-2 gap-3 p-3 rounded-lg mb-4"
+          style="background: color-mix(in srgb, var(--text) 3%, transparent)"
         >
           <div>
-            <strong style="display: block; font-size: 0.8rem; color: var(--text-muted)"
-              >من مخزن (المصدر):</strong
-            >
-            <span style="color: var(--info); font-weight: 800; font-size: 1rem">{{
+            <strong class="block text-sm text-muted">من مخزن (المصدر):</strong>
+            <span class="text-info font-extrabold text-base">{{
               currentVoucher?.from_warehouse_name
             }}</span>
           </div>
           <div>
-            <strong style="display: block; font-size: 0.8rem; color: var(--text-muted)"
-              >إلى مخزن (الوجهة):</strong
-            >
-            <span style="color: var(--success); font-weight: 800; font-size: 1rem">{{
+            <strong class="block text-sm text-muted">إلى مخزن (الوجهة):</strong>
+            <span class="text-success font-extrabold text-base">{{
               currentVoucher?.to_warehouse_name
             }}</span>
           </div>
         </div>
 
-        <table
-          class="inv-table"
-          style="width: 100%; border-collapse: collapse; margin-bottom: 20px"
-        >
+        <table class="inv-table w-full mb-5" style="border-collapse: collapse">
           <thead>
-            <tr style="background: var(--bg-elevated, #f4f4f4); text-align: right">
-              <th style="padding: 8px">#</th>
-              <th style="padding: 8px">المنتج</th>
-              <th style="padding: 8px">الكود</th>
-              <th style="padding: 8px">الكمية المحولة</th>
+            <tr class="text-right" style="background: var(--bg-elevated)">
+              <th class="p-2">#</th>
+              <th class="p-2">المنتج</th>
+              <th class="p-2">الكود</th>
+              <th class="p-2">الكمية المحولة</th>
             </tr>
           </thead>
           <tbody>
@@ -496,10 +425,10 @@
               :key="idx"
               style="border-bottom: 1px solid var(--border)"
             >
-              <td style="padding: 8px">{{ idx + 1 }}</td>
-              <td style="padding: 8px; font-weight: 700">{{ it.product_name }}</td>
-              <td style="padding: 8px" class="mono">{{ it.sku || '—' }}</td>
-              <td style="padding: 8px; font-weight: 800; color: var(--success)">
+              <td class="p-2">{{ idx + 1 }}</td>
+              <td class="p-2 font-bold">{{ it.product_name }}</td>
+              <td class="p-2 mono">{{ it.sku || '—' }}</td>
+              <td class="p-2 font-extrabold text-success">
                 {{ fmtQty(it.quantity) }}
               </td>
             </tr>
@@ -507,27 +436,15 @@
         </table>
 
         <div
-          class="voucher-signatures"
-          style="
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            margin-top: 24px;
-            padding-top: 16px;
-            border-top: 1px dashed var(--border);
-            text-align: center;
-          "
+          class="voucher-signatures grid grid-cols-2 gap-5 mt-6 pt-4 text-center"
+          style="border-top: 1px dashed var(--border)"
         >
           <div>
-            <small style="display: block; color: var(--text-muted); margin-bottom: 24px"
-              >توقيع المُسلّم (أمين مخزن المصدر)</small
-            >
+            <small class="block text-muted mb-6">توقيع المُسلّم (أمين مخزن المصدر)</small>
             <span>........................................</span>
           </div>
           <div>
-            <small style="display: block; color: var(--text-muted); margin-bottom: 24px"
-              >توقيع المستلم (مسؤول مخزن الوجهة)</small
-            >
+            <small class="block text-muted mb-6">توقيع المستلم (مسؤول مخزن الوجهة)</small>
             <span>........................................</span>
           </div>
         </div>
@@ -594,19 +511,38 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { inventory as inventoryApi } from '@/api';
 import AppIcon from '@/components/AppIcon.vue';
 import StockTab from '@/components/inventory/StockTab.vue';
 import ReturnTab from '@/components/inventory/ReturnTab.vue';
 import MovementsTab from '@/components/inventory/MovementsTab.vue';
+import StocktakesView from '@/views/StocktakesView.vue';
 import { formatMoney } from '@/utils/currency';
 import { formatDateTime } from '@/utils/formatters';
 import { useInventoryStock } from '@/composables/useInventoryStock';
 import { useInventoryTransfers } from '@/composables/useInventoryTransfers';
 import { useInventoryExcel } from '@/composables/useInventoryExcel';
 
-const tab = ref('stock');
+const route = useRoute();
+const router = useRouter();
+
+const tab = ref((route.query.tab as string) || 'stock');
+
+watch(
+  () => route.query.tab,
+  (newTab) => {
+    if (newTab && newTab !== tab.value) {
+      tab.value = String(newTab);
+    }
+  },
+);
+
+const switchTab = (newTab: string) => {
+  tab.value = newTab;
+  router.replace({ query: { ...route.query, tab: newTab } }).catch(() => {});
+};
 const warehouseId = ref('');
 const msg = ref('');
 const err = ref(false);
@@ -743,30 +679,6 @@ onMounted(load);
     display: flex;
     gap: 8px;
     align-items: center;
-  }
-}
-
-.inline-tabs {
-  display: flex;
-  gap: 6px;
-  button {
-    padding: 9px 16px;
-    border: 2px solid var(--border);
-    border-radius: var(--radius-sm);
-    background: var(--bg-elevated);
-    cursor: pointer;
-    font-weight: 700;
-    font-size: 0.88rem;
-    transition: var(--transition);
-    &:hover {
-      border-color: var(--primary-soft);
-    }
-    &.active {
-      background: linear-gradient(135deg, var(--primary), var(--primary-strong));
-      color: #fff;
-      border-color: transparent;
-      box-shadow: 0 4px 12px color-mix(in srgb, var(--primary) 35%, transparent);
-    }
   }
 }
 

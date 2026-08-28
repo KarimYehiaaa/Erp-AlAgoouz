@@ -1,19 +1,49 @@
 <template>
   <div class="products-page">
     <div class="page-header">
-      <div class="tabs inline-tabs">
-        <button type="button" :class="{ active: tab === 'list' }" @click="tab = 'list'">
-          🏷️ المنتجات
+      <div class="hub-tabs">
+        <button
+          type="button"
+          class="hub-tab"
+          :class="{ active: tab === 'list' }"
+          @click="switchTab('list')"
+        >
+          <AppIcon name="products" :size="16" /> المنتجات والأصناف
         </button>
         <button
           type="button"
+          class="hub-tab"
+          :class="{ active: tab === 'recipes' }"
+          @click="switchTab('recipes')"
+        >
+          <AppIcon name="recipes" :size="16" /> الوصفات والإنتاج
+        </button>
+        <button
+          type="button"
+          class="hub-tab"
+          :class="{ active: tab === 'costs' }"
+          @click="switchTab('costs')"
+        >
+          <AppIcon name="costs" :size="16" /> التكاليف والفاقد
+        </button>
+        <button
+          type="button"
+          class="hub-tab"
+          :class="{ active: tab === 'menu-builder' }"
+          @click="switchTab('menu-builder')"
+        >
+          <AppIcon name="quotes" :size="16" /> تصميم المنيو والـ QR
+        </button>
+        <button
+          type="button"
+          class="hub-tab"
           :class="{ active: tab === 'return' }"
           @click="
-            tab = 'return';
+            switchTab('return');
             loadReturns();
           "
         >
-          ↩ استرداد منتجات
+          <AppIcon name="upload" :size="16" /> استرداد بـ Excel
         </button>
       </div>
       <div v-if="tab === 'list'" class="header-actions">
@@ -68,182 +98,200 @@
       </div>
     </div>
 
-    <template v-if="tab === 'list'">
-      <div class="card table-wrap">
-        <BaseTable
-          :items="products"
-          :columns="productsColumns"
-          :loading="loading"
-          client-pagination
-          :client-per-page="50"
-          empty-message="لا توجد منتجات مسجلة"
-        >
-          <template #cell-name="{ item }">
-            <div class="product-name-cell">
-              <div class="product-title">
-                <span class="product-name">{{ item.name_ar }}</span>
-                <span class="product-sku">{{ item.sku }}</span>
-              </div>
-              <span class="product-unit-badge">{{ unitLabel(item.unit) }}</span>
-            </div>
-          </template>
-          <template #cell-category="{ item }">
-            {{ item.category_name || '—' }}
-          </template>
-          <template #cell-purchase_price="{ item }">
-            {{ formatMoney(item.purchase_price) }}
-          </template>
-          <template #cell-sale_price="{ item }">
-            {{ formatMoney(item.sale_price) }}
-          </template>
-          <template #cell-profit_margin="{ item }">
-            <div class="margin-cell">
-              <span :class="['badge', getMarginClass(item)]" class="margin-badge">
-                {{ formatMargin(item) }}
-              </span>
-              <small v-if="getProfitAmount(item) !== 0" class="margin-profit-amount">
-                {{ getProfitAmount(item) > 0 ? '+' : '' }}{{ formatMoney(getProfitAmount(item)) }}
-              </small>
-            </div>
-          </template>
-          <template #cell-status="{ item }">
-            {{ item.is_active ? 'نشط' : 'معطل' }}
-          </template>
-          <template #cell-actions="{ item }">
-            <div class="actions-cell">
-              <button
-                type="button"
-                class="icon-btn edit"
-                title="تعديل"
-                @click="editProduct(item)"
-                v-permission="'products.edit'"
-              >
-                <AppIcon name="edit" :size="16" />
-              </button>
-              <button
-                type="button"
-                class="icon-btn"
-                :class="{ disabled: item.has_active_recipe }"
-                :disabled="item.has_active_recipe"
-                v-permission="'products.edit'"
-                :title="
-                  item.has_active_recipe
-                    ? 'منتج وصفة نشطة: لا يتم استرداد مخزونه مباشرة'
-                    : 'استرداد'
-                "
-                @click="openReturn(item)"
-              >
-                <AppIcon name="arrowLeft" :size="16" />
-              </button>
-              <button
-                type="button"
-                class="icon-btn danger"
-                title="حذف المنتج"
-                @click="deleteOneProduct(item)"
-                v-permission="'products.delete'"
-              >
-                <AppIcon name="delete" :size="16" />
-              </button>
-            </div>
-          </template>
-        </BaseTable>
-      </div>
-
-      <div class="danger-mini card" v-permission="'products.delete'">
-        <span>حذف كل المنتجات</span>
-        <button
-          type="button"
-          class="btn btn-sm btn-delete"
-          @click="deleteAllProducts"
-          v-permission="'products.delete'"
-        >
-          <AppIcon name="delete" :size="14" /> حذف الكل
-        </button>
-      </div>
-    </template>
-
-    <template v-else>
-      <div class="grid grid-2">
-        <div class="card form-card">
-          <h3>استرداد منتج للمخزن</h3>
-          <p class="hint">يستخدم عند مرتجع عميل أو تصحيح جرد</p>
-          <form @submit.prevent="submitReturn">
-            <div class="form-group">
-              <label>المنتج *</label>
-              <select v-model="returnForm.product_id" required>
-                <option :value="null" disabled>اختر المنتج</option>
-                <option v-for="p in products" :key="p.id" :value="p.id">{{ p.name_ar }}</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label>المخزن *</label>
-              <select v-model="returnForm.warehouse_id" required>
-                <option v-for="w in warehouses" :key="w.id" :value="w.id">{{ w.name_ar }}</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label>الكمية *</label>
-              <input
-                v-model.number="returnForm.quantity"
-                type="number"
-                min="0.001"
-                step="0.001"
-                required
-              />
-            </div>
-            <div class="form-group">
-              <label>السبب</label>
-              <select v-model="returnForm.reason">
-                <option value="customer_return">مرتجع عميل</option>
-                <option value="damaged">تالف</option>
-                <option value="expired">منتهي</option>
-                <option value="correction">تصحيح جرد</option>
-                <option value="other">أخرى</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label>ملاحظات</label>
-              <textarea v-model="returnForm.notes" rows="2" placeholder="تفاصيل إضافية..." />
-            </div>
-            <button type="submit" class="btn btn-primary" :disabled="returning">
-              <AppIcon name="arrowLeft" :size="16" />
-              {{ returning ? 'جاري الحفظ...' : 'تأكيد الاسترداد' }}
-            </button>
-          </form>
-        </div>
-
+    <Transition name="hub-fade" mode="out-in">
+      <div v-if="tab === 'list'" key="list">
         <div class="card table-wrap">
-          <h3>سجل الاستردادات</h3>
-          <table>
-            <thead>
-              <tr>
-                <th>التاريخ</th>
-                <th>المنتج</th>
-                <th>المخزن</th>
-                <th>الكمية</th>
-                <th>بواسطة</th>
-                <th>ملاحظات</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="r in returns" :key="r.id">
-                <td>{{ formatDateTime(r.created_at) }}</td>
-                <td>{{ r.product_name }}</td>
-                <td>{{ r.warehouse_name || '—' }}</td>
-                <td>
-                  <span class="badge badge-success">+{{ r.quantity }}</span>
-                </td>
-                <td>{{ r.user_name || '—' }}</td>
-                <td>{{ r.notes || '—' }}</td>
-              </tr>
-              <tr v-if="!returns.length">
-                <td colspan="6" class="empty">لا توجد استردادات</td>
-              </tr>
-            </tbody>
-          </table>
+          <BaseTable
+            :items="products"
+            :columns="productsColumns"
+            :loading="loading"
+            client-pagination
+            :client-per-page="50"
+            empty-message="لا توجد منتجات مسجلة"
+          >
+            <template #cell-name="{ item }">
+              <div class="product-name-cell">
+                <div class="product-title">
+                  <span class="product-name">{{ item.name_ar }}</span>
+                  <span class="product-sku">{{ item.sku }}</span>
+                </div>
+                <span class="product-unit-badge">{{ unitLabel(item.unit) }}</span>
+              </div>
+            </template>
+            <template #cell-category="{ item }">
+              {{ item.category_name || '—' }}
+            </template>
+            <template #cell-purchase_price="{ item }">
+              {{ formatMoney(item.purchase_price) }}
+            </template>
+            <template #cell-sale_price="{ item }">
+              {{ formatMoney(item.sale_price) }}
+            </template>
+            <template #cell-profit_margin="{ item }">
+              <div class="margin-cell">
+                <span :class="['badge', getMarginClass(item)]" class="margin-badge">
+                  {{ formatMargin(item) }}
+                </span>
+                <small v-if="getProfitAmount(item) !== 0" class="margin-profit-amount">
+                  {{ getProfitAmount(item) > 0 ? '+' : '' }}{{ formatMoney(getProfitAmount(item)) }}
+                </small>
+              </div>
+            </template>
+            <template #cell-status="{ item }">
+              {{ item.is_active ? 'نشط' : 'معطل' }}
+            </template>
+            <template #cell-actions="{ item }">
+              <div class="actions-cell">
+                <button
+                  type="button"
+                  class="icon-btn edit"
+                  title="تعديل"
+                  @click="editProduct(item)"
+                  v-permission="'products.edit'"
+                >
+                  <AppIcon name="edit" :size="16" />
+                </button>
+                <button
+                  type="button"
+                  class="icon-btn"
+                  :class="{ disabled: item.has_active_recipe }"
+                  :disabled="item.has_active_recipe"
+                  v-permission="'products.edit'"
+                  :title="
+                    item.has_active_recipe
+                      ? 'منتج وصفة نشطة: لا يتم استرداد مخزونه مباشرة'
+                      : 'استرداد'
+                  "
+                  @click="openReturn(item)"
+                >
+                  <AppIcon name="arrowLeft" :size="16" />
+                </button>
+                <button
+                  type="button"
+                  class="icon-btn danger"
+                  title="حذف المنتج"
+                  @click="deleteOneProduct(item)"
+                  v-permission="'products.delete'"
+                >
+                  <AppIcon name="delete" :size="16" />
+                </button>
+              </div>
+            </template>
+          </BaseTable>
+        </div>
+
+        <div class="danger-mini card" v-permission="'products.delete'">
+          <span>حذف كل المنتجات</span>
+          <button
+            type="button"
+            class="btn btn-sm btn-delete"
+            @click="deleteAllProducts"
+            v-permission="'products.delete'"
+          >
+            <AppIcon name="delete" :size="14" /> حذف الكل
+          </button>
         </div>
       </div>
-    </template>
+
+      <!-- ===== RECIPES TAB ===== -->
+      <div v-else-if="tab === 'recipes'" key="recipes" class="tab-view-container">
+        <RecipesView />
+      </div>
+
+      <!-- ===== COSTS TAB ===== -->
+      <div v-else-if="tab === 'costs'" key="costs" class="tab-view-container">
+        <CostsView />
+      </div>
+
+      <!-- ===== MENU BUILDER TAB ===== -->
+      <div v-else-if="tab === 'menu-builder'" key="menu-builder" class="tab-view-container">
+        <MenuBuilderView />
+      </div>
+
+      <!-- ===== EXCEL RETURN TAB ===== -->
+      <div v-else-if="tab === 'return'" key="return">
+        <div class="grid grid-2">
+          <div class="card form-card">
+            <h3>استرداد منتج للمخزن</h3>
+            <p class="hint">يستخدم عند مرتجع عميل أو تصحيح جرد</p>
+            <form @submit.prevent="submitReturn">
+              <div class="form-group">
+                <label>المنتج *</label>
+                <select v-model="returnForm.product_id" required>
+                  <option :value="null" disabled>اختر المنتج</option>
+                  <option v-for="p in products" :key="p.id" :value="p.id">{{ p.name_ar }}</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>المخزن *</label>
+                <select v-model="returnForm.warehouse_id" required>
+                  <option v-for="w in warehouses" :key="w.id" :value="w.id">{{ w.name_ar }}</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>الكمية *</label>
+                <input
+                  v-model.number="returnForm.quantity"
+                  type="number"
+                  min="0.001"
+                  step="0.001"
+                  required
+                />
+              </div>
+              <div class="form-group">
+                <label>السبب</label>
+                <select v-model="returnForm.reason">
+                  <option value="customer_return">مرتجع عميل</option>
+                  <option value="damaged">تالف</option>
+                  <option value="expired">منتهي</option>
+                  <option value="correction">تصحيح جرد</option>
+                  <option value="other">أخرى</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>ملاحظات</label>
+                <textarea v-model="returnForm.notes" rows="2" placeholder="تفاصيل إضافية..." />
+              </div>
+              <button type="submit" class="btn btn-primary" :disabled="returning">
+                <AppIcon name="arrowLeft" :size="16" />
+                {{ returning ? 'جاري الحفظ...' : 'تأكيد الاسترداد' }}
+              </button>
+            </form>
+          </div>
+
+          <div class="card table-wrap">
+            <h3>سجل الاستردادات</h3>
+            <table>
+              <thead>
+                <tr>
+                  <th>التاريخ</th>
+                  <th>المنتج</th>
+                  <th>المخزن</th>
+                  <th>الكمية</th>
+                  <th>بواسطة</th>
+                  <th>ملاحظات</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="r in returns" :key="r.id">
+                  <td>{{ formatDateTime(r.created_at) }}</td>
+                  <td>{{ r.product_name }}</td>
+                  <td>{{ r.warehouse_name || '—' }}</td>
+                  <td>
+                    <span class="badge badge-success">+{{ r.quantity }}</span>
+                  </td>
+                  <td>{{ r.user_name || '—' }}</td>
+                  <td>{{ r.notes || '—' }}</td>
+                </tr>
+                <tr v-if="!returns.length">
+                  <td colspan="6" class="empty">لا توجد استردادات</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </Transition>
 
     <div v-if="showForm" class="modal" @click.self="showForm = false">
       <div class="card modal-content">
@@ -289,76 +337,26 @@
               </select>
             </div>
 
-            <div class="form-group span-2" v-if="warehouses.length" style="margin-top: 6px">
-              <div
-                style="
-                  background: var(--bg-elevated, rgba(255, 255, 255, 0.03));
-                  border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
-                  padding: 14px;
-                  border-radius: 12px;
-                "
-              >
-                <label
-                  style="
-                    font-weight: 800;
-                    font-size: 0.92rem;
-                    color: var(--accent, #c77a2f);
-                    margin-bottom: 4px;
-                    display: flex;
-                    align-items: center;
-                    gap: 6px;
-                  "
-                >
+            <div class="form-group span-2 mt-2" v-if="warehouses.length">
+              <div class="p-3 border border-border bg-elevated rounded-lg">
+                <label class="flex items-center gap-2 mb-1 font-extrabold text-sm text-accent">
                   توزيع كميات المخزون بالمنشأة
                 </label>
-                <small
-                  style="
-                    display: block;
-                    color: var(--text-muted, #888);
-                    font-size: 0.78rem;
-                    margin-bottom: 12px;
-                  "
-                >
+                <small class="block mb-3 text-xs text-muted">
                   حدد الرصيد المتاح في التخزين الخلفي (المخزن الرئيسي) والرصيد المعروض في صالة البيع
                   (الفرع):
                 </small>
-                <div class="grid grid-2" style="gap: 12px">
-                  <div v-for="w in warehouses" :key="w.id" class="form-group" style="margin: 0">
-                    <label
-                      style="
-                        font-size: 0.82rem;
-                        font-weight: 700;
-                        display: flex;
-                        align-items: center;
-                        justify-content: space-between;
-                        margin-bottom: 4px;
-                      "
-                    >
+                <div class="grid grid-2 gap-3">
+                  <div v-for="w in warehouses" :key="w.id" class="form-group m-0">
+                    <label class="flex items-center justify-between mb-1 text-sm font-bold">
                       <span>{{ w.name_ar }}</span>
                       <span
                         v-if="w.type === 'main' || w.code === 'MAIN'"
-                        style="
-                          font-size: 0.72rem;
-                          color: #3b82f6;
-                          font-weight: 800;
-                          background: rgba(59, 130, 246, 0.1);
-                          padding: 2px 6px;
-                          border-radius: 4px;
-                        "
+                        class="badge badge-info px-1.5 py-0.5 text-xs"
                       >
                         مخزن رئيسي</span
                       >
-                      <span
-                        v-else
-                        style="
-                          font-size: 0.72rem;
-                          color: #10b981;
-                          font-weight: 800;
-                          background: rgba(16, 185, 129, 0.1);
-                          padding: 2px 6px;
-                          border-radius: 4px;
-                        "
-                      >
+                      <span v-else class="badge badge-success px-1.5 py-0.5 text-xs">
                         محل البيع / الفرع</span
                       >
                     </label>
@@ -368,7 +366,7 @@
                       min="0"
                       step="0.001"
                       placeholder="أدخل الكمية..."
-                      style="font-weight: 700; font-size: 1rem"
+                      class="font-bold text-base"
                     />
                   </div>
                 </div>
@@ -433,15 +431,37 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, computed } from 'vue';
+import { ref, onMounted, onBeforeUnmount, computed, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { products as api, warehouses as warehousesApi } from '@/api';
 import { formatMoney } from '@/utils/currency';
 import { useProductMeta } from '@/composables/useProductMeta';
 import BaseTable from '@/components/ui/BaseTable.vue';
+import AppIcon from '@/components/AppIcon.vue';
+import RecipesView from '@/views/RecipesView.vue';
+import CostsView from '@/views/CostsView.vue';
+import MenuBuilderView from '@/views/MenuBuilderView.vue';
 
+const route = useRoute();
+const router = useRouter();
 const { categories, loadMeta, unitLabel, unitNames } = useProductMeta();
 
-const tab = ref('list');
+const tab = ref((route.query.tab as string) || 'list');
+
+watch(
+  () => route.query.tab,
+  (newTab) => {
+    if (newTab && newTab !== tab.value) {
+      tab.value = String(newTab);
+      if (newTab === 'return') loadReturns();
+    }
+  },
+);
+
+const switchTab = (newTab: string) => {
+  tab.value = newTab;
+  router.replace({ query: { ...route.query, tab: newTab } }).catch(() => {});
+};
 const importMsg = ref('');
 const importErr = ref(false);
 const products = ref<any[]>([]);
@@ -823,28 +843,10 @@ onBeforeUnmount(() => {
   align-items: center;
   flex-wrap: wrap;
   gap: 12px;
-}
-.header-actions {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-.import-btn {
-  cursor: pointer;
-  margin: 0;
-}
-
-.import-msg {
-  padding: 12px 16px;
-  border-radius: var(--radius-sm);
-  background: rgba(46, 125, 79, 0.1);
-  color: var(--success);
-  border: 1px solid rgba(46, 125, 79, 0.2);
-  font-size: 0.9rem;
-  &.err {
-    background: rgba(180, 35, 24, 0.08);
-    color: var(--danger);
-    border-color: rgba(180, 35, 24, 0.2);
+  .header-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
   }
 }
 
@@ -874,31 +876,6 @@ onBeforeUnmount(() => {
   font-size: 1.2rem;
   font-weight: 800;
   color: var(--text-strong);
-}
-
-/* Tabs */
-.inline-tabs {
-  display: flex;
-  gap: 6px;
-  button {
-    padding: 9px 18px;
-    border: 2px solid var(--border);
-    border-radius: var(--radius-sm);
-    background: var(--bg-elevated);
-    cursor: pointer;
-    font-weight: 700;
-    font-size: 0.9rem;
-    transition: var(--transition);
-    &:hover {
-      border-color: var(--primary-soft);
-    }
-    &.active {
-      background: linear-gradient(135deg, var(--primary), var(--primary-strong));
-      color: #fff;
-      border-color: transparent;
-      box-shadow: 0 4px 12px color-mix(in srgb, var(--primary) 35%, transparent);
-    }
-  }
 }
 
 /* Table */

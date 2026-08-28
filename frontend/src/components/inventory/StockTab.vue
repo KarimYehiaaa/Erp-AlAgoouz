@@ -281,12 +281,12 @@ defineEmits<{
 .pill-main {
   background: rgba(59, 130, 246, 0.1);
   border-color: rgba(59, 130, 246, 0.25);
-  color: #3b82f6;
+  color: var(--info);
 }
 .pill-branch {
   background: rgba(16, 185, 129, 0.1);
   border-color: rgba(16, 185, 129, 0.25);
-  color: #10b981;
+  color: var(--success);
 }
 .valuation-cards-row {
   margin-bottom: 16px;

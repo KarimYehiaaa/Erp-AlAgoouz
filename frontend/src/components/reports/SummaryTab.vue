@@ -2,7 +2,7 @@
   <div>
     <div class="kpi-grid">
       <div class="kpi-card sales">
-        <div class="kpi-icon"></div>
+        <div class="kpi-icon"><AppIcon name="sales" :size="22" /></div>
         <div class="kpi-body">
           <div class="kpi-label">إجمالي المبيعات</div>
           <div class="kpi-value">{{ formatMoney(summary.sales?.total_sales || 0) }}</div>
@@ -10,7 +10,7 @@
         </div>
       </div>
       <div class="kpi-card profit">
-        <div class="kpi-icon"></div>
+        <div class="kpi-icon"><AppIcon name="trendingUp" :size="22" /></div>
         <div class="kpi-body">
           <div class="kpi-label">صافي الأرباح</div>
           <div class="kpi-value">{{ formatMoney(summary.sales?.total_profit || 0) }}</div>
@@ -18,7 +18,7 @@
         </div>
       </div>
       <div class="kpi-card expenses">
-        <div class="kpi-icon"></div>
+        <div class="kpi-icon"><AppIcon name="expenses" :size="22" /></div>
         <div class="kpi-body">
           <div class="kpi-label">إجمالي المصروفات</div>
           <div class="kpi-value">{{ formatMoney(summary.expenses?.total_expenses || 0) }}</div>
@@ -26,7 +26,9 @@
         </div>
       </div>
       <div class="kpi-card cashflow" :class="summary.cashFlow >= 0 ? 'positive' : 'negative'">
-        <div class="kpi-icon">{{ summary.cashFlow >= 0 ? '' : '' }}</div>
+        <div class="kpi-icon">
+          <AppIcon :name="summary.cashFlow >= 0 ? 'trendingUp' : 'trendingDown'" :size="22" />
+        </div>
         <div class="kpi-body">
           <div class="kpi-label">التدفق النقدي</div>
           <div class="kpi-value">{{ formatMoney(summary.cashFlow || 0) }}</div>
@@ -34,7 +36,7 @@
         </div>
       </div>
       <div class="kpi-card inventory">
-        <div class="kpi-icon"></div>
+        <div class="kpi-icon"><AppIcon name="inventory" :size="22" /></div>
         <div class="kpi-body">
           <div class="kpi-label">المنتجات</div>
           <div class="kpi-value">{{ summary.inventory?.products || 0 }}</div>
@@ -42,7 +44,7 @@
         </div>
       </div>
       <div class="kpi-card customers">
-        <div class="kpi-icon"></div>
+        <div class="kpi-icon"><AppIcon name="customers" :size="22" /></div>
         <div class="kpi-body">
           <div class="kpi-label">العملاء النشطون</div>
           <div class="kpi-value">{{ summary.customersCount || 0 }}</div>
@@ -101,6 +103,7 @@
 </template>
 
 <script setup lang="ts">
+import AppIcon from '@/components/AppIcon.vue';
 import { formatMoney } from '@/utils/currency';
 import { fmtQty } from '@/utils/reportLabels';
 

@@ -4,7 +4,7 @@
     <div class="catalog-top-header">
       <div class="search-and-status-row">
         <div class="search-box">
-          <span class="search-icon"></span>
+          <span class="search-icon"><AppIcon name="search" :size="16" /></span>
           <input
             ref="searchInputRef"
             :value="productSearch"
@@ -22,7 +22,9 @@
               emit('filter');
             "
             title="مسح البحث"
-          ></button>
+          >
+            <AppIcon name="close" :size="14" />
+          </button>
         </div>
 
         <!--  أزرار التبديل بين كثافة العرض والأنماط (Point 7: Grid Density & View Mode Switcher) -->
@@ -34,7 +36,7 @@
             @click="setViewMode('3d')"
             title="الوضع المجسم ثلاثي الأبعاد (3D Tactile)"
           >
-            <span class="btn-icon"></span>
+            <span class="btn-icon"><AppIcon name="boxes" :size="14" /></span>
             <span class="btn-label">3D مجسم</span>
           </button>
 
@@ -45,7 +47,7 @@
             @click="setViewMode('compact')"
             title="الوضع المدمج السريع للشاشات العريضة (Compact Grid)"
           >
-            <span class="btn-icon"></span>
+            <span class="btn-icon"><AppIcon name="sliders" :size="14" /></span>
             <span class="btn-label">مدمج</span>
           </button>
 
@@ -56,7 +58,7 @@
             @click="setViewMode('color')"
             title="الوضع الملون بحسب الأقسام (Color-Coded)"
           >
-            <span class="btn-icon"></span>
+            <span class="btn-icon"><AppIcon name="palette" :size="14" /></span>
             <span class="btn-label">ملون</span>
           </button>
         </div>
@@ -72,7 +74,7 @@
       <!--  شريط المفاتيح الذهبية والأكثر طلباً (Point 2: Pinned Fast Keys Ribbon) -->
       <div v-if="fastKeyProducts.length && !productSearch" class="fast-keys-ribbon">
         <div class="fast-keys-header">
-          <span class="ribbon-icon"></span>
+          <span class="ribbon-icon"><AppIcon name="trendingUp" :size="14" /></span>
           <span class="ribbon-title">الأكثر طلباً:</span>
         </div>
         <div class="fast-keys-scroll">
@@ -103,7 +105,7 @@
             :class="{ active: !selectedCategory }"
             @click="selectCategory('')"
           >
-            <span class="pill-icon"></span>
+            <span class="pill-icon"><AppIcon name="layers" :size="14" /></span>
             <span class="pill-label">كل المنتجات</span>
           </button>
 
@@ -133,7 +135,7 @@
 
       <!-- حالة عدم وجود نتائج -->
       <div v-else-if="!filteredProducts.length" class="empty-catalog-state">
-        <span class="empty-icon"></span>
+        <span class="empty-icon"><AppIcon name="search" :size="36" /></span>
         <h3>لم يتم العثور على منتجات مطابقة</h3>
         <p>تأكد من كتابة الاسم بشكل صحيح أو اختر قسماً آخر.</p>
         <button
@@ -214,13 +216,15 @@
         <!-- Header -->
         <div class="customizer-header">
           <div class="header-title-wrap">
-            <span class="modal-coffee-icon"></span>
+            <span class="modal-coffee-icon"><AppIcon name="coffee" :size="20" /></span>
             <div>
               <h3>تخصيص مواصفات البن / الطلب</h3>
               <p class="custom-prod-title">{{ activeCustomProduct.name_ar }}</p>
             </div>
           </div>
-          <button type="button" class="close-custom-btn" @click="closeCustomizer"></button>
+          <button type="button" class="close-custom-btn" @click="closeCustomizer">
+            <AppIcon name="close" :size="16" />
+          </button>
         </div>
 
         <div class="customizer-body">
@@ -236,7 +240,7 @@
                 :class="{ active: selectedGrind === grind.label }"
                 @click="selectedGrind = grind.label"
               >
-                <span class="pill-emoji">{{ grind.icon }}</span>
+                <AppIcon v-if="grind.icon" :name="grind.icon" :size="14" class="pill-emoji" />
                 <span>{{ grind.label }}</span>
               </button>
             </div>
@@ -254,7 +258,7 @@
                 :class="{ active: selectedRoast === roast.label }"
                 @click="selectedRoast = roast.label"
               >
-                <span class="pill-emoji">{{ roast.icon }}</span>
+                <AppIcon v-if="roast.icon" :name="roast.icon" :size="14" class="pill-emoji" />
                 <span>{{ roast.label }}</span>
               </button>
             </div>
@@ -272,7 +276,7 @@
                 :class="{ active: selectedSpices === spice.label }"
                 @click="selectedSpices = spice.label"
               >
-                <span class="pill-emoji">{{ spice.icon }}</span>
+                <AppIcon v-if="spice.icon" :name="spice.icon" :size="14" class="pill-emoji" />
                 <span>{{ spice.label }}</span>
               </button>
             </div>
@@ -344,6 +348,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
+import AppIcon from '@/components/AppIcon.vue';
 import SkeletonLoader from '@/components/SkeletonLoader.vue';
 
 const props = defineProps<{
@@ -392,28 +397,28 @@ const showCustomizerModal = ref(false);
 const activeCustomProduct = ref<any>(null);
 
 const grindOptions = [
-  { id: 'beans', label: 'حبوب كاملة', icon: '' },
-  { id: 'turkish', label: 'تركي ناعم', icon: '' },
-  { id: 'espresso', label: 'إسبريسو', icon: '' },
-  { id: 'v60', label: 'فلتر V60', icon: '' },
-  { id: 'french', label: 'فرنش برس', icon: '' },
-  { id: 'moka', label: 'موكا بوت', icon: '' },
+  { id: 'beans', label: 'حبوب كاملة', icon: 'coffee' },
+  { id: 'turkish', label: 'تركي ناعم', icon: 'coffee' },
+  { id: 'espresso', label: 'إسبريسو', icon: 'coffee' },
+  { id: 'v60', label: 'فلتر V60', icon: 'flask' },
+  { id: 'french', label: 'فرنش برس', icon: 'flask' },
+  { id: 'moka', label: 'موكا بوت', icon: 'coffee' },
 ];
 
 const roastOptions = [
-  { id: 'light', label: 'فاتح', icon: '' },
-  { id: 'medium', label: 'وسط', icon: '' },
-  { id: 'dark', label: 'غامق', icon: '' },
-  { id: 'med_dark', label: 'وسط مع غامق', icon: '' },
+  { id: 'light', label: 'فاتح', icon: 'sun' },
+  { id: 'medium', label: 'وسط', icon: 'zap' },
+  { id: 'dark', label: 'غامق', icon: 'moon' },
+  { id: 'med_dark', label: 'وسط مع غامق', icon: 'sparkles' },
 ];
 
 const spiceOptions = [
-  { id: 'plain', label: 'بدون حبهان (سادة)', icon: '' },
-  { id: 'light_card', label: 'حبهان خفيف', icon: '' },
-  { id: 'med_card', label: 'حبهان مظبوط', icon: '' },
-  { id: 'extra_card', label: 'حبهان زيادة', icon: '' },
-  { id: 'mastic', label: 'مستكة وحبهان', icon: '' },
-  { id: 'special', label: 'تحويجة العجوز الملكية', icon: '' },
+  { id: 'plain', label: 'بدون حبهان (سادة)', icon: 'tag' },
+  { id: 'light_card', label: 'حبهان خفيف', icon: 'sparkles' },
+  { id: 'med_card', label: 'حبهان مظبوط', icon: 'badge' },
+  { id: 'extra_card', label: 'حبهان زيادة', icon: 'badge' },
+  { id: 'mastic', label: 'مستكة وحبهان', icon: 'shield' },
+  { id: 'special', label: 'تحويجة العجوز الملكية', icon: 'sparkles' },
 ];
 
 const selectedGrind = ref('تركي ناعم');
@@ -761,7 +766,7 @@ defineExpose({
   }
 
   &.in-cart {
-    border-color: #22c55e;
+    border-color: var(--success);
     background: rgba(34, 197, 94, 0.15);
     color: #86efac;
   }
@@ -1004,16 +1009,16 @@ defineExpose({
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #22c55e;
-  box-shadow: 0 0 6px #22c55e;
+  background: var(--success);
+  box-shadow: 0 0 6px var(--success);
 
   &.low {
-    background: #f59e0b;
-    box-shadow: 0 0 6px #f59e0b;
+    background: var(--warning);
+    box-shadow: 0 0 6px var(--warning);
   }
   &.out {
-    background: #ef4444;
-    box-shadow: 0 0 6px #ef4444;
+    background: var(--danger);
+    box-shadow: 0 0 6px var(--danger);
   }
 }
 

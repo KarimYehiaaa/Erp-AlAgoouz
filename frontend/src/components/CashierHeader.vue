@@ -20,7 +20,7 @@
     <!-- Live Date & Clock -->
     <div class="header-center">
       <div class="clock-badge">
-        <span class="clock-icon"></span>
+        <span class="clock-icon"><AppIcon name="clock" :size="16" /></span>
         <span class="time-display">{{ currentTime }}</span>
         <span class="date-sep">|</span>
         <span class="date-display">{{ currentDate }}</span>
@@ -30,7 +30,7 @@
     <!-- Cashier Info & Actions -->
     <div class="header-actions">
       <div class="cashier-pill">
-        <span class="cashier-avatar"></span>
+        <span class="cashier-avatar"><AppIcon name="userCheck" :size="16" /></span>
         <span class="cashier-label">الكاشير:</span>
         <span class="cashier-name">{{ cashierName }}</span>
       </div>
@@ -44,7 +44,7 @@
           :title="isFullscreen ? 'الخروج من ملء الشاشة (Esc)' : 'ملء الشاشة (F11)'"
           type="button"
         >
-          <span>{{ isFullscreen ? '' : '' }}</span>
+          <AppIcon :name="isFullscreen ? 'minimize' : 'maximize'" :size="16" />
         </button>
 
         <!-- Logout Button -->
@@ -54,7 +54,7 @@
           title="تسجيل الخروج وإنهاء الشفت"
           type="button"
         >
-          <span></span>
+          <AppIcon name="logout" :size="16" />
           <span class="logout-text">خروج</span>
         </button>
       </div>
@@ -65,6 +65,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
+import AppIcon from '@/components/AppIcon.vue';
 import { useAuthStore } from '@/stores/auth';
 
 const router = useRouter();
@@ -190,7 +191,7 @@ onUnmounted(() => {
       .brand-badge {
         font-size: 0.65rem;
         font-weight: 800;
-        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        background: linear-gradient(135deg, var(--success) 0%, #059669 100%);
         color: #ffffff;
         padding: 1px 5px;
         border-radius: 4px;
@@ -203,15 +204,15 @@ onUnmounted(() => {
       align-items: center;
       gap: 5px;
       font-size: 0.7rem;
-      color: #10b981;
+      color: var(--success);
       font-weight: 600;
 
       .status-dot {
         width: 6px;
         height: 6px;
         border-radius: 50%;
-        background-color: #10b981;
-        box-shadow: 0 0 8px #10b981;
+        background-color: var(--success);
+        box-shadow: 0 0 8px var(--success);
         animation: pulse-dot 2s infinite ease-in-out;
       }
     }
@@ -330,11 +331,11 @@ onUnmounted(() => {
     &.logout-btn {
       background: rgba(239, 68, 68, 0.1);
       border-color: rgba(239, 68, 68, 0.25);
-      color: #ef4444;
+      color: var(--danger);
 
       &:hover {
         background: rgba(239, 68, 68, 0.2);
-        border-color: #ef4444;
+        border-color: var(--danger);
         color: #ffffff;
       }
     }

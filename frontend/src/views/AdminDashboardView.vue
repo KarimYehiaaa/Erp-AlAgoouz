@@ -9,8 +9,8 @@
       <div class="header-actions">
         <span class="last-update"> آخر تحديث: {{ lastUpdateStr }} </span>
         <button class="btn-refresh" @click="refreshAll" :disabled="loading">
-          <span :class="{ spin: loading }"></span>
-          {{ loading ? 'جاري التحديث...' : 'تحديث' }}
+          <AppIcon name="refresh" :size="14" :class="{ spin: loading }" />
+          <span>{{ loading ? 'جاري التحديث...' : 'تحديث' }}</span>
         </button>
       </div>
     </div>
@@ -25,7 +25,7 @@
       <!-- Section 1: System Health -->
       <section class="admin-section">
         <h2 class="section-title">
-          <span class="section-icon"></span>
+          <span class="section-icon"><AppIcon name="shield" :size="20" /></span>
           صحة النظام
           <span class="status-dot" :class="systemOk ? 'ok' : 'critical'"></span>
         </h2>
@@ -35,7 +35,7 @@
       <!-- Section 2: Financial KPIs -->
       <section class="admin-section">
         <h2 class="section-title">
-          <span class="section-icon"></span>
+          <span class="section-icon"><AppIcon name="trendingUp" :size="20" /></span>
           المؤشرات المالية والمستهدفات
         </h2>
         <FinancialKPICards :dashboard="dashboardData" :counts="countsData" />
@@ -162,6 +162,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount } from 'vue';
+import AppIcon from '@/components/AppIcon.vue';
 import api from '@/api/index';
 import SystemHealthCard from '@/components/admin/SystemHealthCard.vue';
 import FinancialKPICards from '@/components/admin/FinancialKPICards.vue';
@@ -453,7 +454,7 @@ onBeforeUnmount(() => {
 .btn-refresh:hover:not(:disabled) {
   background: rgba(59, 130, 246, 0.1);
   border-color: rgba(59, 130, 246, 0.3);
-  color: #3b82f6;
+  color: var(--info);
 }
 
 .btn-refresh:disabled {
@@ -522,14 +523,14 @@ onBeforeUnmount(() => {
 }
 
 .status-dot.ok {
-  background: #10b981;
-  box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
+  background: var(--success);
+  box-shadow: 0 0 8px var(--success-glow);
   animation: pulse-green 2s ease-in-out infinite;
 }
 
 .status-dot.critical {
-  background: #ef4444;
-  box-shadow: 0 0 8px rgba(239, 68, 68, 0.5);
+  background: var(--danger);
+  box-shadow: 0 0 8px var(--danger-glow);
   animation: pulse-red 1s ease-in-out infinite;
 }
 

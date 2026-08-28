@@ -3,7 +3,9 @@
     <div class="modal-card">
       <div class="modal-header">
         <h3>إنتاج دفعة</h3>
-        <button class="close-btn" @click="emit('close')"></button>
+        <button class="close-btn" @click="emit('close')">
+          <AppIcon name="close" :size="16" />
+        </button>
       </div>
 
       <div class="form-section">

@@ -139,8 +139,10 @@
                 }}{{ (p.simulated_margin - marginPct(p)).toFixed(1) }}%
               </td>
               <td>
-                <span v-if="p.has_recipe" class="badge-recipe"> وصفة</span>
-                <span v-else class="badge-raw"> خامة</span>
+                <span v-if="p.has_recipe" class="badge-recipe">
+                  <AppIcon name="recipes" :size="12" /> وصفة
+                </span>
+                <span v-else class="badge-raw"> <AppIcon name="inventory" :size="12" /> خامة </span>
               </td>
             </tr>
           </tbody>
@@ -148,7 +150,7 @@
       </div>
     </div>
     <div v-else class="empty-state card">
-      <span></span>
+      <AppIcon name="reports" :size="48" />
       <p>قم بتفعيل محاكي التضخم لرؤية أثر الأسعار على المنتجات</p>
     </div>
   </div>
@@ -156,6 +158,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
+import AppIcon from '@/components/AppIcon.vue';
 
 /**
  * محاكي التضخم (What-If) — يحسب أثر ارتفاع أسعار الخامات داخلياً.
@@ -417,7 +420,7 @@ const simulatedProductMarginClass = (m: any) => {
           color: #2e7d4f;
         }
         &.margin-mid {
-          color: #f59e0b;
+          color: var(--warning);
         }
         &.margin-low {
           color: #b42318;

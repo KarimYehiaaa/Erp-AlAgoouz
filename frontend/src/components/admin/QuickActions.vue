@@ -10,7 +10,7 @@
         @click="handleAction(action)"
         :disabled="loading === action.key"
       >
-        <span class="qa-icon">{{ action.icon }}</span>
+        <AppIcon :name="action.icon" :size="20" class="qa-icon" />
         <span class="qa-label">{{ loading === action.key ? 'جاري...' : action.label }}</span>
       </button>
     </div>
@@ -20,18 +20,24 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
+import AppIcon from '@/components/AppIcon.vue';
 
 const emit = defineEmits(['backup', 'clearCache', 'repairSequences', 'purgeLogs', 'broadcast']);
 const router = useRouter();
 const loading = ref<any>(null);
 
 const actions = [
-  { key: 'backup', icon: '', label: 'تنزيل نسخة احتياطية', colorClass: 'action-blue' },
-  { key: 'repairSequences', icon: '', label: 'إصلاح متسلسلات DB', colorClass: 'action-indigo' },
-  { key: 'purgeLogs', icon: '', label: 'تنظيف السجلات القديمة', colorClass: 'action-purple' },
-  { key: 'broadcast', icon: '', label: 'إرسال تنبيه عام', colorClass: 'action-orange' },
-  { key: 'addUser', icon: '', label: 'إدارة المستخدمين', colorClass: 'action-teal' },
-  { key: 'operations', icon: '', label: 'مركز التشغيل', colorClass: 'action-green' },
+  { key: 'backup', icon: 'backup', label: 'تنزيل نسخة احتياطية', colorClass: 'action-blue' },
+  {
+    key: 'repairSequences',
+    icon: 'database',
+    label: 'إصلاح متسلسلات DB',
+    colorClass: 'action-indigo',
+  },
+  { key: 'purgeLogs', icon: 'trash', label: 'تنظيف السجلات القديمة', colorClass: 'action-purple' },
+  { key: 'broadcast', icon: 'bell', label: 'إرسال تنبيه عام', colorClass: 'action-orange' },
+  { key: 'addUser', icon: 'users', label: 'إدارة المستخدمين', colorClass: 'action-teal' },
+  { key: 'operations', icon: 'activity', label: 'مركز التشغيل', colorClass: 'action-green' },
 ];
 
 const handleAction = async (action: any) => {

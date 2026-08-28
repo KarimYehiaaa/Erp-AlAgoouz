@@ -2,7 +2,7 @@
   <div v-if="isOpen" class="command-palette-overlay" @click.self="close">
     <div class="command-palette-box card">
       <div class="search-section">
-        <span class="search-icon"></span>
+        <span class="search-icon"><AppIcon name="search" :size="18" /></span>
         <input
           ref="searchInput"
           v-model="query"

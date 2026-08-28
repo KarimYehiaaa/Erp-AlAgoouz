@@ -7,7 +7,7 @@
   <div class="excel-return-page">
     <!-- Info Card -->
     <div class="card info-card">
-      <div class="info-icon"></div>
+      <div class="info-icon"><AppIcon name="fileText" :size="24" /></div>
       <div class="info-body">
         <h3>استرداد المخزون بالجملة عبر Excel</h3>
         <p>
@@ -178,6 +178,7 @@
 </template>
 
 <script setup lang="ts">
+import AppIcon from '@/components/AppIcon.vue';
 /**
  * تبويب الاسترداد عبر Excel — يستهلك من InventoryView.
  *

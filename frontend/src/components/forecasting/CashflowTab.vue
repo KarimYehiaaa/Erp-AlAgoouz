@@ -10,14 +10,14 @@
       <!-- Mini stats inside cashflow tab -->
       <div class="grid grid-4 cashflow-mini-stats">
         <div class="card mini-stat-card">
-          <span class="mini-icon"></span>
+          <span class="mini-icon"><AppIcon name="money" :size="20" /></span>
           <div class="mini-meta">
             <h4>السيولة الحالية</h4>
             <p class="font-bold">{{ formatMoney(cashflowData.currentBalance) }}</p>
           </div>
         </div>
         <div class="card mini-stat-card">
-          <span class="mini-icon"></span>
+          <span class="mini-icon"><AppIcon name="trendingUp" :size="20" /></span>
           <div class="mini-meta">
             <h4>الرصيد المتوقع (30 يوم)</h4>
             <p
@@ -29,7 +29,7 @@
           </div>
         </div>
         <div class="card mini-stat-card">
-          <span class="mini-icon"></span>
+          <span class="mini-icon"><AppIcon name="activity" :size="20" /></span>
           <div class="mini-meta">
             <h4>صافي التغيير المتوقع</h4>
             <p
@@ -41,7 +41,7 @@
           </div>
         </div>
         <div class="card mini-stat-card">
-          <span class="mini-icon">⏳</span>
+          <span class="mini-icon"><AppIcon name="clock" :size="20" /></span>
           <div class="mini-meta">
             <h4>أيام البقاء الآمن (Runway)</h4>
             <p
@@ -121,6 +121,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
+import AppIcon from '@/components/AppIcon.vue';
 import { formatMoney } from '@/utils/currency';
 
 // تبويب التدفقات النقدية — إحصائيات مصغرة + شريط تنبيه + رسم Chart.js + جدول النقاط اليومية.

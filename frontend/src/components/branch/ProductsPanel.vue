@@ -1,6 +1,6 @@
-<template>
+﻿<template>
   <div class="card full-catalog-panel">
-    <!-- ═══════════════════ شريط البحث والتصنيفات والأنماط ═══════════════════ -->
+    <!-- ═══════════════════ شريط البحث والتصنيفات ═══════════════════ -->
     <div class="catalog-top-header">
       <div class="search-and-status-row">
         <div class="search-box">
@@ -22,48 +22,13 @@
               emit('filter');
             "
             title="مسح البحث"
+            aria-label="مسح البحث"
           >
             <AppIcon name="close" :size="14" />
           </button>
         </div>
 
-        <!--  أزرار التبديل بين كثافة العرض والأنماط (Point 7: Grid Density & View Mode Switcher) -->
-        <div class="view-mode-switch-group">
-          <button
-            type="button"
-            class="mode-switch-btn"
-            :class="{ active: viewMode === '3d' }"
-            @click="setViewMode('3d')"
-            title="الوضع المجسم ثلاثي الأبعاد (3D Tactile)"
-          >
-            <span class="btn-icon"><AppIcon name="boxes" :size="14" /></span>
-            <span class="btn-label">3D مجسم</span>
-          </button>
-
-          <button
-            type="button"
-            class="mode-switch-btn"
-            :class="{ active: viewMode === 'compact' }"
-            @click="setViewMode('compact')"
-            title="الوضع المدمج السريع للشاشات العريضة (Compact Grid)"
-          >
-            <span class="btn-icon"><AppIcon name="sliders" :size="14" /></span>
-            <span class="btn-label">مدمج</span>
-          </button>
-
-          <button
-            type="button"
-            class="mode-switch-btn"
-            :class="{ active: viewMode === 'color' }"
-            @click="setViewMode('color')"
-            title="الوضع الملون بحسب الأقسام (Color-Coded)"
-          >
-            <span class="btn-icon"><AppIcon name="palette" :size="14" /></span>
-            <span class="btn-label">ملون</span>
-          </button>
-        </div>
-
-        <!-- ملخص التصنيف المختار -->
+        <!-- مؤشر التصنيف المختار -->
         <div class="active-cat-indicator" :title="'التصنيف: ' + currentCategoryName">
           <span class="cat-ind-icon">{{ currentCategoryIcon }}</span>
           <span class="cat-ind-name">{{ currentCategoryName }}</span>
@@ -71,7 +36,7 @@
         </div>
       </div>
 
-      <!--  شريط المفاتيح الذهبية والأكثر طلباً (Point 2: Pinned Fast Keys Ribbon) -->
+      <!-- شريط المفاتيح السريعة للأصناف الأكثر طلباً -->
       <div v-if="fastKeyProducts.length && !productSearch" class="fast-keys-ribbon">
         <div class="fast-keys-header">
           <span class="ribbon-icon"><AppIcon name="trendingUp" :size="14" /></span>
@@ -96,7 +61,7 @@
         </div>
       </div>
 
-      <!--  شريط التصنيفات الأفقي الفاخر (Horizontal Category Pills Bar) -->
+      <!-- شريط التصنيفات الأفقي الفاخر التفاعلي للمس -->
       <nav v-if="categories.length" class="horizontal-categories-nav">
         <div class="categories-scroll-track">
           <button
@@ -124,12 +89,14 @@
       </nav>
     </div>
 
-    <!-- ═══════════════════ شبكة المنتجات (Products Grid with Dynamic Density) ═══════════════════ -->
+    <!-- ═══════════════════ شبكة المنتجات الموحدة للمس (Touch-First Products Grid) ═══════════════════ -->
     <div class="catalog-grid-wrapper">
       <!-- هيكل التحميل -->
-      <div v-if="loadingProducts" class="products-grid-container" :class="['mode-' + viewMode]">
-        <div v-for="i in 12" :key="'sk-prod-' + i" class="product-tile skeleton-tile">
-          <SkeletonLoader type="line" height="20px" width="80%" />
+      <div v-if="loadingProducts" class="products-grid-container">
+        <div v-for="i in 12" :key="'sk-prod-' + i" class="pos-product-card skeleton-card">
+          <div class="card-image-box skeleton-box"></div>
+          <SkeletonLoader type="line" height="14px" width="80%" />
+          <SkeletonLoader type="line" height="12px" width="50%" />
         </div>
       </div>
 
@@ -150,63 +117,77 @@
         </button>
       </div>
 
-      <!-- شبكة بطاقات المنتجات مع دعم اللمس المطول والتخصيص -->
-      <div v-else class="products-grid-container" :class="['mode-' + viewMode]">
+      <!-- شبكة بطاقات المنتجات الموحدة والمحسنة للمس السريع -->
+      <div v-else class="products-grid-container">
         <div
           v-for="product in filteredProducts"
           :key="product.id"
-          class="product-tile"
-          :class="[
-            'cat-color-' + getCategoryColorKey(product.category_name),
-            {
-              'is-selected': isInCart(product.id),
-              'low-stock': hasLowIngredients(product) || getProductStockClass(product) === 'low',
-              'is-out-of-stock': getProductStockClass(product) === 'out',
-            },
-          ]"
+          class="pos-product-card"
+          :class="{
+            'is-in-cart': isInCart(product.id),
+            'is-low-stock': hasLowIngredients(product) || getProductStockClass(product) === 'low',
+            'is-out-of-stock': getProductStockClass(product) === 'out',
+          }"
           @mousedown="startLongPress(product)"
           @mouseup="cancelLongPress"
           @mouseleave="cancelLongPress"
           @touchstart.passive="startLongPress(product)"
           @touchend="cancelLongPress"
           @click="handleCardClick(product)"
+          role="button"
+          tabindex="0"
           :title="
-            product.name_ar + (isCoffeeProduct(product) ? ' (انقر مطولاً أو انقر  للتخصيص)' : '')
+            product.name_ar + (isCoffeeProduct(product) ? ' (انقر مطولاً أو انقر للتخصيص)' : '')
           "
         >
           <!-- زاوية مؤشر المخزون المضيء -->
           <span
-            class="tile-stock-dot"
+            class="card-stock-dot"
             :class="getProductStockClass(product)"
             :title="getProductStockTitle(product)"
           ></span>
 
-          <!--  زر التخصيص السريع للبن والمشروبات (Point 1: Coffee Customizer Trigger) -->
+          <!-- زر التخصيص السريع للبن والمشروبات -->
           <button
             v-if="isCoffeeProduct(product)"
             type="button"
-            class="tile-customize-btn"
+            class="card-customizer-btn"
             @click.stop="openCustomizer(product)"
-            title="تخصيص درجة الطحن، التحميص، والإضافات"
-          ></button>
+            title="تخصيص درجة الطحن والتحميص"
+            aria-label="تخصيص البن"
+          >
+            <AppIcon name="sliders" :size="13" />
+          </button>
 
-          <!-- شارة عدد القطع المختارة في السلة (3D Floating Badge) -->
-          <span v-if="isInCart(product.id)" class="tile-qty-badge">
+          <!-- شارة عدد القطع المختارة في السلة -->
+          <span v-if="isInCart(product.id)" class="card-qty-badge">
             {{ getCartQty(product.id) }}
           </span>
 
-          <!--  اسم المنتج الرئيسي -->
-          <div class="tile-center-content">
-            <span class="product-main-name">{{ product.name_ar }}</span>
+          <!-- 1. صورة المنتج أو الأيقونة المعبرة في الأعلى -->
+          <div class="card-image-box">
+            <img
+              v-if="product.image || product.image_url"
+              :src="product.image || product.image_url"
+              :alt="product.name_ar"
+              class="card-img"
+              loading="lazy"
+            />
+            <div v-else class="card-fallback-icon">
+              <AppIcon :name="getCategoryAppIcon(product.category_name)" :size="28" />
+            </div>
           </div>
 
-          <!-- طبقة اللمعان والانعكاس الضوئي 3D -->
-          <span v-if="viewMode === '3d'" class="specular-highlight"></span>
+          <!-- 2. اسم المنتج وسعره في المنتصف مباشرة أسفل الصورة -->
+          <div class="card-info">
+            <span class="card-title">{{ product.name_ar }}</span>
+            <span class="card-price">{{ formatMoney(product.sale_price) }}</span>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- ═══════════════════ نافذة تخصيص البن والمشروبات (Point 1: Coffee Customizer Modal) ═══════════════════ -->
+    <!-- ═══════════════════ نافذة تخصيص البن والمشروبات ═══════════════════ -->
     <div
       v-if="showCustomizerModal && activeCustomProduct"
       class="customizer-modal-backdrop"
@@ -222,7 +203,12 @@
               <p class="custom-prod-title">{{ activeCustomProduct.name_ar }}</p>
             </div>
           </div>
-          <button type="button" class="close-custom-btn" @click="closeCustomizer">
+          <button
+            type="button"
+            class="close-custom-btn"
+            @click="closeCustomizer"
+            aria-label="إغلاق"
+          >
             <AppIcon name="close" :size="16" />
           </button>
         </div>
@@ -230,7 +216,7 @@
         <div class="customizer-body">
           <!-- 1. درجة الطحن -->
           <div class="custom-section">
-            <label class="custom-sec-title"> درجة الطحن المطلوبة:</label>
+            <label class="custom-sec-title">درجة الطحن المطلوبة:</label>
             <div class="custom-options-grid">
               <button
                 v-for="grind in grindOptions"
@@ -248,7 +234,7 @@
 
           <!-- 2. درجة التحميص -->
           <div class="custom-section">
-            <label class="custom-sec-title"> درجة التحميص:</label>
+            <label class="custom-sec-title">درجة التحميص:</label>
             <div class="custom-options-grid cols-4">
               <button
                 v-for="roast in roastOptions"
@@ -266,7 +252,7 @@
 
           <!-- 3. إضافات التحويجة -->
           <div class="custom-section">
-            <label class="custom-sec-title"> إضافات التحويجة والحبهان:</label>
+            <label class="custom-sec-title">إضافات التحويجة والحبهان:</label>
             <div class="custom-options-grid cols-3">
               <button
                 v-for="spice in spiceOptions"
@@ -284,7 +270,7 @@
 
           <!-- 4. الوزن / الكمية السريعة -->
           <div class="custom-section">
-            <label class="custom-sec-title"> الوزن / الحجم المطلوب:</label>
+            <label class="custom-sec-title">الوزن / الحجم المطلوب:</label>
             <div class="custom-options-grid cols-4">
               <button
                 type="button"
@@ -375,24 +361,13 @@ const emit = defineEmits<{
 
 const searchInputRef = ref<HTMLInputElement | null>(null);
 
-// ───  Point 7: View Mode State (3d | compact | color) ───
-const viewMode = ref<'3d' | 'compact' | 'color'>(
-  (localStorage.getItem('pos_view_mode') as any) || '3d',
-);
-
-const setViewMode = (mode: '3d' | 'compact' | 'color') => {
-  viewMode.value = mode;
-  localStorage.setItem('pos_view_mode', mode);
-};
-
-// ───  Point 2: Pinned Fast Keys Logic (Top Popular Items) ───
+// Pinned Fast Keys Logic (Top Popular Items)
 const fastKeyProducts = computed(() => {
   if (!props.filteredProducts.length) return [];
-  // Return first 6 items or items with high velocity
   return props.filteredProducts.slice(0, 6);
 });
 
-// ───  Point 1: Coffee Customizer State & Options ───
+// Coffee Customizer State & Options
 const showCustomizerModal = ref(false);
 const activeCustomProduct = ref<any>(null);
 
@@ -415,8 +390,8 @@ const roastOptions = [
 const spiceOptions = [
   { id: 'plain', label: 'بدون حبهان (سادة)', icon: 'tag' },
   { id: 'light_card', label: 'حبهان خفيف', icon: 'sparkles' },
-  { id: 'med_card', label: 'حبهان مظبوط', icon: 'badge' },
-  { id: 'extra_card', label: 'حبهان زيادة', icon: 'badge' },
+  { id: 'med_card', label: 'حبهان مظبوط', icon: 'check' },
+  { id: 'extra_card', label: 'حبهان زيادة', icon: 'check' },
   { id: 'mastic', label: 'مستكة وحبهان', icon: 'shield' },
   { id: 'special', label: 'تحويجة العجوز الملكية', icon: 'sparkles' },
 ];
@@ -466,7 +441,7 @@ const confirmCustomization = () => {
   closeCustomizer();
 };
 
-// ─── Long Press Detection ───
+// Long Press Detection
 let longPressTimer: any = null;
 let isLongPressTriggered = false;
 
@@ -489,8 +464,8 @@ const cancelLongPress = () => {
 const getCategoryIcon = (name: string) => {
   if (!name) return '';
   const n = name.toLowerCase();
-  if (n.includes('ساخن') || n.includes('قهو') || n.includes('اسبريسو')) return '';
-  if (n.includes('بارد') || n.includes('مثلج') || n.includes('ايس')) return '';
+  if (n.includes('ساخن') || n.includes('قهو') || n.includes('اسبريسو')) return '☕';
+  if (n.includes('بارد') || n.includes('مثلج') || n.includes('ايس')) return '🧊';
   if (
     n.includes('بن') ||
     n.includes('حبوب') ||
@@ -498,26 +473,42 @@ const getCategoryIcon = (name: string) => {
     n.includes('تركي') ||
     n.includes('توليف')
   )
-    return '';
+    return '🫘';
   if (n.includes('حلوي') || n.includes('كيك') || n.includes('شوكولات') || n.includes('وافل'))
-    return '';
-  if (n.includes('عصير') || n.includes('سموذي') || n.includes('موهيتو')) return '';
-  if (n.includes('شاي') || n.includes('أعشاب') || n.includes('كركديه')) return '';
+    return '🍰';
+  if (n.includes('عصير') || n.includes('سموذي') || n.includes('موهيتو')) return '🍹';
+  if (n.includes('شاي') || n.includes('أعشاب') || n.includes('كركديه')) return '🍵';
   if (n.includes('ساندوتش') || n.includes('اكل') || n.includes('وجب') || n.includes('كرواسون'))
-    return '';
-  if (n.includes('صوص') || n.includes('نكه') || n.includes('سيرب') || n.includes('إضاف')) return '';
-  return '';
+    return '🥐';
+  if (n.includes('صوص') || n.includes('نكه') || n.includes('سيرب') || n.includes('إضاف'))
+    return '🍯';
+  return '📦';
 };
 
-const getCategoryColorKey = (catName: string) => {
-  if (!catName) return 'gold';
+const getCategoryAppIcon = (catName?: string) => {
+  if (!catName) return 'coffee';
   const n = catName.toLowerCase();
-  if (n.includes('ساخن') || n.includes('قهو')) return 'coffee';
-  if (n.includes('بارد') || n.includes('مثلج') || n.includes('ايس')) return 'ice';
-  if (n.includes('بن') || n.includes('حبوب') || n.includes('توليف')) return 'beans';
-  if (n.includes('حلوي') || n.includes('كيك')) return 'dessert';
-  if (n.includes('عصير') || n.includes('موهيتو')) return 'juice';
-  return 'gold';
+  if (
+    n.includes('ساخن') ||
+    n.includes('قهو') ||
+    n.includes('اسبريسو') ||
+    n.includes('بن') ||
+    n.includes('حبوب')
+  )
+    return 'coffee';
+  if (
+    n.includes('بارد') ||
+    n.includes('مثلج') ||
+    n.includes('ايس') ||
+    n.includes('عصير') ||
+    n.includes('مشروب')
+  )
+    return 'flask';
+  if (n.includes('حلوي') || n.includes('كيك') || n.includes('شوكولات') || n.includes('وافل'))
+    return 'sparkles';
+  if (n.includes('ساندوتش') || n.includes('وجب') || n.includes('اكل') || n.includes('كرواسون'))
+    return 'shop';
+  return 'coffee';
 };
 
 const currentCategoryName = computed(() => {
@@ -527,9 +518,9 @@ const currentCategoryName = computed(() => {
 });
 
 const currentCategoryIcon = computed(() => {
-  if (!props.selectedCategory) return '';
+  if (!props.selectedCategory) return '☕';
   const cat = props.categories.find((c: any) => String(c.id) === String(props.selectedCategory));
-  return cat ? getCategoryIcon(cat.name_ar) : '';
+  return cat ? getCategoryIcon(cat.name_ar) : '☕';
 });
 
 const onSearch = (e: Event) => {
@@ -550,7 +541,6 @@ const handleCardClick = (product: any) => {
   emit('addToCart', product);
 };
 
-/** يُستخدم من الأب لتركيز حقل البحث عبر اختصار F2 أو F7 */
 defineExpose({
   focusSearch: () => {
     searchInputRef.value?.focus();
@@ -560,64 +550,66 @@ defineExpose({
 </script>
 
 <style lang="scss" scoped>
-/* FULL CATALOG PANEL WITH 3D TACTILE BUTTON CARDS & DENSITY MODES */
+@use '@/styles/variables' as *;
 
 .full-catalog-panel {
-  padding: 16px;
+  padding: var(--space-4);
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  background: var(--surface, #1b120c);
-  border: 1px solid var(--border, rgba(212, 163, 115, 0.2));
-  border-radius: 18px;
+  gap: var(--space-3);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
   min-height: calc(100vh - 180px);
+  box-shadow: var(--shadow-sm);
 }
 
 /* ── Top Header Bar ── */
 .catalog-top-header {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  border-bottom: 1px solid var(--border, rgba(212, 163, 115, 0.2));
-  padding-bottom: 10px;
+  gap: var(--space-3);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: var(--space-3);
 }
 
 .search-and-status-row {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3);
   flex-wrap: wrap;
 }
 
 .search-box {
   position: relative;
   flex: 1;
-  min-width: 260px;
+  min-width: 240px;
 
   .search-icon {
     position: absolute;
     right: 14px;
     top: 50%;
     transform: translateY(-50%);
-    font-size: 1rem;
-    color: var(--primary, #d4a373);
+    color: var(--primary);
     pointer-events: none;
   }
 
   .search-input {
     width: 100%;
     padding: 10px 40px 10px 34px;
-    border: 1.5px solid var(--border, rgba(212, 163, 115, 0.3));
-    border-radius: 14px;
-    background: var(--bg, #140d08);
-    font-size: 0.92rem;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--bg-elevated);
+    font-size: var(--text-sm);
     font-weight: 600;
-    color: var(--text, #f7ede2);
-    transition: all 0.2s ease;
+    color: var(--text);
+    transition:
+      border-color var(--transition),
+      box-shadow var(--transition);
 
     &:focus {
-      border-color: var(--primary, #d4a373);
-      box-shadow: 0 0 0 3px rgba(212, 163, 115, 0.2);
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--focus-ring);
       outline: none;
     }
   }
@@ -627,11 +619,10 @@ defineExpose({
     left: 10px;
     top: 50%;
     transform: translateY(-50%);
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--bg-soft);
     border: none;
-    color: var(--text-muted, #a89f91);
+    color: var(--text-muted);
     cursor: pointer;
-    font-size: 0.85rem;
     width: 22px;
     height: 22px;
     border-radius: 50%;
@@ -640,196 +631,145 @@ defineExpose({
     justify-content: center;
 
     &:hover {
-      background: rgba(255, 255, 255, 0.2);
-      color: #fff;
+      background: var(--danger-soft);
+      color: var(--danger);
     }
   }
 }
 
-/* ──  Point 7: View Mode Switch Group ── */
-.view-mode-switch-group {
-  display: flex;
-  background: rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(212, 163, 115, 0.25);
-  border-radius: 12px;
-  padding: 3px;
-  gap: 2px;
-}
-
-.mode-switch-btn {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  padding: 6px 12px;
-  background: transparent;
-  border: none;
-  border-radius: 9px;
-  color: var(--text-muted, #a89f91);
-  font-size: 0.78rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.18s ease;
-
-  .btn-icon {
-    font-size: 0.85rem;
-  }
-
-  &:hover {
-    color: #faedcd;
-    background: rgba(212, 163, 115, 0.1);
-  }
-
-  &.active {
-    background: #d4a373;
-    color: #140d08;
-    font-weight: 800;
-    box-shadow: 0 2px 8px rgba(212, 163, 115, 0.35);
-  }
-}
-
 .active-cat-indicator {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: rgba(212, 163, 115, 0.12);
-  border: 1px solid rgba(212, 163, 115, 0.3);
-  padding: 6px 14px;
-  border-radius: 12px;
-  font-size: 0.82rem;
-  white-space: nowrap;
+  padding: 6px 12px;
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: var(--text-xs);
 
-  .cat-ind-icon {
-    font-size: 1rem;
-  }
   .cat-ind-name {
-    color: var(--primary, #d4a373);
-    font-weight: 800;
+    font-weight: 700;
+    color: var(--text-strong);
   }
+
   .cat-ind-count {
-    color: var(--text-muted, #a89f91);
-    font-size: 0.76rem;
+    color: var(--primary);
+    font-weight: 800;
   }
 }
 
-/* ──  Point 2: Pinned Fast Keys Ribbon ── */
+/* ── Pinned Fast Keys Ribbon ── */
 .fast-keys-ribbon {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: rgba(212, 163, 115, 0.08);
-  border: 1px dashed rgba(212, 163, 115, 0.35);
-  border-radius: 12px;
-  padding: 6px 12px;
-}
+  overflow: hidden;
 
-.fast-keys-header {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 0.8rem;
-  font-weight: 800;
-  color: #faedcd;
-  white-space: nowrap;
-}
-
-.fast-keys-scroll {
-  display: flex;
-  gap: 6px;
-  overflow-x: auto;
-  scrollbar-width: none;
-  &::-webkit-scrollbar {
-    display: none;
-  }
-}
-
-.fast-key-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 5px 12px;
-  background: linear-gradient(145deg, #2a1a0f 0%, #1c1008 100%);
-  border: 1px solid rgba(212, 163, 115, 0.4);
-  border-radius: 10px;
-  color: #faedcd;
-  font-size: 0.8rem;
-  font-weight: 750;
-  cursor: pointer;
-  white-space: nowrap;
-  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
-  transition: all 0.15s ease;
-
-  &:hover {
-    transform: translateY(-1px);
-    border-color: #faedcd;
-    background: #d4a373;
-    color: #140d08;
-  }
-
-  &.in-cart {
-    border-color: var(--success);
-    background: rgba(34, 197, 94, 0.15);
-    color: #86efac;
-  }
-
-  .fast-key-badge {
-    background: #d4a373;
-    color: #140d08;
-    font-size: 0.7rem;
-    font-weight: 900;
-    padding: 1px 5px;
-    border-radius: 8px;
-  }
-}
-
-/* ── Horizontal Category Navigation ── */
-.horizontal-categories-nav {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  overflow-x: auto;
-  scrollbar-width: none;
-  &::-webkit-scrollbar {
-    display: none;
-  }
-}
-
-.categories-scroll-track {
-  display: flex;
-  gap: 8px;
-  padding: 2px;
-}
-
-.cat-tab-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(212, 163, 115, 0.2);
-  border-radius: 24px;
-  color: var(--text-muted, #d4a373);
-  font-size: 0.85rem;
-  font-weight: 700;
-  white-space: nowrap;
-  cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-
-  &:hover {
-    background: rgba(212, 163, 115, 0.15);
-    border-color: rgba(212, 163, 115, 0.4);
-    transform: translateY(-1px);
-  }
-
-  &.active {
-    background: linear-gradient(135deg, #d4a373 0%, #b07d4b 100%);
-    color: #140d08;
-    border-color: #faedcd;
-    box-shadow: 0 4px 14px rgba(212, 163, 115, 0.35);
+  .fast-keys-header {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--primary);
+    font-size: var(--text-xs);
     font-weight: 800;
+    white-space: nowrap;
+  }
+
+  .fast-keys-scroll {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    &::-webkit-scrollbar {
+      display: none;
+    }
+  }
+
+  .fast-key-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-full, 9999px);
+    color: var(--text);
+    font-size: var(--text-xs);
+    font-weight: 700;
+    white-space: nowrap;
+    cursor: pointer;
+    transition:
+      transform var(--transition),
+      border-color var(--transition);
+
+    &:active {
+      transform: scale(0.95);
+      background: var(--accent-soft);
+    }
+
+    &.in-cart {
+      background: var(--accent-soft);
+      border-color: var(--accent);
+      color: var(--accent-dark, var(--primary));
+    }
+
+    .fast-key-badge {
+      padding: 1px 6px;
+      border-radius: 50%;
+      background: var(--primary);
+      color: #fff;
+      font-size: 0.68rem;
+    }
   }
 }
 
-/* GRID DENSITY AND CARD MODES */
+/* ── Category Tabs Navigation ── */
+.horizontal-categories-nav {
+  overflow-x: auto;
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+
+  .categories-scroll-track {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 2px 0;
+  }
+
+  .cat-tab-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-full, 9999px);
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+    font-weight: 700;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: all var(--transition);
+
+    &:active {
+      transform: scale(0.96);
+    }
+
+    &.active {
+      background: var(--primary);
+      color: #ffffff;
+      border-color: var(--primary);
+      box-shadow: var(--shadow-xs);
+    }
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   Touch-First Unified Products Grid & Card Styles
+   ═══════════════════════════════════════════════════════════════════════════════ */
 
 .catalog-grid-wrapper {
   flex: 1;
@@ -837,288 +777,246 @@ defineExpose({
   padding: 4px 2px 20px 2px;
 }
 
-/* 1. Mode 3D (Default Tactile) */
-.products-grid-container.mode-3d {
+.products-grid-container {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(136px, 1fr));
+  gap: 12px;
+  width: 100%;
 
-  .product-tile {
-    position: relative;
+  @media (min-width: 1200px) {
+    grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+    gap: 14px;
+  }
+
+  @media (max-width: 600px) {
+    grid-template-columns: repeat(auto-fill, minmax(116px, 1fr));
+    gap: 8px;
+  }
+}
+
+/* Unified POS Product Card */
+.pos-product-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  text-align: center;
+  padding: 12px 8px 10px;
+  min-height: 144px;
+  border-radius: 14px;
+  background: var(--bg-card);
+  border: 1.5px solid var(--border);
+  box-shadow: var(--shadow-xs);
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    transform 0.1s ease,
+    background-color 0.1s ease,
+    border-color 0.1s ease,
+    box-shadow 0.1s ease;
+
+  /* Crucial Immediate Tactile Feedback for Touch */
+  &:active {
+    transform: scale(0.95);
+    background: var(--tab-hover-bg, var(--bg-soft));
+    border-color: var(--primary);
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.12);
+  }
+
+  &.is-in-cart {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+    box-shadow:
+      0 0 0 1px var(--accent),
+      var(--shadow-xs);
+  }
+
+  &.is-out-of-stock {
+    opacity: 0.5;
+    filter: grayscale(0.7);
+  }
+
+  /* Card Stock Dot */
+  .card-stock-dot {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--success);
+
+    &.low {
+      background: var(--warning);
+      box-shadow: 0 0 6px rgba(183, 101, 17, 0.6);
+    }
+    &.out {
+      background: var(--danger);
+      box-shadow: 0 0 6px rgba(220, 38, 38, 0.6);
+    }
+  }
+
+  /* In-Cart Quantity Badge */
+  .card-qty-badge {
+    position: absolute;
+    top: -6px;
+    left: -6px;
+    min-width: 22px;
+    height: 22px;
+    padding: 0 6px;
+    border-radius: 11px;
+    background: var(--primary);
+    color: #ffffff;
+    font-size: 0.75rem;
+    font-weight: 900;
     display: flex;
     align-items: center;
     justify-content: center;
-    text-align: center;
-    min-height: 105px;
-    padding: 16px 14px;
-    border-radius: 16px;
-    cursor: pointer;
-    user-select: none;
-    background: linear-gradient(180deg, #2b1a10 0%, #1a0f07 100%);
-    border: 1px solid rgba(212, 163, 115, 0.28);
-    border-top: 2px solid rgba(250, 237, 205, 0.45);
-    box-shadow:
-      0 7px 0 #0c0704,
-      0 10px 18px rgba(0, 0, 0, 0.65),
-      inset 0 1px 1px rgba(255, 255, 255, 0.15),
-      inset 0 -2px 4px rgba(0, 0, 0, 0.4);
-    transition: all 0.12s cubic-bezier(0.2, 0.8, 0.4, 1);
+    border: 2px solid var(--bg-card);
+    box-shadow: var(--shadow-sm);
+    z-index: 4;
+  }
 
-    &:hover {
-      transform: translateY(-3px);
-      border-color: rgba(212, 163, 115, 0.6);
-      box-shadow:
-        0 10px 0 #0c0704,
-        0 14px 24px rgba(0, 0, 0, 0.75);
-    }
+  /* Coffee Customizer Trigger Button */
+  .card-customizer-btn {
+    position: absolute;
+    bottom: 8px;
+    left: 8px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--bg-soft);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all var(--transition);
 
     &:active {
-      transform: translateY(6px);
-      box-shadow:
-        0 1px 0 #0c0704,
-        inset 0 3px 6px rgba(0, 0, 0, 0.6);
-    }
-
-    &.is-selected {
-      background: linear-gradient(180deg, #3d2414 0%, #26160c 100%);
-      border-color: #d4a373;
-      box-shadow:
-        0 7px 0 #120904,
-        0 0 14px rgba(212, 163, 115, 0.35);
+      transform: scale(0.9);
+      background: var(--accent);
+      color: #ffffff;
     }
   }
 }
 
-/* 2. Mode Compact (Small fast matrix) */
-.products-grid-container.mode-compact {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-  gap: 10px;
-
-  .product-tile {
-    position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    min-height: 65px;
-    padding: 10px 8px;
-    border-radius: 10px;
-    cursor: pointer;
-    background: rgba(35, 22, 14, 0.9);
-    border: 1.5px solid rgba(212, 163, 115, 0.25);
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
-    transition: all 0.12s ease;
-
-    &:hover {
-      transform: translateY(-2px);
-      border-color: #d4a373;
-      background: rgba(55, 34, 22, 0.95);
-    }
-
-    &.is-selected {
-      border-color: #faedcd;
-      background: #4a2817;
-    }
-
-    .product-main-name {
-      font-size: 0.88rem;
-    }
-  }
-}
-
-/* 3. Mode Color-Coded (Vibrant categories) */
-.products-grid-container.mode-color {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 14px;
-
-  .product-tile {
-    position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    min-height: 85px;
-    padding: 12px;
-    border-radius: 14px;
-    cursor: pointer;
-    background: rgba(20, 13, 8, 0.9);
-    border-width: 2px;
-    border-style: solid;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-    transition: all 0.15s ease;
-
-    &.cat-color-coffee {
-      border-color: #b07d4b;
-      background: rgba(176, 125, 75, 0.12);
-    }
-    &.cat-color-beans {
-      border-color: #e6b800;
-      background: rgba(230, 184, 0, 0.12);
-    }
-    &.cat-color-ice {
-      border-color: #38bdf8;
-      background: rgba(56, 189, 248, 0.12);
-    }
-    &.cat-color-dessert {
-      border-color: #f472b6;
-      background: rgba(244, 114, 182, 0.12);
-    }
-    &.cat-color-juice {
-      border-color: #4ade80;
-      background: rgba(74, 222, 128, 0.12);
-    }
-    &.cat-color-gold {
-      border-color: #d4a373;
-      background: rgba(212, 163, 115, 0.12);
-    }
-
-    &:hover {
-      transform: translateY(-2px);
-      filter: brightness(1.2);
-    }
-  }
-}
-
-/* ── Center Name Typography ── */
-.tile-center-content {
+/* Image Container at the Top */
+.card-image-box {
+  width: 56px;
+  height: 56px;
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 100%;
+  background: var(--bg-soft);
+  overflow: hidden;
+  margin-bottom: 8px;
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+
+  .card-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .card-fallback-icon {
+    color: var(--primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
 }
 
-.product-main-name {
-  font-size: 1.02rem;
-  font-weight: 850;
-  color: #f7ede2;
-  line-height: 1.35;
+/* Centered Product Information */
+.card-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  gap: 4px;
+}
+
+.card-title {
+  font-size: 0.92rem;
+  font-weight: 800;
+  color: var(--text-strong);
+  line-height: 1.3;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+  word-break: break-word;
 }
 
-/* ── Badges & Buttons on Card ── */
-.tile-stock-dot {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--success);
-  box-shadow: 0 0 6px var(--success);
-
-  &.low {
-    background: var(--warning);
-    box-shadow: 0 0 6px var(--warning);
-  }
-  &.out {
-    background: var(--danger);
-    box-shadow: 0 0 6px var(--danger);
-  }
+.card-price {
+  font-size: 0.82rem;
+  font-weight: 850;
+  color: var(--primary);
 }
 
-.tile-customize-btn {
-  position: absolute;
-  bottom: 6px;
-  right: 6px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(212, 163, 115, 0.25);
-  border-radius: 6px;
-  font-size: 0.72rem;
-  padding: 2px 5px;
-  cursor: pointer;
-  opacity: 0.65;
-  transition: all 0.15s ease;
-
-  &:hover {
-    opacity: 1;
-    background: #d4a373;
-    color: #140d08;
-  }
-}
-
-.tile-qty-badge {
-  position: absolute;
-  top: -6px;
-  left: -6px;
-  min-width: 24px;
-  height: 24px;
-  padding: 0 5px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #d4a373 0%, #a86f3d 100%);
-  color: #140d08;
-  font-size: 0.8rem;
-  font-weight: 900;
+/* Skeleton Loading Tile */
+.skeleton-card {
+  min-height: 144px;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  border: 1.5px solid #faedcd;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
-  z-index: 5;
+  gap: 8px;
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
 }
 
-.specular-highlight {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 35%;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0) 100%);
-  border-radius: 15px 15px 0 0;
-  pointer-events: none;
+.skeleton-box {
+  background: color-mix(in srgb, var(--border) 40%, transparent);
 }
 
-.skeleton-tile {
-  min-height: 95px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-}
-
+/* Empty State */
 .empty-catalog-state {
   text-align: center;
   padding: 60px 20px;
-  color: var(--text-muted, #d4a373);
+  color: var(--text-muted);
 
   .empty-icon {
-    font-size: 3rem;
+    color: var(--text-muted);
     display: block;
     margin-bottom: 12px;
   }
 
   h3 {
-    color: #faedcd;
+    color: var(--text-strong);
     margin: 0 0 6px;
   }
   p {
-    font-size: 0.88rem;
+    font-size: var(--text-sm);
     margin: 0 0 16px;
   }
 
   .btn-reset-filters {
     padding: 8px 18px;
-    background: #d4a373;
-    color: #140d08;
+    background: var(--primary);
+    color: #ffffff;
     border: none;
-    border-radius: 10px;
+    border-radius: var(--radius-sm);
     font-weight: 700;
     cursor: pointer;
   }
 }
 
-/* CUSTOMIZER MODAL (Point 1: Long-Press / Customizer Modal) */
+/* ═══════════════════ Customizer Modal ═══════════════════ */
 
 .customizer-modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.8);
+  background: rgba(0, 0, 0, 0.7);
   backdrop-filter: blur(8px);
   z-index: 250;
   display: flex;
@@ -1130,19 +1028,17 @@ defineExpose({
 .customizer-modal-card {
   width: 100%;
   max-width: 480px;
-  background: #1b120c;
-  border: 2px solid #d4a373;
-  border-radius: 20px;
+  background: var(--bg-elevated);
+  border: 1.5px solid var(--primary);
+  border-radius: var(--radius-lg);
   padding: 20px;
-  box-shadow:
-    0 16px 40px rgba(0, 0, 0, 0.8),
-    0 0 24px rgba(212, 163, 115, 0.25);
+  box-shadow: var(--shadow-lg);
   animation: modalScale 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @keyframes modalScale {
   0% {
-    transform: scale(0.92);
+    transform: scale(0.94);
     opacity: 0;
   }
   100% {
@@ -1156,7 +1052,7 @@ defineExpose({
   justify-content: space-between;
   align-items: center;
   padding-bottom: 12px;
-  border-bottom: 1px solid rgba(212, 163, 115, 0.25);
+  border-bottom: 1px solid var(--border);
   margin-bottom: 14px;
 
   .header-title-wrap {
@@ -1165,37 +1061,39 @@ defineExpose({
     gap: 10px;
 
     .modal-coffee-icon {
-      font-size: 1.6rem;
+      color: var(--primary);
     }
 
     h3 {
       margin: 0;
-      color: #faedcd;
+      color: var(--text-strong);
       font-size: 1.1rem;
       font-weight: 850;
     }
 
     .custom-prod-title {
       margin: 2px 0 0;
-      font-size: 0.85rem;
-      color: #d4a373;
+      font-size: var(--text-sm);
+      color: var(--primary);
       font-weight: 700;
     }
   }
 
   .close-custom-btn {
-    background: rgba(255, 255, 255, 0.08);
+    background: var(--bg-soft);
     border: none;
-    color: #fff;
+    color: var(--text-muted);
     width: 32px;
     height: 32px;
     border-radius: 50%;
-    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     cursor: pointer;
 
     &:hover {
-      background: rgba(239, 68, 68, 0.2);
-      color: #f87171;
+      background: var(--danger-soft);
+      color: var(--danger);
     }
   }
 }
@@ -1215,9 +1113,9 @@ defineExpose({
   gap: 6px;
 
   .custom-sec-title {
-    font-size: 0.82rem;
+    font-size: var(--text-xs);
     font-weight: 750;
-    color: #d4a373;
+    color: var(--text-muted);
   }
 }
 
@@ -1240,55 +1138,51 @@ defineExpose({
   justify-content: center;
   gap: 4px;
   padding: 8px 6px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(212, 163, 115, 0.25);
-  border-radius: 10px;
-  color: #faedcd;
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
   font-size: 0.78rem;
   font-weight: 700;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all var(--transition);
 
-  .pill-emoji {
-    font-size: 0.9rem;
-  }
-
-  &:hover {
-    background: rgba(212, 163, 115, 0.2);
-    border-color: #d4a373;
+  &:active {
+    transform: scale(0.96);
   }
 
   &.active {
-    background: linear-gradient(135deg, #d4a373 0%, #a86f3d 100%);
-    color: #140d08;
-    border-color: #faedcd;
+    background: var(--primary);
+    color: #ffffff;
+    border-color: var(--primary);
     font-weight: 850;
-    box-shadow: 0 3px 10px rgba(212, 163, 115, 0.35);
+    box-shadow: var(--shadow-xs);
   }
 
   &.highlight {
-    background: rgba(212, 163, 115, 0.15);
+    background: var(--accent-soft);
+    border-color: var(--accent);
   }
 }
 
 .spec-summary-badge {
-  background: rgba(0, 0, 0, 0.3);
-  border: 1px dashed #d4a373;
-  border-radius: 10px;
+  background: var(--bg-soft);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
   padding: 8px 12px;
   display: flex;
   align-items: baseline;
   gap: 8px;
-  font-size: 0.8rem;
+  font-size: var(--text-xs);
 
   .spec-label {
-    color: #d4a373;
+    color: var(--text-muted);
     font-weight: 700;
     white-space: nowrap;
   }
 
   .spec-text {
-    color: #ffffff;
+    color: var(--text-strong);
   }
 }
 
@@ -1297,17 +1191,10 @@ defineExpose({
   gap: 8px;
   margin-top: 16px;
   padding-top: 12px;
-  border-top: 1px solid rgba(212, 163, 115, 0.25);
+  border-top: 1px solid var(--border);
 
   .add-custom-btn {
     flex: 1;
-    background: linear-gradient(135deg, #d4a373 0%, #a86f3d 100%);
-    border: 1px solid #faedcd;
-    color: #140d08;
-    font-weight: 850;
-    padding: 10px;
-    border-radius: 12px;
-    cursor: pointer;
   }
 }
 </style>

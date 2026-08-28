@@ -1,9 +1,9 @@
 <template>
-  <section class="metric-grid circular-grid">
+  <section class="metric-grid bento-metric-grid">
     <div
       v-for="(metric, index) in orderedMetrics"
       :key="metric.key"
-      class="metric-card-draggable circular-draggable stagger-fade-item"
+      class="metric-card-draggable stagger-fade-item"
       :class="'stagger-delay-' + ((index % 10) + 1)"
       draggable="true"
       @dragstart="onDragStart($event, index)"
@@ -13,12 +13,14 @@
     >
       <RouterLink
         v-spotlight
-        class="metric-card circular-card hover-lift glass-glow-card"
+        class="metric-card bento-metric-card hover-lift glass-glow-card"
         :class="metric.tone"
         :to="metric.to"
       >
-        <div class="metric-top-bar flex items-center justify-between">
-          <span class="metric-icon"><AppIcon :name="metric.icon" :size="18" /></span>
+        <div class="metric-top-bar">
+          <span class="metric-icon-box" :class="metric.tone">
+            <AppIcon :name="metric.icon" :size="18" />
+          </span>
           <span
             v-if="metric.delta !== undefined"
             class="trend-delta-pill"
@@ -28,22 +30,28 @@
             {{ metric.delta >= 0 ? '+' : '' }}{{ metric.delta }}%
           </span>
         </div>
-        <span class="metric-label">
-          {{ metric.label }}
-          <span v-if="metric.estimate" class="estimate-pill" :title="metric.estimateNote"
-            >≈ تقديري</span
-          >
-        </span>
-        <strong>
-          <AnimatedNumber :value="metric.raw" :format="metric.format" />
-        </strong>
-        <small class="metric-sub">{{ metric.sub }}</small>
-        <Sparkline
-          v-if="metric.spark && metric.spark.length > 1"
-          :data="metric.spark"
-          :color="metric.sparkColor"
-          class="metric-spark"
-        />
+
+        <div class="metric-main-body">
+          <span class="metric-label">
+            {{ metric.label }}
+            <span v-if="metric.estimate" class="estimate-pill" :title="metric.estimateNote"
+              >≈ تقديري</span
+            >
+          </span>
+          <strong class="metric-value">
+            <AnimatedNumber :value="metric.raw" :format="metric.format" />
+          </strong>
+        </div>
+
+        <div class="metric-footer">
+          <small class="metric-sub">{{ metric.sub }}</small>
+          <Sparkline
+            v-if="metric.spark && metric.spark.length > 1"
+            :data="metric.spark"
+            :color="metric.sparkColor"
+            class="metric-spark"
+          />
+        </div>
       </RouterLink>
     </div>
   </section>
@@ -286,7 +294,7 @@ const onDrop = (event: any, index: any) => {
   transition: opacity 0.2s ease;
 }
 
-.metric-card.circular-card:hover .metric-spark {
+.metric-card.bento-metric-card:hover .metric-spark {
   opacity: 1;
 }
 

@@ -97,9 +97,6 @@
     </div>
 
     <template v-else-if="stats">
-      <!-- شريط النبض اللحظي وتارجت اليوم -->
-      <DashboardLivePulse :stats="stats" />
-
       <DashboardMetrics v-if="widgetVisibility.metrics" :stats="stats" />
 
       <DashboardPriorityAlerts v-if="widgetVisibility.alertsTables" :stats="stats" />
@@ -376,7 +373,7 @@
               </label>
               <label class="toggle-control">
                 <input type="checkbox" v-model="widgetVisibility.pulse" />
-                <span class="control-label">نبض التشغيل ونسب التحصيل</span>
+                <span class="control-label">السيولة والتدفق المالي والخزينة</span>
               </label>
               <label class="toggle-control">
                 <input type="checkbox" v-model="widgetVisibility.distributionCharts" />
@@ -423,7 +420,6 @@ import DashboardAIInsights from '@/components/dashboard/DashboardAIInsights.vue'
 import DashboardMenuMatrix from '@/components/dashboard/DashboardMenuMatrix.vue';
 import DashboardHealthPulse from '@/components/dashboard/DashboardHealthPulse.vue';
 import BranchLiquidity from '@/components/dashboard/BranchLiquidity.vue';
-import DashboardLivePulse from '@/components/dashboard/DashboardLivePulse.vue';
 import DashboardSalesHeatmap from '@/components/dashboard/DashboardSalesHeatmap.vue';
 import DashboardOperationalRadar from '@/components/dashboard/DashboardOperationalRadar.vue';
 import DashboardTopItemsRace from '@/components/dashboard/DashboardTopItemsRace.vue';

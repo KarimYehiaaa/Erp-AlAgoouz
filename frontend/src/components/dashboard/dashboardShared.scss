@@ -6,8 +6,9 @@
 /* Layout grids */
 .overview-grid {
   display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(280px, 0.85fr);
-  gap: 12px;
+  grid-template-columns: minmax(0, 1.85fr) minmax(320px, 1.15fr);
+  gap: 14px;
+  align-items: stretch;
 }
 
 .analytics-grid {
@@ -172,143 +173,176 @@
   padding: 10px 12px;
 }
 
-/* Circular metric cards */
-.circular-grid {
+/* Modern Bento Metric Grid & Cards */
+.bento-metric-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(165px, 1fr));
-  gap: 20px;
-  justify-content: center;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+  margin-bottom: 16px;
 }
 
-.circular-draggable {
+.metric-card-draggable {
   display: flex;
-  justify-content: center;
-  align-items: center;
+  min-width: 0;
 }
 
-.metric-card.circular-card {
+.metric-card.bento-metric-card {
   position: relative;
   display: flex !important;
   flex-direction: column !important;
-  align-items: center !important;
-  justify-content: center !important;
-  text-align: center !important;
-  width: 165px;
-  height: 165px;
-  aspect-ratio: 1 / 1 !important;
-  border-radius: 50% !important;
-  padding: 15px !important;
-  border: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
-  background: color-mix(in srgb, var(--bg-card) 75%, transparent);
+  justify-content: space-between !important;
+  width: 100%;
+  min-height: 136px;
+  border-radius: 16px !important;
+  padding: 15px 16px !important;
+  border: 1.5px solid var(--border);
+  background: var(--bg-card);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   box-shadow: var(--shadow-xs);
-  transition:
-    transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1),
-    box-shadow 0.3s ease,
-    border-color 0.3s ease;
-  animation: dashboardRise 560ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  text-decoration: none;
   overflow: hidden;
   box-sizing: border-box;
-}
-
-.metric-card.circular-card::after {
-  content: '';
-  position: absolute;
-  inset: -35% -20%;
-  z-index: -1;
-  opacity: 0;
-  background: linear-gradient(115deg, transparent 35%, rgba(255, 255, 255, 0.15), transparent 64%);
-  transform: translateX(42%) rotate(7deg);
   transition:
-    opacity 260ms ease,
-    transform 760ms cubic-bezier(0.2, 0.8, 0.2, 1);
-}
+    transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
 
-.circular-draggable:nth-child(1) {
-  animation-delay: 40ms;
-}
-.circular-draggable:nth-child(2) {
-  animation-delay: 90ms;
-}
-.circular-draggable:nth-child(3) {
-  animation-delay: 140ms;
-}
-.circular-draggable:nth-child(4) {
-  animation-delay: 190ms;
-}
-.circular-draggable:nth-child(5) {
-  animation-delay: 240ms;
-}
+  &:hover {
+    transform: translateY(-3px);
+    border-color: var(--primary);
+    box-shadow: var(--shadow-md);
+  }
 
-.metric-card.circular-card:hover {
-  transform: scale(1.05) translateY(-4px);
-  border-color: var(--accent);
-  box-shadow: 0 10px 24px rgba(161, 98, 7, 0.16);
-}
+  &:active {
+    transform: scale(0.98);
+  }
 
-.metric-card.circular-card:active {
-  transform: scale(0.97);
-}
+  .metric-top-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    margin-bottom: 6px;
+  }
 
-.metric-card.circular-card:hover::after {
-  opacity: 1;
-  transform: translateX(-42%) rotate(7deg);
-}
+  .metric-icon-box {
+    width: 34px;
+    height: 34px;
+    display: grid;
+    place-items: center;
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--primary) 12%, var(--bg-soft));
+    color: var(--primary);
+    transition: transform 0.2s ease;
 
-.metric-card.circular-card .metric-icon {
-  grid-row: auto !important;
-  width: 32px;
-  height: 32px;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  background: color-mix(in srgb, var(--primary) 10%, var(--bg-elevated));
-  color: var(--primary-dark);
-  margin-bottom: 4px;
-  transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
-}
+    &.sales {
+      color: #d97706;
+      background: rgba(217, 119, 6, 0.12);
+    }
+    &.profit {
+      color: #16a34a;
+      background: rgba(22, 163, 74, 0.12);
+    }
+    &.warning {
+      color: #ea580c;
+      background: rgba(234, 88, 12, 0.12);
+    }
+    &.danger {
+      color: #dc2626;
+      background: rgba(220, 38, 38, 0.12);
+    }
+    &.success {
+      color: #16a34a;
+      background: rgba(22, 163, 74, 0.12);
+    }
+    &.inventory {
+      color: #8b5cf6;
+      background: rgba(139, 92, 246, 0.12);
+    }
+    &.info {
+      color: #0284c7;
+      background: rgba(2, 132, 199, 0.12);
+    }
+  }
 
-.metric-card.circular-card:hover .metric-icon {
-  transform: scale(1.15) rotate(10deg);
-}
+  &:hover .metric-icon-box {
+    transform: scale(1.08);
+  }
 
-.metric-card.circular-card .metric-label {
-  color: var(--text-muted);
-  font-size: 0.72rem;
-  font-weight: 800;
-  max-width: 135px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  margin-bottom: 2px;
-}
+  .trend-delta-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 0.68rem;
+    font-weight: 800;
+    padding: 2px 7px;
+    border-radius: 999px;
+    white-space: nowrap;
 
-.metric-card.circular-card strong {
-  color: var(--text-strong);
-  font-size: 1.1rem;
-  font-weight: 900;
-  line-height: 1.1;
-  margin-bottom: 2px;
-}
+    &.up {
+      background: rgba(34, 197, 94, 0.12);
+      color: #16a34a;
+      border: 1px solid rgba(34, 197, 94, 0.25);
+    }
+    &.down {
+      background: rgba(239, 68, 68, 0.12);
+      color: #dc2626;
+      border: 1px solid rgba(239, 68, 68, 0.25);
+    }
+  }
 
-.metric-card.circular-card .metric-sub {
-  color: var(--text-muted);
-  font-size: 0.62rem;
-  line-height: 1.2;
-  max-width: 135px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
+  .metric-main-body {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin: 2px 0 4px;
+  }
 
-.metric-card.circular-card.danger .metric-icon {
-  color: var(--danger);
-  background: color-mix(in srgb, var(--danger) 10%, transparent);
-}
-.metric-card.circular-card.success .metric-icon {
-  color: var(--success);
-  background: color-mix(in srgb, var(--success) 10%, transparent);
+  .metric-label {
+    color: var(--text-muted);
+    font-size: 0.78rem;
+    font-weight: 800;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .metric-value {
+    color: var(--text-strong);
+    font-size: 1.35rem;
+    font-weight: 900;
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+    direction: ltr;
+    text-align: right;
+  }
+
+  .metric-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: auto;
+    padding-top: 4px;
+    border-top: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
+
+    .metric-sub {
+      color: var(--text-muted);
+      font-size: 0.7rem;
+      font-weight: 700;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      flex: 1;
+    }
+
+    .metric-spark {
+      flex-shrink: 0;
+      width: 54px;
+      height: 22px;
+    }
+  }
 }
 
 /* Command strip (priority alerts) */

@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="card full-catalog-panel">
     <!-- ═══════════════════ شريط البحث والتصنيفات ═══════════════════ -->
     <div class="catalog-top-header">
@@ -30,7 +30,9 @@
 
         <!-- مؤشر التصنيف المختار -->
         <div class="active-cat-indicator" :title="'التصنيف: ' + currentCategoryName">
-          <span class="cat-ind-icon">{{ currentCategoryIcon }}</span>
+          <span class="cat-ind-icon">
+            <AppIcon :name="currentCategoryVisual.icon" :size="14" />
+          </span>
           <span class="cat-ind-name">{{ currentCategoryName }}</span>
           <span class="cat-ind-count">{{ filteredProducts.length }} صنف</span>
         </div>
@@ -48,11 +50,13 @@
             :key="'fast-' + fastProd.id"
             type="button"
             class="fast-key-chip"
-            :class="{ 'in-cart': isInCart(fastProd.id) }"
+            :class="[getProductVisual(fastProd).cardClass, { 'in-cart': isInCart(fastProd.id) }]"
             @click="handleCardClick(fastProd)"
             :title="fastProd.name_ar + ' (' + formatMoney(fastProd.sale_price) + ')'"
           >
-            <span class="fast-key-icon">{{ getCategoryIcon(fastProd.category_name) }}</span>
+            <span class="fast-key-icon">
+              <AppIcon :name="getProductVisual(fastProd).icon" :size="13" />
+            </span>
             <span class="fast-key-name">{{ fastProd.name_ar }}</span>
             <span v-if="isInCart(fastProd.id)" class="fast-key-badge">{{
               getCartQty(fastProd.id)
@@ -82,7 +86,9 @@
             :class="{ active: String(selectedCategory) === String(cat.id) }"
             @click="selectCategory(cat.id)"
           >
-            <span class="pill-icon">{{ getCategoryIcon(cat.name_ar) }}</span>
+            <span class="pill-icon">
+              <AppIcon :name="getCategoryVisual(cat.name_ar).icon" :size="14" />
+            </span>
             <span class="pill-label">{{ cat.name_ar }}</span>
           </button>
         </div>
@@ -117,17 +123,20 @@
         </button>
       </div>
 
-      <!-- شبكة بطاقات المنتجات الموحدة والمحسنة للمس السريع -->
+      <!-- شبكة بطاقات المنتجات الموحدة والمحسنة بصرياً وللمس السريع -->
       <div v-else class="products-grid-container">
         <div
           v-for="product in filteredProducts"
           :key="product.id"
           class="pos-product-card"
-          :class="{
-            'is-in-cart': isInCart(product.id),
-            'is-low-stock': hasLowIngredients(product) || getProductStockClass(product) === 'low',
-            'is-out-of-stock': getProductStockClass(product) === 'out',
-          }"
+          :class="[
+            getProductVisual(product).cardClass,
+            {
+              'is-in-cart': isInCart(product.id),
+              'is-low-stock': hasLowIngredients(product) || getProductStockClass(product) === 'low',
+              'is-out-of-stock': getProductStockClass(product) === 'out',
+            },
+          ]"
           @mousedown="startLongPress(product)"
           @mouseup="cancelLongPress"
           @mouseleave="cancelLongPress"
@@ -156,7 +165,7 @@
             title="تخصيص درجة الطحن والتحميص"
             aria-label="تخصيص البن"
           >
-            <AppIcon name="sliders" :size="13" />
+            <AppIcon name="sliders" :size="12" />
           </button>
 
           <!-- شارة عدد القطع المختارة في السلة -->
@@ -164,8 +173,8 @@
             {{ getCartQty(product.id) }}
           </span>
 
-          <!-- 1. صورة المنتج أو الأيقونة المعبرة في الأعلى -->
-          <div class="card-image-box">
+          <!-- 1. صورة المنتج أو الأيقونة المعبرة الفاخرة في الأعلى -->
+          <div class="card-image-box" :class="getProductVisual(product).iconBgClass">
             <img
               v-if="product.image || product.image_url"
               :src="product.image || product.image_url"
@@ -174,11 +183,20 @@
               loading="lazy"
             />
             <div v-else class="card-fallback-icon">
-              <AppIcon :name="getCategoryAppIcon(product.category_name)" :size="28" />
+              <AppIcon :name="getProductVisual(product).icon" :size="26" />
             </div>
           </div>
 
-          <!-- 2. اسم المنتج وسعره في المنتصف مباشرة أسفل الصورة -->
+          <!-- 2. شارة المنتج الذكية -->
+          <span
+            v-if="getProductVisual(product).badge"
+            class="card-visual-badge"
+            :class="getProductVisual(product).badgeClass"
+          >
+            {{ getProductVisual(product).badge }}
+          </span>
+
+          <!-- 3. اسم المنتج وسعره مباشرة أسفل الصورة والشارة -->
           <div class="card-info">
             <span class="card-title">{{ product.name_ar }}</span>
             <span class="card-price">{{ formatMoney(product.sale_price) }}</span>
@@ -336,6 +354,7 @@
 import { ref, computed } from 'vue';
 import AppIcon from '@/components/AppIcon.vue';
 import SkeletonLoader from '@/components/SkeletonLoader.vue';
+import { getProductVisual, getCategoryVisual } from '@/composables/useProductVisuals';
 
 const props = defineProps<{
   filteredProducts: any[];
@@ -372,7 +391,7 @@ const showCustomizerModal = ref(false);
 const activeCustomProduct = ref<any>(null);
 
 const grindOptions = [
-  { id: 'beans', label: 'حبوب كاملة', icon: 'coffee' },
+  { id: 'beans', label: 'حبوب كاملة', icon: 'bean' },
   { id: 'turkish', label: 'تركي ناعم', icon: 'coffee' },
   { id: 'espresso', label: 'إسبريسو', icon: 'coffee' },
   { id: 'v60', label: 'فلتر V60', icon: 'flask' },
@@ -461,66 +480,16 @@ const cancelLongPress = () => {
   }
 };
 
-const getCategoryIcon = (name: string) => {
-  if (!name) return '';
-  const n = name.toLowerCase();
-  if (n.includes('ساخن') || n.includes('قهو') || n.includes('اسبريسو')) return '☕';
-  if (n.includes('بارد') || n.includes('مثلج') || n.includes('ايس')) return '🧊';
-  if (
-    n.includes('بن') ||
-    n.includes('حبوب') ||
-    n.includes('طحن') ||
-    n.includes('تركي') ||
-    n.includes('توليف')
-  )
-    return '🫘';
-  if (n.includes('حلوي') || n.includes('كيك') || n.includes('شوكولات') || n.includes('وافل'))
-    return '🍰';
-  if (n.includes('عصير') || n.includes('سموذي') || n.includes('موهيتو')) return '🍹';
-  if (n.includes('شاي') || n.includes('أعشاب') || n.includes('كركديه')) return '🍵';
-  if (n.includes('ساندوتش') || n.includes('اكل') || n.includes('وجب') || n.includes('كرواسون'))
-    return '🥐';
-  if (n.includes('صوص') || n.includes('نكه') || n.includes('سيرب') || n.includes('إضاف'))
-    return '🍯';
-  return '📦';
-};
-
-const getCategoryAppIcon = (catName?: string) => {
-  if (!catName) return 'coffee';
-  const n = catName.toLowerCase();
-  if (
-    n.includes('ساخن') ||
-    n.includes('قهو') ||
-    n.includes('اسبريسو') ||
-    n.includes('بن') ||
-    n.includes('حبوب')
-  )
-    return 'coffee';
-  if (
-    n.includes('بارد') ||
-    n.includes('مثلج') ||
-    n.includes('ايس') ||
-    n.includes('عصير') ||
-    n.includes('مشروب')
-  )
-    return 'flask';
-  if (n.includes('حلوي') || n.includes('كيك') || n.includes('شوكولات') || n.includes('وافل'))
-    return 'sparkles';
-  if (n.includes('ساندوتش') || n.includes('وجب') || n.includes('اكل') || n.includes('كرواسون'))
-    return 'shop';
-  return 'coffee';
-};
-
 const currentCategoryName = computed(() => {
   if (!props.selectedCategory) return 'كل المنتجات';
   const cat = props.categories.find((c: any) => String(c.id) === String(props.selectedCategory));
   return cat ? cat.name_ar : 'كل المنتجات';
 });
 
-const currentCategoryIcon = computed(() => {
-  if (!props.selectedCategory) return '☕';
+const currentCategoryVisual = computed(() => {
+  if (!props.selectedCategory) return { icon: 'layers', emoji: '☕' };
   const cat = props.categories.find((c: any) => String(c.id) === String(props.selectedCategory));
-  return cat ? getCategoryIcon(cat.name_ar) : '☕';
+  return cat ? getCategoryVisual(cat.name_ar) : { icon: 'coffee', emoji: '☕' };
 });
 
 const onSearch = (e: Event) => {
@@ -640,15 +609,21 @@ defineExpose({
 .active-cat-indicator {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
+  gap: 8px;
+  padding: 6px 14px;
   background: var(--bg-soft);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   font-size: var(--text-xs);
 
+  .cat-ind-icon {
+    color: var(--primary);
+    display: flex;
+    align-items: center;
+  }
+
   .cat-ind-name {
-    font-weight: 700;
+    font-weight: 750;
     color: var(--text-strong);
   }
 
@@ -701,7 +676,8 @@ defineExpose({
     cursor: pointer;
     transition:
       transform var(--transition),
-      border-color var(--transition);
+      border-color var(--transition),
+      box-shadow var(--transition);
 
     &:active {
       transform: scale(0.95);
@@ -712,6 +688,11 @@ defineExpose({
       background: var(--accent-soft);
       border-color: var(--accent);
       color: var(--accent-dark, var(--primary));
+    }
+
+    .fast-key-icon {
+      display: flex;
+      align-items: center;
     }
 
     .fast-key-badge {
@@ -764,6 +745,11 @@ defineExpose({
       border-color: var(--primary);
       box-shadow: var(--shadow-xs);
     }
+
+    .pill-icon {
+      display: flex;
+      align-items: center;
+    }
   }
 }
 
@@ -794,16 +780,16 @@ defineExpose({
   }
 }
 
-/* Unified POS Product Card */
+/* Unified POS Product Card with Glassmorphism & Theme Palette */
 .pos-product-card {
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   text-align: center;
-  padding: 12px 8px 10px;
-  min-height: 144px;
+  padding: 10px 8px 10px;
+  min-height: 154px;
   border-radius: 14px;
   background: var(--bg-card);
   border: 1.5px solid var(--border);
@@ -815,30 +801,35 @@ defineExpose({
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
   transition:
-    transform 0.1s ease,
-    background-color 0.1s ease,
-    border-color 0.1s ease,
-    box-shadow 0.1s ease;
+    transform 0.12s cubic-bezier(0.16, 1, 0.3, 1),
+    background-color 0.12s ease,
+    border-color 0.12s ease,
+    box-shadow 0.12s ease;
 
-  /* Crucial Immediate Tactile Feedback for Touch */
+  /* Immediate Tactile Feedback for Touch */
+  &:hover {
+    border-color: var(--primary);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-sm);
+  }
+
   &:active {
     transform: scale(0.95);
-    background: var(--tab-hover-bg, var(--bg-soft));
     border-color: var(--primary);
-    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.12);
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
   }
 
   &.is-in-cart {
-    border-color: var(--accent);
-    background: var(--accent-soft);
+    border-color: var(--accent) !important;
+    background: var(--accent-soft) !important;
     box-shadow:
-      0 0 0 1px var(--accent),
-      var(--shadow-xs);
+      0 0 0 1.5px var(--accent),
+      var(--shadow-sm);
   }
 
   &.is-out-of-stock {
-    opacity: 0.5;
-    filter: grayscale(0.7);
+    opacity: 0.45;
+    filter: grayscale(0.8);
   }
 
   /* Card Stock Dot */
@@ -850,6 +841,7 @@ defineExpose({
     height: 8px;
     border-radius: 50%;
     background: var(--success);
+    z-index: 2;
 
     &.low {
       background: var(--warning);
@@ -885,7 +877,7 @@ defineExpose({
   /* Coffee Customizer Trigger Button */
   .card-customizer-btn {
     position: absolute;
-    bottom: 8px;
+    top: 8px;
     left: 8px;
     width: 24px;
     height: 24px;
@@ -898,6 +890,7 @@ defineExpose({
     justify-content: center;
     cursor: pointer;
     transition: all var(--transition);
+    z-index: 2;
 
     &:active {
       transform: scale(0.9);
@@ -907,19 +900,21 @@ defineExpose({
   }
 }
 
-/* Image Container at the Top */
+/* Image / Icon Container */
 .card-image-box {
-  width: 56px;
-  height: 56px;
-  border-radius: 12px;
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
   background: var(--bg-soft);
   overflow: hidden;
-  margin-bottom: 8px;
+  margin-top: 4px;
+  margin-bottom: 6px;
   flex-shrink: 0;
   border: 1px solid var(--border);
+  transition: transform 0.15s ease;
 
   .card-img {
     width: 100%;
@@ -928,11 +923,30 @@ defineExpose({
   }
 
   .card-fallback-icon {
-    color: var(--primary);
     display: flex;
     align-items: center;
     justify-content: center;
+    transition: transform 0.15s ease;
   }
+}
+
+.pos-product-card:hover .card-image-box .card-fallback-icon {
+  transform: scale(1.08);
+}
+
+/* Expressive Product Badge */
+.card-visual-badge {
+  display: inline-block;
+  font-size: 0.64rem;
+  font-weight: 800;
+  padding: 1px 7px;
+  border-radius: 9999px;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  max-width: 96%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
 }
 
 /* Centered Product Information */
@@ -942,14 +956,15 @@ defineExpose({
   align-items: center;
   justify-content: center;
   width: 100%;
-  gap: 4px;
+  gap: 3px;
+  margin-top: auto;
 }
 
 .card-title {
-  font-size: 0.92rem;
-  font-weight: 800;
+  font-size: 0.88rem;
+  font-weight: 750;
   color: var(--text-strong);
-  line-height: 1.3;
+  line-height: 1.25;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -958,14 +973,299 @@ defineExpose({
 }
 
 .card-price {
-  font-size: 0.82rem;
-  font-weight: 850;
+  font-size: 0.84rem;
+  font-weight: 900;
   color: var(--primary);
+}
+
+/* ═══════════════════ Dynamic Visual Color Themes ═══════════════════ */
+
+/* 1. Espresso (Deep Coffee & Roasted Beans) */
+.theme-espresso {
+  border-color: rgba(138, 87, 42, 0.22);
+  &:hover {
+    box-shadow: 0 4px 18px rgba(138, 87, 42, 0.16);
+    border-color: #8a572a;
+  }
+}
+.icon-bg-espresso {
+  background: linear-gradient(135deg, rgba(138, 87, 42, 0.12) 0%, rgba(74, 43, 18, 0.04) 100%);
+  border-color: rgba(138, 87, 42, 0.25);
+  color: #8a572a;
+}
+.badge-espresso {
+  background: rgba(138, 87, 42, 0.12);
+  color: #6e411b;
+  border: 1px solid rgba(138, 87, 42, 0.2);
+}
+
+/* 2. Gold (Golden Blend, Warm Pastries & Snacks) */
+.theme-gold {
+  border-color: rgba(217, 119, 6, 0.24);
+  &:hover {
+    box-shadow: 0 4px 18px rgba(217, 119, 6, 0.16);
+    border-color: #d97706;
+  }
+}
+.icon-bg-gold {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.14) 0%, rgba(217, 119, 6, 0.05) 100%);
+  border-color: rgba(217, 119, 6, 0.25);
+  color: #b45309;
+}
+.badge-gold {
+  background: rgba(217, 119, 6, 0.12);
+  color: #92400e;
+  border: 1px solid rgba(217, 119, 6, 0.2);
+}
+
+/* 3. Mocha (Chocolate, Brownies & Cocoa) */
+.theme-mocha {
+  border-color: rgba(120, 53, 15, 0.22);
+  &:hover {
+    box-shadow: 0 4px 18px rgba(120, 53, 15, 0.16);
+    border-color: #78350f;
+  }
+}
+.icon-bg-mocha {
+  background: linear-gradient(135deg, rgba(120, 53, 15, 0.14) 0%, rgba(180, 83, 9, 0.05) 100%);
+  border-color: rgba(120, 53, 15, 0.25);
+  color: #78350f;
+}
+.badge-mocha {
+  background: rgba(120, 53, 15, 0.12);
+  color: #78350f;
+  border: 1px solid rgba(120, 53, 15, 0.2);
+}
+
+/* 4. Ice (Cold Drinks, Iced Coffee, Soda & Water) */
+.theme-ice {
+  border-color: rgba(2, 132, 199, 0.24);
+  &:hover {
+    box-shadow: 0 4px 18px rgba(2, 132, 199, 0.16);
+    border-color: #0284c7;
+  }
+}
+.icon-bg-ice {
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.14) 0%, rgba(56, 189, 248, 0.05) 100%);
+  border-color: rgba(2, 132, 199, 0.25);
+  color: #0284c7;
+}
+.badge-ice {
+  background: rgba(2, 132, 199, 0.12);
+  color: #0369a1;
+  border: 1px solid rgba(2, 132, 199, 0.2);
+}
+
+/* 5. Berry (Cakes, Desserts, Berries & Sweets) */
+.theme-berry {
+  border-color: rgba(225, 29, 72, 0.24);
+  &:hover {
+    box-shadow: 0 4px 18px rgba(225, 29, 72, 0.16);
+    border-color: #e11d48;
+  }
+}
+.icon-bg-berry {
+  background: linear-gradient(135deg, rgba(225, 29, 72, 0.14) 0%, rgba(244, 63, 94, 0.05) 100%);
+  border-color: rgba(225, 29, 72, 0.25);
+  color: #e11d48;
+}
+.badge-berry {
+  background: rgba(225, 29, 72, 0.12);
+  color: #be123c;
+  border: 1px solid rgba(225, 29, 72, 0.2);
+}
+
+/* 6. Emerald (Tea, Herbs & Matcha) */
+.theme-emerald {
+  border-color: rgba(5, 150, 105, 0.24);
+  &:hover {
+    box-shadow: 0 4px 18px rgba(5, 150, 105, 0.16);
+    border-color: #059669;
+  }
+}
+.icon-bg-emerald {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.14) 0%, rgba(5, 150, 105, 0.05) 100%);
+  border-color: rgba(5, 150, 105, 0.25);
+  color: #059669;
+}
+.badge-emerald {
+  background: rgba(5, 150, 105, 0.12);
+  color: #047857;
+  border: 1px solid rgba(5, 150, 105, 0.2);
+}
+
+/* 7. Amber (Citrus, Fresh Juices & Savory) */
+.theme-amber {
+  border-color: rgba(234, 88, 12, 0.24);
+  &:hover {
+    box-shadow: 0 4px 18px rgba(234, 88, 12, 0.16);
+    border-color: #ea580c;
+  }
+}
+.icon-bg-amber {
+  background: linear-gradient(135deg, rgba(234, 88, 12, 0.14) 0%, rgba(249, 115, 22, 0.05) 100%);
+  border-color: rgba(234, 88, 12, 0.25);
+  color: #ea580c;
+}
+.badge-amber {
+  background: rgba(234, 88, 12, 0.12);
+  color: #c2410c;
+  border: 1px solid rgba(234, 88, 12, 0.2);
+}
+
+/* 8. Cream (Milk, Latte & Dairy) */
+.theme-cream {
+  border-color: rgba(200, 149, 110, 0.26);
+  &:hover {
+    box-shadow: 0 4px 18px rgba(200, 149, 110, 0.16);
+    border-color: #c8956e;
+  }
+}
+.icon-bg-cream {
+  background: linear-gradient(135deg, rgba(200, 149, 110, 0.16) 0%, rgba(254, 243, 199, 0.1) 100%);
+  border-color: rgba(200, 149, 110, 0.3);
+  color: #92400e;
+}
+.badge-cream {
+  background: rgba(200, 149, 110, 0.14);
+  color: #854d0e;
+  border: 1px solid rgba(200, 149, 110, 0.25);
+}
+
+/* 9. Sunset (Smoothies & Exotic Blends) */
+.theme-sunset {
+  border-color: rgba(147, 51, 234, 0.24);
+  &:hover {
+    box-shadow: 0 4px 18px rgba(147, 51, 234, 0.16);
+    border-color: #9333ea;
+  }
+}
+.icon-bg-sunset {
+  background: linear-gradient(135deg, rgba(147, 51, 234, 0.14) 0%, rgba(236, 72, 153, 0.05) 100%);
+  border-color: rgba(147, 51, 234, 0.25);
+  color: #9333ea;
+}
+.badge-sunset {
+  background: rgba(147, 51, 234, 0.12);
+  color: #7e22ce;
+  border: 1px solid rgba(147, 51, 234, 0.2);
+}
+
+/* 10. Caramel (Syrups, Flavors & Toppings) */
+.theme-caramel {
+  border-color: rgba(180, 83, 9, 0.24);
+  &:hover {
+    box-shadow: 0 4px 18px rgba(180, 83, 9, 0.16);
+    border-color: #b45309;
+  }
+}
+.icon-bg-caramel {
+  background: linear-gradient(135deg, rgba(180, 83, 9, 0.14) 0%, rgba(245, 158, 11, 0.05) 100%);
+  border-color: rgba(180, 83, 9, 0.25);
+  color: #b45309;
+}
+.badge-caramel {
+  background: rgba(180, 83, 9, 0.12);
+  color: #92400e;
+  border: 1px solid rgba(180, 83, 9, 0.2);
+}
+
+/* ── Dark Mode Adaptations for Theme Colors ── */
+[data-theme='dark'] {
+  .icon-bg-espresso {
+    color: #f0cb9e;
+    background: linear-gradient(135deg, rgba(217, 168, 108, 0.2) 0%, rgba(37, 23, 15, 0.8) 100%);
+  }
+  .badge-espresso {
+    color: #f0cb9e;
+    background: rgba(217, 168, 108, 0.16);
+  }
+
+  .icon-bg-gold {
+    color: #fde68a;
+    background: linear-gradient(135deg, rgba(251, 191, 36, 0.2) 0%, rgba(45, 29, 10, 0.8) 100%);
+  }
+  .badge-gold {
+    color: #fde68a;
+    background: rgba(251, 191, 36, 0.16);
+  }
+
+  .icon-bg-mocha {
+    color: #fcd34d;
+    background: linear-gradient(135deg, rgba(180, 83, 9, 0.22) 0%, rgba(40, 20, 10, 0.8) 100%);
+  }
+  .badge-mocha {
+    color: #fcd34d;
+    background: rgba(180, 83, 9, 0.16);
+  }
+
+  .icon-bg-ice {
+    color: #7dd3fc;
+    background: linear-gradient(135deg, rgba(56, 189, 248, 0.2) 0%, rgba(12, 35, 55, 0.8) 100%);
+  }
+  .badge-ice {
+    color: #7dd3fc;
+    background: rgba(56, 189, 248, 0.16);
+  }
+
+  .icon-bg-berry {
+    color: #fda4af;
+    background: linear-gradient(135deg, rgba(251, 113, 133, 0.2) 0%, rgba(50, 15, 25, 0.8) 100%);
+  }
+  .badge-berry {
+    color: #fda4af;
+    background: rgba(251, 113, 133, 0.16);
+  }
+
+  .icon-bg-emerald {
+    color: #6ee7b7;
+    background: linear-gradient(135deg, rgba(52, 211, 153, 0.2) 0%, rgba(10, 40, 25, 0.8) 100%);
+  }
+  .badge-emerald {
+    color: #6ee7b7;
+    background: rgba(52, 211, 153, 0.16);
+  }
+
+  .icon-bg-amber {
+    color: #fdba74;
+    background: linear-gradient(135deg, rgba(251, 146, 60, 0.2) 0%, rgba(48, 22, 10, 0.8) 100%);
+  }
+  .badge-amber {
+    color: #fdba74;
+    background: rgba(251, 146, 60, 0.16);
+  }
+
+  .icon-bg-cream {
+    color: #fef08a;
+    background: linear-gradient(135deg, rgba(234, 179, 8, 0.18) 0%, rgba(35, 27, 18, 0.8) 100%);
+  }
+  .badge-cream {
+    color: #fef08a;
+    background: rgba(234, 179, 8, 0.16);
+  }
+
+  .icon-bg-sunset {
+    color: #d8b4fe;
+    background: linear-gradient(135deg, rgba(192, 132, 252, 0.2) 0%, rgba(38, 15, 52, 0.8) 100%);
+  }
+  .badge-sunset {
+    color: #d8b4fe;
+    background: rgba(192, 132, 252, 0.16);
+  }
+
+  .icon-bg-caramel {
+    color: #fcd34d;
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.2) 0%, rgba(42, 25, 12, 0.8) 100%);
+  }
+  .badge-caramel {
+    color: #fcd34d;
+    background: rgba(245, 158, 11, 0.16);
+  }
 }
 
 /* Skeleton Loading Tile */
 .skeleton-card {
-  min-height: 144px;
+  min-height: 154px;
   display: flex;
   flex-direction: column;
   align-items: center;

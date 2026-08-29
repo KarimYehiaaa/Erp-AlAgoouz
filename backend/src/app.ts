@@ -134,6 +134,7 @@ app.use('/v1', routes);
 app.use('/api/index', routes);
 app.use('/api', routes);
 app.use('/index', routes);
+app.use('/', routes);
 
 /**
  * نقطة تشخيص — متاحة فقط للمدير في بيئة غير الإنتاج.

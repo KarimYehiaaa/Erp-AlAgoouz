@@ -82,7 +82,8 @@ const authorize =
       if (!roleId) throw new AppError('غير مصرح لك', 401, 'UNAUTHORIZED');
 
       // Find acceptable permissions for the requested permission codes
-      const acceptablePermissions = expandPermissionCodes(permissions);
+      const flatPermissions = (permissions.flat(Infinity) as string[]).filter(Boolean);
+      const acceptablePermissions = expandPermissionCodes(flatPermissions);
 
       const result = await query(
         `SELECT p.code FROM permissions p

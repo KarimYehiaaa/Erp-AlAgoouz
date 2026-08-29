@@ -1,28 +1,86 @@
 import app from '../backend/src/app.ts';
 
 export default async function handler(req: any, res: any) {
-  // 1. استخراج وتصحيح المسار الحقيقي للطلب في بيئة Vercel Serverless
-  const original =
-    req.headers['x-matched-path'] ||
-    req.headers['x-vercel-matched-path'] ||
-    req.headers['x-forwarded-uri'] ||
-    req.headers['x-original-url'] ||
-    req.headers['x-rewrite-url'] ||
-    req.originalUrl;
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Vercel Serverless Entry Point
+  // ═══════════════════════════════════════════════════════════════════════════
+  //
+  // جميع الطلبات تأتي عبر rewrites في vercel.json:
+  //   "/api/v1/(.*)" → "/api/index"
+  //   "/api/(.*)"    → "/api/index"
+  //   "/v1/(.*)"     → "/api/index"
+  //   "/health"      → "/api/index"
+  //
+  // المسار الحقيقي يكون في x-now-route-matches أو req.url نفسه
+  // ═══════════════════════════════════════════════════════════════════════════
 
-  if (original && original !== '/api/index' && original !== '/api/v1/index' && !original.startsWith('/api/index?')) {
-    req.url = original;
-  } else if (req.headers['x-now-route-matches']) {
-    try {
-      const matches = new URLSearchParams(req.headers['x-now-route-matches'] as string);
-      const subpath = matches.get('1') || matches.get('0');
-      if (subpath) {
-        req.url = `/api/${decodeURIComponent(subpath)}`;
+  const routeMatches = req.headers['x-now-route-matches'] || '';
+  const matchedPath = req.headers['x-matched-path'] || '';
+
+  // تسجيل تشخيصي (Vercel Function Logs)
+  console.log('[Vercel Route]', {
+    url: req.url,
+    originalUrl: req.originalUrl,
+    matchedPath,
+    routeMatches,
+    method: req.method,
+  });
+
+  // ── الحالة 1: catch-all [...slug].ts intercepted (safety net) ──
+  if (matchedPath.includes('[') && matchedPath.includes(']')) {
+    const bareSlug = req.url;
+    // ← Determine prefix from matched path
+    //    "/api/v1/[...slug]" → prefix = "/api/v1"
+    //    "/api/[...slug]"    → prefix = "/api"
+    const prefix = matchedPath.replace(/\/\[.*$/, '');
+    req.url = `${prefix}${bareSlug.startsWith('/') ? bareSlug : '/' + bareSlug}`;
+    req.originalUrl = req.url;
+  }
+  // ── الحالة 2: rewrite → /api/index ──
+  else if (
+    req.url === '/api/index' ||
+    req.url.startsWith('/api/index?') ||
+    matchedPath === '/api/index'
+  ) {
+    // استخراج المسار الحقيقي من x-now-route-matches
+    if (routeMatches) {
+      try {
+        const params = new URLSearchParams(routeMatches);
+        const slug = params.get('1') || params.get('0');
+        if (slug) {
+          const decoded = decodeURIComponent(slug);
+          // نحدد البادئة بناءً على المسار الأصلي
+          // x-vercel-forwarded-for أو pattern matching
+          const forwardedUri = req.headers['x-forwarded-uri'] || '';
+          if (forwardedUri.startsWith('/api/v1/')) {
+            req.url = `/api/v1/${decoded}`;
+          } else if (forwardedUri.startsWith('/v1/')) {
+            req.url = `/v1/${decoded}`;
+          } else {
+            req.url = `/api/${decoded}`;
+          }
+          req.originalUrl = req.url;
+        }
+      } catch {
+        // ignore
       }
-    } catch {
-      // تجاهل
+    }
+    // fallback headers
+    if (req.url === '/api/index' || req.url.startsWith('/api/index?')) {
+      const fallback =
+        req.headers['x-forwarded-uri'] ||
+        req.headers['x-rewrite-url'] ||
+        req.headers['x-original-url'];
+      if (fallback && !fallback.includes('/api/index')) {
+        req.url = fallback;
+        req.originalUrl = req.url;
+      }
     }
   }
+  // ── الحالة 3: مسار سليم (محلي) ──
+  // لا تعديل
+
+  console.log('[Vercel Route] Final req.url:', req.url);
 
   try {
     return app(req, res);

@@ -131,7 +131,9 @@ app.use('/logo.png', express.static(path.join(__dirname, '../../assets/logo.png'
 // ─── المسارات الرئيسية ───────────────────────────────────────────────────────
 app.use('/api/v1', routes);
 app.use('/v1', routes);
+app.use('/api/index', routes);
 app.use('/api', routes);
+app.use('/index', routes);
 
 /**
  * نقطة تشخيص — متاحة فقط للمدير في بيئة غير الإنتاج.

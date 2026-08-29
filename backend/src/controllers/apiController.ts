@@ -16,6 +16,7 @@ import { pl } from './plController.ts';
 import { stocktake } from './stocktakeController.ts';
 import { forecasting } from './forecastingController.ts';
 import { adminDashboard } from './adminDashboardController.ts';
+import { partnersController as partners } from './partnersController.ts';
 
 export {
   dashboard,
@@ -37,4 +38,5 @@ export {
   stocktake,
   forecasting,
   adminDashboard,
+  partners,
 };

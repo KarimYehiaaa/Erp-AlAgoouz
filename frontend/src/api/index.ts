@@ -298,3 +298,5 @@ export const forecasting = {
   getCashFlowProjection: (params?: Record<string, unknown>) =>
     get('/forecasting/cashflow-projection', { params }),
 };
+
+export { partnersApi, partnersApi as partners } from './partners.api';

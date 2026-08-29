@@ -42,6 +42,7 @@ router.use(menuRoutes);
 router.use(telegramRoutes);
 router.use(syncRoutes);
 router.use(partnersRoutes);
+router.use('/partners', partnersRoutes);
 router.use(automationRoutes);
 
 /**

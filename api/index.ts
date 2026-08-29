@@ -7,9 +7,22 @@ export default async function handler(req: any, res: any) {
       req.headers['x-vercel-matched-path'] ||
       req.headers['x-matched-path'] ||
       req.headers['x-forwarded-uri'] ||
+      req.headers['x-original-url'] ||
+      req.headers['x-rewrite-url'] ||
       req.originalUrl;
-    if (matched && matched !== '/api/index') {
+
+    if (matched && matched !== '/api/index' && !matched.startsWith('/api/index?')) {
       req.url = matched;
+    } else if (req.headers['x-now-route-matches']) {
+      try {
+        const matches = new URLSearchParams(req.headers['x-now-route-matches'] as string);
+        const subpath = matches.get('1') || matches.get('0');
+        if (subpath) {
+          req.url = `/api/${decodeURIComponent(subpath)}`;
+        }
+      } catch {
+        // تجاهل
+      }
     }
   }
 

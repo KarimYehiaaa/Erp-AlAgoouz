@@ -70,7 +70,7 @@ export const getPartnerById = async (id: number) => {
 
   const partner = partnerRes.rows[0];
   const drawingsRes = await query(
-    `SELECT d.*, b.name_ar as warehouse_name, u.name as created_by_name
+    `SELECT d.*, b.name_ar as warehouse_name, COALESCE(u.full_name, u.username) as created_by_name
      FROM partner_drawings d
      LEFT JOIN warehouses b ON b.id = d.warehouse_id
      LEFT JOIN users u ON u.id = d.created_by
@@ -270,7 +270,7 @@ export const getPartnerDrawings = async (filters: {
       p.phone AS partner_phone,
       p.share_percentage AS partner_share,
       b.name_ar AS warehouse_name,
-      u.name AS created_by_name
+      COALESCE(u.full_name, u.username) AS created_by_name
     FROM partner_drawings d
     JOIN partners p ON p.id = d.partner_id
     LEFT JOIN warehouses b ON b.id = d.warehouse_id

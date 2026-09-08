@@ -68,7 +68,7 @@ export const getOperationAlerts = async () => {
        LEFT JOIN (
          SELECT reference_id AS supplier_id, SUM(amount) AS total_paid
          FROM payments
-         WHERE reference_type = 'supplier'
+         WHERE reference_type = 'supplier' AND voided_at IS NULL
          GROUP BY reference_id
        ) paid ON paid.supplier_id = s.id
        WHERE s.deleted_at IS NULL
@@ -85,7 +85,7 @@ export const getOperationAlerts = async () => {
          LEFT JOIN (
            SELECT reference_id AS sale_id, SUM(amount) AS total_paid
            FROM payments
-           WHERE reference_type = 'sale'
+           WHERE reference_type = 'sale' AND voided_at IS NULL
            GROUP BY reference_id
          ) p ON p.sale_id = s.id
          WHERE s.deleted_at IS NULL

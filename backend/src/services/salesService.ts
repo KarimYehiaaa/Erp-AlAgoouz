@@ -82,60 +82,76 @@ const createDailySale = async (data: Record<string, any>, userId: number) => {
     data.paid_amount || 0,
   );
   const saleDate = data.sale_date || businessToday();
-  let profitAmount = parseAmount(data.profit_amount);
+  // [AUDIT FIX C6] الربح يُحسب على الخادم فقط عند وجود أصناف؛
+  // في البيع اليومي بدون أصناف (لا أساس تكلفة يستنتج منه الخادم) يُقبل الرقم المُدخل يدوياً
+  const manualProfit = parseAmount(data.profit_amount, 0);
+  let profitAmount = 0;
   const client = await getClient();
   try {
     await client.query('BEGIN');
     // حماية من الإرسال المزدوج (Offline replay): نفس sync_id يعيد البيع الموجود بدل إنشاء جديد
     const syncId = typeof data.sync_id === 'string' && data.sync_id ? data.sync_id : null;
-    if (syncId) {
-      const dup = await client.query(`SELECT id FROM sales WHERE sync_id = $1 LIMIT 1`, [syncId]);
-      if (dup.rows[0]) {
-        const existingId = dup.rows[0].id;
-        await client.query('COMMIT');
-        return { ...(await getSaleById(existingId)), _duplicateSync: true };
-      }
-    }
     const saleNumber = await generateNumber(client, 'SL', 'sale');
     const entryMode = items.length ? 'pos' : 'daily';
-    const saleResult = await client.query(
-      `INSERT INTO sales (
+    // إصلاح سباق التزامن: فحص-ثم-إدراج ليس ذريًا — الاعتماد الآن على قيد UNIQUE لـ sync_id،
+    // وعند التعارض (23505) نستعيد البيع الموجود بدل الفشل (استجابة idempotent حقيقية)
+    const insertSale = () =>
+      client.query(
+        `INSERT INTO sales (
         sale_number, sale_type, sale_date, entry_mode, customer_id, warehouse_id, user_id,
         subtotal, discount_amount, tax_amount, tax_percent, total_amount, cost_amount, profit_amount,
         payment_status, status, notes, sync_id
       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,'completed',$16,COALESCE($17::uuid, gen_random_uuid())) RETURNING *`,
-      [
-        saleNumber,
-        saleType,
-        saleDate,
-        entryMode,
-        customerId,
-        warehouseId,
-        userId,
-        subtotal || 0,
-        totals.discountAmount || 0,
-        totals.taxAmount || 0,
-        totals.taxPercent || 0,
-        totalAmount,
-        costAmount,
-        profitAmount,
-        paymentStatus,
-        data.notes || null,
-        syncId,
-      ],
-    );
+        [
+          saleNumber,
+          saleType,
+          saleDate,
+          entryMode,
+          customerId,
+          warehouseId,
+          userId,
+          subtotal || 0,
+          totals.discountAmount || 0,
+          totals.taxAmount || 0,
+          totals.taxPercent || 0,
+          totalAmount,
+          costAmount,
+          profitAmount,
+          paymentStatus,
+          data.notes || null,
+          syncId,
+        ],
+      );
+    let saleResult;
+    try {
+      saleResult = await insertSale();
+    } catch (err: any) {
+      if (err?.code !== '23505' || !syncId) throw err;
+      // المعاملة أصبحت في حالة aborted — نرجّعها ثم نقرأ العملية الموجودة خارجها
+      await client.query('ROLLBACK');
+      const dup = await query(
+        `SELECT id FROM sales WHERE sync_id = $1 AND deleted_at IS NULL LIMIT 1`,
+        [syncId],
+      );
+      const existingId = dup.rows[0]?.id;
+      if (!existingId)
+        throw new AppError('تعارض في معرف المزامنة (sync_id) — أعد المحاولة', 409, 'SYNC_CONFLICT');
+      return { ...(await getSaleById(existingId)), _duplicateSync: true };
+    }
     const sale = saleResult.rows[0];
     if (items.length) {
       costAmount = await applySaleItems(client, { saleId: sale.id, items, warehouseId, userId });
-      if (
-        data.profit_amount === void 0 ||
-        data.profit_amount === null ||
-        data.profit_amount === ''
-      ) {
-        profitAmount = roundMoney(totalAmount - costAmount);
-      }
+      // [AUDIT FIX C6] يُتجاهل profit_amount القادم من العميل نهائياً — يُحسب من الإجمالي ناقص التكلفة الفعلية
+      profitAmount = roundMoney(totalAmount - costAmount);
       await client.query(`UPDATE sales SET cost_amount = $1, profit_amount = $2 WHERE id = $3`, [
         costAmount,
+        profitAmount,
+        sale.id,
+      ]);
+    } else {
+      // بيع يومي بدون أصناف: يُقبل الربح المُدخل يدوياً ويُثبَّت صراحة على الخادم
+      profitAmount = manualProfit;
+      await client.query(`UPDATE sales SET cost_amount = 0, profit_amount = $1 WHERE id = $2`, [
         profitAmount,
         sale.id,
       ]);
@@ -245,10 +261,23 @@ const updateSale = async (saleId: number, data: Record<string, any>, userId: num
         : 'daily'
       : existingSale.entry_mode;
     const saleDate = data.sale_date || existingSale.sale_date;
-    const totalAmount =
-      shouldReplaceItems && items.length
-        ? totals.totalAmount
-        : roundMoney(parseAmount(data.total_amount, existingSale.total_amount));
+    let totalAmount = roundMoney(parseAmount(data.total_amount, existingSale.total_amount));
+    if (shouldReplaceItems && items.length) {
+      totalAmount = totals.totalAmount;
+    }
+    // إصلاح اتصال حسابي: تعديل الخصم دون أصناف يُعاد توزيعه على الإجمالي
+    // (الإجمالي الجديد = الإجمالي القديم + الخصم القديم − الخصم الجديد)
+    const discountProvided =
+      !shouldReplaceItems &&
+      data.discount_amount !== undefined &&
+      data.discount_amount !== null &&
+      data.discount_amount !== '';
+    if (discountProvided) {
+      const oldGross = roundMoney(
+        Number(existingSale.total_amount || 0) + Number(existingSale.discount_amount || 0),
+      );
+      totalAmount = roundMoney(Math.max(0, oldGross - roundMoney(totals.discountAmount)));
+    }
     if (!totalAmount || totalAmount <= 0)
       throw new AppError(
         '\u0625\u062C\u0645\u0627\u0644\u064A \u0627\u0644\u0645\u0628\u064A\u0639\u0627\u062A \u064A\u062C\u0628 \u0623\u0646 \u064A\u0643\u0648\u0646 \u0623\u0643\u0628\u0631 \u0645\u0646 \u0635\u0641\u0631',
@@ -274,7 +303,15 @@ const updateSale = async (saleId: number, data: Record<string, any>, userId: num
     let costAmount = shouldReplaceItems
       ? 0
       : roundMoney(parseAmount(data.cost_amount, existingSale.cost_amount));
-    let profitAmount = parseAmount(data.profit_amount, existingSale.profit_amount);
+    // إصلاح أمني: الربح يُحسب على الخادم فقط — لا يُقبل profit_amount من العميل
+    // (كان يمكن لأي مستخدم تزوير الربح والتأثير على تقارير P&L وتسوية الشركاء)
+    let profitAmount = parseAmount(existingSale.profit_amount);
+    if (discountProvided) {
+      const discountDelta = roundMoney(
+        totals.discountAmount - Number(existingSale.discount_amount || 0),
+      );
+      profitAmount = roundMoney(profitAmount - discountDelta);
+    }
     if (shouldReplaceItems) {
       if (oldItems.length > 0) {
         await restoreInventoryForSale(client, saleId, userId);
@@ -297,7 +334,7 @@ const updateSale = async (saleId: number, data: Record<string, any>, userId: num
     }
     // تسوية الدفعات بالفرق فقط — لا يُحذف السجل المالي كاملاً عند كل تعديل
     const existingPaidRes = await client.query(
-      `SELECT COALESCE(SUM(amount), 0)::numeric AS total FROM payments WHERE reference_type = 'sale' AND reference_id = $1`,
+      `SELECT COALESCE(SUM(amount), 0)::numeric AS total FROM payments WHERE reference_type = 'sale' AND reference_id = $1 AND voided_at IS NULL`,
       [saleId],
     );
     const existingPaid = Number(existingPaidRes.rows[0].total || 0);
@@ -318,9 +355,10 @@ const updateSale = async (saleId: number, data: Record<string, any>, userId: num
     } else if (targetPaid < existingPaid - 1e-9) {
       // تقليص المدفوع من أحدث دفعة لأقدمها، مع تعديل جزئي لآخر دفعة عند الحاجة
       let excess = roundMoney(existingPaid - targetPaid);
+      // [AUDIT FIX M2] الدفعات النشطة فقط مؤهلة للتقليص — المحذوف/المبطل لا يُلمس
       const payRows = (
         await client.query(
-          `SELECT id, amount FROM payments WHERE reference_type = 'sale' AND reference_id = $1 ORDER BY id DESC FOR UPDATE`,
+          `SELECT id, amount FROM payments WHERE reference_type = 'sale' AND reference_id = $1 AND voided_at IS NULL ORDER BY id DESC FOR UPDATE`,
           [saleId],
         )
       ).rows;
@@ -328,7 +366,8 @@ const updateSale = async (saleId: number, data: Record<string, any>, userId: num
         if (excess <= 1e-9) break;
         const amt = Number(pay.amount);
         if (amt <= excess + 1e-9) {
-          await client.query(`DELETE FROM payments WHERE id = $1`, [pay.id]);
+          // [AUDIT FIX M2] إبطال بدل الحذف — سجل النقدية يبقى كاملاً للتدقيق
+          await client.query(`UPDATE payments SET voided_at = NOW() WHERE id = $1 AND voided_at IS NULL`, [pay.id]);
           excess = roundMoney(excess - amt);
         } else {
           await client.query(`UPDATE payments SET amount = $1 WHERE id = $2`, [
@@ -469,7 +508,7 @@ const getSaleById = async (id: number) => {
         'total_amount', si.total_amount
       )) FROM sale_items si JOIN products p ON si.product_id = p.id WHERE si.sale_id = s.id) as items,
       (SELECT json_agg(json_build_object('method', payment_method, 'amount', amount))
-       FROM payments WHERE reference_type='sale' AND reference_id = s.id) as payments
+       FROM payments WHERE reference_type='sale' AND reference_id = s.id AND voided_at IS NULL) as payments
      FROM sales s
      LEFT JOIN customers c ON s.customer_id = c.id
      LEFT JOIN users u ON s.user_id = u.id

@@ -12,7 +12,7 @@
     </div>
 
     <div class="race-list">
-      <div v-for="(item, idx) in topItems" :key="item.name" class="race-item">
+      <div v-for="(item, idx) in topItems" :key="`${idx}-${item.name}`" class="race-item">
         <div class="race-header flex items-center justify-between">
           <div class="flex items-center gap-2">
             <span class="race-rank" :class="'rank-' + (idx + 1)">{{ idx + 1 }}</span>
@@ -44,7 +44,9 @@ const props = defineProps({
   stats: { type: Object, default: () => ({}) },
 });
 
-const topItems = computed(() => {
+type RaceItem = { name: string; qty: number; amount: number; percent: number };
+
+const topItems = computed<RaceItem[]>(() => {
   const list = props.stats?.topProducts || [];
   if (list.length > 0) {
     const max = Math.max(...list.map((i: any) => Number(i.total_sales || i.amount || 1)), 1);

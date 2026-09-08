@@ -13,7 +13,10 @@ export const useAuthStore = defineStore('auth', () => {
 
   let activeProfilePromise: Promise<any> | null = null;
 
-  const token = ref<string | null>(localStorage.getItem('token'));
+  // [AUDIT FIX H3] لا يُخزَّن الـ JWT في localStorage (يصمد بعد إغلاق التبويب ويكشفه XSS)
+  // → sessionStorage فقط، مع مسح أي توكن قديم متبقٍ في localStorage.
+  if (localStorage.getItem('token')) localStorage.removeItem('token');
+  const token = ref<string | null>(sessionStorage.getItem('token'));
 
   const fetchProfile = async () => {
     if (activeProfilePromise) return activeProfilePromise;
@@ -65,7 +68,8 @@ export const useAuthStore = defineStore('auth', () => {
     profileLoaded.value = true;
     if (res.data.token) {
       token.value = res.data.token;
-      localStorage.setItem('token', res.data.token);
+      sessionStorage.setItem('token', res.data.token);
+      localStorage.removeItem('token'); // [AUDIT FIX H3] مسح التوكن القديم
     }
     localStorage.setItem('user', JSON.stringify(res.data.user));
     return res;
@@ -83,6 +87,7 @@ export const useAuthStore = defineStore('auth', () => {
     profileLoaded.value = false;
     localStorage.removeItem('user');
     localStorage.removeItem('token');
+    sessionStorage.removeItem('token'); // [AUDIT FIX H3]
   };
 
   const loadFromStorage = () => {

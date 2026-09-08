@@ -138,10 +138,10 @@ export const getSupplierInvoices = async (supplierId) =>
   (
     await query(
       `SELECT id, invoice_number, invoice_date AS created_at, total_amount, notes,
-       COALESCE((SELECT SUM(amount) FROM payments WHERE reference_type = 'supplier' AND reference_id = $1), 0) AS paid_amount,
+       COALESCE((SELECT SUM(amount) FROM payments WHERE reference_type = 'supplier' AND reference_id = $1 AND voided_at IS NULL), 0) AS paid_amount,
        CASE
          WHEN (SELECT s.balance FROM suppliers s WHERE s.id = $1) <= 0 THEN 'paid'
-         WHEN (SELECT SUM(amount) FROM payments WHERE reference_type = 'supplier' AND reference_id = $1) > 0 THEN 'partial'
+         WHEN (SELECT SUM(amount) FROM payments WHERE reference_type = 'supplier' AND reference_id = $1 AND voided_at IS NULL) > 0 THEN 'partial'
          ELSE 'pending'
        END AS status
      FROM purchase_invoices
@@ -186,7 +186,7 @@ export const recalculateSupplierBalance = async (
      ), 0) - COALESCE((
        SELECT COALESCE(SUM(amount), 0)
        FROM payments
-       WHERE reference_type = 'supplier' AND reference_id = $1
+       WHERE reference_type = 'supplier' AND reference_id = $1 AND voided_at IS NULL
      ), 0),
      updated_at = NOW()
      WHERE s.id = $1`,

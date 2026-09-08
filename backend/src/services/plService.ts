@@ -224,6 +224,9 @@ export const getProfitAndLoss = async (fromDate: string, toDate: string) => {
   const result = {
     period: { from: fromDate, to: toDate },
     cogs_basis: cogsBasis,
+    // [AUDIT FIX H2] علم صريح أن تكلفة البضاعة تقديرية (مبني على مشتريات الفترة ككل،
+    // وليس التكلفة الفعلية للأصناف المباعة) — يُستخدم في الواجهة والتقارير والشركاء
+    cogs_is_estimated: cogsBasis === 'purchases',
     opening_balance: openingBalance, // رصيد أول المدة للشفافية
 
     // ── قسم الإيرادات ──

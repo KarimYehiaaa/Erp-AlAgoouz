@@ -73,8 +73,9 @@
                 v-permission="'invoices.delete'"
                 type="button"
                 class="icon-btn danger"
+                :disabled="deletingId === inv.id"
                 @click="deleteInvoice(inv.id)"
-                title="حذف"
+                :title="deletingId === inv.id ? 'جاري الحذف...' : 'حذف'"
               >
                 <AppIcon name="delete" :size="16" />
               </button>
@@ -95,6 +96,7 @@ import { formatMoney } from '@/utils/currency';
 
 const invoices = ref<any[]>([]);
 const filterStatus = ref('');
+const deletingId = ref<number | null>(null); // [AUDIT FIX UI] حارس النقر المزدوج أثناء الحذف
 
 const formatDate = (d: any) => (d ? new Date(d).toLocaleDateString('en-GB') : '—');
 
@@ -106,12 +108,17 @@ const load = async () => {
 };
 
 const deleteInvoice = async (id: any) => {
+  // [AUDIT FIX UI] منع النقر المزدوج: تجاهل النقرات أثناء تنفيذ حذف جارٍ لنفس الفاتورة
+  if (deletingId.value !== null) return;
   if (!window.confirm('هل أنت متأكد من حذف هذه الفاتورة؟')) return;
+  deletingId.value = id;
   try {
     await api.delete(id);
     await load();
   } catch (e: any) {
     window.alert(e?.message || 'فشل حذف الفاتورة');
+  } finally {
+    deletingId.value = null;
   }
 };
 

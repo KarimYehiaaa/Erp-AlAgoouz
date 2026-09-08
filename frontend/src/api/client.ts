@@ -17,7 +17,16 @@ const api = axios.create({
 // 1. HttpOnly cookies للأمان ضد XSS
 // 2. Authorization Bearer header كـ fallback قوي لبيئات السحابة والـ Cross-origin
 api.interceptors.request.use((config: any) => {
-  const token = localStorage.getItem('token');
+  // [AUDIT FIX H3] التوكن في sessionStorage (يموت مع إغلاق التبويب) — أي توكن قديم في
+  // localStorage يُهاجر لمرة واحدة ثم يُمسح نهائياً.
+  let token = sessionStorage.getItem('token');
+  if (!token) {
+    token = localStorage.getItem('token');
+    if (token) {
+      sessionStorage.setItem('token', token);
+      localStorage.removeItem('token');
+    }
+  }
   if (token && !config.headers.Authorization) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -80,7 +89,7 @@ api.interceptors.response.use(
         );
         const newToken = res.data?.data?.token || res.data?.token;
         if (newToken) {
-          localStorage.setItem('token', newToken);
+          sessionStorage.setItem('token', newToken); // [AUDIT FIX H3]
           api.defaults.headers.common.Authorization = `Bearer ${newToken}`;
           if (originalRequest.headers) {
             originalRequest.headers.Authorization = `Bearer ${newToken}`;

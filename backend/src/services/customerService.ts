@@ -45,7 +45,7 @@ export const getCustomers = async (filters: Record<string, any> = {}) => {
         LEFT JOIN (
           SELECT reference_id, SUM(amount) AS total_paid
           FROM payments
-          WHERE reference_type = 'sale'
+          WHERE reference_type = 'sale' AND voided_at IS NULL
           GROUP BY reference_id
         ) p ON p.reference_id = s.id
         WHERE s.deleted_at IS NULL
@@ -64,7 +64,7 @@ export const getCustomers = async (filters: Record<string, any> = {}) => {
         LEFT JOIN (
           SELECT reference_id, SUM(amount) AS total_paid
           FROM payments
-          WHERE reference_type = 'invoice'
+          WHERE reference_type = 'invoice' AND voided_at IS NULL
           GROUP BY reference_id
         ) p ON p.reference_id = i.id
         WHERE i.customer_id IS NOT NULL
@@ -264,7 +264,7 @@ export const recordPayment = async (customerId: number, data: Record<string, any
          s.id,
          s.sale_number AS entry_number,
          s.total_amount,
-         COALESCE((SELECT SUM(amount) FROM payments WHERE (reference_type = 'sale' AND reference_id = s.id) OR (reference_type = 'invoice' AND reference_id = (SELECT id FROM invoices WHERE sale_id = s.id LIMIT 1))), 0) AS paid_amount,
+         COALESCE((SELECT SUM(amount) FROM payments WHERE (reference_type = 'sale' AND reference_id = s.id) OR (reference_type = 'invoice' AND reference_id = (SELECT id FROM invoices WHERE sale_id = s.id LIMIT 1)) AND voided_at IS NULL), 0) AS paid_amount,
          COALESCE(s.sale_date, DATE(s.created_at)) AS entry_date,
          s.created_at
        FROM sales s
@@ -280,7 +280,7 @@ export const recordPayment = async (customerId: number, data: Record<string, any
          i.id,
          i.invoice_number AS entry_number,
          i.total_amount,
-         COALESCE((SELECT SUM(amount) FROM payments WHERE reference_type = 'invoice' AND reference_id = i.id), 0) AS paid_amount,
+         COALESCE((SELECT SUM(amount) FROM payments WHERE reference_type = 'invoice' AND reference_id = i.id AND voided_at IS NULL), 0) AS paid_amount,
          COALESCE(i.due_date, DATE(i.issued_at)) AS entry_date,
          i.created_at
        FROM invoices i
@@ -443,7 +443,7 @@ export const recordSalePayment = async (saleId: number, data: Record<string, any
 
     const paidSoFar = (
       await client.query(
-        `SELECT COALESCE(SUM(amount),0) as total FROM payments WHERE (reference_type='sale' AND reference_id=$1) OR (reference_type='invoice' AND reference_id = (SELECT id FROM invoices WHERE sale_id = $1 LIMIT 1))`,
+        `SELECT COALESCE(SUM(amount),0) as total FROM payments WHERE ((reference_type='sale' AND reference_id=$1) OR (reference_type='invoice' AND reference_id = (SELECT id FROM invoices WHERE sale_id = $1 LIMIT 1))) AND voided_at IS NULL`,
         [saleId],
       )
     ).rows[0].total;
@@ -527,10 +527,10 @@ export const getCustomerStatement = async (id: number) => {
        s.created_at,
        COALESCE(
          (SELECT SUM(amount) FROM payments
-          WHERE (reference_type = 'sale' AND reference_id = s.id) OR (reference_type = 'invoice' AND reference_id = (SELECT id FROM invoices WHERE sale_id = s.id LIMIT 1))), 0
+          WHERE ((reference_type = 'sale' AND reference_id = s.id) OR (reference_type = 'invoice' AND reference_id = (SELECT id FROM invoices WHERE sale_id = s.id LIMIT 1))) AND voided_at IS NULL), 0
        ) AS paid_amount,
        (SELECT payment_method FROM payments
-        WHERE (reference_type = 'sale' AND reference_id = s.id) OR (reference_type = 'invoice' AND reference_id = (SELECT id FROM invoices WHERE sale_id = s.id LIMIT 1))
+        WHERE ((reference_type = 'sale' AND reference_id = s.id) OR (reference_type = 'invoice' AND reference_id = (SELECT id FROM invoices WHERE sale_id = s.id LIMIT 1))) AND voided_at IS NULL
         ORDER BY created_at DESC LIMIT 1) AS payment_method
       FROM sales s
       WHERE s.customer_id = $1
@@ -555,10 +555,10 @@ export const getCustomerStatement = async (id: number) => {
        i.created_at,
        COALESCE(
          (SELECT SUM(amount) FROM payments
-          WHERE reference_type = 'invoice' AND reference_id = i.id), 0
+          WHERE reference_type = 'invoice' AND reference_id = i.id AND voided_at IS NULL), 0
        ) AS paid_amount,
        (SELECT payment_method FROM payments
-        WHERE reference_type = 'invoice' AND reference_id = i.id
+        WHERE reference_type = 'invoice' AND reference_id = i.id AND voided_at IS NULL
         ORDER BY created_at DESC LIMIT 1) AS payment_method
       FROM invoices i
       WHERE i.customer_id = $1

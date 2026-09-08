@@ -20,10 +20,9 @@ export class TelegramBotService {
    * جلب بيانات اعتماد بوت تليجرام
    */
   static async getBotCredentials(): Promise<{ token: string; defaultChatId: string }> {
-    const token = (
-      process.env.TELEGRAM_BOT_TOKEN || '8903108709:AAGkPHf9zHkwdrzUR9d6uz-n4k4_F3LP_uI'
-    ).trim();
-    const defaultChatId = (process.env.TELEGRAM_CHAT_ID || '1092703744').trim();
+    // [AUDIT FIX C1] بيانات الاعتماد من متغيرات البيئة فقط — لا يمكن تضمين توكن في الكود إطلاقاً
+    const token = (process.env.TELEGRAM_BOT_TOKEN || '').trim();
+    const defaultChatId = (process.env.TELEGRAM_CHAT_ID || '').trim();
     return { token, defaultChatId };
   }
 
@@ -127,6 +126,31 @@ export class TelegramBotService {
     const chatId = msg.chat?.id;
     const rawText = (msg.text || '').trim();
     if (!chatId || !rawText) return;
+
+    // [AUDIT FIX H7] قائمة سماحة المحادثات: بدونها كان أي حساب تليجرام يستطيع مراسلة البوت
+    // وسحب المبيعات والأرباح والخزينة الحية. يُضبط عبر TELEGRAM_ALLOWED_CHAT_IDS (مفصولة بفواصل)
+    // أو TELEGRAM_CHAT_ID تلقائياً. إن لم يُضبط شيء يُسجَّل تحذير صريح.
+    const allowedRaw = (
+      process.env.TELEGRAM_ALLOWED_CHAT_IDS ||
+      process.env.TELEGRAM_CHAT_ID ||
+      ''
+    ).trim();
+    if (allowedRaw) {
+      const allowed = new Set(
+        allowedRaw
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean),
+      );
+      if (!allowed.has(String(chatId))) {
+        logger.warn(`[Telegram Bot] رفض رسالة من محادثة غير مصرح بها: ${chatId}`);
+        return;
+      }
+    } else {
+      logger.warn(
+        '[Telegram Bot] ⚠ TELEGRAM_ALLOWED_CHAT_IDS غير مضبوط — أوامر البوت مقبولة من أي محادثة. اضبطه فوراً في الإنتاج.',
+      );
+    }
 
     const { token } = await this.getBotCredentials();
     const reply = async (html: string) => {

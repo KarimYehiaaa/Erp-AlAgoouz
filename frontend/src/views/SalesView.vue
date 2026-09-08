@@ -289,6 +289,7 @@ const monthlyImportErr = ref(false);
 const monthlyImportDetails = ref<any[]>([]);
 const monthlyValidating = ref(false);
 const monthlyImporting = ref(false);
+const importing = ref(false); // [AUDIT FIX UI] حارس إعادة الدخول للاستيراد السريع
 const customerCodesHint = ref('C-001, C-002, C-003, C-004 (أو اترك فارغاً)');
 const deleteDate = ref(today);
 const editingSaleId = ref<any>(null);
@@ -784,6 +785,8 @@ const onValidateMonthly = async (file: File) => {
 
 const onImportMonthly = async (file: File) => {
   if (!file) return;
+  // [AUDIT FIX UI] حارس إعادة الدخول: منع استيرادين متزامنين يؤديان لخصم مزدوج من المخزون
+  if (monthlyImporting.value) return;
   monthlyImporting.value = true;
   monthlyImportMsg.value = 'جاري استيراد المبيعات الشهرية وخصم مخزون المحل...';
   monthlyImportErr.value = false;
@@ -825,6 +828,9 @@ const onValidate = async (file: File) => {
 
 const onImport = async (file: File) => {
   if (!file) return;
+  // [AUDIT FIX UI] حارس إعادة الدخول للاستيراد السريع أيضاً
+  if (importing.value) return;
+  importing.value = true;
   importMsg.value = '';
   importErr.value = false;
   importDetails.value = [];
@@ -845,6 +851,8 @@ const onImport = async (file: File) => {
   } catch (err: any) {
     importErr.value = true;
     importMsg.value = err.message || 'فشل الاستيراد';
+  } finally {
+    importing.value = false;
   }
 };
 

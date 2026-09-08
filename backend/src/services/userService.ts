@@ -351,7 +351,7 @@ const getPurchasesReport = async (filters: Record<string, any> = {}) => {
     query(
       `SELECT COUNT(*)::int as invoices_count,
               COALESCE(SUM(total_amount), 0) as total_amount,
-              COALESCE((SELECT SUM(amount) FROM payments WHERE reference_type = 'supplier' AND ($1::date IS NULL OR created_at::date >= $1) AND ($2::date IS NULL OR created_at::date <= $2)), 0) as paid_amount
+              COALESCE((SELECT SUM(amount) FROM payments WHERE reference_type = 'supplier' AND voided_at IS NULL AND ($1::date IS NULL OR created_at::date >= $1) AND ($2::date IS NULL OR created_at::date <= $2)), 0) as paid_amount
        FROM purchase_invoices
        WHERE deleted_at IS NULL
          AND ($1::date IS NULL OR invoice_date >= $1)
@@ -362,7 +362,7 @@ const getPurchasesReport = async (filters: Record<string, any> = {}) => {
       `SELECT s.name_ar as supplier_name,
               COUNT(pi.id)::int as invoices_count,
               COALESCE(SUM(pi.total_amount), 0) as total_amount,
-              COALESCE((SELECT SUM(amount) FROM payments WHERE reference_type = 'supplier' AND reference_id = s.id AND ($1::date IS NULL OR created_at::date >= $1) AND ($2::date IS NULL OR created_at::date <= $2)), 0) as paid_amount
+              COALESCE((SELECT SUM(amount) FROM payments WHERE reference_type = 'supplier' AND reference_id = s.id AND voided_at IS NULL AND ($1::date IS NULL OR created_at::date >= $1) AND ($2::date IS NULL OR created_at::date <= $2)), 0) as paid_amount
        FROM suppliers s
        LEFT JOIN purchase_invoices pi ON pi.supplier_id = s.id AND pi.deleted_at IS NULL
          AND ($1::date IS NULL OR pi.invoice_date >= $1)
@@ -377,7 +377,7 @@ const getPurchasesReport = async (filters: Record<string, any> = {}) => {
       `SELECT pi.invoice_number, pi.total_amount,
               CASE
                 WHEN s.balance <= 0 THEN 'paid'
-                WHEN (SELECT COALESCE(SUM(amount), 0) FROM payments WHERE reference_type = 'supplier' AND reference_id = pi.supplier_id) > 0 THEN 'partial'
+                WHEN (SELECT COALESCE(SUM(amount), 0) FROM payments WHERE reference_type = 'supplier' AND reference_id = pi.supplier_id AND voided_at IS NULL) > 0 THEN 'partial'
                 ELSE 'pending'
               END as status,
               pi.invoice_date as created_at, s.name_ar as supplier_name
@@ -477,7 +477,7 @@ const getCustomersReport = async (filters: Record<string, any> = {}) => {
        LEFT JOIN customers c ON c.id = (
          SELECT customer_id FROM sales WHERE id = p.reference_id LIMIT 1
        )
-       WHERE p.reference_type = 'sale'
+       WHERE p.reference_type = 'sale' AND p.voided_at IS NULL
        ORDER BY p.created_at DESC
        LIMIT 10`,
     ),

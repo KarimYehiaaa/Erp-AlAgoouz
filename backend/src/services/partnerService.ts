@@ -1,4 +1,4 @@
-import { query } from '../database/pool.ts';
+import { query, getClient } from '../database/pool.ts';
 import { AppError } from '../types/errors.ts';
 import { getProfitAndLoss } from './plService.ts';
 import { roundMoney } from '../utils/money.ts';
@@ -105,38 +105,48 @@ export const createPartner = async (data: PartnerInput) => {
     throw new AppError('نسبة الشراكة يجب أن تكون بين 0% و 100%', 400);
   }
 
-  // فحص مجموع النسب الحالية للشركاء النشطين
-  const totalShareRes = await query(`
-    SELECT COALESCE(SUM(share_percentage), 0) as total_share
-    FROM partners
-    WHERE is_active = true
-  `);
-  const currentTotal = Number(totalShareRes.rows[0]?.total_share || 0);
-
-  if (currentTotal + share > 100.01) {
-    throw new AppError(
-      `مجموع نسب الشركاء سيتجاوز 100% (المجموع الحالي: ${currentTotal}% + النسبة المدخلة: ${share}% = ${currentTotal + share}%)`,
-      400,
+  // [AUDIT FIX M4] فحص-ثم-إدراج داخل معاملة واحدة مع قفل استشاري يمنع سباق
+  // شريكين متزامنين يجتازان فحص الـ 100% معاً ثم يتجاوزان المجموع فعلياً
+  const client = await getClient();
+  try {
+    await client.query('BEGIN');
+    await client.query(`SELECT pg_advisory_xact_lock(hashtext('partners_share_sum'))`);
+    const totalShareRes = await client.query(
+      `SELECT COALESCE(SUM(share_percentage), 0) as total_share FROM partners WHERE is_active = true`,
     );
+    const currentTotal = Number(totalShareRes.rows[0]?.total_share || 0);
+
+    if (currentTotal + share > 100.01) {
+      throw new AppError(
+        `مجموع نسب الشركاء سيتجاوز 100% (المجموع الحالي: ${currentTotal}% + النسبة المدخلة: ${share}% = ${currentTotal + share}%)`,
+        400,
+      );
+    }
+
+    const res = await client.query(
+      `INSERT INTO partners (name_ar, phone, share_percentage, capital_contribution, opening_balance, notes, is_active)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING *`,
+      [
+        data.name_ar.trim(),
+        data.phone?.trim() || null,
+        share,
+        Number(data.capital_contribution || 0),
+        Number(data.opening_balance || 0),
+        data.notes?.trim() || null,
+        data.is_active !== undefined ? data.is_active : true,
+      ],
+    );
+    await client.query('COMMIT');
+
+    logger.info(`[Partners] تم إضافة شريك جديد: ${data.name_ar} بنسبة ${share}%`);
+    return res.rows[0];
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
   }
-
-  const res = await query(
-    `INSERT INTO partners (name_ar, phone, share_percentage, capital_contribution, opening_balance, notes, is_active)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
-     RETURNING *`,
-    [
-      data.name_ar.trim(),
-      data.phone?.trim() || null,
-      share,
-      Number(data.capital_contribution || 0),
-      Number(data.opening_balance || 0),
-      data.notes?.trim() || null,
-      data.is_active !== undefined ? data.is_active : true,
-    ],
-  );
-
-  logger.info(`[Partners] تم إضافة شريك جديد: ${data.name_ar} بنسبة ${share}%`);
-  return res.rows[0];
 };
 
 /**
@@ -158,38 +168,38 @@ export const updatePartner = async (id: number, data: Partial<PartnerInput>) => 
     throw new AppError('نسبة الشراكة يجب أن تكون بين 0% و 100%', 400);
   }
 
-  // فحص مجموع النسب مع استثناء الشريك الحالي
-  const totalShareRes = await query(
-    `
-    SELECT COALESCE(SUM(share_percentage), 0) as total_share
-    FROM partners
-    WHERE is_active = true AND id != $1
-  `,
-    [id],
-  );
-  const otherTotal = Number(totalShareRes.rows[0]?.total_share || 0);
-
-  const isActive = data.is_active !== undefined ? data.is_active : prev.is_active;
-  if (isActive && otherTotal + share > 100.01) {
-    throw new AppError(
-      `مجموع نسب الشركاء سيتجاوز 100% (المجموع للآخرين: ${otherTotal}% + النسبة: ${share}%)`,
-      400,
+  // [AUDIT FIX M4] نفس حماية القفل الاستشاري عند التعديل (نفس مفتاح القفل)
+  const client = await getClient();
+  try {
+    await client.query('BEGIN');
+    await client.query(`SELECT pg_advisory_xact_lock(hashtext('partners_share_sum'))`);
+    const totalShareRes = await client.query(
+      `SELECT COALESCE(SUM(share_percentage), 0) as total_share FROM partners WHERE is_active = true AND id != $1`,
+      [id],
     );
-  }
+    const otherTotal = Number(totalShareRes.rows[0]?.total_share || 0);
 
-  const res = await query(
-    `UPDATE partners
-     SET name_ar = COALESCE($1, name_ar),
-         phone = COALESCE($2, phone),
-         share_percentage = COALESCE($3, share_percentage),
-         capital_contribution = COALESCE($4, capital_contribution),
-         opening_balance = COALESCE($5, opening_balance),
-         notes = COALESCE($6, notes),
-         is_active = COALESCE($7, is_active),
-         updated_at = NOW()
-     WHERE id = $8
-     RETURNING *`,
-    [
+    const isActive = data.is_active !== undefined ? data.is_active : prev.is_active;
+    if (isActive && otherTotal + share > 100.01) {
+      throw new AppError(
+        `مجموع نسب الشركاء سيتجاوز 100% (المجموع للآخرين: ${otherTotal}% + النسبة: ${share}%)`,
+        400,
+      );
+    }
+
+    const res = await client.query(
+      `UPDATE partners
+       SET name_ar = COALESCE($1, name_ar),
+           phone = COALESCE($2, phone),
+           share_percentage = COALESCE($3, share_percentage),
+           capital_contribution = COALESCE($4, capital_contribution),
+           opening_balance = COALESCE($5, opening_balance),
+           notes = COALESCE($6, notes),
+           is_active = COALESCE($7, is_active),
+           updated_at = NOW()
+       WHERE id = $8
+       RETURNING *`,
+      [
       data.name_ar ? data.name_ar.trim() : null,
       data.phone !== undefined ? data.phone.trim() : null,
       data.share_percentage !== undefined ? share : null,
@@ -198,10 +208,16 @@ export const updatePartner = async (id: number, data: Partial<PartnerInput>) => 
       data.notes !== undefined ? data.notes.trim() : null,
       data.is_active !== undefined ? data.is_active : null,
       id,
-    ],
-  );
-
-  return res.rows[0];
+      ],
+    );
+    await client.query('COMMIT');
+    return res.rows[0];
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
 };
 
 /**

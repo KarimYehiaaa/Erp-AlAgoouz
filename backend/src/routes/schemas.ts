@@ -324,6 +324,9 @@ const invoiceSchema = z
     tax_percent: optionalNonNegativeNumber,
     tax_enabled: optionalBool,
     payment_status: z.enum(['paid', 'partial', 'unpaid']).optional(),
+    // [AUDIT FIX H1] الدفعة الجزئية كانت تُحجب بواسطة strip() فيصبح فرعها في invoiceService ميتاً
+    paid_amount: optionalNonNegativeNumber,
+    payment_method: nullableText(50),
     notes: nullableText(2e3),
     items: z.array(invoiceItemSchema).min(1).max(500),
   })

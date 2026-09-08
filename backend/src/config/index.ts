@@ -110,7 +110,15 @@ let finalJwtSecret: string;
 if (envJwtSecret) {
   finalJwtSecret = envJwtSecret;
 } else {
-  // اشتقاق سر آمن ومستقر في حال عدم التعيين لضمان استمرارية الجلسات السحابية عبر كافة دوال Serverless
+  // [AUDIT FIX C3] في الإنتاج يُمنع الاشتقاق من DATABASE_URL/host — من يملك معرفة بسلسلة الاتصال
+  // يستطيع تزوير توكنات JWT صلاحيات admin. يجب الفشل السريع بدلاً من التشغيل بسر قابل للتخمين.
+  if (isProdEnv && process.env.ALLOW_DERIVED_JWT_SECRET !== 'true') {
+    throw new Error(
+      '[Config] FATAL: JWT_SECRET is not set. Refusing to derive the JWT secret from DATABASE_URL/host in production. ' +
+        'Set JWT_SECRET (and JWT_REFRESH_SECRET) explicitly, or set ALLOW_DERIVED_JWT_SECRET=true to explicitly accept the risk.',
+    );
+  }
+  // اشتقاق سر آمن ومستقر في حال عدم التعيين — للتطوير المحلي أو تجاوز صريح فقط
   const fallbackSeed =
     process.env.DATABASE_URL?.trim() ||
     (dbConfig && dbConfig.host ? `${dbConfig.host}:${dbConfig.port}` : '') ||
@@ -121,8 +129,10 @@ if (envJwtSecret) {
     .digest('hex');
   if (isProdEnv) {
     console.warn(
-      '[Config] ℹ JWT_SECRET غير محدد صراحة في متغيرات البيئة — تم اشتقاق سر آمن ومستقر تلقائياً لضمان ثبات الجلسات السحابية.',
+      '[Config] ⚠ JWT_SECRET غير محدد وتم السماح صراحةً بسر مشتق (ALLOW_DERIVED_JWT_SECRET=true) — هذا غير آمن وينبغي إصلاحه فوراً.',
     );
+  } else {
+    console.warn('[Config] ℹ JWT_SECRET غير محدد — تم اشتقاق سر مؤقت لبيئة التطوير فقط.');
   }
 }
 

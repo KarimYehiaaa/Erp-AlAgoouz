@@ -32,8 +32,9 @@ export const recalculateCustomerBalance = async (
               GREATEST(0, COALESCE(s.total_amount, 0) - COALESCE((
                 SELECT SUM(amount)
                 FROM payments p
-                WHERE (p.reference_type = 'sale' AND p.reference_id = s.id)
-                   OR (p.reference_type = 'invoice' AND p.reference_id = (SELECT id FROM invoices WHERE sale_id = s.id LIMIT 1))
+                WHERE ((p.reference_type = 'sale' AND p.reference_id = s.id)
+                   OR (p.reference_type = 'invoice' AND p.reference_id = (SELECT id FROM invoices WHERE sale_id = s.id LIMIT 1)))
+                  AND p.voided_at IS NULL
               ), 0))
           END AS outstanding
         FROM sales s
@@ -53,6 +54,7 @@ export const recalculateCustomerBalance = async (
                 FROM payments p
                 WHERE p.reference_type = 'invoice'
                   AND p.reference_id = i.id
+                  AND p.voided_at IS NULL
               ), 0))
           END AS outstanding
         FROM invoices i

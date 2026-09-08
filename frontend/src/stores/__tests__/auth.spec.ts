@@ -20,6 +20,7 @@ describe('auth store', () => {
   beforeEach(() => {
     setActivePinia(createPinia());
     localStorage.clear();
+    sessionStorage.clear();
     authApiMock.login.mockReset();
     authApiMock.profile.mockReset();
     authApiMock.logout.mockReset();
@@ -34,7 +35,9 @@ describe('auth store', () => {
 
     expect(auth.user?.username).toBe('cash');
     expect(auth.isAuthenticated).toBe(true);
-    expect(localStorage.getItem('token')).toBe('mock-jwt-token-123');
+    // [AUDIT FIX H3] التوكن في sessionStorage بدل localStorage
+    expect(sessionStorage.getItem('token')).toBe('mock-jwt-token-123');
+    expect(localStorage.getItem('token')).toBeNull();
     expect(auth.token).toBe('mock-jwt-token-123');
   });
 
@@ -72,6 +75,7 @@ describe('auth store', () => {
     expect(auth.isAuthenticated).toBe(false);
     expect(localStorage.getItem('user')).toBeNull();
     expect(localStorage.getItem('token')).toBeNull();
+    expect(sessionStorage.getItem('token')).toBeNull();
   });
 
   it('logs out locally when the logout API fails', async () => {

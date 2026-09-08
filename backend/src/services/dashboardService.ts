@@ -317,6 +317,7 @@ const _computeDashboardStats = async (filters: Record<string, any> = {}) => {
         FROM payments p
         WHERE p.created_at >= $1::date AND p.created_at < ($2::date + INTERVAL '1 day')
           AND p.reference_type IN ('sale', 'invoice')
+          AND p.voided_at IS NULL
           AND COALESCE(p.payment_method, 'cash') != 'credit'
          AND NOT EXISTS (
            SELECT 1 FROM sales s2
@@ -335,6 +336,7 @@ const _computeDashboardStats = async (filters: Record<string, any> = {}) => {
         FROM payments p
         WHERE p.created_at >= $1::date AND p.created_at < ($2::date + INTERVAL '1 day')
           AND p.reference_type = 'supplier'
+          AND p.voided_at IS NULL
           AND COALESCE(p.payment_method, 'cash') != 'credit'`,
       [period.start, period.end],
     ),
@@ -582,6 +584,7 @@ const _computeDashboardStats = async (filters: Record<string, any> = {}) => {
          FROM payments p
          WHERE p.reference_type = 'supplier'
            AND p.reference_id = s.id
+           AND p.voided_at IS NULL
        ) pay ON TRUE
        WHERE s.deleted_at IS NULL
        GROUP BY s.id, s.name_ar, pay.total_paid
@@ -617,6 +620,7 @@ const _computeDashboardStats = async (filters: Record<string, any> = {}) => {
         FROM payments p
         WHERE p.created_at >= $1::date AND p.created_at < ($2::date + INTERVAL '1 day')
           AND p.reference_type IN ('sale', 'invoice')
+          AND p.voided_at IS NULL
           AND NOT EXISTS (
            SELECT 1 FROM sales s2
            WHERE p.reference_type = 'sale' AND s2.id = p.reference_id AND s2.status = 'returned'

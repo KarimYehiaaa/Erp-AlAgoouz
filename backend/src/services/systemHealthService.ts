@@ -325,7 +325,7 @@ export const getRiskRadarReport = async () => {
       `),
         query(`
         SELECT inv.id, inv.invoice_number, inv.total_amount,
-               COALESCE((SELECT SUM(amount) FROM payments WHERE reference_type = 'invoice' AND reference_id = inv.id), 0) as paid_amount,
+               COALESCE((SELECT SUM(amount) FROM payments WHERE reference_type = 'invoice' AND reference_id = inv.id AND voided_at IS NULL), 0) as paid_amount,
                inv.payment_status, COALESCE(inv.issued_at, inv.created_at) as created_at, c.name_ar as customer_name
         FROM invoices inv
         LEFT JOIN customers c ON c.id = inv.customer_id

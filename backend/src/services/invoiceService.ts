@@ -179,14 +179,31 @@ const deductInvoiceInventory = async (client, invoiceId, items, userId, invoiceN
 };
 
 const restoreInvoiceInventory = async (client, invoiceId, userId, invoiceNumber) => {
+  // [AUDIT FIX C2] حماية tombstone: تُقرأ حركات الصرف غير الملغاة فقط ثم تُعلَّم فوراً
+  // (voided_at) داخل نفس المعاملة قبل إعادة الإضافة. النمط القديم كان يعيد قراءة كل
+  // حركات 'sale' المرتبطة بالفاتورة فيُعيد إضافتها مجدداً عند كل تعديل → تضخم تراكمي للمخزون.
+  // مطابق لنمط مسار المبيعات (ميجريشن 047).
   const movements = (
     await client.query(
-      `SELECT * FROM stock_movements WHERE reference_type = 'invoice' AND reference_id = $1 AND movement_type = 'sale'`,
+      `SELECT id, product_id, from_warehouse_id, quantity FROM stock_movements
+       WHERE reference_type = 'invoice' AND reference_id = $1 AND movement_type = 'sale' AND voided_at IS NULL
+       FOR UPDATE`,
       [invoiceId],
     )
   ).rows;
 
+  if (!movements.length) return; // كل الحركات معلّمة مسبقاً — لا شيء يُسترجع (يمنع التكرار)
+
+  // [AUDIT FIX M5] ترتيب قفل حتمي حسب (product_id, warehouse_id) لمنع Deadlock عند تعديل فاتورتين متزامنتين
+  movements.sort(
+    (a, b) =>
+      Number(a.product_id) - Number(b.product_id) ||
+      Number(a.from_warehouse_id) - Number(b.from_warehouse_id),
+  );
+
   for (const m of movements) {
+    // علّم الحركة كمُسترجعة أولاً — ذرّية داخل نفس المعاملة مع إعادة الإضافة
+    await client.query(`UPDATE stock_movements SET voided_at = NOW() WHERE id = $1 AND voided_at IS NULL`, [m.id]);
     await client.query(
       `UPDATE inventory SET quantity = quantity + $1, updated_at = NOW() WHERE product_id = $2 AND warehouse_id = $3`,
       [m.quantity, m.product_id, m.from_warehouse_id],
@@ -534,9 +551,8 @@ const updateInvoice = async (id: number, data: Record<string, any>, userId: numb
     }
 
     const existingPaid = (
-      await client.query(
-        `SELECT COALESCE(SUM(amount), 0) AS total FROM payments WHERE reference_type = 'invoice' AND reference_id = $1`,
-        [id],
+      await client.query(        `SELECT COALESCE(SUM(amount), 0) AS total FROM payments WHERE reference_type = 'invoice' AND reference_id = $1 AND voided_at IS NULL`,
+      [id],
       )
     ).rows[0].total;
     if (paymentStatus === 'paid' && Number(existingPaid) < totalAmount - 0.01) {

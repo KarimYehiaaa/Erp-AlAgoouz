@@ -340,8 +340,8 @@
                 }}</strong>
               </div>
               <div class="status-details">
-                <small>Chat ID: <code>1092703744</code></small>
-                <small>Bot Token: <code>8903108709:AA...F3LP_uI</code></small>
+                <!-- [AUDIT FIX C1] لا تعرض أسرار البوت في الواجهة إطلاقاً -->
+                <small>الحالة: تُدار بيانات اعتماد البوت عبر متغيرات البيئة على الخادم</small>
               </div>
             </div>
 
@@ -2050,6 +2050,7 @@ function getTouchesDistance(t1: Touch, t2: Touch) {
 function onTouchStart(e: TouchEvent) {
   if (e.touches.length === 1) {
     const touch = e.touches[0];
+    if (!touch) return; // null-safety: TouchList يمكن أن يكون فارغاً نظرياً
     const { sx, sy } = getTouchPos(touch);
     touchStartTime = performance.now();
     hasTouchMoved = false;
@@ -2068,7 +2069,9 @@ function onTouchStart(e: TouchEvent) {
     // بدء قرصة التكبير/التصغير (Pinch Zoom)
     isPanning = false;
     dragging.value = null;
-    touchStartDistance = getTouchesDistance(e.touches[0], e.touches[1]);
+    const t1 = e.touches[0]!;
+    const t2 = e.touches[1]!;
+    touchStartDistance = getTouchesDistance(t1, t2);
     initialZoom = zoom.value;
   }
 }
@@ -2076,6 +2079,7 @@ function onTouchStart(e: TouchEvent) {
 function onTouchMove(e: TouchEvent) {
   if (e.touches.length === 1) {
     const touch = e.touches[0];
+    if (!touch) return; // null-safety: TouchList يمكن أن يكون فارغاً نظرياً
     const { sx, sy } = getTouchPos(touch);
     const { x, y } = screenToWorld(sx, sy);
     mouseWorld.x = x;
@@ -2102,15 +2106,17 @@ function onTouchMove(e: TouchEvent) {
     lastTouchPos = { x: touch.clientX, y: touch.clientY };
   } else if (e.touches.length === 2) {
     // تحديث التكبير بالقرصة (Pinch to Zoom)
-    const currentDist = getTouchesDistance(e.touches[0], e.touches[1]);
+    const t1 = e.touches[0]!;
+    const t2 = e.touches[1]!;
+    const currentDist = getTouchesDistance(t1, t2);
     if (touchStartDistance > 0) {
       const scaleFactor = currentDist / touchStartDistance;
       const targetZoom = Math.max(0.25, Math.min(3.5, initialZoom * scaleFactor));
 
       const rect = canvas.value?.getBoundingClientRect();
       if (rect) {
-        const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2 - rect.left;
-        const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2 - rect.top;
+        const midX = (t1.clientX + t2.clientX) / 2 - rect.left;
+        const midY = (t1.clientY + t2.clientY) / 2 - rect.top;
         pan.x = midX - ((midX - pan.x) / zoom.value) * targetZoom;
         pan.y = midY - ((midY - pan.y) / zoom.value) * targetZoom;
       }
@@ -2137,6 +2143,7 @@ function onTouchEnd(e: TouchEvent) {
   // إذا كانت نقرة لمس سريعة بدون سحب على عقدة، نفتح تفاصيل العقدة
   if (!hasTouchMoved && touchDuration < 350 && e.changedTouches.length === 1) {
     const touch = e.changedTouches[0];
+    if (!touch) return;
     const { sx, sy } = getTouchPos(touch);
     const node = findNodeAt(sx, sy);
     if (node) {

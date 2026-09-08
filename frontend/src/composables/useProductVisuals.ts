@@ -176,8 +176,9 @@ export function getProductVisual(product: any): ProductVisual {
       cardClass: 'visual-espresso',
       iconBgClass: 'icon-bg-espresso',
       badgeClass: 'badge-espresso',
-      glowColor: PRODUCT_THEMES.espresso.glow,
-      accentColor: PRODUCT_THEMES.espresso.accent,
+      glowColor: PRODUCT_THEMES.espresso!.glow,
+      accentColor: PRODUCT_THEMES.espresso!.accent,
+      threeDImage: '',
     };
   }
 
@@ -654,7 +655,8 @@ export function getProductVisual(product: any): ProductVisual {
     threeDImage = '/3d-icons/coffee-hot.jpg';
   }
 
-  const themeDef = PRODUCT_THEMES[colorTheme] || PRODUCT_THEMES.espresso;
+  // null-safety: فهرسة Record بمفتاح متغير تعطي T|undefined — espresso موجودة دائماً كافتراضي
+  const themeDef = (PRODUCT_THEMES[colorTheme] || PRODUCT_THEMES.espresso)!;
 
   return {
     icon,

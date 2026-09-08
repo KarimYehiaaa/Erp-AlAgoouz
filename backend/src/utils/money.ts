@@ -1,4 +1,12 @@
 /**
+ * [AUDIT FIX M8] ثوابت الدقة المالية بدل الأرقام السحرية المتناثرة:
+ * - MONEY_EPS : سماحية مقارنة المبالغ (قرش جزئي) — لتفادي أخطاء الفاصلة العائمة في المقارنات
+ * - QTY_EPS   : سماحية مقارنة الكميات (جرام/مل جزئي) — الكميات DECIMAL(12,3)
+ */
+const MONEY_EPS = 0.005;
+const QTY_EPS = 0.0001;
+
+/**
  * تقريب مبلغ إلى منزلتين عشريتين (للتخلص من أخطاء الفاصلة العائمة).
  * @param {any} value القيمة
  * @returns {number} المبلغ المُقرَّب
@@ -71,4 +79,4 @@ const safeDivide = (numerator: number, denominator: number, fallback = 0) => {
   if (den === 0) return fallback;
   return (Number(numerator) || 0) / den;
 };
-export { parseAmount, roundMoney, safeDivide, sanitizeLimit, sumMoney, toNumber };
+export { parseAmount, roundMoney, safeDivide, sanitizeLimit, sumMoney, toNumber, MONEY_EPS, QTY_EPS };

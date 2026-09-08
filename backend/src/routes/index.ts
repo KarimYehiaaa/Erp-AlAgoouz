@@ -41,8 +41,10 @@ router.use(adminRoutes);
 router.use(menuRoutes);
 router.use(telegramRoutes);
 router.use(syncRoutes);
+// [AUDIT FIX M7] كان المسار مركّباً مرتين (router.use(partnersRoutes) + router.use('/partners', ...)).
+// تعريفات المسارات داخل partners.routes.ts تبدأ بـ /partners بالفعل، والواجهة تستدعي /api/partners...
+// لذا التركيب بالبادئة كان يولّد مسارات ميتة /api/partners/partners/... — أبقينا التركيب اللامسمّى فقط.
 router.use(partnersRoutes);
-router.use('/partners', partnersRoutes);
 router.use(automationRoutes);
 
 /**

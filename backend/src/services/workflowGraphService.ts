@@ -554,7 +554,8 @@ ${fraudList}
 
       // تسجيل في logs
       await this.logTelegramMessage({
-        chat_id: creds.defaultChatId || '1092703744',
+        // [AUDIT FIX C1] لا توجد قيم افتراضية مضمّنة — تُقرأ من البيئة فقط
+        chat_id: creds.defaultChatId || 'unset',
         direction: 'out',
         message: notificationText,
         automation_key: key,

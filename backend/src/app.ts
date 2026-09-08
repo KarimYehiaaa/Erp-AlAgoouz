@@ -188,10 +188,12 @@ app.get('/api/v1/health', handleHealth);
 app.get('/v1/health', handleHealth);
 app.get('/health', handleHealth);
 
-app.get('/api/sync/status', syncMonitorController.getStatus);
-app.get('/api/v1/sync/status', syncMonitorController.getStatus);
-app.get('/v1/sync/status', syncMonitorController.getStatus);
-app.get('/sync/status', syncMonitorController.getStatus);
+// [AUDIT FIX H4] مسارات مراقبة التزامن كشفت إحصاءات الـ Pool وقاعدة البيانات للعموم —
+// أصبحت محمية بالمصادقة، و/health يبقى نقطة فحص مجهولة بدون تفاصيل حساسة.
+app.get('/api/sync/status', authenticate, syncMonitorController.getStatus);
+app.get('/api/v1/sync/status', authenticate, syncMonitorController.getStatus);
+app.get('/v1/sync/status', authenticate, syncMonitorController.getStatus);
+app.get('/sync/status', authenticate, syncMonitorController.getStatus);
 
 // ─── تقديم الواجهة المبنية (SPA) ──────────────────────────────────────────────
 const frontendDist = resolveFrontendDist();

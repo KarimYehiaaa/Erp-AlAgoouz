@@ -51,3 +51,18 @@ coverage/
 test-results/
 frontend/test-results/
 playwright-report/
+
+# Android build & SDK local properties
+frontend/android/.gradle/
+frontend/android/app/build/
+frontend/android/capacitor-cordova-android-plugins/build/
+local.properties
+*.apk
+
+# Desktop POS build artifacts
+desktop-pos/dist/
+desktop-pos/dist-electron/
+desktop-pos/release/
+
+# IDE / Session plans
+.zcode/

@@ -203,7 +203,7 @@ const sales = {
     if (!req.file?.buffer) throw new AppError('يجب رفع ملف Excel', 400);
     ok(
       res,
-      salesExcelService.validateSalesExcel(req.file.buffer),
+      await salesExcelService.validateSalesExcel(req.file.buffer),
       'تم التحقق من ملف المبيعات بنجاح',
     );
   }),

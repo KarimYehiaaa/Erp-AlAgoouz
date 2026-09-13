@@ -127,10 +127,10 @@ const applyPurchaseItems = async (client, invoice, items, userId, notePrefix = '
       [item.product_id, item.warehouse_id, item.quantity],
     );
 
-    await client.query(
+    const smRes = await client.query(
       `INSERT INTO stock_movements (
-        product_id, to_warehouse_id, movement_type, quantity, reference_type, reference_id, user_id, notes
-      ) VALUES ($1,$2,'purchase',$3,'purchase_invoice',$4,$5,$6)`,
+        product_id, to_warehouse_id, movement_type, quantity, reference_type, reference_id, user_id, notes, unit_cost, total_cost
+      ) VALUES ($1,$2,'purchase',$3,'purchase_invoice',$4,$5,$6,$7,$8) RETURNING id`,
       [
         item.product_id,
         item.warehouse_id,
@@ -138,6 +138,23 @@ const applyPurchaseItems = async (client, invoice, items, userId, notePrefix = '
         invoice.id,
         userId,
         `${notePrefix} - ${invoice.invoice_number}`,
+        item.unit_price,
+        item.total_amount,
+      ],
+    );
+
+    await client.query(
+      `INSERT INTO inventory_cost_layers (
+        product_id, warehouse_id, source_movement_id, source_type,
+        quantity, remaining_quantity, unit_cost, total_cost
+      ) VALUES ($1,$2,$3,'purchase',$4,$4,$5,$6)`,
+      [
+        item.product_id,
+        item.warehouse_id,
+        smRes.rows[0]?.id || null,
+        item.quantity,
+        item.unit_price,
+        item.total_amount,
       ],
     );
   }
@@ -153,6 +170,8 @@ const reversePurchaseItems = async (client, invoice, items, userId, notePrefix =
 
   // ترتيب العناصر تصاعدياً بناءً على product_id لمنع Deadlock عند القفل المتزامن
   const sortedItems = [...items].sort((a, b) => Number(a.product_id) - Number(b.product_id));
+
+  // أولاً: التحقق المسبق الصارم من أن الرصيد الحالي يغطي كمية الفاتورة بالكامل (منع التلاعب بالمخزون المستهلك)
   for (const it of sortedItems) {
     const productId = Number(it.product_id);
     const warehouseId = Number(it.warehouse_id);
@@ -169,44 +188,55 @@ const reversePurchaseItems = async (client, invoice, items, userId, notePrefix =
     );
 
     const currentQty = Number(lock.rows[0]?.quantity || 0);
-    const toRevert = Math.min(currentQty, qty);
-    const notReverted = qty - toRevert;
-
-    if (toRevert > 0) {
-      await client.query(
-        `UPDATE inventory
-         SET quantity = quantity - $1, updated_at = NOW()
-         WHERE product_id = $2 AND warehouse_id = $3`,
-        [toRevert, productId, warehouseId],
+    if (currentQty < qty) {
+      throw new AppError(
+        `لا يمكن تعديل أو إلغاء فاتورة الشراء "${invoice.invoice_number}" لأن جزءاً من البضاعة تم استهلاكه أو بيعه بالفعل (الرصيد المتاح ${currentQty} أقل من كمية الفاتورة ${qty})`,
+        400,
       );
-
-      await client.query(
-        `INSERT INTO stock_movements (
-          product_id, from_warehouse_id, movement_type, quantity,
-          reference_type, reference_id, user_id, notes
-        ) VALUES ($1,$2,'purchase_reversal',$3,$4,$5,$6,$7)`,
-        [
-          productId,
-          warehouseId,
-          toRevert,
-          'purchase_invoice',
-          invoice.id,
-          userId,
-          `${notePrefix} - ${invoice.invoice_number}`,
-        ],
-      );
-    }
-
-    if (notReverted > 0) {
-      shortages.push({
-        product_id: productId,
-        warehouse_id: warehouseId,
-        requested: qty,
-        reverted: toRevert,
-        remaining: notReverted,
-      });
     }
   }
+
+  // ثانياً: خصم الكميات وتسجيل الحركات العكسية
+  for (const it of sortedItems) {
+    const productId = Number(it.product_id);
+    const warehouseId = Number(it.warehouse_id);
+    const qty = Number(it.quantity);
+
+    if (!productId || !warehouseId || !qty || qty <= 0) continue;
+
+    await client.query(
+      `UPDATE inventory
+       SET quantity = quantity - $1, updated_at = NOW()
+       WHERE product_id = $2 AND warehouse_id = $3`,
+      [qty, productId, warehouseId],
+    );
+
+    await client.query(
+      `INSERT INTO stock_movements (
+        product_id, from_warehouse_id, movement_type, quantity,
+        reference_type, reference_id, user_id, notes
+      ) VALUES ($1,$2,'purchase_reversal',$3,'purchase_invoice',$4,$5,$6)`,
+      [
+        productId,
+        warehouseId,
+        qty,
+        invoice.id,
+        userId,
+        `${notePrefix} - ${invoice.invoice_number}`,
+      ],
+    );
+  }
+
+  // ثالثاً: تنظيف طبقات التكلفة المرتبطة بهذه الفاتورة
+  await client.query(
+    `DELETE FROM inventory_cost_layers
+     WHERE source_type = 'purchase'
+       AND source_movement_id IN (
+         SELECT id FROM stock_movements
+         WHERE reference_type = 'purchase_invoice' AND reference_id = $1
+       )`,
+    [invoice.id],
+  );
 
   return shortages;
 };
@@ -215,10 +245,12 @@ const refreshPurchasePrices = async (client, productIds) => {
   const uniqueIds = [...new Set(productIds.map(Number).filter(Boolean))];
   if (!uniqueIds.length) return;
 
+  // حساب متوسط التكلفة المرجح (Weighted Average Cost) من الطبقات المتبقية في المخزن
+  // وإذا كان الرصيد صفراً يتم الرجوع لآخر سعر شراء مسجل كمرجع
   await client.query(
     `
     UPDATE products p
-    SET purchase_price = COALESCE(latest.unit_price, p.purchase_price),
+    SET purchase_price = COALESCE(w.weighted_cost, latest.unit_price, p.purchase_price),
         updated_at = NOW()
     FROM (
       SELECT DISTINCT ON (pii.product_id)
@@ -230,6 +262,14 @@ const refreshPurchasePrices = async (client, productIds) => {
         AND pi.deleted_at IS NULL
       ORDER BY pii.product_id, pi.invoice_date DESC, pi.id DESC, pii.id DESC
     ) latest
+    LEFT JOIN (
+      SELECT
+        product_id,
+        ROUND(SUM(remaining_quantity * unit_cost) / NULLIF(SUM(remaining_quantity), 0), 2) as weighted_cost
+      FROM inventory_cost_layers
+      WHERE product_id = ANY($1::int[]) AND remaining_quantity > 0
+      GROUP BY product_id
+    ) w ON w.product_id = latest.product_id
     WHERE p.id = latest.product_id
   `,
     [uniqueIds],
@@ -607,63 +647,7 @@ export const deletePurchaseInvoice = async (invoiceId: number, userId: number) =
       ])
     ).rows;
 
-    const shortages: any[] = [];
-    const sortedItems = [...items].sort((a, b) => Number(a.product_id) - Number(b.product_id));
-    for (const it of sortedItems) {
-      const productId = Number(it.product_id);
-      const warehouseId = Number(it.warehouse_id);
-      const qty = Number(it.quantity);
-
-      if (!productId || !warehouseId) continue;
-      if (!qty || qty <= 0) continue;
-
-      const lock = await client.query(
-        `SELECT quantity
-         FROM inventory
-         WHERE product_id = $1 AND warehouse_id = $2
-         FOR UPDATE`,
-        [productId, warehouseId],
-      );
-
-      const currentQty = Number(lock.rows[0]?.quantity || 0);
-      const toRevert = Math.min(currentQty, qty);
-      const notReverted = qty - toRevert;
-
-      if (toRevert > 0) {
-        await client.query(
-          `UPDATE inventory
-           SET quantity = quantity - $1, updated_at = NOW()
-           WHERE product_id = $2 AND warehouse_id = $3`,
-          [toRevert, productId, warehouseId],
-        );
-
-        await client.query(
-          `INSERT INTO stock_movements (
-            product_id, from_warehouse_id, movement_type, quantity,
-            reference_type, reference_id, user_id, notes
-          ) VALUES ($1,$2,'purchase_reversal',$3,$4,$5,$6,$7)`,
-          [
-            productId,
-            warehouseId,
-            toRevert,
-            'purchase_invoice',
-            id,
-            userId,
-            `إلغاء شراء - ${inv.invoice_number}`,
-          ],
-        );
-      }
-
-      if (notReverted > 0) {
-        shortages.push({
-          product_id: productId,
-          warehouse_id: warehouseId,
-          requested: qty,
-          reverted: toRevert,
-          remaining: notReverted,
-        });
-      }
-    }
+    const shortages = await reversePurchaseItems(client, inv, items, userId, 'حذف شراء');
 
     await client.query(`UPDATE purchase_invoices SET deleted_at = NOW() WHERE id = $1`, [id]);
 

@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <title>التوثيق الشامل لنظام بن العجوز ERP</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;850;900&family=Fira+Code:wght@400;600&display=swap');
+
+    @page {
+      size: A4;
+      margin: 14mm 12mm 14mm 12mm;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+
+    body {
+      font-family: 'Cairo', system-ui, -apple-system, sans-serif;
+      line-height: 1.55;
+      color: #1c1917;
+      background-color: #ffffff;
+      font-size: 10.5pt;
+      margin: 0;
+      padding: 0;
+    }
+
+    /* Cover Page */
+    .cover-page {
+      height: 94vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      align-items: center;
+      text-align: center;
+      padding: 50px 30px;
+      border: 3px solid #8a572a;
+      border-radius: 12px;
+      background: radial-gradient(circle at 50% 20%, rgba(217, 168, 108, 0.14) 0%, #ffffff 80%);
+      page-break-after: always;
+    }
+
+    .cover-header {
+      margin-top: 30px;
+    }
+
+    .cover-logo-badge {
+      display: inline-block;
+      padding: 12px 28px;
+      background: #8a572a;
+      color: #ffffff;
+      font-size: 16pt;
+      font-weight: 850;
+      border-radius: 30px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 12px rgba(138, 87, 42, 0.3);
+    }
+
+    .cover-title {
+      font-size: 30pt;
+      font-weight: 900;
+      color: #451a03;
+      margin: 0 0 10px 0;
+      letter-spacing: -0.5px;
+    }
+
+    .cover-subtitle {
+      font-size: 13pt;
+      color: #78350f;
+      font-weight: 700;
+      margin: 0 0 25px 0;
+    }
+
+    .cover-meta-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 14px;
+      width: 100%;
+      max-width: 550px;
+      text-align: right;
+      background: #fafaf9;
+      border: 1px solid #e7e5e4;
+      border-radius: 10px;
+      padding: 18px 22px;
+      margin: 20px auto;
+    }
+
+    .cover-meta-item strong {
+      color: #8a572a;
+      display: block;
+      font-size: 9.5pt;
+    }
+
+    .cover-meta-item span {
+      font-weight: 700;
+      font-size: 10.5pt;
+      color: #292524;
+    }
+
+    .cover-footer {
+      margin-bottom: 15px;
+      font-size: 9.5pt;
+      color: #78716c;
+      border-top: 1px solid #e7e5e4;
+      padding-top: 15px;
+      width: 80%;
+    }
+
+    /* Section Typography */
+    h1 {
+      font-size: 17pt;
+      font-weight: 850;
+      color: #451a03;
+      border-bottom: 2.5px solid #8a572a;
+      padding-bottom: 6px;
+      margin: 24px 0 12px 0;
+      page-break-after: avoid;
+    }
+
+    h2 {
+      font-size: 13pt;
+      font-weight: 800;
+      color: #78350f;
+      margin: 18px 0 8px 0;
+      border-right: 4px solid #8a572a;
+      padding-right: 10px;
+      page-break-after: avoid;
+    }
+
+    p {
+      margin: 0 0 10px 0;
+      text-align: justify;
+    }
+
+    /* Tables */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 12px 0 18px 0;
+      font-size: 9.5pt;
+      page-break-inside: avoid;
+    }
+
+    th {
+      background-color: #f5f5f4;
+      color: #451a03;
+      font-weight: 800;
+      border: 1px solid #d6d3d1;
+      padding: 8px 10px;
+      text-align: right;
+    }
+
+    td {
+      border: 1px solid #e7e5e4;
+      padding: 7px 10px;
+      text-align: right;
+      color: #292524;
+    }
+
+    tr:nth-child(even) {
+      background-color: #fafaf9;
+    }
+
+    /* Badges & Tags */
+    .badge {
+      display: inline-block;
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-size: 8pt;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .badge-primary { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+    .badge-success { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+    .badge-info { background: #e0f2fe; color: #075985; border: 1px solid #bae6fd; }
+
+    /* Callout Boxes */
+    .callout {
+      background: #fdfaf6;
+      border-right: 4px solid #8a572a;
+      border-radius: 6px;
+      padding: 12px 16px;
+      margin: 14px 0;
+      border-top: 1px solid #f5ede4;
+      border-bottom: 1px solid #f5ede4;
+      border-left: 1px solid #f5ede4;
+      page-break-inside: avoid;
+    }
+
+    .callout-title {
+      font-weight: 850;
+      color: #78350f;
+      margin-bottom: 4px;
+      font-size: 10pt;
+    }
+
+    /* Code Blocks */
+    pre, code {
+      font-family: 'Fira Code', monospace;
+      direction: ltr;
+      text-align: left;
+    }
+
+    pre {
+      background: #1c1917;
+      color: #f5f5f4;
+      padding: 12px 14px;
+      border-radius: 6px;
+      font-size: 8.5pt;
+      line-height: 1.4;
+      overflow-x: auto;
+      margin: 10px 0 16px 0;
+      page-break-inside: avoid;
+    }
+
+    .code-inline {
+      background: #f5f5f4;
+      color: #8a572a;
+      padding: 2px 5px;
+      border-radius: 4px;
+      font-size: 9pt;
+      font-weight: 600;
+      border: 1px solid #e7e5e4;
+    }
+
+    /* Grid Layouts */
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin: 12px 0 18px 0;
+      page-break-inside: avoid;
+    }
+
+    .feature-card {
+      background: #ffffff;
+      border: 1px solid #e7e5e4;
+      border-radius: 8px;
+      padding: 12px 14px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    }
+
+    .feature-card h4 {
+      margin: 0 0 4px 0;
+      font-size: 10.5pt;
+      font-weight: 800;
+      color: #8a572a;
+    }
+
+    .feature-card p {
+      margin: 0;
+      font-size: 9pt;
+      color: #57534e;
+    }
+
+    .page-break {
+      page-break-before: always;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ═══════════════════ غلاف التوثيق ═══════════════════ -->
+  <div class="cover-page">
+    <div class="cover-header">
+      <div class="cover-logo-badge">☕ بن العجوز ERP</div>
+      <h1 class="cover-title">المواصفات التقنية والمعمارية الشاملة</h1>
+      <p class="cover-subtitle">دليل المهندسين والمطورين وإدارة النظام المتكامل للمقاهي ومحامص البن</p>
+    </div>
+
+    <div class="cover-meta-grid">
+      <div class="cover-meta-item">
+        <strong>إصدار النظام:</strong>
+        <span>Enterprise v2.5 (Production)</span>
+      </div>
+      <div class="cover-meta-item">
+        <strong>المعمارية:</strong>
+        <span>Full-Stack Modular SPA + REST API</span>
+      </div>
+      <div class="cover-meta-item">
+        <strong>قاعدة البيانات:</strong>
+        <span>PostgreSQL (Transactional + Audit)</span>
+      </div>
+      <div class="cover-meta-item">
+        <strong>الواجهة الأمامية:</strong>
+        <span>Vue.js 3 (Composition API) + Vite</span>
+      </div>
+      <div class="cover-meta-item">
+        <strong>الواجهة الخلفية:</strong>
+        <span>Node.js / Express.js + TypeScript</span>
+      </div>
+      <div class="cover-meta-item">
+        <strong>بيئات التشغيل:</strong>
+        <span>Hybrid (Local Offline + Cloud Vercel)</span>
+      </div>
+    </div>
+
+    <div class="cover-footer">
+      جميع الحقوق محفوظة © 2026 — تم إعداد هذا التوثيق الفني بدقة هندسية عالية لشركة ومحامص بن العجوز.
+    </div>
+  </div>
+
+  <!-- ═══════════════════ الفهرس والمقدمة ═══════════════════ -->
+  <h1>1. نظرة عامة ورؤية المشروع</h1>
+  <p>
+    نظام <strong>بن العجوز ERP</strong> هو منصة سحابية وهجينة متكاملة تم تصميمها وتطويرها خصيصاً لإدارة عمليات سلاسل المقاهي ومحامص وتجارة البن بالتجزئة والجملة. يغطي النظام كافة الدورات المستندية من الشراء واستيراد حبوب البن الخضراء، عمليات التحميص والخلط والتعبئة (BOM & Manufacturing)، إدارة نقاط البيع السريعة (POS)، دورة المبيعات والعملاء، إدارة الخزائن والشركاء، ونظام الموارد البشرية والرواتب.
+  </p>
+
+  <div class="feature-grid">
+    <div class="feature-card">
+      <h4>⚡ استمرارية العمل دون إنترنت (Offline First)</h4>
+      <p>دعم كامل لتسجيل مبيعات الكاشير وحركات المخزون على قاعدة بيانات IndexedDB المحلية مع مزامنة ذكية فور عودة الاتصال.</p>
+    </div>
+    <div class="feature-card">
+      <h4>🔒 أمان مالي وتدقيق صارم (Audit Log)</h4>
+      <p>تسجيل كامل على مستوى الصف (Row-Level Auditing) لجميع العمليات المالية وحركات المخزون مع تشفير AES-256 للبيانات الحساسة.</p>
+    </div>
+    <div class="feature-card">
+      <h4>☕ إدارة تصنيع وخلطات البن المتقدمة</h4>
+      <p>محرك شجري متقدم لحساب التكلفة الفعالة للخلطات ونسب الهالك أثناء التحميص ومراقبة طبقات التكلفة (WAC & FIFO).</p>
+    </div>
+    <div class="feature-card">
+      <h4>🖨️ تكامل العتاد الفيزيائي المباشر (Hardware POS)</h4>
+      <p>دعم الطباعة الحرارية المباشرة (WebUSB ESC/POS) بدون نوافذ متصفح، قفل وفتح درج النقدية التلقائي، وقراءة الباركود السريع.</p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════ لغات البرمجة وحزمة التقنيات ═══════════════════ -->
+  <h1>2. حزمة التقنيات ولغات البرمجة (Tech Stack)</h1>
+
+  <table>
+    <thead>
+      <tr>
+        <th>الطبقة (Layer)</th>
+        <th>التقنية / اللغة</th>
+        <th>الإصدار</th>
+        <th>الوظيفة والمسؤولية</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Frontend Core</strong></td>
+        <td><span class="badge badge-primary">Vue.js 3</span> + TypeScript</td>
+        <td>3.5+</td>
+        <td>بناء واجهات المستخدم التفاعلية بنظام Composition API و Script Setup النظيف.</td>
+      </tr>
+      <tr>
+        <td><strong>Build Tool</strong></td>
+        <td><span class="badge badge-info">Vite</span></td>
+        <td>7.x</td>
+        <td>محرك التجميع السريع وتوليد حزم الإنتاج المدمجة ذات الأداء الفائق.</td>
+      </tr>
+      <tr>
+        <td><strong>State Management</strong></td>
+        <td><span class="badge badge-primary">Pinia</span></td>
+        <td>2.x</td>
+        <td>إدارة الحالة المركزية للمستخدمين، الصلاحيات، وسلة الكاشير والمزامنة.</td>
+      </tr>
+      <tr>
+        <td><strong>Styling & Design</strong></td>
+        <td><span class="badge badge-info">SCSS + Tailwind CSS</span></td>
+        <td>3.x</td>
+        <td>نظام تصميم وتنسيق زجاجي فاخر مع توافق كامل للوضع المظلم والفاتح.</td>
+      </tr>
+      <tr>
+        <td><strong>Backend Core</strong></td>
+        <td><span class="badge badge-success">Node.js + Express.js</span></td>
+        <td>Node 20+</td>
+        <td>خادم الـ RESTful APIs ومعالجة منطق الأعمال، المعاملات، وقواعد الأمان.</td>
+      </tr>
+      <tr>
+        <td><strong>Backend Language</strong></td>
+        <td><span class="badge badge-primary">TypeScript / JavaScript (ESM)</span></td>
+        <td>5.x</td>
+        <td>كتابة كود واجهات برمجة التطبيقات ونماذج التحقق بشكل متين وخالٍ من الأخطاء.</td>
+      </tr>
+      <tr>
+        <td><strong>Database Engine</strong></td>
+        <td><span class="badge badge-success">PostgreSQL</span></td>
+        <td>15 / 16</td>
+        <td>قاعدة البيانات العلاقية الأساسية ذات الموثوقية العالية ومعاملات ACID الصارمة.</td>
+      </tr>
+      <tr>
+        <td><strong>Client Database</strong></td>
+        <td><span class="badge badge-info">IndexedDB (localDb)</span></td>
+        <td>W3C</td>
+        <td>تخزين الفواتير والمنتجات محلياً للعمل دون اتصال بالإنترنت في نقاط البيع.</td>
+      </tr>
+      <tr>
+        <td><strong>Hardware Driver</strong></td>
+        <td><span class="badge badge-primary">WebUSB / ESC-POS</span></td>
+        <td>Native</td>
+        <td>التواصل الثنائي المباشر مع طابعات الإيصالات الحرارية وأدراج النقدية.</td>
+      </tr>
+      <tr>
+        <td><strong>Validation & Security</strong></td>
+        <td><span class="badge badge-success">Zod + Helmet + JWT</span></td>
+        <td>Latest</td>
+        <td>فحص وتدقيق مدخلات الـ API، تأمين الترويسات، وإدارة الجلسات المشفرة.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ═══════════════════ الهيكل المعماري ═══════════════════ -->
+  <div class="page-break"></div>
+  <h1>3. الهيكل المعماري للنظام (System Architecture)</h1>
+  <p>
+    يعتمد النظام على هيكل <strong>Monorepo</strong> منظم يفصل بشكل كامل بين الواجهة الأمامية والواجهة الخلفية مع تكامل عبر مسارات موحدة:
+  </p>
+
+  <pre>
+AlAgoouz-erp/
+├── backend/                  # خادم الباك إند (Node.js & Express)
+│   ├── src/
+│   │   ├── config/           # إعدادات الاتصال المشفرة وقاعدة البيانات
+│   │   ├── controllers/      # 20+ وحدة تحكم لتلقي الطلبات وتوجيهها
+│   │   ├── services/         # 41+ خدمة تحتوي منطق الأعمال والحسابات المالية
+│   │   ├── routes/           # مسارات الـ REST API وتأمين الصلاحيات
+│   │   ├── middleware/       # التحقق من الـ JWT، التدقيق، والتأكيد الأمني
+│   │   └── database/         # تجمع اتصالات PostgreSQL (Connection Pool)
+│   ├── migrations/           # 33 ملف ترحيل لقاعدة البيانات لضمان المزامنة
+│   └── test/                 # اختبارات التكامل والتحقق التلقائي
+├── frontend/                 # واجهة المستخدم (Vue.js 3 + Vite)
+│   ├── src/
+│   │   ├── views/            # 24 شاشة تشغيلية (POS، جرد، مخازن، تكاليف...)
+│   │   ├── components/       # مكونات الواجهة القابلة لإعادة الاستخدام
+│   │   ├── composables/      # منطق الواجهة القابل لإعادة الاستخدام (Vue Hooks)
+│   │   ├── stores/           # مخازن الحالة (Auth, App, Cart)
+│   │   └── services/         # خدمات الطباعة الحرارية والمزامنة المحلية
+└── docs/                     # التوثيق المعماري وملفات النظام
+  </pre>
+
+  <!-- ═══════════════════ الموديولات وقواعد العمل ═══════════════════ -->
+  <h1>4. الموديولات الرئيسية وقواعد العمل (Business Modules)</h1>
+
+  <h2>1. موديول نقاط البيع والكاشير (POS & Cashier Management)</h2>
+  <p>
+    شاشة كاشير متطورة بنظام <strong>Categories-First</strong> تتيح إدخال الطلبات بسرعة فائقة:
+  </p>
+  <ul>
+    <li><strong>تخصيص البن المتقدم:</strong> خيارات فورية لتحديد درجة الطحن (تركي ناعم، إسبريسو، V60، فرنش برس)، درجة التحميص (فاتح، وسط، غامق)، ونوع التحويجة (سادة، حبهان، مستكة، ملكي).</li>
+    <li><strong>البيع بالأوزان القياسية:</strong> دعم أوزان سريعة (⅛ ثمن، ¼ ربع، ½ نصف، 1 كجم) أو إدخال وزن الميزان الرقمي مباشرة.</li>
+    <li><strong>تعليق واسترجاع الفواتير (Hold/Resume Orders):</strong> حفظ الفواتير المعلقة بضغطة زر لخدمة طوابير العملاء دون تعطيل.</li>
+  </ul>
+
+  <h2>2. موديول المخازن والتصنيع والخلطات (Inventory & BOM Recipes)</h2>
+  <ul>
+    <li><strong>الخصم التلقائي للمكونات:</strong> عند بيع مشروب أو خلطة بن، يتم تفكيك الوصفة برمجياً وخصم الخامات الأولية (حبوب بن خام، حبهان، حليب، سيرب) بدقة متناهية.</li>
+    <li><strong>حساب تكلفة الإنتاج والفاقد (Roasting Yield Loss):</strong> احتساب نسبة الرطوبة والهالك المفقود أثناء عملية التحميص لضمان التكلفة الدقيقة للكيلو المحمص.</li>
+    <li><strong>الجرد الذكي (Stocktake):</strong> مقارنة الرصيد الدفتري بالرصيد الفعلي واحتساب الفروقات وتوليد قيود التسوية آلياً.</li>
+  </ul>
+
+  <h2>3. موديول الحسابات والشركاء والخزائن (Finance & Treasury)</h2>
+  <ul>
+    <li><strong>شجرة الحسابات والقيود اليومية المزدوجة (Double-Entry Bookkeeping).</strong></li>
+    <li><strong>حسابات الشركاء وتوزيع الأرباح:</strong> متابعة رأس مال كل شريك، المسحوبات الشهرية، ونسب الأرباح الدورية.</li>
+    <li><strong>الخزائن والورديات:</strong> تتبع عهدة الكاشير بداية ونهاية كل وردية مع حساب الفائض والعجز النقدي.</li>
+  </ul>
+
+  <h2>4. موديول الموارد البشرية والرواتب (HR & Payroll)</h2>
+  <ul>
+    <li>حساب التأخير والغياب آلياً بناءً على الورديات وجداول الحضور.</li>
+    <li>إدارة السلف وأقساطها الشهرية وخصمها التلقائي من مسير الرواتب.</li>
+    <li>ترحيل صافي الرواتب تلقائياً إلى بنود المصروفات العامة.</li>
+  </ul>
+
+  <!-- ═══════════════════ الأمان وقواعد البيانات ═══════════════════ -->
+  <div class="page-break"></div>
+  <h1>5. هيكل قاعدة البيانات والأمان (Database & Security)</h1>
+
+  <div class="callout">
+    <div class="callout-title">🔒 مبدأ عدم فقدان البيانات والنزاهة الثنائية (Local/Online Parity)</div>
+    تم بناء قاعدة البيانات وفق معايير <strong>ACID</strong> باستخدام تجمعات اتصال معزولة (Connection Pool)، مع قفل الصفوف الحرج <span class="code-inline">SELECT ... FOR UPDATE</span> أثناء عمليات البيع والإنتاج لضمان عدم حدوث تضارب في الأرصدة (Zero Race Conditions).
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>الجدول الأساسي</th>
+        <th>المحتوى والوظيفة</th>
+        <th>العلاقات والربط (Relationships)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="code-inline">users</span> & <span class="code-inline">roles</span></td>
+        <td>المستخدمين، كلمات المرور المشفرة (Bcrypt)، والأدوار (Admin, Manager, Cashier).</td>
+        <td>ربط M2M مع جدول <span class="code-inline">permissions</span></td>
+      </tr>
+      <tr>
+        <td><span class="code-inline">products</span></td>
+        <td>المنتجات، أسعار البيع والشراء، تصنيف الصنف، والوحدات.</td>
+        <td>مرتبط بـ <span class="code-inline">product_categories</span> و <span class="code-inline">product_units</span></td>
+      </tr>
+      <tr>
+        <td><span class="code-inline">inventory</span></td>
+        <td>أرصدة المخزون الفعلية لكل صنف في كل مخزن/فرع.</td>
+        <td>مرتبط بـ <span class="code-inline">warehouses</span> و <span class="code-inline">products</span></td>
+      </tr>
+      <tr>
+        <td><span class="code-inline">recipes</span> & <span class="code-inline">recipe_items</span></td>
+        <td>خلطات البن ومكونات الوصفات ومعاملات التحويل لكل منتج مركب.</td>
+        <td>مرتبط بـ <span class="code-inline">products</span> (المكون والمنتج النهائي)</td>
+      </tr>
+      <tr>
+        <td><span class="code-inline">sales</span> & <span class="code-inline">sale_items</span></td>
+        <td>فواتير المبيعات، التاريخ، الكاشير، طريقة الدفع، والخصومات.</td>
+        <td>مرتبط بـ <span class="code-inline">customers</span> و <span class="code-inline">users</span> و <span class="code-inline">products</span></td>
+      </tr>
+      <tr>
+        <td><span class="code-inline">purchases</span> & <span class="code-inline">suppliers</span></td>
+        <td>فواتير المشتريات، الموردين، حسابات الآجل، وتحديث المتوسط المرجح.</td>
+        <td>مرتبط بـ <span class="code-inline">suppliers</span> و <span class="code-inline">inventory</span></td>
+      </tr>
+      <tr>
+        <td><span class="code-inline">db_row_audits</span></td>
+        <td>سجل تدقيق كامل وغير قابل للحذف لكل عمليات التعديل والحذف في النظام.</td>
+        <td>مسجل بواسطة تريجرز قاعدة البيانات تلقائياً</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ═══════════════════ تشغيل النظام ومتطلبات البيئة ═══════════════════ -->
+  <h1>6. متطلبات بيئة التشغيل والتثبيت (Deployment & Setup)</h1>
+
+  <div class="feature-grid">
+    <div class="feature-card">
+      <h4>💻 متطلبات الخادم المحلي (Local Server)</h4>
+      <p>Node.js ≥ v20.0, PostgreSQL ≥ 15, 8GB RAM, Windows 10/11 أو Linux Ubuntu 22.04.</p>
+    </div>
+    <div class="feature-card">
+      <h4>🌐 متطلبات السحابة (Cloud Production)</h4>
+      <p>PostgreSQL على Supabase/AWS RDS، استضافة Vercel/Docker مع تأمين SSL مشفر.</p>
+    </div>
+  </div>
+
+  <h2>أوامر التشغيل السريعة:</h2>
+  <pre>
+# 1. تثبيت الحزم للواجهة الأمامية والخلفية
+npm install
+
+# 2. تنفيذ الترحيلات وبناء قاعدة البيانات
+npm run migrate
+
+# 3. بناء الواجهة للإنتاج وتشغيل السيرفر الموحد
+npm run build --prefix frontend
+npm start --prefix backend
+# المنفذ الافتراضي الموحد: http://localhost:3000
+  </pre>
+
+  <div class="callout" style="text-align: center; margin-top: 30px;">
+    <strong>تم إنشاء هذا التوثيق التقني لنظام بن العجوز ERP بنجاح ✅</strong><br>
+    <span style="font-size: 9pt; color: #78716c;">جاهز للطباعة والاعتماد الهندسي والإداري.</span>
+  </div>
+
+</body>
+</html>

@@ -60,9 +60,11 @@ export const getSupplierById = async (id) => {
  * @returns {Promise<Record<string, any>>} المورد المنشأ
  */
 export const createSupplier = async (data, userId) => {
+  const openingBalance = Number(data.opening_balance || 0);
   const result = await query(
-    `INSERT INTO suppliers (code, name_ar, phone, email, address, notes) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
-    [data.code, data.name_ar, data.phone, data.email, data.address, data.notes],
+    `INSERT INTO suppliers (code, name_ar, phone, email, address, notes, opening_balance, balance)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$7) RETURNING *`,
+    [data.code, data.name_ar, data.phone, data.email, data.address, data.notes, openingBalance],
   );
   if (userId) {
     await query(
@@ -80,17 +82,35 @@ export const createSupplier = async (data, userId) => {
 /**
  * تحديث بيانات مورد.
  * @param {number} id معرف المورد
- * @param {{ name_ar?: string, phone?: string, email?: string, address?: string, notes?: string }} data البيانات الجديدة
+ * @param {{ name_ar?: string, phone?: string, email?: string, address?: string, notes?: string, opening_balance?: number }} data البيانات الجديدة
  * @param {number} [userId] معرف المستخدم المنفذ
  * @returns {Promise<Record<string, any>>} المورد المحدّث
  */
 export const updateSupplier = async (id, data, userId) => {
   const result = await query(
-    `UPDATE suppliers SET name_ar=COALESCE($1,name_ar), phone=COALESCE($2,phone), email=COALESCE($3,email),
-     address=COALESCE($4,address), notes=COALESCE($5,notes) WHERE id=$6 AND deleted_at IS NULL RETURNING *`,
-    [data.name_ar, data.phone, data.email, data.address, data.notes, id],
+    `UPDATE suppliers SET 
+       name_ar=COALESCE($1,name_ar), 
+       phone=COALESCE($2,phone), 
+       email=COALESCE($3,email),
+       address=COALESCE($4,address), 
+       notes=COALESCE($5,notes),
+       opening_balance=CASE WHEN $6::decimal IS NOT NULL THEN $6::decimal ELSE opening_balance END,
+       updated_at=NOW()
+     WHERE id=$7 AND deleted_at IS NULL RETURNING *`,
+    [
+      data.name_ar,
+      data.phone,
+      data.email,
+      data.address,
+      data.notes,
+      data.opening_balance !== undefined && data.opening_balance !== null
+        ? Number(data.opening_balance)
+        : null,
+      id,
+    ],
   );
   if (!result.rows[0]) throw new AppError('المورد غير موجود', 404);
+  await recalculateSupplierBalance(query, id);
   if (userId) {
     await query(
       `INSERT INTO activity_logs (user_id, module, action_ar, details) VALUES ($1,'suppliers',$2,$3)`,
@@ -134,22 +154,63 @@ export const deleteSupplier = async (id, userId) => {
  * @param {number} supplierId معرف المورد
  * @returns {Promise<Array<Record<string, any>>>} قائمة الفواتير
  */
-export const getSupplierInvoices = async (supplierId) =>
-  (
-    await query(
-      `SELECT id, invoice_number, invoice_date AS created_at, total_amount, notes,
-       COALESCE((SELECT SUM(amount) FROM payments WHERE reference_type = 'supplier' AND reference_id = $1), 0) AS paid_amount,
-       CASE
-         WHEN (SELECT s.balance FROM suppliers s WHERE s.id = $1) <= 0 THEN 'paid'
-         WHEN (SELECT SUM(amount) FROM payments WHERE reference_type = 'supplier' AND reference_id = $1) > 0 THEN 'partial'
-         ELSE 'pending'
-       END AS status
+export const getSupplierInvoices = async (supplierId) => {
+  const invoicesRes = await query(
+    `SELECT id, invoice_number, invoice_date AS created_at, total_amount, notes
      FROM purchase_invoices
      WHERE supplier_id = $1 AND deleted_at IS NULL
-     ORDER BY invoice_date DESC, id DESC`,
-      [supplierId],
-    )
-  ).rows;
+     ORDER BY invoice_date ASC, id ASC`,
+    [supplierId],
+  );
+
+  const directPaymentsRes = await query(
+    `SELECT reference_id as invoice_id, COALESCE(SUM(amount), 0) as paid_amount
+     FROM payments
+     WHERE reference_type = 'purchase_invoice'
+       AND reference_id IN (SELECT id FROM purchase_invoices WHERE supplier_id = $1)
+     GROUP BY reference_id`,
+    [supplierId],
+  );
+
+  const supplierDirectPaymentsRes = await query(
+    `SELECT COALESCE(SUM(amount), 0) as total_supplier_payments
+     FROM payments
+     WHERE reference_type = 'supplier' AND reference_id = $1`,
+    [supplierId],
+  );
+
+  const directMap = new Map<number, number>();
+  for (const row of directPaymentsRes.rows) {
+    directMap.set(Number(row.invoice_id), Number(row.paid_amount || 0));
+  }
+
+  let generalPool = Number(supplierDirectPaymentsRes.rows[0]?.total_supplier_payments || 0);
+
+  const enriched = invoicesRes.rows.map((inv) => {
+    const totalAmount = Number(inv.total_amount || 0);
+    const directPaid = directMap.get(Number(inv.id)) || 0;
+    const remainingBeforeGeneral = Math.max(0, totalAmount - directPaid);
+
+    const fromGeneral = Math.min(generalPool, remainingBeforeGeneral);
+    generalPool = Math.max(0, generalPool - fromGeneral);
+
+    const totalPaid = Math.round((directPaid + fromGeneral) * 100) / 100;
+    let status = 'pending';
+    if (totalPaid >= totalAmount - 0.001) {
+      status = 'paid';
+    } else if (totalPaid > 0.001) {
+      status = 'partial';
+    }
+
+    return {
+      ...inv,
+      paid_amount: totalPaid,
+      status,
+    };
+  });
+
+  return enriched.reverse();
+};
 
 /**
  * جلب مدفوعات مورد.
@@ -167,7 +228,7 @@ export const getSupplierPayments = async (supplierId) =>
   ).rows;
 
 /**
- * إعادة حساب رصيد المورد من فواتير الشراء والمدفوعات.
+ * إعادة حساب رصيد المورد من فواتير الشراء والمدفوعات ورصيد أول المدة.
  * @param {typeof query | import('pg').PoolClient} [db] اتصال قاعدة البيانات (عادي أو داخل معاملة)
  * @param {number} [supplierId] معرف المورد
  */
@@ -179,14 +240,15 @@ export const recalculateSupplierBalance = async (
   const execQuery = typeof db === 'function' ? db : (text, params) => db.query(text, params);
   await execQuery(
     `UPDATE suppliers s
-     SET balance = COALESCE((
+     SET balance = COALESCE(s.opening_balance, 0) + COALESCE((
        SELECT COALESCE(SUM(total_amount), 0)
        FROM purchase_invoices
        WHERE supplier_id = $1 AND deleted_at IS NULL
      ), 0) - COALESCE((
        SELECT COALESCE(SUM(amount), 0)
        FROM payments
-       WHERE reference_type = 'supplier' AND reference_id = $1
+       WHERE (reference_type = 'supplier' AND reference_id = $1)
+          OR (reference_type = 'purchase_invoice' AND reference_id IN (SELECT id FROM purchase_invoices WHERE supplier_id = $1))
      ), 0),
      updated_at = NOW()
      WHERE s.id = $1`,

@@ -102,6 +102,16 @@
         >
           <AppIcon :name="appStore.focusMode ? 'dashboard' : 'coffee'" />
         </button>
+
+        <!-- Mobile Executive Report Shortcut -->
+        <RouterLink
+          to="/mobile"
+          class="icon-btn"
+          title="شاشة تقارير الموبايل والموافقات"
+          aria-label="تقارير الموبايل"
+        >
+          <span style="font-size: 16px">📱</span>
+        </RouterLink>
       </div>
 
       <!-- مؤشر حالة الاتصال بالإنترنت والمزامنة الخلفية -->

@@ -18,16 +18,55 @@ const CACHE_TTL_MS = 5 * 60 * 1000;
  * جلب المخازن المسموحة للمستخدم (مع كاش).
  * المدير يملك صلاحية على كل المخازن.
  */
-async function getAllowedWarehouses(userId: number): Promise<number[]> {
+export async function getAllowedWarehouses(userId: number): Promise<number[]> {
   const cached = userWarehouseCache.get(userId);
   if (cached && cached.expiresAt > Date.now()) return cached.warehouses;
 
-  // حالياً: كل المخازن متاحة حسب الدور — يمكن تخصيصها لاحقاً بجدول user_warehouses
-  const result = await query('SELECT id FROM warehouses WHERE deleted_at IS NULL');
-  const warehouses = result.rows.map((r: any) => r.id);
+  const userRes = await query(
+    `SELECT u.branch_id, u.warehouse_id, r.name as role_name 
+     FROM users u 
+     LEFT JOIN roles r ON r.id = u.role_id 
+     WHERE u.id = $1 AND u.deleted_at IS NULL`,
+    [userId],
+  );
+  const user = userRes.rows[0];
+  if (!user) return [];
 
-  userWarehouseCache.set(userId, { warehouses, expiresAt: Date.now() + CACHE_TTL_MS });
-  return warehouses;
+  // المديرون والمشرفون العامون يملكون صلاحية كاملة على كل المخازن
+  if (ADMIN_ROLES.includes(user.role_name)) {
+    const result = await query('SELECT id FROM warehouses WHERE deleted_at IS NULL');
+    const warehouses = result.rows.map((r: any) => r.id);
+    userWarehouseCache.set(userId, { warehouses, expiresAt: Date.now() + CACHE_TTL_MS });
+    return warehouses;
+  }
+
+  const assignedWarehouses: number[] = [];
+  if (user.warehouse_id) {
+    assignedWarehouses.push(Number(user.warehouse_id));
+  }
+  if (user.branch_id) {
+    const whRes = await query(
+      `SELECT id FROM warehouses WHERE (branch_id = $1 OR id = $1) AND deleted_at IS NULL`,
+      [user.branch_id],
+    );
+    for (const row of whRes.rows) {
+      if (!assignedWarehouses.includes(row.id)) assignedWarehouses.push(row.id);
+    }
+  }
+
+  // إذا لم يكن معيناً لفرع محدد، نمنحه الوصول للمخزن الافتراضي فقط
+  if (assignedWarehouses.length === 0) {
+    const defaultWh = await query(
+      `SELECT id FROM warehouses WHERE deleted_at IS NULL ORDER BY id ASC LIMIT 1`,
+    );
+    if (defaultWh.rows[0]) assignedWarehouses.push(defaultWh.rows[0].id);
+  }
+
+  userWarehouseCache.set(userId, {
+    warehouses: assignedWarehouses,
+    expiresAt: Date.now() + CACHE_TTL_MS,
+  });
+  return assignedWarehouses;
 }
 
 /**
@@ -51,11 +90,20 @@ export const enforceWarehouseAccess = async (req: Request, res: Response, next: 
       req.body?.source_warehouse_id ||
       req.body?.target_warehouse_id;
 
-    // إذا لم يُحدد مخزن، لا حاجة للفحص (الخدمة قد تُقيّد النتائج لاحقاً)
-    if (!warehouseId) return next();
-
     const userId = (req as any).user?.id || (req as any).user?.userId;
     const allowed = await getAllowedWarehouses(userId);
+
+    // إذا لم يُحدد مخزن لمستخدم غير مدير، يتم حقن المخزن المسموح به تلقائياً لعزل بيانات الفروع (B-05)
+    if (!warehouseId) {
+      if (allowed.length > 0) {
+        if (req.method === 'GET') {
+          req.query.warehouse_id = String(allowed[0]);
+        } else if (req.body) {
+          req.body.warehouse_id = allowed[0];
+        }
+      }
+      return next();
+    }
 
     const ids = Array.isArray(warehouseId) ? warehouseId : [Number(warehouseId)];
 
@@ -68,7 +116,7 @@ export const enforceWarehouseAccess = async (req: Request, res: Response, next: 
       }
     }
 
-    next();
+    return next();
   } catch (err) {
     next(err);
   }

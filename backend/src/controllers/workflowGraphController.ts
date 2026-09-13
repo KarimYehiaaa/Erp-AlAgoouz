@@ -6,30 +6,31 @@
 import type { Request, Response } from 'express';
 import WorkflowGraphService from '../services/workflowGraphService.ts';
 import TelegramBotService from '../services/telegramBotService.ts';
+import { wrap } from './helper.ts';
 
 /**
  * GET /automation/graph
  * جلب كل العقد والروابط بتنسيق d3-force
  */
-export const getGraph = async (_req: Request, res: Response) => {
+export const getGraph = wrap(async (_req: Request, res: Response) => {
   const data = await WorkflowGraphService.getGraphData();
   res.json({ success: true, data });
-};
+});
 
 /**
  * GET /automation/nodes
  * قائمة العقد
  */
-export const getNodes = async (_req: Request, res: Response) => {
+export const getNodes = wrap(async (_req: Request, res: Response) => {
   const nodes = await WorkflowGraphService.getNodes();
   res.json({ success: true, data: nodes });
-};
+});
 
 /**
  * POST /automation/nodes
  * إنشاء عقدة جديدة
  */
-export const createNode = async (req: Request, res: Response) => {
+export const createNode = wrap(async (req: Request, res: Response) => {
   const { type, label, label_ar, group_name, settings, position_x, position_y } = req.body;
   if (!type || !label) {
     return res.status(400).json({ success: false, message: 'الحقول المطلوبة: type, label' });
@@ -45,13 +46,13 @@ export const createNode = async (req: Request, res: Response) => {
     position_y,
   });
   res.status(201).json({ success: true, data: node });
-};
+});
 
 /**
  * PUT /automation/nodes/:id
  * تحديث عقدة (بيانات أو موقع)
  */
-export const updateNode = async (req: Request, res: Response) => {
+export const updateNode = wrap(async (req: Request, res: Response) => {
   const id = Number(req.params.id);
   if (!id || isNaN(id)) {
     return res.status(400).json({ success: false, message: 'معرّف العقدة غير صالح' });
@@ -62,26 +63,26 @@ export const updateNode = async (req: Request, res: Response) => {
     return res.status(404).json({ success: false, message: 'العقدة غير موجودة' });
   }
   res.json({ success: true, data: node });
-};
+});
 
 /**
  * DELETE /automation/nodes/:id
  * حذف عقدة (مع الروابط المرتبطة — CASCADE)
  */
-export const deleteNode = async (req: Request, res: Response) => {
+export const deleteNode = wrap(async (req: Request, res: Response) => {
   const id = Number(req.params.id);
   const deleted = await WorkflowGraphService.deleteNode(id);
   if (!deleted) {
     return res.status(404).json({ success: false, message: 'العقدة غير موجودة' });
   }
   res.json({ success: true, message: 'تم حذف العقدة بنجاح' });
-};
+});
 
 /**
  * PUT /automation/nodes/positions
  * حفظ مواقع العقد بعد السحب (Batch)
  */
-export const updateNodePositions = async (req: Request, res: Response) => {
+export const updateNodePositions = wrap(async (req: Request, res: Response) => {
   const { positions } = req.body;
   if (!Array.isArray(positions)) {
     return res.status(400).json({ success: false, message: 'يجب إرسال مصفوفة positions' });
@@ -89,13 +90,13 @@ export const updateNodePositions = async (req: Request, res: Response) => {
 
   await WorkflowGraphService.updateNodePositions(positions);
   res.json({ success: true, message: 'تم حفظ المواقع بنجاح' });
-};
+});
 
 /**
  * POST /automation/edges
  * إنشاء رابط جديد بين عقدتين
  */
-export const createEdge = async (req: Request, res: Response) => {
+export const createEdge = wrap(async (req: Request, res: Response) => {
   const { source_node_id, target_node_id, condition, label } = req.body;
   if (!source_node_id || !target_node_id) {
     return res
@@ -117,55 +118,55 @@ export const createEdge = async (req: Request, res: Response) => {
     }
     throw err;
   }
-};
+});
 
 /**
  * DELETE /automation/edges/:id
  * حذف رابط
  */
-export const deleteEdge = async (req: Request, res: Response) => {
+export const deleteEdge = wrap(async (req: Request, res: Response) => {
   const id = Number(req.params.id);
   const deleted = await WorkflowGraphService.deleteEdge(id);
   if (!deleted) {
     return res.status(404).json({ success: false, message: 'الرابط غير موجود' });
   }
   res.json({ success: true, message: 'تم حذف الرابط بنجاح' });
-};
+});
 
 /**
  * GET /automation/physics
  * جلب إعدادات الفيزياء
  */
-export const getPhysics = async (_req: Request, res: Response) => {
+export const getPhysics = wrap(async (_req: Request, res: Response) => {
   const settings = await WorkflowGraphService.getPhysicsSettings();
   res.json({ success: true, data: settings });
-};
+});
 
 /**
  * PUT /automation/physics
  * تحديث إعدادات الفيزياء
  */
-export const updatePhysics = async (req: Request, res: Response) => {
+export const updatePhysics = wrap(async (req: Request, res: Response) => {
   const settings = await WorkflowGraphService.updatePhysicsSettings(req.body);
   res.json({ success: true, data: settings });
-};
+});
 
 /**
  * GET /automation/telegram-logs
  * سجل محادثات تليجرام
  */
-export const getTelegramLogs = async (req: Request, res: Response) => {
+export const getTelegramLogs = wrap(async (req: Request, res: Response) => {
   const limit = Math.min(Number(req.query.limit) || 50, 200);
   const offset = Number(req.query.offset) || 0;
   const result = await WorkflowGraphService.getTelegramLogs(limit, offset);
   res.json({ success: true, data: result });
-};
+});
 
 /**
  * POST /automation/telegram/toggle
  * تشغيل/إيقاف بوت تليجرام
  */
-export const toggleTelegramBot = async (req: Request, res: Response) => {
+export const toggleTelegramBot = wrap(async (req: Request, res: Response) => {
   const { enabled } = req.body;
 
   if (enabled) {
@@ -175,13 +176,13 @@ export const toggleTelegramBot = async (req: Request, res: Response) => {
     TelegramBotService.stopListening();
     res.json({ success: true, message: 'تم إيقاف بوت تليجرام', data: { active: false } });
   }
-};
+});
 
 /**
  * GET /automation/telegram/status
  * حالة البوت التفاعلي
  */
-export const getTelegramBotStatus = async (_req: Request, res: Response) => {
+export const getTelegramBotStatus = wrap(async (_req: Request, res: Response) => {
   const creds = await TelegramBotService.getBotCredentials();
   res.json({
     success: true,
@@ -191,13 +192,13 @@ export const getTelegramBotStatus = async (_req: Request, res: Response) => {
       hasDefaultChatId: Boolean(creds.defaultChatId),
     },
   });
-};
+});
 
 /**
  * POST /automation/telegram/test-send
  * إرسال رسالة تجريبية لتليجرام
  */
-export const sendTelegramTestMessage = async (req: Request, res: Response) => {
+export const sendTelegramTestMessage = wrap(async (req: Request, res: Response) => {
   const { message } = req.body;
   const creds = await TelegramBotService.getBotCredentials();
   const text =
@@ -221,22 +222,22 @@ export const sendTelegramTestMessage = async (req: Request, res: Response) => {
   } else {
     res.status(400).json({ success: false, message: result.error || 'فشل إرسال الرسالة' });
   }
-};
+});
 
 /**
  * POST /automation/graph/reset-defaults
  * إعادة ضبط العقد والروابط الافتراضية
  */
-export const resetGraphDefaults = async (_req: Request, res: Response) => {
+export const resetGraphDefaults = wrap(async (_req: Request, res: Response) => {
   const data = await WorkflowGraphService.resetToDefaults();
   res.json({ success: true, message: 'تمت إعادة ضبط شبكة الأتمتة بنجاح', data });
-};
+});
 
 /**
  * POST /automation/ai/test
  * اختبار سؤال للذكاء الاصطناعي (Gemini)
  */
-export const testAiPrompt = async (req: Request, res: Response) => {
+export const testAiPrompt = wrap(async (req: Request, res: Response) => {
   const { prompt } = req.body;
   if (!prompt || typeof prompt !== 'string') {
     return res.status(400).json({ success: false, message: 'يرجى إدخال نص السؤال' });
@@ -250,22 +251,22 @@ export const testAiPrompt = async (req: Request, res: Response) => {
       reply: typeof reply === 'string' ? reply : (reply as any)?.text || '',
     },
   });
-};
+});
 
 /**
  * GET /automation/tasks
  * جلب قائمة مهام الأتمتة المسجلة وحالتها
  */
-export const getAutomationsList = async (_req: Request, res: Response) => {
+export const getAutomationsList = wrap(async (_req: Request, res: Response) => {
   const list = await WorkflowGraphService.getAutomations();
   res.json({ success: true, data: list });
-};
+});
 
 /**
  * POST /automation/tasks/:key/toggle
  * تفعيل / تعطيل أتمتة
  */
-export const toggleAutomationTask = async (req: Request, res: Response) => {
+export const toggleAutomationTask = wrap(async (req: Request, res: Response) => {
   const key = String(req.params.key);
   const { is_enabled } = req.body;
   const updated = await WorkflowGraphService.toggleAutomation(key, Boolean(is_enabled));
@@ -273,17 +274,17 @@ export const toggleAutomationTask = async (req: Request, res: Response) => {
     return res.status(404).json({ success: false, message: 'مهمة الأتمتة غير موجودة' });
   }
   res.json({ success: true, message: 'تم تحديث حالة الأتمتة بنجاح', data: updated });
-};
+});
 
 /**
  * POST /automation/tasks/:key/run
  * تشغيل فوري لمهمة أتمتة
  */
-export const runAutomationTaskNow = async (req: Request, res: Response) => {
+export const runAutomationTaskNow = wrap(async (req: Request, res: Response) => {
   const key = String(req.params.key);
   const result = await WorkflowGraphService.runAutomationNow(key);
   if (!result.success) {
     return res.status(400).json({ success: false, message: result.message });
   }
   res.json(result);
-};
+});

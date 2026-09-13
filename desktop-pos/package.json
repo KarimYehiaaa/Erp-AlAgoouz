@@ -1,0 +1,34 @@
+{
+  "name": "bin-al-ajouz-desktop-pos",
+  "version": "1.0.0",
+  "description": "نظام نقاط البيع والكاشير المكتبي المتكامل - بن العجوز ERP",
+  "main": "dist-electron/main.js",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "electron:dev": "vite",
+    "electron:build": "vite build && electron-builder"
+  },
+  "dependencies": {
+    "@lucide/vue": "^1.17.0",
+    "axios": "^1.7.7",
+    "lucide-vue-next": "^1.0.0",
+    "pinia": "^3.0.0",
+    "vue": "^3.5.6",
+    "vue-router": "^4.4.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.14.0",
+    "@vitejs/plugin-vue": "^6.0.4",
+    "electron": "^35.0.0",
+    "electron-builder": "^25.1.8",
+    "sass": "^1.99.0",
+    "typescript": "^5.8.2",
+    "vite": "^7.3.6",
+    "vite-plugin-electron": "^0.29.0",
+    "vite-plugin-electron-renderer": "^0.14.6",
+    "vue-tsc": "^2.2.8"
+  }
+}

@@ -126,16 +126,76 @@
     </div>
 
     <!-- Sale Form & Payments -->
-    <form v-if="cart.length" @submit.prevent="emit('submitSale')" class="checkout-payment-form">
+    <form v-if="cart.length" @submit.prevent="handleCheckoutSubmit" class="checkout-payment-form">
+      <!-- 👤 اختيار العميل (Customer Selection) -->
+      <div class="payment-section-box customer-section-box">
+        <label class="section-title">العميل (اختياري):</label>
+        <select v-model="saleForm.customer_id" class="customer-select">
+          <option :value="null">عميل نقدي (بدون تسجيل)</option>
+          <option v-for="c in customersList" :key="c.id" :value="c.id">
+            {{ c.name_ar || c.name }} — {{ c.code }}
+          </option>
+        </select>
+
+        <div v-if="selectedCustomer" class="customer-info-badges">
+          <div class="customer-balance-badge">
+            <span>رصيد المديونية:</span>
+            <strong :class="{ 'has-debt': selectedCustomer.balance > 0 }">
+              {{ formatMoney(selectedCustomer.balance || 0) }}
+            </strong>
+          </div>
+
+          <div class="customer-loyalty-badge">
+            <span>⭐ نقاط الولاء:</span>
+            <strong>{{ selectedCustomer.loyalty_points || 0 }} نقطة</strong>
+            <span class="points-val"
+              >({{ formatMoney((selectedCustomer.loyalty_points || 0) / 10) }})</span
+            >
+          </div>
+        </div>
+
+        <!-- خيار استبدال نقاط الولاء -->
+        <div
+          v-if="selectedCustomer && (selectedCustomer.loyalty_points || 0) >= 10"
+          class="loyalty-redeem-box"
+        >
+          <label class="redeem-toggle">
+            <input type="checkbox" v-model="useLoyaltyRedeem" @change="onToggleLoyaltyRedeem" />
+            <span>🎁 استبدال نقاط الولاء بخصم</span>
+          </label>
+          <div v-if="useLoyaltyRedeem" class="redeem-controls">
+            <input
+              type="number"
+              min="10"
+              step="10"
+              :max="maxRedeemablePoints"
+              v-model.number="saleForm.loyalty_points_redeemed"
+              class="redeem-points-input"
+              placeholder="عدد النقاط"
+            />
+            <span class="redeem-preview"
+              >= خصم {{ formatMoney((saleForm.loyalty_points_redeemed || 0) / 10) }}</span
+            >
+          </div>
+        </div>
+
+        <div
+          v-if="saleForm.payment_method === 'credit' && !saleForm.customer_id"
+          class="credit-warning"
+        >
+          ⚠️ يجب اختيار عميل عند البيع الآجل
+        </div>
+      </div>
+
       <!--  شبكة أزرار طرق الدفع السريعة (Payment Methods Grid) -->
       <div class="payment-section-box">
         <label class="section-title">طريقة الدفع (اضغط للاختيار):</label>
-        <div class="payment-tiles-grid">
+        <div class="payment-tiles-grid has-split">
           <button
             type="button"
             class="pay-tile"
             :class="{ selected: saleForm.payment_method === 'cash' }"
-            @click="saleForm.payment_method = 'cash'"
+            @click="setSinglePayment('cash')"
           >
             <span class="tile-icon"><AppIcon name="money" :size="18" /></span>
             <span class="tile-title">نقدي (كاش)</span>
@@ -145,7 +205,7 @@
             type="button"
             class="pay-tile"
             :class="{ selected: saleForm.payment_method === 'card' }"
-            @click="saleForm.payment_method = 'card'"
+            @click="setSinglePayment('card')"
           >
             <span class="tile-icon"><AppIcon name="creditCard" :size="18" /></span>
             <span class="tile-title">فيزا / مدى</span>
@@ -155,7 +215,7 @@
             type="button"
             class="pay-tile"
             :class="{ selected: saleForm.payment_method === 'transfer' }"
-            @click="saleForm.payment_method = 'transfer'"
+            @click="setSinglePayment('transfer')"
           >
             <span class="tile-icon"><AppIcon name="arrowRightLeft" :size="18" /></span>
             <span class="tile-title">إنستاباي / محفظة</span>
@@ -165,11 +225,80 @@
             type="button"
             class="pay-tile"
             :class="{ selected: saleForm.payment_method === 'credit' }"
-            @click="saleForm.payment_method = 'credit'"
+            @click="setSinglePayment('credit')"
           >
             <span class="tile-icon"><AppIcon name="clock" :size="18" /></span>
             <span class="tile-title">آجل / ذمم</span>
           </button>
+
+          <button
+            type="button"
+            class="pay-tile split-tile"
+            :class="{ selected: saleForm.payment_method === 'split' }"
+            @click="setSplitPayment"
+          >
+            <span class="tile-icon"><AppIcon name="layers" :size="18" /></span>
+            <span class="tile-title">دفع متعدد / مجزأ</span>
+          </button>
+        </div>
+      </div>
+
+      <!--  صندوق الدفع المتعدد / المجزأ (Split Payment Box) -->
+      <div v-if="saleForm.payment_method === 'split'" class="split-payment-box">
+        <div class="split-header">
+          <span class="split-title">💳 توزيع مبالغ الدفع:</span>
+          <span class="split-target"
+            >المطلوب: <strong>{{ formatMoney(cartTotal) }}</strong></span
+          >
+        </div>
+        <div class="split-methods-list">
+          <div v-for="m in splitMethodRows" :key="m.key" class="split-method-row">
+            <span class="split-label">{{ m.label }}</span>
+            <div class="split-input-wrap">
+              <input
+                type="number"
+                min="0"
+                step="0.5"
+                v-model.number="m.amount"
+                @input="syncSplitPayments"
+                class="split-amount-input"
+                placeholder="0.00"
+              />
+              <button
+                type="button"
+                class="btn-fill-remaining"
+                @click="fillRemaining(m)"
+                title="تعبئة المتبقي هنا"
+              >
+                المتبقي
+              </button>
+            </div>
+          </div>
+        </div>
+        <div
+          class="split-status-bar"
+          :class="{
+            'is-complete': splitRemaining === 0,
+            'is-short': splitRemaining > 0,
+            'is-over': splitRemaining < 0,
+          }"
+        >
+          <div class="status-col">
+            <span>المدفوع:</span>
+            <strong>{{ formatMoney(totalSplitAmount) }}</strong>
+          </div>
+          <div class="status-col">
+            <span v-if="splitRemaining > 0">المتبقي:</span>
+            <span v-else-if="splitRemaining < 0">زيادة:</span>
+            <span v-else>مطابقة:</span>
+            <strong
+              :class="
+                splitRemaining === 0 ? 'text-green' : splitRemaining > 0 ? 'text-red' : 'text-amber'
+              "
+            >
+              {{ splitRemaining === 0 ? 'مكتمل ✅' : formatMoney(Math.abs(splitRemaining)) }}
+            </strong>
+          </div>
         </div>
       </div>
 
@@ -262,14 +391,24 @@
           type="submit"
           class="btn-finalize-submit"
           :class="{ 'btn-loading': saving }"
-          :disabled="saving || !cart.length"
+          :disabled="
+            saving || !cart.length || (saleForm.payment_method === 'split' && splitRemaining !== 0)
+          "
         >
           <span class="btn-icon"><AppIcon name="print" :size="20" /></span>
           <div class="btn-text-col">
             <span class="btn-title">{{
               saving ? 'جاري الحفظ والتجهيز...' : 'حفظ وطباعة الفاتورة الفورية'
             }}</span>
-            <span class="btn-sub">اختصار Enter • {{ formatMoney(cartTotal) }}</span>
+            <span class="btn-sub">
+              {{
+                saleForm.payment_method === 'split' && splitRemaining !== 0
+                  ? splitRemaining > 0
+                    ? `متبقي توزيع ${formatMoney(splitRemaining)}`
+                    : `زيادة ${formatMoney(Math.abs(splitRemaining))}`
+                  : `اختصار Enter • ${formatMoney(cartTotal)}`
+              }}
+            </span>
           </div>
         </button>
 
@@ -411,6 +550,8 @@ const props = defineProps<{
   printerName: string;
   lastSavedSale: any;
   activeTab: string;
+  customersList: any[];
+  selectedCustomer: any;
   formatMoney: (_v: any) => string;
 }>();
 
@@ -432,6 +573,82 @@ const emit = defineEmits<{
 const discountInputRef = ref<HTMLInputElement | null>(null);
 const receivedInputRef = ref<HTMLInputElement | null>(null);
 const receivedAmount = ref<number | null>(null);
+
+// ─── 💳 Split Payments State & Logic ───
+const splitMethodRows = ref([
+  { key: 'cash', label: 'نقدي (كاش)', amount: 0 },
+  { key: 'card', label: 'فيزا / مدى', amount: 0 },
+  { key: 'transfer', label: 'إنستاباي / محفظة', amount: 0 },
+  { key: 'credit', label: 'آجل / ذمم', amount: 0 },
+]);
+
+const totalSplitAmount = computed(() => {
+  return splitMethodRows.value.reduce((sum, m) => sum + (Number(m.amount) || 0), 0);
+});
+
+const splitRemaining = computed(() => {
+  return Math.round((props.cartTotal - totalSplitAmount.value) * 100) / 100;
+});
+
+const setSinglePayment = (method: string) => {
+  props.saleForm.payment_method = method;
+  props.saleForm.payments = null;
+};
+
+const setSplitPayment = () => {
+  props.saleForm.payment_method = 'split';
+  if (totalSplitAmount.value === 0 && props.cartTotal > 0 && splitMethodRows.value[0]) {
+    splitMethodRows.value[0].amount = props.cartTotal;
+  }
+  syncSplitPayments();
+};
+
+const fillRemaining = (targetRow: any) => {
+  const currentTotalExcludingTarget = splitMethodRows.value
+    .filter((m) => m.key !== targetRow.key)
+    .reduce((sum, m) => sum + (Number(m.amount) || 0), 0);
+  const remaining = Math.max(
+    0,
+    Math.round((props.cartTotal - currentTotalExcludingTarget) * 100) / 100,
+  );
+  targetRow.amount = remaining;
+  syncSplitPayments();
+};
+
+const syncSplitPayments = () => {
+  props.saleForm.payments = splitMethodRows.value
+    .filter((m) => Number(m.amount) > 0)
+    .map((m) => ({ payment_method: m.key, amount: Number(m.amount) }));
+};
+
+const handleCheckoutSubmit = () => {
+  if (props.saving || !props.cart.length) return;
+  if (props.saleForm.payment_method === 'split' && splitRemaining.value !== 0) {
+    return;
+  }
+  emit('submitSale');
+};
+
+// ─── 🎁 Loyalty Points State & Logic ───
+const useLoyaltyRedeem = ref(false);
+
+const maxRedeemablePoints = computed(() => {
+  if (!props.selectedCustomer) return 0;
+  const available = props.selectedCustomer.loyalty_points || 0;
+  const maxForTotal = Math.floor(props.cartTotal * 10);
+  return Math.min(available, maxForTotal);
+});
+
+const onToggleLoyaltyRedeem = () => {
+  if (useLoyaltyRedeem.value) {
+    props.saleForm.loyalty_points_redeemed = Math.min(
+      props.selectedCustomer?.loyalty_points || 0,
+      Math.floor(props.cartTotal * 10),
+    );
+  } else {
+    props.saleForm.loyalty_points_redeemed = 0;
+  }
+};
 
 // ───  Numpad State & Logic ───
 const numpadModal = ref(false);
@@ -901,10 +1118,252 @@ defineExpose({
   }
 }
 
+.customer-select {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  color: #e0e0e0;
+  padding: 10px 14px;
+  font-size: 0.88rem;
+  font-family: inherit;
+  direction: rtl;
+  appearance: auto;
+  cursor: pointer;
+  transition: border-color 0.2s;
+
+  &:focus {
+    border-color: #d4a373;
+    outline: none;
+  }
+
+  option {
+    background: #1e1e2e;
+    color: #e0e0e0;
+  }
+}
+
+.customer-info-badges {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.customer-balance-badge,
+.customer-loyalty-badge {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 8px;
+  font-size: 0.78rem;
+  color: #aaa;
+
+  strong {
+    color: #4ade80;
+
+    &.has-debt {
+      color: #f87171;
+    }
+  }
+
+  .points-val {
+    color: #fbbf24;
+    font-size: 0.75rem;
+    margin-right: 4px;
+  }
+}
+
+.customer-loyalty-badge {
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+
+  strong {
+    color: #fbbf24;
+  }
+}
+
+.loyalty-redeem-box {
+  margin-top: 6px;
+  padding: 8px 12px;
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  border-radius: 8px;
+
+  .redeem-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #fcd34d;
+    cursor: pointer;
+  }
+
+  .redeem-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 6px;
+
+    .redeem-points-input {
+      width: 90px;
+      padding: 4px 8px;
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid rgba(245, 158, 11, 0.4);
+      border-radius: 6px;
+      color: #fff;
+      font-size: 0.82rem;
+      text-align: center;
+    }
+
+    .redeem-preview {
+      font-size: 0.76rem;
+      color: #4ade80;
+      font-weight: 700;
+    }
+  }
+}
+
+.credit-warning {
+  margin-top: 6px;
+  padding: 6px 10px;
+  background: rgba(251, 191, 36, 0.12);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  border-radius: 8px;
+  font-size: 0.75rem;
+  color: #fbbf24;
+}
+
 .payment-tiles-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 6px;
+
+  &.has-split {
+    grid-template-columns: repeat(5, 1fr);
+  }
+}
+
+.split-payment-box {
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(212, 163, 115, 0.25);
+  border-radius: 12px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+
+  .split-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    font-size: 0.78rem;
+
+    .split-title {
+      font-weight: 700;
+      color: #d4a373;
+    }
+
+    .split-target {
+      color: #aaa;
+      strong {
+        color: #faedcd;
+      }
+    }
+  }
+
+  .split-methods-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .split-method-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.8rem;
+
+    .split-label {
+      color: #e2e8f0;
+      font-weight: 600;
+    }
+
+    .split-input-wrap {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+
+      .split-amount-input {
+        width: 85px;
+        padding: 4px 8px;
+        background: rgba(0, 0, 0, 0.4);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 6px;
+        color: #fff;
+        font-size: 0.82rem;
+        text-align: center;
+        outline: none;
+
+        &:focus {
+          border-color: #d4a373;
+        }
+      }
+
+      .btn-fill-remaining {
+        padding: 4px 8px;
+        background: rgba(212, 163, 115, 0.15);
+        border: 1px solid rgba(212, 163, 115, 0.3);
+        border-radius: 6px;
+        color: #d4a373;
+        font-size: 0.72rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.15s ease;
+
+        &:hover {
+          background: rgba(212, 163, 115, 0.3);
+          color: #fff;
+        }
+      }
+    }
+  }
+
+  .split-status-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1px dashed rgba(255, 255, 255, 0.1);
+    font-size: 0.82rem;
+
+    .status-col {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    &.is-complete {
+      strong {
+        color: #4ade80;
+      }
+    }
+
+    &.is-short {
+      strong.text-red {
+        color: #f87171;
+      }
+    }
+
+    &.is-over {
+      strong.text-amber {
+        color: #fbbf24;
+      }
+    }
+  }
 }
 
 .pay-tile {

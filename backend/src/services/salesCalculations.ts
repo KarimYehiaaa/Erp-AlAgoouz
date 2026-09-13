@@ -56,8 +56,18 @@ const calculateSaleTotals = (items: any[] = [], data: Record<string, any> = {}) 
   if (items.length && discountAmount > itemsTotal) {
     throw new AppError('قيمة خصم الفاتورة لا يمكن أن تتجاوز إجمالي الفاتورة');
   }
-  const taxPercent = 0;
-  const taxAmount = 0;
+  const taxPercent =
+    data.tax_percent !== undefined && data.tax_percent !== null
+      ? Math.max(0, roundMoney(parseAmount(data.tax_percent)))
+      : 0;
+  const baseForTax = Math.max(0, itemsTotal - discountAmount);
+  const taxAmount =
+    data.tax_amount !== undefined && data.tax_amount !== null
+      ? roundMoney(parseAmount(data.tax_amount))
+      : taxPercent > 0
+        ? roundMoney((baseForTax * taxPercent) / 100)
+        : 0;
+
   const dailyTotal = roundMoney(parseAmount(data.total_amount));
   const totalAmount = items.length
     ? roundMoney(Math.max(0, itemsTotal - discountAmount + taxAmount))

@@ -150,5 +150,11 @@ export const requireIdempotency = async (
     return originalJson(body);
   };
 
+  res.on('close', () => {
+    if (!res.writableEnded && memoryStore.get(scopedKey) === 'PROCESSING') {
+      memoryStore.delete(scopedKey);
+    }
+  });
+
   next();
 };

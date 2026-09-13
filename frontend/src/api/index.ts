@@ -259,7 +259,7 @@ export const pl = {
 };
 
 export const backup = {
-  create: () => get('/backup/create'),
+  create: () => post('/backup/create'),
   list: () => get('/backup/list'),
   download: (name: string) => getBlob(`/backup/download/${name}`),
   restore: (name: string) => post('/backup/restore', { name, confirm: 'CONFIRM_RESTORE_BACKUP' }),
@@ -300,3 +300,5 @@ export const forecasting = {
 };
 
 export { partnersApi, partnersApi as partners } from './partners.api';
+export { posApi, posApi as pos } from './pos.api';
+export type { PosShift, CashMovement } from './pos.api';

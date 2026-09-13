@@ -26,6 +26,7 @@ import { authenticate } from './middleware/auth.ts';
 import { errorHandler, notFound } from './middleware/errorHandler.ts';
 import { requestId } from './middleware/requestId.ts';
 import { requireIdempotency } from './middleware/idempotency.ts';
+import { sanitizeInput } from './middleware/sanitize.ts';
 import cookieParser from 'cookie-parser';
 import { checkHealth } from './database/pool.ts';
 import { initSentry } from './services/sentry.ts';
@@ -84,15 +85,21 @@ app.use(
       // 2. نطاقات Vercel — النطاق الرئيسي فقط افتراضياً؛ معاينات الفروع عبر CORS_ALLOW_VERCEL_PREVIEWS
       if (
         origin === 'https://agoouz.vercel.app' ||
+        origin === 'https://agoouz-api.vercel.app' ||
         (config.corsAllowVercelPreviews && origin.endsWith('.vercel.app'))
       ) {
         return callback(null, true);
       }
 
-      // 3. بيئات التطوير المحلية فقط (Localhost) — شبكات LAN تُضبط صراحةً عبر CORS_LAN_ORIGINS
+      // 3. بيئات وتطبيقات الموبايل و التطوير المحلية (Capacitor / Localhost / LAN)
       if (
+        origin.startsWith('capacitor://') ||
+        origin.startsWith('ionic://') ||
+        origin === 'https://localhost' ||
         origin.startsWith('http://localhost') ||
         origin.startsWith('http://127.0.0.1') ||
+        origin.startsWith('http://192.168.') ||
+        origin.startsWith('http://10.') ||
         config.lanOrigins.includes(origin)
       ) {
         return callback(null, true);
@@ -107,6 +114,7 @@ app.use(
 app.use(morgan(config.nodeEnv === 'development' ? 'dev' : 'combined'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
+app.use(sanitizeInput);
 app.use(requireIdempotency);
 app.use(
   rateLimit({
@@ -130,11 +138,7 @@ app.use('/logo.png', express.static(path.join(__dirname, '../../assets/logo.png'
 
 // ─── المسارات الرئيسية ───────────────────────────────────────────────────────
 app.use('/api/v1', routes);
-app.use('/v1', routes);
-app.use('/api/index', routes);
-app.use('/api', routes);
-app.use('/index', routes);
-app.use('/', routes);
+app.use('/api', routes); // مسار توافق مع الإصدارات السابقة
 
 /**
  * نقطة تشخيص — متاحة فقط للمدير في بيئة غير الإنتاج.

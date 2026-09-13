@@ -10,9 +10,12 @@
           <span class="brand-title">بن العجوز</span>
           <span class="brand-badge">POS</span>
         </div>
-        <span class="shift-live-status">
+        <span class="shift-live-status" :class="{ inactive: !isShiftOpen }">
           <span class="status-dot"></span>
-          الشفت نشط
+          <span v-if="isShiftOpen">
+            الشفت نشط {{ currentShift?.shift_number ? `(${currentShift.shift_number})` : '' }}
+          </span>
+          <span v-else>لا يوجد شفت مفتوح</span>
         </span>
       </div>
     </div>
@@ -35,6 +38,39 @@
         <span class="cashier-name">{{ cashierName }}</span>
       </div>
 
+      <!-- Shift Quick Actions -->
+      <div class="shift-actions">
+        <button
+          v-if="isShiftOpen"
+          type="button"
+          class="icon-action-btn shift-btn cash-move-btn"
+          @click="showCashMovementModal = true"
+          title="تسجيل حركة نقدية (توريد/إيداع/مصروف)"
+        >
+          <span>💰 حركة نقدية</span>
+        </button>
+
+        <button
+          v-if="isShiftOpen"
+          type="button"
+          class="icon-action-btn shift-btn close-shift-btn"
+          @click="showCloseShiftModal = true"
+          title="إغلاق الشفت ومطابقة العهدة (Z-Report)"
+        >
+          <span>📊 إنهاء الشفت</span>
+        </button>
+
+        <button
+          v-else
+          type="button"
+          class="icon-action-btn shift-btn open-shift-btn"
+          @click="showOpenShiftModal = true"
+          title="فتح وردية جديدة للبدء بالبيع"
+        >
+          <span>🟢 فتح شفت جديد</span>
+        </button>
+      </div>
+
       <div class="action-buttons">
         <!-- Fullscreen Button -->
         <button
@@ -51,7 +87,7 @@
         <button
           class="icon-action-btn logout-btn"
           @click="handleLogout"
-          title="تسجيل الخروج وإنهاء الشفت"
+          title="تسجيل الخروج"
           type="button"
         >
           <AppIcon name="logout" :size="16" />
@@ -67,6 +103,15 @@ import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import AppIcon from '@/components/AppIcon.vue';
 import { useAuthStore } from '@/stores/auth';
+import { usePosShift } from '@/composables/usePosShift';
+
+const {
+  currentShift,
+  isShiftOpen,
+  showOpenShiftModal,
+  showCloseShiftModal,
+  showCashMovementModal,
+} = usePosShift();
 
 const router = useRouter();
 const authStore = useAuthStore();
@@ -112,10 +157,17 @@ const onFullscreenChange = () => {
 };
 
 const handleLogout = async () => {
-  if (window.confirm('هل أنت متأكد من رغبتك في تسجيل الخروج وإنهاء جلسة الكاشير؟')) {
-    await authStore.logout();
-    router.push('/login');
+  if (isShiftOpen.value) {
+    const confirmClose = window.confirm(
+      '⚠️ تنبيه: يوجد شفت مفتوح حالياً!\n\nهل ترغب في تسجيل الخروج بدون إغلاق الشفت؟\n(يُفضل الضغط على "إنهاء الشفت" أولاً لمطابقة العهدة النقدية Z-Report)',
+    );
+    if (!confirmClose) return;
+  } else if (!window.confirm('هل أنت متأكد من رغبتك في تسجيل الخروج؟')) {
+    return;
   }
+
+  await authStore.logout();
+  router.push('/login');
 };
 
 onMounted(() => {
@@ -215,6 +267,15 @@ onUnmounted(() => {
         box-shadow: 0 0 8px var(--success);
         animation: pulse-dot 2s infinite ease-in-out;
       }
+
+      &.inactive {
+        color: #f59e0b;
+
+        .status-dot {
+          background-color: #f59e0b;
+          box-shadow: 0 0 8px #f59e0b;
+        }
+      }
     }
   }
 }
@@ -297,6 +358,51 @@ onUnmounted(() => {
     .cashier-name {
       color: #ffffff;
       font-weight: 750;
+    }
+  }
+
+  .shift-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .shift-btn {
+    font-size: 0.8rem;
+    height: 30px;
+    padding: 0 10px;
+
+    &.cash-move-btn {
+      background: rgba(59, 130, 246, 0.12);
+      border-color: rgba(59, 130, 246, 0.3);
+      color: #93c5fd;
+
+      &:hover {
+        background: rgba(59, 130, 246, 0.25);
+        color: #ffffff;
+      }
+    }
+
+    &.close-shift-btn {
+      background: rgba(245, 158, 11, 0.12);
+      border-color: rgba(245, 158, 11, 0.3);
+      color: #fcd34d;
+
+      &:hover {
+        background: rgba(245, 158, 11, 0.25);
+        color: #ffffff;
+      }
+    }
+
+    &.open-shift-btn {
+      background: rgba(16, 185, 129, 0.15);
+      border-color: rgba(16, 185, 129, 0.4);
+      color: #6ee7b7;
+
+      &:hover {
+        background: rgba(16, 185, 129, 0.3);
+        color: #ffffff;
+      }
     }
   }
 

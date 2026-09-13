@@ -1,0 +1,16 @@
+{
+  "appId": "com.alagoouz.pos",
+  "productName": "AlAgoouz-POS",
+  "directories": {
+    "output": "release"
+  },
+  "files": [
+    "dist/**/*",
+    "dist-electron/**/*",
+    "package.json"
+  ],
+  "win": {
+    "target": "dir",
+    "executableName": "AlAgoouz-POS"
+  }
+}

@@ -1,207 +1,274 @@
 <template>
-  <div class="card full-catalog-panel">
-    <!-- ═══════════════════ شريط البحث والتصنيفات ═══════════════════ -->
-    <div class="catalog-top-header">
-      <div class="search-and-status-row">
-        <div class="search-box">
-          <span class="search-icon"><AppIcon name="search" :size="16" /></span>
-          <input
-            ref="searchInputRef"
-            :value="productSearch"
-            type="text"
-            placeholder="ابحث عن صنف أو امسح الباركود... (F2 أو F7)"
-            class="search-input"
-            @input="onSearch"
-          />
-          <button
-            v-if="productSearch"
-            type="button"
-            class="clear-search-btn"
-            @click="
-              emit('update:productSearch', '');
-              emit('filter');
-            "
-            title="مسح البحث"
-            aria-label="مسح البحث"
-          >
-            <AppIcon name="close" :size="14" />
-          </button>
-        </div>
-
-        <!-- مؤشر التصنيف المختار -->
-        <div class="active-cat-indicator" :title="'التصنيف: ' + currentCategoryName">
-          <span class="cat-ind-icon">
-            <AppIcon :name="currentCategoryVisual.icon" :size="14" />
-          </span>
-          <span class="cat-ind-name">{{ currentCategoryName }}</span>
-          <span class="cat-ind-count">{{ filteredProducts.length }} صنف</span>
-        </div>
-      </div>
-
-      <!-- شريط المفاتيح السريعة للأصناف الأكثر طلباً -->
-      <div v-if="fastKeyProducts.length && !productSearch" class="fast-keys-ribbon">
-        <div class="fast-keys-header">
-          <span class="ribbon-icon"><AppIcon name="trendingUp" :size="14" /></span>
-          <span class="ribbon-title">الأكثر طلباً:</span>
-        </div>
-        <div class="fast-keys-scroll">
-          <button
-            v-for="fastProd in fastKeyProducts"
-            :key="'fast-' + fastProd.id"
-            type="button"
-            class="fast-key-chip"
-            :class="[getProductVisual(fastProd).cardClass, { 'in-cart': isInCart(fastProd.id) }]"
-            @click="handleCardClick(fastProd)"
-            :title="fastProd.name_ar + ' (' + formatMoney(fastProd.sale_price) + ')'"
-          >
-            <span class="fast-key-icon">
-              <AppIcon :name="getProductVisual(fastProd).icon" :size="13" />
-            </span>
-            <span class="fast-key-name">{{ fastProd.name_ar }}</span>
-            <span v-if="isInCart(fastProd.id)" class="fast-key-badge">{{
-              getCartQty(fastProd.id)
-            }}</span>
-          </button>
-        </div>
-      </div>
-
-      <!-- شريط التصنيفات الأفقي الفاخر التفاعلي للمس -->
-      <nav v-if="categories.length" class="horizontal-categories-nav">
-        <div class="categories-scroll-track">
-          <button
-            type="button"
-            class="cat-tab-pill"
-            :class="{ active: !selectedCategory }"
-            @click="selectCategory('')"
-          >
-            <span class="pill-icon"><AppIcon name="layers" :size="14" /></span>
-            <span class="pill-label">كل المنتجات</span>
-          </button>
-
-          <button
-            v-for="cat in categories"
-            :key="cat.id"
-            type="button"
-            class="cat-tab-pill"
-            :class="{ active: String(selectedCategory) === String(cat.id) }"
-            @click="selectCategory(cat.id)"
-          >
-            <span class="pill-icon">
-              <AppIcon :name="getCategoryVisual(cat.name_ar).icon" :size="14" />
-            </span>
-            <span class="pill-label">{{ cat.name_ar }}</span>
-          </button>
-        </div>
-      </nav>
-    </div>
-
-    <!-- ═══════════════════ شبكة المنتجات الموحدة للمس (Touch-First Products Grid) ═══════════════════ -->
-    <div class="catalog-grid-wrapper">
-      <!-- هيكل التحميل -->
-      <div v-if="loadingProducts" class="products-grid-container">
-        <div v-for="i in 12" :key="'sk-prod-' + i" class="pos-product-card skeleton-card">
-          <div class="card-image-box skeleton-box"></div>
-          <SkeletonLoader type="line" height="14px" width="80%" />
-          <SkeletonLoader type="line" height="12px" width="50%" />
-        </div>
-      </div>
-
-      <!-- حالة عدم وجود نتائج -->
-      <div v-else-if="!filteredProducts.length" class="empty-catalog-state">
-        <span class="empty-icon"><AppIcon name="search" :size="36" /></span>
-        <h3>لم يتم العثور على منتجات مطابقة</h3>
-        <p>تأكد من كتابة الاسم بشكل صحيح أو اختر قسماً آخر.</p>
+  <div class="pos-catalog-master card">
+    <!-- ═══════════════════ TOP POS CONTROL BAR ═══════════════════ -->
+    <div class="pos-top-control-bar">
+      <!-- Search Input Box -->
+      <div class="pos-search-wrapper">
+        <span class="search-icon-slot">
+          <AppIcon name="search" :size="18" />
+        </span>
+        <input
+          ref="searchInputRef"
+          :value="productSearch"
+          type="text"
+          placeholder="ابحث عن صنف، مشروب، أو امسح الباركود... (F2 أو F7)"
+          class="pos-search-input"
+          @input="onSearchInput"
+          @keydown.esc="clearSearchOrReset"
+          @keydown.enter.prevent="onSearchEnter"
+        />
         <button
+          v-if="productSearch"
           type="button"
-          class="btn-reset-filters"
-          @click="
-            emit('update:productSearch', '');
-            selectCategory('');
-          "
+          class="pos-search-clear-btn"
+          @click="clearSearchOrReset"
+          title="مسح البحث (Esc)"
+          aria-label="مسح البحث"
         >
-          عرض جميع الأصناف
+          <AppIcon name="close" :size="14" />
         </button>
       </div>
 
-      <!-- شبكة بطاقات المنتجات الموحدة والمحسنة بصرياً وللمس السريع -->
-      <div v-else class="products-grid-container">
-        <div
-          v-for="product in filteredProducts"
-          :key="product.id"
-          class="pos-product-card"
-          :class="[
-            getProductVisual(product).cardClass,
-            {
-              'is-in-cart': isInCart(product.id),
-              'is-low-stock': hasLowIngredients(product) || getProductStockClass(product) === 'low',
-              'is-out-of-stock': getProductStockClass(product) === 'out',
-            },
-          ]"
-          @mousedown="startLongPress(product)"
-          @mouseup="cancelLongPress"
-          @mouseleave="cancelLongPress"
-          @touchstart.passive="startLongPress(product)"
-          @touchend="cancelLongPress"
-          @click="handleCardClick(product)"
-          role="button"
-          tabindex="0"
-          :title="
-            product.name_ar + (isCoffeeProduct(product) ? ' (انقر مطولاً أو انقر للتخصيص)' : '')
-          "
+      <!-- Navigation & Mode Indicator -->
+      <div class="pos-mode-indicator">
+        <button
+          v-if="selectedCategory || productSearch"
+          type="button"
+          class="btn-back-to-categories"
+          @click="backToCategories"
+          title="العودة لجميع الأقسام (Esc)"
         >
-          <!-- زاوية مؤشر المخزون المضيء -->
-          <span
-            class="card-stock-dot"
-            :class="getProductStockClass(product)"
-            :title="getProductStockTitle(product)"
-          ></span>
+          <AppIcon name="arrowRight" :size="16" />
+          <span>جميع الأقسام</span>
+        </button>
 
-          <!-- زر التخصيص السريع للبن والمشروبات -->
-          <button
-            v-if="isCoffeeProduct(product)"
-            type="button"
-            class="card-customizer-btn"
-            @click.stop="openCustomizer(product)"
-            title="تخصيص درجة الطحن والتحميص"
-            aria-label="تخصيص البن"
-          >
-            <AppIcon name="sliders" :size="12" />
-          </button>
-
-          <!-- شارة عدد القطع المختارة في السلة -->
-          <span v-if="isInCart(product.id)" class="card-qty-badge">
-            {{ getCartQty(product.id) }}
+        <div
+          v-if="selectedCategory && !productSearch"
+          class="current-cat-chip"
+          :class="currentCategoryVisual.cardClass"
+        >
+          <span class="chip-icon">
+            <AppIcon :name="currentCategoryVisual.icon" :size="16" />
           </span>
+          <span class="chip-title">{{ currentCategoryName }}</span>
+          <span class="chip-count">{{ filteredProducts.length }} صنف</span>
+        </div>
 
-          <!-- 1. صورة المنتج ثلاثية الأبعاد الفاخرة في الأعلى -->
-          <div class="card-image-box" :class="getProductVisual(product).iconBgClass">
-            <img
-              :src="getProductVisual(product).threeDImage"
-              :alt="product.name_ar"
-              class="card-3d-img"
-              loading="lazy"
-            />
-          </div>
-
-          <!-- 2. شارة المنتج الذكية -->
+        <div v-else-if="productSearch" class="search-results-chip">
+          <AppIcon name="search" :size="14" />
           <span
-            v-if="getProductVisual(product).badge"
-            class="card-visual-badge"
-            :class="getProductVisual(product).badgeClass"
+            >نتائج البحث: <strong>{{ filteredProducts.length }} صنف</strong></span
           >
-            {{ getProductVisual(product).badge }}
-          </span>
+        </div>
 
-          <!-- 3. اسم المنتج وسعره مباشرة أسفل الصورة والشارة -->
-          <div class="card-info">
-            <span class="card-title">{{ product.name_ar }}</span>
-            <span class="card-price">{{ formatMoney(product.sale_price) }}</span>
-          </div>
+        <div v-else class="catalog-summary-chip">
+          <AppIcon name="layers" :size="14" />
+          <span>{{ categories.length }} أقسام متاحة</span>
         </div>
       </div>
     </div>
 
-    <!-- ═══════════════════ نافذة تخصيص البن والمشروبات ═══════════════════ -->
+    <!-- ═══════════════════ SECONDARY QUICK-SWITCH CATEGORY STRIP ═══════════════════ -->
+    <!-- Visible when in products mode for rapid 1-tap switching without leaving -->
+    <div
+      v-if="(selectedCategory || productSearch) && categories.length > 1"
+      class="pos-categories-quick-strip"
+    >
+      <button
+        type="button"
+        class="quick-cat-pill"
+        :class="{ active: !selectedCategory && !productSearch }"
+        @click="backToCategories"
+      >
+        <AppIcon name="layers" :size="14" />
+        <span>الكل</span>
+      </button>
+
+      <button
+        v-for="cat in categories"
+        :key="'quick-cat-' + cat.id"
+        type="button"
+        class="quick-cat-pill"
+        :class="[
+          getCategoryVisual(cat.name_ar).cardClass,
+          { active: String(selectedCategory) === String(cat.id) },
+        ]"
+        @click="selectCategory(cat.id)"
+      >
+        <AppIcon :name="getCategoryVisual(cat.name_ar).icon" :size="14" />
+        <span>{{ cat.name_ar }}</span>
+      </button>
+    </div>
+
+    <!-- ═══════════════════ MAIN DYNAMIC STAGE ═══════════════════ -->
+    <div class="pos-stage-container">
+      <Transition name="pos-view-transition" mode="out-in">
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <!-- VIEW 1: CATEGORIES MATRIX (CATEGORIES-FIRST VIEW)               -->
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <div v-if="isCategoryView" key="categories-view" class="pos-categories-matrix-view">
+          <div class="categories-header-headline">
+            <div class="headline-title-wrap">
+              <span class="headline-sparkle"><AppIcon name="sparkles" :size="18" /></span>
+              <h3>الأقسام الرئيسية لنقاط البيع</h3>
+            </div>
+            <p class="headline-subtitle">اضغط على أي قسم لعرض أصنافه وتخصيصها بالكامل</p>
+          </div>
+
+          <!-- Massive Touch-First Category Cards Grid -->
+          <div class="pos-categories-grid">
+            <div
+              v-for="cat in categories"
+              :key="'cat-card-' + cat.id"
+              class="pos-category-card"
+              :class="getCategoryVisual(cat.name_ar).cardClass"
+              @click="selectCategory(cat.id)"
+              role="button"
+              tabindex="0"
+              @keydown.enter="selectCategory(cat.id)"
+            >
+              <!-- Background Ambient Glow -->
+              <div class="cat-card-glow"></div>
+
+              <!-- 3D Rendered Category Visual Box -->
+              <div class="cat-card-visual-box" :class="getCategoryVisual(cat.name_ar).iconBgClass">
+                <img
+                  :src="getCategoryVisual(cat.name_ar).image"
+                  :alt="cat.name_ar"
+                  class="cat-3d-asset"
+                  loading="lazy"
+                />
+                <span class="cat-floating-icon">
+                  <AppIcon :name="getCategoryVisual(cat.name_ar).icon" :size="20" />
+                </span>
+              </div>
+
+              <!-- Category Details & Count Badge -->
+              <div class="cat-card-body">
+                <h4 class="cat-card-name">{{ cat.name_ar }}</h4>
+                <div class="cat-card-footer">
+                  <span class="cat-count-badge">
+                    <AppIcon name="layers" :size="12" />
+                    <span>{{ getCategoryProductCount(cat.id) }} صنف</span>
+                  </span>
+                  <span class="cat-enter-arrow">
+                    <AppIcon name="arrowLeft" :size="14" />
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <!-- VIEW 2: FOCUSED PRODUCTS CATALOG (PRODUCTS VIEW)                -->
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <div v-else key="products-view" class="pos-products-catalog-view">
+          <!-- Loading Skeletons -->
+          <div v-if="loadingProducts" class="pos-products-grid">
+            <div v-for="i in 12" :key="'sk-prod-' + i" class="pos-product-card skeleton-card">
+              <div class="card-image-box skeleton-box"></div>
+              <SkeletonLoader type="line" height="16px" width="80%" />
+              <SkeletonLoader type="line" height="14px" width="50%" />
+            </div>
+          </div>
+
+          <!-- Empty State -->
+          <div v-else-if="!filteredProducts.length" class="pos-empty-state">
+            <div class="empty-icon-circle">
+              <AppIcon name="search" :size="36" />
+            </div>
+            <h3>لم نتمكن من العثور على أصناف</h3>
+            <p>لا توجد منتجات مطابقة لهذا القسم أو مصطلح البحث المدخل.</p>
+            <button type="button" class="btn btn-primary" @click="backToCategories">
+              <AppIcon name="arrowRight" :size="16" />
+              <span>العودة لجميع الأقسام</span>
+            </button>
+          </div>
+
+          <!-- Enlarged, Touch-Friendly Products Grid -->
+          <div v-else class="pos-products-grid">
+            <div
+              v-for="product in filteredProducts"
+              :key="product.id"
+              class="pos-product-card"
+              :class="[
+                getProductVisual(product).cardClass,
+                {
+                  'is-in-cart': isInCart(product.id),
+                  'is-low-stock':
+                    hasLowIngredients(product) || getProductStockClass(product) === 'low',
+                  'is-out-of-stock': getProductStockClass(product) === 'out',
+                },
+              ]"
+              @mousedown="startLongPress(product)"
+              @mouseup="cancelLongPress"
+              @mouseleave="cancelLongPress"
+              @touchstart.passive="startLongPress(product)"
+              @touchend="cancelLongPress"
+              @click="handleCardClick(product)"
+              role="button"
+              tabindex="0"
+              :title="
+                product.name_ar +
+                (isCoffeeProduct(product) ? ' (انقر مطولاً أو اضغط على الأيقونة للتخصيص)' : '')
+              "
+            >
+              <!-- Stock Status Dot -->
+              <span
+                class="card-stock-dot"
+                :class="getProductStockClass(product)"
+                :title="getProductStockTitle(product)"
+              ></span>
+
+              <!-- Coffee Customizer Action Button -->
+              <button
+                v-if="isCoffeeProduct(product)"
+                type="button"
+                class="card-customizer-btn"
+                @click.stop="openCustomizer(product)"
+                title="تخصيص درجة الطحن والتحميص"
+                aria-label="تخصيص البن"
+              >
+                <AppIcon name="sliders" :size="14" />
+              </button>
+
+              <!-- In-Cart Quantity Counter Badge -->
+              <span v-if="isInCart(product.id)" class="card-qty-badge">
+                {{ getCartQty(product.id) }}
+              </span>
+
+              <!-- 3D Rendered Product Image -->
+              <div class="card-image-box" :class="getProductVisual(product).iconBgClass">
+                <img
+                  :src="getProductVisual(product).threeDImage"
+                  :alt="product.name_ar"
+                  class="card-3d-img"
+                  loading="lazy"
+                />
+              </div>
+
+              <!-- Product Feature Visual Badge -->
+              <span
+                v-if="getProductVisual(product).badge"
+                class="card-visual-badge"
+                :class="getProductVisual(product).badgeClass"
+              >
+                {{ getProductVisual(product).badge }}
+              </span>
+
+              <!-- Product Title & Price Info -->
+              <div class="card-info">
+                <span class="card-title">{{ product.name_ar }}</span>
+                <span class="card-price">{{ formatMoney(product.sale_price) }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </div>
+
+    <!-- ═══════════════════ COFFEE & DRINK CUSTOMIZER MODAL ═══════════════════ -->
     <div
       v-if="showCustomizerModal && activeCustomProduct"
       class="customizer-modal-backdrop"
@@ -376,13 +443,88 @@ const emit = defineEmits<{
 
 const searchInputRef = ref<HTMLInputElement | null>(null);
 
-// Pinned Fast Keys Logic (Top Popular Items)
-const fastKeyProducts = computed(() => {
-  if (!props.filteredProducts.length) return [];
-  return props.filteredProducts.slice(0, 6);
+// ═══════════════════ CATEGORIES-FIRST VIEW COMPUTATION ═══════════════════
+const isCategoryView = computed(() => {
+  // If user is searching anything, immediately switch to products catalog
+  if (props.productSearch && props.productSearch.trim().length > 0) {
+    return false;
+  }
+  // Otherwise, show categories when no specific category is selected
+  return !props.selectedCategory;
 });
 
-// Coffee Customizer State & Options
+const currentCategoryName = computed(() => {
+  if (!props.selectedCategory) return 'جميع الأصناف';
+  const cat = props.categories.find((c: any) => String(c.id) === String(props.selectedCategory));
+  return cat ? cat.name_ar : 'القسم المحدد';
+});
+
+const currentCategoryVisual = computed(() => {
+  if (!props.selectedCategory) return getCategoryVisual('');
+  const cat = props.categories.find((c: any) => String(c.id) === String(props.selectedCategory));
+  return cat ? getCategoryVisual(cat.name_ar) : getCategoryVisual('');
+});
+
+const getCategoryProductCount = (catId: any) => {
+  const cat = props.categories.find((c: any) => String(c.id) === String(catId));
+  if (cat && cat.products_count !== undefined && cat.products_count !== null) {
+    return cat.products_count;
+  }
+  // Fallback calculate if products are loaded
+  if (props.filteredProducts && props.filteredProducts.length) {
+    const count = props.filteredProducts.filter(
+      (p: any) => String(p.category_id) === String(catId) || String(p.category) === String(catId),
+    ).length;
+    if (count > 0) return count;
+  }
+  return 0;
+};
+
+// ═══════════════════ NAVIGATION ACTIONS ═══════════════════
+const selectCategory = (id: any) => {
+  emit('update:selectedCategory', id);
+  emit('filter');
+};
+
+const backToCategories = () => {
+  emit('update:selectedCategory', '');
+  emit('update:productSearch', '');
+  emit('filter');
+};
+
+const onSearchInput = (e: Event) => {
+  const v = (e.target as HTMLInputElement).value;
+  emit('update:productSearch', v);
+  emit('filter');
+};
+
+const clearSearchOrReset = () => {
+  if (props.productSearch) {
+    emit('update:productSearch', '');
+    emit('filter');
+  } else {
+    backToCategories();
+  }
+};
+
+/** عند الضغط على Enter في البحث (مثل ماسح الباركود): إذا كان هناك منتج واحد فقط → إضافة تلقائية للسلة */
+const onSearchEnter = () => {
+  if (props.filteredProducts.length === 1) {
+    emit('addToCart', props.filteredProducts[0]);
+    emit('update:productSearch', '');
+    emit('filter');
+  }
+};
+
+const handleCardClick = (product: any) => {
+  if (isLongPressTriggered) {
+    isLongPressTriggered = false;
+    return;
+  }
+  emit('addToCart', product);
+};
+
+// ═══════════════════ COFFEE CUSTOMIZER LOGIC ═══════════════════
 const showCustomizerModal = ref(false);
 const activeCustomProduct = ref<any>(null);
 
@@ -456,7 +598,7 @@ const confirmCustomization = () => {
   closeCustomizer();
 };
 
-// Long Press Detection
+// Long Press Detection for Customizer
 let longPressTimer: any = null;
 let isLongPressTriggered = false;
 
@@ -476,36 +618,6 @@ const cancelLongPress = () => {
   }
 };
 
-const currentCategoryName = computed(() => {
-  if (!props.selectedCategory) return 'كل المنتجات';
-  const cat = props.categories.find((c: any) => String(c.id) === String(props.selectedCategory));
-  return cat ? cat.name_ar : 'كل المنتجات';
-});
-
-const currentCategoryVisual = computed(() => {
-  if (!props.selectedCategory) return { icon: 'layers', emoji: '☕' };
-  const cat = props.categories.find((c: any) => String(c.id) === String(props.selectedCategory));
-  return cat ? getCategoryVisual(cat.name_ar) : { icon: 'coffee', emoji: '☕' };
-});
-
-const onSearch = (e: Event) => {
-  emit('update:productSearch', (e.target as HTMLInputElement).value);
-  emit('filter');
-};
-
-const selectCategory = (id: any) => {
-  emit('update:selectedCategory', id);
-  emit('filter');
-};
-
-const handleCardClick = (product: any) => {
-  if (isLongPressTriggered) {
-    isLongPressTriggered = false;
-    return;
-  }
-  emit('addToCart', product);
-};
-
 defineExpose({
   focusSearch: () => {
     searchInputRef.value?.focus();
@@ -515,85 +627,87 @@ defineExpose({
 </script>
 
 <style lang="scss" scoped>
-@use '@/styles/variables' as *;
-
-.full-catalog-panel {
+/* ═══════════════════ MAIN POS CATALOG WRAPPER ═══════════════════ */
+.pos-catalog-master {
   padding: var(--space-4);
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
-  background: var(--bg-card);
+  height: 100%;
+  min-height: 580px;
+  background: var(--bg-surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  min-height: calc(100vh - 180px);
-  box-shadow: var(--shadow-sm);
-}
-
-/* ── Top Header Bar ── */
-.catalog-top-header {
-  display: flex;
-  flex-direction: column;
   gap: var(--space-3);
-  border-bottom: 1px solid var(--border);
-  padding-bottom: var(--space-3);
+  box-shadow: var(--shadow-sm);
+  position: relative;
+  overflow: hidden;
 }
 
-.search-and-status-row {
+/* ═══════════════════ TOP CONTROL BAR ═══════════════════ */
+.pos-top-control-bar {
   display: flex;
   align-items: center;
   gap: var(--space-3);
   flex-wrap: wrap;
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--border-soft);
 }
 
-.search-box {
+.pos-search-wrapper {
   position: relative;
   flex: 1;
-  min-width: 240px;
+  min-width: 260px;
+  display: flex;
+  align-items: center;
 
-  .search-icon {
+  .search-icon-slot {
     position: absolute;
     right: 14px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: var(--primary);
+    color: var(--text-muted);
     pointer-events: none;
+    display: flex;
+    align-items: center;
   }
 
-  .search-input {
+  .pos-search-input {
     width: 100%;
-    padding: 10px 40px 10px 34px;
+    height: 46px;
+    padding: 0 42px 0 38px;
+    background: var(--bg-soft);
     border: 1.5px solid var(--border);
     border-radius: var(--radius-md);
-    background: var(--bg-elevated);
-    font-size: var(--text-sm);
+    color: var(--text-strong);
+    font-size: 0.95rem;
     font-weight: 600;
-    color: var(--text);
-    transition:
-      border-color var(--transition),
-      box-shadow var(--transition);
+    transition: all var(--transition);
 
     &:focus {
       border-color: var(--primary);
-      box-shadow: 0 0 0 3px var(--focus-ring);
+      background: var(--bg-elevated);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 18%, transparent);
       outline: none;
+    }
+
+    &::placeholder {
+      color: var(--text-muted);
+      font-weight: 500;
     }
   }
 
-  .clear-search-btn {
+  .pos-search-clear-btn {
     position: absolute;
-    left: 10px;
-    top: 50%;
-    transform: translateY(-50%);
-    background: var(--bg-soft);
+    left: 12px;
+    background: transparent;
     border: none;
     color: var(--text-muted);
-    cursor: pointer;
-    width: 22px;
-    height: 22px;
+    width: 26px;
+    height: 26px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
+    cursor: pointer;
+    transition: all var(--transition);
 
     &:hover {
       background: var(--danger-soft);
@@ -602,570 +716,704 @@ defineExpose({
   }
 }
 
-.active-cat-indicator {
+.pos-mode-indicator {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.btn-back-to-categories {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 14px;
+  height: 46px;
+  padding: 0 18px;
+  background: var(--primary-soft);
+  color: var(--primary);
+  border: 1.5px solid var(--primary);
+  border-radius: var(--radius-md);
+  font-weight: 800;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+
+  &:hover {
+    background: var(--primary);
+    color: #ffffff;
+    transform: translateX(4px);
+    box-shadow: 0 4px 14px color-mix(in srgb, var(--primary) 30%, transparent);
+  }
+
+  &:active {
+    transform: scale(0.96);
+  }
+}
+
+.current-cat-chip,
+.search-results-chip,
+.catalog-summary-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 46px;
+  padding: 0 16px;
   background: var(--bg-soft);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  font-size: var(--text-xs);
+  color: var(--text-strong);
+  font-size: 0.9rem;
+  font-weight: 750;
 
-  .cat-ind-icon {
-    color: var(--primary);
+  .chip-icon {
     display: flex;
     align-items: center;
-  }
-
-  .cat-ind-name {
-    font-weight: 750;
-    color: var(--text-strong);
-  }
-
-  .cat-ind-count {
     color: var(--primary);
-    font-weight: 800;
+  }
+
+  .chip-count {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.78rem;
+    color: var(--text-muted);
   }
 }
 
-/* ── Pinned Fast Keys Ribbon ── */
-.fast-keys-ribbon {
+/* ═══════════════════ SECONDARY QUICK-SWITCH CATEGORY STRIP ═══════════════════ */
+.pos-categories-quick-strip {
   display: flex;
-  align-items: center;
   gap: 8px;
-  overflow: hidden;
+  overflow-x: auto;
+  padding-bottom: 6px;
+  scrollbar-width: thin;
 
-  .fast-keys-header {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    color: var(--primary);
-    font-size: var(--text-xs);
-    font-weight: 800;
-    white-space: nowrap;
-  }
-
-  .fast-keys-scroll {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    overflow-x: auto;
-    scrollbar-width: none;
-    &::-webkit-scrollbar {
-      display: none;
-    }
-  }
-
-  .fast-key-chip {
+  .quick-cat-pill {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 5px 12px;
-    background: var(--bg-elevated);
+    height: 36px;
+    padding: 0 14px;
+    background: var(--bg-soft);
     border: 1px solid var(--border);
-    border-radius: var(--radius-full, 9999px);
+    border-radius: var(--radius-sm);
     color: var(--text);
-    font-size: var(--text-xs);
+    font-size: 0.85rem;
     font-weight: 700;
     white-space: nowrap;
     cursor: pointer;
-    transition:
-      transform var(--transition),
-      border-color var(--transition),
-      box-shadow var(--transition);
+    transition: all 0.15s ease;
 
-    &:active {
-      transform: scale(0.95);
-      background: var(--accent-soft);
-    }
-
-    &.in-cart {
-      background: var(--accent-soft);
-      border-color: var(--accent);
-      color: var(--accent-dark, var(--primary));
-    }
-
-    .fast-key-icon {
-      display: flex;
-      align-items: center;
-    }
-
-    .fast-key-badge {
-      padding: 1px 6px;
+    .pill-dot {
+      width: 6px;
+      height: 6px;
       border-radius: 50%;
       background: var(--primary);
-      color: #fff;
-      font-size: 0.68rem;
     }
-  }
-}
 
-/* ── Category Tabs Navigation ── */
-.horizontal-categories-nav {
-  overflow-x: auto;
-  scrollbar-width: none;
-  &::-webkit-scrollbar {
-    display: none;
-  }
-
-  .categories-scroll-track {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 2px 0;
-  }
-
-  .cat-tab-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 7px 14px;
-    background: var(--bg-elevated);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-full, 9999px);
-    color: var(--text-muted);
-    font-size: var(--text-xs);
-    font-weight: 700;
-    white-space: nowrap;
-    cursor: pointer;
-    transition: all var(--transition);
-
-    &:active {
-      transform: scale(0.96);
+    &:hover {
+      background: var(--bg-elevated);
+      border-color: var(--primary);
+      color: var(--primary);
     }
 
     &.active {
       background: var(--primary);
       color: #ffffff;
       border-color: var(--primary);
-      box-shadow: var(--shadow-xs);
-    }
+      box-shadow: 0 2px 8px color-mix(in srgb, var(--primary) 25%, transparent);
 
-    .pill-icon {
-      display: flex;
-      align-items: center;
+      .pill-dot {
+        background: #ffffff;
+      }
     }
   }
 }
 
-/* ═══════════════════════════════════════════════════════════════════════════════
-   Touch-First Unified Products Grid & Card Styles
-   ═══════════════════════════════════════════════════════════════════════════════ */
-
-.catalog-grid-wrapper {
+/* ═══════════════════ MAIN STAGE & TRANSITIONS ═══════════════════ */
+.pos-stage-container {
   flex: 1;
   overflow-y: auto;
-  padding: 4px 2px 20px 2px;
+  padding-right: 2px;
 }
 
-.products-grid-container {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(136px, 1fr));
-  gap: 12px;
-  width: 100%;
-
-  @media (min-width: 1200px) {
-    grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
-    gap: 14px;
-  }
-
-  @media (max-width: 600px) {
-    grid-template-columns: repeat(auto-fill, minmax(116px, 1fr));
-    gap: 8px;
-  }
+.pos-view-transition-enter-active,
+.pos-view-transition-leave-active {
+  transition:
+    opacity 0.18s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* Unified POS Product Card with Glassmorphism & Theme Palette */
-.pos-product-card {
-  position: relative;
+.pos-view-transition-enter-from {
+  opacity: 0;
+  transform: scale(0.985) translateY(6px);
+}
+
+.pos-view-transition-leave-to {
+  opacity: 0;
+  transform: scale(1.015) translateY(-6px);
+}
+
+/* ═══════════════════ VIEW 1: CATEGORIES MATRIX ═══════════════════ */
+.pos-categories-matrix-view {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: flex-start;
-  text-align: center;
-  padding: 10px 8px 10px;
-  min-height: 154px;
-  border-radius: 14px;
-  background: var(--bg-card);
-  border: 1.5px solid var(--border);
-  box-shadow: var(--shadow-xs);
-  cursor: pointer;
-  user-select: none;
-  -webkit-user-select: none;
-  -webkit-touch-callout: none;
-  touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent;
-  transition:
-    transform 0.12s cubic-bezier(0.16, 1, 0.3, 1),
-    background-color 0.12s ease,
-    border-color 0.12s ease,
-    box-shadow 0.12s ease;
+  gap: var(--space-4);
+  padding: var(--space-2) 0;
+}
 
-  /* Immediate Tactile Feedback for Touch */
+.categories-header-headline {
+  text-align: right;
+  padding: 4px 0 10px;
+
+  .headline-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    .headline-sparkle {
+      color: var(--primary);
+      display: flex;
+    }
+
+    h3 {
+      font-size: 1.35rem;
+      font-weight: 850;
+      color: var(--text-strong);
+      margin: 0;
+    }
+  }
+
+  .headline-subtitle {
+    font-size: 0.88rem;
+    color: var(--text-muted);
+    margin: 4px 0 0;
+    font-weight: 500;
+  }
+}
+
+.pos-categories-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 16px;
+  width: 100%;
+}
+
+.pos-category-card {
+  position: relative;
+  background: var(--bg-elevated);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  cursor: pointer;
+  overflow: hidden;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: var(--shadow-sm);
+
+  .cat-card-glow {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(
+      circle at 50% 0%,
+      var(--theme-glow, rgba(138, 87, 42, 0.08)) 0%,
+      transparent 70%
+    );
+    opacity: 0.6;
+    pointer-events: none;
+    transition: opacity 0.2s;
+  }
+
+  .cat-card-visual-box {
+    position: relative;
+    width: 100%;
+    height: 110px;
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-soft);
+    border: 1px solid var(--border-soft);
+    overflow: hidden;
+
+    .cat-3d-asset {
+      max-width: 90px;
+      max-height: 90px;
+      object-fit: contain;
+      filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.18));
+      transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .cat-floating-icon {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--primary);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+    }
+  }
+
+  .cat-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+
+    .cat-card-name {
+      font-size: 1.15rem;
+      font-weight: 850;
+      color: var(--text-strong);
+      margin: 0;
+      line-height: 1.3;
+    }
+
+    .cat-card-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+
+      .cat-count-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 0.8rem;
+        font-weight: 700;
+        color: var(--text-muted);
+        background: var(--bg-soft);
+        padding: 3px 8px;
+        border-radius: 6px;
+      }
+
+      .cat-enter-arrow {
+        color: var(--text-muted);
+        display: flex;
+        align-items: center;
+        transition: transform 0.2s;
+      }
+    }
+  }
+
   &:hover {
+    transform: translateY(-4px);
     border-color: var(--primary);
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-sm);
+    box-shadow: 0 10px 24px -4px color-mix(in srgb, var(--primary) 22%, transparent);
+
+    .cat-3d-asset {
+      transform: scale(1.08) rotate(-2deg);
+    }
+
+    .cat-enter-arrow {
+      color: var(--primary);
+      transform: translateX(-4px);
+    }
   }
 
   &:active {
-    transform: scale(0.95);
-    border-color: var(--primary);
-    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+    transform: scale(0.96);
   }
+}
 
-  &.is-in-cart {
-    border-color: var(--accent) !important;
-    background: var(--accent-soft) !important;
-    box-shadow:
-      0 0 0 1.5px var(--accent),
-      var(--shadow-sm);
-  }
+/* ═══════════════════ VIEW 2: FOCUSED PRODUCTS CATALOG ═══════════════════ */
+.pos-products-catalog-view {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
 
-  &.is-out-of-stock {
-    opacity: 0.45;
-    filter: grayscale(0.8);
-  }
+.pos-products-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(175px, 1fr));
+  gap: 14px;
+}
 
-  /* Card Stock Dot */
+.pos-product-card {
+  position: relative;
+  background: var(--bg-elevated);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 195px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: var(--shadow-xs);
+
   .card-stock-dot {
     position: absolute;
-    top: 8px;
-    right: 8px;
-    width: 8px;
-    height: 8px;
+    top: 10px;
+    right: 10px;
+    width: 9px;
+    height: 9px;
     border-radius: 50%;
     background: var(--success);
+    border: 1.5px solid #ffffff;
     z-index: 2;
 
     &.low {
       background: var(--warning);
-      box-shadow: 0 0 6px rgba(183, 101, 17, 0.6);
     }
+
     &.out {
       background: var(--danger);
-      box-shadow: 0 0 6px rgba(220, 38, 38, 0.6);
     }
   }
 
-  /* In-Cart Quantity Badge */
-  .card-qty-badge {
-    position: absolute;
-    top: -6px;
-    left: -6px;
-    min-width: 22px;
-    height: 22px;
-    padding: 0 6px;
-    border-radius: 11px;
-    background: var(--primary);
-    color: #ffffff;
-    font-size: 0.75rem;
-    font-weight: 900;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: 2px solid var(--bg-card);
-    box-shadow: var(--shadow-sm);
-    z-index: 4;
-  }
-
-  /* Coffee Customizer Trigger Button */
   .card-customizer-btn {
     position: absolute;
     top: 8px;
     left: 8px;
-    width: 24px;
-    height: 24px;
+    width: 28px;
+    height: 28px;
     border-radius: 50%;
     background: var(--bg-soft);
     border: 1px solid var(--border);
-    color: var(--text-muted);
+    color: var(--primary);
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
+    z-index: 3;
     transition: all var(--transition);
-    z-index: 2;
 
-    &:active {
-      transform: scale(0.9);
-      background: var(--accent);
+    &:hover {
+      background: var(--primary);
       color: #ffffff;
+      transform: scale(1.1);
     }
   }
-}
 
-/* 3D Image Container */
-.card-image-box {
-  width: 64px;
-  height: 64px;
-  border-radius: 14px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--bg-soft);
-  overflow: hidden;
-  margin-top: 2px;
-  margin-bottom: 6px;
-  flex-shrink: 0;
-  border: 1.5px solid var(--border);
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
-  transition: transform 0.15s ease;
+  .card-qty-badge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: var(--primary);
+    color: #ffffff;
+    font-size: 0.82rem;
+    font-weight: 850;
+    min-width: 24px;
+    height: 24px;
+    padding: 0 6px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px color-mix(in srgb, var(--primary) 40%, transparent);
+    z-index: 4;
+    animation: bounceIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  }
 
-  .card-3d-img {
+  .card-image-box {
+    width: 90px;
+    height: 90px;
+    border-radius: var(--radius-md, 10px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 4px 0 8px;
+    background: #ffffff;
+    border: 1.5px solid var(--border-soft, #f0ebe1);
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+
+    .card-3d-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+  }
+
+  &:hover .card-image-box .card-3d-img {
+    transform: scale(1.08);
+  }
+
+  .card-visual-badge {
+    font-size: 0.72rem;
+    font-weight: 750;
+    padding: 2px 8px;
+    border-radius: 6px;
+    margin-bottom: 6px;
+    white-space: nowrap;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .card-info {
     width: 100%;
-    height: 100%;
-    object-fit: cover;
-    transition: transform 0.25s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    text-align: center;
+
+    .card-title {
+      font-size: 0.96rem;
+      font-weight: 800;
+      color: var(--text-strong);
+      line-height: 1.25;
+      max-height: 2.5em;
+      overflow: hidden;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+    }
+
+    .card-price {
+      font-size: 1.05rem;
+      font-weight: 850;
+      color: var(--primary);
+    }
+  }
+
+  &:hover {
+    transform: translateY(-3px);
+    border-color: var(--primary);
+    box-shadow: 0 8px 20px -4px color-mix(in srgb, var(--primary) 20%, transparent);
+
+    .card-3d-img {
+      transform: scale(1.08);
+    }
+  }
+
+  &:active {
+    transform: scale(0.96);
+  }
+
+  &.is-in-cart {
+    border-color: var(--primary);
+    background: color-mix(in srgb, var(--primary) 4%, var(--bg-elevated));
+  }
+
+  &.is-out-of-stock {
+    opacity: 0.55;
+    filter: grayscale(0.7);
+    cursor: not-allowed;
   }
 }
 
-.pos-product-card:hover .card-image-box .card-3d-img {
-  transform: scale(1.06);
+@keyframes bounceIn {
+  0% {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  70% {
+    transform: scale(1.15);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
-.pos-product-card:active .card-image-box .card-3d-img {
-  transform: scale(0.96);
-}
-
-/* Expressive Product Badge */
-.card-visual-badge {
-  display: inline-block;
-  font-size: 0.64rem;
-  font-weight: 800;
-  padding: 1px 7px;
-  border-radius: 9999px;
-  margin-bottom: 4px;
-  white-space: nowrap;
-  max-width: 96%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  line-height: 1.3;
-}
-
-/* Centered Product Information */
-.card-info {
+/* ═══════════════════ EMPTY STATE & SKELETONS ═══════════════════ */
+.pos-empty-state {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: 100%;
-  gap: 3px;
-  margin-top: auto;
-}
+  padding: 60px 20px;
+  text-align: center;
+  color: var(--text-muted);
 
-.card-title {
-  font-size: 0.88rem;
-  font-weight: 750;
-  color: var(--text-strong);
-  line-height: 1.25;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  word-break: break-word;
-}
-
-.card-price {
-  font-size: 0.84rem;
-  font-weight: 900;
-  color: var(--primary);
-}
-
-/* ═══════════════════ Dynamic Visual Color Themes ═══════════════════ */
-
-/* 1. Espresso (Deep Coffee & Roasted Beans) */
-.theme-espresso {
-  border-color: rgba(138, 87, 42, 0.22);
-  &:hover {
-    box-shadow: 0 4px 18px rgba(138, 87, 42, 0.16);
-    border-color: #8a572a;
+  .empty-icon-circle {
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    background: var(--bg-soft);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    margin-bottom: 16px;
   }
+
+  h3 {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: var(--text-strong);
+    margin: 0 0 8px;
+  }
+
+  p {
+    font-size: 0.9rem;
+    margin: 0 0 20px;
+    max-width: 360px;
+  }
+}
+
+.skeleton-card {
+  min-height: 195px;
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.skeleton-box {
+  width: 80px;
+  height: 80px;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--border) 40%, transparent);
+}
+
+/* ═══════════════════ LUXURY COLOR THEMES ═══════════════════ */
+.visual-espresso {
+  --theme-glow: rgba(138, 87, 42, 0.25);
+  border-color: rgba(138, 87, 42, 0.24);
 }
 .icon-bg-espresso {
   background: linear-gradient(135deg, rgba(138, 87, 42, 0.12) 0%, rgba(74, 43, 18, 0.04) 100%);
-  border-color: rgba(138, 87, 42, 0.25);
   color: #8a572a;
 }
 .badge-espresso {
-  background: rgba(138, 87, 42, 0.12);
+  background: rgba(138, 87, 42, 0.14);
   color: #6e411b;
   border: 1px solid rgba(138, 87, 42, 0.2);
 }
 
-/* 2. Gold (Golden Blend, Warm Pastries & Snacks) */
-.theme-gold {
+.visual-gold {
+  --theme-glow: rgba(217, 119, 6, 0.25);
   border-color: rgba(217, 119, 6, 0.24);
-  &:hover {
-    box-shadow: 0 4px 18px rgba(217, 119, 6, 0.16);
-    border-color: #d97706;
-  }
 }
 .icon-bg-gold {
-  background: linear-gradient(135deg, rgba(245, 158, 11, 0.14) 0%, rgba(217, 119, 6, 0.05) 100%);
-  border-color: rgba(217, 119, 6, 0.25);
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.14) 0%, rgba(217, 119, 6, 0.04) 100%);
   color: #b45309;
 }
 .badge-gold {
-  background: rgba(217, 119, 6, 0.12);
+  background: rgba(217, 119, 6, 0.14);
   color: #92400e;
   border: 1px solid rgba(217, 119, 6, 0.2);
 }
 
-/* 3. Mocha (Chocolate, Brownies & Cocoa) */
-.theme-mocha {
-  border-color: rgba(120, 53, 15, 0.22);
-  &:hover {
-    box-shadow: 0 4px 18px rgba(120, 53, 15, 0.16);
-    border-color: #78350f;
-  }
+.visual-mocha {
+  --theme-glow: rgba(120, 53, 15, 0.25);
+  border-color: rgba(120, 53, 15, 0.24);
 }
 .icon-bg-mocha {
-  background: linear-gradient(135deg, rgba(120, 53, 15, 0.14) 0%, rgba(180, 83, 9, 0.05) 100%);
-  border-color: rgba(120, 53, 15, 0.25);
+  background: linear-gradient(135deg, rgba(120, 53, 15, 0.12) 0%, rgba(180, 83, 9, 0.04) 100%);
   color: #78350f;
 }
 .badge-mocha {
-  background: rgba(120, 53, 15, 0.12);
+  background: rgba(120, 53, 15, 0.14);
   color: #78350f;
   border: 1px solid rgba(120, 53, 15, 0.2);
 }
 
-/* 4. Ice (Cold Drinks, Iced Coffee, Soda & Water) */
-.theme-ice {
+.visual-ice {
+  --theme-glow: rgba(2, 132, 199, 0.25);
   border-color: rgba(2, 132, 199, 0.24);
-  &:hover {
-    box-shadow: 0 4px 18px rgba(2, 132, 199, 0.16);
-    border-color: #0284c7;
-  }
 }
 .icon-bg-ice {
-  background: linear-gradient(135deg, rgba(14, 165, 233, 0.14) 0%, rgba(56, 189, 248, 0.05) 100%);
-  border-color: rgba(2, 132, 199, 0.25);
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.14) 0%, rgba(56, 189, 248, 0.04) 100%);
   color: #0284c7;
 }
 .badge-ice {
-  background: rgba(2, 132, 199, 0.12);
+  background: rgba(2, 132, 199, 0.14);
   color: #0369a1;
   border: 1px solid rgba(2, 132, 199, 0.2);
 }
 
-/* 5. Berry (Cakes, Desserts, Berries & Sweets) */
-.theme-berry {
+.visual-berry {
+  --theme-glow: rgba(225, 29, 72, 0.25);
   border-color: rgba(225, 29, 72, 0.24);
-  &:hover {
-    box-shadow: 0 4px 18px rgba(225, 29, 72, 0.16);
-    border-color: #e11d48;
-  }
 }
 .icon-bg-berry {
-  background: linear-gradient(135deg, rgba(225, 29, 72, 0.14) 0%, rgba(244, 63, 94, 0.05) 100%);
-  border-color: rgba(225, 29, 72, 0.25);
+  background: linear-gradient(135deg, rgba(225, 29, 72, 0.12) 0%, rgba(244, 63, 94, 0.04) 100%);
   color: #e11d48;
 }
 .badge-berry {
-  background: rgba(225, 29, 72, 0.12);
+  background: rgba(225, 29, 72, 0.14);
   color: #be123c;
   border: 1px solid rgba(225, 29, 72, 0.2);
 }
 
-/* 6. Emerald (Tea, Herbs & Matcha) */
-.theme-emerald {
+.visual-emerald {
+  --theme-glow: rgba(5, 150, 105, 0.25);
   border-color: rgba(5, 150, 105, 0.24);
-  &:hover {
-    box-shadow: 0 4px 18px rgba(5, 150, 105, 0.16);
-    border-color: #059669;
-  }
 }
 .icon-bg-emerald {
-  background: linear-gradient(135deg, rgba(16, 185, 129, 0.14) 0%, rgba(5, 150, 105, 0.05) 100%);
-  border-color: rgba(5, 150, 105, 0.25);
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.13) 0%, rgba(5, 150, 105, 0.04) 100%);
   color: #059669;
 }
 .badge-emerald {
-  background: rgba(5, 150, 105, 0.12);
+  background: rgba(5, 150, 105, 0.14);
   color: #047857;
   border: 1px solid rgba(5, 150, 105, 0.2);
 }
 
-/* 7. Amber (Citrus, Fresh Juices & Savory) */
-.theme-amber {
+.visual-amber {
+  --theme-glow: rgba(234, 88, 12, 0.25);
   border-color: rgba(234, 88, 12, 0.24);
-  &:hover {
-    box-shadow: 0 4px 18px rgba(234, 88, 12, 0.16);
-    border-color: #ea580c;
-  }
 }
 .icon-bg-amber {
-  background: linear-gradient(135deg, rgba(234, 88, 12, 0.14) 0%, rgba(249, 115, 22, 0.05) 100%);
-  border-color: rgba(234, 88, 12, 0.25);
+  background: linear-gradient(135deg, rgba(234, 88, 12, 0.13) 0%, rgba(249, 115, 22, 0.04) 100%);
   color: #ea580c;
 }
 .badge-amber {
-  background: rgba(234, 88, 12, 0.12);
+  background: rgba(234, 88, 12, 0.14);
   color: #c2410c;
   border: 1px solid rgba(234, 88, 12, 0.2);
 }
 
-/* 8. Cream (Milk, Latte & Dairy) */
-.theme-cream {
-  border-color: rgba(200, 149, 110, 0.26);
-  &:hover {
-    box-shadow: 0 4px 18px rgba(200, 149, 110, 0.16);
-    border-color: #c8956e;
-  }
+.visual-cream {
+  --theme-glow: rgba(161, 98, 7, 0.2);
+  border-color: rgba(161, 98, 7, 0.22);
 }
 .icon-bg-cream {
-  background: linear-gradient(135deg, rgba(200, 149, 110, 0.16) 0%, rgba(254, 243, 199, 0.1) 100%);
-  border-color: rgba(200, 149, 110, 0.3);
+  background: linear-gradient(135deg, rgba(200, 149, 110, 0.14) 0%, rgba(254, 243, 199, 0.25) 100%);
   color: #92400e;
 }
 .badge-cream {
-  background: rgba(200, 149, 110, 0.14);
+  background: rgba(161, 98, 7, 0.14);
   color: #854d0e;
-  border: 1px solid rgba(200, 149, 110, 0.25);
+  border: 1px solid rgba(161, 98, 7, 0.2);
 }
 
-/* 9. Sunset (Smoothies & Exotic Blends) */
-.theme-sunset {
+.visual-sunset {
+  --theme-glow: rgba(147, 51, 234, 0.25);
   border-color: rgba(147, 51, 234, 0.24);
-  &:hover {
-    box-shadow: 0 4px 18px rgba(147, 51, 234, 0.16);
-    border-color: #9333ea;
-  }
 }
 .icon-bg-sunset {
-  background: linear-gradient(135deg, rgba(147, 51, 234, 0.14) 0%, rgba(236, 72, 153, 0.05) 100%);
-  border-color: rgba(147, 51, 234, 0.25);
+  background: linear-gradient(135deg, rgba(147, 51, 234, 0.12) 0%, rgba(236, 72, 153, 0.04) 100%);
   color: #9333ea;
 }
 .badge-sunset {
-  background: rgba(147, 51, 234, 0.12);
+  background: rgba(147, 51, 234, 0.14);
   color: #7e22ce;
   border: 1px solid rgba(147, 51, 234, 0.2);
 }
 
-/* 10. Caramel (Syrups, Flavors & Toppings) */
-.theme-caramel {
+.visual-caramel {
+  --theme-glow: rgba(180, 83, 9, 0.25);
   border-color: rgba(180, 83, 9, 0.24);
-  &:hover {
-    box-shadow: 0 4px 18px rgba(180, 83, 9, 0.16);
-    border-color: #b45309;
-  }
 }
 .icon-bg-caramel {
-  background: linear-gradient(135deg, rgba(180, 83, 9, 0.14) 0%, rgba(245, 158, 11, 0.05) 100%);
-  border-color: rgba(180, 83, 9, 0.25);
+  background: linear-gradient(135deg, rgba(180, 83, 9, 0.13) 0%, rgba(245, 158, 11, 0.04) 100%);
   color: #b45309;
 }
 .badge-caramel {
-  background: rgba(180, 83, 9, 0.12);
+  background: rgba(180, 83, 9, 0.14);
   color: #92400e;
   border: 1px solid rgba(180, 83, 9, 0.2);
 }
 
-/* ── Dark Mode Adaptations for Theme Colors ── */
+/* Dark Theme Overrides */
 [data-theme='dark'] {
   .icon-bg-espresso {
     color: #f0cb9e;
@@ -1183,15 +1431,6 @@ defineExpose({
   .badge-gold {
     color: #fde68a;
     background: rgba(251, 191, 36, 0.16);
-  }
-
-  .icon-bg-mocha {
-    color: #fcd34d;
-    background: linear-gradient(135deg, rgba(180, 83, 9, 0.22) 0%, rgba(40, 20, 10, 0.8) 100%);
-  }
-  .badge-mocha {
-    color: #fcd34d;
-    background: rgba(180, 83, 9, 0.16);
   }
 
   .icon-bg-ice {
@@ -1221,97 +1460,17 @@ defineExpose({
     background: rgba(52, 211, 153, 0.16);
   }
 
-  .icon-bg-amber {
-    color: #fdba74;
-    background: linear-gradient(135deg, rgba(251, 146, 60, 0.2) 0%, rgba(48, 22, 10, 0.8) 100%);
-  }
-  .badge-amber {
-    color: #fdba74;
-    background: rgba(251, 146, 60, 0.16);
-  }
-
-  .icon-bg-cream {
-    color: #fef08a;
-    background: linear-gradient(135deg, rgba(234, 179, 8, 0.18) 0%, rgba(35, 27, 18, 0.8) 100%);
-  }
-  .badge-cream {
-    color: #fef08a;
-    background: rgba(234, 179, 8, 0.16);
-  }
-
-  .icon-bg-sunset {
-    color: #d8b4fe;
-    background: linear-gradient(135deg, rgba(192, 132, 252, 0.2) 0%, rgba(38, 15, 52, 0.8) 100%);
-  }
-  .badge-sunset {
-    color: #d8b4fe;
-    background: rgba(192, 132, 252, 0.16);
-  }
-
-  .icon-bg-caramel {
-    color: #fcd34d;
-    background: linear-gradient(135deg, rgba(245, 158, 11, 0.2) 0%, rgba(42, 25, 12, 0.8) 100%);
-  }
-  .badge-caramel {
-    color: #fcd34d;
-    background: rgba(245, 158, 11, 0.16);
+  .pos-category-card .cat-card-visual-box .cat-floating-icon {
+    background: rgba(30, 30, 30, 0.85);
+    color: var(--primary-light);
   }
 }
 
-/* Skeleton Loading Tile */
-.skeleton-card {
-  min-height: 154px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  background: var(--bg-soft);
-  border: 1px solid var(--border);
-}
-
-.skeleton-box {
-  background: color-mix(in srgb, var(--border) 40%, transparent);
-}
-
-/* Empty State */
-.empty-catalog-state {
-  text-align: center;
-  padding: 60px 20px;
-  color: var(--text-muted);
-
-  .empty-icon {
-    color: var(--text-muted);
-    display: block;
-    margin-bottom: 12px;
-  }
-
-  h3 {
-    color: var(--text-strong);
-    margin: 0 0 6px;
-  }
-  p {
-    font-size: var(--text-sm);
-    margin: 0 0 16px;
-  }
-
-  .btn-reset-filters {
-    padding: 8px 18px;
-    background: var(--primary);
-    color: #ffffff;
-    border: none;
-    border-radius: var(--radius-sm);
-    font-weight: 700;
-    cursor: pointer;
-  }
-}
-
-/* ═══════════════════ Customizer Modal ═══════════════════ */
-
+/* ═══════════════════ CUSTOMIZER MODAL ═══════════════════ */
 .customizer-modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(0, 0, 0, 0.72);
   backdrop-filter: blur(8px);
   z-index: 250;
   display: flex;
@@ -1322,11 +1481,11 @@ defineExpose({
 
 .customizer-modal-card {
   width: 100%;
-  max-width: 480px;
+  max-width: 490px;
   background: var(--bg-elevated);
   border: 1.5px solid var(--primary);
   border-radius: var(--radius-lg);
-  padding: 20px;
+  padding: 22px;
   box-shadow: var(--shadow-lg);
   animation: modalScale 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }

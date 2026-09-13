@@ -186,7 +186,6 @@
                   type="number"
                   min="0.01"
                   step="0.01"
-                  :max="statement.summary.total_balance"
                   :placeholder="`الرصيد: ${formatMoney(statement.summary.total_balance)}`"
                 />
               </div>
@@ -562,11 +561,6 @@ const openStatement = async (customer: any) => {
 
 const submitPayment = async () => {
   if (!payForm.value.amount || payForm.value.amount <= 0) return;
-  if (payForm.value.amount > statement.value.summary.total_balance + 0.01) {
-    payErr.value = true;
-    payMsg.value = 'المبلغ أكبر من الرصيد المتبقي على العميل';
-    return;
-  }
   savingPayment.value = true;
   payMsg.value = '';
   payErr.value = false;

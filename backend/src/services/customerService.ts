@@ -1,11 +1,15 @@
 import { getClient, query, withTransaction } from '../database/pool.ts';
 import { AppError } from '../types/errors.ts';
 import { recalculateCustomerBalance } from './customerBalanceService.ts';
-import { sanitizeLimit } from '../utils/money.ts';
+import { sanitizeLimit, roundMoney } from '../utils/money.ts';
 import { invalidateDashboardCache } from './dashboardService.ts';
 
-const generateCustomerCode = async () => {
-  const res = await query(
+const generateCustomerCode = async (
+  clientQuery?: (sql: string, params?: any[]) => Promise<any>,
+) => {
+  const runner = clientQuery || query;
+  await runner(`SELECT pg_advisory_xact_lock(hashtext('customer_code_seq'))`);
+  const res = await runner(
     `SELECT COALESCE(MAX(
        CASE WHEN code ~ '^C-[0-9]+$'
        THEN CAST(SUBSTRING(code FROM 3) AS INT)
@@ -27,9 +31,15 @@ export const getCustomers = async (filters: Record<string, any> = {}) => {
     SELECT
       c.*,
       COALESCE(cs.total_purchased, 0) AS total_purchased,
-      COALESCE(cs.total_paid, 0) AS total_paid,
-      COALESCE(c.opening_balance, 0) + COALESCE(cs.total_purchased, 0) - COALESCE(cs.total_paid, 0) AS total_balance
+      COALESCE(cs.total_paid, 0) + COALESCE(dp.total_direct_paid, 0) AS total_paid,
+      COALESCE(c.opening_balance, 0) - COALESCE(dp.total_direct_paid, 0) + COALESCE(cs.total_purchased, 0) - COALESCE(cs.total_paid, 0) AS total_balance
     FROM customers c
+    LEFT JOIN (
+      SELECT reference_id AS customer_id, COALESCE(SUM(amount), 0) AS total_direct_paid
+      FROM payments
+      WHERE reference_type IN ('customer_opening', 'customer_advance', 'customer_deposit') OR reference_type = 'customer'
+      GROUP BY reference_id
+    ) dp ON dp.customer_id = c.id
     LEFT JOIN (
       SELECT customer_id,
              SUM(total_purchased) AS total_purchased,
@@ -49,7 +59,6 @@ export const getCustomers = async (filters: Record<string, any> = {}) => {
           GROUP BY reference_id
         ) p ON p.reference_id = s.id
         WHERE s.deleted_at IS NULL
-          AND s.sale_type = 'wholesale'
           AND s.status = 'completed'
 
         UNION ALL
@@ -116,7 +125,6 @@ export const getCustomerById = async (id: number) => {
      FROM sales s
      WHERE s.customer_id = $1
        AND s.deleted_at IS NULL
-       AND s.sale_type = 'wholesale'
        AND s.status = 'completed'
      UNION ALL
      SELECT
@@ -271,7 +279,6 @@ export const recordPayment = async (customerId: number, data: Record<string, any
        WHERE s.customer_id = $1
         AND s.deleted_at IS NULL
         AND s.status = 'completed'
-        AND s.sale_type = 'wholesale'
 
        UNION ALL
 
@@ -300,28 +307,28 @@ export const recordPayment = async (customerId: number, data: Record<string, any
       }))
       .filter((debt) => debt.remaining > 0.01);
 
-    // الرصيد الافتتاحي يُعامل كدين قابل للتسوية (وهو الأقدم دائماً في FIFO)
-    if (Number(customer.opening_balance || 0) > 0.01) {
+    // الرصيد الافتتاحي يُعامل كدين قابل للتسوية بالأسبقية (FIFO) دون تعديل قيمته الأصلية
+    const rawOpeningBalance = Number(customer.opening_balance || 0);
+    const obPaidRes = await client.query(
+      `SELECT COALESCE(SUM(amount), 0) AS paid
+       FROM payments
+       WHERE reference_type = 'customer_opening' AND reference_id = $1`,
+      [customerId],
+    );
+    const obPaid = Number(obPaidRes.rows[0]?.paid || 0);
+    const remainingOpeningBalance = Math.max(0, rawOpeningBalance - obPaid);
+
+    if (remainingOpeningBalance > 0.01) {
       openDebts.unshift({
         entry_type: 'opening_balance',
         id: customer.id,
-        entry_number: '\u0631\u0635\u064A\u062F \u0627\u0641\u062A\u062A\u0627\u062D\u064A',
-        total_amount: Number(customer.opening_balance),
-        paid_amount: 0,
+        entry_number: 'رصيد افتتاحي',
+        total_amount: rawOpeningBalance,
+        paid_amount: obPaid,
         entry_date: null,
         created_at: null,
-        remaining: Number(customer.opening_balance),
+        remaining: remainingOpeningBalance,
       });
-    }
-
-    const totalRemaining = openDebts.reduce((sum, debt) => sum + debt.remaining, 0);
-    if (totalRemaining <= 0.01) {
-      throw new AppError('لا توجد مبيعات أو فواتير مستحقة لهذا العميل');
-    }
-    if (amount > totalRemaining + 0.01) {
-      throw new AppError(
-        `المبلغ (${amount}) أكبر من إجمالي المستحق (${totalRemaining.toFixed(2)})`,
-      );
     }
 
     let remainingPayment = amount;
@@ -336,11 +343,25 @@ export const recordPayment = async (customerId: number, data: Record<string, any
       const newStatus = newPaid >= Number(debt.total_amount) - 0.01 ? 'paid' : 'partial';
 
       if (debt.entry_type === 'opening_balance') {
-        // تسوية الرصيد الافتتاحي: تخفيضه مباشرة على العميل (recalculateCustomerBalance يلتقط التغيير)
+        const payNum = `PAY-OB${debt.id}-${stamp}-${allocations.length + 1}`;
         await client.query(
-          `UPDATE customers SET opening_balance = GREATEST(0, COALESCE(opening_balance, 0) - $1) WHERE id = $2`,
-          [paidForDebt, customerId],
+          `INSERT INTO payments (payment_number, reference_type, reference_id, amount, payment_method, notes, user_id)
+           VALUES ($1, 'customer_opening', $2, $3, $4, $5, $6)`,
+          [
+            payNum,
+            customerId,
+            paidForDebt,
+            data.payment_method || 'cash',
+            data.notes || 'سداد من الرصيد الافتتاحي',
+            data.user_id || null,
+          ],
         );
+        allocations.push({
+          entry_type: 'opening_balance',
+          id: customerId,
+          entry_number: 'رصيد افتتاحي',
+          amount: paidForDebt,
+        });
       } else if (debt.entry_type === 'sale') {
         const payNum = `PAY-S${debt.id}-${stamp}-${allocations.length + 1}`;
         await client.query(
@@ -363,6 +384,12 @@ export const recordPayment = async (customerId: number, data: Record<string, any
           newStatus,
           debt.id,
         ]);
+        allocations.push({
+          entry_type: 'sale',
+          id: debt.id,
+          entry_number: debt.entry_number,
+          amount: paidForDebt,
+        });
       } else {
         const payNum = `PAY-INV${debt.id}-${stamp}-${allocations.length + 1}`;
         await client.query(
@@ -381,20 +408,39 @@ export const recordPayment = async (customerId: number, data: Record<string, any
           newStatus,
           debt.id,
         ]);
-        await client.query(
-          `UPDATE sales SET payment_status = $1 WHERE id = (SELECT sale_id FROM invoices WHERE id = $2)`,
-          [newStatus, debt.id],
-        );
+        allocations.push({
+          entry_type: 'invoice',
+          id: debt.id,
+          entry_number: debt.entry_number,
+          amount: paidForDebt,
+        });
       }
 
+      remainingPayment = Math.round((remainingPayment - paidForDebt) * 100) / 100;
+    }
+
+    // قبول الدفعات المقدمة في حال زاد المبلغ عن إجمالي الديون القائمة
+    if (remainingPayment > 0.001) {
+      const payNum = `PAY-ADV${customerId}-${stamp}-${allocations.length + 1}`;
+      await client.query(
+        `INSERT INTO payments (payment_number, reference_type, reference_id, amount, payment_method, notes, user_id)
+         VALUES ($1, 'customer_advance', $2, $3, $4, $5, $6)`,
+        [
+          payNum,
+          customerId,
+          remainingPayment,
+          data.payment_method || 'cash',
+          data.notes ? `${data.notes} (دفعة مقدمة / رصيد دائن)` : 'دفعة مقدمة على الحساب',
+          data.user_id || null,
+        ],
+      );
       allocations.push({
-        type: debt.entry_type,
-        id: debt.id,
-        number: debt.entry_number,
-        amount: paidForDebt,
-        new_status: newStatus,
+        entry_type: 'customer_advance',
+        id: customerId,
+        entry_number: 'دفعة مقدمة',
+        amount: remainingPayment,
       });
-      remainingPayment -= paidForDebt;
+      remainingPayment = 0;
     }
 
     await recalculateCustomerBalance((text, params) => client.query(text, params), customerId);
@@ -596,7 +642,7 @@ export const getCustomerStatement = async (id: number) => {
 
   const totalPurchased = rows.reduce((sum, r) => sum + Number(r.total_amount || 0), 0);
   const totalPaid = rows.reduce((sum, r) => sum + Number(r.paid_amount || 0), 0);
-  const totalBalance = Math.max(0, totalPurchased - totalPaid);
+  const totalBalance = roundMoney(totalPurchased - totalPaid);
 
   return {
     customer,

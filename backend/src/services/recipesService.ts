@@ -600,12 +600,15 @@ export const produceRecipeBatch = async (
       client.query(sql, params),
     );
     const primaryWarehouseId = Number(recipe.primary_warehouse_id || 0);
-    let targetWarehouseId = primaryWarehouseId || null;
-    if (!targetWarehouseId && warehouseId) {
+    let targetWarehouseId: number | null = null;
+    if (warehouseId) {
       targetWarehouseId = await resolveWarehouseId(client, warehouseId);
-    } else if (!targetWarehouseId) {
+    }
+    if (!targetWarehouseId) {
       targetWarehouseId =
-        storeWarehouseId || (await resolveWarehouseId(client, recipe.primary_warehouse_id));
+        primaryWarehouseId ||
+        storeWarehouseId ||
+        (await resolveWarehouseId(client, recipe.primary_warehouse_id));
     }
     if (!targetWarehouseId) throw new AppError('Warehouse is required', 400);
 

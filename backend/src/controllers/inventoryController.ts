@@ -40,9 +40,6 @@ const inventory = {
     ok(res, await inventoryService.adjustStock(req.body, req.user.id));
   }),
   /**
-     ok(res, await inventoryService.adjustStock(req.body, req.user.id));
-  }),
-  /**
    * مسح جميع أرصدة المخزون.
    * @param {import('express').Request} req طلب HTTP
    * @param {import('express').Response} res استجابة HTTP

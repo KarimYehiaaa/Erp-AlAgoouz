@@ -9,6 +9,10 @@ import { authenticate, authorize, auditLog } from '../middleware/auth.ts';
 import { requireConfirmation } from '../middleware/confirmAction.ts';
 import { validateBody, validateQuery } from '../middleware/validate.ts';
 import { enforceWarehouseAccess } from '../middleware/branchIsolation.ts';
+import {
+  requireManagerOverride,
+  enforceCashierDiscountOverride,
+} from '../middleware/managerOverride.ts';
 import { upload } from './helpers.ts';
 import {
   commonQuerySchema,
@@ -86,6 +90,8 @@ router.post(
   salesCreateAuth,
   enforceWarehouseAccess,
   validateBody(saleSchema),
+  // خصم الكاشير الكبير يتطلب توكن تجاوز مدير (يُصدر من /pos/verify-pin) — فرض على الخادم
+  enforceCashierDiscountOverride,
   auditLog('sale_create', 'sales'),
   api.sales.create,
 );
@@ -102,6 +108,9 @@ router.post(
   '/sales/:id/return',
   authenticate,
   authorize('pos.add', 'pos.edit', 'sales.edit'),
+  enforceWarehouseAccess,
+  // إرجاع الفاتورة بواسطة كاشير يتطلب مصادقة مدير مفروضة على الخادم (X-Manager-Override)
+  requireManagerOverride,
   validateBody(saleReturnSchema),
   api.sales.return,
 );

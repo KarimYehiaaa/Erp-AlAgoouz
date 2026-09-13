@@ -285,19 +285,101 @@
 
         <!-- Server Status & Copyright -->
         <div class="form-footer">
-          <div class="server-status">
+          <button
+            type="button"
+            class="server-status-btn"
+            @click="showServerConfig = true"
+            title="تغيير رابط السيرفر"
+          >
             <span class="pulse-dot"></span>
-            <span>متصل بالسيرفر</span>
-          </div>
+            <span>{{ serverDisplayLabel }}</span>
+            <span class="cfg-badge">⚙️ ضبط</span>
+          </button>
           <span class="copyright">تصميم وتطوير بن العجوز &copy; 2026</span>
         </div>
       </div>
     </main>
+
+    <!-- Modal: Server Configuration -->
+    <div
+      v-if="showServerConfig"
+      class="server-modal-overlay"
+      @click.self="showServerConfig = false"
+    >
+      <div class="server-modal-card">
+        <div class="modal-head">
+          <div class="modal-title-flex">
+            <span class="modal-icon">⚙️</span>
+            <h3>إعدادات خادم النظام (Backend Server)</h3>
+          </div>
+          <button class="modal-close-btn" @click="showServerConfig = false">✕</button>
+        </div>
+
+        <div class="modal-body">
+          <p class="modal-desc">
+            حدد عنوان السيرفر الذي يعمل عليه النظام (مهم لتطبيقات الموبايل وشبكة الفرع المحلية).
+          </p>
+
+          <div class="field-wrapper mb-3">
+            <input
+              v-model="customServerUrl"
+              type="text"
+              class="server-input"
+              placeholder="مثال: https://agoouz.vercel.app أو http://192.168.1.14:3000"
+              dir="ltr"
+            />
+          </div>
+
+          <div class="presets-grid">
+            <button
+              type="button"
+              class="preset-chip"
+              :class="{ active: customServerUrl === 'https://agoouz.vercel.app' }"
+              @click="customServerUrl = 'https://agoouz.vercel.app'"
+            >
+              ☁️ السيرفر السحابي (أونلاين)
+            </button>
+            <button
+              type="button"
+              class="preset-chip"
+              :class="{ active: customServerUrl === 'http://192.168.1.14:3000' }"
+              @click="customServerUrl = 'http://192.168.1.14:3000'"
+            >
+              🏢 سيرفر الفرع (192.168.1.14:3000)
+            </button>
+            <button
+              type="button"
+              class="preset-chip"
+              :class="{ active: customServerUrl === 'http://localhost:3000' }"
+              @click="customServerUrl = 'http://localhost:3000'"
+            >
+              💻 الكمبيوتر المباشر (Localhost:3000)
+            </button>
+          </div>
+
+          <div v-if="testResultMsg" class="test-box" :class="testResultStatus">
+            {{ testResultMsg }}
+          </div>
+        </div>
+
+        <div class="modal-foot">
+          <button
+            type="button"
+            class="btn-test"
+            :disabled="testingConn"
+            @click="testServerConnection"
+          >
+            {{ testingConn ? 'جاري الفحص...' : '⚡ فحص الاتصال' }}
+          </button>
+          <button type="button" class="btn-save" @click="saveServerConfig">💾 حفظ والاعتماد</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, nextTick } from 'vue';
+import { ref, computed, onMounted, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import AppIcon from '@/components/AppIcon.vue';
 import { useAuthStore } from '@/stores/auth';
@@ -308,6 +390,8 @@ import {
   usePasswordStrength,
   useInputAnimations,
 } from '@/composables/useLoginAnimations';
+import { getBaseServerUrl, setBaseServerUrl } from '@/api/client';
+import axios from 'axios';
 
 const router = useRouter();
 const auth = useAuthStore();
@@ -362,6 +446,51 @@ const onPasswordInput = () => {
   evaluate(form.value.password);
 };
 
+// ─── Server Config State ───────────────────────────────────
+const showServerConfig = ref(false);
+const customServerUrl = ref(getBaseServerUrl() || 'https://agoouz.vercel.app');
+const testingConn = ref(false);
+const testResultMsg = ref('');
+const testResultStatus = ref<'success' | 'error' | ''>('');
+
+const serverDisplayLabel = computed(() => {
+  const url = getBaseServerUrl();
+  if (!url || url.includes('agoouz.vercel.app')) return 'سيرفر سحابي ☁️';
+  if (url.includes('192.168.') || url.includes('localhost')) return 'سيرفر محلي 🏢';
+  return 'سيرفر مخصص 🌐';
+});
+
+const testServerConnection = async () => {
+  testingConn.value = true;
+  testResultMsg.value = '';
+  testResultStatus.value = '';
+
+  const target = (customServerUrl.value || getBaseServerUrl()).replace(/\/+$/, '');
+  const startTime = Date.now();
+  try {
+    const res = await axios.get(`${target}/api/v1/health`, { timeout: 6000 });
+    const latency = Date.now() - startTime;
+    if (res.data && res.data.success) {
+      testResultStatus.value = 'success';
+      const isDbOk = res.data.db?.connected ? ' • قاعدة البيانات متصلة ✅' : '';
+      testResultMsg.value = `✅ الاتصال ناجح! (استجابة: ${latency}ms${isDbOk})`;
+    } else {
+      throw new Error('استجابة غير متوقعة');
+    }
+  } catch {
+    testResultStatus.value = 'error';
+    testResultMsg.value = `❌ تعذر الاتصال بالسيرفر (${target}). تحقق من تشغيل السيرفر والإنترنت.`;
+  } finally {
+    testingConn.value = false;
+  }
+};
+
+const saveServerConfig = () => {
+  setBaseServerUrl(customServerUrl.value);
+  showServerConfig.value = false;
+  testResultMsg.value = '';
+};
+
 // ─── Login Handler ────────────────────────────────────────
 const handleLogin = async () => {
   if (!form.value.username || !form.value.password) return;
@@ -377,8 +506,18 @@ const handleLogin = async () => {
       localStorage.removeItem(STORAGE_KEY);
     }
 
-    const targetRoute = auth.isCashier ? '/branch-sales' : '/';
-    router.push(targetRoute);
+    const isNative =
+      typeof window !== 'undefined' &&
+      (!!(window as any).Capacitor?.isNativePlatform?.() ||
+        window.location.protocol === 'capacitor:' ||
+        window.location.protocol === 'file:');
+
+    if (isNative) {
+      router.push('/mobile');
+    } else {
+      const targetRoute = auth.isCashier ? '/branch-sales' : '/';
+      router.push(targetRoute);
+    }
   } catch (e: any) {
     error.value = e.message || 'اسم المستخدم أو كلمة المرور غير صحيحة';
     triggerShake();
@@ -1340,6 +1479,207 @@ onMounted(async () => {
   .submit-btn:hover:not(:disabled) {
     transform: none;
   }
+}
+
+/* ─── Server Configuration Modal & Status Styles ─── */
+.server-status-btn {
+  background: transparent;
+  border: 1px solid var(--border-medium, rgba(217, 168, 108, 0.2));
+  border-radius: 20px;
+  padding: 4px 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-secondary, #a89f91);
+  font-size: 0.82rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.server-status-btn:hover {
+  background: var(--surface, rgba(217, 168, 108, 0.1));
+  border-color: var(--accent, #d9a86c);
+  color: var(--text-primary, #f7ede2);
+}
+
+.cfg-badge {
+  background: var(--border-light, rgba(255, 255, 255, 0.1));
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  font-weight: bold;
+}
+
+.server-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(10px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: fadeIn 0.2s ease;
+}
+
+.server-modal-card {
+  background: #1a120b;
+  border: 1px solid rgba(217, 168, 108, 0.35);
+  border-radius: 20px;
+  width: 100%;
+  max-width: 440px;
+  color: #f7ede2;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.9);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-head {
+  padding: 16px 20px;
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-title-flex {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.modal-title-flex h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 800;
+  color: #d9a86c;
+}
+
+.modal-close-btn {
+  background: transparent;
+  border: none;
+  color: #a89f91;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.modal-body {
+  padding: 20px;
+}
+
+.modal-desc {
+  font-size: 0.85rem;
+  color: #c4b9a8;
+  margin: 0 0 16px;
+  line-height: 1.5;
+}
+
+.server-input {
+  width: 100%;
+  padding: 12px 14px;
+  background: #090604;
+  border: 1px solid rgba(217, 168, 108, 0.3);
+  border-radius: 12px;
+  color: #ffffff;
+  font-size: 0.9rem;
+  outline: none;
+  font-family: monospace;
+  box-sizing: border-box;
+}
+
+.server-input:focus {
+  border-color: #d9a86c;
+  box-shadow: 0 0 12px rgba(217, 168, 108, 0.3);
+}
+
+.presets-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 14px 0;
+}
+
+.preset-chip {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 10px 14px;
+  color: #e2d7c9;
+  font-size: 0.82rem;
+  text-align: right;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.preset-chip:hover {
+  background: rgba(217, 168, 108, 0.12);
+  border-color: rgba(217, 168, 108, 0.4);
+}
+
+.preset-chip.active {
+  background: rgba(217, 168, 108, 0.2);
+  border-color: #d9a86c;
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.test-box {
+  margin-top: 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 0.82rem;
+}
+
+.test-box.success {
+  background: rgba(52, 211, 153, 0.15);
+  border: 1px solid rgba(52, 211, 153, 0.4);
+  color: #34d399;
+}
+
+.test-box.error {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: #f87171;
+}
+
+.modal-foot {
+  padding: 14px 20px;
+  background: rgba(0, 0, 0, 0.3);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.btn-test {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #f7ede2;
+  padding: 8px 14px;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.btn-save {
+  background: linear-gradient(135deg, #d9a86c, #8a572a);
+  border: none;
+  color: #ffffff;
+  padding: 8px 18px;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  font-weight: 800;
+  cursor: pointer;
+  font-family: inherit;
+  box-shadow: 0 4px 12px rgba(217, 168, 108, 0.3);
 }
 </style>
 

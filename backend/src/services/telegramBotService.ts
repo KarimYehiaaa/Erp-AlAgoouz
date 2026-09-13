@@ -20,10 +20,8 @@ export class TelegramBotService {
    * جلب بيانات اعتماد بوت تليجرام
    */
   static async getBotCredentials(): Promise<{ token: string; defaultChatId: string }> {
-    const token = (
-      process.env.TELEGRAM_BOT_TOKEN || '8903108709:AAGkPHf9zHkwdrzUR9d6uz-n4k4_F3LP_uI'
-    ).trim();
-    const defaultChatId = (process.env.TELEGRAM_CHAT_ID || '1092703744').trim();
+    const token = (process.env.TELEGRAM_BOT_TOKEN || '').trim();
+    const defaultChatId = (process.env.TELEGRAM_CHAT_ID || '').trim();
     return { token, defaultChatId };
   }
 
@@ -128,10 +126,22 @@ export class TelegramBotService {
     const rawText = (msg.text || '').trim();
     if (!chatId || !rawText) return;
 
-    const { token } = await this.getBotCredentials();
+    const { token, defaultChatId } = await this.getBotCredentials();
     const reply = async (html: string) => {
       await TelegramService.sendMessage(html, { botToken: token, chatId: String(chatId) });
     };
+
+    // التحقق الأمني من هوية مرسل الأمر (Whitelisted Chat IDs)
+    const allowedChatIds = [
+      defaultChatId,
+      ...(process.env.TELEGRAM_ALLOWED_CHATS || '').split(',').map((s) => s.trim()),
+    ].filter(Boolean);
+
+    if (allowedChatIds.length > 0 && !allowedChatIds.includes(String(chatId))) {
+      logger.warn(`[Telegram Bot] محاولة وصول غير مصرح بها من Chat ID: ${chatId}`);
+      await reply('⛔ <b>عذراً</b>، هذا الحساب غير مصرح له بالوصول إلى بيانات بن العجوز ERP.');
+      return;
+    }
 
     const normalized = rawText.replace(/^\//, '').trim().toLowerCase();
 
@@ -160,16 +170,20 @@ export class TelegramBotService {
           'sales',
           'مبيعات',
           'المبيعات',
-          'تقرير_المبيعات',
           'تقرير',
           'التقرير',
-          'تقرير_اليوم',
+          'ارباح',
+          'أرباح',
+          'الارباح',
+          'الأرباح',
+          'دخل',
+          'الدخل',
         ].includes(normalized)
       ) {
         const today = new Date().toISOString().slice(0, 10);
-        const res = await db.query(
+        const stats = await db.query(
           `SELECT
-             COALESCE(COUNT(*), 0) as total_orders,
+             COUNT(id) as total_orders,
              COALESCE(SUM(total_amount), 0) as total_sales,
              COALESCE(SUM(profit_amount), 0) as total_profit
            FROM sales
@@ -177,7 +191,7 @@ export class TelegramBotService {
              AND status = 'completed' AND deleted_at IS NULL`,
           [today],
         );
-        const row = res.rows[0];
+        const row = stats.rows[0];
         const salesMsg = `
 📊 <b>تقرير مبيعات اليوم (${today})</b>
 ━━━━━━━━━━━━━━━━━━━━
@@ -190,16 +204,23 @@ export class TelegramBotService {
         return;
       }
 
-      // 3. أمر النواقص والمخزون
+      // 3. أمر النواقص والمخزون (إصلاح B-01 بالربط مع جدول inventory واستخدام min_stock)
       if (
         ['stock', 'نواقص', 'النواقص', 'مخزون', 'المخزون', 'خامات', 'الخامات'].includes(normalized)
       ) {
         const res = await db.query(
-          `SELECT name_ar, current_stock, reorder_point, unit
-           FROM products
-           WHERE current_stock <= reorder_point AND is_active = true AND deleted_at IS NULL
+          `SELECT
+             p.name_ar,
+             COALESCE(SUM(i.quantity), 0) as current_stock,
+             COALESCE(p.min_stock, 0) as reorder_point,
+             p.unit
+           FROM products p
+           LEFT JOIN inventory i ON p.id = i.product_id
+           WHERE p.is_active = true AND p.deleted_at IS NULL
+           GROUP BY p.id, p.name_ar, p.min_stock, p.unit
+           HAVING COALESCE(SUM(i.quantity), 0) <= COALESCE(p.min_stock, 0)
            ORDER BY current_stock ASC
-           LIMIT 10`,
+           LIMIT 15`,
         );
         if (res.rows.length === 0) {
           await reply(
@@ -210,7 +231,7 @@ export class TelegramBotService {
         const items = res.rows
           .map(
             (r: any, idx: number) =>
-              `${idx + 1}. <b>${r.name_ar}</b>: المتبقي <code>${r.current_stock}</code> ${r.unit || ''} (حد الطلب: ${r.reorder_point})`,
+              `${idx + 1}. <b>${r.name_ar}</b>: المتبقي <code>${Number(r.current_stock)}</code> ${r.unit || ''} (حد الطلب: ${Number(r.reorder_point)})`,
           )
           .join('\n');
         await reply(`⚠️ <b>تنبيه نواقص المخزون (${res.rows.length} أصناف):</b>\n\n${items}`);

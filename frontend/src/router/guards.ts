@@ -7,6 +7,11 @@ import { useAuthStore } from '@/stores/auth';
  */
 export const navigationGuard: NavigationGuard = async (to, _from, next) => {
   const auth = useAuthStore();
+  const isNative =
+    typeof window !== 'undefined' &&
+    (!!(window as any).Capacitor?.isNativePlatform?.() ||
+      window.location.protocol === 'capacitor:' ||
+      window.location.protocol === 'file:');
 
   if (auth.isAuthenticated && !auth.profileLoaded) {
     // لا نسمح أبداً لطلب profile عالق بمنع التنقل — مهلة قصوى 4 ثوانٍ
@@ -15,7 +20,13 @@ export const navigationGuard: NavigationGuard = async (to, _from, next) => {
 
   if (to.meta.requiresAuth && !auth.isAuthenticated) return next('/login');
   if (to.meta.guest && auth.isAuthenticated) {
+    if (isNative) return next('/mobile');
     return next(auth.isCashier ? '/branch-sales' : '/');
+  }
+
+  // في تطبيق الموبايل الأصلي، نوجه الصفحة الرئيسية مباشرة إلى شاشة الموبايل
+  if (isNative && (to.path === '/' || to.name === 'Dashboard')) {
+    return next('/mobile');
   }
 
   // حماية وتوجيه الكاشير التلقائي

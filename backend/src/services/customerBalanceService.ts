@@ -22,7 +22,7 @@ export const recalculateCustomerBalance = async (
   await execQuery(
     `
     WITH balance_calc AS (
-      SELECT SUM(outstanding) AS total_outstanding
+      SELECT COALESCE(SUM(outstanding), 0) AS total_outstanding
       FROM (
         SELECT
           CASE
@@ -39,7 +39,6 @@ export const recalculateCustomerBalance = async (
         FROM sales s
         WHERE s.customer_id = $1
           AND s.deleted_at IS NULL
-          AND s.sale_type = 'wholesale'
           AND s.status IN ('completed', 'returned')
 
         UNION ALL
@@ -60,11 +59,17 @@ export const recalculateCustomerBalance = async (
           AND i.sale_id IS NULL
           AND i.deleted_at IS NULL
       ) source
+    ),
+    direct_payments AS (
+      SELECT COALESCE(SUM(amount), 0) AS total_direct_paid
+      FROM payments
+      WHERE (reference_type IN ('customer_opening', 'customer_advance', 'customer_deposit') OR reference_type = 'customer')
+        AND reference_id = $1
     )
     UPDATE customers c
-    SET balance = COALESCE(c.opening_balance, 0) + COALESCE(bc.total_outstanding, 0),
-        current_balance = COALESCE(c.opening_balance, 0) + COALESCE(bc.total_outstanding, 0)
-    FROM balance_calc bc
+    SET balance = COALESCE(c.opening_balance, 0) - COALESCE(dp.total_direct_paid, 0) + COALESCE(bc.total_outstanding, 0),
+        current_balance = COALESCE(c.opening_balance, 0) - COALESCE(dp.total_direct_paid, 0) + COALESCE(bc.total_outstanding, 0)
+    FROM balance_calc bc, direct_payments dp
     WHERE c.id = $1
     `,
     [customerId],

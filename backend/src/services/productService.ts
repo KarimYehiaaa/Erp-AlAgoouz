@@ -1,10 +1,11 @@
-﻿import { getClient, query } from '../database/pool.ts';
+import { getClient, query } from '../database/pool.ts';
 import { AppError } from '../types/errors.ts';
 import { getProductsEffectiveCosts } from './productCostService.ts';
 import { getDefaultWarehouseId, getWarehouseIdByCode } from './warehouseService.ts';
 import { ensureInventoryRow } from './inventoryService.ts';
 import { sanitizeLimit, toNumber } from '../utils/money.ts';
 import { appCache } from '../utils/cache.ts';
+import { invalidateDashboardCache } from './dashboardService.ts';
 
 /**
  * Ø¬Ù„Ø¨ Ù‚Ø§Ø¦Ù…Ø© Ø§Ù„Ù…Ù†ØªØ¬Ø§Øª Ù…Ø¹ ÙÙ„ØªØ±Ø© ÙˆØ¨Ø­Ø« ÙˆØªØ±Ù‚ÙŠÙ….
@@ -81,15 +82,16 @@ export const getProducts = async (filters: Record<string, any> = {}) => {
   params.push(sanitizeLimit(filters.limit));
   const rows = (await query(sql, params)).rows;
 
-  const costs = await getProductsEffectiveCosts(
-    { query },
-    rows.map((r) => r.id),
-  );
-  for (const r of rows) {
-    if (r.has_active_recipe) {
-      const effective = costs.get(Number(r.id));
-      if (effective && effective.cost > 0) {
-        r.purchase_price = effective.cost;
+  const recipeProductIds = rows.filter((r) => r.has_active_recipe).map((r) => r.id);
+
+  if (recipeProductIds.length > 0) {
+    const costs = await getProductsEffectiveCosts({ query }, recipeProductIds);
+    for (const r of rows) {
+      if (r.has_active_recipe) {
+        const effective = costs.get(Number(r.id));
+        if (effective && effective.cost > 0) {
+          r.purchase_price = effective.cost;
+        }
       }
     }
   }
@@ -217,6 +219,8 @@ export const createProduct = async (data: Record<string, any>) => {
 
     await client.query('COMMIT');
     appCache.invalidateByTag('product_cost');
+    appCache.invalidateByTag('products');
+    invalidateDashboardCache();
     return result.rows[0];
   } catch (err: any) {
     await client.query('ROLLBACK');
@@ -297,22 +301,13 @@ export const updateProduct = async (id: number, data: Record<string, any>) => {
     if (sets.length) {
       sets.push('updated_at = NOW()');
       values.push(id);
-      const result = await client.query(
-        'UPDATE products SET __SETS__ WHERE id = $__ID__ AND deleted_at IS NULL RETURNING id'
-          .replace('__SETS__', sets.join(', '))
-          .replace('__ID__', String(i)),
+      await client.query(
+        'UPDATE products SET ' + sets.join(', ') + ' WHERE id = $' + i + ' AND deleted_at IS NULL',
         values,
       );
-      if (!result.rows[0]) throw new AppError('Ø§Ù„Ù…Ù†ØªØ¬ ØºÙŠØ± Ù…ÙˆØ¬ÙˆØ¯', 404);
     }
 
     if (warehouseChanged) {
-      const whRes = await client.query(
-        'SELECT id FROM warehouses WHERE id = $1 AND deleted_at IS NULL AND is_active = TRUE',
-        [nextWarehouseId],
-      );
-      if (!whRes.rows[0]) throw new AppError('Ø§Ù„Ù…Ø®Ø²Ù† ØºÙŠØ± Ù…ÙˆØ¬ÙˆØ¯', 404);
-
       await ensureInventoryRow(client, id, nextWarehouseId);
       await client.query(
         'UPDATE products SET primary_warehouse_id = $1, updated_at = NOW() WHERE id = $2',
@@ -334,6 +329,8 @@ export const updateProduct = async (id: number, data: Record<string, any>) => {
 
     await client.query('COMMIT');
     appCache.invalidateByTag('product_cost');
+    appCache.invalidateByTag('products');
+    invalidateDashboardCache();
     return getProductById(id);
   } catch (err: any) {
     await client.query('ROLLBACK');
@@ -343,7 +340,7 @@ export const updateProduct = async (id: number, data: Record<string, any>) => {
   }
 };
 
-/** Ø­Ø°Ù Ù…Ù†ØªØ¬ (Ø­Ø°Ù Ù†Ø§Ø¹Ù…). */
+/** حذف منتج (حذف ناعم). */
 export const deleteProduct = async (id: number) => {
   const client = await getClient();
   try {
@@ -356,7 +353,7 @@ export const deleteProduct = async (id: number) => {
        RETURNING id`,
       [id],
     );
-    if (!productRes.rows[0]) throw new AppError('Ø§Ù„Ù…Ù†ØªØ¬ ØºÙŠØ± Ù…ÙˆØ¬ÙˆØ¯', 404);
+    if (!productRes.rows[0]) throw new AppError('المنتج غير موجود', 404);
 
     await client.query(`DELETE FROM inventory WHERE product_id = $1`, [id]);
 
@@ -375,6 +372,8 @@ export const deleteProduct = async (id: number) => {
 
     await client.query('COMMIT');
     appCache.invalidateByTag('product_cost');
+    appCache.invalidateByTag('products');
+    invalidateDashboardCache();
   } catch (err: any) {
     await client.query('ROLLBACK');
     throw err;
@@ -383,10 +382,10 @@ export const deleteProduct = async (id: number) => {
   }
 };
 
-/** ØªØ¹ÙŠÙŠÙ† Ø§Ù„Ù…Ø®Ø²Ù† Ø§Ù„Ø±Ø¦ÙŠØ³ÙŠ Ù„Ù…Ù†ØªØ¬. */
+/** تعيين المخزن الرئيسي لمنتج. */
 export const setProductWarehouse = async (id: number, warehouseId: number) => {
   const wid = Number(warehouseId);
-  if (!wid) throw new AppError('Ù…Ø¹Ø±Ù Ø§Ù„Ù…Ø®Ø²Ù† ØºÙŠØ± ØµØ§Ù„Ø­', 400);
+  if (!wid) throw new AppError('معرف المخزن غير صالح', 400);
   const updated = await updateProduct(id, { primary_warehouse_id: wid });
   const totalQty = Array.isArray(updated?.stock)
     ? updated.stock.reduce((sum, row) => sum + Number(row.quantity || 0), 0)
@@ -394,7 +393,7 @@ export const setProductWarehouse = async (id: number, warehouseId: number) => {
   return { product_id: Number(id), warehouse_id: wid, quantity: totalQty };
 };
 
-/** Ù…Ø³Ø­ ÙƒÙ„ Ø§Ù„Ù…Ù†ØªØ¬Ø§Øª (Ø¥Ø¹Ø§Ø¯Ø© Ø¶Ø¨Ø·) â€” Ù„Ù„Ù…Ø¯ÙŠØ± ÙÙ‚Ø·. */
+/** مسح كل المنتجات (إعادة ضبط) — للمدير فقط. */
 export const deleteAllProducts = async () => {
   const client = await getClient();
   try {
@@ -426,6 +425,8 @@ export const deleteAllProducts = async () => {
 
     await client.query('COMMIT');
     appCache.invalidateByTag('product_cost');
+    appCache.invalidateByTag('products');
+    invalidateDashboardCache();
     return { deletedCount: result.rowCount || 0 };
   } catch (err: any) {
     await client.query('ROLLBACK');
@@ -535,7 +536,7 @@ export const getBranchProducts = async (filters: Record<string, any> = {}) => {
     (await getDefaultWarehouseId());
   let sql = `
     SELECT
-      p.id, p.sku, p.name_ar, p.unit, p.sale_price, p.purchase_price,
+      p.id, p.sku, p.barcode, p.name_ar, p.unit, p.sale_price, p.purchase_price,
       p.category_id, pc.name_ar AS category_name,
       p.primary_warehouse_id,
       (SELECT name_ar FROM warehouses w WHERE w.id = p.primary_warehouse_id) AS primary_warehouse_name,
@@ -569,7 +570,7 @@ export const getBranchProducts = async (filters: Record<string, any> = {}) => {
     params.push(filters.category_id);
   }
   if (filters.search) {
-    sql += ` AND (p.name_ar ILIKE $${i} OR p.sku ILIKE $${i})`;
+    sql += ` AND (p.name_ar ILIKE $${i} OR p.sku ILIKE $${i} OR p.barcode ILIKE $${i})`;
     params.push(`%${filters.search}%`);
   }
   if (filters.has_recipe === 'true' || filters.has_recipe === true) {
@@ -634,6 +635,8 @@ export const deleteCategory = async (id: number) => {
     await client.query(`UPDATE product_categories SET deleted_at = NOW() WHERE id = $1`, [id]);
     await client.query('COMMIT');
     appCache.invalidateByTag('product_cost');
+    appCache.invalidateByTag('products');
+    invalidateDashboardCache();
     return { id };
   } catch (err: any) {
     await client.query('ROLLBACK');

@@ -3,22 +3,22 @@ import { logger } from '../services/loggerService.ts';
 
 const ALGORITHM = 'aes-256-gcm';
 
-// مفتاح التشفير من متغيرات البيئة مع اشتقاق احتياطي آمن لتفادي تعطل الخادم السحابي
+const isProd = process.env.NODE_ENV === 'production';
 const backupKeySecret =
   process.env.BACKUP_ENCRYPTION_KEY?.trim() ||
   process.env.JWT_SECRET?.trim() ||
-  'bin_al_ajouz_secure_backup_encryption_fallback_key_2026';
+  (isProd ? '' : 'dev_backup_encryption_secret_key_32_chars_long!');
 
-if (!process.env.BACKUP_ENCRYPTION_KEY) {
-  logger.warn(
-    '[Crypto] ℹ BACKUP_ENCRYPTION_KEY غير محدد صراحة في متغيرات البيئة — تم استخدام مفتاح مشتق آمن لضمان استمرارية التشغيل.',
+if (isProd && !process.env.BACKUP_ENCRYPTION_KEY && !process.env.JWT_SECRET) {
+  throw new Error(
+    '[Security Error] BACKUP_ENCRYPTION_KEY or JWT_SECRET is required for encrypted backups in production.',
   );
 }
 
 // Derives a 32-byte key from the environment secret
 const ENCRYPTION_KEY = crypto.scryptSync(
   backupKeySecret,
-  'salt_al_ajouz_v2', // Changed salt for GCM
+  'salt_al_ajouz_v2', // Salt for GCM
   32,
 );
 /**

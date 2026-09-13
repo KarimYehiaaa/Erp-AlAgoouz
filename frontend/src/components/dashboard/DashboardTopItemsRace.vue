@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <article class="panel glass-glow-card race-card">
     <div class="panel-head compact">
       <div>
@@ -15,7 +15,9 @@
       <div v-for="(item, idx) in topItems" :key="item.name" class="race-item">
         <div class="race-header flex items-center justify-between">
           <div class="flex items-center gap-2">
-            <span class="race-rank" :class="'rank-' + (idx + 1)">{{ idx + 1 }}</span>
+            <span class="race-rank" :class="'rank-' + (Number(idx) + 1)">{{
+              Number(idx) + 1
+            }}</span>
             <span class="race-name">{{ item.name }}</span>
           </div>
           <div class="race-meta flex items-center gap-3">
@@ -27,7 +29,7 @@
         <div class="race-track">
           <div
             class="race-bar-fill"
-            :class="'bar-' + (idx + 1)"
+            :class="'bar-' + (Number(idx) + 1)"
             :style="{ width: item.percent + '%' }"
           ></div>
         </div>

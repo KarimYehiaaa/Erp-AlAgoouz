@@ -27,6 +27,8 @@ import telegramRoutes from './telegram.routes.ts';
 import syncRoutes from './sync.routes.ts';
 import partnersRoutes from './partners.routes.ts';
 import automationRoutes from './automation.routes.ts';
+import posRoutes from './pos.routes.ts';
+import managerMobileRoutes from './managerMobile.routes.ts';
 
 const router = Router();
 
@@ -42,8 +44,9 @@ router.use(menuRoutes);
 router.use(telegramRoutes);
 router.use(syncRoutes);
 router.use(partnersRoutes);
-router.use('/partners', partnersRoutes);
 router.use(automationRoutes);
+router.use(posRoutes);
+router.use(managerMobileRoutes);
 
 /**
  * موجّه API الرئيسي — يُسجَّل في التطبيق ويجمع كل مسارات النظام (المصادقة، المبيعات، المخزون، الموارد البشرية...).

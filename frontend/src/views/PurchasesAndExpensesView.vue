@@ -797,6 +797,20 @@ const savePurchaseInvoice = async () => {
         unit_price: toDecimal(x.unit_price),
       }));
     if (!items.length) throw new Error('أضف صنفًا واحدًا على الأقل');
+
+    // منع تكرار نفس الصنف في أكثر من سطر بفاتورة الشراء
+    const seenProductIds = new Set<any>();
+    for (const item of items) {
+      if (seenProductIds.has(item.product_id)) {
+        const prod = products.value.find((p: any) => p.id === item.product_id);
+        const prodName = prod ? prod.name_ar || prod.name : `رقم ${item.product_id}`;
+        throw new Error(
+          `تم تكرار اختيار الصنف (${prodName}) في أكثر من سطر، يرجى دمج الكميات في سطر واحد.`,
+        );
+      }
+      seenProductIds.add(item.product_id);
+    }
+
     const payload = {
       invoice_date: purchaseForm.value.invoice_date,
       supplier_id: purchaseForm.value.supplier_id || null,

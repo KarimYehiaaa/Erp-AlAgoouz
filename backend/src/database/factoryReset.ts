@@ -38,17 +38,25 @@ const executeFactoryReset = async () => {
     const optionalTables = [
       'invoice_items',
       'purchase_invoices',
+      'purchase_invoice_items',
       'purchase_items',
       'inventory_cost_layers',
+      'inventory_cost_layer_consumptions',
       'stocktakes',
       'stocktake_items',
       'employee_attendance',
       'employee_advances',
       'payroll_runs',
+      'payroll_items',
+      'pos_shifts',
+      'pos_cash_movements',
+      'partner_drawings',
+      'manager_approval_requests',
+      'workflow_execution_logs',
     ];
 
     for (const table of optionalTables) {
-      const checkRes = await client.query(`SELECT to_regclass('${table}') AS exists`);
+      const checkRes = await client.query(`SELECT to_regclass($1) AS exists`, [table]);
       if (checkRes.rows[0].exists) {
         tablesToWipe.push(table);
       }
@@ -58,10 +66,17 @@ const executeFactoryReset = async () => {
     await client.query(truncateQuery);
     console.log(' تم مسح جداول الحركات والمخزون.');
 
-    // 2. Reset Customers and Suppliers Balances
-    await client.query(`UPDATE customers SET balance = 0, loyalty_points = 0;`);
+    // 2. Reset Customers, Suppliers, and Partners Balances
+    await client.query(
+      `UPDATE customers SET balance = 0, current_balance = 0, loyalty_points = 0;`,
+    );
     await client.query(`UPDATE suppliers SET balance = 0;`);
-    console.log(' تم تصفير أرصدة العملاء والموردين.');
+    const partnersExists = (await client.query(`SELECT to_regclass('partners') AS exists`)).rows[0]
+      .exists;
+    if (partnersExists) {
+      await client.query(`UPDATE partners SET opening_balance = 0;`);
+    }
+    console.log(' تم تصفير أرصدة العملاء والموردين والشركاء.');
 
     // 3. Reset Sequences
     await client.query(`ALTER SEQUENCE IF EXISTS seq_sales_number RESTART WITH 10000;`);

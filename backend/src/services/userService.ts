@@ -4,6 +4,7 @@ import { AppError } from '../types/errors.ts';
 import { getOpeningBalance } from './openingBalanceService.ts';
 import { encrypt } from '../utils/crypto.ts';
 import { clearWarehouseCache } from '../middleware/branchIsolation.ts';
+import { appCache } from '../utils/cache.ts';
 const getUsers = async () =>
   (
     await query(
@@ -59,6 +60,9 @@ const updateUser = async (id, data) => {
       await client.query(`UPDATE refresh_tokens SET revoked = TRUE WHERE user_id = $1`, [id]);
     }
     await client.query('COMMIT');
+    // إبطال كاش المستخدمين لضمان عدم حدوث تضارب في التوكنات (SESSION_REVOKED)
+    appCache.delete(`auth_user:${id}`);
+    appCache.invalidateByTag('auth_users');
     // تغيير الدور/التفعيل يؤثر على المخازن المسموحة — مسح كاش العزل فوراً
     if (data.role_id !== undefined || data.is_active !== undefined) {
       clearWarehouseCache(id);
@@ -104,6 +108,8 @@ const updateRole = async (id, data) => {
     `UPDATE roles SET name_ar = COALESCE($1, name_ar), description = COALESCE($2, description), updated_at = NOW() WHERE id = $3 AND deleted_at IS NULL RETURNING *`,
     [data.name_ar, data.description, id],
   );
+  appCache.invalidateByTag('auth_roles');
+  appCache.invalidateByTag('auth_users');
   return result.rows[0];
 };
 const deleteRole = async (id) => {
@@ -128,6 +134,8 @@ const deleteRole = async (id) => {
       400,
     );
   await query(`UPDATE roles SET deleted_at = NOW() WHERE id = $1`, [id]);
+  appCache.invalidateByTag('auth_roles');
+  appCache.invalidateByTag('auth_users');
   return { success: true };
 };
 const getNotifications = async (userId) =>
@@ -676,6 +684,9 @@ const deleteUser = async (id, currentUserId) => {
       '\u0627\u0644\u0645\u0633\u062A\u062E\u062F\u0645 \u063A\u064A\u0631 \u0645\u0648\u062C\u0648\u062F',
       404,
     );
+  appCache.delete(`auth_user:${id}`);
+  appCache.invalidateByTag('auth_users');
+  clearWarehouseCache(id);
   return result.rows[0];
 };
 const getPermissions = async () =>
@@ -700,6 +711,7 @@ const updateRolePermissions = async (roleId, permissionIds) => {
       await client.query(sql, values);
     }
     await client.query('COMMIT');
+    appCache.invalidateByTag('auth_roles');
     return { success: true };
   } catch (err: any) {
     await client.query('ROLLBACK');

@@ -208,6 +208,13 @@ const purchaseInvoiceSchema = z
     items: z.array(purchaseItemSchema).min(1).max(500),
   })
   .strip();
+const salePaymentItemSchema = z
+  .object({
+    payment_method: shortText(50),
+    amount: positiveNumber,
+  })
+  .strip();
+
 const saleItemSchema = z
   .object({
     product_id: positiveId,
@@ -216,6 +223,7 @@ const saleItemSchema = z
     discount_amount: optionalNonNegativeNumber,
   })
   .strip();
+
 const saleSchema = z
   .object({
     sync_id: z.string().uuid().optional(),
@@ -230,8 +238,19 @@ const saleSchema = z
     payment_method: shortText(50).optional(),
     payment_status: z.enum(['paid', 'partial', 'unpaid']).optional(),
     paid_amount: optionalNonNegativeNumber,
+    payments: z.array(salePaymentItemSchema).max(10).optional(),
+    loyalty_points_redeemed: optionalNonNegativeNumber,
     notes: nullableText(2e3),
+    pos_shift_id: optionalPositiveId,
+    terminal_id: optionalPositiveId,
     items: z.array(saleItemSchema).max(500).optional(),
+  })
+  .strip();
+
+const verifyPinSchema = z
+  .object({
+    pin: z.string().min(4).max(8),
+    action: z.string().max(100).optional(),
   })
   .strip();
 const saleReturnSchema = z
@@ -551,6 +570,7 @@ export {
   recipeSchema,
   reverseProductionSchema,
   saleItemSchema,
+  salePaymentItemSchema,
   saleReturnSchema,
   saleSchema,
   settingUpdateSchema,
@@ -567,4 +587,5 @@ export {
   updateRoleSchema,
   userCreateSchema,
   userUpdateSchema,
+  verifyPinSchema,
 };

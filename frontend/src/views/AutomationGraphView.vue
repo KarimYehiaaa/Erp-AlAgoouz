@@ -1353,39 +1353,21 @@ function draw3DIsometricBase(
   isHovered: boolean,
 ) {
   ctx.save();
-  const baseY = y + r * 1.05;
-  const baseRx = r * 1.4;
-  const baseRy = r * 0.45;
-
-  // هالة الإسقاط الضوئي على الأرضية
   ctx.beginPath();
-  ctx.ellipse(x, baseY, baseRx, baseRy, 0, 0, Math.PI * 2);
-  ctx.fillStyle = isHovered ? color + '35' : color + '15';
+  ctx.arc(x, y, r * 1.3, 0, Math.PI * 2);
+  ctx.fillStyle = isHovered ? color + '25' : color + '15';
   ctx.fill();
-  ctx.strokeStyle = isHovered ? color + 'bb' : color + '45';
-  ctx.lineWidth = 1.2;
+  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = isHovered ? color + 'AA' : color + '55';
   ctx.stroke();
 
-  // حلقة داخلية منقطة دوارة
-  const rot = time * 0.0008;
+  const rot = time * 0.001;
   ctx.beginPath();
-  ctx.ellipse(x, baseY, baseRx * 0.65, baseRy * 0.65, rot, 0, Math.PI * 2);
-  ctx.strokeStyle = color + '75';
-  ctx.lineWidth = 1;
-  ctx.setLineDash([3, 5]);
+  ctx.arc(x, y, r * 1.6, rot, rot + Math.PI * 1.5);
+  ctx.strokeStyle = color + '88';
+  ctx.lineWidth = 2;
+  ctx.lineCap = 'round';
   ctx.stroke();
-  ctx.setLineDash([]);
-
-  // أشعة هولوجرام صاعدة
-  ctx.beginPath();
-  ctx.moveTo(x - baseRx * 0.7, baseY);
-  ctx.lineTo(x - r * 0.6, y + r * 0.2);
-  ctx.moveTo(x + baseRx * 0.7, baseY);
-  ctx.lineTo(x + r * 0.6, y + r * 0.2);
-  ctx.strokeStyle = color + '28';
-  ctx.lineWidth = 1;
-  ctx.stroke();
-
   ctx.restore();
 }
 
@@ -1404,92 +1386,27 @@ function draw3DVolumetricSphere(
   mouse: { x: number; y: number },
 ) {
   ctx.save();
-
-  // أ) هالة الإشعاع الخارجي
-  const glowGrad = ctx.createRadialGradient(x, y, r * 0.5, x, y, r * 1.8);
-  glowGrad.addColorStop(0, color + (isHovered || isSelected ? '55' : '28'));
-  glowGrad.addColorStop(1, color + '00');
-  ctx.fillStyle = glowGrad;
   ctx.beginPath();
-  ctx.arc(x, y, r * 1.8, 0, Math.PI * 2);
+  ctx.arc(x, y, r * 0.85, 0, Math.PI * 2);
+  ctx.fillStyle = '#0f172a';
   ctx.fill();
-
-  // ب) حلقات جيروسكوب مدارية ثلاثية الأبعاد (3D Gyroscope Rings)
-  const angleY = time * 0.0012;
-  ctx.save();
-  ctx.beginPath();
-  ctx.ellipse(
-    x,
-    y,
-    r * 1.45,
-    r * 1.45 * Math.max(0.18, Math.abs(Math.cos(angleY))),
-    angleY * 0.5,
-    0,
-    Math.PI * 2,
-  );
-  ctx.strokeStyle = color + (isHovered ? '99' : '45');
-  ctx.lineWidth = 1.4;
-  ctx.setLineDash([4, 6]);
-  ctx.stroke();
-  ctx.setLineDash([]);
-
-  // قمر صناعي ثلاثي الأبعاد مع عمق Z
-  const satAngle = time * 0.0018;
-  const satRadiusX = r * 1.45;
-  const satRadiusY = r * 1.45 * Math.max(0.18, Math.abs(Math.cos(angleY)));
-  const satX = x + Math.cos(satAngle) * satRadiusX;
-  const satY = y + Math.sin(satAngle) * satRadiusY;
-  const satZ = Math.sin(satAngle);
-
-  ctx.beginPath();
-  ctx.arc(satX, satY, satZ > 0 ? 3.5 : 2.5, 0, Math.PI * 2);
-  ctx.fillStyle = '#ffffff';
+  ctx.lineWidth = isSelected ? 3 : 2;
+  ctx.strokeStyle = isSelected ? '#ffffff' : color;
   ctx.shadowColor = color;
-  ctx.shadowBlur = satZ > 0 ? 10 : 4;
-  ctx.fill();
-  ctx.restore();
-
-  // ج) مجسم الكرة مع تظليل ضوئي كروي متفاعل مع الماوس
-  const dx = mouse.x - x;
-  const dy = mouse.y - y;
-  const distMouse = Math.sqrt(dx * dx + dy * dy) || 1;
-  const lightOffsetX = (dx / distMouse) * (r * 0.35);
-  const lightOffsetY = (dy / distMouse) * (r * 0.35);
-
-  const lightX = x - r * 0.3 + (distMouse < 220 ? lightOffsetX * 0.45 : 0);
-  const lightY = y - r * 0.35 + (distMouse < 220 ? lightOffsetY * 0.45 : 0);
-
-  const sphereGrad = ctx.createRadialGradient(lightX, lightY, r * 0.05, x, y, r);
-  sphereGrad.addColorStop(0, '#ffffff');
-  sphereGrad.addColorStop(0.2, color);
-  sphereGrad.addColorStop(0.7, shadeColor(color, -35));
-  sphereGrad.addColorStop(1, shadeColor(color, -70));
-
-  ctx.beginPath();
-  ctx.arc(x, y, r, 0, Math.PI * 2);
-  ctx.fillStyle = sphereGrad;
-  ctx.shadowColor = color;
-  ctx.shadowBlur = isSelected ? 30 : isHovered ? 20 : 12;
-  ctx.fill();
-
-  // د) انعكاس زجاجي هلالي علوي
-  ctx.save();
-  ctx.beginPath();
-  ctx.ellipse(x, y - r * 0.42, r * 0.58, r * 0.28, 0, 0, Math.PI * 2);
-  const specularGrad = ctx.createLinearGradient(x, y - r * 0.7, x, y - r * 0.14);
-  specularGrad.addColorStop(0, 'rgba(255, 255, 255, 0.75)');
-  specularGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
-  ctx.fillStyle = specularGrad;
-  ctx.fill();
-  ctx.restore();
-
-  // هـ) إطار معدني مصقول
-  ctx.beginPath();
-  ctx.arc(x, y, r, 0, Math.PI * 2);
-  ctx.strokeStyle = isSelected ? '#ffffff' : isHovered ? '#ffffffdd' : 'rgba(255, 255, 255, 0.45)';
-  ctx.lineWidth = isSelected ? 3.5 : isHovered ? 2.5 : 1.6;
+  ctx.shadowBlur = isHovered ? 15 : 8;
   ctx.stroke();
 
+  ctx.beginPath();
+  ctx.arc(x, y, r * 0.4, 0, Math.PI * 2);
+  ctx.fillStyle = color;
+  ctx.shadowColor = color;
+  ctx.shadowBlur = 20;
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.arc(x - r * 0.2, y - r * 0.2, r * 0.25, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+  ctx.fill();
   ctx.restore();
 }
 
@@ -1507,72 +1424,32 @@ function draw3DFacetedCrystal(
   isSelected: boolean,
 ) {
   ctx.save();
-
-  // هالة إشعاعية
-  const glowGrad = ctx.createRadialGradient(x, y, r * 0.3, x, y, r * 1.6);
-  glowGrad.addColorStop(0, color + '45');
-  glowGrad.addColorStop(1, color + '00');
-  ctx.fillStyle = glowGrad;
   ctx.beginPath();
-  ctx.arc(x, y, r * 1.6, 0, Math.PI * 2);
+  for (let i = 0; i < 6; i++) {
+    const angle = (Math.PI / 3) * i - Math.PI / 2;
+    const px = x + r * 0.9 * Math.cos(angle);
+    const py = y + r * 0.9 * Math.sin(angle);
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+  ctx.fillStyle = '#0f172a';
   ctx.fill();
 
-  const top = { x, y: y - r * 1.15 };
-  const bottom = { x, y: y + r * 1.15 };
-  const left = { x: x - r * 0.95, y };
-  const right = { x: x + r * 0.95, y };
-  const center = { x: x + Math.sin(time * 0.0015) * 3, y: y + Math.cos(time * 0.0012) * 2 };
-
-  // أوجه البلورة الأربعة بتدرجات عمق حقيقية
-  ctx.beginPath();
-  ctx.moveTo(top.x, top.y);
-  ctx.lineTo(left.x, left.y);
-  ctx.lineTo(center.x, center.y);
-  ctx.closePath();
-  ctx.fillStyle = color;
-  ctx.fill();
-
-  ctx.beginPath();
-  ctx.moveTo(top.x, top.y);
-  ctx.lineTo(right.x, right.y);
-  ctx.lineTo(center.x, center.y);
-  ctx.closePath();
-  ctx.fillStyle = shadeColor(color, 25);
-  ctx.fill();
-
-  ctx.beginPath();
-  ctx.moveTo(bottom.x, bottom.y);
-  ctx.lineTo(left.x, left.y);
-  ctx.lineTo(center.x, center.y);
-  ctx.closePath();
-  ctx.fillStyle = shadeColor(color, -25);
-  ctx.fill();
-
-  ctx.beginPath();
-  ctx.moveTo(bottom.x, bottom.y);
-  ctx.lineTo(right.x, right.y);
-  ctx.lineTo(center.x, center.y);
-  ctx.closePath();
-  ctx.fillStyle = shadeColor(color, -45);
-  ctx.fill();
-
-  // أضلاع بلورية نيونية
-  ctx.beginPath();
-  ctx.moveTo(top.x, top.y);
-  ctx.lineTo(left.x, left.y);
-  ctx.lineTo(bottom.x, bottom.y);
-  ctx.lineTo(right.x, right.y);
-  ctx.closePath();
-  ctx.moveTo(top.x, top.y);
-  ctx.lineTo(center.x, center.y);
-  ctx.lineTo(bottom.x, bottom.y);
-  ctx.moveTo(left.x, left.y);
-  ctx.lineTo(center.x, center.y);
-  ctx.lineTo(right.x, right.y);
-  ctx.strokeStyle = isSelected ? '#ffffff' : isHovered ? '#ffffffdd' : 'rgba(255, 255, 255, 0.45)';
-  ctx.lineWidth = isSelected ? 2.5 : 1.4;
+  ctx.lineWidth = isSelected ? 3 : 2;
+  ctx.strokeStyle = isSelected ? '#ffffff' : color;
+  ctx.shadowColor = color;
+  ctx.shadowBlur = isHovered ? 15 : 8;
   ctx.stroke();
 
+  ctx.beginPath();
+  ctx.moveTo(x - r * 0.4, y);
+  ctx.lineTo(x + r * 0.4, y);
+  ctx.moveTo(x, y - r * 0.4);
+  ctx.lineTo(x, y + r * 0.4);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
   ctx.restore();
 }
 
@@ -1590,54 +1467,23 @@ function draw3DIsometricCube(
   isSelected: boolean,
 ) {
   ctx.save();
-  const s = r * 0.9;
-  const depth = r * 0.35;
-
-  // الوجه العلوي (مضيء)
   ctx.beginPath();
-  ctx.moveTo(x - s, y - s + depth);
-  ctx.lineTo(x, y - s);
-  ctx.lineTo(x + s, y - s + depth);
-  ctx.lineTo(x, y - s + depth * 2);
-  ctx.closePath();
-  ctx.fillStyle = shadeColor(color, 25);
+  ctx.roundRect(x - r * 0.8, y - r * 0.8, r * 1.6, r * 1.6, 8);
+  ctx.fillStyle = '#0f172a';
   ctx.fill();
 
-  // الوجه الأيسر (متوسط)
-  ctx.beginPath();
-  ctx.moveTo(x - s, y - s + depth);
-  ctx.lineTo(x, y - s + depth * 2);
-  ctx.lineTo(x, y + s);
-  ctx.lineTo(x - s, y + s - depth);
-  ctx.closePath();
-  ctx.fillStyle = color;
-  ctx.fill();
-
-  // الوجه الأيمن (ظل عميق)
-  ctx.beginPath();
-  ctx.moveTo(x + s, y - s + depth);
-  ctx.lineTo(x, y - s + depth * 2);
-  ctx.lineTo(x, y + s);
-  ctx.lineTo(x + s, y + s - depth);
-  ctx.closePath();
-  ctx.fillStyle = shadeColor(color, -30);
-  ctx.fill();
-
-  // إطار الكيوب النيوني
-  ctx.beginPath();
-  ctx.moveTo(x - s, y - s + depth);
-  ctx.lineTo(x, y - s);
-  ctx.lineTo(x + s, y - s + depth);
-  ctx.lineTo(x + s, y + s - depth);
-  ctx.lineTo(x, y + s);
-  ctx.lineTo(x - s, y + s - depth);
-  ctx.closePath();
-  ctx.moveTo(x, y - s + depth * 2);
-  ctx.lineTo(x, y + s);
-  ctx.strokeStyle = isSelected ? '#ffffff' : isHovered ? '#ffffffdd' : 'rgba(255, 255, 255, 0.45)';
-  ctx.lineWidth = isSelected ? 2.5 : 1.4;
+  ctx.lineWidth = isSelected ? 3 : 2;
+  ctx.strokeStyle = isSelected ? '#ffffff' : color;
+  ctx.shadowColor = color;
+  ctx.shadowBlur = isHovered ? 15 : 8;
   ctx.stroke();
 
+  ctx.beginPath();
+  ctx.roundRect(x - r * 0.3, y - r * 0.3, r * 0.6, r * 0.6, 2);
+  ctx.fillStyle = color;
+  ctx.shadowColor = color;
+  ctx.shadowBlur = 12;
+  ctx.fill();
   ctx.restore();
 }
 
@@ -1705,8 +1551,8 @@ function draw() {
 
     // مسار ليزري متدرج
     const strokeGrad = ctx.createLinearGradient(sPos.x, sPos.y, tPos.x, tPos.y);
-    strokeGrad.addColorStop(0, sColor + '88');
-    strokeGrad.addColorStop(1, tColor + '88');
+    strokeGrad.addColorStop(0, sColor + 'E6');
+    strokeGrad.addColorStop(1, tColor + 'E6');
 
     // أ) هالة الإشعاع الليزري الواسعة (Wide Laser Glow)
     ctx.save();
@@ -1714,10 +1560,10 @@ function draw() {
     ctx.moveTo(sPos.x, sPos.y);
     ctx.quadraticCurveTo(cpX, cpY, tPos.x, tPos.y);
     ctx.strokeStyle = strokeGrad;
-    ctx.lineWidth = isSimulating.value ? 6 : 4;
+    ctx.lineWidth = isSimulating.value ? 8 : 5;
     ctx.shadowColor = sColor;
-    ctx.shadowBlur = 12;
-    ctx.globalAlpha = 0.25;
+    ctx.shadowBlur = 20;
+    ctx.globalAlpha = 0.55;
     ctx.stroke();
     ctx.restore();
 
@@ -1727,19 +1573,19 @@ function draw() {
     ctx.moveTo(sPos.x, sPos.y);
     ctx.quadraticCurveTo(cpX, cpY, tPos.x, tPos.y);
     ctx.strokeStyle = strokeGrad;
-    ctx.lineWidth = isSimulating.value ? 2.8 : 2;
+    ctx.lineWidth = isSimulating.value ? 4 : 2.5;
     ctx.stroke();
     ctx.restore();
 
     // ج) تدفق نبضات الفوتون المستمرة (Continuous Photon Pulse Stream)
-    const pulseSpeed = isSimulating.value ? 0.08 : 0.02;
+    const pulseSpeed = isSimulating.value ? 0.12 : 0.04;
     const dashOffset = -((time * pulseSpeed) % 24);
     ctx.save();
     ctx.beginPath();
     ctx.moveTo(sPos.x, sPos.y);
     ctx.quadraticCurveTo(cpX, cpY, tPos.x, tPos.y);
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.75)';
-    ctx.lineWidth = 1.4;
+    ctx.lineWidth = 2.0;
     ctx.setLineDash([5, 18]);
     ctx.lineDashOffset = dashOffset;
     ctx.stroke();
@@ -1818,10 +1664,10 @@ function draw() {
 
       ctx.save();
       ctx.beginPath();
-      ctx.arc(px, py, 4.5, 0, Math.PI * 2);
+      ctx.arc(px, py, 6.5, 0, Math.PI * 2);
       ctx.fillStyle = '#ffffff';
       ctx.shadowColor = p.color;
-      ctx.shadowBlur = 14;
+      ctx.shadowBlur = 22;
       ctx.fill();
       ctx.restore();
     }
@@ -2048,7 +1894,7 @@ function getTouchesDistance(t1: Touch, t2: Touch) {
 }
 
 function onTouchStart(e: TouchEvent) {
-  if (e.touches.length === 1) {
+  if (e.touches.length === 1 && e.touches[0]) {
     const touch = e.touches[0];
     const { sx, sy } = getTouchPos(touch);
     touchStartTime = performance.now();
@@ -2064,7 +1910,7 @@ function onTouchStart(e: TouchEvent) {
     } else {
       isPanning = true;
     }
-  } else if (e.touches.length === 2) {
+  } else if (e.touches.length === 2 && e.touches[0] && e.touches[1]) {
     // بدء قرصة التكبير/التصغير (Pinch Zoom)
     isPanning = false;
     dragging.value = null;
@@ -2074,7 +1920,7 @@ function onTouchStart(e: TouchEvent) {
 }
 
 function onTouchMove(e: TouchEvent) {
-  if (e.touches.length === 1) {
+  if (e.touches.length === 1 && e.touches[0]) {
     const touch = e.touches[0];
     const { sx, sy } = getTouchPos(touch);
     const { x, y } = screenToWorld(sx, sy);
@@ -2100,7 +1946,7 @@ function onTouchMove(e: TouchEvent) {
       pan.y += dy;
     }
     lastTouchPos = { x: touch.clientX, y: touch.clientY };
-  } else if (e.touches.length === 2) {
+  } else if (e.touches.length === 2 && e.touches[0] && e.touches[1]) {
     // تحديث التكبير بالقرصة (Pinch to Zoom)
     const currentDist = getTouchesDistance(e.touches[0], e.touches[1]);
     if (touchStartDistance > 0) {
@@ -2135,7 +1981,12 @@ function onTouchEnd(e: TouchEvent) {
   }
 
   // إذا كانت نقرة لمس سريعة بدون سحب على عقدة، نفتح تفاصيل العقدة
-  if (!hasTouchMoved && touchDuration < 350 && e.changedTouches.length === 1) {
+  if (
+    !hasTouchMoved &&
+    touchDuration < 350 &&
+    e.changedTouches.length === 1 &&
+    e.changedTouches[0]
+  ) {
     const touch = e.changedTouches[0];
     const { sx, sy } = getTouchPos(touch);
     const node = findNodeAt(sx, sy);

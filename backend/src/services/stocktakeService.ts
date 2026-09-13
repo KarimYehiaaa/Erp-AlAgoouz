@@ -355,6 +355,42 @@ export const completeStocktake = async (stocktakeId: number, userId: number) => 
       [totalDeficit, totalSurplus, stocktakeId],
     );
 
+    // 5. تسجيل خسارة العجز المخزني كمصروف تشغيلي (F-09)
+    if (totalDeficit > 0.001) {
+      let categoryId: number;
+      const catRes = await client.query(
+        `SELECT id FROM expense_categories WHERE slug = 'inventory-shrinkage' OR slug = 'shrinkage' LIMIT 1`,
+      );
+      if (catRes.rows.length > 0) {
+        categoryId = catRes.rows[0].id;
+      } else {
+        const insCat = await client.query(
+          `INSERT INTO expense_categories (name_ar, slug, is_active)
+           VALUES ('عجز وفاقد مخزني', 'inventory-shrinkage', true)
+           ON CONFLICT (slug) DO UPDATE SET name_ar = EXCLUDED.name_ar
+           RETURNING id`,
+        );
+        categoryId = insCat.rows[0].id;
+      }
+
+      const seqRes = await client.query(`SELECT nextval('seq_expenses_number') AS next_val`);
+      const expNumber = `EXP-STK-${stocktake.id}-${seqRes.rows[0].next_val}`;
+
+      await client.query(
+        `INSERT INTO expenses (
+           expense_number, category_id, title, amount, expense_date, payment_method, notes, user_id
+         ) VALUES ($1, $2, $3, $4, CURRENT_DATE, 'adjustment', $5, $6)`,
+        [
+          expNumber,
+          categoryId,
+          `عجز جرد مخزني - جرد رقم #${stocktake.id}`,
+          totalDeficit,
+          `تسوية خسارة عجز المخزون تلقائياً من عملية الاعتماد للجرد رقم ${stocktake.id}`,
+          userId,
+        ],
+      );
+    }
+
     await client.query('COMMIT');
     invalidateDashboardCache();
 

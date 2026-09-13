@@ -50,8 +50,13 @@ async function connectAsApp() {
 
 async function runSqlFile(client, filePath) {
   const sql = fs.readFileSync(filePath, 'utf8');
-  console.log(`  → تنفيذ: ${path.basename(filePath)}`);
+  const filename = path.basename(filePath);
+  console.log(`  → تنفيذ: ${filename}`);
   await client.query(sql);
+  await client.query(
+    `INSERT INTO schema_migrations (version) VALUES ($1) ON CONFLICT (version) DO NOTHING`,
+    [filename],
+  );
 }
 
 function getMigrationFiles() {
@@ -98,27 +103,43 @@ async function main() {
   const admin = await connectAsAdmin();
   console.log(' اتصال بـ postgres');
 
+  if (!/^[a-zA-Z0-9_]+$/.test(DB_USER) || !/^[a-zA-Z0-9_]+$/.test(DB_NAME)) {
+    throw new Error('اسم المستخدم أو قاعدة البيانات يحتوي على أحرف غير مسموح بها.');
+  }
+
+  const safeUser = `"${DB_USER}"`;
+  const safeDb = `"${DB_NAME}"`;
+  const safePassword = DB_PASSWORD.replace(/'/g, "''");
+
   const userExists = await admin.query(`SELECT 1 FROM pg_roles WHERE rolname = $1`, [DB_USER]);
   if (!userExists.rows.length) {
-    await admin.query(`CREATE USER ${DB_USER} WITH PASSWORD '${DB_PASSWORD.replace(/'/g, "''")}'`);
+    await admin.query(`CREATE USER ${safeUser} WITH PASSWORD '${safePassword}'`);
     console.log(` إنشاء المستخدم: ${DB_USER}`);
   } else {
-    await admin.query(`ALTER USER ${DB_USER} WITH PASSWORD '${DB_PASSWORD.replace(/'/g, "''")}'`);
+    await admin.query(`ALTER USER ${safeUser} WITH PASSWORD '${safePassword}'`);
     console.log(` تحديث كلمة مرور: ${DB_USER}`);
   }
 
   const dbExists = await admin.query(`SELECT 1 FROM pg_database WHERE datname = $1`, [DB_NAME]);
   if (!dbExists.rows.length) {
-    await admin.query(`CREATE DATABASE ${DB_NAME} OWNER ${DB_USER}`);
+    await admin.query(`CREATE DATABASE ${safeDb} OWNER ${safeUser}`);
     console.log(` إنشاء قاعدة البيانات: ${DB_NAME}`);
   } else {
     console.log(`ℹ  قاعدة البيانات موجودة: ${DB_NAME}`);
   }
 
-  await admin.query(`GRANT ALL PRIVILEGES ON DATABASE ${DB_NAME} TO ${DB_USER}`);
+  await admin.query(`GRANT ALL PRIVILEGES ON DATABASE ${safeDb} TO ${safeUser}`);
   await admin.end();
 
   const app = await connectAsApp();
+
+  await app.query(`
+    CREATE TABLE IF NOT EXISTS schema_migrations (
+      version VARCHAR(255) PRIMARY KEY,
+      applied_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+
   const files = getMigrationFiles();
 
   for (const file of files) {
@@ -126,8 +147,8 @@ async function main() {
     await runSqlFile(app, file);
   }
 
-  await app.query('GRANT ALL ON ALL TABLES IN SCHEMA public TO ' + DB_USER);
-  await app.query('GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO ' + DB_USER);
+  await app.query(`GRANT ALL ON ALL TABLES IN SCHEMA public TO ${safeUser}`);
+  await app.query(`GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO ${safeUser}`);
   await app.end();
 
   console.log('\n تم الإعداد بنجاح!');

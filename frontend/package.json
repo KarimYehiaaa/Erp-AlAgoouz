@@ -13,6 +13,12 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@capacitor/android": "^7.0.0",
+    "@capacitor/core": "^7.0.0",
+    "@capacitor/haptics": "^7.0.0",
+    "@capacitor/preferences": "^7.0.0",
+    "@capacitor/splash-screen": "^7.0.0",
+    "@capacitor/status-bar": "^7.0.0",
     "@lucide/vue": "^1.17.0",
     "@sentry/vue": "^10.69.0",
     "axios": "^1.7.7",
@@ -26,6 +32,7 @@
     "vue-router": "^4.4.5"
   },
   "devDependencies": {
+    "@capacitor/cli": "^7.0.0",
     "@playwright/test": "^1.62.1",
     "@tsconfig/node22": "^22.0.5",
     "@types/qrcode": "^1.5.6",

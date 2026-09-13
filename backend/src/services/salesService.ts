@@ -24,6 +24,8 @@ import {
   resolveSaleWarehouseId,
   restoreInventoryForSale,
 } from './saleInventoryOps.ts';
+import { getAllowedWarehouses } from '../middleware/branchIsolation.ts';
+import { ADMIN_ROLES } from '../../../shared/permissions.js';
 
 const generateNumber = async (client, prefix, settingKey) => {
   const sequenceMap = {
@@ -87,9 +89,14 @@ const createDailySale = async (data: Record<string, any>, userId: number) => {
   try {
     await client.query('BEGIN');
     // حماية من الإرسال المزدوج (Offline replay): نفس sync_id يعيد البيع الموجود بدل إنشاء جديد
-    const syncId = typeof data.sync_id === 'string' && data.sync_id ? data.sync_id : null;
+    const isUuid = (str: string) =>
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(str);
+    const rawSyncId = typeof data.sync_id === 'string' && data.sync_id ? data.sync_id.trim() : null;
+    const syncId = rawSyncId && isUuid(rawSyncId) ? rawSyncId : null;
     if (syncId) {
-      const dup = await client.query(`SELECT id FROM sales WHERE sync_id = $1 LIMIT 1`, [syncId]);
+      const dup = await client.query(`SELECT id FROM sales WHERE sync_id = $1::uuid LIMIT 1`, [
+        syncId,
+      ]);
       if (dup.rows[0]) {
         const existingId = dup.rows[0].id;
         await client.query('COMMIT');
@@ -102,8 +109,9 @@ const createDailySale = async (data: Record<string, any>, userId: number) => {
       `INSERT INTO sales (
         sale_number, sale_type, sale_date, entry_mode, customer_id, warehouse_id, user_id,
         subtotal, discount_amount, tax_amount, tax_percent, total_amount, cost_amount, profit_amount,
-        payment_status, status, notes, sync_id
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,'completed',$16,COALESCE($17::uuid, gen_random_uuid())) RETURNING *`,
+        payment_status, status, notes, sync_id,
+        pos_shift_id, terminal_id
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,'completed',$16,COALESCE($17::uuid, gen_random_uuid()),$18,$19) RETURNING *`,
       [
         saleNumber,
         saleType,
@@ -122,6 +130,8 @@ const createDailySale = async (data: Record<string, any>, userId: number) => {
         paymentStatus,
         data.notes || null,
         syncId,
+        data.pos_shift_id || null,
+        data.terminal_id || null,
       ],
     );
     const sale = saleResult.rows[0];
@@ -140,7 +150,19 @@ const createDailySale = async (data: Record<string, any>, userId: number) => {
         sale.id,
       ]);
     }
-    if (effectivePaidAmount > 0) {
+    if (Array.isArray(data.payments) && data.payments.length > 0) {
+      for (let idx = 0; idx < data.payments.length; idx++) {
+        const p = data.payments[idx];
+        const pAmount = roundMoney(Number(p.amount) || 0);
+        if (pAmount > 0) {
+          await client.query(
+            `INSERT INTO payments (payment_number, reference_type, reference_id, amount, payment_method, user_id)
+             VALUES ($1,'sale',$2,$3,$4,$5)`,
+            [`PAY-${sale.id}-${idx + 1}`, sale.id, pAmount, p.payment_method || 'cash', userId],
+          );
+        }
+      }
+    } else if (effectivePaidAmount > 0) {
       await client.query(
         `INSERT INTO payments (payment_number, reference_type, reference_id, amount, payment_method, user_id)
          VALUES ($1,'sale',$2,$3,$4,$5)`,
@@ -168,6 +190,26 @@ const createDailySale = async (data: Record<string, any>, userId: number) => {
     );
     if (customerId) {
       await recalculateCustomerBalance((text, params) => client.query(text, params), customerId);
+
+      // ─── محرك نقاط الولاء (Loyalty Points Engine) ───
+      const redeemedPoints = Math.max(0, Math.floor(Number(data.loyalty_points_redeemed) || 0));
+      // كل 10 جنيه مدفوعة تمنح العميل 1 نقطة ولاء
+      const earnedPoints = Math.max(0, Math.floor(effectivePaidAmount / 10));
+
+      if (redeemedPoints > 0 || earnedPoints > 0) {
+        const custRes = await client.query(
+          `SELECT loyalty_points FROM customers WHERE id = $1 FOR UPDATE`,
+          [customerId],
+        );
+        const currentPoints = Number(custRes.rows[0]?.loyalty_points) || 0;
+        const safeRedeemed = Math.min(redeemedPoints, currentPoints);
+        const newPoints = Math.max(0, currentPoints - safeRedeemed + earnedPoints);
+
+        await client.query(`UPDATE customers SET loyalty_points = $1 WHERE id = $2`, [
+          newPoints,
+          customerId,
+        ]);
+      }
     }
     const typeLabel = SALE_TYPES[saleType] || saleType;
     await client.query(
@@ -505,6 +547,19 @@ const returnSale = async (saleId: number, userId: number, notes?: string) => {
       throw new AppError(
         '\u0647\u0630\u0647 \u0627\u0644\u0639\u0645\u0644\u064A\u0629 \u062A\u0645 \u0625\u0631\u062C\u0627\u0639\u0647\u0627 \u0645\u0633\u0628\u0642\u0627\u064B',
       );
+
+    // التحقق من عزل الفروع: التأكد من أن مخزن الفاتورة مصرح به للمستخدم
+    const userRes = await client.query(
+      `SELECT u.role_id, r.name as role_name FROM users u JOIN roles r ON u.role_id = r.id WHERE u.id = $1`,
+      [userId],
+    );
+    const userRole = userRes.rows[0]?.role_name;
+    if (userRole && !ADMIN_ROLES.includes(userRole)) {
+      const allowedWarehouses = await getAllowedWarehouses(userId);
+      if (sale.warehouse_id && !allowedWarehouses.includes(Number(sale.warehouse_id))) {
+        throw new AppError('غير مصرح لك بإجراء مرتجع لفاتورة تابعة لفرع/مخزن آخر', 403);
+      }
+    }
     const items = (await client.query(`SELECT * FROM sale_items WHERE sale_id = $1`, [saleId]))
       .rows;
     if (items.length > 0) {
@@ -552,7 +607,7 @@ const deleteAllSales = async (userId: number) => {
         `SELECT DISTINCT customer_id FROM sales WHERE deleted_at IS NULL AND customer_id IS NOT NULL`,
       );
       const posSales = await client.query(
-        `SELECT id FROM sales WHERE deleted_at IS NULL AND entry_mode = 'pos' AND status <> 'returned'`,
+        `SELECT id FROM sales WHERE deleted_at IS NULL AND status <> 'returned'`,
       );
       for (const row of posSales.rows) {
         await restoreInventoryForSale(client, row.id, userId);
@@ -618,7 +673,7 @@ const deleteSalesByDate = async (saleDate: string, userId: number) => {
         [saleDate],
       );
       const posSales = await client.query(
-        `SELECT id FROM sales WHERE deleted_at IS NULL AND sale_date = $1::date AND entry_mode = 'pos' AND status <> 'returned'`,
+        `SELECT id FROM sales WHERE deleted_at IS NULL AND sale_date = $1::date AND status <> 'returned'`,
         [saleDate],
       );
       for (const row of posSales.rows) {
@@ -691,7 +746,7 @@ const deleteSalesByType = async (saleType: string, userId: number) => {
         [saleType],
       );
       const posSales = await client.query(
-        `SELECT id FROM sales WHERE deleted_at IS NULL AND sale_type = $1 AND entry_mode = 'pos' AND status <> 'returned'`,
+        `SELECT id FROM sales WHERE deleted_at IS NULL AND sale_type = $1 AND status <> 'returned'`,
         [saleType],
       );
       for (const row of posSales.rows) {

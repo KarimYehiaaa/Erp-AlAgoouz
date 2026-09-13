@@ -4,7 +4,9 @@ import {
   products as productsApi,
   forecasting as forecastingApi,
   users as userApi,
+  customers as customersApi,
 } from '@/api';
+import { posApi } from '@/api/pos.api';
 import { roundMoney } from '@/utils/money';
 import { parseLocalizedNumber } from '@/utils/numberParsing';
 import { useProductMeta } from '@/composables/useProductMeta';
@@ -12,6 +14,7 @@ import { useAppStore } from '@/stores/app';
 import { useAuthStore } from '@/stores/auth';
 import { localDb } from '@/services/localDb';
 import { directPrinter } from '@/services/directPrinter';
+import { usePosShift } from '@/composables/usePosShift';
 
 /**
  * useBranchSales — منطق نقطة البيع للفرع كاملاً: حالة السلة، الدفع، الطباعة،
@@ -56,6 +59,20 @@ export function useBranchSales() {
   const printerName = ref(directPrinter.getSelectedPrinterName() || '');
   const lastSavedSale = ref<any>(null);
 
+  const cart = ref<any[]>([]);
+  const saleForm = ref({
+    sale_date: today,
+    payment_method: 'cash',
+    discount_amount: 0,
+    warehouse_id: null,
+    customer_id: null as number | null,
+    pos_shift_id: null as number | null,
+    terminal_id: null as number | null,
+    loyalty_points_redeemed: 0,
+    payments: null as any[] | null,
+    notes: '',
+  });
+
   const productsPanelRef = ref<any>(null);
   const cartPanelRef = ref<any>(null);
   const companySettings = ref({
@@ -65,15 +82,31 @@ export function useBranchSales() {
     tagline: 'للبن التركي',
   });
 
+  let sharedAudioCtx: AudioContext | null = null;
+  const getAudioContext = (): AudioContext | null => {
+    try {
+      if (!sharedAudioCtx || sharedAudioCtx.state === 'closed') {
+        const AudioCtx: typeof AudioContext =
+          window.AudioContext || (window as any).webkitAudioContext;
+        if (AudioCtx) sharedAudioCtx = new AudioCtx();
+      }
+      if (sharedAudioCtx && sharedAudioCtx.state === 'suspended') {
+        sharedAudioCtx.resume().catch(() => {});
+      }
+      return sharedAudioCtx;
+    } catch {
+      return null;
+    }
+  };
+
   const playBeep = (type = 'success') => {
     const soundEnabled = localStorage.getItem('sound_enabled') !== 'false';
     if (!soundEnabled) return;
     const soundVolume = parseFloat(localStorage.getItem('sound_volume') || '0.08');
 
     try {
-      const AudioCtx: typeof AudioContext =
-        window.AudioContext || (window as any).webkitAudioContext;
-      const audioCtx = new AudioCtx();
+      const audioCtx = getAudioContext();
+      if (!audioCtx) return;
       if (type === 'success') {
         const osc1 = audioCtx.createOscillator();
         const osc2 = audioCtx.createOscillator();
@@ -308,13 +341,27 @@ export function useBranchSales() {
   const productSearch = ref('');
   const selectedCategory = ref('');
 
-  const cart = ref<any[]>([]);
-  const saleForm = ref({
-    sale_date: today,
-    payment_method: 'cash',
-    discount_amount: 0,
-    warehouse_id: null,
-    notes: '',
+  // ─── Customer Selection (اختيار العميل) ───
+  const customersList = ref<any[]>([]);
+  const loadingCustomers = ref(false);
+
+  const loadCustomers = async () => {
+    loadingCustomers.value = true;
+    try {
+      const res = await customersApi.list();
+      customersList.value = res.data || [];
+      await localDb.saveCustomers(customersList.value);
+    } catch {
+      // Fallback to cached customers when offline
+      customersList.value = await localDb.getCustomers();
+    } finally {
+      loadingCustomers.value = false;
+    }
+  };
+
+  const selectedCustomer = computed(() => {
+    if (!saleForm.value.customer_id) return null;
+    return customersList.value.find((c: any) => c.id === saleForm.value.customer_id) || null;
   });
 
   // AI complementary items states & actions
@@ -382,11 +429,63 @@ export function useBranchSales() {
       ),
     ),
   );
-  // خصم مقيّد دائماً بين 0 وإجمالي السلة (يمنع الخصم السالب أو الأكبر من الإجمالي)
-  const effectiveDiscount = computed(() =>
-    Math.min(Math.max(0, Number(saleForm.value.discount_amount || 0)), cartSubtotal.value),
-  );
+  const loyaltyFinancialDiscount = computed(() => {
+    return roundMoney((Number(saleForm.value.loyalty_points_redeemed) || 0) / 10);
+  });
+
+  // خصم مقيّد دائماً بين 0 وإجمالي السلة (يشمل الخصم اليدوي وخصم نقاط الولاء)
+  const effectiveDiscount = computed(() => {
+    const manualDiscount = Math.max(0, Number(saleForm.value.discount_amount || 0));
+    const totalDiscount = manualDiscount + loyaltyFinancialDiscount.value;
+    return Math.min(totalDiscount, cartSubtotal.value);
+  });
   const cartTotal = computed(() => roundMoney(cartSubtotal.value - effectiveDiscount.value));
+
+  // ─── 🔐 Manager PIN Override ───
+  const showPinModal = ref(false);
+  const pinActionDescription = ref('');
+  const pinLoading = ref(false);
+  const pinErrorMessage = ref('');
+  let pendingAuthorizedAction: (() => Promise<void> | void) | null = null;
+
+  const requestManagerPin = (actionDesc: string, onAuthorized: () => Promise<void> | void) => {
+    if (!authStore.isCashier) {
+      onAuthorized();
+      return;
+    }
+    pinActionDescription.value = actionDesc;
+    pinErrorMessage.value = '';
+    pinLoading.value = false;
+    pendingAuthorizedAction = onAuthorized;
+    showPinModal.value = true;
+  };
+
+  const handlePinSubmit = async (pin: string) => {
+    pinLoading.value = true;
+    pinErrorMessage.value = '';
+    try {
+      const res = await posApi.verifyPin({ pin, action: pinActionDescription.value });
+      if (res?.data?.verified || res?.data?.success) {
+        showPinModal.value = false;
+        appStore.addToast(
+          `تمت المصادقة بنجاح بواسطة: ${res.data.manager?.name || 'المدير'}`,
+          'success',
+        );
+        if (pendingAuthorizedAction) {
+          const action = pendingAuthorizedAction;
+          pendingAuthorizedAction = null;
+          await action();
+        }
+      } else {
+        pinErrorMessage.value = 'رمز PIN غير صحيح أو غير مصرح';
+      }
+    } catch (err: any) {
+      pinErrorMessage.value =
+        err?.response?.data?.message || err?.message || 'فشل التحقق من رمز PIN';
+    } finally {
+      pinLoading.value = false;
+    }
+  };
 
   const todayTotal = computed(() =>
     roundMoney(
@@ -462,7 +561,10 @@ export function useBranchSales() {
     if (productSearch.value.trim()) {
       const q = productSearch.value.trim().toLowerCase();
       list = list.filter(
-        (p: any) => p.name_ar.toLowerCase().includes(q) || (p.sku || '').toLowerCase().includes(q),
+        (p: any) =>
+          p.name_ar.toLowerCase().includes(q) ||
+          (p.sku || '').toLowerCase().includes(q) ||
+          (p.barcode || '').toLowerCase().includes(q),
       );
     }
     filteredProducts.value = list;
@@ -560,12 +662,19 @@ export function useBranchSales() {
       showCheckoutDrawer.value = false;
     }
   };
-  const clearCart = () => {
+  const clearCart = (force = false) => {
+    if (!force && authStore.isCashier && cart.value.length > 0) {
+      requestManagerPin('مسح وتفريغ السلة (Void Order)', () => clearCart(true));
+      return;
+    }
     playBeep('click');
     cart.value = [];
     saleForm.value.discount_amount = 0;
+    saleForm.value.loyalty_points_redeemed = 0;
+    saleForm.value.payments = null;
     saleForm.value.notes = '';
     saleForm.value.warehouse_id = null;
+    saleForm.value.customer_id = null;
     saleError.value = '';
     showCheckoutDrawer.value = false;
   };
@@ -598,9 +707,19 @@ export function useBranchSales() {
         ),
         total_amount: saleRecord.total_amount,
         discount_amount: saleRecord.discount_amount,
+        customer_name: selectedCustomer.value
+          ? selectedCustomer.value.name_ar || selectedCustomer.value.name
+          : undefined,
+        payments:
+          saleRecord.payments ||
+          (saleForm.value.payment_method === 'split' ? saleForm.value.payments : undefined),
+        loyalty: {
+          earned: Math.max(0, Math.floor(Number(saleRecord.total_amount || 0) / 10)),
+          redeemed: Number(saleForm.value.loyalty_points_redeemed) || 0,
+        },
         user_name: 'كاشير الفرع',
         company: companySettings.value,
-        items: saleRecord.items.map((item: any) => {
+        items: (saleRecord.items || []).map((item: any) => {
           const notesStr = item.notes || item.custom_notes;
           return {
             product_name:
@@ -621,24 +740,86 @@ export function useBranchSales() {
     }
   };
 
-  const submitManualSale = async () => {
+  const { currentShift, isShiftOpen, showOpenShiftModal, refreshShiftStats } = usePosShift();
+
+  const submitManualSale = async (force = false) => {
     if (!cart.value.length) return;
     saleError.value = '';
+
+    // التحقق من فتح الشفت عند كاشير الفرع
+    if (authStore.isCashier && !isShiftOpen.value) {
+      playBeep('warning');
+      appStore.addToast('يرجى فتح شفت أولاً لبدء تسجيل المبيعات ومطابقة العهدة', 'warning');
+      showOpenShiftModal.value = true;
+      return;
+    }
+
+    // التحقق من اختيار عميل عند البيع الآجل
+    if (saleForm.value.payment_method === 'credit' && !saleForm.value.customer_id) {
+      playBeep('warning');
+      saleError.value = 'يجب اختيار عميل عند البيع الآجل (ذمم)';
+      appStore.addToast('يجب اختيار عميل عند البيع الآجل (ذمم)', 'warning');
+      return;
+    }
+
+    // التحقق من الدفع المتعدد
+    if (saleForm.value.payment_method === 'split') {
+      const splitPayments = (saleForm.value.payments || []).filter(
+        (p: any) => Number(p.amount) > 0,
+      );
+      if (!splitPayments.length) {
+        playBeep('warning');
+        saleError.value = 'يرجى إدخال مبالغ الدفع في طرق الدفع المحددة';
+        appStore.addToast('يرجى إدخال مبالغ الدفع في طرق الدفع المحددة', 'warning');
+        return;
+      }
+      const totalSplit = splitPayments.reduce((sum: number, p: any) => sum + Number(p.amount), 0);
+      if (Math.abs(totalSplit - cartTotal.value) > 0.05) {
+        playBeep('warning');
+        const diff = Math.round((cartTotal.value - totalSplit) * 100) / 100;
+        const msg =
+          diff > 0
+            ? `المبلغ المدفوع أقل من المطلوب بـ ${diff} ج.م`
+            : `المبلغ المدفوع أكثر من المطلوب بـ ${Math.abs(diff)} ج.م`;
+        saleError.value = msg;
+        appStore.addToast(msg, 'warning');
+        return;
+      }
+    }
+
+    // فحص الخصم الكبير لطلب موافقة المدير
+    const manualDiscount = Number(saleForm.value.discount_amount || 0);
+    const isExcessiveDiscount =
+      manualDiscount > 50 || (cartSubtotal.value > 0 && manualDiscount / cartSubtotal.value > 0.15);
+    if (!force && authStore.isCashier && isExcessiveDiscount) {
+      requestManagerPin(`تطبيق خصم بقيمة ${manualDiscount} ج.م`, () => submitManualSale(true));
+      return;
+    }
+
     saving.value = true;
 
     const syncId =
       typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
         ? crypto.randomUUID()
-        : 'pos_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
+        : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+            const r = (Math.random() * 16) | 0;
+            const v = c === 'x' ? r : (r & 0x3) | 0x8;
+            return v.toString(16);
+          });
 
     const payload = {
       sync_id: syncId,
       sale_type: 'branch',
       sale_date: saleForm.value.sale_date,
-      warehouse_id: saleForm.value.warehouse_id || null,
+      warehouse_id: saleForm.value.warehouse_id || currentShift.value?.warehouse_id || null,
+      customer_id: saleForm.value.customer_id || null,
+      pos_shift_id: currentShift.value?.id || saleForm.value.pos_shift_id || null,
+      terminal_id: currentShift.value?.terminal_id || saleForm.value.terminal_id || null,
       payment_method: saleForm.value.payment_method,
       payment_status: 'paid',
       discount_amount: effectiveDiscount.value,
+      loyalty_points_redeemed: Number(saleForm.value.loyalty_points_redeemed) || 0,
+      payments: saleForm.value.payment_method === 'split' ? saleForm.value.payments : undefined,
       notes: saleForm.value.notes || null,
       total_amount: Number(cartTotal.value),
       items: cart.value
@@ -667,7 +848,7 @@ export function useBranchSales() {
         lastSavedSale.value = saleRecord;
         playBeep('success');
         clearCart();
-        await Promise.all([loadHistory(), loadProducts()]);
+        await Promise.all([loadHistory(), loadProducts(), refreshShiftStats()]);
       } else {
         saleRecord = await localDb.saveOfflineSale(payload);
         lastSavedSale.value = saleRecord;
@@ -764,13 +945,20 @@ export function useBranchSales() {
     }
   };
 
-  const returnSale = async (sale: any) => {
+  const returnSale = async (sale: any, force = false) => {
+    if (!force && authStore.isCashier) {
+      requestManagerPin(`إرجاع فاتورة (${sale.sale_number || sale.invoice_number})`, () =>
+        returnSale(sale, true),
+      );
+      return;
+    }
     if (!confirm(`تأكيد استرداد البيع ${sale.sale_number}؟ سيتم إرجاع المخزون.`)) return;
     try {
       await salesApi.return(sale.id, { notes: 'استرداد من شاشة مبيعات الفرع' });
+      appStore.addToast('تم استرداد الفاتورة بنجاح وإرجاع المخزون', 'success');
       await Promise.all([loadHistory(), loadProducts()]);
     } catch (e: any) {
-      alert(e.message || 'فشل الاسترداد');
+      appStore.addToast(e.message || 'فشل الاسترداد', 'error');
     }
   };
 
@@ -870,6 +1058,7 @@ export function useBranchSales() {
     loadProducts();
     loadHistory();
     loadHeldOrders();
+    loadCustomers();
     window.addEventListener('inventory-updated', onInventoryUpdated);
     window.addEventListener('keydown', handleGlobalKeyDown);
 
@@ -1035,5 +1224,16 @@ export function useBranchSales() {
     submitCounts,
     categories,
     loadMeta,
+    customersList,
+    loadingCustomers,
+    loadCustomers,
+    selectedCustomer,
+    // ─── 🔐 Manager PIN ───
+    showPinModal,
+    pinActionDescription,
+    pinLoading,
+    pinErrorMessage,
+    requestManagerPin,
+    handlePinSubmit,
   };
 }

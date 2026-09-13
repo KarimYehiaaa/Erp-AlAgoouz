@@ -118,6 +118,20 @@ class InMemoryCache {
   }
 
   /**
+   * حذف مفتاح محدد من الذاكرة المؤقتة.
+   * @param {string} key المفتاح
+   */
+  delete(key: string) {
+    const entry = this.cache.get(key);
+    if (entry) {
+      this.#unindexTags(key, entry.tags);
+      this.cache.delete(key);
+      return true;
+    }
+    return false;
+  }
+
+  /**
    * مسح كل القيم المخزنة.
    */
   clear() {

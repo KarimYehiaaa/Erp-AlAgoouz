@@ -12,9 +12,6 @@ const invoices = {
     ok(res, await invoiceService.getInvoices(req.query));
   }),
   /**
-     ok(res, await invoiceService.getInvoices(req.query));
-  }),
-  /**
    * إنشاء فاتورة.
    * @param {import('express').Request} req طلب HTTP
    * @param {import('express').Response} res استجابة HTTP

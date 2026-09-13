@@ -168,7 +168,7 @@
             <button
               type="button"
               class="bar-btn-clear"
-              @click="clearCart"
+              @click="clearCart()"
               title="تفريغ السلة الحالية (F6)"
             >
               تفريغ (F6)
@@ -208,6 +208,8 @@
               :printer-name="printerName"
               :last-saved-sale="lastSavedSale"
               :active-tab="activeTab"
+              :customers-list="customersList"
+              :selected-customer="selectedCustomer"
               :format-money="formatMoney"
               @increase-qty="increaseQty"
               @decrease-qty="decreaseQty"
@@ -485,18 +487,56 @@
         </table>
       </div>
     </div>
+
+    <!-- 📊 POS Shift Modals (فتح وردية / حركة نقدية / إغلاق وردية و Z-Report) -->
+    <ShiftModals
+      v-model:show-open-shift="showOpenShiftModal"
+      v-model:show-close-shift="showCloseShiftModal"
+      v-model:show-cash-movement="showCashMovementModal"
+      :current-shift="currentShift"
+      :shift-loading="shiftLoading"
+      @open-shift="openShift"
+      @close-shift="closeShift"
+      @cash-movement="recordCashMovement"
+    />
+
+    <!-- 🔐 Manager PIN Override Modal -->
+    <ManagerPinModal
+      v-model:show="showPinModal"
+      :action-description="pinActionDescription"
+      :loading="pinLoading"
+      :error-message="pinErrorMessage"
+      @submit-pin="handlePinSubmit"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
+import { onMounted } from 'vue';
 import StatCard from '@/components/StatCard.vue';
 import AppIcon from '@/components/AppIcon.vue';
 import SkeletonLoader from '@/components/SkeletonLoader.vue';
 import ProductsPanel from '@/components/branch/ProductsPanel.vue';
 import CartPanel from '@/components/branch/CartPanel.vue';
 import ExcelMode from '@/components/branch/ExcelMode.vue';
+import ShiftModals from '@/components/branch/ShiftModals.vue';
+import ManagerPinModal from '@/components/branch/ManagerPinModal.vue';
 import { formatMoney } from '@/utils/currency';
 import { useBranchSales } from '@/composables/useBranchSales';
+import { usePosShift } from '@/composables/usePosShift';
+
+const {
+  currentShift,
+  isShiftOpen,
+  shiftLoading,
+  showOpenShiftModal,
+  showCloseShiftModal,
+  showCashMovementModal,
+  checkActiveShift,
+  openShift,
+  closeShift,
+  recordCashMovement,
+} = usePosShift();
 
 const {
   authStore,
@@ -587,7 +627,20 @@ const {
   submitCounts,
   categories,
   loadMeta,
+  customersList,
+  selectedCustomer,
+  showPinModal,
+  pinActionDescription,
+  pinLoading,
+  pinErrorMessage,
+  handlePinSubmit,
 } = useBranchSales();
+
+onMounted(async () => {
+  if (authStore.isCashier) {
+    await checkActiveShift();
+  }
+});
 </script>
 
 <style lang="scss" scoped>

@@ -62,10 +62,10 @@ if (process.env.DATABASE_URL) {
     password: null,
   };
 } else {
-  const dbHost = optionalEnv('DB_HOST', 'aws-0-eu-north-1.pooler.supabase.com');
-  let portNum = parseInt(optionalEnv('DB_PORT', '6543'), 10);
+  const dbHost = optionalEnv('DB_HOST', 'localhost');
+  let portNum = parseInt(optionalEnv('DB_PORT', '5432'), 10);
   if (dbHost && dbHost.includes('pooler.supabase.com') && portNum === 5432) {
-    portNum = 6543; // Switch to Transaction Mode (unlimited pooled clients)
+    portNum = 6543; // Switch to Transaction Mode (pooled clients)
   }
   const isProd = process.env.NODE_ENV === 'production';
   const dbUser = process.env.DB_USER?.trim();
@@ -107,23 +107,17 @@ dbConfig.ssl = sslEnabled
 const isProdEnv = process.env.NODE_ENV === 'production';
 const envJwtSecret = process.env.JWT_SECRET?.trim();
 let finalJwtSecret: string;
-if (envJwtSecret) {
-  finalJwtSecret = envJwtSecret;
-} else {
-  // اشتقاق سر آمن ومستقر في حال عدم التعيين لضمان استمرارية الجلسات السحابية عبر كافة دوال Serverless
-  const fallbackSeed =
-    process.env.DATABASE_URL?.trim() ||
-    (dbConfig && dbConfig.host ? `${dbConfig.host}:${dbConfig.port}` : '') ||
-    'bin_al_ajouz_secure_jwt_fallback_secret_salt_2026';
-  finalJwtSecret = crypto
-    .createHmac('sha256', fallbackSeed)
-    .update('alagoouz-erp-jwt-secret-seed-v2')
-    .digest('hex');
-  if (isProdEnv) {
-    console.warn(
-      '[Config] ℹ JWT_SECRET غير محدد صراحة في متغيرات البيئة — تم اشتقاق سر آمن ومستقر تلقائياً لضمان ثبات الجلسات السحابية.',
+
+if (isProdEnv) {
+  if (!envJwtSecret || envJwtSecret.length < 32) {
+    throw new Error(
+      '[Security Error] متغير البيئة JWT_SECRET إجباري في بيئة الإنتاج ويجب أن يتكون من 32 حرفاً على الأقل لحماية جلسات المستخدمين.',
     );
   }
+  finalJwtSecret = envJwtSecret;
+} else {
+  finalJwtSecret =
+    envJwtSecret || 'dev_jwt_secret_key_that_is_at_least_32_characters_long_for_testing!';
 }
 
 const envRefreshSecret = process.env.JWT_REFRESH_SECRET?.trim();
@@ -131,16 +125,11 @@ let finalRefreshSecret: string;
 if (envRefreshSecret) {
   finalRefreshSecret = envRefreshSecret;
 } else {
-  // اشتقاق سر تحديث آمن ومستقل تلقائياً من JWT_SECRET عبر HMAC لتفادي توقف السيرفر
+  // اشتقاق سر تحديث آمن ومستقل من JWT_SECRET عبر HMAC
   finalRefreshSecret = crypto
     .createHmac('sha256', finalJwtSecret)
     .update('alagoouz-erp-refresh-token-salt-v1')
     .digest('hex');
-  if (isProdEnv) {
-    console.warn(
-      '[Config] ℹ تم اشتقاق JWT_REFRESH_SECRET تلقائياً من JWT_SECRET بنجاح لضمان استمرارية التشغيل.',
-    );
-  }
 }
 
 const config = {

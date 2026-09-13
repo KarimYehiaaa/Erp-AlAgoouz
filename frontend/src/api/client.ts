@@ -2,9 +2,40 @@ import axios from 'axios';
 import * as Sentry from '@sentry/vue';
 import type { AxiosError, AxiosRequestConfig } from 'axios';
 import type { ApiEnvelope } from '../../../shared/types';
+import {
+  getManagerOverride,
+  clearManagerOverride,
+  OVERRIDE_HEADER_NAME,
+} from '@/services/managerOverride';
+
+export const CLOUD_SERVER_URL = 'https://agoouz.vercel.app';
+
+export const getBaseServerUrl = (): string => {
+  if (typeof window === 'undefined') return '';
+  const saved = localStorage.getItem('binalagoouz_server_url');
+  if (saved) return saved.replace(/\/+$/, '');
+
+  const isCapacitor =
+    !!(window as any).Capacitor?.isNativePlatform?.() ||
+    window.location.protocol === 'capacitor:' ||
+    window.location.protocol === 'file:';
+
+  if (isCapacitor) {
+    return import.meta.env.VITE_API_URL || CLOUD_SERVER_URL;
+  }
+  return import.meta.env.VITE_API_URL || '';
+};
+
+export const setBaseServerUrl = (url: string) => {
+  if (!url) {
+    localStorage.removeItem('binalagoouz_server_url');
+  } else {
+    localStorage.setItem('binalagoouz_server_url', url.replace(/\/+$/, ''));
+  }
+};
 
 const api = axios.create({
-  baseURL: `${import.meta.env.VITE_API_URL || ''}/api/v1`,
+  baseURL: `${getBaseServerUrl()}/api/v1`,
   withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
@@ -17,9 +48,17 @@ const api = axios.create({
 // 1. HttpOnly cookies للأمان ضد XSS
 // 2. Authorization Bearer header كـ fallback قوي لبيئات السحابة والـ Cross-origin
 api.interceptors.request.use((config: any) => {
+  const base = getBaseServerUrl();
+  config.baseURL = `${base ? base : ''}/api/v1`;
+
   const token = localStorage.getItem('token');
   if (token && !config.headers.Authorization) {
     config.headers.Authorization = `Bearer ${token}`;
+  }
+  // توكن تجاوز المدير (يُصدر من /pos/verify-pin) — يُرفق تلقائيًا للطلبات الحساسة
+  const overrideToken = getManagerOverride();
+  if (overrideToken && !config.headers[OVERRIDE_HEADER_NAME]) {
+    config.headers[OVERRIDE_HEADER_NAME] = overrideToken;
   }
   // إصلاح التجمّد: مهلة لكل طلب — الطلب العالق كان يجمّد الـ router guard للأبد
   config.timeout = config.timeout || 20_000;

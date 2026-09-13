@@ -13,6 +13,14 @@ const router = Router();
 
 // ─── Backup / Restore — admin only ───────────────────────────────────────────
 // إصلاح: كانت متاحة لأي settings.manage بدون تمييز
+router.post(
+  '/backup/create',
+  authenticate,
+  authorize('settings.view'),
+  requireAdmin,
+  auditLog('backup_create', 'backup'),
+  api.backup.create,
+);
 router.get(
   '/backup/create',
   authenticate,

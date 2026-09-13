@@ -15,8 +15,14 @@ const routes: RouteRecordRaw[] = [
     meta: { public: true },
   },
   {
-    path: '/qr-menu',
-    redirect: '/menu',
+    path: '/mobile',
+    name: 'ManagerMobile',
+    component: () => import('@/views/ManagerMobileView.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/manager-mobile',
+    redirect: '/mobile',
   },
   {
     path: '/',

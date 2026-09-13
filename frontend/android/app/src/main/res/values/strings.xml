@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">بن العجوز - تقارير الإدارة</string>
+    <string name="title_activity_main">بن العجوز - تقارير الإدارة</string>
+    <string name="package_name">com.binalagoouz.manager</string>
+    <string name="custom_url_scheme">com.binalagoouz.manager</string>
+</resources>

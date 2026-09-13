@@ -45,6 +45,12 @@ class InvoicesRepository extends BaseRepository {
         'discount_amount', ii.discount_amount, 'total_amount', ii.total_amount
       ) ORDER BY ii.sort_order, ii.id)
        FROM invoice_items ii LEFT JOIN products p ON ii.product_id = p.id WHERE ii.invoice_id = i.id),
+      (SELECT json_agg(json_build_object(
+        'id', si.id, 'product_id', si.product_id, 'product_name', p.name_ar,
+        'description', si.notes, 'quantity', si.quantity, 'unit_price', si.unit_price,
+        'discount_amount', 0, 'total_amount', si.total_amount
+      ) ORDER BY si.id)
+       FROM sale_items si LEFT JOIN products p ON si.product_id = p.id WHERE si.sale_id = i.sale_id),
       '[]'::json
     ) as items`;
     const result = await query(

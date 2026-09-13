@@ -97,17 +97,23 @@ const deductInvoiceInventory = async (client, invoiceId, items, userId, invoiceN
     const qty = Number(item.quantity || 0);
     if (qty <= 0) continue;
 
-    const stockRes = await client.query(
-      `SELECT COALESCE(SUM(quantity), 0) AS total FROM inventory WHERE product_id = $1`,
-      [productId],
-    );
-    const globalTotal = Number(stockRes.rows[0]?.total || 0);
-
     const productRes = await client.query(
       `SELECT name_ar, primary_warehouse_id FROM products WHERE id = $1`,
       [productId],
     );
     const pName = productRes.rows[0]?.name_ar || 'المنتج';
+    const targetWhId = productRes.rows[0]?.primary_warehouse_id || defaultWhId;
+
+    if (targetWhId) {
+      await ensureInventoryRow(client, productId, targetWhId);
+    }
+
+    // قفل كافة سجلات مخزون المنتج أولاً FOR UPDATE لمنع أي سباق بيانات (TOCTOU)
+    const lockRes = await client.query(
+      `SELECT warehouse_id, quantity FROM inventory WHERE product_id = $1 FOR UPDATE`,
+      [productId],
+    );
+    const globalTotal = lockRes.rows.reduce((sum, r) => sum + Number(r.quantity || 0), 0);
 
     if (globalTotal < qty - 1e-4) {
       throw new AppError(
@@ -115,16 +121,11 @@ const deductInvoiceInventory = async (client, invoiceId, items, userId, invoiceN
       );
     }
 
-    const targetWhId = productRes.rows[0]?.primary_warehouse_id || defaultWhId;
     let remainingNeeded = qty;
 
     if (targetWhId) {
-      await ensureInventoryRow(client, productId, targetWhId);
-      const lock = await client.query(
-        `SELECT quantity FROM inventory WHERE product_id = $1 AND warehouse_id = $2 FOR UPDATE`,
-        [productId, targetWhId],
-      );
-      const avail = Number(lock.rows[0]?.quantity || 0);
+      const targetRow = lockRes.rows.find((r) => Number(r.warehouse_id) === Number(targetWhId));
+      const avail = Number(targetRow?.quantity || 0);
       if (avail > 0) {
         const deductQty = Math.min(avail, remainingNeeded);
         await client.query(
@@ -148,11 +149,13 @@ const deductInvoiceInventory = async (client, invoiceId, items, userId, invoiceN
     }
 
     if (remainingNeeded > 1e-4) {
-      const otherWhs = await client.query(
-        `SELECT warehouse_id, quantity FROM inventory WHERE product_id = $1 AND warehouse_id != $2 AND quantity > 0 ORDER BY quantity DESC FOR UPDATE`,
-        [productId, targetWhId || 0],
-      );
-      for (const row of otherWhs.rows) {
+      const otherWhs = lockRes.rows
+        .filter(
+          (r) => Number(r.warehouse_id) !== Number(targetWhId || 0) && Number(r.quantity || 0) > 0,
+        )
+        .sort((a, b) => Number(b.quantity || 0) - Number(a.quantity || 0));
+
+      for (const row of otherWhs) {
         if (remainingNeeded <= 1e-4) break;
         const avail = Number(row.quantity || 0);
         const deductQty = Math.min(avail, remainingNeeded);

@@ -19,17 +19,9 @@ const toNumber = (value, fallback = 0) => {
 
 /**
  * تحليل مبلغ مالي إلى رقم (مع قيمة بديلة).
- * القيم الفارغة (null/undefined/'') تُرجع البديل — بخلاف `Number(null)` الذي
- * كان يتحول إلى 0 ويمسح القيم الحالية عند التحديث (parseAmount(x, existing)).
- * @param {any} value القيمة
- * @param {number} [fallback] القيمة البديلة (افتراضي 0)
- * @returns {number} المبلغ
+ * اسم بديل دلالي لـ toNumber للوضوح في السياق المالي.
  */
-const parseAmount = (value, fallback = 0) => {
-  if (value === null || value === void 0 || value === '') return fallback;
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : fallback;
-};
+const parseAmount = toNumber;
 
 /**
  * تحديد حد أقصى آمن لعدد النتائج (LIMIT) مع حد أدنى وافتراضي.

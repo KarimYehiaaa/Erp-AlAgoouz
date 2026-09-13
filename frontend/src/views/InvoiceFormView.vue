@@ -425,8 +425,21 @@
           <button type="button" class="btn btn-outline" @click="showPreview = false">
             إغلاق المعاينة
           </button>
-          <button type="button" class="btn btn-primary" @click="triggerSubmitFromPreview">
-            {{ isEdit ? 'تأكيد وحفظ الفاتورة' : 'إصدار الفاتورة الآن' }}
+          <button
+            type="button"
+            class="btn btn-primary"
+            :disabled="saving"
+            @click="triggerSubmitFromPreview"
+          >
+            {{
+              saving
+                ? isEdit
+                  ? 'جاري الحفظ...'
+                  : 'جاري الإصدار...'
+                : isEdit
+                  ? 'تأكيد وحفظ الفاتورة'
+                  : 'إصدار الفاتورة الآن'
+            }}
           </button>
         </div>
       </div>

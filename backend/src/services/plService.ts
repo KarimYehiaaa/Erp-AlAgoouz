@@ -48,6 +48,9 @@ export const getProfitAndLoss = async (fromDate: string, toDate: string) => {
     expensesByCategory,
     salesByType,
     returnsData,
+    cashInData,
+    supplierPaymentsData,
+    partnerDrawingsData,
   ] = await Promise.all([
     // ── 1. إجمالي الإيرادات ──
     query(
@@ -141,6 +144,56 @@ export const getProfitAndLoss = async (fromDate: string, toDate: string) => {
          AND sale_date BETWEEN $1::date AND $2::date`,
       [fromDate, toDate],
     ),
+
+    // ── 8. التدفقات النقدية الفعلية المحصلة (Cash-In) ──
+    query(
+      `WITH payment_records AS (
+         SELECT amount, payment_method
+         FROM payments
+         WHERE reference_type IN ('sale', 'invoice', 'customer_opening', 'customer_advance', 'customer_deposit')
+           AND created_at BETWEEN $1::date AND ($2::date + INTERVAL '1 day')
+       ),
+       direct_sales_without_payments AS (
+         SELECT s.total_amount as amount, 'cash' as payment_method
+         FROM sales s
+         WHERE s.deleted_at IS NULL
+           AND s.status = 'completed'
+           AND s.payment_status = 'paid'
+           AND s.sale_date BETWEEN $1::date AND $2::date
+           AND NOT EXISTS (
+             SELECT 1 FROM payments p
+             WHERE (p.reference_type = 'sale' AND p.reference_id = s.id)
+                OR (p.reference_type = 'invoice' AND p.reference_id IN (SELECT id FROM invoices WHERE sale_id = s.id))
+           )
+       )
+       SELECT
+         COALESCE(SUM(amount), 0) as cash_in_total,
+         COALESCE(SUM(CASE WHEN LOWER(COALESCE(payment_method, 'cash')) IN ('cash', 'نقد', 'نقدي') THEN amount ELSE 0 END), 0) as cash_in_cash,
+         COALESCE(SUM(CASE WHEN LOWER(COALESCE(payment_method, 'cash')) NOT IN ('cash', 'نقد', 'نقدي') THEN amount ELSE 0 END), 0) as cash_in_electronic
+       FROM (
+         SELECT * FROM payment_records
+         UNION ALL
+         SELECT * FROM direct_sales_without_payments
+       ) all_cash_in`,
+      [fromDate, toDate],
+    ),
+
+    // ── 9. المدفوعات النقدية للموردين (Cash-Out to Suppliers) ──
+    query(
+      `SELECT COALESCE(SUM(amount), 0) as paid_to_suppliers
+       FROM payments
+       WHERE reference_type = 'supplier'
+         AND created_at BETWEEN $1::date AND ($2::date + INTERVAL '1 day')`,
+      [fromDate, toDate],
+    ),
+
+    // ── 10. مسحوبات الشركاء (Partner Drawings) ──
+    query(
+      `SELECT COALESCE(SUM(amount), 0) as partner_drawings
+       FROM partner_drawings
+       WHERE drawing_date BETWEEN $1::date AND $2::date`,
+      [fromDate, toDate],
+    ),
   ]);
 
   // ── حساب رصيد أول المدة بخوارزمية ذكية ──
@@ -177,9 +230,12 @@ export const getProfitAndLoss = async (fromDate: string, toDate: string) => {
   const variableExpenses = roundMoney(toNum(expensesData.rows[0]?.variable_expenses_total));
   const returns = roundMoney(toNum(returnsData.rows[0]?.returns_total));
 
-  // BUG-12 FIX: خوارزمية تحديد COGS الموثوقة
-  let cogsUsed;
-  let cogsBasis;
+  // خوارزمية تحديد COGS الموثوقة:
+  // 1. الأولوية لتكلفة المبيعات المخزنة في فواتير البيع (sales.cost_amount)
+  // 2. إذا لم تتوفر، يتم حسابها من بنود البيع (sale_items.cost_price * quantity)
+  // 3. لا يتم استخدام مشتريات الفترة كبديل للـ COGS منعاً لتضخيم التكلفة بأصول مخزنية لم تُبع بعد
+  let cogsUsed: number;
+  let cogsBasis: string;
 
   if (cogsStored > 0) {
     cogsUsed = cogsStored;
@@ -188,8 +244,8 @@ export const getProfitAndLoss = async (fromDate: string, toDate: string) => {
     cogsUsed = cogsFromItems_;
     cogsBasis = 'sale_items';
   } else {
-    cogsUsed = purchases;
-    cogsBasis = 'purchases';
+    cogsUsed = 0;
+    cogsBasis = 'untracked';
   }
 
   const netRevenue = revenue; // المبيعات المكتملة هي صافي الإيرادات
@@ -202,13 +258,18 @@ export const getProfitAndLoss = async (fromDate: string, toDate: string) => {
     grossProfitMargin > 0 ? roundMoney(fixedExpenses / (grossProfitMargin / 100)) : 0;
 
   /**
-   * التدفق النقدي:
-   * رصيد أول المدة + إيرادات - مشتريات فعلية - مصاريف
-   * (هنا نستخدم المشتريات دائماً لأنها الفلوس اللي خرجت فعلاً)
+   * التدفق النقدي الحقيقي (Cash Flow - Cash Basis):
+   * رصيد أول المدة + المقبوضات النقدية الفعلية - المدفوعات النقدية الفعلية (مصاريف + مسدد للموردين + مسحوبات شركاء)
    */
-  const cashFlow = roundMoney(openingBalance + revenue - purchases - expensesTotal);
+  const cashIn = roundMoney(toNum(cashInData.rows[0]?.cash_in_total));
+  const cashInCash = roundMoney(toNum(cashInData.rows[0]?.cash_in_cash));
+  const cashInElectronic = roundMoney(toNum(cashInData.rows[0]?.cash_in_electronic));
+  const supplierPayments = roundMoney(toNum(supplierPaymentsData.rows[0]?.paid_to_suppliers));
+  const partnerDrawings = roundMoney(toNum(partnerDrawingsData.rows[0]?.partner_drawings));
+  const cashOut = roundMoney(expensesTotal + supplierPayments + partnerDrawings);
+  const netCashFlow = roundMoney(cashIn - cashOut);
   const cashFlowBefore = openingBalance;
-  const cashOut = roundMoney(purchases + expensesTotal);
+  const cashFlowClosing = roundMoney(openingBalance + netCashFlow);
 
   // ── تفاصيل المبيعات بالنوع ──
   const byType = {};
@@ -277,14 +338,20 @@ export const getProfitAndLoss = async (fromDate: string, toDate: string) => {
       count: toNum(purchasesData.rows[0]?.purchases_count),
     },
 
-    // ── التدفق النقدي ──
+    // ── التدفق النقدي الحقيقي والمطابقة ──
     cash_flow: {
       opening: cashFlowBefore,
       revenue: revenue,
+      cash_in: cashIn,
+      cash_in_cash: cashInCash,
+      cash_in_electronic: cashInElectronic,
       cash_out: cashOut,
-      closing: cashFlow,
+      closing: cashFlowClosing,
       purchases: purchases,
+      supplier_payments: supplierPayments,
+      partner_drawings: partnerDrawings,
       expenses: expensesTotal,
+      net_change: netCashFlow,
     },
   };
 
@@ -347,7 +414,7 @@ export const getMonthlyPLSummary = async (months: number = 6) => {
     .map((r) => {
       const month = String(r.month);
       const revenue = toNum(r.revenue);
-      const cogs = toNum(r.cogs_stored) || purchasesMap.get(month) || 0;
+      const cogs = toNum(r.cogs_stored) || 0;
       const expenses = expensesMap.get(month) || 0;
       const gross = roundMoney(revenue - cogs);
       const net = roundMoney(gross - expenses);

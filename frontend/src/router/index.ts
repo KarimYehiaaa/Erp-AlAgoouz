@@ -1,5 +1,6 @@
-import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router';
+import { createRouter, createWebHistory, createWebHashHistory, type RouteRecordRaw } from 'vue-router';
 import { navigationGuard } from './guards';
+import { isNativeApp } from '../services/mobile';
 
 const routes: RouteRecordRaw[] = [
   {
@@ -178,7 +179,9 @@ const routes: RouteRecordRaw[] = [
   },
 ];
 
-const router = createRouter({ history: createWebHistory(), routes });
+// داخل تطبيق الموبايل (WebView) لا يوجد خادم يخدم index.html لكل مسار —
+// لذا نستخدم Hash history هناك، وHistory العادي في المتصفح.
+const router = createRouter({ history: isNativeApp() ? createWebHashHistory() : createWebHistory(), routes });
 
 router.beforeEach(navigationGuard);
 

@@ -210,8 +210,41 @@
             </Transition>
           </div>
 
-          <!-- Options Row -->
-          <div class="form-options">
+        <!-- Server URL (mobile app only) -->
+        <div v-if="isNative" class="field-group server-url-field">
+          <div class="field-wrapper">
+            <svg
+              class="field-icon"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <rect x="2" y="2" width="20" height="8" rx="2" ry="2" />
+              <rect x="2" y="14" width="20" height="8" rx="2" ry="2" />
+              <line x1="6" y1="6" x2="6.01" y2="6" />
+              <line x1="6" y1="18" x2="6.01" y2="18" />
+            </svg>
+            <input
+              id="login-server-url"
+              v-model="serverUrl"
+              type="url"
+              placeholder=" "
+              inputmode="url"
+              @focus="onFocusField('serverUrl')"
+              @blur="onBlurField"
+            />
+            <label for="login-server-url">عنوان الخادم</label>
+          </div>
+          <p class="server-url-hint">مثال: https://erp.example.com</p>
+        </div>
+
+        <!-- Options Row -->
+        <div class="form-options">
             <label class="custom-check">
               <input type="checkbox" v-model="rememberMe" />
               <span class="check-box">
@@ -286,8 +319,8 @@
         <!-- Server Status & Copyright -->
         <div class="form-footer">
           <div class="server-status">
-            <span class="pulse-dot"></span>
-            <span>متصل بالسيرفر</span>
+            <span class="pulse-dot" :class="{ offline: serverOffline }"></span>
+            <span>{{ serverStatusText }}</span>
           </div>
           <span class="copyright">تصميم وتطوير بن العجوز &copy; 2026</span>
         </div>
@@ -308,9 +341,21 @@ import {
   usePasswordStrength,
   useInputAnimations,
 } from '@/composables/useLoginAnimations';
+import {
+  isNativeApp,
+  getStoredServerUrl,
+  setStoredServerUrl,
+  getApiBaseUrl,
+} from '@/services/mobile';
 
 const router = useRouter();
 const auth = useAuthStore();
+
+// ─── Native App (Capacitor) ──────────────────────────────
+const isNative = isNativeApp();
+const serverUrl = ref(isNative ? getStoredServerUrl() || '' : '');
+const serverOffline = ref(false);
+const serverStatusText = ref('جارٍ فحص الخادم...');
 
 // ─── Form State ───────────────────────────────────────────
 const form = ref({ username: '', password: '' });
@@ -365,6 +410,15 @@ const onPasswordInput = () => {
 // ─── Login Handler ────────────────────────────────────────
 const handleLogin = async () => {
   if (!form.value.username || !form.value.password) return;
+  // داخل التطبيق: عنوان الخادم مطلوب قبل أي طلب
+  if (isNative) {
+    if (!serverUrl.value.trim()) {
+      error.value = 'أدخل عنوان الخادم أولاً (مثال: https://erp.example.com)';
+      triggerShake();
+      return;
+    }
+    setStoredServerUrl(serverUrl.value);
+  }
   loading.value = true;
   error.value = '';
   try {
@@ -398,6 +452,31 @@ const handleLogoError = (e: Event) => {
   (e.target as HTMLImageElement).src = '/logo.svg';
 };
 
+// ─── Server Health Check (mobile) ─────────────────────────
+const checkServer = async () => {
+  if (!isNative) {
+    serverStatusText.value = 'متصل بالسيرفر';
+    return;
+  }
+  const base = getApiBaseUrl();
+  if (!base) {
+    serverOffline.value = true;
+    serverStatusText.value = 'لم يُضبط عنوان الخادم';
+    return;
+  }
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 6000);
+    const res = await fetch(`${base}/api/health`, { signal: ctrl.signal });
+    clearTimeout(timer);
+    serverOffline.value = !res.ok;
+    serverStatusText.value = res.ok ? 'متصل بالسيرفر' : 'الخادم يستجيب بخطأ';
+  } catch {
+    serverOffline.value = true;
+    serverStatusText.value = 'لا يمكن الوصول إلى الخادم';
+  }
+};
+
 // ─── Lifecycle ────────────────────────────────────────────
 onMounted(async () => {
   // Load saved username
@@ -422,6 +501,8 @@ onMounted(async () => {
   setTimeout(() => {
     featuresVisible.value = true;
   }, 600);
+
+  checkServer();
 });
 </script>
 
@@ -1249,6 +1330,23 @@ onMounted(async () => {
   font-size: 0.72rem;
   color: var(--border-medium);
   font-weight: 600;
+}
+
+/* ─── Server URL Field (mobile) ──────────────────────────── */
+.server-url-field {
+  margin-top: -6px;
+}
+
+.server-url-hint {
+  margin: 6px 4px 0;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.pulse-dot.offline {
+  background: #dc2626;
+  box-shadow: 0 0 6px rgba(220, 38, 38, 0.5);
 }
 
 /* ─── Card Shake ──────────────────────────────────────────── */

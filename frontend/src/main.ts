@@ -42,12 +42,12 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
 // ── إصلاح التجمّد: نفس host الصفحة (يعمل DEV + PROD)، backoff تصاعدي،
 //    إيقاف كامل عند إخفاء التبويب، وإزالة الإغلاق المزدوج في onerror.
 import { useAppStore } from './stores/app';
+import { isNativeApp, getWsUrl } from './services/mobile';
 const appStore = useAppStore(pinia);
 
 const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-// الباك يخدم الـ WebSocket على نفس host/port الصفحة — المصادقة عبر HttpOnly cookie
-// المرفق تلقائياً مع ترقية الاتصال (نفس الأصل) — لا توكن في الـ URL.
-const buildWsUrl = () => `${wsProtocol}//${window.location.host}/ws`;
+// داخل تطبيق الموبايل يُشتق عنوان الـ WebSocket من عنوان الخادم المُعدّ — لا يوجد "نفس الأصل"
+const buildWsUrl = () => (isNativeApp() ? getWsUrl() : `${wsProtocol}//${window.location.host}/ws`);
 
 let ws: WebSocket | null = null;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;

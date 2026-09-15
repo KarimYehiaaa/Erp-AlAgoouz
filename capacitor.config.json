@@ -1,0 +1,11 @@
+{
+  "appId": "com.binalajouz.erp",
+  "appName": "بن العجوز",
+  "webDir": "frontend/dist",
+  "android": {
+    "allowMixedContent": false
+  },
+  "server": {
+    "androidScheme": "https"
+  }
+}

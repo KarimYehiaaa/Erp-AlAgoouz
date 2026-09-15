@@ -1,0 +1,119 @@
+name: Mobile Release (signed AAB)
+
+# يُشغَّل عند دفع tag إصدار (مثل v1.0.1) — يبني نسخة AAB موقّعة جاهزة لرفعها
+# على Google Play، ويرفعها كـ artifact، وينشئ GitHub Release مع الملف.
+#
+# الاستخدام:
+#   npm run mobile:bump -- patch --tag   # يزيد الإصدار ويعمل commit + tag محليًا
+#   git push origin main --tags          # الدفع مع الـ tag يشغّل هذا الـ workflow
+#
+# Secrets المطلوبة (Settings → Secrets and variables → Actions):
+#   ANDROID_KEYSTORE_B64      — ملف bn-al-ajouz-keystore.keystore مشفّر base64
+#                               (ولّده: base64 -w0 android/app/bn-al-ajouz-keystore.keystore)
+#   ANDROID_KEYSTORE_PASSWORD — كلمة مرور الـ keystore (storePassword)
+#   ANDROID_KEY_PASSWORD      — كلمة مرور المفتاح (keyPassword)
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write # مطلوب لإنشاء GitHub Release
+
+jobs:
+  build-signed-aab:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          echo "name=$TAG" >> "$GITHUB_OUTPUT"
+          echo "📦 بناء الإصدار: $TAG"
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24.x'
+          cache: 'npm'
+          cache-dependency-path: './package-lock.json'
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install dependencies (workspaces)
+        run: npm ci
+
+      - name: Restore signing keystore from secrets
+        env:
+          ANDROID_KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -z "$ANDROID_KEYSTORE_B64" ]; then
+            echo "❌ Secret غير موجود: ANDROID_KEYSTORE_B64"
+            echo "   ولّده محليًا بـ: base64 -w0 android/app/bn-al-ajouz-keystore.keystore"
+            exit 1
+          fi
+          echo "$ANDROID_KEYSTORE_B64" | base64 -d > android/app/bn-al-ajouz-keystore.keystore
+          # keystore.properties يُقرأ من build.gradle — الكلمات من الـ Secrets (لا تُطبع أبدًا)
+          # (Java Properties.load يتجاهل أي مسافات بادئة — لا مشكلة في الإزاحة هنا)
+          cat > android/keystore.properties <<EOF
+          storeFile=bn-al-ajouz-keystore.keystore
+          storePassword=$ANDROID_KEYSTORE_PASSWORD
+          keyAlias=bn-al-ajouz
+          keyPassword=$ANDROID_KEY_PASSWORD
+          EOF
+          echo "✅ Keystore restored (سري — لا يُطبع ولا يُحفظ في الـ artifacts)"
+
+      - name: Build signed AAB (version from tag via APP_VERSION_NAME)
+        env:
+          APP_VERSION_NAME: ${{ steps.version.outputs.name }}
+          APP_VERSION_CODE: ${{ github.run_number }}
+        run: npm run mobile:aab
+
+      # ضمان أن ملف الـ AAB الناتج موجود وصالح (الـ manifest في الـ AAB بصيغة ثنائية —
+      # التحقق النهائي من versionName/versionCode يتم في Play Console عند الرفع)
+      - name: Verify AAB artifact
+        run: |
+          AAB="android/app/build/outputs/bundle/release/app-release.aab"
+          test -f "$AAB" || { echo "❌ AAB غير موجود"; exit 1; }
+          unzip -p "$AAB" BUNDLE-METADATA/com.android.tools.build.gradle/app-metadata.properties | grep -q "appMetadataVersion" \
+            || { echo "❌ AAB تالفة — لا تحتوي metadata صالحة"; exit 1; }
+          echo "✅ AAB صالحة وموقّعة — versionName=${{ steps.version.outputs.name }} versionCode=${{ github.run_number }}"
+
+      - name: Upload AAB artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bn-al-ajouz-erp-${{ steps.version.outputs.name }}-aab
+          path: android/app/build/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: بن العجوز ERP — ${{ steps.version.outputs.name }}
+          body: |
+            إصدار تطبيق الموبايل **${{ steps.version.outputs.name }}**
+
+            ## التحميل
+            - **Google Play**: ارفع ملف `app-release.aab` من الـ artifacts على Play Console
+            - للنسخة التجريبية المباشرة: استخدم الـ APK المبني محليًا عبر `npm run mobile:apk`
+
+            versionName: `${{ steps.version.outputs.name }}` · versionCode: `${{ github.run_number }}`
+          draft: false
+          prerelease: false
+
+      - name: Cleanup keystore
+        if: always()
+        run: rm -f android/app/bn-al-ajouz-keystore.keystore android/keystore.properties

@@ -2,9 +2,10 @@ import axios from 'axios';
 import * as Sentry from '@sentry/vue';
 import type { AxiosError, AxiosRequestConfig } from 'axios';
 import type { ApiEnvelope } from '../../../shared/types';
+import { getApiBaseUrl } from '../services/mobile';
 
 const api = axios.create({
-  baseURL: `${import.meta.env.VITE_API_URL || ''}/api/v1`,
+  baseURL: `${getApiBaseUrl()}/api/v1`,
   withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
@@ -18,6 +19,7 @@ const api = axios.create({
 // 2. Authorization Bearer header كـ fallback قوي لبيئات السحابة والـ Cross-origin
 api.interceptors.request.use((config: any) => {
   const token = localStorage.getItem('token');
+  // داخل تطبيق الموبايل الكوكيز لا تعمل عبر الأصول المختلفة — الاعتماد على Bearer فقط
   if (token && !config.headers.Authorization) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -70,15 +72,22 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       try {
+        // داخل التطبيق: الكوكيز لا تعمل عبر الأصول المختلفة — يُرسل refresh token المخزّن في الجسم
+        const storedRefresh = localStorage.getItem('refreshToken');
         const res = await axios.post(
           `${api.defaults.baseURL}/auth/refresh`,
-          {},
+          storedRefresh ? { refreshToken: storedRefresh } : {},
           {
             withCredentials: true,
             headers: { 'Content-Type': 'application/json' },
           },
         );
         const newToken = res.data?.data?.token || res.data?.token;
+        // الخادم يُدوّر refresh token عند كل تجديد — خزّن الجديد فورًا
+        const newRefresh = res.data?.data?.refreshToken || res.data?.refreshToken;
+        if (newRefresh) {
+          localStorage.setItem('refreshToken', newRefresh);
+        }
         if (newToken) {
           localStorage.setItem('token', newToken);
           api.defaults.headers.common.Authorization = `Bearer ${newToken}`;
@@ -93,6 +102,7 @@ api.interceptors.response.use(
         // فشل التجديد — مسح الجلسة وإعادة التوجيه (replace بدل href لتجنّب تلويث التاريخ)
         localStorage.removeItem('user');
         localStorage.removeItem('token');
+        localStorage.removeItem('refreshToken');
         if (!window.location.pathname.includes('/login')) {
           window.location.replace('/login');
         }

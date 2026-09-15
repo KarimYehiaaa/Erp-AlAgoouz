@@ -3,6 +3,7 @@ import { ref, computed } from 'vue';
 import { auth as authApi } from '@/api';
 import { ADMIN_ROLES, satisfiesPermission } from '../../../shared/permissions.js';
 import type { User, Permission } from '../../../shared/types.ts';
+import { isNativeApp } from '../services/mobile';
 
 export type { User, Permission };
 
@@ -67,6 +68,10 @@ export const useAuthStore = defineStore('auth', () => {
       token.value = res.data.token;
       localStorage.setItem('token', res.data.token);
     }
+    // داخل التطبيق: حفظ refresh token لاستخدامه في تجديد الجلسة عبر Bearer
+    if (res.data.refreshToken) {
+      localStorage.setItem('refreshToken', res.data.refreshToken);
+    }
     localStorage.setItem('user', JSON.stringify(res.data.user));
     return res;
   };
@@ -83,6 +88,7 @@ export const useAuthStore = defineStore('auth', () => {
     profileLoaded.value = false;
     localStorage.removeItem('user');
     localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
   };
 
   const loadFromStorage = () => {

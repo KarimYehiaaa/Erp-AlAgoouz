@@ -1,4 +1,5 @@
 import api from './client';
+import { getApiBaseUrl } from '../services/mobile';
 
 export const invoices = {
   list: (params?: any) => api.get('/invoices', { params }),
@@ -8,7 +9,7 @@ export const invoices = {
 
   delete: (id: number | string) => api.delete(`/invoices/${id}`),
   downloadPdf: async (id: number | string) => {
-    const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/v1/invoices/${id}/pdf`, {
+    const res = await fetch(`${getApiBaseUrl()}/api/v1/invoices/${id}/pdf`, {
       credentials: 'include',
     });
     if (!res.ok) {

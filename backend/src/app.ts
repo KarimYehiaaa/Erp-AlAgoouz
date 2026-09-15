@@ -90,9 +90,11 @@ app.use(
       }
 
       // 3. بيئات التطوير المحلية فقط (Localhost) — شبكات LAN تُضبط صراحةً عبر CORS_LAN_ORIGINS
+      //    https://localhost هو أصل تطبيق الموبايل (Capacitor WebView)
       if (
         origin.startsWith('http://localhost') ||
         origin.startsWith('http://127.0.0.1') ||
+        origin === 'https://localhost' ||
         config.lanOrigins.includes(origin)
       ) {
         return callback(null, true);

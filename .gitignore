@@ -51,3 +51,16 @@ coverage/
 test-results/
 frontend/test-results/
 playwright-report/
+
+# Capacitor/Android generated artifacts (نُسجِّل المشروع نفسه، والمخرجات تُولَّد بـ mobile:sync)
+android/app/build/
+android/build/
+android/.gradle/
+android/local.properties
+android/app/src/main/assets/public/
+android/capacitor-cordova-android-plugins/
+*.keystore
+!android/app/bn-al-ajouz-keystore.keystore
+
+# ملف كلمات مرور التوقيع — سري ولا يُرفع أبدًا (انظر keystore.properties.example)
+android/keystore.properties

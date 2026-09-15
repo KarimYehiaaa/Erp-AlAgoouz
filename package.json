@@ -15,6 +15,12 @@
     "test": "npm test -w backend && npm run test:unit -w frontend",
     "check:local": "npm run typecheck -w backend && npm run check:scripts -w backend && npm run test:local -w backend && node scripts/check-build-path.ts",
     "build": "npm run build -w frontend",
+    "mobile:sync": "npm run build && npx cap sync android",
+    "mobile:android": "npm run mobile:sync && npx cap open android",
+    "mobile:apk": "npm run mobile:sync && node scripts/build-apk.mjs",
+    "mobile:bump": "node scripts/bump-version.mjs",
+    "mobile:aab": "npm run mobile:sync && node scripts/build-aab.mjs",
+    "mobile:release-apk": "npm run mobile:sync && node scripts/build-aab.mjs --apk",
     "setup": "node scripts/setup-project.ts",
     "backup": "node scripts/backup-system.ts",
     "update": "node scripts/update-project.ts",
@@ -43,6 +49,8 @@
   },
   "type": "module",
   "dependencies": {
+    "@capacitor/android": "^8.5.1",
+    "@capacitor/core": "^8.5.1",
     "@sentry/node": "^10.69.0",
     "bcryptjs": "^2.4.3",
     "bullmq": "^6.0.9",
@@ -71,6 +79,7 @@
     "node": ">=20.0.0"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.5.1",
     "@eslint/js": "^10.0.1",
     "@types/cookie-parser": "^1.4.10",
     "@types/express": "^5.0.6",

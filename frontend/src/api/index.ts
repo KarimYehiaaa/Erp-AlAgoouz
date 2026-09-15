@@ -32,6 +32,8 @@ export interface LoginPayload {
 }
 export interface LoginResponse {
   token: string;
+  /** رمز التحديث — يُصدر فقط ويُحفظ محليًا داخل تطبيق الموبايل (الكوكيز لا تعمل عبر الأصول) */
+  refreshToken?: string;
   user: User;
   permissions: Array<{ code: string }>;
 }

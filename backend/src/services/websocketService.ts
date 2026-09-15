@@ -35,8 +35,14 @@ export const initWebSocket = (server: import('http').Server) => {
   wss.on('connection', (ws, req) => {
     try {
       // التحقق من Origin لمنع Cross-Site WebSocket Hijacking
+      // https://localhost هو أصل تطبيق الموبايل (Capacitor WebView)
       const origin = req.headers.origin;
-      if (origin && !config.corsOrigin.includes(origin) && !config.isDevelopment) {
+      if (
+        origin &&
+        !config.corsOrigin.includes(origin) &&
+        origin !== 'https://localhost' &&
+        !config.isDevelopment
+      ) {
         ws.close(4003, 'Forbidden: Origin not allowed');
         return;
       }

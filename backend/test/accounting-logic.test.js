@@ -35,7 +35,9 @@ test('purchase price refresh keeps weighted-average cost rule', async () => {
     source.indexOf('export const listPurchaseInvoices')
   );
 
-  assert.match(refreshSource, /SUM\(pii\.total_amount\) \/ NULLIF\(SUM\(pii\.quantity\), 0\)/);
+  assert.match(refreshSource, /SUM\(remaining_quantity \* unit_cost\) \/ NULLIF\(SUM\(remaining_quantity\), 0\)/);
+  assert.match(refreshSource, /FROM inventory_cost_layers/);
+  assert.match(refreshSource, /remaining_quantity > 0/);
   assert.doesNotMatch(refreshSource, /ORDER BY pi\.invoice_date DESC[\s\S]*LIMIT 1/);
 });
 
@@ -50,7 +52,8 @@ test('calculates item sale totals with item and sale adjustments', () => {
 
   assert.equal(totals.subtotal, 130);
   assert.equal(totals.itemDiscountTotal, 10);
-  assert.equal(totals.totalAmount, 115); // 130 - 10 (item discount) - 5 (invoice discount) = 115
+  assert.equal(totals.taxAmount, 2);
+  assert.equal(totals.totalAmount, 117);
   assert.deepEqual(
     totals.items.map((item) => item.total_amount),
     [90, 30] // Item 2 tax is forced to 0: 30 instead of 33
@@ -60,8 +63,8 @@ test('calculates item sale totals with item and sale adjustments', () => {
 test('rejects invalid invoice-level sale discounts', () => {
   const items = [{ product_id: 1, quantity: 1, unit_price: 100, discount_amount: 0 }];
 
-  assert.throws(() => calculateSaleTotals(items, { discount_amount: -1 }), /discount cannot be negative/i);
-  assert.throws(() => calculateSaleTotals(items, { discount_amount: 101 }), /discount cannot exceed invoice total/i);
+  assert.throws(() => calculateSaleTotals(items, { discount_amount: -1 }), /قيمة خصم الفاتورة لا يمكن أن تكون سالبة/);
+  assert.throws(() => calculateSaleTotals(items, { discount_amount: 101 }), /قيمة خصم الفاتورة لا يمكن أن تتجاوز إجمالي الفاتورة/);
 });
 
 test('does not create a paid amount for unpaid sales', () => {
@@ -71,7 +74,7 @@ test('does not create a paid amount for unpaid sales', () => {
 test('validates partial payments and calculates outstanding balance', () => {
   assert.equal(calculatePaidAmount('partial', 250, 100), 100);
   assert.equal(calculateOutstandingAmount(250, 100), 150);
-  assert.throws(() => calculatePaidAmount('partial', 250, 250), /less than invoice total/);
+  assert.throws(() => calculatePaidAmount('partial', 250, 250), /المبلغ المدفوع جزئياً يجب أن يكون أقل من إجمالي الفاتورة/);
 });
 
 test('system clear keeps recipe definitions intact', () => {

@@ -13,7 +13,9 @@ export const CLOUD_SERVER_URL = 'https://agoouz.vercel.app';
 export const getBaseServerUrl = (): string => {
   if (typeof window === 'undefined') return '';
   const saved = localStorage.getItem('binalagoouz_server_url');
-  if (saved) return saved.replace(/\/+$/, '');
+  if (saved && (saved.startsWith('http://') || saved.startsWith('https://'))) {
+    return saved.replace(/\/+$/, '');
+  }
 
   const isCapacitor =
     !!(window as any).Capacitor?.isNativePlatform?.() ||
@@ -27,7 +29,7 @@ export const getBaseServerUrl = (): string => {
 };
 
 export const setBaseServerUrl = (url: string) => {
-  if (!url) {
+  if (!url || (!url.startsWith('http://') && !url.startsWith('https://'))) {
     localStorage.removeItem('binalagoouz_server_url');
   } else {
     localStorage.setItem('binalagoouz_server_url', url.replace(/\/+$/, ''));

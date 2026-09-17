@@ -4,7 +4,7 @@
   "functions": {
     "api/**/*": {
       "maxDuration": 30,
-      "includeFiles": "backend/**"
+      "includeFiles": "{backend/**,shared/**}"
     }
   },
   "rewrites": [

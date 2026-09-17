@@ -29,18 +29,29 @@ test('supplier balance recalculation query structure is correct', async () => {
 });
 
 test('dangerous backup operations keep confirmation and replication-role reset guards', async () => {
-  const routesSource = await fs.readFile(path.join(process.cwd(), 'src', 'routes', 'index.js'), 'utf8');
+  const routesSource = await fs.readFile(new URL('../src/routes/admin.routes.ts', import.meta.url), 'utf8');
   const backupSource = await fs.readFile(path.join(process.cwd(), 'src', 'services', 'backupService.ts'), 'utf8');
 
   assert.match(routesSource, /\/backup\/clear[\s\S]*requireConfirmation\('CONFIRM_CLEAR'\)/);
-  assert.match(backupSource, /finally\s*\{[\s\S]*session_replication_role = 'origin'[\s\S]*client\.release\(\)/);
+  for (const name of ['clearAllData', 'restoreBackup']) {
+    const start = backupSource.indexOf(`export const ${name} =`);
+    assert.notEqual(start, -1);
+    const nextExport = backupSource.indexOf('export const ', start + 1);
+    const operation = backupSource.slice(start, nextExport === -1 ? undefined : nextExport);
+    assert.match(operation, /query\('BEGIN'\)[\s\S]*SET LOCAL session_replication_role = 'replica'/);
+    assert.doesNotMatch(operation, /SET session_replication_role/);
+    assert.match(operation, /query\('COMMIT'\)/);
+    assert.match(operation, /catch[\s\S]*query\('ROLLBACK'\)/);
+    assert.match(operation, /finally\s*\{\s*client\.release\(\)/);
+  }
 });
 
 test('sensitive read routes require explicit permissions', async () => {
-  const routesSource = await fs.readFile(path.join(process.cwd(), 'src', 'routes', 'index.js'), 'utf8');
+  const productsSource = await fs.readFile(new URL('../src/routes/products.routes.ts', import.meta.url), 'utf8');
+  const settingsSource = await fs.readFile(new URL('../src/routes/hr.routes.ts', import.meta.url), 'utf8');
 
-  assert.match(routesSource, /router\.get\('\/products\/:id'[\s\S]*authorize\('products\.manage', 'sales\.branch'\)/);
-  assert.match(routesSource, /router\.get\('\/settings'[\s\S]*authorize\('settings\.manage'\)/);
+  assert.match(productsSource, /router\.get\('\/products\/:id',\s*authenticate,\s*authorize\('pos\.view'\),\s*api\.products\.get\)/);
+  assert.match(settingsSource, /router\.get\('\/settings',\s*authenticate,\s*authorize\('settings\.view'\),\s*api\.users\.settings\)/);
 });
 
 test('auto-backup runs successfully and creates file', async () => {

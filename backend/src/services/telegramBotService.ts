@@ -131,14 +131,14 @@ export class TelegramBotService {
       await TelegramService.sendMessage(html, { botToken: token, chatId: String(chatId) });
     };
 
-    // التحقق الأمني من هوية مرسل الأمر (Whitelisted Chat IDs)
+    // التحقق الأمني الصارم من هوية مرسل الأمر (Whitelisted Chat IDs — Fail Closed)
     const allowedChatIds = [
       defaultChatId,
       ...(process.env.TELEGRAM_ALLOWED_CHATS || '').split(',').map((s) => s.trim()),
     ].filter(Boolean);
 
-    if (allowedChatIds.length > 0 && !allowedChatIds.includes(String(chatId))) {
-      logger.warn(`[Telegram Bot] محاولة وصول غير مصرح بها من Chat ID: ${chatId}`);
+    if (allowedChatIds.length === 0 || !allowedChatIds.includes(String(chatId))) {
+      logger.warn(`[Telegram Bot] محاولة وصول غير مصرح بها أو غير مهيأة من Chat ID: ${chatId}`);
       await reply('⛔ <b>عذراً</b>، هذا الحساب غير مصرح له بالوصول إلى بيانات بن العجوز ERP.');
       return;
     }

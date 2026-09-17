@@ -62,7 +62,7 @@ async function main(): Promise<void> {
 
     // 3. تشغيل الاختبارات التلقائية
     console.log('\n⏳ جاري تشغيل الاختبارات التلقائية...');
-    execSync('node --test "test/**/*.js" "test/**/*.mjs"', {
+    execSync('node --import tsx --test --test-concurrency=1 "test/**/*.js" "test/**/*.mjs"', {
       cwd: path.join(__dirname, '..'),
       stdio: 'inherit',
       env: testEnv,

@@ -703,27 +703,34 @@ export const deleteUnit = async (id: number) => {
  * @returns {Promise<{ updated: number }>}
  */
 export const bulkAdjustPrices = async (data: Record<string, any>, __userId: number) => {
-  const { category_id, type, value, adjust_type } = data; // type: 'sale' | 'purchase', adjust_type: 'percent' | 'fixed'
+  const { category_id, type, value, adjust_type, all_products } = data;
   const val = Number(value);
-  if (isNaN(val)) throw new AppError('Ø§Ù„Ù‚ÙŠÙ…Ø© ØºÙŠØ± ØµØ§Ù„Ø­Ø©', 400);
+  if (!Number.isFinite(val)) throw new AppError('القيمة غير صالحة', 400);
+
+  if (!category_id && !all_products) {
+    throw new AppError(
+      'يجب تحديد التصنيف المطلوب تعديل أسعاره، أو تأكيد التطبيق على جميع المنتجات (all_products: true)',
+      400,
+    );
+  }
 
   let sql = `UPDATE products SET `;
   const params: any[] = [];
 
   if (type === 'sale') {
     if (adjust_type === 'percent') {
-      sql += `sale_price = ROUND(sale_price * (1 + $1::numeric / 100), 2)`;
+      sql += `sale_price = GREATEST(0, ROUND(sale_price * (1 + $1::numeric / 100), 2))`;
     } else {
-      sql += `sale_price = ROUND(sale_price + $1::numeric, 2)`;
+      sql += `sale_price = GREATEST(0, ROUND(sale_price + $1::numeric, 2))`;
     }
   } else if (type === 'purchase') {
     if (adjust_type === 'percent') {
-      sql += `purchase_price = ROUND(purchase_price * (1 + $1::numeric / 100), 2)`;
+      sql += `purchase_price = GREATEST(0, ROUND(purchase_price * (1 + $1::numeric / 100), 2))`;
     } else {
-      sql += `purchase_price = ROUND(purchase_price + $1::numeric, 2)`;
+      sql += `purchase_price = GREATEST(0, ROUND(purchase_price + $1::numeric, 2))`;
     }
   } else {
-    throw new AppError('Ù†ÙˆØ¹ Ø§Ù„Ø³Ø¹Ø± Ø§Ù„Ù…Ø±Ø§Ø¯ ØªØ¹Ø¯ÙŠÙ„Ù‡ ØºÙŠØ± ØµØ§Ù„Ø­', 400);
+    throw new AppError('نوع السعر المراد تعديله غير صالح', 400);
   }
 
   params.push(val);
@@ -731,7 +738,7 @@ export const bulkAdjustPrices = async (data: Record<string, any>, __userId: numb
 
   if (category_id) {
     sql += ` AND category_id = $2`;
-    params.push(category_id);
+    params.push(Number(category_id));
   }
 
   const result = await query(sql, params);

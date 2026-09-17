@@ -17,11 +17,18 @@ function sanitizeValue(value: any, isPasswordField = false): any {
       return clean;
     }
 
-    // إزالة وسوم السكربتات المباشرة والأحداث الخبيثة
-    clean = clean.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+    // إزالة وسوم السكربتات المباشرة والأطر والوسوم المضمنة الخطيرة
+    clean = clean.replace(/<\s*script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\s*\/\s*script\s*>/gi, '');
+    clean = clean.replace(
+      /<\s*(iframe|object|embed|style|link|base|applet)\b[^<]*(?:(?!<\/\1>)<[^<]*)*<\s*\/\s*\1\s*>/gi,
+      '',
+    );
+    clean = clean.replace(/<\s*(iframe|object|embed|style|link|base|applet)\b[^>]*\/?>/gi, '');
     clean = clean.replace(/javascript\s*:/gi, '');
-    clean = clean.replace(/onload\s*=/gi, '');
-    clean = clean.replace(/onerror\s*=/gi, '');
+    clean = clean.replace(/vbscript\s*:/gi, '');
+    clean = clean.replace(/data\s*:\s*text\/html/gi, '');
+    // إزالة كافة معالجات الأحداث (on* event handlers مثل onload, onerror, onclick, onfocus...)
+    clean = clean.replace(/\bon[a-z]{3,20}\s*=\s*(?:'[^']*'|"[^"]*"|[^\s>]+)/gi, '');
 
     return clean.trim();
   }
@@ -51,10 +58,22 @@ export const sanitizeInput = (req: Request, _res: Response, next: NextFunction) 
       req.body = sanitizeValue(req.body);
     }
     if (req.query && typeof req.query === 'object') {
-      req.query = sanitizeValue(req.query);
+      const sanitizedQuery = sanitizeValue(req.query);
+      Object.defineProperty(req, 'query', {
+        value: sanitizedQuery,
+        writable: true,
+        enumerable: true,
+        configurable: true,
+      });
     }
     if (req.params && typeof req.params === 'object') {
-      req.params = sanitizeValue(req.params);
+      const sanitizedParams = sanitizeValue(req.params);
+      Object.defineProperty(req, 'params', {
+        value: sanitizedParams,
+        writable: true,
+        enumerable: true,
+        configurable: true,
+      });
     }
     next();
   } catch (err) {

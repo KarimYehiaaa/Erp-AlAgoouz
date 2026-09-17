@@ -212,7 +212,7 @@ const transferStock = async (data: Record<string, any>, userId: number) => {
           ],
         );
         await client.query(
-          `INSERT INTO stock_movements (product_id, from_warehouse_id, to_warehouse_id, movement_type, quantity, user_id, notes)
+          `INSERT INTO stock_movements (product_id, from_warehouse_id, to_warehouse_id, movement_type, quantity, user_id, reference_type, notes)
            VALUES ($1,$2,$3,'transfer',$4,$5,'transfer_voucher',$6)`,
           [
             toProductId,

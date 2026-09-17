@@ -18,7 +18,13 @@ vi.mock('@/stores/auth', () => ({
 
 describe('LoginView.vue', () => {
   it('renders login form properly', () => {
-    const wrapper = mount(LoginView);
+    const wrapper = mount(LoginView, {
+      global: {
+        stubs: {
+          AppIcon: true,
+        },
+      },
+    });
     expect(wrapper.exists()).toBe(true);
 
     // Check if the submit button exists

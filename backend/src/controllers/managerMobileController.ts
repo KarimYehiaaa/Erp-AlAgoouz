@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import { query } from '../database/pool.ts';
 import { AppError } from '../types/errors.ts';
 import { roundMoney, sumMoney, parseAmount } from '../utils/money.ts';

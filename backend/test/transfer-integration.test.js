@@ -93,7 +93,7 @@ test('Stock transfer integration tests', async () => {
     assert.equal(Number(stockWH2.rows[0].quantity), 4);
 
     // Check movement: Should have 1 transfer movement
-    const movs1 = await query(`SELECT * FROM stock_movements WHERE notes = 'TST-TRF: Same product transfer'`);
+    const movs1 = await query(`SELECT * FROM stock_movements WHERE product_id = $1 AND reference_type = 'transfer_voucher' AND notes LIKE $2`, [p1Id, `%${res1.transfer_number}%`]);
     assert.equal(movs1.rows.length, 1);
     assert.equal(movs1.rows[0].product_id, p1Id);
     assert.equal(Number(movs1.rows[0].quantity), 4);
@@ -126,12 +126,12 @@ test('Stock transfer integration tests', async () => {
     // First movement should be for Product 1 (outward)
     assert.equal(movs2.rows[0].product_id, p1Id);
     assert.equal(Number(movs2.rows[0].quantity), 3);
-    assert.ok(movs2.rows[0].notes.includes('تحويل إلى منتج آخر: منتج تحويل هدف'));
+    assert.ok(movs2.rows[0].notes.includes('تحويل إلى: منتج تحويل هدف'));
 
     // Second movement should be for Product 2 (inward)
     assert.equal(movs2.rows[1].product_id, p2Id);
     assert.equal(Number(movs2.rows[1].quantity), 3);
-    assert.ok(movs2.rows[1].notes.includes('تحويل من منتج آخر: منتج تحويل مصدر'));
+    assert.ok(movs2.rows[1].notes.includes('تحويل من: منتج تحويل مصدر'));
 
   } finally {
     // Cleanup

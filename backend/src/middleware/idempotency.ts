@@ -18,8 +18,15 @@ interface CachedResponse {
   createdAt: number;
 }
 
+interface InFlightRequest {
+  status: 'PROCESSING';
+  startedAt: number;
+}
+
+type MemoryEntry = CachedResponse | InFlightRequest;
+
 // تخزين محلي احتياطي (Memory Fallback)
-const memoryStore = new Map<string, CachedResponse | 'PROCESSING'>();
+const memoryStore = new Map<string, MemoryEntry>();
 const TTL_MS = 24 * 60 * 60 * 1000;
 
 // تنظيف دوري للذاكرة المحلية
@@ -27,7 +34,9 @@ setInterval(
   () => {
     const now = Date.now();
     for (const [key, value] of memoryStore.entries()) {
-      if (value !== 'PROCESSING' && now - value.createdAt > TTL_MS) {
+      if ('createdAt' in value && now - value.createdAt > TTL_MS) {
+        memoryStore.delete(key);
+      } else if ('startedAt' in value && now - value.startedAt > 30_000) {
         memoryStore.delete(key);
       }
     }
@@ -64,21 +73,27 @@ export const requireIdempotency = async (
 
   // 1. فحص الذاكرة المحلية أولاً
   const memCached = memoryStore.get(scopedKey);
-  if (memCached === 'PROCESSING') {
-    res.status(409).json({
-      success: false,
-      message: 'الطلب قيد المعالجة حالياً. يرجى الانتظار.',
-      code: 'REQUEST_IN_PROGRESS',
-    });
-    return;
-  }
-
   if (memCached) {
-    res.status(memCached.statusCode).json({
-      ...memCached.body,
-      _idempotentReplay: true,
-    });
-    return;
+    if ('status' in memCached && memCached.status === 'PROCESSING') {
+      const elapsed = Date.now() - memCached.startedAt;
+      if (elapsed < 30_000) {
+        res.status(409).json({
+          success: false,
+          message: 'الطلب قيد المعالجة حالياً. يرجى الانتظار.',
+          code: 'REQUEST_IN_PROGRESS',
+        });
+        return;
+      } else {
+        // انتهت مهلة المعالجة (30 ثانية) — تنظيف القفل للسماح بإعادة المحاولة
+        memoryStore.delete(scopedKey);
+      }
+    } else if ('statusCode' in memCached) {
+      res.status(memCached.statusCode).json({
+        ...memCached.body,
+        _idempotentReplay: true,
+      });
+      return;
+    }
   }
 
   // 2. فحص قاعدة البيانات المركزية
@@ -111,8 +126,20 @@ export const requireIdempotency = async (
     }
   }
 
-  // 3. تسجيل المفتاح كقيد المعالجة في الذاكرة
-  memoryStore.set(scopedKey, 'PROCESSING');
+  // 3. تسجيل المفتاح كقيد المعالجة في الذاكرة مع توقيت البدء (TTL)
+  memoryStore.set(scopedKey, { status: 'PROCESSING', startedAt: Date.now() });
+
+  const cleanupProcessing = () => {
+    const curr = memoryStore.get(scopedKey);
+    if (curr && 'status' in curr && curr.status === 'PROCESSING') {
+      memoryStore.delete(scopedKey);
+    }
+  };
+
+  res.once('close', () => {
+    if (res.statusCode >= 500) cleanupProcessing();
+  });
+  res.once('error', cleanupProcessing);
 
   // 4. اعتراض الرد لحفظه
   const originalJson = res.json.bind(res);
@@ -151,7 +178,8 @@ export const requireIdempotency = async (
   };
 
   res.on('close', () => {
-    if (!res.writableEnded && memoryStore.get(scopedKey) === 'PROCESSING') {
+    const entry = memoryStore.get(scopedKey);
+    if (!res.writableEnded && entry && 'status' in entry && entry.status === 'PROCESSING') {
       memoryStore.delete(scopedKey);
     }
   });

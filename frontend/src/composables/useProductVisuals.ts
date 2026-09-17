@@ -18,6 +18,8 @@ export interface ProductVisual {
 
 export interface CategoryVisual {
   icon: string;
+  emoji?: string;
+  theme?: string;
   cardClass: string;
   iconBgClass: string;
   image: string;
@@ -128,6 +130,45 @@ export const PRODUCT_THEMES: Record<string, ColorThemeDefinition> = {
     iconColorDark: '#fdba74',
     badgeBg: 'rgba(234, 88, 12, 0.15)',
     badgeText: '#c2410c',
+  },
+  cream: {
+    id: 'cream',
+    name: 'حليب وكريمة ناعمة',
+    accent: '#d97706',
+    accentLight: '#fef3c7',
+    glow: 'rgba(217, 119, 6, 0.2)',
+    bgLight: 'linear-gradient(145deg, rgba(254, 243, 199, 0.5) 0%, rgba(253, 230, 138, 0.1) 100%)',
+    bgDark: 'linear-gradient(145deg, rgba(254, 243, 199, 0.12) 0%, rgba(30, 20, 10, 0.8) 100%)',
+    iconColorLight: '#b45309',
+    iconColorDark: '#fef3c7',
+    badgeBg: 'rgba(217, 119, 6, 0.15)',
+    badgeText: '#92400e',
+  },
+  sunset: {
+    id: 'sunset',
+    name: 'غروب دافئ وبرتقالي',
+    accent: '#f97316',
+    accentLight: '#fdba74',
+    glow: 'rgba(249, 115, 22, 0.25)',
+    bgLight: 'linear-gradient(145deg, rgba(249, 115, 22, 0.1) 0%, rgba(234, 88, 12, 0.03) 100%)',
+    bgDark: 'linear-gradient(145deg, rgba(253, 186, 116, 0.15) 0%, rgba(45, 18, 5, 0.8) 100%)',
+    iconColorLight: '#ea580c',
+    iconColorDark: '#fed7aa',
+    badgeBg: 'rgba(249, 115, 22, 0.15)',
+    badgeText: '#c2410c',
+  },
+  caramel: {
+    id: 'caramel',
+    name: 'كراميل وحلوى دافئة',
+    accent: '#b45309',
+    accentLight: '#fde68a',
+    glow: 'rgba(180, 83, 9, 0.25)',
+    bgLight: 'linear-gradient(145deg, rgba(180, 83, 9, 0.1) 0%, rgba(217, 119, 6, 0.03) 100%)',
+    bgDark: 'linear-gradient(145deg, rgba(253, 230, 138, 0.15) 0%, rgba(35, 18, 5, 0.8) 100%)',
+    iconColorLight: '#92400e',
+    iconColorDark: '#fde68a',
+    badgeBg: 'rgba(180, 83, 9, 0.15)',
+    badgeText: '#78350f',
   },
 };
 
@@ -311,33 +352,41 @@ export const EXACT_PRODUCT_IMAGES: Record<string, string> = {
 export function getCategoryVisual(categoryName: string): CategoryVisual {
   const n = (categoryName || '').toLowerCase().trim();
 
-  if (n.includes('بن') || n.includes('حبوب') || n.includes('مطحون') || n.includes('توليف')) {
-    return {
-      icon: 'bean',
-      cardClass: 'theme-espresso',
-      iconBgClass: 'bg-theme-espresso',
-      image: EXACT_PRODUCT_IMAGES['بن برازيلى ريو وسط'] || DEFAULT_IMAGE,
-    };
-  }
   if (n.includes('مشروب') || n.includes('بارد') || n.includes('عصير') || n.includes('مثلج')) {
     return {
       icon: 'cupSoda',
+      emoji: '🧊',
+      theme: 'ice',
       cardClass: 'theme-ice',
       iconBgClass: 'bg-theme-ice',
       image: EXACT_PRODUCT_IMAGES['عصير مانجو'] || DEFAULT_IMAGE,
     };
   }
+  if (n.includes('بن') || n.includes('حبوب') || n.includes('مطحون') || n.includes('توليف')) {
+    return {
+      icon: 'bean',
+      emoji: '🫘',
+      theme: 'espresso',
+      cardClass: 'theme-espresso',
+      iconBgClass: 'bg-theme-espresso',
+      image: EXACT_PRODUCT_IMAGES['بن برازيلى ريو وسط'] || DEFAULT_IMAGE,
+    };
+  }
   if (n.includes('حلو') || n.includes('كيك') || n.includes('مخبوز') || n.includes('سناك')) {
     return {
       icon: 'cake',
+      emoji: '🥐',
+      theme: 'gold',
       cardClass: 'theme-gold',
       iconBgClass: 'bg-theme-gold',
       image: EXACT_PRODUCT_IMAGES['لارج مولتن'] || DEFAULT_IMAGE,
     };
   }
-  if (n.includes('شاي') || n.includes('أعشاب') || n.includes('اعشاب')) {
+  if (n.includes('شاي') || n.includes('شاى') || n.includes('أعشاب') || n.includes('اعشاب')) {
     return {
       icon: 'sparkles',
+      emoji: '🫖',
+      theme: 'emerald',
       cardClass: 'theme-emerald',
       iconBgClass: 'bg-theme-emerald',
       image: EXACT_PRODUCT_IMAGES['شاى كرك'] || DEFAULT_IMAGE,
@@ -346,6 +395,8 @@ export function getCategoryVisual(categoryName: string): CategoryVisual {
   if (n.includes('بهار') || n.includes('تحويج') || n.includes('مستلزم')) {
     return {
       icon: 'sparkles',
+      emoji: '🌿',
+      theme: 'amber',
       cardClass: 'theme-amber',
       iconBgClass: 'bg-theme-amber',
       image: EXACT_PRODUCT_IMAGES['حبهان'] || DEFAULT_IMAGE,
@@ -354,6 +405,8 @@ export function getCategoryVisual(categoryName: string): CategoryVisual {
 
   return {
     icon: 'coffee',
+    emoji: '☕',
+    theme: 'espresso',
     cardClass: 'theme-espresso',
     iconBgClass: 'bg-theme-espresso',
     image: EXACT_PRODUCT_IMAGES['قهوة تركى سنجل'] || DEFAULT_IMAGE,
@@ -373,64 +426,115 @@ export function getProductVisual(product: any): ProductVisual {
   let badge: string | undefined = undefined;
   let categoryEmoji = '☕';
 
-  // 1. القهوة والإسبريسو
-  if (fullText.includes('تركي') || fullText.includes('تركى')) {
-    icon = 'coffee';
-    colorTheme = 'espresso';
-    badge = 'قهوة تركية';
-    categoryEmoji = '☕';
-  } else if (fullText.includes('فرنساو') || fullText.includes('فرنساوي')) {
-    icon = 'coffee';
-    colorTheme = 'espresso';
-    badge = 'بالحليب';
-  } else if (fullText.includes('بندق')) {
-    icon = 'coffee';
-    colorTheme = 'gold';
-    badge = 'بنكهة البندق';
-  } else if (fullText.includes('ميكاتو') || fullText.includes('ماكياتو')) {
-    icon = 'coffee';
-    colorTheme = 'mocha';
-    badge = 'ماكياتو';
-  } else if (fullText.includes('دبل') && fullText.includes('سبريسو')) {
-    icon = 'flame';
-    colorTheme = 'espresso';
-    badge = 'دبل شوت';
-  } else if (fullText.includes('سبريسو') || fullText.includes('اسبرسو')) {
-    icon = 'zap';
-    colorTheme = 'espresso';
-    badge = 'إسبريسو نقي';
-  } else if (fullText.includes('كابتشينو')) {
-    icon = 'coffee';
-    colorTheme = 'mocha';
-    badge = 'كريمي';
-  } else if (fullText.includes('لاتيه')) {
-    icon = 'coffee';
-    colorTheme = 'gold';
-    badge = 'حليب ناعم';
-  } else if (fullText.includes('امريكان') || fullText.includes('أمريكان')) {
-    icon = 'coffee';
-    colorTheme = 'espresso';
-    badge = 'أمريكانو';
+  // Weight badge detection if present
+  if (fullText.includes('250') || fullText.includes('ربع')) {
+    badge = '¼ كجم';
+  } else if (fullText.includes('500') || fullText.includes('نصف') || fullText.includes('نص')) {
+    badge = '½ كجم';
   } else if (
+    fullText.includes('1000') ||
+    fullText.includes('1 كيلو') ||
+    fullText.includes('كيلو')
+  ) {
+    badge = '1 كجم';
+  }
+
+  // 1. Bakery, Croissant & Sweets
+  if (fullText.includes('كرواسون')) {
+    icon = 'croissant';
+    colorTheme = 'gold';
+    categoryEmoji = '🥐';
+    if (!badge) badge = 'مخبوزات طازجة';
+  } else if (fullText.includes('كيك') || fullText.includes('مولتن')) {
+    icon = 'cake';
+    colorTheme = 'mocha';
+    categoryEmoji = '🍰';
+    if (!badge) badge = 'لافا ساخنة';
+  } else if (
+    fullText.includes('معمول') ||
+    fullText.includes('بلح') ||
+    fullText.includes('تمر') ||
+    fullText.includes('ماندولين') ||
+    fullText.includes('اوريو') ||
+    fullText.includes('أوريو') ||
+    fullText.includes('ويفر')
+  ) {
+    icon = 'cookie';
+    colorTheme =
+      fullText.includes('اوريو') || fullText.includes('أوريو') || fullText.includes('ماندولين')
+        ? 'mocha'
+        : 'gold';
+    categoryEmoji = '🍪';
+    if (!badge) badge = 'سناكس فاخر';
+  }
+  // 2. Cold drinks, Ice coffee, Water, Sodas
+  else if (fullText.includes('آيس') || fullText.includes('ايس') || fullText.includes('مثلج')) {
+    icon = 'cupSoda';
+    colorTheme = 'ice';
+    badge = 'مثلج 🧊';
+    categoryEmoji = '🧊';
+  } else if (fullText.includes('مياه') || fullText.includes('ميه')) {
+    icon = 'glassWater';
+    colorTheme = 'ice';
+    categoryEmoji = '💧';
+    if (!badge) badge = 'نقية';
+  } else if (
+    fullText.includes('بيبسي') ||
+    fullText.includes('كولا') ||
+    fullText.includes('صودا') ||
+    fullText.includes('ماكس') ||
+    fullText.includes('كانز')
+  ) {
+    icon = 'cupSoda';
+    colorTheme = 'ice';
+    categoryEmoji = '🥤';
+    if (!badge) badge = 'بارد مثلج';
+  } else if (fullText.includes('ريد بول') || fullText.includes('طاقة')) {
+    icon = 'zap';
+    colorTheme = 'ice';
+    categoryEmoji = '⚡';
+    if (!badge) badge = 'طاقة وحيوية';
+  }
+  // 3. Juices & Fruits
+  else if (fullText.includes('تفاح')) {
+    icon = 'apple';
+    colorTheme = 'amber';
+    categoryEmoji = '🍎';
+    if (!badge) badge = 'طبيعي';
+  } else if (fullText.includes('برتقال') || fullText.includes('عصير')) {
+    icon = 'citrus';
+    colorTheme = fullText.includes('فراول')
+      ? 'berry'
+      : fullText.includes('جواف')
+        ? 'emerald'
+        : 'amber';
+    categoryEmoji = '🧃';
+    if (!badge) badge = 'فريش طبيعي';
+  }
+  // 4. Hot Chocolate & Mocha
+  else if (
     fullText.includes('هوت شوكلت') ||
+    fullText.includes('هوت شوكليت') ||
+    fullText.includes('مارشملو') ||
     fullText.includes('شوكولات') ||
     fullText.includes('كاكاو')
   ) {
     icon = 'cupSoda';
     colorTheme = 'mocha';
-    badge = 'شوكولاتة دافئة';
-  } else if (fullText.includes('نسكافيه')) {
-    icon = 'coffee';
-    colorTheme = 'gold';
-    badge = 'سريع التحضير';
-  } else if (fullText.includes('كرك') || fullText.includes('عدن')) {
+    categoryEmoji = '🍫';
+    if (!badge) badge = 'شوكولاتة دافئة';
+  }
+  // 5. Tea & Herbs
+  else if (fullText.includes('كرك') || fullText.includes('عدن')) {
     icon = 'flame';
     colorTheme = 'amber';
-    badge = 'شاي كرك متبل';
+    categoryEmoji = '🫖';
+    if (!badge) badge = 'شاي كرك متبل';
   } else if (fullText.includes('شاى') || fullText.includes('شاي')) {
     icon = 'coffee';
     colorTheme = 'emerald';
-    badge = 'شاي أصيل';
+    categoryEmoji = '🫖';
+    if (!badge) badge = 'شاي أصيل';
   } else if (
     fullText.includes('يانسون') ||
     fullText.includes('نعناع') ||
@@ -439,83 +543,108 @@ export function getProductVisual(product: any): ProductVisual {
   ) {
     icon = 'sparkles';
     colorTheme = 'emerald';
-    badge = 'أعشاب مهدئة';
-  } else if (fullText.includes('مانجو') || fullText.includes('مانجا')) {
-    icon = 'citrus';
-    colorTheme = 'amber';
-    badge = 'فريش طبيعي';
-  } else if (fullText.includes('فراول') || fullText.includes('فراولة')) {
-    icon = 'citrus';
-    colorTheme = 'berry';
-    badge = 'فريش';
-  } else if (fullText.includes('جواف') || fullText.includes('جوافة')) {
-    icon = 'citrus';
-    colorTheme = 'emerald';
-    badge = 'فريش';
-  } else if (fullText.includes('ريد بول') || fullText.includes('طاقة')) {
-    icon = 'zap';
-    colorTheme = 'ice';
-    badge = 'طاقة وحيوية';
-  } else if (
-    fullText.includes('بيبسي') ||
-    fullText.includes('كولا') ||
-    fullText.includes('صودا') ||
-    fullText.includes('ماكس')
+    categoryEmoji = '🌿';
+    if (!badge) badge = 'أعشاب مهدئة';
+  }
+  // 6. Spices / Ingredients
+  else if (
+    fullText.includes('حبهان') ||
+    fullText.includes('هيل') ||
+    fullText.includes('تحويج') ||
+    fullText.includes('بهار')
   ) {
-    icon = 'cupSoda';
-    colorTheme = 'ice';
-    badge = 'بارد مثلج';
-  } else if (fullText.includes('مياه') || fullText.includes('ميه')) {
-    icon = 'glassWater';
-    colorTheme = 'ice';
-    badge = 'نقية';
-  } else if (fullText.includes('بلح') || fullText.includes('تمر')) {
-    icon = 'cookie';
-    colorTheme = 'gold';
-    badge = 'تمر فاخر';
-  } else if (fullText.includes('ماندولين')) {
-    icon = 'cookie';
-    colorTheme = 'mocha';
-    badge = 'ويفر ماندولين';
-  } else if (fullText.includes('اوريو') || fullText.includes('أوريو')) {
-    icon = 'cookie';
-    colorTheme = 'mocha';
-    badge = 'أوريو مقرمش';
-  } else if (fullText.includes('معمول')) {
-    icon = 'cookie';
-    colorTheme = 'gold';
-    badge = 'معمول طازج';
-  } else if (fullText.includes('مولتن') || fullText.includes('كيك')) {
-    icon = 'cake';
-    colorTheme = 'mocha';
-    badge = 'لافا ساخنة';
-  } else if (fullText.includes('حبهان') || fullText.includes('هيل')) {
     icon = 'sparkles';
     colorTheme = 'emerald';
-    badge = 'هيل ممتاز';
-  } else if (
+    categoryEmoji = '🌿';
+    if (!badge) badge = 'بهارات وتحويج';
+  }
+  // 7. Beans & Packaged Blends
+  else if (
+    category.includes('بن') ||
+    name.startsWith('بن ') ||
+    fullText.includes('حبوب') ||
     fullText.includes('توليف') ||
-    fullText.includes('اسبيشيال') ||
-    fullText.includes('شرقى')
-  ) {
-    icon = 'bean';
-    colorTheme = 'gold';
-    badge = 'خلطة سرية';
-  } else if (
-    fullText.includes('بن') ||
     fullText.includes('ارابيكا') ||
     fullText.includes('روبيستا') ||
     fullText.includes('هندى') ||
-    fullText.includes('يمنى')
+    fullText.includes('يمنى') ||
+    fullText.includes('كولومب') ||
+    fullText.includes('برازيل') ||
+    fullText.includes('حبش') ||
+    fullText.includes('فيتنام') ||
+    fullText.includes('اندونيس')
   ) {
     icon = 'bean';
+    colorTheme =
+      fullText.includes('توليف') ||
+      fullText.includes('اسبيشيال') ||
+      fullText.includes('شرقى') ||
+      fullText.includes('بندق')
+        ? 'gold'
+        : 'espresso';
+    categoryEmoji = '🫘';
+    if (!badge) badge = 'حبوب ممتازة';
+  }
+  // 8. Prepared Coffee drinks
+  else if (fullText.includes('ميكاتو') || fullText.includes('ماكياتو')) {
+    icon = 'coffee';
+    colorTheme = 'mocha';
+    categoryEmoji = '☕';
+    if (!badge) badge = 'ماكياتو';
+  } else if (
+    fullText.includes('دبل') &&
+    (fullText.includes('سبريسو') || fullText.includes('اسبرسو') || fullText.includes('إسبريسو'))
+  ) {
+    icon = 'flame';
     colorTheme = 'espresso';
-    badge = 'حبوب ممتازة';
+    categoryEmoji = '☕';
+    if (!badge) badge = 'دبل شوت';
+  } else if (
+    fullText.includes('سبريسو') ||
+    fullText.includes('اسبرسو') ||
+    fullText.includes('إسبريسو') ||
+    fullText.includes('أسبريسو')
+  ) {
+    icon = 'zap';
+    colorTheme = 'espresso';
+    categoryEmoji = '☕';
+    if (!badge) badge = 'إسبريسو نقي';
+  } else if (fullText.includes('كابتشينو')) {
+    icon = 'coffee';
+    colorTheme = 'mocha';
+    categoryEmoji = '☕';
+    if (!badge) badge = 'كريمي';
+  } else if (fullText.includes('لاتيه')) {
+    icon = 'coffee';
+    colorTheme = 'gold';
+    categoryEmoji = '☕';
+    if (!badge) badge = 'حليب ناعم';
+  } else if (fullText.includes('امريكان') || fullText.includes('أمريكان')) {
+    icon = 'coffee';
+    colorTheme = 'espresso';
+    categoryEmoji = '☕';
+    if (!badge) badge = 'أمريكانو';
+  } else if (fullText.includes('نسكافيه')) {
+    icon = 'coffee';
+    colorTheme = 'gold';
+    categoryEmoji = '☕';
+    if (!badge) badge = 'سريع التحضير';
+  } else if (fullText.includes('تركي') || fullText.includes('تركى')) {
+    icon = 'coffee';
+    colorTheme = 'espresso';
+    categoryEmoji = '☕';
+    if (!badge) badge = 'قهوة تركية';
+  } else if (fullText.includes('فرنساو') || fullText.includes('فرنساوي')) {
+    icon = 'coffee';
+    colorTheme = 'espresso';
+    categoryEmoji = '☕';
+    if (!badge) badge = 'بالحليب';
   }
 
-  // 🌟 أولوية التعيين:
-  // 1. الصورة الحقيقية من قاعدة البيانات
-  // 2. الصورة المطابقة بدقة للاسم الحقيقي
+  // 🌟 Priority for image selection:
+  // 1. Explicit DB image URL
+  // 2. Exact match in catalog
+  // 3. Fallback 3D icon based on product type
   let threeDImage: string = DEFAULT_IMAGE;
 
   if (typeof product?.image_url === 'string' && product.image_url.startsWith('http')) {
@@ -526,6 +655,47 @@ export function getProductVisual(product: any): ProductVisual {
     threeDImage = EXACT_PRODUCT_IMAGES[trimmedName];
   } else if (EXACT_PRODUCT_IMAGES[rawName]) {
     threeDImage = EXACT_PRODUCT_IMAGES[rawName];
+  } else {
+    // 3D icon fallbacks
+    if (
+      fullText.includes('كرواسون') ||
+      fullText.includes('مخبوز') ||
+      fullText.includes('كيك') ||
+      fullText.includes('سناك') ||
+      fullText.includes('معمول')
+    ) {
+      threeDImage = '/3d-icons/bakery-croissant.jpg';
+    } else if (
+      fullText.includes('حبوب') ||
+      fullText.includes('بن') ||
+      fullText.includes('توليف') ||
+      fullText.includes('ارابيكا') ||
+      fullText.includes('روبيستا')
+    ) {
+      threeDImage = '/3d-icons/beans.jpg';
+    } else if (
+      fullText.includes('آيس') ||
+      fullText.includes('ايس') ||
+      fullText.includes('مثلج') ||
+      fullText.includes('مشروبات باردة') ||
+      fullText.includes('بارد') ||
+      fullText.includes('صودا') ||
+      fullText.includes('بيبسي') ||
+      fullText.includes('عصير')
+    ) {
+      threeDImage = '/3d-icons/iced-drink.jpg';
+    } else if (
+      fullText.includes('إسبريسو') ||
+      fullText.includes('اسبريسو') ||
+      fullText.includes('أسبريسو') ||
+      fullText.includes('قهوة') ||
+      fullText.includes('كوفي') ||
+      fullText.includes('كابتشينو') ||
+      fullText.includes('لاتيه') ||
+      fullText.includes('شاي')
+    ) {
+      threeDImage = '/3d-icons/coffee-hot.jpg';
+    }
   }
 
   const themeDef = (PRODUCT_THEMES[colorTheme] || PRODUCT_THEMES.espresso)!;

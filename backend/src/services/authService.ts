@@ -96,21 +96,25 @@ const login = async (username: string, password: string, meta: Record<string, an
     );
   }
   let valid = false;
-  const hash = user.password_hash || '';
-  if (hash.startsWith('$2')) {
-    valid = await bcrypt.compare(password, hash);
-  } else {
-    // مقارنة زمنية ثابتة لتجنب تسريب التوقيت (مسار كلمات المرور القديمة النصية)
-    const a = Buffer.from(password);
-    const b = Buffer.from(hash);
-    const legacyMatch = a.length === b.length && crypto.timingSafeEqual(a, b);
-    if (legacyMatch) {
-      valid = true;
-      const newHash = await bcrypt.hash(password, 10);
-      await query('UPDATE users SET password_hash = $1 WHERE id = $2', [newHash, user.id]);
-      logger.info(
-        `\u{1F512} [\u0628\u0646 \u0627\u0644\u0639\u062C\u0648\u0632 ERP] \u062A\u0645 \u062A\u0631\u0642\u064A\u0629 \u0643\u0644\u0645\u0629 \u0627\u0644\u0645\u0631\u0648\u0631 \u062A\u0644\u0642\u0627\u0626\u064A\u0627\u064B \u0644\u0640 ${user.username} \u0625\u0644\u0649 bcrypt.`,
-      );
+  const hash = typeof user.password_hash === 'string' ? user.password_hash.trim() : '';
+  const cleanPassword = typeof password === 'string' ? password : '';
+
+  if (cleanPassword.length > 0 && hash.length > 0) {
+    if (hash.startsWith('$2')) {
+      valid = await bcrypt.compare(cleanPassword, hash);
+    } else if (cleanPassword.length >= 4 && hash.length >= 4) {
+      // مقارنة زمنية ثابتة لتجنب تسريب التوقيت (مسار كلمات المرور القديمة النصية الموثقة)
+      const a = Buffer.from(cleanPassword);
+      const b = Buffer.from(hash);
+      const legacyMatch = a.length === b.length && crypto.timingSafeEqual(a, b);
+      if (legacyMatch) {
+        valid = true;
+        const newHash = await bcrypt.hash(cleanPassword, 10);
+        await query('UPDATE users SET password_hash = $1 WHERE id = $2', [newHash, user.id]);
+        logger.info(
+          `🔒 [بن العجوز ERP] تم ترقية كلمة المرور تلقائياً لـ ${user.username} إلى bcrypt.`,
+        );
+      }
     }
   }
   if (!valid) {

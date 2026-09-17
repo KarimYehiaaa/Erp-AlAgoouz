@@ -10,14 +10,16 @@ export default defineConfig({
   retries: 0,
   reporter: [['list']],
   use: {
-    baseURL: 'http://localhost:4173',
+    baseURL: 'http://127.0.0.1:4173',
     headless: true,
+    trace: 'retain-on-failure',
+    screenshot: 'only-on-failure',
   },
   webServer: {
-    command: 'npm run dev -- --port 4173 --strictPort',
-    url: 'http://localhost:4173',
-    reuseExistingServer: true,
-    timeout: 60_000,
+    command: 'npm run build && npm run preview -- --host 127.0.0.1 --port 4173 --strictPort',
+    url: 'http://127.0.0.1:4173',
+    reuseExistingServer: false,
+    timeout: 180_000,
   },
   projects: [{ name: 'chromium', use: { browserName: 'chromium' } }],
 });

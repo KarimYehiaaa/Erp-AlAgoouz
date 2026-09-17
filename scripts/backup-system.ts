@@ -98,20 +98,30 @@ export function runBackup(deps: BackupDeps): { archivePath: string; archiveName:
       cwd: rootDir,
       stdio: 'inherit',
     });
-
-    const stats = fops.statSync(zipPath);
-    const fileSizeInMB = (stats.size / (1024 * 1024)).toFixed(2);
-
-    console.log('==================================================');
-    console.log('\x1b[32mSUCCESS: Full backup completed successfully!\x1b[0m');
-    console.log(`Saved to: ${zipPath}`);
-    console.log(`Archive Size: ${fileSizeInMB} MB`);
-    console.log('==================================================');
-    return { archivePath: zipPath, archiveName };
   } catch (error) {
-    console.error('\x1b[31mERROR: Archiving failed!\x1b[0m', (error as Error).message);
-    process.exit(1);
+    // على Windows (خاصة bsdtar 3.8.8)، قد يفشل tar مع الملفات ذات التسميات غير اللاتينية أو المسارات الخاصة.
+    // يتم استخدام git archive كبديل موثوق عبر المنصات.
+    console.warn('\x1b[33mWarning: Standard tar failed. Falling back to git archive...\x1b[0m');
+    try {
+      run(`git archive --format=tar.gz -o "${archiveNameRelative}" HEAD`, {
+        cwd: rootDir,
+        stdio: 'inherit',
+      });
+    } catch {
+      console.error('\x1b[31mERROR: Archiving failed!\x1b[0m', (error as Error).message);
+      process.exit(1);
+    }
   }
+
+  const stats = fops.statSync(zipPath);
+  const fileSizeInMB = (stats.size / (1024 * 1024)).toFixed(2);
+
+  console.log('==================================================');
+  console.log('\x1b[32mSUCCESS: Full backup completed successfully!\x1b[0m');
+  console.log(`Saved to: ${zipPath}`);
+  console.log(`Archive Size: ${fileSizeInMB} MB`);
+  console.log('==================================================');
+  return { archivePath: zipPath, archiveName };
 }
 
 // حارس التشغيل المباشر: عند `node scripts/backup-system.ts` يُنفَّذ،

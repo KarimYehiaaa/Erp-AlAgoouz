@@ -120,6 +120,24 @@ describe('backup-system.ts (cross-platform tar with relative path)', () => {
     const dbCall = env.calls.find((c) => c.cmd.includes('run-manual-backup'));
     expect(dbCall).toBeDefined();
   });
+
+  it('يلجأ إلى git archive كبديل موثوق إذا فشل أمر tar', () => {
+    const env = makeDeps();
+    const origExec = env.deps.execSync;
+    env.deps.execSync = (cmd, opts) => {
+      if (cmd.startsWith('tar ')) {
+        throw new Error('tar crash 0xC0000005');
+      }
+      origExec(cmd, opts);
+    };
+
+    runBackup(env.deps);
+
+    const gitArchiveCall = env.calls.find((c) => c.cmd.includes('git archive'));
+    expect(gitArchiveCall).toBeDefined();
+    expect(gitArchiveCall!.cmd).toContain('git archive --format=tar.gz -o "full-backups');
+    expect(gitArchiveCall!.opts.cwd).toBe(rootDir);
+  });
 });
 
 describe('checkBuildPath (build path guard, pure)', () => {

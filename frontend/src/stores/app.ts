@@ -11,11 +11,18 @@ export interface Toast {
 
 export const useAppStore = defineStore('app', () => {
   const sidebarOpen = ref(localStorage.getItem('sidebarOpen') !== 'false');
+  const sidebarPinned = ref(localStorage.getItem('sidebarPinned') !== 'false');
+  const activeWorkspace = ref(localStorage.getItem('activeWorkspace') || 'المركز الرئيسي');
   const notifications = ref<any[]>([]);
   const notificationDrawerOpen = ref(false);
   const isOnline = ref(navigator.onLine);
   const pendingSyncCount = ref(0);
   const dataRefreshTrigger = ref(0);
+
+  const setWorkspace = (name: string) => {
+    activeWorkspace.value = name;
+    localStorage.setItem('activeWorkspace', name);
+  };
 
   const triggerDataRefresh = () => {
     dataRefreshTrigger.value++;
@@ -26,13 +33,18 @@ export const useAppStore = defineStore('app', () => {
   };
 
   const syncSidebarWidth = () => {
-    const width = '68px';
+    const width = sidebarPinned.value ? '260px' : '68px';
     document.documentElement.style.setProperty('--sidebar-current-width', width);
   };
 
   const toggleSidebar = () => {
     sidebarOpen.value = !sidebarOpen.value;
     localStorage.setItem('sidebarOpen', String(sidebarOpen.value));
+  };
+
+  const toggleSidebarPinned = () => {
+    sidebarPinned.value = !sidebarPinned.value;
+    localStorage.setItem('sidebarPinned', String(sidebarPinned.value));
     syncSidebarWidth();
   };
 
@@ -68,7 +80,7 @@ export const useAppStore = defineStore('app', () => {
     }
   };
 
-  // ── الوضع الداكن (Espresso) — يُخزَّن في localStorage ويُطبَّق عبر data-theme ──
+  // ── الوضع الداكن المؤسسي — يُخزَّن في localStorage ويُطبَّق عبر data-theme ──
   const darkMode = ref(localStorage.getItem('darkMode') === 'true');
 
   const toggleDarkMode = () => {
@@ -86,9 +98,9 @@ export const useAppStore = defineStore('app', () => {
       root.removeAttribute('data-theme');
       root.style.colorScheme = 'light';
     }
-    // مزامنة لون شريط المتصفح (theme-color) مع الثيم
+    // مزامنة لون شريط المتصفح (theme-color) مع الثيم المؤسسي
     const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute('content', darkMode.value ? '#16100c' : '#fdf8f3');
+    if (meta) meta.setAttribute('content', darkMode.value ? '#0b0f17' : '#ffffff');
     // إشعار الرسوم البيانية لإعادة الرسم بألوان الثيم الجديد
     window.dispatchEvent(new CustomEvent('theme-changed', { detail: { dark: darkMode.value } }));
   };
@@ -156,6 +168,10 @@ export const useAppStore = defineStore('app', () => {
 
   return {
     sidebarOpen,
+    sidebarPinned,
+    toggleSidebarPinned,
+    activeWorkspace,
+    setWorkspace,
     notifications,
     notificationDrawerOpen,
     isOnline,

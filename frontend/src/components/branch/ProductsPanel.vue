@@ -278,9 +278,9 @@
         <!-- Header -->
         <div class="customizer-header">
           <div class="header-title-wrap">
-            <span class="modal-coffee-icon"><AppIcon name="coffee" :size="20" /></span>
+            <span class="modal-coffee-icon"><AppIcon name="sliders" :size="20" /></span>
             <div>
-              <h3>تخصيص مواصفات البن / الطلب</h3>
+              <h3>تخصيص مواصفات الصنف / الطلب</h3>
               <p class="custom-prod-title">{{ activeCustomProduct.name_ar }}</p>
             </div>
           </div>

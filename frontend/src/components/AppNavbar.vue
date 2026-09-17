@@ -1,120 +1,245 @@
 <template>
-  <header class="navbar">
+  <header class="navbar" role="banner">
+    <!-- Navbar Start: Menu Toggle & Workspace Switcher -->
     <div class="navbar-start">
       <button
-        class="icon-btn"
+        class="icon-btn sidebar-toggle-btn"
         type="button"
         :title="appStore.sidebarOpen ? 'إخفاء القائمة' : 'إظهار القائمة'"
         :aria-label="appStore.sidebarOpen ? 'إخفاء القائمة' : 'إظهار القائمة'"
         @click="appStore.toggleSidebar"
       >
-        <AppIcon name="menu" />
+        <AppIcon name="menu" :size="18" />
       </button>
 
+      <!-- Contextual Workspace Switcher -->
+      <div class="workspace-switcher" ref="workspaceMenuRef">
+        <button
+          type="button"
+          class="workspace-chip"
+          @click="workspaceMenuOpen = !workspaceMenuOpen"
+          :title="`نطاق العمل الحالي: ${appStore.activeWorkspace}`"
+          aria-haspopup="true"
+          :aria-expanded="workspaceMenuOpen"
+        >
+          <span class="workspace-icon"><AppIcon name="warehouse" :size="15" /></span>
+          <div class="workspace-meta">
+            <span class="workspace-tenant">{{ companyName }}</span>
+            <strong class="workspace-branch">{{ appStore.activeWorkspace }}</strong>
+          </div>
+          <span class="chevron-indicator"><AppIcon name="arrowDown" :size="12" /></span>
+        </button>
+
+        <transition name="dropdown-fade">
+          <div v-if="workspaceMenuOpen" class="workspace-dropdown card" role="menu">
+            <div class="dropdown-header">اختيار نطاق العمل / الفرع</div>
+            <button
+              v-for="ws in availableWorkspaces"
+              :key="ws.id"
+              type="button"
+              class="dropdown-item"
+              :class="{ active: appStore.activeWorkspace === ws.name }"
+              @click="selectWorkspace(ws.name)"
+              role="menuitem"
+            >
+              <AppIcon :name="ws.icon" :size="16" />
+              <span>{{ ws.name }}</span>
+              <span v-if="appStore.activeWorkspace === ws.name" class="check-mark">✓</span>
+            </button>
+          </div>
+        </transition>
+      </div>
+
+      <!-- Page Title & Subtitle -->
       <div class="page-info">
         <h1 class="page-title">{{ pageTitle }}</h1>
         <p class="page-sub">{{ pageSub }}</p>
       </div>
     </div>
 
+    <!-- Navbar End: Command Center, Quick Create, Action Center & Preferences -->
     <div class="navbar-end">
-      <div class="search-wrap" @click.prevent="triggerCommandPalette" style="cursor: pointer">
-        <AppIcon class="search-icon" name="search" />
-        <input
-          type="text"
-          placeholder="بحث سريع أو تنقل... (Ctrl+K)"
-          class="search-input"
-          readonly
-          style="cursor: pointer"
-        />
+      <!-- Universal Command Center Trigger (Ctrl + K) -->
+      <div
+        class="search-wrap"
+        role="button"
+        tabindex="0"
+        @click.prevent="triggerCommandPalette"
+        @keydown.enter.prevent="triggerCommandPalette"
+        title="فتح مركز الأوامر والبحث الشامل (Ctrl+K)"
+      >
+        <AppIcon class="search-icon" name="search" :size="15" />
+        <span class="search-label">بحث سريع أو أمر...</span>
+        <kbd class="command-kbd">Ctrl K</kbd>
       </div>
 
+      <!-- Quick Create (+) Menu -->
+      <div class="quick-create-wrap" ref="quickCreateRef">
+        <button
+          type="button"
+          class="btn btn-primary btn-sm quick-create-btn"
+          @click="quickCreateOpen = !quickCreateOpen"
+          :aria-expanded="quickCreateOpen"
+          title="إنشاء جديد سريع"
+        >
+          <AppIcon name="plus" :size="14" />
+          <span class="btn-label">جديد</span>
+        </button>
+
+        <transition name="dropdown-fade">
+          <div v-if="quickCreateOpen" class="quick-create-dropdown card" role="menu">
+            <div class="dropdown-header">إجراءات الإنشاء السريعة</div>
+            <button
+              v-if="authStore.hasPermission('invoices.view')"
+              type="button"
+              class="dropdown-item"
+              @click="navigateAndClose('/invoices/create')"
+              role="menuitem"
+            >
+              <AppIcon name="receipt" :size="16" />
+              <span>فاتورة مبيعات جديدة</span>
+            </button>
+            <button
+              v-if="authStore.hasPermission('pos.view')"
+              type="button"
+              class="dropdown-item"
+              @click="navigateAndClose('/branch-sales')"
+              role="menuitem"
+            >
+              <AppIcon name="shop" :size="16" />
+              <span>عملية بيع سريعة (POS)</span>
+            </button>
+            <button
+              v-if="authStore.hasPermission('products.view')"
+              type="button"
+              class="dropdown-item"
+              @click="navigateAndClose('/products')"
+              role="menuitem"
+            >
+              <AppIcon name="products" :size="16" />
+              <span>إضافة منتج جديد</span>
+            </button>
+            <button
+              v-if="authStore.hasPermission('inventory.view')"
+              type="button"
+              class="dropdown-item"
+              @click="navigateAndClose('/purchases')"
+              role="menuitem"
+            >
+              <AppIcon name="purchases" :size="16" />
+              <span>تسجيل أمر شراء أو مصروف</span>
+            </button>
+          </div>
+        </transition>
+      </div>
+
+      <!-- Shortcuts HUD (?) -->
       <button
-        class="icon-btn mobile-actions-toggle"
+        class="icon-btn"
         type="button"
-        @click.stop="mobileActionsOpen = !mobileActionsOpen"
-        :class="{ active: mobileActionsOpen }"
-        title="أدوات إضافية"
-        aria-label="أدوات إضافية"
+        @click="triggerShortcutsHUD"
+        title="دليل الاختصارات والمساعدة (?)"
+        aria-label="دليل الاختصارات"
       >
-        <AppIcon name="settings" />
+        <AppIcon name="keyboard" :size="16" />
       </button>
 
-      <div class="navbar-actions-group" :class="{ 'mobile-open': mobileActionsOpen }">
-        <!-- Privacy Toggle (Eye icon) -->
+      <!-- Action Center / Operational Alerts Drawer -->
+      <button
+        class="icon-btn notification-btn"
+        type="button"
+        @click="appStore.toggleNotificationDrawer"
+        title="مركز الإجراءات والتنبيهات التشغيلية"
+        aria-label="مركز التنبيهات"
+      >
+        <AppIcon name="bell" :size="16" />
+        <span v-if="appStore.notifications.length" class="notification-badge">{{
+          appStore.notifications.length
+        }}</span>
+      </button>
+
+      <!-- Consolidated Enterprise Preferences Menu -->
+      <div class="preferences-wrap" ref="preferencesRef">
         <button
           class="icon-btn"
           type="button"
-          @click="appStore.togglePrivacyMode"
-          :title="
-            appStore.privacyMode
-              ? 'إظهار المبالغ (وضع الخصوصية مفعل)'
-              : 'طمس المبالغ (تفعيل وضع الخصوصية)'
-          "
-          :aria-label="appStore.privacyMode ? 'إظهار المبالغ' : 'طمس المبالغ'"
-          :class="{ active: appStore.privacyMode }"
+          @click="preferencesOpen = !preferencesOpen"
+          title="تفضيلات العرض والمظهر"
+          aria-label="تفضيلات العرض"
+          :class="{ active: preferencesOpen }"
         >
-          <AppIcon :name="appStore.privacyMode ? 'eyeOff' : 'eye'" />
+          <AppIcon name="sliders" :size="16" />
         </button>
 
-        <!-- Data Density Toggle -->
-        <button
-          class="icon-btn"
-          type="button"
-          @click="appStore.toggleDataDensity"
-          :title="
-            appStore.dataDensity === 'compact'
-              ? 'كثافة البيانات: كثيفة (تبديل للمريح)'
-              : 'كثافة البيانات: مريحة (تبديل للمكثف)'
-          "
-          aria-label="تبديل كثافة البيانات"
-          :class="{ active: appStore.dataDensity === 'compact' }"
-        >
-          <AppIcon :name="appStore.dataDensity === 'compact' ? 'maximize' : 'minimize'" />
-        </button>
+        <transition name="dropdown-fade">
+          <div v-if="preferencesOpen" class="preferences-dropdown card" role="menu">
+            <div class="dropdown-header">تفضيلات الواجهة</div>
 
-        <!-- Dark Mode Toggle (Espresso) -->
-        <button
-          class="icon-btn"
-          type="button"
-          @click="appStore.toggleDarkMode"
-          :title="
-            appStore.darkMode ? 'الوضع الداكن مفعل (تبديل للفاتح)' : 'تفعيل الوضع الداكن (إسبريسو)'
-          "
-          aria-label="تبديل الوضع الداكن"
-          :class="{ active: appStore.darkMode }"
-        >
-          <AppIcon :name="appStore.darkMode ? 'sun' : 'moon'" />
-        </button>
+            <!-- Dark Mode -->
+            <button
+              type="button"
+              class="pref-item"
+              @click="appStore.toggleDarkMode"
+              role="menuitem"
+            >
+              <div class="pref-meta">
+                <AppIcon :name="appStore.darkMode ? 'sun' : 'moon'" :size="16" />
+                <span>الوضع الداكن</span>
+              </div>
+              <span class="pref-state">{{ appStore.darkMode ? 'مفعل' : 'معطل' }}</span>
+            </button>
 
-        <!-- Cashier Focus Mode (F4) -->
-        <button
-          class="icon-btn"
-          type="button"
-          @click="appStore.toggleFocusMode"
-          :title="
-            appStore.focusMode
-              ? 'الخروج من وضع تركيز الكاشير (Esc)'
-              : 'وضع تركيز الكاشير — إخفاء كل شيء إلا شاشة البيع (F4)'
-          "
-          aria-label="تبديل وضع تركيز الكاشير"
-          :class="{ active: appStore.focusMode }"
-        >
-          <AppIcon :name="appStore.focusMode ? 'dashboard' : 'coffee'" />
-        </button>
+            <!-- Data Density -->
+            <button
+              type="button"
+              class="pref-item"
+              @click="appStore.toggleDataDensity"
+              role="menuitem"
+            >
+              <div class="pref-meta">
+                <AppIcon
+                  :name="appStore.dataDensity === 'compact' ? 'maximize' : 'minimize'"
+                  :size="16"
+                />
+                <span>كثافة البيانات</span>
+              </div>
+              <span class="pref-state">{{
+                appStore.dataDensity === 'compact' ? 'مكثفة' : 'مريحة'
+              }}</span>
+            </button>
 
-        <!-- Mobile Executive Report Shortcut -->
-        <RouterLink
-          to="/mobile"
-          class="icon-btn"
-          title="شاشة تقارير الموبايل والموافقات"
-          aria-label="تقارير الموبايل"
-        >
-          <span style="font-size: 16px">📱</span>
-        </RouterLink>
+            <!-- Privacy Mode -->
+            <button
+              type="button"
+              class="pref-item"
+              @click="appStore.togglePrivacyMode"
+              role="menuitem"
+            >
+              <div class="pref-meta">
+                <AppIcon :name="appStore.privacyMode ? 'eyeOff' : 'eye'" :size="16" />
+                <span>طمس الأرقام (الخصوصية)</span>
+              </div>
+              <span class="pref-state">{{ appStore.privacyMode ? 'مفعل' : 'معطل' }}</span>
+            </button>
+
+            <!-- Cashier Focus Mode -->
+            <button
+              type="button"
+              class="pref-item"
+              @click="appStore.toggleFocusMode"
+              role="menuitem"
+            >
+              <div class="pref-meta">
+                <AppIcon name="monitor" :size="16" />
+                <span>وضع التركيز الكامل (F4)</span>
+              </div>
+              <span class="pref-state">{{ appStore.focusMode ? 'مفعل' : 'معطل' }}</span>
+            </button>
+          </div>
+        </transition>
       </div>
 
-      <!-- مؤشر حالة الاتصال بالإنترنت والمزامنة الخلفية -->
+      <!-- Network & Sync Status -->
       <div
         class="network-status"
         :class="{ online: appStore.isOnline, offline: !appStore.isOnline }"
@@ -125,26 +250,13 @@
         <span
           v-if="appStore.pendingSyncCount > 0"
           class="sync-badge"
-          title="مبيعات معلقة بانتظار المزامنة"
+          title="معاملات معلقة بانتظار المزامنة"
         >
           {{ appStore.pendingSyncCount }} معلقة
         </span>
       </div>
 
-      <button
-        class="icon-btn notification-btn"
-        type="button"
-        @click="appStore.toggleNotificationDrawer"
-        title="تنبيهات التشغيل"
-        aria-label="تنبيهات التشغيل"
-        style="position: relative"
-      >
-        <AppIcon name="warning" />
-        <span v-if="appStore.notifications.length" class="notification-badge">{{
-          appStore.notifications.length
-        }}</span>
-      </button>
-
+      <!-- User Chip & Profile Menu -->
       <div class="user-chip">
         <div class="user-avatar">{{ userInitial }}</div>
         <div class="user-meta">
@@ -158,7 +270,7 @@
           title="تسجيل الخروج"
           aria-label="تسجيل الخروج"
         >
-          <AppIcon name="logout" />
+          <AppIcon name="logout" :size="16" />
         </button>
       </div>
     </div>
@@ -171,6 +283,7 @@ import { useRoute, useRouter } from 'vue-router';
 import AppIcon from '@/components/AppIcon.vue';
 import { useAppStore } from '@/stores/app';
 import { useAuthStore } from '@/stores/auth';
+import { brandingState } from '@/design-system/themes/themeEngine';
 import { operations as operationsApi } from '@/api';
 import { localDb } from '@/services/localDb';
 import { OutboxService } from '@/services/outboxService';
@@ -179,38 +292,70 @@ const route = useRoute();
 const router = useRouter();
 const appStore = useAppStore();
 const authStore = useAuthStore();
-const mobileActionsOpen = ref(false);
+
+const workspaceMenuOpen = ref(false);
+const quickCreateOpen = ref(false);
+const preferencesOpen = ref(false);
+
+const workspaceMenuRef = ref<HTMLElement | null>(null);
+const quickCreateRef = ref<HTMLElement | null>(null);
+const preferencesRef = ref<HTMLElement | null>(null);
+
+const companyName = computed(() => brandingState.companyName || 'منظومة الإدارة');
+
+const availableWorkspaces = [
+  { id: 'main', name: 'المركز الرئيسي', icon: 'warehouse' },
+  { id: 'branch-1', name: 'فرع المبيعات 1', icon: 'shop' },
+  { id: 'warehouse-1', name: 'المستودع المركزي', icon: 'inventory' },
+];
+
+function selectWorkspace(name: string) {
+  appStore.setWorkspace(name);
+  workspaceMenuOpen.value = false;
+  appStore.triggerDataRefresh();
+}
+
+function navigateAndClose(path: string) {
+  quickCreateOpen.value = false;
+  router.push(path);
+}
+
 const triggerCommandPalette = () => {
   window.dispatchEvent(new CustomEvent('open-command-palette'));
 };
 
+const triggerShortcutsHUD = () => {
+  window.dispatchEvent(new KeyboardEvent('keydown', { key: '?' }));
+};
+
 const titles = {
   Dashboard: ['لوحة التحكم', 'مؤشرات التشغيل والتحصيل والمخزون'],
-  BranchSales: ['شاشة المبيعات', 'إدخال مبيعات الفرع وخصم المخزون'],
-  Sales: ['المبيعات', 'سجل المبيعات اليومية'],
-  Products: ['المنتجات', 'إدارة المنتجات والأسعار'],
-  Purchases: ['المشتريات', 'فواتير الموردين وحركة الشراء'],
-  Inventory: ['المخزون', 'الأرصدة والتحويلات والتنبيهات'],
-  Costs: ['التكاليف', 'تحليل أسعار المنتجات وهوامش الربح'],
-  Recipes: ['الوصفات', 'مكونات المنتجات وخصم المخزون'],
-  Customers: ['العملاء', 'الأرصدة والمدفوعات والتعاملات'],
-  Invoices: ['الفواتير', 'الفواتير والمدفوعات'],
-  InvoiceCreate: ['فاتورة جديدة', 'إنشاء فاتورة عميل'],
-  QuotationCreate: ['عرض سعر', 'إنشاء عرض سعر للعميل'],
+  BranchSales: ['شاشة المبيعات', 'نقطة البيع المباشرة والفوترة السريعة'],
+  Sales: ['المبيعات والعملاء', 'سجل المبيعات والحسابات والديون'],
+  Products: ['المنتجات والإنتاج', 'دليل المنتجات والأسعار وحساب التكاليف'],
+  Purchases: ['المشتريات والمالية', 'فواتير الموردين وحركة المصروفات'],
+  Inventory: ['المخزون والمستودعات', 'الأرصدة وحركات التحويل والتسويات'],
+  Costs: ['التكاليف والربحية', 'تحليل تكاليف الأصناف ومحاكاة الربح'],
+  Recipes: ['الوصفات والتصنيع', 'مكونات المنتجات وخصم المخزون التلقائي'],
+  Customers: ['العملاء', 'إدارة سجلات العملاء والديون والمدفوعات'],
+  Invoices: ['الفواتير', 'فواتير المبيعات وعروض الأسعار'],
+  InvoiceCreate: ['فاتورة جديدة', 'إنشاء فاتورة مبيعات'],
+  QuotationCreate: ['عرض أسعار', 'إنشاء عرض أسعار للعميل'],
   InvoiceDetail: ['عرض الفاتورة', 'تفاصيل الفاتورة والطباعة'],
-  Expenses: ['المصروفات', 'تتبع المصروفات والتصنيفات'],
-  Suppliers: ['الموردين', 'إدارة الموردين والمشتريات'],
-  Reports: ['التقارير', 'تحليلات مالية وتشغيلية'],
+  Expenses: ['المصروفات', 'تسجيل ومتابعة المصروفات التشغيلية'],
+  Suppliers: ['الموردين', 'إدارة الموردين وأوامر الشراء'],
+  Reports: ['التقارير والتحليلات', 'التحليلات التشغيلية والمالية والذكاء التنبؤي'],
   Users: ['المستخدمين', 'الصلاحيات وإدارة الوصول'],
-  Settings: ['الإعدادات', 'إعدادات النظام والواجهة'],
+  Settings: ['إدارة المنشأة', 'إعدادات النظام والواجهة وبيانات المنشأة'],
 };
 
 const pageTitle = computed(
-  () => titles[String(route.name) as keyof typeof titles]?.[0] || 'بن العجوز',
+  () => titles[String(route.name) as keyof typeof titles]?.[0] || companyName.value,
 );
 const pageSub = computed(
-  () => titles[String(route.name) as keyof typeof titles]?.[1] || 'نظام إدارة متكامل',
+  () => titles[String(route.name) as keyof typeof titles]?.[1] || 'منظومة إدارة متكاملة',
 );
+
 const displayUserName = computed(
   () => authStore.user?.full_name || authStore.user?.username || 'مستخدم',
 );
@@ -221,16 +366,16 @@ const handleLogout = () => {
   router.push('/login');
 };
 
-const handleDocumentClick = (event: any) => {
-  const actionsToggle = document.querySelector('.mobile-actions-toggle');
-  const actionsGroup = document.querySelector('.navbar-actions-group');
-  if (
-    actionsToggle &&
-    !actionsToggle.contains(event.target) &&
-    actionsGroup &&
-    !actionsGroup.contains(event.target)
-  ) {
-    mobileActionsOpen.value = false;
+const handleOutsideClick = (e: MouseEvent) => {
+  const target = e.target as Node;
+  if (workspaceMenuRef.value && !workspaceMenuRef.value.contains(target)) {
+    workspaceMenuOpen.value = false;
+  }
+  if (quickCreateRef.value && !quickCreateRef.value.contains(target)) {
+    quickCreateOpen.value = false;
+  }
+  if (preferencesRef.value && !preferencesRef.value.contains(target)) {
+    preferencesOpen.value = false;
   }
 };
 
@@ -240,7 +385,6 @@ const syncOfflineSales = async () => {
   try {
     const result = await OutboxService.processOutbox();
     appStore.pendingSyncCount = result.remainingCount;
-
     if (result.syncedCount > 0) {
       appStore.triggerDataRefresh();
     }
@@ -270,30 +414,24 @@ const loadAlertsBackground = async () => {
 let syncInterval: ReturnType<typeof setInterval> | null = null;
 
 onMounted(() => {
-  document.addEventListener('click', handleDocumentClick);
-
-  // Listen to network changes
+  document.addEventListener('click', handleOutsideClick);
   window.addEventListener('online', updateOnlineStatus);
   window.addEventListener('offline', updateOnlineStatus);
 
-  // Initial check and sync
   updateOnlineStatus();
   localDb.getOfflineSales().then((sales: any) => {
-    // الشارة تعرض المعلّق القابل للمزامنة فقط — المحجور يحتاج مراجعة يدوية
     appStore.pendingSyncCount = sales.filter((s: any) => s.sync_status !== 'QUARANTINED').length;
     if (navigator.onLine && appStore.pendingSyncCount > 0) {
       syncOfflineSales();
     }
   });
 
-  // Set up periodic sync — يتوقف عند إخفاء التبويب لتوفير البيانات والبطارية
   syncInterval = setInterval(() => {
     if (navigator.onLine && !document.hidden) {
       syncOfflineSales();
     }
   }, 30000);
 
-  // Background alerts fetch
   loadAlertsBackground();
   alertsInterval = setInterval(() => {
     if (!document.hidden) loadAlertsBackground();
@@ -301,484 +439,445 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
-  document.removeEventListener('click', handleDocumentClick);
+  document.removeEventListener('click', handleOutsideClick);
   window.removeEventListener('online', updateOnlineStatus);
   window.removeEventListener('offline', updateOnlineStatus);
-  if (syncInterval) {
-    clearInterval(syncInterval);
-  }
-  if (alertsInterval) {
-    clearInterval(alertsInterval);
-  }
+  if (syncInterval) clearInterval(syncInterval);
+  if (alertsInterval) clearInterval(alertsInterval);
 });
 </script>
 
 <style lang="scss" scoped>
 .navbar {
   position: fixed;
-  top: 12px;
-  left: 16px;
-  right: calc(var(--sidebar-collapsed, 68px) + 16px);
-  height: 56px;
-  z-index: 130;
+  top: 0;
+  left: 0;
+  right: var(--sidebar-current-width, 260px);
+  height: var(--navbar-height, 64px);
+  z-index: 100;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 0 12px;
-  background: var(--glass-bg);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
+  padding: 0 20px;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  box-shadow: var(--shadow-subtle);
   transition: right var(--transition);
 }
 
-.navbar-start,
+.navbar-start {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+}
+
+.sidebar-toggle-btn {
+  display: none;
+}
+
+@media (max-width: 992px) {
+  .navbar {
+    right: 0 !important;
+  }
+  .sidebar-toggle-btn {
+    display: inline-flex;
+  }
+}
+
+/* ── Workspace Context Switcher ── */
+.workspace-switcher {
+  position: relative;
+}
+
+.workspace-chip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-subtle);
+  color: var(--color-text);
+  cursor: pointer;
+  transition: all var(--transition);
+
+  &:hover {
+    background: var(--color-surface-hover);
+    border-color: var(--color-primary);
+  }
+}
+
+.workspace-icon {
+  color: var(--color-primary);
+  display: flex;
+  align-items: center;
+}
+
+.workspace-meta {
+  display: flex;
+  flex-direction: column;
+  text-align: right;
+  line-height: 1.2;
+}
+
+.workspace-tenant {
+  font-size: 0.68rem;
+  color: var(--color-text-muted);
+}
+
+.workspace-branch {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--color-text-strong);
+}
+
+.chevron-indicator {
+  color: var(--color-text-muted);
+}
+
+.workspace-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 220px;
+  padding: 6px;
+  z-index: 1000;
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+}
+
+.dropdown-header {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--color-border-subtle);
+  margin-bottom: 4px;
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  background: transparent;
+  color: var(--color-text);
+  font-size: 0.84rem;
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  text-align: right;
+  transition: background var(--transition);
+
+  &:hover {
+    background: var(--color-bg-subtle);
+  }
+
+  &.active {
+    background: var(--color-primary-soft);
+    color: var(--color-primary);
+    font-weight: 700;
+  }
+}
+
+.check-mark {
+  margin-right: auto;
+  font-size: 0.8rem;
+}
+
+/* ── Page Info ── */
+.page-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.page-title {
+  font-size: 0.96rem;
+  font-weight: 800;
+  color: var(--color-text-strong);
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.page-sub {
+  font-size: 0.72rem;
+  color: var(--color-text-muted);
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 768px) {
+  .page-info {
+    display: none;
+  }
+}
+
+/* ── Navbar End ── */
 .navbar-end {
   display: flex;
   align-items: center;
   gap: 10px;
-  min-width: 0;
 }
 
-.page-info {
-  min-width: 0;
-  line-height: 1.2;
-}
-
-.page-title {
-  color: var(--text-strong);
-  font-size: 1rem;
-  font-weight: 900;
-}
-
-.page-sub {
-  margin-top: 2px;
-  color: var(--text-muted);
-  font-size: 0.73rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: min(40vw, 420px);
-}
-
-.icon-btn {
-  width: 36px;
-  height: 36px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--bg-elevated);
-  color: var(--text);
-  cursor: pointer;
-
-  &:hover {
-    border-color: var(--primary);
-    color: var(--primary-dark);
-  }
-}
-
-.notification-btn {
-  position: relative;
-
-  .notification-badge {
-    position: absolute;
-    top: -2px;
-    right: -2px;
-    min-width: 16px;
-    height: 16px;
-    padding: 0 4px;
-    background: var(--danger);
-    color: #fff;
-    font-size: 0.65rem;
-    font-weight: 900;
-    border-radius: 999px;
-    border: 1.5px solid var(--bg-elevated);
-    box-shadow: 0 0 6px var(--danger);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-}
-
+/* ── Command Search Trigger ── */
 .search-wrap {
-  position: relative;
   display: flex;
   align-items: center;
-}
-
-.search-icon {
-  position: absolute;
-  right: 10px;
-  color: var(--text-muted);
-  pointer-events: none;
-}
-
-.search-input {
-  width: min(270px, 28vw);
-  min-height: 38px;
-  padding: 8px 36px 8px 12px;
-  border: 1px solid var(--border);
+  gap: 8px;
+  padding: 6px 12px;
   border-radius: var(--radius-sm);
-  background: var(--bg-elevated);
-  color: var(--text);
-
-  &:focus {
-    outline: none;
-    border-color: var(--primary);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 16%, transparent);
-  }
-}
-
-.search-results {
-  position: absolute;
-  top: calc(100% + 10px);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: var(--bg-elevated);
-  box-shadow: var(--shadow-lg);
-  z-index: 150;
-  right: 0;
-  width: min(390px, 76vw);
-  max-height: 340px;
-  overflow-y: auto;
-  padding: 8px;
-}
-
-.search-result {
-  width: 100%;
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 4px 8px;
-  align-items: center;
-  padding: 9px 10px;
-  border: 0;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--text);
-  text-align: right;
+  background: var(--color-bg-subtle);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
   cursor: pointer;
+  transition: all var(--transition);
+  user-select: none;
 
   &:hover {
-    background: color-mix(in srgb, var(--primary) 8%, transparent);
-  }
-
-  .result-type {
-    grid-row: 1 / 3;
-    padding: 3px 7px;
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--primary) 12%, transparent);
-    color: var(--primary-dark);
-    font-size: 0.68rem;
-    font-weight: 900;
-  }
-
-  .result-main {
-    font-size: 0.86rem;
-    font-weight: 900;
-  }
-
-  small {
-    color: var(--text-muted);
-    font-size: 0.72rem;
+    border-color: var(--color-primary);
+    color: var(--color-text);
+    background: var(--color-surface);
   }
 }
 
-.search-empty {
-  padding: 12px;
-  color: var(--text-muted);
+.search-label {
   font-size: 0.82rem;
-  text-align: center;
 }
 
-.theme-switcher {
+.command-kbd {
+  font-family: var(--font-family-mono);
+  font-size: 0.68rem;
+  padding: 2px 6px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xs);
+  color: var(--color-text-muted);
+  box-shadow: var(--shadow-subtle);
+}
+
+@media (max-width: 768px) {
+  .search-label,
+  .command-kbd {
+    display: none;
+  }
+}
+
+/* ── Quick Create ── */
+.quick-create-wrap {
   position: relative;
 }
 
-.theme-menu {
-  left: 0;
-  width: min(320px, 82vw);
-  padding: 10px;
+.quick-create-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 12px;
+  border-radius: var(--radius-sm);
 }
 
-.theme-menu-head {
+.quick-create-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  min-width: 210px;
+  padding: 6px;
+  z-index: 1000;
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+}
+
+/* ── Notification / Action Center ── */
+.notification-btn {
+  position: relative;
+}
+
+.notification-badge {
+  position: absolute;
+  top: -4px;
+  left: -4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: var(--radius-pill);
+  background: var(--color-danger);
+  color: #ffffff;
+  font-size: 0.68rem;
+  font-weight: 800;
+  display: grid;
+  place-items: center;
+}
+
+/* ── Preferences Dropdown ── */
+.preferences-wrap {
+  position: relative;
+}
+
+.preferences-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  min-width: 240px;
+  padding: 8px;
+  z-index: 1000;
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+}
+
+.pref-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  background: transparent;
+  color: var(--color-text);
+  font-size: 0.82rem;
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  transition: background var(--transition);
+
+  &:hover {
+    background: var(--color-bg-subtle);
+  }
 }
 
-.theme-mode-toggle,
-.theme-option {
+.pref-meta {
   display: flex;
   align-items: center;
   gap: 8px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--bg-elevated);
-  color: var(--text);
-  cursor: pointer;
 }
 
-.theme-mode-toggle {
-  padding: 6px 9px;
-  font-size: 0.78rem;
-  font-weight: 800;
+.pref-state {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--color-primary);
+  background: var(--color-primary-soft);
+  padding: 2px 6px;
+  border-radius: var(--radius-xs);
 }
 
-.theme-option {
-  width: 100%;
-  padding: 9px;
-  margin-top: 6px;
-  text-align: right;
-
-  &.active {
-    border-color: var(--primary);
-    background: color-mix(in srgb, var(--primary) 7%, var(--bg-elevated));
-  }
-}
-
-.theme-swatch {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  border: 1px solid var(--border);
-  flex-shrink: 0;
-}
-
-.theme-meta {
+/* ── Network Indicator ── */
+.network-status {
   display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: 2px;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--color-bg-subtle);
+  font-size: 0.74rem;
+  font-weight: 600;
 
-  strong {
-    color: var(--text-strong);
-    font-size: 0.84rem;
+  &.online .pulse-indicator {
+    background: var(--color-success);
   }
-  small {
-    color: var(--text-muted);
-    font-size: 0.72rem;
+  &.offline .pulse-indicator {
+    background: var(--color-danger);
   }
 }
 
-.theme-check {
-  color: var(--success);
+.pulse-indicator {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
 }
 
+.sync-badge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--color-warning);
+}
+
+@media (max-width: 900px) {
+  .network-status {
+    display: none;
+  }
+}
+
+/* ── User Chip ── */
 .user-chip {
   display: flex;
   align-items: center;
   gap: 8px;
-  min-height: 38px;
-  padding: 4px 8px 4px 4px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: var(--bg-elevated);
+  padding: 4px 6px 4px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-subtle);
+  border: 1px solid var(--color-border);
 }
 
 .user-avatar {
-  width: 30px;
-  height: 30px;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-xs);
+  background: var(--color-primary);
+  color: #ffffff;
   display: grid;
   place-items: center;
-  border-radius: 50%;
-  background: var(--primary);
-  color: #fff;
-  font-weight: 900;
+  font-size: 0.8rem;
+  font-weight: 800;
 }
 
 .user-meta {
   display: flex;
   flex-direction: column;
-  line-height: 1.15;
+  line-height: 1.1;
 
   strong {
-    color: var(--text-strong);
-    font-size: 0.78rem;
+    font-size: 0.8rem;
+    color: var(--color-text-strong);
   }
   span {
-    color: var(--text-muted);
     font-size: 0.68rem;
+    color: var(--color-text-muted);
   }
 }
 
 .logout-btn {
-  width: 28px;
-  height: 28px;
-  display: grid;
-  place-items: center;
-  border: 0;
-  border-radius: 50%;
   background: transparent;
-  color: var(--text-muted);
+  border: none;
+  color: var(--color-text-muted);
   cursor: pointer;
+  padding: 4px;
+  border-radius: var(--radius-xs);
+  display: flex;
+  align-items: center;
+  transition: color var(--transition);
 
   &:hover {
-    background: color-mix(in srgb, var(--danger) 10%, transparent);
-    color: var(--danger);
+    color: var(--color-danger);
   }
 }
 
-@media (max-width: 992px) {
-  .navbar {
-    right: 16px;
-  }
-}
-
-@media (max-width: 760px) {
-  .page-sub,
+@media (max-width: 600px) {
   .user-meta {
     display: none;
   }
-  .network-status .status-text {
-    display: none;
-  }
-  .search-wrap {
-    width: 34px;
-    height: 34px;
-    border: 1px solid var(--border-strong);
-    background: var(--bg-elevated);
-    border-radius: var(--radius-sm);
-    justify-content: center;
-    box-shadow: var(--shadow-xs);
-    cursor: pointer;
-
-    &:hover {
-      background: color-mix(in srgb, var(--primary) 8%, var(--bg-elevated));
-      border-color: var(--primary-soft);
-      color: var(--primary);
-    }
-  }
-  .search-input {
-    display: none;
-  }
-  .search-icon {
-    position: static;
-    pointer-events: none;
-  }
 }
 
-.network-status {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 12px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: var(--bg-elevated);
-  font-size: 0.78rem;
-  font-weight: 700;
-  transition: all 0.3s ease;
-
-  &.online {
-    color: var(--success);
-    border-color: color-mix(in srgb, var(--success) 30%, var(--border));
-    background: color-mix(in srgb, var(--success) 6%, var(--bg-elevated));
-    .pulse-indicator {
-      background: var(--success);
-      box-shadow: 0 0 8px var(--success);
-    }
-  }
-
-  &.offline {
-    color: var(--danger);
-    border-color: color-mix(in srgb, var(--danger) 30%, var(--border));
-    background: color-mix(in srgb, var(--danger) 6%, var(--bg-elevated));
-    .pulse-indicator {
-      background: var(--danger);
-      box-shadow: 0 0 8px var(--danger);
-    }
-  }
+/* Dropdown Animation */
+.dropdown-fade-enter-active,
+.dropdown-fade-leave-active {
+  transition:
+    opacity var(--motion-fast),
+    transform var(--motion-fast);
 }
-
-.pulse-indicator {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  position: relative;
-  display: inline-block;
-
-  &::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    border-radius: 50%;
-    background: inherit;
-    animation: status-pulse 1.8s infinite ease-in-out;
-  }
-}
-
-@keyframes status-pulse {
-  0% {
-    transform: scale(1);
-    opacity: 0.8;
-  }
-  100% {
-    transform: scale(2.5);
-    opacity: 0;
-  }
-}
-
-.sync-badge {
-  background: var(--warning);
-  color: #000;
-  padding: 2px 6px;
-  border-radius: 10px;
-  font-size: 0.7rem;
-  font-weight: 900;
-  box-shadow: 0 0 6px var(--warning);
-  animation: sync-badge-pulse 1.5s infinite alternate;
-}
-
-@keyframes sync-badge-pulse {
-  0% {
-    transform: scale(1);
-  }
-  100% {
-    transform: scale(1.05);
-  }
-}
-.mobile-actions-toggle {
-  display: none;
-}
-
-.navbar-actions-group {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-@media (max-width: 760px) {
-  .mobile-actions-toggle {
-    display: inline-flex;
-  }
-
-  .navbar-actions-group {
-    display: none;
-    position: absolute;
-    top: calc(var(--navbar-height) - 5px);
-    left: 80px;
-    background: var(--bg-elevated);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-    padding: 8px;
-    box-shadow: var(--shadow-lg);
-    z-index: 150;
-    flex-direction: column;
-    gap: 8px;
-
-    &.mobile-open {
-      display: flex;
-    }
-  }
+.dropdown-fade-enter-from,
+.dropdown-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
 }
 </style>

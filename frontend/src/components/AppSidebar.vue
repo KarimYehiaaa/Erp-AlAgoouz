@@ -4,28 +4,46 @@
     :class="{
       'is-expanded': isExpanded,
       'is-collapsed': !isExpanded,
+      'is-pinned': appStore.sidebarPinned,
     }"
-    @mouseenter="handleMouseEnter"
-    @mouseleave="handleMouseLeave"
+    aria-label="شريط التنقل الرئيسي"
   >
-    <router-link
-      to="/"
-      class="sidebar-brand"
-      title="الذهاب إلى لوحة التحكم"
-      @click="handleItemClick"
-    >
-      <AppLogo size="sm" class="brand-logo" />
-      <transition name="brand-fade">
-        <div v-if="isExpanded" class="brand-text">
-          <span class="brand-name">بن العجوز</span>
-          <span class="brand-sub">ERP تشغيل ومخزون ومالية</span>
-        </div>
-      </transition>
-    </router-link>
+    <!-- Brand Header with Pin/Unpin Toggle -->
+    <div class="sidebar-header">
+      <router-link
+        to="/"
+        class="sidebar-brand"
+        title="الذهاب إلى لوحة التحكم"
+        @click="handleItemClick"
+      >
+        <AppLogo size="sm" class="brand-logo" />
+        <transition name="brand-fade">
+          <div v-if="isExpanded" class="brand-text">
+            <span class="brand-name">{{ companyName }}</span>
+            <span class="brand-sub">{{ tagline }}</span>
+          </div>
+        </transition>
+      </router-link>
 
+      <button
+        v-if="!isMobile && isExpanded"
+        type="button"
+        class="pin-toggle-btn"
+        :class="{ active: appStore.sidebarPinned }"
+        :title="appStore.sidebarPinned ? 'إلغاء تثبيت الشريط (تصغير)' : 'تثبيت الشريط ممتداً'"
+        :aria-label="appStore.sidebarPinned ? 'إلغاء تثبيت الشريط الجانبي' : 'تثبيت الشريط الجانبي'"
+        @click.stop="appStore.toggleSidebarPinned"
+      >
+        <AppIcon :name="appStore.sidebarPinned ? 'arrowRight' : 'arrowLeft'" :size="14" />
+      </button>
+    </div>
+
+    <!-- Navigation List with Semantic Hierarchy -->
     <nav class="sidebar-nav" aria-label="أقسام النظام">
       <section v-for="group in menuGroups" :key="group.label" class="nav-group">
         <p v-if="isExpanded" class="group-label">{{ group.label }}</p>
+        <div v-else class="group-divider" aria-hidden="true"></div>
+
         <router-link
           v-for="item in group.items"
           :key="item.to"
@@ -35,27 +53,51 @@
           :title="!isExpanded ? item.label : ''"
           @click="handleItemClick"
         >
-          <span class="nav-icon"><AppIcon :name="item.icon" /></span>
+          <span class="nav-icon"><AppIcon :name="item.icon" :size="18" /></span>
           <transition name="label-fade">
             <span v-if="isExpanded" class="nav-label">{{ item.label }}</span>
           </transition>
+          <span v-if="item.badge && isExpanded" class="nav-badge">{{ item.badge }}</span>
         </router-link>
       </section>
     </nav>
+
+    <!-- Sidebar Bottom User Profile Area -->
+    <div class="sidebar-user-area">
+      <div v-if="!isExpanded" class="user-avatar-mini" :title="userName">
+        {{ userInitial }}
+      </div>
+      <div v-else class="user-profile-expanded">
+        <div class="user-avatar">{{ userInitial }}</div>
+        <div class="user-info">
+          <span class="user-name">{{ userName }}</span>
+          <span class="user-role">{{ roleName }}</span>
+        </div>
+        <button
+          v-if="!appStore.sidebarPinned && !isMobile"
+          type="button"
+          class="expand-rail-btn"
+          title="تثبيت الشريط الجانبي"
+          @click="appStore.toggleSidebarPinned"
+        >
+          <AppIcon name="maximize" :size="14" />
+        </button>
+      </div>
+    </div>
   </aside>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
+import { computed, ref, onMounted, onBeforeUnmount } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
 import AppIcon from '@/components/AppIcon.vue';
 import { useAppStore } from '@/stores/app';
 import { useAuthStore } from '@/stores/auth';
+import { brandingState } from '@/design-system/themes/themeEngine';
 
 const appStore = useAppStore();
 const authStore = useAuthStore();
 
-const isHovered = ref(false);
 const windowWidth = ref(typeof window !== 'undefined' ? window.innerWidth : 1200);
 
 function updateWindowWidth() {
@@ -76,62 +118,71 @@ const isExpanded = computed(() => {
   if (isMobile.value) {
     return appStore.sidebarOpen;
   }
-  return isHovered.value;
+  return appStore.sidebarPinned;
 });
 
-function handleMouseEnter() {
-  if (!isMobile.value) {
-    isHovered.value = true;
-  }
-}
-
-function handleMouseLeave() {
-  if (!isMobile.value) {
-    isHovered.value = false;
-  }
-}
-
 function handleItemClick() {
-  isHovered.value = false;
   if (isMobile.value && appStore.sidebarOpen) {
     appStore.sidebarOpen = false;
   }
 }
 
+const companyName = computed(() => brandingState.companyName || 'منظومة الإدارة');
+const tagline = computed(() => brandingState.tagline || 'نظام التشغيل المؤسسي');
+
+const userName = computed(() => authStore.user?.username || 'مستخدم');
+const userInitial = computed(() => (userName.value ? userName.value.charAt(0).toUpperCase() : 'U'));
+const roleName = computed(() => authStore.user?.role_name_ar || 'مسؤول النظام');
+
 const rawMenuGroups = [
   {
-    label: 'الرئيسية',
+    label: 'نظرة عامة',
     items: [
       { to: '/', label: 'لوحة التحكم', icon: 'dashboard', perm: null },
-      { to: '/branch-sales', label: 'الكاشير المباشر (POS)', icon: 'shop', perm: 'pos.view' },
+      { to: '/branch-sales', label: 'شاشة المبيعات (POS)', icon: 'shop', perm: 'pos.view' },
     ],
   },
   {
-    label: 'مراكز العمليات',
+    label: 'العمليات التشغيلية',
     items: [
       { to: '/sales', label: 'المبيعات والعملاء', icon: 'sales', perm: 'sales.view' },
       { to: '/inventory', label: 'المخزون والمستودعات', icon: 'inventory', perm: 'inventory.view' },
       {
         to: '/products',
-        label: 'المنتجات والإنتاج والوصفات',
+        label: 'المنتجات والإنتاج والتكاليف',
         icon: 'products',
         perm: 'products.view',
       },
+    ],
+  },
+  {
+    label: 'المالية والمشتريات',
+    items: [
       {
         to: '/purchases',
-        label: 'المالية والمشتريات والموردين',
+        label: 'المشتريات والمصروفات والشركاء',
         icon: 'purchases',
         perm: ['inventory.view', 'expenses.view', 'suppliers.view', 'reports.view'],
       },
+    ],
+  },
+  {
+    label: 'الذكاء والتقارير',
+    items: [
       {
         to: '/reports',
         label: 'التقارير والتحليلات والذكاء',
         icon: 'reports',
         perm: 'reports.view',
       },
+    ],
+  },
+  {
+    label: 'الإدارة والنظام',
+    items: [
       {
         to: '/settings',
-        label: 'إدارة النظام والموظفين',
+        label: 'إدارة المنشأة والإعدادات',
         icon: 'settings',
         perm: 'settings.view',
       },
@@ -170,22 +221,18 @@ const menuGroups = computed(() => {
   overflow-y: auto;
   color: var(--sidebar-text);
   background: var(--sidebar-bg);
-  border-left: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: -4px 0 20px rgba(15, 23, 42, 0.12);
-  transition:
-    width 0.28s cubic-bezier(0.4, 0, 0.2, 1),
-    transform 0.28s cubic-bezier(0.4, 0, 0.2, 1),
-    box-shadow 0.28s;
-  will-change: width, transform;
+  border-left: 1px solid var(--sidebar-border);
+  box-shadow: -2px 0 12px rgba(15, 23, 42, 0.08);
+  transition: width var(--transition);
+  will-change: width;
 
   &.is-expanded {
-    width: var(--sidebar-width, 280px);
-    box-shadow: -14px 0 38px rgba(0, 0, 0, 0.35);
-    z-index: 250;
+    width: var(--sidebar-width, 260px);
+    box-shadow: -6px 0 24px rgba(15, 23, 42, 0.12);
   }
 
   &.is-collapsed {
-    .sidebar-brand {
+    .sidebar-header {
       justify-content: center;
       padding-inline: 8px;
     }
@@ -199,186 +246,243 @@ const menuGroups = computed(() => {
   }
 }
 
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  min-height: 64px;
+  border-bottom: 1px solid var(--sidebar-border);
+  gap: 8px;
+}
+
 .sidebar-brand {
-  min-height: 72px;
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 14px 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   text-decoration: none;
-  flex-shrink: 0;
-}
-
-.brand-logo {
-  flex-shrink: 0;
-  position: relative;
-  animation: logoBreath 5.5s ease-in-out infinite;
+  color: inherit;
+  min-width: 0;
 }
 
 .brand-text {
-  min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .brand-name {
-  color: #f5e6d0;
-  font-size: 1.05rem;
+  font-size: 0.95rem;
   font-weight: 800;
-  line-height: 1.2;
+  white-space: nowrap;
+  color: var(--sidebar-text);
+  text-overflow: ellipsis;
+  overflow: hidden;
 }
 
 .brand-sub {
-  color: var(--accent);
   font-size: 0.72rem;
+  color: var(--sidebar-muted);
   white-space: nowrap;
+}
+
+.pin-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--sidebar-muted);
+  cursor: pointer;
+  transition: all var(--transition);
+
+  &:hover {
+    background: var(--sidebar-hover-bg);
+    color: var(--sidebar-text);
+  }
 }
 
 .sidebar-nav {
   flex: 1;
-  overflow-y: auto;
   padding: 12px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 .nav-group {
-  padding: 0 12px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0 12px;
 }
 
 .group-label {
-  padding: 10px 8px 6px;
-  color: rgba(245, 230, 208, 0.55);
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   font-weight: 800;
-  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--sidebar-muted);
+  padding: 6px 12px 4px;
+  margin: 0;
+}
+
+.group-divider {
+  height: 1px;
+  background: var(--sidebar-border);
+  margin: 8px 6px;
 }
 
 .nav-item {
-  position: relative;
   display: flex;
   align-items: center;
-  gap: 10px;
-  min-height: 42px;
-  padding: 9px 10px;
-  border-radius: var(--radius-md);
-  color: rgba(253, 248, 243, 0.82);
-  overflow: hidden;
-  white-space: nowrap;
-  isolation: isolate;
+  gap: 12px;
+  padding: 9px 12px;
+  border-radius: var(--radius-sm);
+  color: var(--sidebar-muted);
   text-decoration: none;
-  transition:
-    background var(--transition),
-    color var(--transition),
-    transform var(--transition),
-    box-shadow var(--transition);
-
-  &::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    opacity: 0;
-    z-index: -1;
-    background: radial-gradient(circle at center, rgba(200, 149, 110, 0.25), transparent 75%);
-    transform: scale(0.6);
-    transition:
-      opacity 280ms cubic-bezier(0.4, 0, 0.2, 1),
-      transform 280ms cubic-bezier(0.4, 0, 0.2, 1);
-  }
+  font-size: 0.86rem;
+  font-weight: 600;
+  transition: all var(--transition);
+  position: relative;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.09);
-    color: #fff;
-    transform: translateX(-3px);
-
-    &::after {
-      opacity: 1;
-      transform: scale(1.2);
-    }
+    background: var(--sidebar-hover-bg);
+    color: var(--sidebar-text);
   }
 
   &.active {
-    background: linear-gradient(135deg, rgba(200, 149, 110, 0.22) 0%, rgba(61, 34, 20, 0.85) 100%);
-    color: #fff;
-    box-shadow:
-      inset -3.5px 0 0 var(--accent),
-      0 6px 20px rgba(0, 0, 0, 0.25),
-      0 0 12px rgba(200, 149, 110, 0.15);
+    background: var(--sidebar-active-bg);
+    color: var(--sidebar-active-text);
+    font-weight: 700;
 
     .nav-icon {
-      color: #fff;
-      background: linear-gradient(145deg, var(--accent), var(--accent-dark));
-      box-shadow: 0 0 14px rgba(200, 149, 110, 0.4);
+      color: var(--sidebar-active-text);
     }
   }
 }
 
 .nav-icon {
-  width: 30px;
-  height: 30px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: var(--radius-sm);
-  color: currentColor;
-  background: rgba(255, 255, 255, 0.07);
+  width: 20px;
+  height: 20px;
   flex-shrink: 0;
 }
 
 .nav-label {
-  min-width: 0;
+  flex: 1;
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-size: 0.9rem;
-  font-weight: 700;
 }
 
+.nav-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: var(--radius-pill);
+  background: var(--color-primary);
+  color: #ffffff;
+}
+
+/* ── Bottom User Profile ── */
+.sidebar-user-area {
+  padding: 12px 14px;
+  border-top: 1px solid var(--sidebar-border);
+  background: var(--sidebar-surface);
+}
+
+.user-avatar-mini {
+  width: 38px;
+  height: 38px;
+  margin: 0 auto;
+  border-radius: var(--radius-sm);
+  background: var(--color-primary);
+  color: #ffffff;
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  font-size: 0.9rem;
+}
+
+.user-profile-expanded {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.user-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  background: var(--color-primary);
+  color: #ffffff;
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  font-size: 0.88rem;
+  flex-shrink: 0;
+}
+
+.user-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.user-name {
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: var(--sidebar-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.user-role {
+  font-size: 0.72rem;
+  color: var(--sidebar-muted);
+  white-space: nowrap;
+}
+
+.expand-rail-btn {
+  background: transparent;
+  border: none;
+  color: var(--sidebar-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: var(--radius-xs);
+
+  &:hover {
+    color: var(--sidebar-text);
+  }
+}
+
+/* Transitions */
 .brand-fade-enter-active,
 .brand-fade-leave-active,
 .label-fade-enter-active,
 .label-fade-leave-active {
-  transition:
-    opacity 150ms ease,
-    transform 150ms ease;
+  transition: opacity var(--transition);
 }
-
 .brand-fade-enter-from,
 .brand-fade-leave-to,
 .label-fade-enter-from,
 .label-fade-leave-to {
   opacity: 0;
-  transform: translateX(8px);
-}
-
-@keyframes logoBreath {
-  0%,
-  100% {
-    transform: translateY(0) rotateZ(0deg);
-  }
-  50% {
-    transform: translateY(-2px) rotateZ(-1deg);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .brand-logo {
-    animation: none;
-  }
-  .nav-item,
-  .nav-item::after {
-    transition: none;
-  }
-  .nav-item:hover {
-    transform: none;
-  }
 }
 
 @media (max-width: 992px) {
   .sidebar {
-    width: min(84vw, 300px) !important;
     transform: translateX(100%);
-    z-index: 250;
-    box-shadow: -14px 0 38px rgba(0, 0, 0, 0.45);
+    width: 260px !important;
 
     &.is-expanded {
       transform: translateX(0);

@@ -1,0 +1,25 @@
+/* ==========================================================================
+   AL-AGOOZ ERP 2.0 — Centralized Design System: Spacing Tokens
+   Harmonic 4px/8px Baseline Scale
+   ========================================================================== */
+
+:root {
+  --space-0: 0;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 32px;
+  --space-8: 40px;
+  --space-9: 48px;
+  --space-10: 64px;
+
+  /* ── Layout Standard Dimensions ── */
+  --sidebar-width: 260px;
+  --sidebar-collapsed: 68px;
+  --sidebar-current-width: 260px;
+  --navbar-height: 64px;
+  --action-bar-height: 56px;
+}

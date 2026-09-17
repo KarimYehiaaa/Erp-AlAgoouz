@@ -7,10 +7,10 @@
       <div class="header-inner">
         <div class="brand-identity">
           <div class="brand-emblem">
-            <span class="emblem-coffee">☕</span>
+            <AppIcon name="shield-check" :size="22" />
           </div>
           <div class="brand-text">
-            <h1 class="brand-name">بُــن الـعـجـوز</h1>
+            <h1 class="brand-name">{{ companyName }}</h1>
             <span class="brand-tagline">الإدارة التنفيذية • لوحة المراقبة</span>
           </div>
         </div>
@@ -21,7 +21,7 @@
             @click="showServerConfig = true"
             title="إعدادات الاتصال بالسيرفر"
           >
-            <span class="btn-icon">⚙️</span>
+            <span class="btn-icon"><AppIcon name="settings" :size="18" /></span>
           </button>
 
           <button
@@ -30,11 +30,13 @@
             :disabled="loading"
             title="تحديث البيانات اللحظية"
           >
-            <span class="btn-icon" :class="{ 'spin-active': loading }">🔄</span>
+            <span class="btn-icon" :class="{ 'spin-active': loading }">
+              <AppIcon name="refresh" :size="18" />
+            </span>
           </button>
 
           <RouterLink to="/" class="header-btn" title="العودة لمنظومة سطح المكتب">
-            <span class="btn-icon">🖥️</span>
+            <span class="btn-icon"><AppIcon name="monitor" :size="18" /></span>
           </RouterLink>
         </div>
       </div>
@@ -63,7 +65,7 @@
             أمس
           </button>
           <label class="date-picker-label" title="اختيار تاريخ مخصص">
-            📅
+            <AppIcon name="calendar" :size="16" />
             <input
               type="date"
               v-model="customSelectedDate"
@@ -80,16 +82,22 @@
          ═══════════════════════════════════════════════════════════════ -->
     <div v-if="fetchError" class="diagnostic-banner">
       <div class="diagnostic-header">
-        <span class="diag-icon">📡</span>
+        <span class="diag-icon"><AppIcon name="activity" :size="20" /></span>
         <div class="diag-text">
           <strong>تعذر سحب البيانات من السيرفر</strong>
           <p>{{ fetchError }}</p>
         </div>
       </div>
       <div class="diag-actions">
-        <button class="btn-diag-cfg" @click="showServerConfig = true">⚙️ تعديل رابط السيرفر</button>
-        <button class="btn-diag-demo" @click="loadDemoData">✨ عرض بيانات تجريبية</button>
-        <button class="btn-diag-retry" @click="refreshAll">🔄 إعادة المحاولة</button>
+        <button class="btn-diag-cfg" @click="showServerConfig = true">
+          <AppIcon name="settings" :size="14" /> تعديل رابط السيرفر
+        </button>
+        <button class="btn-diag-demo" @click="loadDemoData">
+          <AppIcon name="sparkles" :size="14" /> عرض بيانات تجريبية
+        </button>
+        <button class="btn-diag-retry" @click="refreshAll">
+          <AppIcon name="refresh" :size="14" /> إعادة المحاولة
+        </button>
       </div>
     </div>
 
@@ -397,7 +405,9 @@
         <!-- 2. Categories Capital Distribution -->
         <div class="glass-content-card">
           <div class="card-header-flex">
-            <h3 class="card-title">🫘 توزيع رأس المال حسب الأقسام</h3>
+            <h3 class="card-title">
+              <AppIcon name="boxes" :size="18" /> توزيع رأس المال حسب الأقسام
+            </h3>
             <span class="card-meta-tag">{{ currentInventory.categories?.length || 0 }} أقسام</span>
           </div>
 
@@ -500,7 +510,7 @@
           >
             <div class="ticket-head">
               <div class="ticket-user">
-                <span class="user-avatar-circle">👤</span>
+                <span class="user-avatar-circle"><AppIcon name="user" :size="16" /></span>
                 <div>
                   <strong class="user-display-name">{{ req.requester_name || 'الكاشير' }}</strong>
                   <span class="ticket-time">{{ formatRelativeTime(req.created_at) }}</span>
@@ -541,7 +551,8 @@
                 :disabled="decidingId === req.id"
                 @click="handleDecide(req.id, 'rejected')"
               >
-                ❌ رفـض الخصم
+                <AppIcon name="x" :size="14" />
+                <span>رفـض الخصم</span>
               </button>
 
               <button
@@ -550,7 +561,10 @@
                 @click="handleDecide(req.id, 'approved')"
               >
                 <span v-if="decidingId === req.id">جاري الاعتماد...</span>
-                <span v-else>✅ مـوافـقـة وفك القفل</span>
+                <span v-else>
+                  <AppIcon name="check" :size="14" />
+                  <span>مـوافـقـة وفك القفل</span>
+                </span>
               </button>
             </div>
 
@@ -565,7 +579,7 @@
         </div>
 
         <div v-else class="clean-empty-approvals">
-          <div class="empty-sparkle-icon">✨</div>
+          <div class="empty-sparkle-icon"><AppIcon name="sparkles" :size="32" /></div>
           <h3>لا توجد طلبات معلقة</h3>
           <p>كافة عمليات الكاشير والفرع تسير بالأسعار والخصومات المعتمدة تلقائياً.</p>
         </div>
@@ -581,7 +595,7 @@
         :class="{ active: activeTab === 'sales' }"
         @click="activeTab = 'sales'"
       >
-        <span class="nav-icon">📊</span>
+        <span class="nav-icon"><AppIcon name="chart" :size="20" /></span>
         <span class="nav-text">المبيعات</span>
       </button>
 
@@ -590,7 +604,7 @@
         :class="{ active: activeTab === 'inventory' }"
         @click="activeTab = 'inventory'"
       >
-        <span class="nav-icon">📦</span>
+        <span class="nav-icon"><AppIcon name="package" :size="20" /></span>
         <span class="nav-text">المخزون</span>
       </button>
 
@@ -600,7 +614,7 @@
         @click="activeTab = 'approvals'"
       >
         <div class="nav-icon-badge-wrap">
-          <span class="nav-icon">🔔</span>
+          <span class="nav-icon"><AppIcon name="bell" :size="20" /></span>
           <span v-if="pendingApprovalsCount > 0" class="nav-badge-pill">
             {{ pendingApprovalsCount }}
           </span>
@@ -616,10 +630,12 @@
       <div class="modal-card">
         <div class="modal-head">
           <div class="modal-title-flex">
-            <span class="modal-icon">⚙️</span>
+            <span class="modal-icon"><AppIcon name="settings" :size="20" /></span>
             <h3>إعدادات خادم النظام (Backend Server)</h3>
           </div>
-          <button class="modal-close-btn" @click="showServerConfig = false">✕</button>
+          <button class="modal-close-btn" @click="showServerConfig = false">
+            <AppIcon name="x" :size="16" />
+          </button>
         </div>
 
         <div class="modal-body">
@@ -647,7 +663,8 @@
               :class="{ 'chip-active': customServerUrl === 'https://agoouz.vercel.app' }"
               @click="customServerUrl = 'https://agoouz.vercel.app'"
             >
-              ☁️ السيرفر السحابي (أونلاين)
+              <AppIcon name="database" :size="13" />
+              <span>السيرفر السحابي (أونلاين)</span>
             </button>
             <button
               type="button"
@@ -655,7 +672,8 @@
               :class="{ 'chip-active': customServerUrl === 'http://192.168.1.14:3000' }"
               @click="customServerUrl = 'http://192.168.1.14:3000'"
             >
-              🏢 سيرفر الفرع (192.168.1.14:3000)
+              <AppIcon name="store" :size="13" />
+              <span>سيرفر الفرع (192.168.1.14:3000)</span>
             </button>
             <button
               type="button"
@@ -663,7 +681,8 @@
               :class="{ 'chip-active': customServerUrl === 'http://localhost:3000' }"
               @click="customServerUrl = 'http://localhost:3000'"
             >
-              💻 الكمبيوتر المباشر (Localhost:3000)
+              <AppIcon name="monitor" :size="13" />
+              <span>الكمبيوتر المباشر (Localhost:3000)</span>
             </button>
           </div>
 
@@ -680,10 +699,12 @@
             :disabled="testingConn"
             @click="testServerConnection"
           >
-            {{ testingConn ? 'جاري الفحص...' : '⚡ فحص الاتصال' }}
+            <AppIcon name="zap" :size="14" />
+            <span>{{ testingConn ? 'جاري الفحص...' : 'فحص الاتصال' }}</span>
           </button>
           <button type="button" class="btn-save-conn" @click="saveServerConfig">
-            💾 حفظ والاتصال
+            <AppIcon name="save" :size="14" />
+            <span>حفظ والاتصال</span>
           </button>
         </div>
       </div>
@@ -701,7 +722,10 @@ import {
 } from '@/api/managerMobile.api';
 import { getBaseServerUrl, setBaseServerUrl } from '@/api/client';
 import { initNativeMobile, triggerHaptic } from '@/services/nativeMobileService';
+import { brandingState } from '@/design-system/themes/themeEngine';
 import axios from 'axios';
+
+const companyName = computed(() => brandingState.companyName || 'Al-Agoouz ERP');
 
 // ─── Reactive State ─────────────────────────────────────────
 const activeTab = ref<'sales' | 'inventory' | 'approvals'>('sales');
@@ -1236,8 +1260,8 @@ onUnmounted(() => {
   max-width: 480px;
   margin: 0 auto;
   min-height: 100vh;
-  background: #080604;
-  color: #f7ede2;
+  background: var(--color-bg-base, #0b0f17);
+  color: var(--color-text-primary, #f8fafc);
   font-family:
     system-ui,
     -apple-system,
@@ -1254,8 +1278,8 @@ onUnmounted(() => {
 
 /* Header */
 .app-header {
-  background: linear-gradient(180deg, rgba(26, 16, 9, 0.98) 0%, rgba(12, 8, 4, 0.98) 100%);
-  border-bottom: 1px solid rgba(217, 168, 108, 0.25);
+  background: rgba(11, 15, 23, 0.95);
+  border-bottom: 1px solid var(--color-border-subtle, rgba(255, 255, 255, 0.08));
   padding: 16px 18px 12px;
   position: sticky;
   top: 0;
@@ -1278,13 +1302,13 @@ onUnmounted(() => {
 .brand-emblem {
   width: 42px;
   height: 42px;
-  background: linear-gradient(135deg, #d9a86c 0%, #8a572a 100%);
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
   border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 16px rgba(217, 168, 108, 0.4);
-  font-size: 22px;
+  box-shadow: 0 4px 16px rgba(37, 99, 235, 0.35);
+  color: #ffffff;
 }
 
 .brand-name {
@@ -1297,7 +1321,7 @@ onUnmounted(() => {
 
 .brand-tagline {
   font-size: 11px;
-  color: #d9a86c;
+  color: var(--color-primary-400, #60a5fa);
   font-weight: 700;
   display: block;
 }
@@ -1312,8 +1336,8 @@ onUnmounted(() => {
   height: 38px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(217, 168, 108, 0.25);
-  color: #f7ede2;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #f8fafc;
   display: flex;
   align-items: center;
   justify-content: center;

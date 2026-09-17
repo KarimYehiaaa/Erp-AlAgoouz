@@ -1,0 +1,142 @@
+/* ==========================================================================
+   AL-AGOOZ ERP 2.0 — Centralized Design System: Color Tokens
+   Neutral Enterprise + Strong Hierarchy + Controlled Accents
+   ========================================================================== */
+
+:root {
+  /* ── Backgrounds & Canvas (Clean Neutral Slate/White) ── */
+  --color-bg: #f8fafc;
+  --color-bg-subtle: #f1f5f9;
+  --color-surface: #ffffff;
+  --color-surface-elevated: #ffffff;
+  --color-surface-hover: #f8fafc;
+  --color-surface-active: #f1f5f9;
+
+  /* ── Borders & Separators ── */
+  --color-border: #e2e8f0;
+  --color-border-subtle: #f1f5f9;
+  --color-border-strong: #cbd5e1;
+
+  /* ── Typography & Text ── */
+  --color-text: #0f172a;
+  --color-text-strong: #020617;
+  --color-text-muted: #64748b;
+  --color-text-subtle: #94a3b8;
+  --color-text-inverse: #ffffff;
+
+  /* ── Primary Brand & Accent (Modern Enterprise Indigo / Blue) ── */
+  --color-primary: #2563eb;
+  --color-primary-hover: #1d4ed8;
+  --color-primary-active: #1e40af;
+  --color-primary-soft: #eff6ff;
+  --color-primary-glow: rgba(37, 99, 235, 0.18);
+  --color-primary-contrast: #ffffff;
+
+  /* ── Secondary Accent (Slate / Neutral Blue) ── */
+  --color-accent: #3b82f6;
+  --color-accent-hover: #2563eb;
+  --color-accent-soft: rgba(59, 130, 246, 0.12);
+  --color-focus-ring: rgba(37, 99, 235, 0.28);
+
+  /* ── Semantic Status Colors ── */
+  --color-success: #10b981;
+  --color-success-hover: #059669;
+  --color-success-soft: rgba(16, 185, 129, 0.12);
+  --color-success-contrast: #ffffff;
+
+  --color-warning: #f59e0b;
+  --color-warning-hover: #d97706;
+  --color-warning-soft: rgba(245, 158, 11, 0.12);
+  --color-warning-contrast: #ffffff;
+
+  --color-danger: #ef4444;
+  --color-danger-hover: #dc2626;
+  --color-danger-soft: rgba(239, 68, 68, 0.12);
+  --color-danger-contrast: #ffffff;
+
+  --color-info: #0284c7;
+  --color-info-hover: #0369a1;
+  --color-info-soft: rgba(2, 132, 199, 0.12);
+  --color-info-contrast: #ffffff;
+
+  --color-neutral: #64748b;
+  --color-neutral-soft: rgba(100, 116, 139, 0.12);
+
+  /* ── Shell & Navigation Specific ── */
+  --sidebar-bg: #0f172a;
+  --sidebar-surface: #1e293b;
+  --sidebar-border: #1e293b;
+  --sidebar-text: #f8fafc;
+  --sidebar-muted: #94a3b8;
+  --sidebar-active-bg: #2563eb;
+  --sidebar-active-text: #ffffff;
+  --sidebar-hover-bg: rgba(255, 255, 255, 0.06);
+
+  --navbar-bg: #ffffff;
+  --navbar-border: #e2e8f0;
+  --navbar-text: #0f172a;
+}
+
+/* ── Dark Theme (Deep Enterprise Navy / Charcoal) ── */
+[data-theme='dark'] {
+  --color-bg: #0b0f17;
+  --color-bg-subtle: #111827;
+  --color-surface: #1e293b;
+  --color-surface-elevated: #243247;
+  --color-surface-hover: #2d3d57;
+  --color-surface-active: #334562;
+
+  --color-border: #283548;
+  --color-border-subtle: #1e293b;
+  --color-border-strong: #3b4d66;
+
+  --color-text: #f8fafc;
+  --color-text-strong: #ffffff;
+  --color-text-muted: #94a3b8;
+  --color-text-subtle: #64748b;
+  --color-text-inverse: #0f172a;
+
+  --color-primary: #3b82f6;
+  --color-primary-hover: #60a5fa;
+  --color-primary-active: #2563eb;
+  --color-primary-soft: rgba(59, 130, 246, 0.16);
+  --color-primary-glow: rgba(59, 130, 246, 0.25);
+  --color-primary-contrast: #ffffff;
+
+  --color-accent: #60a5fa;
+  --color-accent-hover: #93c5fd;
+  --color-accent-soft: rgba(96, 165, 250, 0.15);
+  --color-focus-ring: rgba(96, 165, 250, 0.35);
+
+  --color-success: #34d399;
+  --color-success-hover: #10b981;
+  --color-success-soft: rgba(52, 211, 153, 0.15);
+
+  --color-warning: #fbbf24;
+  --color-warning-hover: #f59e0b;
+  --color-warning-soft: rgba(251, 191, 36, 0.15);
+
+  --color-danger: #f87171;
+  --color-danger-hover: #ef4444;
+  --color-danger-soft: rgba(248, 113, 113, 0.15);
+
+  --color-info: #38bdf8;
+  --color-info-hover: #0284c7;
+  --color-info-soft: rgba(56, 189, 248, 0.15);
+
+  --color-neutral: #94a3b8;
+  --color-neutral-soft: rgba(148, 163, 184, 0.15);
+
+  --sidebar-bg: #070b12;
+  --sidebar-surface: #111827;
+  --sidebar-border: #1e293b;
+  --sidebar-text: #f8fafc;
+  --sidebar-muted: #94a3b8;
+  --sidebar-active-bg: #3b82f6;
+  --sidebar-active-text: #ffffff;
+  --sidebar-hover-bg: rgba(255, 255, 255, 0.08);
+
+  --navbar-bg: #111827;
+  --navbar-border: #283548;
+  --navbar-text: #f8fafc;
+}

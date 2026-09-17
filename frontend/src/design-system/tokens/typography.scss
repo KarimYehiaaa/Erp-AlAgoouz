@@ -1,0 +1,40 @@
+/* ==========================================================================
+   AL-AGOOZ ERP 2.0 — Centralized Design System: Typography Tokens
+   Clean Enterprise + Arabic RTL First-Class + Tabular Numbers
+   ========================================================================== */
+
+:root {
+  --font-family-sans:
+    'Cairo', 'Outfit', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-family-mono:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+
+  /* ── Typography Scale ── */
+  --font-size-display: 2rem; /* 32px - Hero / Grand Metrics */
+  --font-size-page-title: 1.5rem; /* 24px - Page Main Header */
+  --font-size-section: 1.25rem; /* 20px - Panel / Section Titles */
+  --font-size-metric: 1.75rem; /* 28px - KPI Numbers */
+  --font-size-lg: 1.125rem; /* 18px - Sub-headers */
+  --font-size-base: 0.9375rem; /* 15px - Body text (Enterprise optimized) */
+  --font-size-sm: 0.8125rem; /* 13px - Secondary body / Form fields */
+  --font-size-xs: 0.75rem; /* 12px - Captions / Micro Labels / Badges */
+  --font-size-table: 0.8125rem; /* 13px - Data Tables */
+
+  /* ── Font Weights ── */
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --font-weight-extrabold: 800;
+
+  /* ── Line Heights ── */
+  --line-height-tight: 1.25;
+  --line-height-snug: 1.375;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.625;
+
+  /* ── Letter Spacing ── */
+  --letter-spacing-tight: -0.015em;
+  --letter-spacing-normal: 0;
+  --letter-spacing-wide: 0.025em;
+}

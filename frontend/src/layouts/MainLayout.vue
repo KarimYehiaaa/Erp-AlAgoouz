@@ -397,20 +397,20 @@ onBeforeUnmount(() => {
 
 .layout-main {
   flex: 1;
-  margin-right: var(--sidebar-collapsed, 68px);
-  transition: margin var(--transition);
+  margin-right: var(--sidebar-current-width, 260px);
+  transition: margin-right var(--transition);
   min-width: 0;
 }
 
 .layout-content {
   padding: clamp(16px, 2vw, 28px);
-  padding-top: calc(var(--navbar-height) + 20px);
+  padding-top: calc(var(--navbar-height) + 16px);
   min-height: calc(100vh - var(--navbar-height));
 }
 
 @media (max-width: 992px) {
   .layout-main {
-    margin-right: 0;
+    margin-right: 0 !important;
   }
 }
 

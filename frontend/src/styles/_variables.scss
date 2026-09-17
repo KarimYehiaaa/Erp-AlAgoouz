@@ -1,3 +1,10 @@
+/* ==========================================================================
+   AL-AGOOZ ERP 2.0 — Variables Bridge
+   Imports and forwards centralized design system tokens while keeping
+   100% backward compatibility for all legacy component CSS variables.
+   ========================================================================== */
+
+@use '../design-system' as *;
 @import url('https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@400;700&family=Cairo:wght@300;400;500;600;700;800&family=Outfit:wght@300;400;500;600;700;800&display=swap');
 
 :root {
@@ -5,201 +12,156 @@
   color-scheme: light;
 
   /* ── Typography ── */
-  --font-ui: 'Cairo', 'Outfit', 'Segoe UI', Tahoma, Arial, sans-serif;
+  --font-ui: var(--font-family-sans);
   --font-calligraphy: 'Aref Ruqaa', serif;
 
-  /* ── Type Scale (نسبة 1.2 — مصعد طباعي موحد لكل الشاشات) ── */
-  --text-xs: 0.72rem;
-  --text-sm: 0.86rem;
-  --text-base: 1rem;
-  --text-lg: 1.2rem;
-  --text-xl: 1.44rem;
-  --text-2xl: 1.73rem;
-  --text-3xl: 2.07rem;
+  /* ── Type Scale ── */
+  --text-xs: var(--font-size-xs);
+  --text-sm: var(--font-size-sm);
+  --text-base: var(--font-size-base);
+  --text-lg: var(--font-size-lg);
+  --text-xl: var(--font-size-section);
+  --text-2xl: var(--font-size-metric);
+  --text-3xl: var(--font-size-display);
 
-  /* ── Core Backgrounds (Warm Latte & Premium Roast) ── */
-  --bg: #fdf8f3;
-  --bg-elevated: #ffffff;
-  --bg-card: #ffffff;
-  --bg-soft: #faf3eb;
+  /* ── Core Backgrounds & Surfaces (Universal Enterprise) ── */
+  --bg: var(--color-bg);
+  --bg-elevated: var(--color-surface-elevated);
+  --bg-card: var(--color-surface);
+  --bg-soft: var(--color-bg-subtle);
 
-  /* ── Surfaces ── */
-  --surface-1: #ffffff;
-  --surface-2: #f8f2eb;
-  --surface-3: #f3eae0;
+  --surface-1: var(--color-surface);
+  --surface-2: var(--color-surface-hover);
+  --surface-3: var(--color-surface-active);
 
   /* ── Text Colors ── */
-  --text: #2c1810;
-  --text-strong: #1a0d08;
-  --text-muted: #8a786a;
+  --text: var(--color-text);
+  --text-strong: var(--color-text-strong);
+  --text-muted: var(--color-text-muted);
 
-  /* ── Primary & Accent Colors (Espresso & Gold) ── */
-  --primary: #8a572a;
-  --primary-strong: #6e411b;
-  --primary-dark: #4a2b12;
-  --primary-soft: #e6d4c3;
-  --accent: #c8956e;
-  --accent-dark: #a0734d;
-  --accent-light: #e8cbaf;
-  --accent-soft: rgba(200, 149, 110, 0.14);
-  --accent-glow: rgba(200, 149, 110, 0.2);
-  --focus-ring: rgba(200, 149, 110, 0.28);
+  /* ── Primary & Accent Colors ── */
+  --primary: var(--color-primary);
+  --primary-strong: var(--color-primary-hover);
+  --primary-dark: var(--color-primary-active);
+  --primary-soft: var(--color-primary-soft);
+  --accent: var(--color-accent);
+  --accent-dark: var(--color-accent-hover);
+  --accent-light: var(--color-accent-soft);
+  --accent-soft: var(--color-accent-soft);
+  --accent-glow: var(--color-primary-glow);
+  --focus-ring: var(--color-focus-ring);
 
   /* ── Semantic Colors ── */
-  --success: #15803d;
-  --warning: #b76511;
-  --danger: #dc2626;
-  --info: #0369a1;
+  --success: var(--color-success);
+  --warning: var(--color-warning);
+  --danger: var(--color-danger);
+  --info: var(--color-info);
 
   /* ── Borders ── */
-  --border: #ede5da;
-  --border-strong: #d9cbba;
+  --border: var(--color-border);
+  --border-strong: var(--color-border-strong);
 
   /* ── Layout Measurements ── */
-  --sidebar-width: 280px;
+  --sidebar-width: 260px;
   --sidebar-collapsed: 68px;
-  --sidebar-current-width: 68px;
-  --navbar-height: 72px;
+  --sidebar-current-width: 260px;
+  --navbar-height: 64px;
 
-  /* ── Border Radii ── */
-  --radius-xs: 6px;
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 22px;
+  /* ── Radii & Spacing (inherited from design system) ── */
   --radius: var(--radius-md);
 
-  /* ── Spacing ── */
-  --space-1: 4px;
-  --space-2: 8px;
-  --space-3: 12px;
-  --space-4: 16px;
-  --space-5: 20px;
-  --space-6: 24px;
-  --space-7: 32px;
+  /* ── Shadows (Universal Enterprise) ── */
+  --shadow-xs: var(--shadow-xs);
+  --shadow-sm: var(--shadow-sm);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
 
-  /* ── Warm Shadows ── */
-  --shadow-xs: 0 1px 3px rgba(44, 24, 16, 0.04);
-  --shadow-sm: 0 4px 14px rgba(44, 24, 16, 0.06);
-  --shadow-md: 0 10px 28px rgba(44, 24, 16, 0.09);
-  --shadow-lg: 0 20px 48px rgba(44, 24, 16, 0.13);
-
-  /* ── Sidebar (Warm Dark Roast Palette) ── */
-  --sidebar-bg: linear-gradient(165deg, #2a170e 0%, #3d2214 45%, #56331e 100%);
-  --sidebar-surface: #3d2214;
-  --sidebar-text: #fdf8f3;
-  --sidebar-muted: #c8956e;
-  --sidebar-active-bg: linear-gradient(135deg, #c8956e 0%, #a0734d 100%);
+  /* ── Sidebar (Enterprise Slate / Navy) ── */
+  --sidebar-bg: var(--color-bg-subtle);
+  --sidebar-surface: var(--color-surface);
+  --sidebar-text: var(--color-text);
+  --sidebar-muted: var(--color-text-muted);
+  --sidebar-active-bg: var(--color-primary-soft);
 
   /* ── Glassmorphism & App Gradients ── */
-  --glass-bg: rgba(253, 248, 243, 0.88);
-  --glass-border: rgba(237, 229, 218, 0.85);
-  --glass-blur: blur(18px);
+  --glass-bg: rgba(255, 255, 255, 0.85);
+  --glass-border: var(--color-border);
+  --glass-blur: blur(12px);
 
-  --app-bg:
-    radial-gradient(circle at 12% 8%, rgba(200, 149, 110, 0.08), transparent 30rem),
-    radial-gradient(circle at 86% 0%, rgba(138, 87, 42, 0.06), transparent 26rem), var(--bg);
+  --app-bg: var(--color-bg);
+  --card-bg: var(--color-surface);
+  --card-border: var(--color-border);
 
-  --card-bg: #ffffff;
-  --card-border: var(--border);
+  --header-bg: var(--color-surface);
+  --metric-bg: var(--color-surface);
 
-  --header-bg:
-    linear-gradient(135deg, rgba(200, 149, 110, 0.07), transparent 52%),
-    linear-gradient(225deg, rgba(138, 87, 42, 0.05), transparent 48%), var(--bg-elevated);
-
-  --metric-bg:
-    linear-gradient(180deg, rgba(250, 243, 235, 0.6), transparent 74%), var(--bg-elevated);
-
-  /* ── Transitions ── */
-  --transition: 220ms cubic-bezier(0.16, 1, 0.3, 1);
-  --transition-spring: 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
-
-  /* ── Extended Semantic Palette (soft backgrounds) ── */
-  --success-soft: rgba(21, 128, 61, 0.1);
-  --warning-soft: rgba(183, 101, 17, 0.1);
-  --danger-soft: rgba(220, 38, 38, 0.1);
-  --info-soft: rgba(3, 105, 161, 0.1);
+  /* ── Extended Semantic Palette ── */
+  --success-soft: var(--color-success-soft);
+  --warning-soft: var(--color-warning-soft);
+  --danger-soft: var(--color-danger-soft);
+  --info-soft: var(--color-info-soft);
 
   /* ── Hub Tab Navigation Tokens ── */
-  --tab-bg: var(--bg-elevated);
-  --tab-active-bg: var(--accent-soft);
-  --tab-active-text: var(--primary-strong);
-  --tab-hover-bg: var(--bg-soft);
-  --tab-border: var(--border);
+  --tab-bg: var(--color-surface);
+  --tab-active-bg: var(--color-primary-soft);
+  --tab-active-text: var(--color-primary);
+  --tab-hover-bg: var(--color-surface-hover);
+  --tab-border: var(--color-border);
 }
 
-/* ── Dark Mode (Espresso Roast) ────────────────────────────────────────────────
- * نفس الهوية البصرية لكن بدرجات قهوة داكنة — للاستخدام الليلي ولشاشة الكاشير.
- * يُفعَّل عبر data-theme="dark" على <html> (يُدار من stores/app.ts).
- */
 [data-theme='dark'] {
-  /* ── Native Controls Follow Dark Theme (selects, date inputs, scrollbars, autofill) ── */
   color-scheme: dark;
 
-  --bg: #16100c;
-  --bg-elevated: #201712;
-  --bg-card: #1e1611;
-  --bg-soft: #251b14;
+  --bg: var(--color-bg);
+  --bg-elevated: var(--color-surface-elevated);
+  --bg-card: var(--color-surface);
+  --bg-soft: var(--color-bg-subtle);
 
-  --surface-1: #221914;
-  --surface-2: #2a1f18;
-  --surface-3: #32251c;
+  --surface-1: var(--color-surface);
+  --surface-2: var(--color-surface-hover);
+  --surface-3: var(--color-surface-active);
 
-  --text: #f3ece4;
-  --text-strong: #ffffff;
-  --text-muted: #c8b9a9;
+  --text: var(--color-text);
+  --text-strong: var(--color-text-strong);
+  --text-muted: var(--color-text-muted);
 
-  --primary: #d9a86c;
-  --primary-strong: #e8bd85;
-  --primary-dark: #f0cb9e;
-  --primary-soft: #3a2c20;
-  --accent: #c8956e;
-  --accent-dark: #e0ab84;
-  --accent-light: #6b4a2e;
-  --accent-soft: rgba(200, 149, 110, 0.16);
-  --accent-glow: rgba(200, 149, 110, 0.24);
-  --focus-ring: rgba(200, 149, 110, 0.3);
+  --primary: var(--color-primary);
+  --primary-strong: var(--color-primary-hover);
+  --primary-dark: var(--color-primary-active);
+  --primary-soft: var(--color-primary-soft);
+  --accent: var(--color-accent);
+  --accent-dark: var(--color-accent-hover);
+  --accent-light: var(--color-accent-soft);
+  --accent-soft: var(--color-accent-soft);
+  --accent-glow: var(--color-primary-glow);
+  --focus-ring: var(--color-focus-ring);
 
-  /* ── Bright & Readable Semantic Colors for Dark Mode ── */
-  --success: #34d399;
-  --warning: #fbbf24;
-  --danger: #f87171;
-  --info: #38bdf8;
+  --success: var(--color-success);
+  --warning: var(--color-warning);
+  --danger: var(--color-danger);
+  --info: var(--color-info);
 
-  --border: #382c23;
-  --border-strong: #524032;
+  --border: var(--color-border);
+  --border-strong: var(--color-border-strong);
 
-  --shadow-xs: 0 1px 3px rgba(0, 0, 0, 0.4);
-  --shadow-sm: 0 4px 14px rgba(0, 0, 0, 0.35);
-  --shadow-md: 0 10px 28px rgba(0, 0, 0, 0.45);
-  --shadow-lg: 0 20px 48px rgba(0, 0, 0, 0.55);
+  --glass-bg: rgba(30, 41, 59, 0.85);
+  --glass-border: var(--color-border);
 
-  --glass-bg: rgba(32, 23, 18, 0.88);
-  --glass-border: rgba(82, 64, 50, 0.85);
+  --app-bg: var(--color-bg);
+  --card-bg: var(--color-surface);
+  --card-border: var(--color-border);
 
-  --app-bg:
-    radial-gradient(circle at 12% 8%, rgba(200, 149, 110, 0.07), transparent 30rem),
-    radial-gradient(circle at 86% 0%, rgba(217, 168, 108, 0.05), transparent 26rem), var(--bg);
+  --header-bg: var(--color-surface);
+  --metric-bg: var(--color-surface);
 
-  --card-bg: #1e1611;
-  --card-border: var(--border);
+  --success-soft: var(--color-success-soft);
+  --warning-soft: var(--color-warning-soft);
+  --danger-soft: var(--color-danger-soft);
+  --info-soft: var(--color-info-soft);
 
-  --header-bg:
-    linear-gradient(135deg, rgba(200, 149, 110, 0.08), transparent 52%),
-    linear-gradient(225deg, rgba(217, 168, 108, 0.06), transparent 48%), var(--bg-elevated);
-
-  --metric-bg: linear-gradient(180deg, rgba(37, 27, 20, 0.6), transparent 74%), var(--bg-elevated);
-
-  /* ── Extended Semantic Palette (soft backgrounds — Dark) ── */
-  --success-soft: rgba(52, 211, 153, 0.12);
-  --warning-soft: rgba(251, 191, 36, 0.12);
-  --danger-soft: rgba(248, 113, 113, 0.12);
-  --info-soft: rgba(56, 189, 248, 0.12);
-
-  /* ── Hub Tab Navigation Tokens — Dark ── */
-  --tab-bg: var(--bg-elevated);
-  --tab-active-bg: var(--accent-soft);
-  --tab-active-text: var(--accent);
-  --tab-hover-bg: var(--surface-2);
-  --tab-border: var(--border);
+  --tab-bg: var(--color-surface);
+  --tab-active-bg: var(--color-primary-soft);
+  --tab-active-text: var(--color-primary);
+  --tab-hover-bg: var(--color-surface-hover);
+  --tab-border: var(--color-border);
 }

@@ -21,7 +21,7 @@
         <div class="brand-logo-wrap">
           <img
             src="/logo-transparent.png"
-            alt="بن العجوز"
+            :alt="brandingState.companyName"
             class="brand-logo"
             :style="{
               transform: `translate(${offset.x}px, ${offset.y}px)`,
@@ -32,7 +32,7 @@
         </div>
 
         <!-- Calligraphy Title -->
-        <h1 class="brand-title">بن العجوز</h1>
+        <h1 class="brand-title">{{ brandingState.companyName }}</h1>
 
         <!-- Typing Effect Tagline -->
         <div class="typing-tagline">
@@ -58,7 +58,7 @@
       <!-- Bottom Credit -->
       <div class="brand-footer">
         <span class="footer-dot"></span>
-        <span>نظام إدارة متكامل</span>
+        <span>منظومة الإدارة والمحاسبة المؤسسية</span>
       </div>
     </aside>
 
@@ -71,13 +71,13 @@
         <div class="mobile-brand">
           <img
             src="/logo-transparent.png"
-            alt="بن العجوز"
+            :alt="brandingState.companyName"
             class="mobile-logo"
             @error="handleLogoError"
           />
           <div class="mobile-text">
-            <h1>بن العجوز</h1>
-            <p>أصل المزاج</p>
+            <h1>{{ brandingState.companyName }}</h1>
+            <p>منظومة الإدارة المؤسسية</p>
           </div>
         </div>
 
@@ -293,9 +293,12 @@
           >
             <span class="pulse-dot"></span>
             <span>{{ serverDisplayLabel }}</span>
-            <span class="cfg-badge">⚙️ ضبط</span>
+            <span class="cfg-badge">
+              <AppIcon name="settings" :size="12" />
+              <span>ضبط</span>
+            </span>
           </button>
-          <span class="copyright">تصميم وتطوير بن العجوز &copy; 2026</span>
+          <span class="copyright">Al-Agoouz Enterprise Platform &copy; 2026</span>
         </div>
       </div>
     </main>
@@ -391,6 +394,7 @@ import {
   useInputAnimations,
 } from '@/composables/useLoginAnimations';
 import { getBaseServerUrl, setBaseServerUrl } from '@/api/client';
+import { brandingState } from '@/design-system/themes/themeEngine';
 import axios from 'axios';
 
 const router = useRouter();
@@ -416,7 +420,12 @@ const {
   cursorVisible,
   start: startTyping,
 } = useTypingEffect({
-  phrases: ['أصل المزاج', 'قهوة بحب', 'طعم لا يُنسى', 'جودة بلا حدود'],
+  phrases: [
+    'إدارة مؤسسية متكاملة',
+    'ذكاء تشغيلي ولحظي',
+    'رقابة مالية ومخزنية موحدة',
+    'كفاءة تشغيلية فائقة',
+  ],
   typingSpeed: 110,
   deletingSpeed: 55,
   pauseDuration: 2500,
@@ -424,7 +433,7 @@ const {
 
 const { init: initParticles } = useParticles({
   count: 20,
-  color: 'rgba(255, 220, 170, 0.25)',
+  color: 'rgba(59, 130, 246, 0.2)',
   minSize: 3,
   maxSize: 7,
   speed: 0.3,
@@ -571,34 +580,34 @@ onMounted(async () => {
 */
 @import url('https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@400;700&family=Cairo:wght@400;500;600;700;800&display=swap');
 
-/* CSS CUSTOM PROPERTIES (Warm Light Theme) */
+/* CSS CUSTOM PROPERTIES (Universal Enterprise Theme) */
 .login-page {
-  --bg-cream: #fdf8f3;
+  --bg-cream: #f8fafc;
   --bg-white: #ffffff;
-  --surface: #faf7f2;
-  --border-light: #ede5da;
-  --border-medium: #d9cbba;
+  --surface: #f1f5f9;
+  --border-light: #e2e8f0;
+  --border-medium: #cbd5e1;
 
-  --text-primary: #2c1810;
-  --text-secondary: #6b5b50;
-  --text-muted: #9c8e82;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
 
-  --accent: #c8956e;
-  --accent-dark: #a0734d;
-  --accent-light: #e6c9a8;
-  --accent-glow: rgba(200, 149, 110, 0.18);
+  --accent: #2563eb;
+  --accent-dark: #1d4ed8;
+  --accent-light: #3b82f6;
+  --accent-glow: rgba(37, 99, 235, 0.18);
 
-  --brand-gradient-start: #3d2517;
-  --brand-gradient-mid: #5c3a24;
-  --brand-gradient-end: #7a5038;
+  --brand-gradient-start: #0b0f17;
+  --brand-gradient-mid: #0f172a;
+  --brand-gradient-end: #1e293b;
 
-  --radius-sm: 10px;
-  --radius-md: 14px;
-  --radius-lg: 22px;
-  --radius-xl: 28px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --radius-xl: 24px;
 
-  --shadow-card: 0 2px 8px rgba(44, 24, 16, 0.05), 0 12px 40px rgba(44, 24, 16, 0.08);
-  --shadow-card-hover: 0 4px 12px rgba(44, 24, 16, 0.07), 0 20px 50px rgba(44, 24, 16, 0.12);
+  --shadow-card: 0 4px 20px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.04);
+  --shadow-card-hover: 0 8px 30px rgba(15, 23, 42, 0.08), 0 2px 6px rgba(15, 23, 42, 0.04);
   --shadow-input-focus: 0 0 0 3.5px var(--accent-glow);
 
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
@@ -654,13 +663,13 @@ onMounted(async () => {
   pointer-events: none;
 }
 
-/* Subtle warm glow overlay */
+/* Subtle enterprise glow overlay */
 .brand-gradient {
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(ellipse at 50% 30%, rgba(232, 195, 140, 0.12) 0%, transparent 65%),
-    radial-gradient(ellipse at 20% 80%, rgba(200, 149, 110, 0.08) 0%, transparent 50%);
+    radial-gradient(ellipse at 50% 30%, rgba(37, 99, 235, 0.15) 0%, transparent 65%),
+    radial-gradient(ellipse at 20% 80%, rgba(99, 102, 241, 0.1) 0%, transparent 50%);
   z-index: 2;
   pointer-events: none;
 }
@@ -709,7 +718,7 @@ onMounted(async () => {
   position: absolute;
   inset: -20px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(232, 195, 140, 0.35), transparent 65%);
+  background: radial-gradient(circle, rgba(37, 99, 235, 0.25), transparent 65%);
   filter: blur(25px);
   z-index: 1;
   animation: ambientPulse 4s ease-in-out infinite;
@@ -1670,7 +1679,7 @@ onMounted(async () => {
 }
 
 .btn-save {
-  background: linear-gradient(135deg, #d9a86c, #8a572a);
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
   border: none;
   color: #ffffff;
   padding: 8px 18px;
@@ -1679,29 +1688,29 @@ onMounted(async () => {
   font-weight: 800;
   cursor: pointer;
   font-family: inherit;
-  box-shadow: 0 4px 12px rgba(217, 168, 108, 0.3);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
 }
 </style>
 
 <!-- ═══════════ كتلة غير معزولة: متغيرات صفحة الدخول في الوضع الداكن ═══════════ -->
 <style lang="scss">
 html[data-theme='dark'] .login-page {
-  --bg-cream: #16100c;
-  --bg-white: #201712;
-  --surface: #251b14;
-  --border-light: #382c23;
-  --border-medium: #524032;
+  --bg-cream: #0b0f17;
+  --bg-white: #111827;
+  --surface: #1e293b;
+  --border-light: #1e293b;
+  --border-medium: #334155;
 
-  --text-primary: #f3ece4;
-  --text-secondary: #c8b9a9;
-  --text-muted: #a08d7d;
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
 
-  --accent: #c8956e;
-  --accent-dark: #e0ab84;
-  --accent-light: #6b4a2e;
-  --accent-glow: rgba(200, 149, 110, 0.18);
+  --accent: #3b82f6;
+  --accent-dark: #60a5fa;
+  --accent-light: #1d4ed8;
+  --accent-glow: rgba(59, 130, 246, 0.2);
 
-  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.4), 0 12px 40px rgba(0, 0, 0, 0.5);
-  --shadow-card-hover: 0 4px 12px rgba(0, 0, 0, 0.45), 0 20px 50px rgba(0, 0, 0, 0.55);
+  --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.5), 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-card-hover: 0 8px 30px rgba(0, 0, 0, 0.6), 0 2px 6px rgba(0, 0, 0, 0.4);
 }
 </style>

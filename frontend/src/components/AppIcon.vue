@@ -109,7 +109,6 @@ import {
   ShieldCheck,
   ShoppingBag,
   ShoppingCart,
-  Sliders,
   SlidersHorizontal,
   Soup,
   Sparkle,

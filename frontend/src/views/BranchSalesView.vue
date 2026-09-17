@@ -54,7 +54,8 @@
           @click="returnsModal = true"
           title="استعراض فواتير اليوم وعمل المرتجعات السريعة"
         >
-          <span>↩ فواتير ومرتجع اليوم</span>
+          <AppIcon name="history" :size="15" />
+          <span>فواتير ومرتجع اليوم</span>
         </button>
 
         <button
@@ -64,7 +65,8 @@
           @click="reprintLastSale"
           title="إعادة طباعة آخر فاتورة تم حفظها (F8)"
         >
-          <span> إعادة طباعة (F8)</span>
+          <AppIcon name="printer" :size="15" />
+          <span>إعادة طباعة (F8)</span>
         </button>
 
         <button
@@ -73,7 +75,8 @@
           @click="shortcutsModal = true"
           title="دليل اختصارات لوحة المفاتيح (F1)"
         >
-          <span>⌨ الاختصارات (F1)</span>
+          <AppIcon name="keyboard" :size="15" />
+          <span>الاختصارات (F1)</span>
         </button>
       </div>
     </div>
@@ -85,10 +88,10 @@
       <StatCard label="آخر عملية بيع" :value="lastSaleTime" icon="clock" format="text" />
     </div>
 
-    <!-- ⏸ Held Orders Ribbon (شريط الطلبات المعلقة) -->
+    <!-- Held Orders Ribbon (شريط الطلبات المعلقة) -->
     <div v-if="heldOrders.length" class="held-orders-bar">
       <div class="held-bar-header">
-        <span class="held-icon">⏸</span>
+        <span class="held-icon"><AppIcon name="timer" :size="16" /></span>
         <span class="held-title">الطلبات المعلقة ({{ heldOrders.length }}):</span>
       </div>
       <div class="held-orders-list">
@@ -100,7 +103,7 @@
           title="اضغط لاستئناف هذا الطلب في السلة فوراً"
         >
           <div class="held-meta">
-            <span class="held-time"> {{ held.time }}</span>
+            <span class="held-time"><AppIcon name="clock" :size="12" /> {{ held.time }}</span>
             <span class="held-count">{{ held.items_count }} صنف</span>
           </div>
           <strong class="held-total">{{ formatMoney(held.total) }}</strong>
@@ -109,7 +112,9 @@
             class="held-remove-btn"
             @click.stop="deleteHeldOrder(held.id)"
             title="حذف هذا الطلب المعلق نهائياً"
-          ></button>
+          >
+            <AppIcon name="x" :size="12" />
+          </button>
         </div>
       </div>
     </div>
@@ -146,7 +151,7 @@
             title="انقر لفتح سلة ومحاسبة الفاتورة"
           >
             <div class="bar-badge-pill">
-              <span class="bar-icon"><AppIcon name="coffee" :size="20" /></span>
+              <span class="bar-icon"><AppIcon name="shopping-bag" :size="20" /></span>
               <span class="bar-items-count">{{ cart.length }} صنف في السلة</span>
             </div>
             <div class="bar-price-block">
@@ -162,7 +167,8 @@
               @click="holdCurrentOrder"
               title="تعليق الطلب الحالي في قائمة الانتظار (F4)"
             >
-              ⏸ تعليق (F4)
+              <AppIcon name="timer" :size="16" />
+              <span>تعليق (F4)</span>
             </button>
 
             <button
@@ -171,7 +177,8 @@
               @click="clearCart()"
               title="تفريغ السلة الحالية (F6)"
             >
-              تفريغ (F6)
+              <AppIcon name="trash-2" :size="16" />
+              <span>تفريغ (F6)</span>
             </button>
 
             <button
@@ -180,8 +187,9 @@
               @click="showCheckoutDrawer = true"
               title="إتمام الطلب والدفع الفوري (Space أو F9)"
             >
+              <AppIcon name="credit-card" :size="16" />
               <span class="checkout-text">إتمام الطلب والدفع</span>
-              <span class="checkout-key-hint">(Space / F9) </span>
+              <span class="checkout-key-hint">(Space / F9)</span>
             </button>
           </div>
         </div>

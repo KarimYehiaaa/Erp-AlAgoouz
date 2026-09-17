@@ -10,22 +10,26 @@
       :aria-label="refreshing ? 'جاري تحديث البيانات' : 'الوقت المتبقي حتى التحديث التلقائي التالي'"
     ></div>
 
-    <section class="dashboard-header glass-glow-card mb-4">
+    <section class="dashboard-header card mb-4">
       <div class="header-main-info">
         <div class="flex items-center gap-3">
           <span class="header-brand-icon">
-            <AppIcon name="dashboard" :size="22" />
+            <AppIcon name="dashboard" :size="20" />
           </span>
           <div>
             <div class="flex items-center gap-2">
-              <h1 class="header-title">لوحة التحكم</h1>
+              <h1 class="header-title">لوحة التحكم التنفيذية</h1>
               <span class="header-status-badge">
                 <span class="live-beacon"></span>
                 مباشر
               </span>
+              <span class="workspace-badge" :title="`نطاق العمل: ${appStore.activeWorkspace}`">
+                <AppIcon name="warehouse" :size="13" />
+                {{ appStore.activeWorkspace }}
+              </span>
             </div>
             <p class="header-desc">
-              ملخص تنفيذي للمبيعات والتحصيل والمخزون والمصروفات خلال الفترة المختارة.
+              متابعة الإيرادات والأرباح والنبض التشغيلي وحركة المخزون للمنشأة لحظياً.
             </p>
           </div>
         </div>
@@ -111,253 +115,316 @@
     </div>
 
     <template v-else-if="stats">
+      <!-- 1. Above-the-fold Executive KPIs -->
       <DashboardMetrics v-if="widgetVisibility.metrics" :stats="stats" />
 
-      <DashboardPriorityAlerts v-if="widgetVisibility.alertsTables" :stats="stats" />
-
-      <section class="overview-grid">
-        <article
-          v-if="authStore.hasPermission('reports.view') && widgetVisibility.financialChart"
-          class="panel chart-panel wide glass-glow-card"
+      <!-- 2. Executive Cockpit Section Tabs -->
+      <div class="dashboard-hub-tabs mt-4 mb-4" role="tablist" aria-label="أقسام لوحة التحكم">
+        <button
+          type="button"
+          class="hub-tab"
+          :class="{ active: activeDashboardSection === 'overview' }"
+          @click="activeDashboardSection = 'overview'"
+          role="tab"
+          :aria-selected="activeDashboardSection === 'overview'"
         >
-          <div class="panel-head">
-            <div>
-              <h2>الأداء المالي</h2>
-              <p>{{ periodLabel }}</p>
-            </div>
-            <div class="mini-tabs">
-              <button
-                type="button"
-                :class="{ active: performanceMode === 'full' }"
-                @click="setPerformanceMode('full')"
-              >
-                كامل
-              </button>
-              <button
-                type="button"
-                :class="{ active: performanceMode === 'sales' }"
-                @click="setPerformanceMode('sales')"
-              >
-                مبيعات
-              </button>
-            </div>
-          </div>
-          <div class="chart-wrap"><canvas ref="performanceChartRef"></canvas></div>
-        </article>
+          <AppIcon name="dashboard" :size="15" />
+          <span>نظرة عامة والنبض</span>
+        </button>
+        <button
+          type="button"
+          class="hub-tab"
+          :class="{ active: activeDashboardSection === 'operations' }"
+          @click="activeDashboardSection = 'operations'"
+          role="tab"
+          :aria-selected="activeDashboardSection === 'operations'"
+        >
+          <AppIcon name="activity" :size="15" />
+          <span>العمليات والرادار والسيولة</span>
+        </button>
+        <button
+          type="button"
+          class="hub-tab"
+          :class="{ active: activeDashboardSection === 'finance' }"
+          @click="activeDashboardSection = 'finance'"
+          role="tab"
+          :aria-selected="activeDashboardSection === 'finance'"
+        >
+          <AppIcon name="coins" :size="15" />
+          <span>التحليل المالي والتوزيعات</span>
+        </button>
+        <button
+          type="button"
+          class="hub-tab"
+          :class="{ active: activeDashboardSection === 'intelligence' }"
+          @click="activeDashboardSection = 'intelligence'"
+          role="tab"
+          :aria-selected="activeDashboardSection === 'intelligence'"
+        >
+          <AppIcon name="bot" :size="15" />
+          <span>الذكاء الاصطناعي والتنبؤ</span>
+        </button>
+      </div>
 
-        <DashboardHealthPulse v-if="widgetVisibility.pulse" :stats="stats" />
-      </section>
+      <!-- TAB 1: OVERVIEW -->
+      <div v-show="activeDashboardSection === 'overview'" class="section-tab-pane">
+        <DashboardPriorityAlerts v-if="widgetVisibility.alertsTables" :stats="stats" />
 
-      <!-- Bento Grid: الخريطة الحرارية لساعات العمل ورادار التوازن السداسي -->
-      <section class="bento-grid mt-4">
-        <div class="bento-col-7">
-          <DashboardSalesHeatmap :stats="stats" />
-        </div>
-        <div class="bento-col-5">
-          <DashboardOperationalRadar :stats="stats" />
-        </div>
-      </section>
-
-      <!-- Bento Grid: سباق المنتجات الأكثر مبيعاً وهندسة المنيو -->
-      <section class="bento-grid">
-        <div class="bento-col-6">
-          <DashboardTopItemsRace :stats="stats" />
-        </div>
-        <div class="bento-col-6">
-          <DashboardMenuMatrix v-if="widgetVisibility.aiInsights" />
-        </div>
-      </section>
-
-      <!-- AI Insights Section -->
-      <DashboardAIInsights v-if="widgetVisibility.aiInsights" :stats="stats" />
-
-      <!-- Demand Forecasting Section -->
-      <section
-        v-if="stats && widgetVisibility.forecastingChart"
-        class="overview-grid"
-        style="margin-top: var(--space-5)"
-      >
-        <article class="panel chart-panel wide">
-          <div class="panel-head">
-            <div>
-              <h2>
-                <AppIcon name="trendingUp" style="margin-left: 8px; color: var(--primary)" />
-                التنبؤ الذكي بالطلب
-              </h2>
-              <p>مقارنة المبيعات الفعلية للأسبوع الماضي مع التوقعات الذكية للأيام السبعة القادمة</p>
-            </div>
-            <span
-              class="badge badge-info"
-              style="background: var(--accent); color: var(--bg-elevated); font-weight: 800"
-              >رادار الذكاء الاصطناعي</span
-            >
-          </div>
-          <div class="chart-wrap" style="height: 300px">
-            <canvas ref="forecastingChartRef"></canvas>
-          </div>
-        </article>
-      </section>
-
-      <!-- Branch Liquidity Battery Indicators -->
-      <BranchLiquidity
-        v-if="stats && widgetVisibility.branchLiquidity"
-        :branches="branchLiquidityList"
-        :format-money="formatMoney"
-      />
-
-      <section v-if="widgetVisibility.distributionCharts" class="analytics-grid">
-        <article class="panel chart-panel">
-          <div class="panel-head compact">
-            <h2>أنواع البيع</h2>
-            <RouterLink to="/sales">فتح</RouterLink>
-          </div>
-          <div class="chart-wrap small"><canvas ref="salesTypeChartRef"></canvas></div>
-        </article>
-
-        <article class="panel chart-panel">
-          <div class="panel-head compact">
-            <h2>حالات التحصيل</h2>
-            <RouterLink to="/sales?tab=wholesale">فتح</RouterLink>
-          </div>
-          <div class="chart-wrap small"><canvas ref="paymentChartRef"></canvas></div>
-        </article>
-
-        <article class="panel chart-panel">
-          <div class="panel-head compact">
-            <h2>المصروفات</h2>
-            <RouterLink to="/expenses">فتح</RouterLink>
-          </div>
-          <div class="chart-wrap small"><canvas ref="expenseChartRef"></canvas></div>
-        </article>
-
-        <article class="panel chart-panel">
-          <div class="panel-head compact">
-            <h2>ربحية الفئات</h2>
-            <RouterLink to="/products">فتح</RouterLink>
-          </div>
-          <div class="chart-wrap small"><canvas ref="categoryProfitChartRef"></canvas></div>
-        </article>
-      </section>
-
-      <!-- الرسوم البيانية الإضافية المتقدمة لـ (أعلى المنتجات، أعلى العملاء، وساعات الذروة) -->
-      <section v-if="widgetVisibility.indicatorCharts" class="analytics-grid">
-        <article class="panel chart-panel">
-          <div class="panel-head compact">
-            <h2>أعلى المنتجات مبيعاً</h2>
-            <RouterLink to="/products">المنتجات</RouterLink>
-          </div>
-          <div class="chart-wrap small"><canvas ref="topProductsChartRef"></canvas></div>
-        </article>
-
-        <article class="panel chart-panel">
-          <div class="panel-head compact">
-            <h2>أعلى العملاء شراءً</h2>
-            <RouterLink to="/customers">العملاء</RouterLink>
-          </div>
-          <div class="chart-wrap small"><canvas ref="topCustomersChartRef"></canvas></div>
-        </article>
-
-        <article class="panel chart-panel">
-          <div class="panel-head compact">
-            <h2>نمط ساعات الذروة والطلبات</h2>
-            <RouterLink to="/sales">المبيعات</RouterLink>
-          </div>
-          <div class="chart-wrap small"><canvas ref="peakHoursChartRef"></canvas></div>
-        </article>
-      </section>
-
-      <!-- الجداول والتنبيهات المصممة بيانياً وتفصيلياً بنمط حديث -->
-      <section v-if="widgetVisibility.alertsTables" class="tables-grid">
-        <!-- نواقص المخزون مع شريط تقدم الأمان -->
-        <article class="panel table-panel">
-          <div class="panel-head compact">
-            <h2 class="text-danger">نواقص المخزون وحد الأمان</h2>
-            <RouterLink to="/inventory">المخزون</RouterLink>
-          </div>
-          <div class="stock-alerts-list">
-            <div v-for="row in lowStockRows" :key="row.id" class="stock-alert-card">
-              <div class="stock-info">
-                <span class="stock-name">{{ row.name_ar }}</span>
-                <span
-                  class="stock-level"
-                  :class="Number(row.total_qty) <= 0 ? 'text-danger-bold' : 'text-warning-bold'"
+        <section class="overview-grid mt-4">
+          <article
+            v-if="authStore.hasPermission('reports.view') && widgetVisibility.financialChart"
+            class="panel chart-panel wide"
+          >
+            <div class="panel-head">
+              <div>
+                <h2>الأداء المالي</h2>
+                <p>{{ periodLabel }}</p>
+              </div>
+              <div class="mini-tabs">
+                <button
+                  type="button"
+                  :class="{ active: performanceMode === 'full' }"
+                  @click="setPerformanceMode('full')"
                 >
-                  {{ number(row.total_qty) }} / {{ row.min_stock }} وحدة
-                </span>
-              </div>
-              <div class="progress-bar-container">
-                <div
-                  class="progress-bar"
-                  :style="{
-                    width:
-                      Math.min((Number(row.total_qty) / (Number(row.min_stock) || 1)) * 100, 100) +
-                      '%',
-                  }"
-                  :class="Number(row.total_qty) <= 0 ? 'empty' : 'depleted'"
-                ></div>
+                  كامل
+                </button>
+                <button
+                  type="button"
+                  :class="{ active: performanceMode === 'sales' }"
+                  @click="setPerformanceMode('sales')"
+                >
+                  مبيعات
+                </button>
               </div>
             </div>
-            <p v-if="!lowStockRows.length" class="mini-empty">المخزون آمن ومستقر تماماً.</p>
-          </div>
-        </article>
+            <div class="chart-wrap"><canvas ref="performanceChartRef"></canvas></div>
+          </article>
 
-        <!-- التنبيهات الهامة بنمط البطاقات التفاعلية -->
-        <article class="panel table-panel">
-          <div class="panel-head compact">
-            <h2>تنبيهات وإشعارات النظام</h2>
-            <RouterLink to="/inventory">المتابعة</RouterLink>
-          </div>
-          <div class="alert-modern-stack">
-            <div
-              v-for="alert in alertItems"
-              :key="alert.key"
-              class="alert-modern-item"
-              :class="alert.tone"
-            >
-              <div class="alert-icon-box">
-                <AppIcon :name="alert.tone === 'danger' ? 'warning' : 'info'" />
-              </div>
-              <div class="alert-content">
-                <span class="alert-label">{{ alert.label }}</span>
-                <strong class="alert-value">{{ alert.value }}</strong>
-              </div>
+          <DashboardHealthPulse v-if="widgetVisibility.pulse" :stats="stats" />
+        </section>
+
+        <!-- الجداول والتنبيهات المصممة بيانياً وتفصيلياً بنمط حديث -->
+        <section v-if="widgetVisibility.alertsTables" class="tables-grid mt-4">
+          <!-- نواقص المخزون مع شريط تقدم الأمان -->
+          <article class="panel table-panel">
+            <div class="panel-head compact">
+              <h2 class="text-danger">نواقص المخزون وحد الأمان</h2>
+              <RouterLink to="/inventory">المخزون</RouterLink>
             </div>
-          </div>
-        </article>
-
-        <!-- سجل نشاطات النظام الأحدث (تغذية حية) -->
-        <article class="panel table-panel">
-          <div class="panel-head compact">
-            <h2>سجل نشاطات النظام الأحدث</h2>
-            <RouterLink to="/operations">مركز التشغيل</RouterLink>
-          </div>
-          <div class="timeline-feed">
-            <div
-              v-for="activity in recentActivityRows"
-              :key="activity.created_at + activity.action_ar"
-              class="timeline-row"
-            >
-              <div class="timeline-marker" :class="activity.module"></div>
-              <div class="timeline-content">
-                <div class="timeline-header">
-                  <span class="user-badge">{{ activity.full_name || 'النظام' }}</span>
-                  <span class="module-badge" :class="activity.module">{{
-                    moduleLabel(activity.module)
-                  }}</span>
+            <div class="stock-alerts-list">
+              <div v-for="row in lowStockRows" :key="row.id" class="stock-alert-card">
+                <div class="stock-info">
+                  <span class="stock-name">{{ row.name_ar }}</span>
+                  <span
+                    class="stock-level"
+                    :class="Number(row.total_qty) <= 0 ? 'text-danger-bold' : 'text-warning-bold'"
+                  >
+                    {{ number(row.total_qty) }} / {{ row.min_stock }} وحدة
+                  </span>
                 </div>
-                <p class="activity-text">{{ activity.action_ar }}</p>
-                <div class="timeline-meta">
-                  <small>{{ formatTime(activity.created_at) }}</small>
+                <div class="progress-bar-container">
+                  <div
+                    class="progress-bar"
+                    :style="{
+                      width:
+                        Math.min(
+                          (Number(row.total_qty) / (Number(row.min_stock) || 1)) * 100,
+                          100,
+                        ) + '%',
+                    }"
+                    :class="Number(row.total_qty) <= 0 ? 'empty' : 'depleted'"
+                  ></div>
                 </div>
               </div>
+              <p v-if="!lowStockRows.length" class="mini-empty">المخزون آمن ومستقر تماماً.</p>
             </div>
-            <p v-if="!recentActivityRows.length" class="mini-empty">لا توجد نشاطات مسجلة مؤخراً.</p>
-          </div>
-        </article>
-      </section>
+          </article>
 
-      <!-- شريط البث الحي للعمليات المتدفقة -->
-      <DashboardLiveTicker :stats="stats" />
+          <!-- التنبيهات الهامة بنمط البطاقات التفاعلية -->
+          <article class="panel table-panel">
+            <div class="panel-head compact">
+              <h2>تنبيهات وإشعارات النظام</h2>
+              <RouterLink to="/inventory">المتابعة</RouterLink>
+            </div>
+            <div class="alert-modern-stack">
+              <div
+                v-for="alert in alertItems"
+                :key="alert.key"
+                class="alert-modern-item"
+                :class="alert.tone"
+              >
+                <div class="alert-icon-box">
+                  <AppIcon :name="alert.tone === 'danger' ? 'warning' : 'info'" />
+                </div>
+                <div class="alert-content">
+                  <span class="alert-label">{{ alert.label }}</span>
+                  <strong class="alert-value">{{ alert.value }}</strong>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <!-- سجل نشاطات النظام الأحدث (تغذية حية) -->
+          <article class="panel table-panel">
+            <div class="panel-head compact">
+              <h2>سجل نشاطات النظام الأحدث</h2>
+              <RouterLink to="/operations">مركز التشغيل</RouterLink>
+            </div>
+            <div class="timeline-feed">
+              <div
+                v-for="activity in recentActivityRows"
+                :key="activity.created_at + activity.action_ar"
+                class="timeline-row"
+              >
+                <div class="timeline-marker" :class="activity.module"></div>
+                <div class="timeline-content">
+                  <div class="timeline-header">
+                    <span class="user-badge">{{ activity.full_name || 'النظام' }}</span>
+                    <span class="module-badge" :class="activity.module">{{
+                      moduleLabel(activity.module)
+                    }}</span>
+                  </div>
+                  <p class="activity-text">{{ activity.action_ar }}</p>
+                  <div class="timeline-meta">
+                    <small>{{ formatTime(activity.created_at) }}</small>
+                  </div>
+                </div>
+              </div>
+              <p v-if="!recentActivityRows.length" class="mini-empty">
+                لا توجد نشاطات مسجلة مؤخراً.
+              </p>
+            </div>
+          </article>
+        </section>
+
+        <!-- شريط البث الحي للعمليات المتدفقة -->
+        <DashboardLiveTicker :stats="stats" class="mt-4" />
+      </div>
+
+      <!-- TAB 2: OPERATIONS -->
+      <div v-show="activeDashboardSection === 'operations'" class="section-tab-pane">
+        <!-- Bento Grid: الخريطة الحرارية لساعات العمل ورادار التوازن السداسي -->
+        <section class="bento-grid">
+          <div class="bento-col-7">
+            <DashboardSalesHeatmap :stats="stats" />
+          </div>
+          <div class="bento-col-5">
+            <DashboardOperationalRadar :stats="stats" />
+          </div>
+        </section>
+
+        <!-- Branch Liquidity Battery Indicators -->
+        <BranchLiquidity
+          v-if="stats && widgetVisibility.branchLiquidity"
+          :branches="branchLiquidityList"
+          :format-money="formatMoney"
+          class="mt-4"
+        />
+
+        <!-- الرسوم البيانية الإضافية المتقدمة لـ (أعلى المنتجات، أعلى العملاء، وساعات الذروة) -->
+        <section v-if="widgetVisibility.indicatorCharts" class="analytics-grid mt-4">
+          <article class="panel chart-panel">
+            <div class="panel-head compact">
+              <h2>أعلى المنتجات مبيعاً</h2>
+              <RouterLink to="/products">المنتجات</RouterLink>
+            </div>
+            <div class="chart-wrap small"><canvas ref="topProductsChartRef"></canvas></div>
+          </article>
+
+          <article class="panel chart-panel">
+            <div class="panel-head compact">
+              <h2>أعلى العملاء شراءً</h2>
+              <RouterLink to="/customers">العملاء</RouterLink>
+            </div>
+            <div class="chart-wrap small"><canvas ref="topCustomersChartRef"></canvas></div>
+          </article>
+
+          <article class="panel chart-panel">
+            <div class="panel-head compact">
+              <h2>نمط ساعات الذروة والطلبات</h2>
+              <RouterLink to="/sales">المبيعات</RouterLink>
+            </div>
+            <div class="chart-wrap small"><canvas ref="peakHoursChartRef"></canvas></div>
+          </article>
+        </section>
+      </div>
+
+      <!-- TAB 3: FINANCE -->
+      <div v-show="activeDashboardSection === 'finance'" class="section-tab-pane">
+        <section v-if="widgetVisibility.distributionCharts" class="analytics-grid">
+          <article class="panel chart-panel">
+            <div class="panel-head compact">
+              <h2>أنواع البيع</h2>
+              <RouterLink to="/sales">فتح</RouterLink>
+            </div>
+            <div class="chart-wrap small"><canvas ref="salesTypeChartRef"></canvas></div>
+          </article>
+
+          <article class="panel chart-panel">
+            <div class="panel-head compact">
+              <h2>حالات التحصيل</h2>
+              <RouterLink to="/sales?tab=wholesale">فتح</RouterLink>
+            </div>
+            <div class="chart-wrap small"><canvas ref="paymentChartRef"></canvas></div>
+          </article>
+
+          <article class="panel chart-panel">
+            <div class="panel-head compact">
+              <h2>المصروفات</h2>
+              <RouterLink to="/expenses">فتح</RouterLink>
+            </div>
+            <div class="chart-wrap small"><canvas ref="expenseChartRef"></canvas></div>
+          </article>
+
+          <article class="panel chart-panel">
+            <div class="panel-head compact">
+              <h2>ربحية الفئات</h2>
+              <RouterLink to="/products">فتح</RouterLink>
+            </div>
+            <div class="chart-wrap small"><canvas ref="categoryProfitChartRef"></canvas></div>
+          </article>
+        </section>
+      </div>
+
+      <!-- TAB 4: INTELLIGENCE & FORECASTING -->
+      <div v-show="activeDashboardSection === 'intelligence'" class="section-tab-pane">
+        <!-- Bento Grid: سباق المنتجات الأكثر مبيعاً وهندسة المنيو -->
+        <section class="bento-grid">
+          <div class="bento-col-6">
+            <DashboardTopItemsRace :stats="stats" />
+          </div>
+          <div class="bento-col-6">
+            <DashboardMenuMatrix v-if="widgetVisibility.aiInsights" />
+          </div>
+        </section>
+
+        <!-- AI Insights Section -->
+        <DashboardAIInsights v-if="widgetVisibility.aiInsights" :stats="stats" class="mt-4" />
+
+        <!-- Demand Forecasting Section -->
+        <section v-if="stats && widgetVisibility.forecastingChart" class="overview-grid mt-4">
+          <article class="panel chart-panel wide">
+            <div class="panel-head">
+              <div>
+                <h2>
+                  <AppIcon
+                    name="trendingUp"
+                    style="margin-left: 8px; color: var(--color-primary)"
+                  />
+                  التنبؤ الذكي بالطلب
+                </h2>
+                <p>
+                  مقارنة المبيعات الفعلية للأسبوع الماضي مع التوقعات الذكية للأيام السبعة القادمة
+                </p>
+              </div>
+              <span class="badge badge-info">رادار الذكاء الاصطناعي</span>
+            </div>
+            <div class="chart-wrap" style="height: 300px">
+              <canvas ref="forecastingChartRef"></canvas>
+            </div>
+          </article>
+        </section>
+      </div>
 
       <!--  لوحة تخصيص الودجت الجانبية -->
       <div class="widget-drawer" :class="{ open: showWidgetSettings }">
@@ -425,6 +492,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useAuthStore } from '@/stores/auth';
+import { useAppStore } from '@/stores/app';
 import AppIcon from '@/components/AppIcon.vue';
 import { dashboard as dashboardApi, warehouses as apiWarehouses } from '@/api';
 import { formatMoney } from '@/utils/currency';
@@ -439,6 +507,11 @@ import DashboardOperationalRadar from '@/components/dashboard/DashboardOperation
 import DashboardTopItemsRace from '@/components/dashboard/DashboardTopItemsRace.vue';
 import DashboardLiveTicker from '@/components/dashboard/DashboardLiveTicker.vue';
 import DashboardQuickFAB from '@/components/dashboard/DashboardQuickFAB.vue';
+
+const appStore = useAppStore();
+const activeDashboardSection = ref<'overview' | 'operations' | 'finance' | 'intelligence'>(
+  'overview',
+);
 
 let Chart: any;
 const loadChartLib = async () => {

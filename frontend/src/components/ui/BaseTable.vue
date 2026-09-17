@@ -525,7 +525,7 @@ onBeforeUnmount(() => document.removeEventListener('click', handleOutsideClick))
 }
 
 .bt-toolbar-end {
-  margin-right: auto;
+  margin-inline-start: auto;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -624,7 +624,7 @@ onBeforeUnmount(() => document.removeEventListener('click', handleOutsideClick))
 }
 .bt-bulk-count {
   color: var(--text-muted);
-  margin-left: auto;
+  margin-inline-start: auto;
 }
 
 /* ── Table ────────────────────────────────────────────────────── */
@@ -748,7 +748,7 @@ onBeforeUnmount(() => document.removeEventListener('click', handleOutsideClick))
 .bt-page-info {
   font-size: 0.78rem;
   color: var(--text-muted);
-  margin-left: auto;
+  margin-inline-end: auto;
 }
 
 .bt-page-controls {

@@ -28,16 +28,41 @@
         </transition>
       </router-link>
 
+      <!-- Desktop Pin / Collapse toggle -->
       <button
         v-if="!isMobile && isExpanded"
         type="button"
         class="pin-toggle-btn"
         :class="{ active: appStore.sidebarPinned }"
-        :title="appStore.sidebarPinned ? 'إلغاء تثبيت الشريط (تصغير)' : 'تثبيت الشريط ممتداً'"
-        :aria-label="appStore.sidebarPinned ? 'إلغاء تثبيت الشريط الجانبي' : 'تثبيت الشريط الجانبي'"
+        title="تصغير الشريط الجانبي"
+        aria-label="تصغير الشريط الجانبي"
         @click.stop="appStore.toggleSidebarPinned"
       >
-        <AppIcon :name="appStore.sidebarPinned ? 'arrowRight' : 'arrowLeft'" :size="14" />
+        <AppIcon name="arrowRight" :size="14" />
+      </button>
+
+      <!-- Desktop Expand toggle when collapsed -->
+      <button
+        v-if="!isMobile && !isExpanded"
+        type="button"
+        class="pin-toggle-btn collapsed-expand-btn"
+        title="توسيع وتثبيت الشريط الجانبي"
+        aria-label="توسيع وتثبيت الشريط الجانبي"
+        @click.stop="appStore.toggleSidebarPinned"
+      >
+        <AppIcon name="arrowLeft" :size="14" />
+      </button>
+
+      <!-- Mobile Close Button -->
+      <button
+        v-if="isMobile && isExpanded"
+        type="button"
+        class="mobile-close-btn"
+        title="إغلاق القائمة"
+        aria-label="إغلاق القائمة"
+        @click.stop="handleCloseMobile"
+      >
+        <AppIcon name="close" :size="16" />
       </button>
     </div>
 
@@ -54,6 +79,7 @@
           class="nav-item"
           active-class="active"
           :title="!isExpanded ? item.label : ''"
+          :data-tooltip="item.label"
           @click="handleItemClick"
         >
           <span class="active-rail" aria-hidden="true"></span>
@@ -68,7 +94,12 @@
 
     <!-- Sidebar Bottom User Profile Area -->
     <div class="sidebar-user-area">
-      <div v-if="!isExpanded" class="user-avatar-mini" :title="userName">
+      <div
+        v-if="!isExpanded"
+        class="user-avatar-mini"
+        :title="`${userName} (اضغط للتوسيع)`"
+        @click="!isMobile && appStore.toggleSidebarPinned()"
+      >
         {{ userInitial }}
       </div>
       <div v-else class="user-profile-expanded">
@@ -129,6 +160,10 @@ function handleItemClick() {
   if (isMobile.value && appStore.sidebarOpen) {
     appStore.sidebarOpen = false;
   }
+}
+
+function handleCloseMobile() {
+  appStore.sidebarOpen = false;
 }
 
 const companyName = computed(() => brandingState.companyName || 'منظومة الإدارة');
@@ -213,7 +248,8 @@ const menuGroups = computed(() => {
 <style lang="scss" scoped>
 .sidebar {
   position: fixed;
-  inset-inline-end: 0;
+  right: 0;
+  left: auto;
   top: 0;
   bottom: 0;
   width: var(--sidebar-collapsed, 68px);
@@ -229,7 +265,8 @@ const menuGroups = computed(() => {
     var(--sidebar-bg) 0%,
     color-mix(in srgb, var(--sidebar-surface) 65%, var(--sidebar-bg)) 100%
   );
-  border-inline-start: 1px solid var(--sidebar-border);
+  border-left: 1px solid var(--sidebar-border);
+  border-right: none;
   box-shadow: -4px 0 28px rgba(2, 6, 23, 0.28);
   transition: width var(--transition);
   will-change: width;
@@ -242,10 +279,11 @@ const menuGroups = computed(() => {
   &.is-collapsed {
     .sidebar-header {
       justify-content: center;
-      padding-inline: 8px;
+      padding: 14px 6px;
+      gap: 6px;
     }
     .nav-group {
-      padding-inline: 8px;
+      padding: 0 6px;
       align-items: center;
     }
     .nav-item {
@@ -255,6 +293,7 @@ const menuGroups = computed(() => {
       padding: 0;
       margin: 2px auto;
       border-radius: var(--radius-md);
+      position: relative;
 
       &:hover {
         transform: scale(1.08);
@@ -262,7 +301,8 @@ const menuGroups = computed(() => {
       }
 
       .active-rail {
-        inset-inline-start: 1px;
+        left: 0;
+        right: auto;
         top: 8px;
         bottom: 8px;
       }
@@ -276,6 +316,37 @@ const menuGroups = computed(() => {
           color: #ffffff;
           transform: scale(1.08);
         }
+      }
+
+      /* RTL Tooltip: pops out to the LEFT into available viewport */
+      &::after {
+        content: attr(data-tooltip);
+        position: absolute;
+        right: calc(100% + 12px);
+        top: 50%;
+        transform: translateY(-50%);
+        padding: 6px 12px;
+        border-radius: var(--radius-sm);
+        background: var(--color-surface-overlay, #0f172a);
+        color: #ffffff;
+        font-size: 0.78rem;
+        font-weight: 700;
+        white-space: nowrap;
+        pointer-events: none;
+        opacity: 0;
+        visibility: hidden;
+        transition:
+          opacity 0.15s ease,
+          transform 0.15s ease;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        z-index: 1000;
+      }
+
+      &:hover::after {
+        opacity: 1;
+        visibility: visible;
+        transform: translateY(-50%) translateX(-4px);
       }
     }
 
@@ -447,7 +518,8 @@ const menuGroups = computed(() => {
     position: absolute;
     top: 4px;
     bottom: 4px;
-    inset-inline-start: 0;
+    left: 0;
+    right: auto;
     width: 4px;
     border-radius: 0 4px 4px 0;
     background: var(--color-primary);
@@ -472,7 +544,7 @@ const menuGroups = computed(() => {
   }
 
   &.active {
-    background: linear-gradient(90deg, rgba(29, 78, 216, 0.28) 0%, rgba(29, 78, 216, 0.12) 100%);
+    background: linear-gradient(270deg, rgba(29, 78, 216, 0.28) 0%, rgba(29, 78, 216, 0.12) 100%);
     color: #ffffff;
     font-weight: 700;
     border-color: rgba(59, 130, 246, 0.35);
@@ -607,6 +679,31 @@ const menuGroups = computed(() => {
   }
 }
 
+.mobile-close-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--sidebar-muted);
+  cursor: pointer;
+  transition: all var(--transition);
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: #ffffff;
+  }
+}
+
+.collapsed-expand-btn {
+  width: 28px;
+  height: 28px;
+  margin: 0 auto;
+}
+
 /* Transitions */
 .brand-fade-enter-active,
 .brand-fade-leave-active,
@@ -623,8 +720,13 @@ const menuGroups = computed(() => {
 
 @media (max-width: 992px) {
   .sidebar {
+    right: 0 !important;
+    left: auto !important;
     transform: translateX(100%);
-    width: 260px !important;
+    width: 280px !important;
+    max-width: 85vw;
+    box-shadow: -8px 0 32px rgba(0, 0, 0, 0.45);
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 
     &.is-expanded {
       transform: translateX(0);

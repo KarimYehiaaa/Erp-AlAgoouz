@@ -181,11 +181,11 @@ const props = defineProps<{
 .insight-tile::before {
   content: '';
   position: absolute;
-  inset-inline-end: 0;
+  inset-inline-start: 0;
   top: 13px;
   bottom: 13px;
   width: 4px;
-  border-radius: 999px 0 0 999px;
+  border-radius: 0 999px 999px 0;
   background: color-mix(in srgb, var(--primary) 55%, transparent);
 }
 .insight-tile span {

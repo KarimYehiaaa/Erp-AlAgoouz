@@ -518,9 +518,9 @@ onBeforeUnmount(() => {
     display: block;
     position: fixed;
     inset: 0;
-    background: rgba(15, 23, 42, 0.45);
+    background: rgba(15, 23, 42, 0.55);
     backdrop-filter: blur(4px);
-    z-index: 99;
+    z-index: 140;
     animation: fadeIn 0.2s ease-out;
   }
 }

@@ -594,7 +594,7 @@ onBeforeUnmount(() => {
 }
 
 .check-mark {
-  margin-right: auto;
+  margin-inline-start: auto;
   font-size: 0.8rem;
 }
 

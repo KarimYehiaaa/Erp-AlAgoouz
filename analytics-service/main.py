@@ -1,10 +1,18 @@
 """
 main.py — FastAPI Companion Layer for Bin Al-Agoouz ERP.
+══════════════════════════════════════════════════════
 Provides advanced ML analytics, demand forecasting, menu engineering, and anomaly detection.
-Preserves Node.js as the core transaction engine while offloading computational models.
+Node.js remains the primary ERP transaction engine; this service acts as an optional
+high-performance analytical companion.
 """
-from fastapi import FastAPI, HTTPException
+import os
+import secrets
+import logging
+from typing import Optional, List
+from fastapi import FastAPI, HTTPException, Header, Depends, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+
 from models import (
     DemandForecastRequest,
     DemandForecastResponse,
@@ -17,73 +25,118 @@ from models import (
     AnomalyDetectionResponse,
 )
 from forecasting import forecast_product_demand
-from clustering import compute_menu_matrix, compute_churn_risk
+from menu_engineering import compute_menu_matrix
+from churn_risk import compute_churn_risk
 from anomaly_detector import detect_operational_anomalies
+
+logger = logging.getLogger("analytics_service")
 
 app = FastAPI(
     title="Bin Al-Agoouz ERP Analytics Service",
-    version="1.0.0",
-    description="Machine Learning & Business Intelligence companion service for coffee roastery and cafe operations.",
+    version="1.1.0",
+    description="Statistical & Machine Learning companion service for coffee roastery and cafe operations.",
 )
 
-# CORS middleware
+# 1. Configurable and Secure CORS Middleware
+raw_origins = os.getenv(
+    "ANALYTICS_ALLOWED_ORIGINS",
+    "http://localhost:3000,http://localhost:5173,http://localhost:8000,http://127.0.0.1:3000,http://127.0.0.1:5173",
+)
+allowed_origins: List[str] = [orig.strip() for orig in raw_origins.split(",") if orig.strip()]
+is_wildcard = "*" in allowed_origins
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
+    allow_origins=allowed_origins if not is_wildcard else ["*"],
+    allow_credentials=not is_wildcard,  # Forbidden by spec to combine "*" with allow_credentials=True
+    allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
 )
 
+# 2. Authentication Dependency (Constant-Time Header Verification)
+EXPECTED_API_KEY = os.getenv("ANALYTICS_API_KEY", "").strip()
 
+
+def verify_analytics_key(
+    x_key: Optional[str] = Header(None, alias="X-Analytics-Service-Key"),
+):
+    # If ANALYTICS_API_KEY is configured in the environment, enforce strict match
+    if EXPECTED_API_KEY:
+        if not x_key or not secrets.compare_digest(x_key, EXPECTED_API_KEY):
+            raise HTTPException(
+                status_code=401,
+                detail="Unauthorized: Missing or invalid X-Analytics-Service-Key",
+            )
+    return True
+
+
+# 3. Global Exception Handler (Prevents stack trace leaks)
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.error(f"Unhandled analytics error on {request.url.path}: {str(exc)}", exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content={
+            "status": "error",
+            "message": "Internal analytics processing error occurred.",
+            "code": "ANALYTICS_INTERNAL_ERROR",
+        },
+    )
+
+
+# 4. Endpoints
 @app.get("/health")
 def health_check():
     return {
         "status": "healthy",
         "service": "bin-al-agoouz-analytics",
-        "version": "1.0.0",
+        "version": "1.1.0",
         "role": "companion_layer",
     }
 
 
-@app.post("/forecast/demand", response_model=DemandForecastResponse)
+@app.post(
+    "/forecast/demand",
+    response_model=DemandForecastResponse,
+    dependencies=[Depends(verify_analytics_key)],
+)
 def get_demand_forecast(req: DemandForecastRequest):
-    try:
-        results: list[ProductForecastOutput] = []
-        for prod in req.products:
-            res = forecast_product_demand(prod, horizon=req.forecast_days)
-            results.append(res)
+    results: List[ProductForecastOutput] = []
+    for prod in req.products:
+        res = forecast_product_demand(prod, horizon=req.forecast_days)
+        results.append(res)
 
-        return DemandForecastResponse(
-            forecast_days=req.forecast_days,
-            results=results
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Demand forecasting error: {str(e)}")
+    return DemandForecastResponse(
+        forecast_days=req.forecast_days,
+        results=results,
+    )
 
 
-@app.post("/analytics/churn-risk", response_model=ChurnRiskResponse)
+@app.post(
+    "/analytics/churn-risk",
+    response_model=ChurnRiskResponse,
+    dependencies=[Depends(verify_analytics_key)],
+)
 def get_churn_risk(req: ChurnRiskRequest):
-    try:
-        return compute_churn_risk(req.customers)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Churn risk calculation error: {str(e)}")
+    return compute_churn_risk(req.customers)
 
 
-@app.post("/analytics/menu-matrix", response_model=MenuMatrixResponse)
+@app.post(
+    "/analytics/menu-matrix",
+    response_model=MenuMatrixResponse,
+    dependencies=[Depends(verify_analytics_key)],
+)
 def get_menu_matrix(req: MenuMatrixRequest):
-    try:
-        return compute_menu_matrix(req.items)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Menu matrix calculation error: {str(e)}")
+    return compute_menu_matrix(req.items)
 
 
-@app.post("/analytics/anomalies", response_model=AnomalyDetectionResponse)
+@app.post(
+    "/analytics/anomalies",
+    response_model=AnomalyDetectionResponse,
+    dependencies=[Depends(verify_analytics_key)],
+)
 def get_anomalies(req: AnomalyDetectionRequest):
-    try:
-        return detect_operational_anomalies(req.points, sensitivity=req.sensitivity)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Anomaly detection error: {str(e)}")
+    return detect_operational_anomalies(req.points, sensitivity=req.sensitivity)
 
 
 if __name__ == "__main__":

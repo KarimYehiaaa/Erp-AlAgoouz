@@ -35,4 +35,26 @@ describe('Analytics Companion Service (Python AI/BI Client)', () => {
     const result = await fetchPythonAnomalies([]);
     expect(result).toBeNull();
   });
+
+  it('يدعم تمرير مفتاح المصادقة ANALYTICS_API_KEY بأمان في الترويسات', async () => {
+    process.env.ANALYTICS_API_KEY = 'test-secret-key-123';
+    try {
+      const isHealthy = await checkAnalyticsServiceHealth();
+      expect(typeof isHealthy).toBe('boolean');
+
+      const forecast = await fetchPythonDemandForecast({
+        forecast_days: 7,
+        products: [
+          {
+            product_id: 1,
+            name_ar: 'بن هرري',
+            historical_sales: [{ date: '2026-09-01', quantity: 5 }],
+          },
+        ],
+      });
+      expect(forecast).toBeNull();
+    } finally {
+      delete process.env.ANALYTICS_API_KEY;
+    }
+  });
 });

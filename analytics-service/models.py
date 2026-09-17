@@ -31,6 +31,10 @@ class ProductForecastOutput(BaseModel):
     daily_forecast: List[float]
     trend_slope: float
     confidence_score: float
+    quality: str = "sufficient"  # 'insufficient_data', 'sufficient', 'low_variance'
+    mae: Optional[float] = None
+    mape: Optional[float] = None
+    data_points: int = 0
 
 
 class DemandForecastResponse(BaseModel):
@@ -57,6 +61,7 @@ class CustomerChurnOutput(BaseModel):
     customer_id: int
     name_ar: str
     churn_probability: float
+    churn_risk_score: float = 0.0  # Heuristic 0-100 score
     risk_level: str  # 'low', 'medium', 'high', 'critical'
     recommended_action: str
 
@@ -122,6 +127,12 @@ class AnomalyPointOutput(BaseModel):
     z_score: float
     is_anomaly: bool
     explanation: str
+    iqr_outlier: bool = False
+    q1: Optional[float] = None
+    q3: Optional[float] = None
+    lower_bound: Optional[float] = None
+    upper_bound: Optional[float] = None
+    quality: str = "sufficient"  # 'sufficient', 'insufficient_data', 'no_variance'
 
 
 class AnomalyDetectionResponse(BaseModel):

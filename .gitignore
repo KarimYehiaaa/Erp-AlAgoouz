@@ -64,5 +64,10 @@ desktop-pos/dist/
 desktop-pos/dist-electron/
 desktop-pos/release/
 
+# Python cache
+__pycache__/
+*.py[cod]
+
 # IDE / Session plans
 .zcode/
+

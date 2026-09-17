@@ -43,7 +43,9 @@ try {
   execSync('node src/database/setup.ts', { cwd: backendRoot, stdio: 'inherit', env: testEnv });
   execSync('node scripts/migrate.ts', { cwd: backendRoot, stdio: 'inherit', env: testEnv });
   console.log('🧪 تشغيل vitest (معزول عن الإنتاج)...');
-  execSync('npm test', { cwd: backendRoot, stdio: 'inherit', env: testEnv });
+  const extraArgs = process.argv.slice(2).join(' ');
+  const vitestCmd = extraArgs ? `npm test -- ${extraArgs}` : 'npm test';
+  execSync(vitestCmd, { cwd: backendRoot, stdio: 'inherit', env: testEnv });
   console.log('✅ اكتملت جميع الاختبارات على قاعدة محلية معزولة!');
 } catch (err) {
   console.error('❌ فشل تشغيل الاختبارات:', (err as Error).message);

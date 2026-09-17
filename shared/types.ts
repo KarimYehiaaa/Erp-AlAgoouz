@@ -246,6 +246,7 @@ export interface DashboardData {
 /** تنبيه أمني / احتيال مالي من محرك المخاطر (Anti-Fraud / Risk Engine). */
 export interface RiskAlert {
   id: string;
+  fingerprint?: string;
   severity: 'critical' | 'high' | 'medium' | 'low';
   user?: {
     id?: number | null;
@@ -262,4 +263,50 @@ export interface RiskAlert {
     id: number | string;
   };
   explanation: string;
+}
+
+/** ملخص إحصائي لدرجات الخطورة. */
+export interface RiskSummary {
+  critical: number;
+  high: number;
+  medium: number;
+  low: number;
+  total: number;
+}
+
+/** حالة تنفيذ كاشف مخاطر مستقل. */
+export interface DetectorExecutionResult {
+  detector: string;
+  status: 'success' | 'failed';
+  durationMs: number;
+  alertsCount: number;
+  errorCode?: string;
+  errorMessage?: string;
+}
+
+/** الإعدادات والحدود الرقابية القابلة للضبط لمحرك المخاطر. */
+export interface RiskRuleConfig {
+  discountPctThreshold: number; // النسبة المئوية لبدء التنبيه (مثلاً 20%)
+  discountAmtThreshold: number; // القيمة النقدية للخصم بالجنيه (مثلاً 150)
+  discountCriticalPct: number; // النسبة المئوية للخطورة الحرجة (مثلاً 40%)
+  discountCriticalAmt: number; // القيمة النقدية للخطورة الحرجة (مثلاً 300)
+  voidCountThreshold: number; // عدد الإلغاءات لبدء التنبيه (مثلاً 2)
+  voidCountCritical: number; // عدد الإلغاءات للخطورة الحرجة (مثلاً 5)
+  cashDiffThreshold: number; // فرق نقدية الوردية بالجنيه (مثلاً 20)
+  cashDiffCritical: number; // فرق نقدية الوردية الحرج (مثلاً 100)
+  stockAdjThreshold: number; // كمية تسوية المخزون للتنبيه (مثلاً 5)
+  stockAdjCritical: number; // كمية تسوية المخزون الحرجة (مثلاً 20)
+  longShiftHours: number; // الساعات المفتوحة بدون إغلاق وردية (مثلاً 16)
+  pinOverrideCount: number; // طلبات موافقة PIN للتنبيه (مثلاً 3)
+  pinOverrideCritical: number; // طلبات موافقة PIN للخطورة العالية (مثلاً 6)
+  dedupWindowMinutes: number; // نافذة منع التكرار بالدقائق (مثلاً 60)
+}
+
+/** النتيجة الشاملة لفحص محرك المخاطر. */
+export interface RiskScanResult {
+  status: 'success' | 'degraded' | 'failed';
+  alerts: RiskAlert[];
+  summary: RiskSummary;
+  detectorResults: DetectorExecutionResult[];
+  scannedAt: string;
 }

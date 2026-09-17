@@ -14,6 +14,15 @@
       <button
         type="button"
         class="hub-tab"
+        :class="{ active: hubTab === 'accounting' }"
+        @click="switchHubTab('accounting')"
+      >
+        <AppIcon name="scale" :size="16" />
+        <span>النظام المحاسبي ودفتر الأستاذ</span>
+      </button>
+      <button
+        type="button"
+        class="hub-tab"
         :class="{ active: hubTab === 'operations' }"
         @click="switchHubTab('operations')"
       >
@@ -113,6 +122,11 @@
             :summary="summary"
             :profit-margin-pct="profitMarginPct"
           />
+          <AccountingTab
+            v-if="!loading && activeTab === 'accounting'"
+            :from-date="filters.from_date"
+            :to-date="filters.to_date"
+          />
           <ProfitLossTab
             v-if="activeTab === 'pl'"
             :pl-data="plData"
@@ -161,6 +175,11 @@
           />
         </div>
 
+        <!-- ===== HUB SECTION: ACCOUNTING ===== -->
+        <div v-else-if="hubTab === 'accounting'" class="tab-view-container">
+          <AccountingTab :from-date="filters.from_date" :to-date="filters.to_date" />
+        </div>
+
         <!-- ===== HUB SECTION 2: OPERATIONS ===== -->
         <div v-else-if="hubTab === 'operations'" class="tab-view-container">
           <OperationsView />
@@ -191,6 +210,7 @@ import { useRoute, useRouter } from 'vue-router';
 import AppIcon from '@/components/AppIcon.vue';
 import { useReportsData } from '@/composables/useReportsData';
 import SummaryTab from '@/components/reports/SummaryTab.vue';
+import AccountingTab from '@/components/reports/AccountingTab.vue';
 import ProfitLossTab from '@/components/reports/ProfitLossTab.vue';
 import SalesTab from '@/components/reports/SalesTab.vue';
 import InventoryTab from '@/components/reports/InventoryTab.vue';
@@ -206,7 +226,14 @@ import AutomationGraphView from '@/views/AutomationGraphView.vue';
 const route = useRoute();
 const router = useRouter();
 
-const validHubTabs = ['reports', 'operations', 'forecasting', 'copilot', 'automation'];
+const validHubTabs = [
+  'reports',
+  'accounting',
+  'operations',
+  'forecasting',
+  'copilot',
+  'automation',
+];
 const currentParamTab = String(route.query.tab || '');
 const initialHubTab = validHubTabs.includes(currentParamTab) ? currentParamTab : 'reports';
 const hubTab = ref(initialHubTab);

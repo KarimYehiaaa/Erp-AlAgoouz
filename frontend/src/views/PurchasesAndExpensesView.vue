@@ -14,6 +14,15 @@
       <button
         type="button"
         class="hub-tab"
+        :class="{ active: activeTab === 'returns' }"
+        @click="switchTab('returns')"
+      >
+        <AppIcon name="history" :size="16" />
+        <span>مرتجعات المشتريات</span>
+      </button>
+      <button
+        type="button"
+        class="hub-tab"
         :class="{ active: activeTab === 'expenses' }"
         @click="switchTab('expenses')"
       >
@@ -273,6 +282,15 @@
                     <button
                       v-permission="'inventory.edit'"
                       type="button"
+                      class="icon-btn warning"
+                      @click="openReturnModal(inv)"
+                      title="تسجيل مرتجع مشتريات (إشعار خصم)"
+                    >
+                      <AppIcon name="history" :size="16" />
+                    </button>
+                    <button
+                      v-permission="'inventory.edit'"
+                      type="button"
                       class="icon-btn"
                       @click="editInvoice(inv)"
                       :disabled="purchasesSaving"
@@ -301,7 +319,147 @@
         </div>
 
         <!-- ==============================================
-         2. EXPENSES TAB
+             2. PURCHASE RETURNS TAB
+             ============================================== -->
+        <div v-else-if="activeTab === 'returns'" class="tab-content">
+          <div class="card">
+            <div class="card-header-row">
+              <div>
+                <h3>مرتجعات المشتريات وإشعارات الخصم (Debit Notes)</h3>
+                <p style="font-size: 0.85rem; color: var(--text-muted); margin: 4px 0 0">
+                  إدارة المرتجعات للموردين مع الخصم التلقائي من المخزون والترحيل المحاسبي
+                </p>
+              </div>
+              <div class="purchases-filters">
+                <div class="filter-group">
+                  <label>من</label>
+                  <input v-model="returnsFilters.from_date" type="date" @change="loadReturnsOnly" />
+                </div>
+                <div class="filter-group">
+                  <label>إلى</label>
+                  <input v-model="returnsFilters.to_date" type="date" @change="loadReturnsOnly" />
+                </div>
+                <div class="month-filter-btn" title="اختر الشهر بالكامل">
+                  <AppIcon name="calendar" :size="18" />
+                  <input type="month" class="month-picker-overlay" @change="selectReturnsMonth" />
+                </div>
+                <button
+                  v-permission="'inventory.edit'"
+                  type="button"
+                  class="btn btn-primary"
+                  @click="openReturnModal()"
+                >
+                  <AppIcon name="plus" :size="16" />
+                  <span>تسجيل مرتجع مشتريات</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Quick Stats for Returns -->
+            <div class="grid grid-2" style="margin-bottom: 20px">
+              <StatCard
+                label="إجمالي قيمة المرتجعات للفترة"
+                :value="periodReturnsTotal"
+                icon="money"
+              />
+              <StatCard
+                label="عدد إشعارات الخصم والمرتجعات"
+                :value="periodReturnsCount"
+                icon="history"
+                format="number"
+              />
+            </div>
+
+            <div
+              v-if="returnsMsg"
+              :class="['notice', returnsErr ? 'error' : 'success']"
+              style="margin-bottom: 16px"
+            >
+              {{ returnsMsg }}
+            </div>
+
+            <table class="items-table">
+              <thead>
+                <tr>
+                  <th>رقم المرتجع</th>
+                  <th>تاريخ المرتجع</th>
+                  <th>فاتورة الشراء الأصلية</th>
+                  <th>المورد</th>
+                  <th>المخزن</th>
+                  <th>المبلغ المسترد</th>
+                  <th>عدد البنود</th>
+                  <th>ملاحظات</th>
+                  <th style="width: 70px"></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-if="loadingReturns" v-for="i in 3" :key="'r-sk-' + i">
+                  <td><div class="skeleton-shimmer" style="height: 18px; width: 80px"></div></td>
+                  <td><div class="skeleton-shimmer" style="height: 18px; width: 80px"></div></td>
+                  <td><div class="skeleton-shimmer" style="height: 18px; width: 80px"></div></td>
+                  <td><div class="skeleton-shimmer" style="height: 18px; width: 120px"></div></td>
+                  <td><div class="skeleton-shimmer" style="height: 18px; width: 80px"></div></td>
+                  <td><div class="skeleton-shimmer" style="height: 18px; width: 80px"></div></td>
+                  <td><div class="skeleton-shimmer" style="height: 18px; width: 30px"></div></td>
+                  <td><div class="skeleton-shimmer" style="height: 18px; width: 100px"></div></td>
+                  <td><div class="skeleton-shimmer" style="height: 18px; width: 40px"></div></td>
+                </tr>
+                <tr v-else v-for="ret in returnsList" :key="ret.id">
+                  <td>
+                    <strong>{{ ret.return_number }}</strong>
+                  </td>
+                  <td>{{ String(ret.return_date || '').slice(0, 10) }}</td>
+                  <td>
+                    <code>{{
+                      ret.purchase_invoice_number || 'PUR-' + ret.purchase_invoice_id
+                    }}</code>
+                  </td>
+                  <td>{{ ret.supplier_name || '—' }}</td>
+                  <td>{{ ret.warehouse_name || '—' }}</td>
+                  <td
+                    class="text-danger"
+                    style="font-weight: 700; direction: ltr; text-align: left"
+                  >
+                    {{ formatMoney(ret.total_amount) }}
+                  </td>
+                  <td>{{ ret.items_count || ret.items?.length || 0 }}</td>
+                  <td
+                    class="text-muted"
+                    style="
+                      max-width: 180px;
+                      overflow: hidden;
+                      text-overflow: ellipsis;
+                      white-space: nowrap;
+                    "
+                  >
+                    {{ ret.notes || ret.reason || '—' }}
+                  </td>
+                  <td>
+                    <button
+                      type="button"
+                      class="icon-btn"
+                      @click="viewReturnDetail(ret)"
+                      title="عرض التفاصيل والقيد"
+                    >
+                      <AppIcon name="eye" :size="16" />
+                    </button>
+                  </td>
+                </tr>
+                <tr v-if="!loadingReturns && !returnsList.length">
+                  <td
+                    colspan="9"
+                    style="text-align: center; padding: 24px; color: var(--text-muted)"
+                  >
+                    لا توجد مرتجعات مشتريات مسجلة في هذه الفترة
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ==============================================
+         3. EXPENSES TAB
          ============================================== -->
         <div v-else-if="activeTab === 'expenses' && canManageExpenses" class="tab-content">
           <div class="card-header-row mb-4">
@@ -565,6 +723,233 @@
         </div>
       </div>
     </Transition>
+
+    <!-- ==============================================
+         MODAL: CREATE PURCHASE RETURN
+         ============================================== -->
+    <Teleport to="body">
+      <div v-if="showReturnModal" class="modal-overlay" @click.self="closeReturnModal">
+        <div class="card modal-card">
+          <div class="card-header-row">
+            <div>
+              <h3>تسجيل مرتجع مشتريات (إشعار خصم)</h3>
+              <p style="font-size: 0.85rem; color: var(--text-muted); margin: 4px 0 0">
+                سيتم خصم الكميات من المخزون تلقائياً وتخفيض مديونية المورد وتوليد قيد اليومية العكسي
+              </p>
+            </div>
+            <button type="button" class="icon-btn" @click="closeReturnModal">✕</button>
+          </div>
+
+          <form @submit.prevent="submitPurchaseReturn">
+            <div class="invoice-meta-panel grid grid-3">
+              <div class="form-group">
+                <label>فاتورة الشراء الأصلية *</label>
+                <select
+                  v-model.number="returnForm.purchase_invoice_id"
+                  class="field-like"
+                  :disabled="!!selectedInvoiceForReturn"
+                  required
+                  @change="onReturnInvoiceChange"
+                >
+                  <option :value="null">— اختر فاتورة الشراء المراد إرجاعها —</option>
+                  <option v-for="inv in invoices" :key="inv.id" :value="inv.id">
+                    {{ inv.invoice_number }} — {{ inv.supplier_name || 'بدون مورد' }} ({{
+                      formatMoney(inv.total_amount)
+                    }})
+                  </option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label>تاريخ المرتجع *</label>
+                <input v-model="returnForm.return_date" type="date" class="field-like" required />
+              </div>
+
+              <div class="form-group">
+                <label>سبب الإرجاع / ملاحظات</label>
+                <input
+                  v-model="returnForm.notes"
+                  type="text"
+                  class="field-like"
+                  placeholder="مثال: تلف جزء من البضاعة / عيوب جودة..."
+                />
+              </div>
+            </div>
+
+            <div v-if="returnFormItems.length" style="margin-bottom: 20px">
+              <h4 style="margin-bottom: 12px; font-size: 0.95rem">
+                بنود الفاتورة والكميات المراد إرجاعها:
+              </h4>
+              <table class="items-table">
+                <thead>
+                  <tr>
+                    <th>المنتج</th>
+                    <th>الوحدة</th>
+                    <th style="width: 110px">الكمية بالفاتورة</th>
+                    <th style="width: 120px">سعر الوحدة</th>
+                    <th style="width: 140px">الكمية المرتجعة *</th>
+                    <th style="width: 140px">المبلغ المسترد</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="(item, idx) in returnFormItems" :key="idx">
+                    <td>
+                      <strong>{{ item.product_name }}</strong>
+                    </td>
+                    <td>{{ unitLabel(item.unit) }}</td>
+                    <td>{{ item.invoiced_qty }}</td>
+                    <td style="direction: ltr; text-align: left">
+                      {{ formatMoney(item.unit_price) }}
+                    </td>
+                    <td>
+                      <input
+                        v-model.number="item.return_qty"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        :max="item.invoiced_qty"
+                        class="field-like"
+                        style="direction: ltr; font-weight: bold"
+                        placeholder="0"
+                      />
+                    </td>
+                    <td
+                      style="
+                        direction: ltr;
+                        text-align: left;
+                        font-weight: 700;
+                        color: var(--danger);
+                      "
+                    >
+                      {{
+                        formatMoney((Number(item.return_qty) || 0) * (Number(item.unit_price) || 0))
+                      }}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div
+              v-else-if="returnForm.purchase_invoice_id"
+              class="card"
+              style="text-align: center; padding: 20px; color: var(--text-muted)"
+            >
+              لا توجد بنود متاحة للإرجاع في هذه الفاتورة
+            </div>
+
+            <div class="invoice-summary-bar">
+              <div
+                class="invoice-total-badge"
+                style="
+                  border-color: var(--danger);
+                  background: color-mix(in srgb, var(--danger) 8%, var(--bg-elevated));
+                "
+              >
+                <span class="total-label">إجمالي قيمة المرتجع:</span>
+                <span class="total-value" style="color: var(--danger)">{{
+                  formatMoney(totalReturnCalculated)
+                }}</span>
+              </div>
+              <div class="actions">
+                <button
+                  type="submit"
+                  class="btn btn-primary"
+                  :disabled="returnSubmitting || totalReturnCalculated <= 0"
+                >
+                  {{ returnSubmitting ? 'جاري تسجيل المرتجع...' : 'تأكيد وترحيل المرتجع' }}
+                </button>
+                <button type="button" class="btn btn-outline" @click="closeReturnModal">
+                  إلغاء
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- ==============================================
+         MODAL: VIEW RETURN DETAILS
+         ============================================== -->
+    <Teleport to="body">
+      <div
+        v-if="showReturnDetailModal"
+        class="modal-overlay"
+        @click.self="showReturnDetailModal = false"
+      >
+        <div class="card modal-card">
+          <div class="card-header-row">
+            <div>
+              <h3>
+                تفاصيل مرتجع مشتريات <code>{{ selectedReturnDetail?.return_number }}</code>
+              </h3>
+              <p style="font-size: 0.85rem; color: var(--text-muted); margin: 4px 0 0">
+                تاريخ: {{ String(selectedReturnDetail?.return_date || '').slice(0, 10) }} | المورد:
+                {{ selectedReturnDetail?.supplier_name || 'بدون مورد' }}
+              </p>
+            </div>
+            <button type="button" class="icon-btn" @click="showReturnDetailModal = false">✕</button>
+          </div>
+
+          <div class="invoice-meta-panel grid grid-3" style="margin-bottom: 16px">
+            <div>
+              <strong>فاتورة الشراء الأصلية:</strong>
+              {{
+                selectedReturnDetail?.purchase_invoice_number ||
+                'PUR-' + selectedReturnDetail?.purchase_invoice_id
+              }}
+            </div>
+            <div>
+              <strong>المخزن:</strong>
+              {{ selectedReturnDetail?.warehouse_name || 'المخزن الرئيسي' }}
+            </div>
+            <div>
+              <strong>إجمالي القيمة المستردة:</strong>
+              <span style="color: var(--danger); font-weight: bold">{{
+                formatMoney(selectedReturnDetail?.total_amount)
+              }}</span>
+            </div>
+            <div style="grid-column: span 3" v-if="selectedReturnDetail?.notes">
+              <strong>ملاحظات:</strong> {{ selectedReturnDetail.notes }}
+            </div>
+          </div>
+
+          <table class="items-table" style="margin-bottom: 20px">
+            <thead>
+              <tr>
+                <th>الصنف</th>
+                <th>الوحدة</th>
+                <th>الكمية المرتجعة</th>
+                <th>سعر الوحدة</th>
+                <th>المبلغ الإجمالي</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="item in selectedReturnDetail?.items || []" :key="item.id">
+                <td>{{ item.product_name }}</td>
+                <td>{{ unitLabel(item.unit) }}</td>
+                <td>
+                  <strong>{{ item.quantity }}</strong>
+                </td>
+                <td style="direction: ltr; text-align: left">{{ formatMoney(item.unit_price) }}</td>
+                <td
+                  style="direction: ltr; text-align: left; font-weight: bold; color: var(--danger)"
+                >
+                  {{ formatMoney(item.total_amount) }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="actions" style="justify-content: flex-end">
+            <button type="button" class="btn btn-outline" @click="showReturnDetailModal = false">
+              إغلاق
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -576,6 +961,7 @@ import {
   purchases as purchasesApi,
   suppliers as suppliersApi,
   expenses as expensesApi,
+  accountingApi,
 } from '@/api';
 import { formatMoney } from '@/utils/currency';
 import { useProductMeta } from '@/composables/useProductMeta';
@@ -605,6 +991,7 @@ watch(
     if (newTab && newTab !== activeTab.value) {
       activeTab.value = String(newTab);
       if (newTab === 'purchases') loadPurchasesOnly();
+      else if (newTab === 'returns') loadReturnsOnly();
       else if (newTab === 'expenses') loadExpensesOnly();
     }
   },
@@ -614,6 +1001,7 @@ const switchTab = (tab: any) => {
   activeTab.value = tab;
   router.replace({ query: { ...route.query, tab } }).catch(() => {});
   if (tab === 'purchases') loadPurchasesOnly();
+  else if (tab === 'returns') loadReturnsOnly();
   else if (tab === 'expenses') loadExpensesOnly();
 };
 
@@ -837,6 +1225,197 @@ const savePurchaseInvoice = async () => {
   }
 };
 
+// PURCHASE RETURNS LOGIC
+const returnsList = ref<any[]>([]);
+const loadingReturns = ref(false);
+const returnsMsg = ref('');
+const returnsErr = ref(false);
+const showReturnModal = ref(false);
+const showReturnDetailModal = ref(false);
+const selectedInvoiceForReturn = ref<any>(null);
+const selectedReturnDetail = ref<any>(null);
+const returnSubmitting = ref(false);
+
+const returnsFilters = ref({
+  from_date: firstDayOfMonth,
+  to_date: todayStr,
+  limit: 100,
+});
+
+const returnForm = ref({
+  purchase_invoice_id: null as number | null,
+  return_date: todayStr,
+  notes: '',
+});
+
+const returnFormItems = ref<
+  Array<{
+    purchase_invoice_item_id?: number;
+    product_id: number;
+    product_name: string;
+    unit: string;
+    invoiced_qty: number;
+    unit_price: number;
+    return_qty: number;
+  }>
+>([]);
+
+const totalReturnCalculated = computed(() => {
+  return returnFormItems.value.reduce((s, it) => {
+    const q = Number(it.return_qty) || 0;
+    const p = Number(it.unit_price) || 0;
+    return s + q * p;
+  }, 0);
+});
+
+const periodReturnsTotal = computed(() => {
+  return returnsList.value.reduce(
+    (sum: number, ret: any) => sum + Number(ret.total_amount || 0),
+    0,
+  );
+});
+
+const periodReturnsCount = computed(() => {
+  return returnsList.value.length;
+});
+
+const selectReturnsMonth = (event: any) => {
+  const value = event.target.value;
+  if (!value) return;
+  const [year, month] = value.split('-').map(Number);
+  const fromDate = `${year}-${String(month).padStart(2, '0')}-01`;
+  const lastDay = new Date(year, month, 0).getDate();
+  const toDate = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+
+  returnsFilters.value.from_date = fromDate;
+  returnsFilters.value.to_date = toDate;
+  loadReturnsOnly();
+};
+
+const loadReturnsOnly = async () => {
+  loadingReturns.value = true;
+  try {
+    const res = await accountingApi.getPurchaseReturns({
+      from_date: returnsFilters.value.from_date,
+      to_date: returnsFilters.value.to_date,
+      limit: returnsFilters.value.limit,
+    });
+    returnsList.value = res.data || (res as any) || [];
+  } catch (err: any) {
+    console.error('Failed to load purchase returns:', err);
+  } finally {
+    loadingReturns.value = false;
+  }
+};
+
+const openReturnModal = (invoice?: any) => {
+  if (invoice) {
+    selectedInvoiceForReturn.value = invoice;
+    returnForm.value = {
+      purchase_invoice_id: invoice.id,
+      return_date: todayStr,
+      notes: '',
+    };
+    returnFormItems.value = (invoice.items || []).map((it: any) => ({
+      purchase_invoice_item_id: it.id,
+      product_id: it.product_id,
+      product_name: it.product_name,
+      unit: it.unit || 'count',
+      invoiced_qty: Number(it.quantity) || 0,
+      unit_price: Number(it.unit_price) || 0,
+      return_qty: 0,
+    }));
+  } else {
+    selectedInvoiceForReturn.value = null;
+    returnForm.value = {
+      purchase_invoice_id: null,
+      return_date: todayStr,
+      notes: '',
+    };
+    returnFormItems.value = [];
+    if (!invoices.value.length) {
+      loadPurchasesOnly();
+    }
+  }
+  showReturnModal.value = true;
+};
+
+const onReturnInvoiceChange = () => {
+  const inv = invoices.value.find((x: any) => x.id === returnForm.value.purchase_invoice_id);
+  if (!inv) {
+    returnFormItems.value = [];
+    return;
+  }
+  returnFormItems.value = (inv.items || []).map((it: any) => ({
+    purchase_invoice_item_id: it.id,
+    product_id: it.product_id,
+    product_name: it.product_name,
+    unit: it.unit || 'count',
+    invoiced_qty: Number(it.quantity) || 0,
+    unit_price: Number(it.unit_price) || 0,
+    return_qty: 0,
+  }));
+};
+
+const closeReturnModal = () => {
+  showReturnModal.value = false;
+  selectedInvoiceForReturn.value = null;
+  returnForm.value = {
+    purchase_invoice_id: null,
+    return_date: todayStr,
+    notes: '',
+  };
+  returnFormItems.value = [];
+};
+
+const submitPurchaseReturn = async () => {
+  if (!returnForm.value.purchase_invoice_id) return;
+  const itemsToReturn = returnFormItems.value
+    .filter((it) => Number(it.return_qty) > 0)
+    .map((it) => ({
+      purchase_invoice_item_id: it.purchase_invoice_item_id,
+      product_id: it.product_id,
+      quantity: Number(it.return_qty),
+      unit_price: Number(it.unit_price),
+    }));
+
+  if (!itemsToReturn.length) {
+    window.alert('يرجى إدخال كمية أكبر من صفر لصنف واحد على الأقل مراد إرجاعه');
+    return;
+  }
+
+  returnSubmitting.value = true;
+  try {
+    await accountingApi.createPurchaseReturn({
+      purchase_invoice_id: returnForm.value.purchase_invoice_id,
+      return_date: returnForm.value.return_date,
+      notes: returnForm.value.notes,
+      items: itemsToReturn,
+    });
+    returnsMsg.value = 'تم تسجيل مرتجع المشتريات وتحديث رصيد المورد والمخزون بنجاح';
+    returnsErr.value = false;
+    closeReturnModal();
+    await loadReturnsOnly();
+    await loadPurchasesOnly();
+  } catch (err: any) {
+    window.alert(err?.response?.data?.message || err?.message || 'فشل في تسجيل مرتجع المشتريات');
+  } finally {
+    returnSubmitting.value = false;
+  }
+};
+
+const viewReturnDetail = async (ret: any) => {
+  try {
+    const res = await accountingApi.getPurchaseReturnById(ret.id);
+    selectedReturnDetail.value = res.data || res;
+    showReturnDetailModal.value = true;
+  } catch (err: any) {
+    console.error('Failed to get return details:', err);
+    selectedReturnDetail.value = ret;
+    showReturnDetailModal.value = true;
+  }
+};
+
 // EXPENSES LOGIC
 const expensesList = ref<any[]>([]);
 const expenseCategories = ref<any[]>([]);
@@ -1011,6 +1590,7 @@ const removeExpense = async (row: any) => {
 // On Mounted Load
 onMounted(() => {
   if (activeTab.value === 'purchases') loadPurchasesOnly();
+  else if (activeTab.value === 'returns') loadReturnsOnly();
   else loadExpensesOnly();
 });
 </script>

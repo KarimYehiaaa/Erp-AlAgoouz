@@ -302,3 +302,18 @@ export const forecasting = {
 export { partnersApi, partnersApi as partners } from './partners.api';
 export { posApi, posApi as pos } from './pos.api';
 export type { PosShift, CashMovement } from './pos.api';
+export { accountingApi, accountingApi as accounting } from './accounting.api';
+export type {
+  AccountItem,
+  JournalLine,
+  CreateJournalEntryPayload,
+  LedgerEntry,
+  GeneralLedgerResponse,
+  TrialBalanceRow,
+  TrialBalanceResponse,
+  BalanceSheetSection,
+  BalanceSheetResponse,
+  PurchaseReturn,
+  PurchaseReturnItem,
+  CreatePurchaseReturnPayload,
+} from './accounting.api';

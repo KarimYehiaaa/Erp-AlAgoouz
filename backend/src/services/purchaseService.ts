@@ -499,6 +499,22 @@ export const createPurchaseInvoice = async (payload: Record<string, any>, userId
       await recalculateSupplierBalance(client, supplierId);
     }
 
+    // الترحيل المحاسبي التلقائي لفاتورة المشتريات
+    try {
+      const { accountingService } = await import('./accountingService.ts');
+      await accountingService.postPurchaseJournalEntry(client, {
+        id: invoice.id,
+        invoice_number: invoice.invoice_number,
+        total_amount: subtotal,
+        payment_status: invoice.payment_status || 'unpaid',
+        supplier_id: supplierId || undefined,
+        warehouse_id: invoiceWarehouseId,
+        user_id: userId,
+      });
+    } catch (accErr: any) {
+      console.warn(`[Accounting] تعذر ترحيل قيد المشتريات تلقائياً: ${accErr.message}`);
+    }
+
     await client.query('COMMIT');
     invalidateDashboardCache();
     return invoice;

@@ -216,10 +216,33 @@ const createDailySale = async (data: Record<string, any>, userId: number) => {
       `INSERT INTO activity_logs (user_id, module, action_ar, details) VALUES ($1,'sales',$2,$3)`,
       [
         userId,
-        `\u0625\u0646\u0634\u0627\u0621 \u0645\u0628\u064A\u0639\u0627\u062A ${typeLabel} - ${saleDate}`,
+        `إنشاء مبيعات ${typeLabel} - ${saleDate}`,
         JSON.stringify({ sale_id: sale.id, amount: totalAmount }),
       ],
     );
+
+    // الترحيل المحاسبي التلقائي للقيد المزدوج
+    try {
+      const { accountingService } = await import('./accountingService.ts');
+      await accountingService.postSaleJournalEntry(client, {
+        id: sale.id,
+        sale_number: sale.sale_number,
+        sale_type: sale.sale_type,
+        total_amount: totalAmount,
+        cost_amount: costAmount,
+        tax_amount: totals.taxAmount || 0,
+        payment_method:
+          data.payment_method ||
+          (Array.isArray(data.payments) && data.payments[0]?.payment_method) ||
+          'cash',
+        customer_id: customerId,
+        warehouse_id: warehouseId,
+        user_id: userId,
+      });
+    } catch (accErr: any) {
+      console.warn(`[Accounting] تعذر ترحيل قيد المبيعات تلقائياً: ${accErr.message}`);
+    }
+
     await client.query('COMMIT');
     invalidateDashboardCache();
     broadcast('sales_changed', { action: 'create', sale_id: sale.id });

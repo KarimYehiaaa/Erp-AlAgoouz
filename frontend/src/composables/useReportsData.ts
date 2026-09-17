@@ -8,6 +8,7 @@ import { reports as reportsApi, pl as plApi } from '@/api';
 export function useReportsData() {
   const tabs = [
     { id: 'summary', icon: 'dashboard', label: 'الملخص العام' },
+    { id: 'accounting', icon: 'scale', label: 'دفتر الأستاذ والميزان' },
     { id: 'pl', icon: 'wallet', label: 'الربح والخسارة' },
     { id: 'sales', icon: 'sales', label: 'المبيعات' },
     { id: 'inventory', icon: 'inventory', label: 'المخزون' },
@@ -148,6 +149,10 @@ export function useReportsData() {
   const loadTab = async (tabId: any) => {
     activeTab.value = tabId;
     error.value = '';
+
+    if (tabId === 'accounting') {
+      return;
+    }
 
     // P&L tab له logic منفصل
     if (tabId === 'pl') {

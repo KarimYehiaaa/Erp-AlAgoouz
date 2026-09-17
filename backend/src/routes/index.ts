@@ -29,6 +29,7 @@ import partnersRoutes from './partners.routes.ts';
 import automationRoutes from './automation.routes.ts';
 import posRoutes from './pos.routes.ts';
 import managerMobileRoutes from './managerMobile.routes.ts';
+import accountingRoutes from './accounting.routes.ts';
 
 const router = Router();
 
@@ -47,6 +48,7 @@ router.use(partnersRoutes);
 router.use(automationRoutes);
 router.use(posRoutes);
 router.use(managerMobileRoutes);
+router.use(accountingRoutes);
 
 /**
  * موجّه API الرئيسي — يُسجَّل في التطبيق ويجمع كل مسارات النظام (المصادقة، المبيعات، المخزون، الموارد البشرية...).

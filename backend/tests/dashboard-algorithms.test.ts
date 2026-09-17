@@ -49,7 +49,9 @@ describe('خوارزميات لوحة التحكم (dashboardService)', () => {
     // يشغّل نفسه بالتوازي على نفس القاعدة ويستخدم بادئة PMT-TEST الخاصة به.
     await query(`DELETE FROM expenses WHERE expense_number LIKE 'EXP-TEST-DASH-%'`);
     await query(`DELETE FROM purchase_invoices WHERE invoice_number LIKE 'PI-TEST-DASH-%'`);
-    await query(`DELETE FROM sale_items WHERE sale_id IN (SELECT id FROM sales WHERE sale_number LIKE 'SL-TEST-DASH-%')`);
+    await query(
+      `DELETE FROM sale_items WHERE sale_id IN (SELECT id FROM sales WHERE sale_number LIKE 'SL-TEST-DASH-%')`,
+    );
     await query(`DELETE FROM sales WHERE sale_number LIKE 'SL-TEST-DASH-%'`);
     await query(`DELETE FROM customers WHERE code = 'C-TEST-DASH-OPEN'`);
     await query(`DELETE FROM products WHERE sku = 'SKU-TEST-DASH-1'`);
@@ -64,7 +66,9 @@ describe('خوارزميات لوحة التحكم (dashboardService)', () => {
     customerId = custRes.rows[0].id;
 
     // بيع 1000 بتكلفة 400 (ربح 600) + مصروف 100 — لا علاقة لهم برصيد العميل
-    saleIds.push(await insertSale('SL-TEST-DASH-001', W.opening, { total: 1000, cost: 400, profit: 600 }));
+    saleIds.push(
+      await insertSale('SL-TEST-DASH-001', W.opening, { total: 1000, cost: 400, profit: 600 }),
+    );
     await query(
       `INSERT INTO expenses (expense_number, title, amount, expense_date)
        VALUES ('EXP-TEST-DASH-001', 'مصروف اختبار الأرصدة', 100, $1)`,
@@ -79,7 +83,11 @@ describe('خوارزميات لوحة التحكم (dashboardService)', () => {
     );
     productId = prodRes.rows[0].id;
 
-    const tier1SaleId = await insertSale('SL-TEST-DASH-002', W.cogsTier1, { total: 1000, cost: 400, profit: 600 });
+    const tier1SaleId = await insertSale('SL-TEST-DASH-002', W.cogsTier1, {
+      total: 1000,
+      cost: 400,
+      profit: 600,
+    });
     // sale_items بتكلفة 2 × 500 = 1000 — لو كان المستوى الثاني سيفوز لظهرت 1000
     await query(
       `INSERT INTO sale_items (sale_id, product_id, quantity, unit_price, cost_price, total_amount)
@@ -88,7 +96,11 @@ describe('خوارزميات لوحة التحكم (dashboardService)', () => {
     );
 
     // ── نافذة COGS المستوى الثاني (2025-06-17): sale_items بتكلفة 4 × 50 = 200 ──
-    const tier2SaleId = await insertSale('SL-TEST-DASH-003', W.cogsTier2, { total: 1000, cost: 0, profit: 0 });
+    const tier2SaleId = await insertSale('SL-TEST-DASH-003', W.cogsTier2, {
+      total: 1000,
+      cost: 0,
+      profit: 0,
+    });
     await query(
       `INSERT INTO sale_items (sale_id, product_id, quantity, unit_price, cost_price, total_amount)
        VALUES ($1, $2, 4, 250, 50, 1000)`,
@@ -97,7 +109,9 @@ describe('خوارزميات لوحة التحكم (dashboardService)', () => {
     itemSaleIds.push(tier2SaleId);
 
     // ── نافذة COGS المستوى الثالث (2025-06-18): لا تكلفة، المشتريات 300 ──
-    saleIds.push(await insertSale('SL-TEST-DASH-004', W.cogsTier3, { total: 1000, cost: 0, profit: 0 }));
+    saleIds.push(
+      await insertSale('SL-TEST-DASH-004', W.cogsTier3, { total: 1000, cost: 0, profit: 0 }),
+    );
     await query(
       `INSERT INTO purchase_invoices (invoice_number, invoice_date, warehouse_id, subtotal, total_amount)
        VALUES ('PI-TEST-DASH-001', $1, 1, 300, 300)`,
@@ -105,13 +119,17 @@ describe('خوارزميات لوحة التحكم (dashboardService)', () => {
     );
 
     // ── نافذة بلا أي تكلفة (2025-06-19): بيع 100 بدون تكلفة وبدون مشتريات ──
-    saleIds.push(await insertSale('SL-TEST-DASH-005', W.cogsZero, { total: 100, cost: 0, profit: 0 }));
+    saleIds.push(
+      await insertSale('SL-TEST-DASH-005', W.cogsZero, { total: 100, cost: 0, profit: 0 }),
+    );
 
     invalidateDashboardCache();
   });
 
   afterAll(async () => {
-    await query(`DELETE FROM sale_items WHERE sale_id IN (SELECT id FROM sales WHERE sale_number LIKE 'SL-TEST-DASH-%')`);
+    await query(
+      `DELETE FROM sale_items WHERE sale_id IN (SELECT id FROM sales WHERE sale_number LIKE 'SL-TEST-DASH-%')`,
+    );
     for (const id of saleIds) await query(`DELETE FROM sales WHERE id = $1`, [id]);
     for (const id of itemSaleIds) await query(`DELETE FROM sales WHERE id = $1`, [id]);
     await query(`DELETE FROM expenses WHERE expense_number = 'EXP-TEST-DASH-001'`);
@@ -134,26 +152,22 @@ describe('خوارزميات لوحة التحكم (dashboardService)', () => {
   // 1) فصل الأرصدة الافتتاحية عن المبيعات والأرباح
   // ═══════════════════════════════════════════════════════════════
   describe('فصل أرصدة العملاء الافتتاحية عن المبيعات والأرباح', () => {
-    it(
-      'لا تُضاف الأرصدة الافتتاحية (5000) إلى المبيعات ولا إلى الربح',
-      async () => {
-        const stats = await getStatsFor(W.opening);
+    it('لا تُضاف الأرصدة الافتتاحية (5000) إلى المبيعات ولا إلى الربح', async () => {
+      const stats = await getStatsFor(W.opening);
 
-        // البيع الفعلي 1000 فقط — كان الخلل يظهر 6000 (1000 + 5000)
-        expect(stats.month.sales).toBe(1000);
-        // الربح الإجمالي 600 (1000 - 400) — كان الخلل يظهر 5600
-        expect(stats.month.grossProfit).toBe(600);
-        // صافي الربح 500 (600 - مصروف 100) — كان الخلل يظهر 5500
-        expect(stats.month.netProfit).toBe(500);
+      // البيع الفعلي 1000 فقط — كان الخلل يظهر 6000 (1000 + 5000)
+      expect(stats.month.sales).toBe(1000);
+      // الربح الإجمالي 600 (1000 - 400) — كان الخلل يظهر 5600
+      expect(stats.month.grossProfit).toBe(600);
+      // صافي الربح 500 (600 - مصروف 100) — كان الخلل يظهر 5500
+      expect(stats.month.netProfit).toBe(500);
 
-        // الأرصدة الافتتاحية تظهر كبند مستقل وليس داخل المبيعات
-        expect(stats.customerOpeningBalances).toBe(5000);
+      // الأرصدة الافتتاحية تظهر كبند مستقل وليس داخل المبيعات
+      expect(stats.customerOpeningBalances).toBe(5000);
 
-        // الديون القديمة ما زالت محفوظة ضمن مديونيات العملاء (لم تُفقد)
-        expect(stats.unpaidInvoices.amount).toBeGreaterThanOrEqual(5000);
-      },
-      20000,
-    );
+      // الديون القديمة ما زالت محفوظة ضمن مديونيات العملاء (لم تُفقد)
+      expect(stats.unpaidInvoices.amount).toBeGreaterThanOrEqual(5000);
+    }, 20000);
   });
 
   // ═══════════════════════════════════════════════════════════════
@@ -189,50 +203,45 @@ describe('خوارزميات لوحة التحكم (dashboardService)', () => {
   // 3) خوارزمية COGS الثلاثية — عبر التجميع الفعلي للوحة
   // ═══════════════════════════════════════════════════════════════
   describe('خوارزمية COGS الثلاثية عبر لوحة التحكم', () => {
-    it(
-      'المستوى الأول: cost_amount المخزن (400) يغلب sale_items (1000)',
-      async () => {
-        const stats = await getStatsFor(W.cogsTier1);
-        expect(stats.month.cogsBasis).toBe('cost_stored');
-        expect(stats.month.cost).toBe(400);
-        expect(stats.month.grossProfit).toBe(600);
-        expect(stats.month.netProfit).toBe(600);
-      },
-      20000,
-    );
+    it('المستوى الأول: cost_amount المخزن (400) يغلب sale_items (1000)', async () => {
+      const stats = await getStatsFor(W.cogsTier1);
+      expect(stats.month.cogsBasis).toBe('cost_stored');
+      expect(stats.month.cost).toBe(400);
+      expect(stats.month.grossProfit).toBe(600);
+      expect(stats.month.netProfit).toBe(600);
+    }, 20000);
 
-    it(
-      'المستوى الثاني: sale_items (4 × 50 = 200) عندما تكون التكلفة المخزنة صفرًا',
-      async () => {
-        const stats = await getStatsFor(W.cogsTier2);
-        expect(stats.month.cogsBasis).toBe('sale_items');
-        expect(stats.month.cost).toBe(200);
-        expect(stats.month.grossProfit).toBe(800);
-      },
-      20000,
-    );
+    it('المستوى الثاني: sale_items (4 × 50 = 200) عندما تكون التكلفة المخزنة صفرًا', async () => {
+      const stats = await getStatsFor(W.cogsTier2);
+      expect(stats.month.cogsBasis).toBe('sale_items');
+      expect(stats.month.cost).toBe(200);
+      expect(stats.month.grossProfit).toBe(800);
+    }, 20000);
 
-    it(
-      'المستوى الثالث: مشتريات الفترة (300) عندما لا توجد تكلفة مفصلة',
-      async () => {
-        const stats = await getStatsFor(W.cogsTier3);
-        expect(stats.month.cogsBasis).toBe('purchases');
-        expect(stats.month.cost).toBe(300);
-        expect(stats.month.grossProfit).toBe(700);
-      },
-      20000,
-    );
+    it('المستوى الثالث: مشتريات الفترة (300) عندما لا توجد تكلفة مفصلة', async () => {
+      const stats = await getStatsFor(W.cogsTier3);
+      expect(stats.month.cogsBasis).toBe('purchases');
+      expect(stats.month.cost).toBe(300);
+      expect(stats.month.grossProfit).toBe(700);
+    }, 20000);
 
-    it(
-      'لا توجد أي تكلفة → صفر مع أساس purchases والربح يساوي المبيعات',
-      async () => {
-        const stats = await getStatsFor(W.cogsZero);
-        expect(stats.month.cogsBasis).toBe('purchases');
-        expect(stats.month.cost).toBe(0);
-        expect(stats.month.grossProfit).toBe(100);
-        expect(stats.month.netProfit).toBe(100);
-      },
-      20000,
-    );
+    it('لا توجد أي تكلفة → صفر مع أساس purchases والربح يساوي المبيعات', async () => {
+      const stats = await getStatsFor(W.cogsZero);
+      expect(stats.month.cogsBasis).toBe('purchases');
+      expect(stats.month.cost).toBe(0);
+      expect(stats.month.grossProfit).toBe(100);
+      expect(stats.month.netProfit).toBe(100);
+    }, 20000);
+
+    it('تحتوي لوحة التحكم على مركز العمليات والمخاطر actionCenter بالملخص والتنبيهات', async () => {
+      const stats = await getStatsFor(W.cogsZero);
+      expect(stats).toHaveProperty('actionCenter');
+      expect(stats.actionCenter).toHaveProperty('red');
+      expect(stats.actionCenter).toHaveProperty('orange');
+      expect(stats.actionCenter).toHaveProperty('yellow');
+      expect(stats.actionCenter).toHaveProperty('total');
+      expect(stats.actionCenter).toHaveProperty('alerts');
+      expect(Array.isArray(stats.actionCenter.alerts)).toBe(true);
+    }, 20000);
   });
 });

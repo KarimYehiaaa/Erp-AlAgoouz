@@ -17,6 +17,7 @@ import { stocktake } from './stocktakeController.ts';
 import { forecasting } from './forecastingController.ts';
 import { adminDashboard } from './adminDashboardController.ts';
 import { partnersController as partners } from './partnersController.ts';
+import { riskController as risk } from './riskController.ts';
 
 export {
   dashboard,
@@ -39,4 +40,5 @@ export {
   forecasting,
   adminDashboard,
   partners,
+  risk,
 };

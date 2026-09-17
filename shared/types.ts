@@ -1,4 +1,4 @@
-﻿/**
+/**
  * shared/types.ts — الأنماط المشتركة بين الباكند والواجهة
  * المصدر الموحد للأنماط التي يستهلكها الطرفان (المستخدم، الصلاحية...)
  * لتجنب تكرار التعريفات في backend/src وfrontend/src.
@@ -241,4 +241,25 @@ export interface DashboardData {
   topProducts?: Array<{ name: string; quantity: number; revenue?: number }>;
   recentSales?: Array<Record<string, unknown>>;
   [key: string]: unknown;
+}
+
+/** تنبيه أمني / احتيال مالي من محرك المخاطر (Anti-Fraud / Risk Engine). */
+export interface RiskAlert {
+  id: string;
+  severity: 'critical' | 'high' | 'medium' | 'low';
+  user?: {
+    id?: number | null;
+    name?: string | null;
+  };
+  branch?: {
+    id?: number | null;
+    name?: string | null;
+  };
+  timestamp: string;
+  event: string;
+  reference: {
+    type: string;
+    id: number | string;
+  };
+  explanation: string;
 }

@@ -108,6 +108,7 @@ router.post(
   api.adminDashboard.repairSequences,
 );
 router.get('/admin/risk-radar', authenticate, requireAdmin, api.adminDashboard.riskRadar);
+router.get('/admin/risk-alerts', authenticate, requireAdmin, api.risk.getAlerts);
 router.post(
   '/admin/purge-logs',
   authenticate,

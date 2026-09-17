@@ -2,6 +2,7 @@ import { query } from '../database/pool.ts';
 import { getOpeningBalanceForDate } from './openingBalanceService.ts';
 import { invalidateAppCacheTags } from '../utils/cache.ts';
 import { roundMoney, toNumber } from '../utils/money.ts';
+import { scanRiskAlerts } from './riskEngineService.ts';
 
 const formatDate = (date) => {
   const yyyy = date.getFullYear();
@@ -774,6 +775,12 @@ const _computeDashboardStats = async (filters: Record<string, any> = {}) => {
     collectionRate,
   };
 
+  const { alerts: riskAlerts, summary: riskSummary } = await scanRiskAlerts({
+    warehouseId: filters.warehouse_id ? Number(filters.warehouse_id) : undefined,
+    startDate: filters.from_date || period.start,
+    endDate: filters.to_date || period.end,
+  });
+
   return {
     period,
     today: {
@@ -880,6 +887,13 @@ const _computeDashboardStats = async (filters: Record<string, any> = {}) => {
     totalAssets,
     salesChart: salesTrend.rows,
     profitChart: salesTrend.rows,
+    actionCenter: {
+      red: riskSummary.critical,
+      orange: riskSummary.high,
+      yellow: riskSummary.medium,
+      total: riskSummary.total,
+      alerts: riskAlerts.slice(0, 10),
+    },
   };
 };
 

@@ -53,6 +53,7 @@
           :title="!isExpanded ? item.label : ''"
           @click="handleItemClick"
         >
+          <span class="active-rail" aria-hidden="true"></span>
           <span class="nav-icon"><AppIcon :name="item.icon" :size="18" /></span>
           <transition name="label-fade">
             <span v-if="isExpanded" class="nav-label">{{ item.label }}</span>
@@ -238,10 +239,34 @@ const menuGroups = computed(() => {
     }
     .nav-group {
       padding-inline: 8px;
+      align-items: center;
     }
     .nav-item {
       justify-content: center;
-      padding-inline: 0;
+      width: 44px;
+      height: 44px;
+      padding: 0;
+      margin: 0 auto;
+      border-radius: var(--radius-md);
+
+      &:hover {
+        transform: scale(1.06);
+      }
+
+      .active-rail {
+        inset-inline-start: 1px;
+        top: 8px;
+        bottom: 8px;
+      }
+
+      &.active {
+        box-shadow: 0 0 14px var(--color-primary-glow);
+      }
+    }
+
+    .group-divider {
+      width: 24px;
+      margin: 6px auto;
     }
   }
 }
@@ -325,16 +350,18 @@ const menuGroups = computed(() => {
   font-size: 0.68rem;
   font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
   color: var(--sidebar-muted);
-  padding: 6px 12px 4px;
+  padding: 8px 12px 4px;
   margin: 0;
+  opacity: 0.85;
 }
 
 .group-divider {
   height: 1px;
   background: var(--sidebar-border);
   margin: 8px 6px;
+  opacity: 0.7;
 }
 
 .nav-item {
@@ -347,12 +374,38 @@ const menuGroups = computed(() => {
   text-decoration: none;
   font-size: 0.86rem;
   font-weight: 600;
-  transition: all var(--transition);
+  transition:
+    background-color var(--motion-hover),
+    color var(--motion-hover),
+    transform var(--motion-hover);
   position: relative;
+  overflow: hidden;
+
+  .active-rail {
+    position: absolute;
+    top: 4px;
+    bottom: 4px;
+    inset-inline-start: 0;
+    width: 3.5px;
+    border-radius: 0 4px 4px 0;
+    background: var(--color-primary);
+    opacity: 0;
+    transform: scaleY(0.4);
+    transition:
+      opacity var(--motion-hover),
+      transform var(--motion-hover);
+    box-shadow: 0 0 8px var(--color-primary-glow);
+  }
 
   &:hover {
     background: var(--sidebar-hover-bg);
     color: var(--sidebar-text);
+    transform: translateX(-2px);
+
+    .nav-icon {
+      color: var(--color-primary);
+      transform: scale(1.06);
+    }
   }
 
   &.active {
@@ -360,8 +413,14 @@ const menuGroups = computed(() => {
     color: var(--sidebar-active-text);
     font-weight: 700;
 
+    .active-rail {
+      opacity: 1;
+      transform: scaleY(1);
+    }
+
     .nav-icon {
       color: var(--sidebar-active-text);
+      transform: none;
     }
   }
 }
@@ -373,6 +432,9 @@ const menuGroups = computed(() => {
   width: 20px;
   height: 20px;
   flex-shrink: 0;
+  transition:
+    color var(--motion-hover),
+    transform var(--motion-hover);
 }
 
 .nav-label {
@@ -385,10 +447,22 @@ const menuGroups = computed(() => {
 .nav-badge {
   font-size: 0.7rem;
   font-weight: 700;
-  padding: 2px 6px;
+  padding: 2px 7px;
   border-radius: var(--radius-pill);
   background: var(--color-primary);
   color: #ffffff;
+  animation: badgeFadeIn var(--motion-dropdown) cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes badgeFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 /* ── Bottom User Profile ── */

@@ -500,11 +500,20 @@ onBeforeUnmount(() => {
   background: var(--color-bg-subtle);
   color: var(--color-text);
   cursor: pointer;
-  transition: all var(--transition);
+  transition:
+    background-color var(--motion-hover),
+    border-color var(--motion-hover),
+    box-shadow var(--motion-hover),
+    transform var(--motion-press);
 
   &:hover {
-    background: var(--color-surface-hover);
-    border-color: var(--color-primary);
+    background: var(--color-surface);
+    border-color: var(--color-primary-border);
+    box-shadow: var(--shadow-xs);
+  }
+
+  &:active {
+    transform: translateY(1px);
   }
 }
 
@@ -633,19 +642,34 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 12px;
+  padding: 6px 14px;
   border-radius: var(--radius-sm);
   background: var(--color-bg-subtle);
   border: 1px solid var(--color-border);
   color: var(--color-text-muted);
   cursor: pointer;
-  transition: all var(--transition);
+  transition:
+    border-color var(--motion-hover),
+    background-color var(--motion-hover),
+    box-shadow var(--motion-hover),
+    color var(--motion-hover);
   user-select: none;
 
   &:hover {
-    border-color: var(--color-primary);
-    color: var(--color-text);
+    border-color: var(--color-primary-border);
+    color: var(--color-text-strong);
     background: var(--color-surface);
+    box-shadow: var(--shadow-xs);
+
+    .search-icon {
+      color: var(--color-primary);
+    }
+  }
+
+  &:focus-visible {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px var(--focus-ring);
   }
 }
 
@@ -681,8 +705,24 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 6px;
   height: 34px;
-  padding: 0 12px;
+  padding: 0 14px;
   border-radius: var(--radius-sm);
+  font-weight: 700;
+  box-shadow: var(--shadow-xs);
+  transition:
+    background-color var(--motion-hover),
+    transform var(--motion-press),
+    box-shadow var(--motion-hover);
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--primary) 24%, transparent);
+  }
+
+  &:active {
+    transform: translateY(1px);
+    box-shadow: var(--shadow-xs);
+  }
 }
 
 .quick-create-dropdown {
@@ -717,6 +757,17 @@ onBeforeUnmount(() => {
   font-weight: 800;
   display: grid;
   place-items: center;
+  animation: badgePulseDanger 2.5s ease-in-out infinite;
+}
+
+@keyframes badgePulseDanger {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(239, 68, 68, 0);
+  }
 }
 
 /* ── Preferences Dropdown ── */
@@ -872,12 +923,12 @@ onBeforeUnmount(() => {
 .dropdown-fade-enter-active,
 .dropdown-fade-leave-active {
   transition:
-    opacity var(--motion-fast),
-    transform var(--motion-fast);
+    opacity var(--motion-dropdown),
+    transform var(--motion-dropdown);
 }
 .dropdown-fade-enter-from,
 .dropdown-fade-leave-to {
   opacity: 0;
-  transform: translateY(-4px);
+  transform: translateY(-6px) scale(0.98);
 }
 </style>

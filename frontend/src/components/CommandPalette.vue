@@ -367,13 +367,13 @@ onBeforeUnmount(() => {
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  animation: paletteScale 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: paletteScale var(--motion-modal) cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @keyframes paletteScale {
   from {
     opacity: 0;
-    transform: scale(0.97) translateY(-8px);
+    transform: scale(0.98) translateY(-6px);
   }
   to {
     opacity: 1;
@@ -465,11 +465,17 @@ onBeforeUnmount(() => {
   padding: 10px 14px;
   border-radius: var(--radius-md);
   cursor: pointer;
-  transition: background var(--transition-fast);
+  border: 1px solid transparent;
+  transition:
+    background-color var(--motion-hover),
+    border-color var(--motion-hover),
+    transform var(--motion-hover);
 
   &:hover,
   &.active {
-    background: var(--color-bg-subtle);
+    background: var(--color-primary-subtle);
+    border-color: var(--color-primary-border);
+    transform: translateX(-2px);
   }
 
   &.active {
@@ -488,10 +494,15 @@ onBeforeUnmount(() => {
   display: grid;
   place-items: center;
   flex-shrink: 0;
+  transition:
+    background-color var(--motion-hover),
+    color var(--motion-hover),
+    box-shadow var(--motion-hover);
 
   .active & {
-    background: var(--color-primary-soft);
-    color: var(--color-primary);
+    background: var(--color-primary);
+    color: #ffffff;
+    box-shadow: 0 0 10px var(--color-primary-glow);
   }
 }
 

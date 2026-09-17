@@ -61,7 +61,7 @@
               class="recipe-type-badge"
               :class="recipe.items.length === 1 ? 'simple' : 'compound'"
             >
-              <AppIcon :name="recipe.items.length === 1 ? 'coffee' : 'flask'" :size="12" />
+              <AppIcon :name="recipe.items.length === 1 ? 'box' : 'flask'" :size="12" />
               {{ recipe.items.length === 1 ? 'بسيط' : 'مركب' }}
             </span>
             <div>
@@ -74,7 +74,7 @@
               <AppIcon name="edit" :size="16" />
             </button>
             <button class="icon-btn" title="إنتاج دفعة" @click="openProduce(recipe)">
-              <AppIcon name="coffee" :size="16" />
+              <AppIcon name="layers" :size="16" />
             </button>
             <button class="icon-btn danger" title="حذف" @click="deleteRecipe(recipe.id)">
               <AppIcon name="delete" :size="16" />

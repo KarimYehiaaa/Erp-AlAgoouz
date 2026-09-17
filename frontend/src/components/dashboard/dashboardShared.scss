@@ -167,155 +167,171 @@
   font-size: 0.82rem;
 }
 
-/* Circular metric cards */
-.circular-grid {
+/* Enterprise KPI Grid & Cards */
+.metric-grid,
+.circular-grid,
+.enterprise-kpi-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
-  gap: 18px;
-  justify-content: center;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 14px;
+  justify-content: stretch;
   margin-bottom: 20px;
 }
 
+.metric-card-draggable,
 .circular-draggable {
   display: flex;
-  justify-content: center;
-  align-items: center;
+  width: 100%;
 }
 
-.metric-card.circular-card {
+.metric-card {
   position: relative;
   display: flex !important;
   flex-direction: column !important;
-  align-items: center !important;
-  justify-content: center !important;
-  text-align: center !important;
-  width: 170px;
-  height: 170px;
-  aspect-ratio: 1 / 1 !important;
-  border-radius: 50% !important;
-  padding: 14px !important;
-  border: 1.5px solid color-mix(in srgb, var(--border) 80%, transparent);
-  background: color-mix(in srgb, var(--bg-card) 85%, transparent);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
+  align-items: stretch !important;
+  justify-content: space-between !important;
+  text-align: right !important;
+  width: 100% !important;
+  min-height: 136px !important;
+  height: auto !important;
+  aspect-ratio: auto !important;
+  border-radius: var(--radius-lg) !important;
+  padding: 16px !important;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-xs);
   text-decoration: none;
   transition:
-    transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1),
-    box-shadow 0.3s ease,
-    border-color 0.3s ease;
-  animation: dashboardRise 560ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+    transform var(--motion-hover),
+    box-shadow var(--motion-hover),
+    border-color var(--motion-hover);
+  animation: dashboardRise 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
   overflow: hidden;
   box-sizing: border-box;
 
   &:hover {
-    transform: scale(1.06) translateY(-4px);
-    border-color: var(--primary);
-    box-shadow: 0 10px 24px rgba(161, 98, 7, 0.2);
+    transform: translateY(-3px);
+    border-color: var(--color-primary-border);
+    box-shadow:
+      var(--shadow-sm),
+      0 8px 20px -6px color-mix(in srgb, var(--primary) 14%, transparent);
+
+    .metric-icon {
+      transform: scale(1.08);
+      background: color-mix(in srgb, var(--primary) 16%, var(--color-bg-subtle));
+    }
   }
 
   &:active {
-    transform: scale(0.96);
+    transform: translateY(0);
   }
 
   .metric-top-bar {
     display: flex;
     align-items: center;
-    justify-content: center;
-    gap: 6px;
-    margin-bottom: 2px;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 8px;
   }
 
   .metric-icon {
-    width: 32px;
-    height: 32px;
+    width: 36px;
+    height: 36px;
     display: grid;
     place-items: center;
-    border-radius: 50%;
-    background: color-mix(in srgb, var(--primary) 12%, var(--bg-soft));
+    border-radius: var(--radius-sm);
+    background: color-mix(in srgb, var(--primary) 10%, var(--color-bg-subtle));
     color: var(--primary);
-    transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
-  }
-
-  &:hover .metric-icon {
-    transform: scale(1.15) rotate(10deg);
+    transition:
+      transform var(--motion-hover),
+      background-color var(--motion-hover);
   }
 
   .trend-delta-pill {
     display: inline-flex;
     align-items: center;
-    gap: 2px;
-    font-size: 0.62rem;
+    gap: 3px;
+    font-size: 0.68rem;
     font-weight: 800;
-    padding: 1px 5px;
-    border-radius: 999px;
+    padding: 2px 8px;
+    border-radius: var(--radius-pill);
     white-space: nowrap;
 
     &.up {
-      background: rgba(34, 197, 94, 0.15);
-      color: #16a34a;
-      border: 1px solid rgba(34, 197, 94, 0.3);
+      background: var(--color-success-soft);
+      color: var(--color-success);
+      border: 1px solid color-mix(in srgb, var(--color-success) 30%, transparent);
     }
     &.down {
-      background: rgba(239, 68, 68, 0.15);
-      color: #dc2626;
-      border: 1px solid rgba(239, 68, 68, 0.3);
+      background: var(--color-danger-soft);
+      color: var(--color-danger);
+      border: 1px solid color-mix(in srgb, var(--color-danger) 30%, transparent);
     }
   }
 
   .metric-label {
-    color: var(--text-muted);
-    font-size: 0.72rem;
-    font-weight: 800;
-    max-width: 140px;
+    color: var(--color-text-muted);
+    font-size: 0.78rem;
+    font-weight: 700;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    margin-bottom: 2px;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
   }
 
   .metric-num,
   strong {
-    color: var(--text-strong);
-    font-size: 1.05rem;
-    font-weight: 900;
-    line-height: 1.15;
-    margin-bottom: 2px;
+    color: var(--color-text-strong);
+    font-size: 1.35rem;
+    font-weight: 800;
+    line-height: 1.2;
+    margin-bottom: 4px;
     direction: ltr;
+    font-variant-numeric: tabular-nums;
   }
 
   .metric-sub {
-    color: var(--text-muted);
-    font-size: 0.62rem;
-    line-height: 1.2;
-    max-width: 135px;
+    color: var(--color-text-muted);
+    font-size: 0.72rem;
+    line-height: 1.3;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
 
   .metric-spark {
-    margin-top: 2px;
-    opacity: 0.88;
-    width: 50px;
-    height: 16px;
+    margin-top: 6px;
+    opacity: 0.92;
+    width: 100%;
+    height: 24px;
   }
 
   &.danger .metric-icon {
     color: var(--danger);
-    background: color-mix(in srgb, var(--danger) 12%, transparent);
+    background: var(--color-danger-soft);
   }
   &.success .metric-icon {
     color: var(--success);
-    background: color-mix(in srgb, var(--success) 12%, transparent);
+    background: var(--color-success-soft);
   }
   &.warning .metric-icon {
     color: var(--warning);
-    background: color-mix(in srgb, var(--warning) 12%, transparent);
+    background: var(--color-warning-soft);
+  }
+  &.info .metric-icon {
+    color: var(--info);
+    background: var(--color-info-soft);
   }
   &.sales .metric-icon {
-    color: #d97706;
-    background: rgba(217, 119, 6, 0.12);
+    color: var(--primary);
+    background: var(--color-primary-soft);
+  }
+  &.profit .metric-icon {
+    color: var(--success);
+    background: var(--color-success-soft);
   }
 }
 

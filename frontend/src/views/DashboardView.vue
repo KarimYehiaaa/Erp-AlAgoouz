@@ -17,7 +17,7 @@
             <AppIcon name="dashboard" :size="20" />
           </span>
           <div>
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-2 flex-wrap">
               <h1 class="header-title">لوحة التحكم التنفيذية</h1>
               <span class="header-status-badge">
                 <span class="live-beacon"></span>
@@ -26,6 +26,10 @@
               <span class="workspace-badge" :title="`نطاق العمل: ${appStore.activeWorkspace}`">
                 <AppIcon name="warehouse" :size="13" />
                 {{ appStore.activeWorkspace }}
+              </span>
+              <span class="period-context-badge">
+                <AppIcon name="calendar" :size="13" />
+                {{ currentPeriodContextLabel }}
               </span>
             </div>
             <p class="header-desc">
@@ -646,6 +650,20 @@ const rangeOptions = [
   { label: 'هذا العام', value: 'year' },
   { label: 'مخصص', value: 'custom' },
 ];
+
+const currentPeriodContextLabel = computed(() => {
+  const currentOption = rangeOptions.find((o) => o.value === selectedRange.value);
+  const now = new Date();
+  const dateFormatted = now.toLocaleDateString('ar-EG', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+  if (selectedRange.value === 'today') {
+    return `اليوم — ${dateFormatted}`;
+  }
+  return `${currentOption?.label || selectedRange.value} (${dateFormatted})`;
+});
 
 const money = (value: any) => formatMoney(value, { compact: true });
 const number = (value: any) =>
@@ -2236,6 +2254,34 @@ onBeforeUnmount(() => {
       font-weight: 600;
       color: var(--text-strong);
     }
+  }
+}
+
+.period-context-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  font-size: 0.74rem;
+  font-weight: 700;
+  background: var(--color-bg-subtle);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+}
+
+.section-tab-pane {
+  animation: tabFadeIn var(--motion-page) cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes tabFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 </style>

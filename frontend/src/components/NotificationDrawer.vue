@@ -272,30 +272,45 @@ onMounted(() => {
   position: fixed;
   inset: 0;
   z-index: 9999;
-  background: rgba(15, 23, 42, 0.4);
+  background: rgba(15, 23, 42, 0.45);
   backdrop-filter: blur(4px);
-  display: flex;
-  justify-content: flex-start;
+  -webkit-backdrop-filter: blur(4px);
+  animation: drawerBackdropFade var(--motion-dropdown) ease;
+}
+
+@keyframes drawerBackdropFade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .drawer-panel {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
   width: 100%;
   max-width: 440px;
   height: 100vh;
   background: var(--color-surface);
-  border-left: 1px solid var(--color-border);
+  border-right: 1px solid var(--color-border);
   box-shadow: var(--shadow-overlay);
   display: flex;
   flex-direction: column;
-  animation: slideInLeft 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: slideInDrawer var(--motion-dropdown) cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-@keyframes slideInLeft {
+@keyframes slideInDrawer {
   from {
     transform: translateX(-100%);
+    opacity: 0.8;
   }
   to {
     transform: translateX(0);
+    opacity: 1;
   }
 }
 
@@ -442,22 +457,26 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  transition: all var(--transition);
+  transition:
+    transform var(--motion-hover),
+    box-shadow var(--motion-hover),
+    border-color var(--motion-hover);
 
   &:hover {
     border-color: var(--color-border-strong);
     box-shadow: var(--shadow-sm);
+    transform: translateY(-1.5px);
   }
 
   &.danger,
   &.critical {
-    border-right: 4px solid var(--color-danger);
+    border-inline-start: 4px solid var(--color-danger);
   }
   &.warning {
-    border-right: 4px solid var(--color-warning);
+    border-inline-start: 4px solid var(--color-warning);
   }
   &.info {
-    border-right: 4px solid var(--color-info);
+    border-inline-start: 4px solid var(--color-info);
   }
 }
 

@@ -1,9 +1,9 @@
 <template>
-  <section class="metric-grid circular-grid">
+  <section class="metric-grid enterprise-kpi-grid">
     <div
       v-for="(metric, index) in orderedMetrics"
       :key="metric.key"
-      class="metric-card-draggable circular-draggable stagger-fade-item"
+      class="metric-card-draggable stagger-fade-item"
       :class="'stagger-delay-' + ((index % 10) + 1)"
       draggable="true"
       @dragstart="onDragStart($event, index)"
@@ -13,7 +13,7 @@
     >
       <RouterLink
         v-spotlight
-        class="metric-card circular-card hover-lift glass-glow-card"
+        class="metric-card hover-lift glass-glow-card"
         :class="metric.tone"
         :to="metric.to"
       >
@@ -118,11 +118,11 @@ const mainMetrics = computed(() => {
     },
     {
       key: 'cogs',
-      label: 'تكلفة البضاعة',
+      label: 'تكلفة البضاعة المباعة',
       raw: Number(s?.month?.cost || 0),
       format: money,
-      sub: 'تكلفة تحضير المشروبات',
-      icon: 'coffee',
+      sub: 'تكلفة المواد والبضاعة المباشرة',
+      icon: 'coins',
       tone: 'warning',
       to: '/recipes',
       perm: 'reports.view',
@@ -208,7 +208,7 @@ const mainMetrics = computed(() => {
     },
     {
       key: 'total_assets',
-      label: 'إجمالي أصول المحل',
+      label: 'إجمالي أصول المنشأة',
       raw: Number(s?.totalAssets || 0),
       format: money,
       sub: 'الخزينة + المديونيات + المخزون',

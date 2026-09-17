@@ -9,6 +9,14 @@
   --motion-emphasis: 320ms cubic-bezier(0.16, 1, 0.3, 1);
   --motion-spring: 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
 
+  /* Semantic Interaction Timings */
+  --motion-hover: 160ms cubic-bezier(0.16, 1, 0.3, 1);
+  --motion-press: 100ms cubic-bezier(0.4, 0, 0.2, 1);
+  --motion-dropdown: 200ms cubic-bezier(0.16, 1, 0.3, 1);
+  --motion-modal: 240ms cubic-bezier(0.16, 1, 0.3, 1);
+  --motion-page: 180ms cubic-bezier(0.16, 1, 0.3, 1);
+  --motion-feedback: 280ms cubic-bezier(0.16, 1, 0.3, 1);
+
   --transition: var(--motion-standard);
   --transition-fast: var(--motion-fast);
   --transition-spring: var(--motion-spring);

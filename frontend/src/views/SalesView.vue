@@ -8,7 +8,7 @@
         :class="{ active: activeTab === 'branch' }"
         @click="switchTab('branch')"
       >
-        <AppIcon name="coffee" :size="16" /> يومي
+        <AppIcon name="shop" :size="16" /> تجزئة ويومي
       </button>
       <button
         type="button"

@@ -45,14 +45,22 @@ const iconName = computed(() => props.icon || 'dashboard');
   background: var(--bg-elevated);
   box-shadow: var(--shadow-xs);
   transition:
-    transform var(--transition),
-    box-shadow var(--transition),
-    border-color var(--transition);
+    transform var(--motion-hover),
+    box-shadow var(--motion-hover),
+    border-color var(--motion-hover);
 
   &:hover {
     transform: translateY(-2px);
-    border-color: color-mix(in srgb, var(--primary) 24%, var(--border));
-    box-shadow: var(--shadow-sm);
+    border-color: var(--primary-border);
+    box-shadow:
+      var(--shadow-sm),
+      0 8px 18px -4px var(--primary-halo);
+
+    .stat-icon-wrap {
+      transform: scale(1.06);
+      background: color-mix(in srgb, var(--primary) 16%, var(--bg-elevated));
+      color: var(--primary);
+    }
   }
 }
 
@@ -66,6 +74,10 @@ const iconName = computed(() => props.icon || 'dashboard');
   background: color-mix(in srgb, var(--primary) 10%, var(--bg-elevated));
   color: var(--primary-dark);
   flex-shrink: 0;
+  transition:
+    transform var(--motion-hover),
+    background-color var(--motion-hover),
+    color var(--motion-hover);
 }
 
 .stat-icon {

@@ -788,7 +788,7 @@ onMounted(async () => {
   display: inline-block;
   color: var(--accent);
   font-weight: 300;
-  margin-right: 2px;
+  margin-inline-start: 2px;
   opacity: 0;
   transition: opacity 0.1s;
 }
@@ -1620,7 +1620,7 @@ onMounted(async () => {
   padding: 10px 14px;
   color: #e2d7c9;
   font-size: 0.82rem;
-  text-align: right;
+  text-align: start;
   cursor: pointer;
   transition: all 0.2s ease;
   font-family: inherit;

@@ -487,7 +487,7 @@ const adjustTextareaHeight = () => {
   }
 
   &.user-row {
-    align-self: flex-start;
+    align-self: flex-end;
     flex-direction: row-reverse;
 
     .message-bubble {
@@ -499,7 +499,7 @@ const adjustTextareaHeight = () => {
   }
 
   &.assistant-row {
-    align-self: flex-end;
+    align-self: flex-start;
 
     .message-bubble {
       background: var(--surface-2);
@@ -521,7 +521,7 @@ const adjustTextareaHeight = () => {
   .message-time {
     font-size: 0.72rem;
     margin-top: 6px;
-    text-align: left;
+    text-align: end;
     opacity: 0.75;
   }
 }
@@ -680,7 +680,8 @@ const adjustTextareaHeight = () => {
 <!-- Global helper classes inside scope -->
 <style lang="scss">
 .chat-list {
-  padding-right: 20px;
+  padding-inline-start: 20px;
+  padding-inline-end: 0;
   margin: 8px 0;
 
   li {

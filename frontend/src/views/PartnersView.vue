@@ -1215,7 +1215,7 @@ onMounted(() => {
     display: flex;
     align-items: center;
     gap: 6px;
-    margin-right: auto;
+    margin-inline-start: auto;
   }
 }
 
@@ -1539,7 +1539,7 @@ onMounted(() => {
 .data-table {
   width: 100%;
   border-collapse: collapse;
-  text-align: right;
+  text-align: start;
   font-size: 0.86rem;
 
   thead {
@@ -1942,7 +1942,7 @@ onMounted(() => {
     }
 
     .doc-title {
-      text-align: left;
+      text-align: end;
 
       h3 {
         margin: 0;

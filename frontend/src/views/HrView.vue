@@ -646,7 +646,7 @@
             >
               {{ run.status === 'paid' ? 'مصروف' : 'مسودة' }}
             </span>
-            <strong style="margin-right: 4px">{{ formatMoney(run.total_net) }}</strong>
+            <strong style="margin-inline-start: 6px">{{ formatMoney(run.total_net) }}</strong>
           </button>
         </div>
       </div>
@@ -1069,7 +1069,7 @@ onMounted(refreshAll);
       color: var(--text-muted);
       border-bottom: 2px solid var(--border);
       padding: 12px;
-      text-align: right;
+      text-align: start;
     }
 
     td {

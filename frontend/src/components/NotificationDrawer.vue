@@ -291,13 +291,15 @@ onMounted(() => {
   position: fixed;
   top: 0;
   bottom: 0;
-  left: 0;
+  right: 0;
+  left: auto;
   width: 100%;
   max-width: 440px;
   height: 100vh;
   background: var(--color-surface);
-  border-right: 1px solid var(--color-border);
-  box-shadow: var(--shadow-overlay);
+  border-left: 1px solid var(--color-border);
+  border-right: none;
+  box-shadow: -8px 0 32px rgba(2, 6, 23, 0.35);
   display: flex;
   flex-direction: column;
   animation: slideInDrawer var(--motion-dropdown) cubic-bezier(0.16, 1, 0.3, 1);
@@ -305,7 +307,7 @@ onMounted(() => {
 
 @keyframes slideInDrawer {
   from {
-    transform: translateX(-100%);
+    transform: translateX(100%);
     opacity: 0.8;
   }
   to {

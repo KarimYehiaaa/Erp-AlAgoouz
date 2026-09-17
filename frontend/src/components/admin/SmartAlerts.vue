@@ -212,7 +212,8 @@ const totalAlerts = computed(() => groups.value.reduce((sum: any, g: any) => sum
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 20px 8px 36px;
+  padding-block: 8px;
+  padding-inline: 36px 20px;
   font-size: 0.8rem;
   color: var(--text, #ccc);
   border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.03));
@@ -230,12 +231,13 @@ const totalAlerts = computed(() => groups.value.reduce((sum: any, g: any) => sum
   font-size: 0.76rem;
   color: var(--text-strong, #fff);
   font-feature-settings: 'tnum';
-  margin-right: 10px;
+  margin-inline-start: 10px;
   white-space: nowrap;
 }
 
 .alert-more {
-  padding: 6px 36px;
+  padding-block: 6px;
+  padding-inline: 36px 20px;
   font-size: 0.72rem;
   color: var(--text-muted, #888);
   font-weight: 600;

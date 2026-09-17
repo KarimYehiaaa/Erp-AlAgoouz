@@ -754,7 +754,7 @@ onMounted(load);
 .details-table {
   width: 100%;
   border-collapse: collapse;
-  text-align: right;
+  text-align: start;
   font-size: 0.85rem;
 }
 .details-table th,
@@ -790,14 +790,14 @@ onMounted(load);
   font-weight: normal;
   font-size: 0.7rem;
   opacity: 0.85;
-  margin-right: 3px;
+  margin-inline-start: 4px;
 }
 
 .amount {
   font-family: monospace;
   font-size: 0.9rem;
   font-weight: bold;
-  text-align: left;
+  text-align: start;
 }
 .notes-text {
   display: inline-block;

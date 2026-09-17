@@ -1,7 +1,7 @@
 <template>
   <div class="invoice-form-page">
     <div class="page-header">
-      <router-link to="/invoices" class="btn btn-outline">← الفواتير</router-link>
+      <router-link to="/invoices" class="btn btn-outline">→ الفواتير</router-link>
       <h2>{{ isEdit ? `تعديل الفاتورة #${invoiceNumber}` : 'إنشاء فاتورة عميل يدويًا' }}</h2>
     </div>
 
@@ -653,7 +653,7 @@ onMounted(async () => {
 .items-table {
   width: 100%;
   th {
-    text-align: right;
+    text-align: start;
     padding: 10px;
     font-size: 0.85rem;
     color: var(--text-muted);

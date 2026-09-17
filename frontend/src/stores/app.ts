@@ -32,14 +32,24 @@ export const useAppStore = defineStore('app', () => {
     notificationDrawerOpen.value = !notificationDrawerOpen.value;
   };
 
+  const isMobileViewport = () => typeof window !== 'undefined' && window.innerWidth <= 992;
+
   const syncSidebarWidth = () => {
-    const width = sidebarPinned.value ? '260px' : '68px';
-    document.documentElement.style.setProperty('--sidebar-current-width', width);
+    if (typeof window !== 'undefined' && window.innerWidth <= 992) {
+      document.documentElement.style.setProperty('--sidebar-current-width', '0px');
+    } else {
+      const width = sidebarPinned.value ? '260px' : '68px';
+      document.documentElement.style.setProperty('--sidebar-current-width', width);
+    }
   };
 
   const toggleSidebar = () => {
-    sidebarOpen.value = !sidebarOpen.value;
-    localStorage.setItem('sidebarOpen', String(sidebarOpen.value));
+    if (isMobileViewport()) {
+      sidebarOpen.value = !sidebarOpen.value;
+      localStorage.setItem('sidebarOpen', String(sidebarOpen.value));
+    } else {
+      toggleSidebarPinned();
+    }
   };
 
   const toggleSidebarPinned = () => {
@@ -137,6 +147,10 @@ export const useAppStore = defineStore('app', () => {
   applyPrivacyMode();
   applyDataDensity();
   applyDarkMode();
+
+  if (typeof window !== 'undefined') {
+    window.addEventListener('resize', syncSidebarWidth);
+  }
 
   const toasts = ref<Toast[]>([]);
 

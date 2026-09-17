@@ -2,7 +2,7 @@
   <div
     class="layout"
     :class="{
-      'sidebar-collapsed': !appStore.sidebarOpen,
+      'sidebar-collapsed': !appStore.sidebarPinned,
       'cashier-layout': authStore.isCashier,
     }"
     :data-route="route.name"

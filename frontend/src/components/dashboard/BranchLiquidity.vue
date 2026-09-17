@@ -10,7 +10,7 @@
       <div class="panel-head">
         <div>
           <h2>
-            <AppIcon name="gauge" style="margin-left: 8px; color: var(--primary)" />
+            <AppIcon name="gauge" style="margin-inline-end: 8px; color: var(--primary)" />
             مؤشر سيولة واحتياطي الصندوق للفروع (Branch Liquidity)
           </h2>
           <p>تقييم المخزون المالي الاحتياطي لتغطية المصاريف التشغيلية (المعيار: تغطية 15 يوماً)</p>
@@ -135,7 +135,7 @@ const props = defineProps<{
   align-items: center;
   width: 100%;
   height: 24px;
-  padding-right: 4px;
+  padding-inline-end: 4px;
 }
 
 .battery-body {
@@ -158,8 +158,8 @@ const props = defineProps<{
   width: 4px;
   height: 8px;
   background: var(--border-strong);
-  border-radius: 0 3px 3px 0;
-  margin-right: -1px;
+  border-radius: 3px 0 0 3px;
+  margin-inline-start: -1px;
 }
 
 .branch-meta {

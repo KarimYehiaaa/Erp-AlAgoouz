@@ -70,7 +70,7 @@ export const localDb = {
       store.clear();
       products.forEach((p: any) => {
         if (p && p.id) {
-          store.put(p);
+          store.put(JSON.parse(JSON.stringify(p)));
         }
       });
 

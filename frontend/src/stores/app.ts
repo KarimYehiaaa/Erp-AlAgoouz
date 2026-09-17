@@ -10,7 +10,7 @@ export interface Toast {
 }
 
 export const useAppStore = defineStore('app', () => {
-  const sidebarOpen = ref(localStorage.getItem('sidebarOpen') !== 'false');
+  const sidebarOpen = ref(false);
   const sidebarPinned = ref(localStorage.getItem('sidebarPinned') !== 'false');
   const activeWorkspace = ref(localStorage.getItem('activeWorkspace') || 'المركز الرئيسي');
   const notifications = ref<any[]>([]);
@@ -38,6 +38,7 @@ export const useAppStore = defineStore('app', () => {
     if (typeof window !== 'undefined' && window.innerWidth <= 992) {
       document.documentElement.style.setProperty('--sidebar-current-width', '0px');
     } else {
+      sidebarOpen.value = false;
       const width = sidebarPinned.value ? '260px' : '68px';
       document.documentElement.style.setProperty('--sidebar-current-width', width);
     }

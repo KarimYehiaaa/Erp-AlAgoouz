@@ -486,10 +486,12 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 16px;
   min-width: 0;
+  flex-shrink: 0;
 }
 
 .sidebar-toggle-btn {
   display: inline-flex;
+  flex-shrink: 0;
 }
 
 @media (max-width: 992px) {
@@ -637,7 +639,7 @@ onBeforeUnmount(() => {
   text-overflow: ellipsis;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1100px) {
   .page-info {
     display: none;
   }
@@ -648,6 +650,8 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: 10px;
+  min-width: 0;
+  flex-shrink: 1;
 }
 
 /* ── Command Search Trigger (Hero Command Center) ── */
@@ -655,7 +659,10 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: 10px;
-  min-width: 260px;
+  width: 240px;
+  max-width: 260px;
+  min-width: 140px;
+  flex-shrink: 1;
   height: 38px;
   padding: 0 14px;
   border-radius: var(--radius-md);
@@ -714,9 +721,19 @@ onBeforeUnmount(() => {
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
+@media (max-width: 1100px) {
+  .search-wrap {
+    min-width: 140px;
+    width: auto;
+    .command-kbd {
+      display: none;
+    }
+  }
+}
+
 @media (max-width: 992px) {
   .search-wrap {
-    min-width: 180px;
+    min-width: 140px;
   }
 }
 

@@ -5,8 +5,8 @@
       <button
         class="icon-btn sidebar-toggle-btn"
         type="button"
-        :title="appStore.sidebarOpen ? 'إخفاء القائمة' : 'إظهار القائمة'"
-        :aria-label="appStore.sidebarOpen ? 'إخفاء القائمة' : 'إظهار القائمة'"
+        :title="sidebarToggleLabel"
+        :aria-label="sidebarToggleLabel"
         @click="appStore.toggleSidebar"
       >
         <AppIcon name="menu" :size="18" />
@@ -303,6 +303,20 @@ const preferencesRef = ref<HTMLElement | null>(null);
 
 const companyName = computed(() => brandingState.companyName || 'منظومة الإدارة');
 
+const windowWidth = ref(typeof window !== 'undefined' ? window.innerWidth : 1200);
+const isMobile = computed(() => windowWidth.value <= 992);
+
+const handleWindowResize = () => {
+  windowWidth.value = window.innerWidth;
+};
+
+const sidebarToggleLabel = computed(() => {
+  if (isMobile.value) {
+    return appStore.sidebarOpen ? 'إغلاق القائمة' : 'إظهار القائمة';
+  }
+  return appStore.sidebarPinned ? 'تصغير الشريط الجانبي' : 'توسيع الشريط الجانبي';
+});
+
 const availableWorkspaces = [
   { id: 'main', name: 'المركز الرئيسي', icon: 'warehouse' },
   { id: 'branch-1', name: 'فرع المبيعات 1', icon: 'shop' },
@@ -415,6 +429,7 @@ let syncInterval: ReturnType<typeof setInterval> | null = null;
 
 onMounted(() => {
   document.addEventListener('click', handleOutsideClick);
+  window.addEventListener('resize', handleWindowResize);
   window.addEventListener('online', updateOnlineStatus);
   window.addEventListener('offline', updateOnlineStatus);
 
@@ -440,6 +455,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   document.removeEventListener('click', handleOutsideClick);
+  window.removeEventListener('resize', handleWindowResize);
   window.removeEventListener('online', updateOnlineStatus);
   window.removeEventListener('offline', updateOnlineStatus);
   if (syncInterval) clearInterval(syncInterval);

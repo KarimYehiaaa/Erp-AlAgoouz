@@ -30,7 +30,7 @@
   border: none;
   background: transparent;
   cursor: pointer;
-  text-align: right;
+  text-align: start;
   color: var(--text-muted);
   font-size: 0.9rem;
   font-weight: 600;
@@ -299,7 +299,7 @@
   border-radius: 14px;
   background: var(--bg-card);
   cursor: pointer;
-  text-align: right;
+  text-align: start;
   transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
   overflow: hidden;
 
@@ -779,7 +779,7 @@
   max-width: 320px;
   margin: 0 auto;
   box-sizing: border-box;
-  text-align: right;
+  text-align: start;
 
   .receipt-header {
     text-align: center;

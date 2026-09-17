@@ -135,7 +135,7 @@
 
       <!-- Shortcuts HUD (?) -->
       <button
-        class="icon-btn"
+        class="icon-btn shortcuts-btn"
         type="button"
         @click="triggerShortcutsHUD"
         title="دليل الاختصارات والمساعدة (?)"
@@ -489,15 +489,12 @@ onBeforeUnmount(() => {
 }
 
 .sidebar-toggle-btn {
-  display: none;
+  display: inline-flex;
 }
 
 @media (max-width: 992px) {
   .navbar {
     right: 0 !important;
-  }
-  .sidebar-toggle-btn {
-    display: inline-flex;
   }
 }
 
@@ -954,8 +951,35 @@ onBeforeUnmount(() => {
   }
 }
 
+@media (max-width: 768px) {
+  .shortcuts-btn {
+    display: none;
+  }
+}
+
 @media (max-width: 600px) {
   .user-meta {
+    display: none;
+  }
+  .quick-create-btn {
+    padding: 0 10px;
+    .btn-label {
+      display: none;
+    }
+  }
+}
+
+@media (max-width: 480px) {
+  .navbar {
+    padding: 0 10px;
+  }
+  .navbar-start {
+    gap: 8px;
+  }
+  .navbar-end {
+    gap: 6px;
+  }
+  .workspace-tenant {
     display: none;
   }
 }

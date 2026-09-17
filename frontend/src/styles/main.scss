@@ -1312,7 +1312,7 @@ table {
       padding: var(--space-2) 0 !important;
       border-bottom: 1px dashed var(--border) !important;
       white-space: normal !important;
-      text-align: left !important;
+      text-align: end !important;
 
       &:last-child {
         border-bottom: none !important;
@@ -1323,8 +1323,8 @@ table {
         font-weight: 800 !important;
         color: var(--text-muted) !important;
         font-size: 0.76rem !important;
-        margin-left: var(--space-3) !important;
-        text-align: right !important;
+        margin-inline-end: var(--space-3) !important;
+        text-align: start !important;
       }
     }
   }

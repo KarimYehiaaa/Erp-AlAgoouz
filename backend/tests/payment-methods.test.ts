@@ -12,16 +12,13 @@ import pool from '../src/database/pool.js';
  * - مبالغ الرسم مطابقة تمامًا لسجل المدفوعات (جدول payments) بنفس الفلاتر.
  */
 describe('رسم طرق الدفع (paymentMethodSummary)', () => {
-  let today = '';
+  const today = '2099-06-15';
   let saleId = 0;
   let invoiceId = 0;
   let returnedSaleId = 0;
   let supplierId = 0;
 
   beforeAll(async () => {
-    const d = await query(`SELECT CURRENT_DATE::text AS d`);
-    today = d.rows[0].d;
-
     // تنظيف أي بقايا من تشغيل سابق فاشل
     await query(`DELETE FROM payments WHERE payment_number LIKE 'PMT-TEST-%'`);
     await query(`DELETE FROM invoices WHERE invoice_number = 'INV-TEST-PMT-001'`);
@@ -31,40 +28,43 @@ describe('رسم طرق الدفع (paymentMethodSummary)', () => {
     // 1) بيع مكتمل مدفوع كاش
     const saleRes = await query(
       `INSERT INTO sales (sale_number, sale_type, sale_date, entry_mode, warehouse_id, user_id, subtotal, discount_amount, tax_amount, total_amount, cost_amount, profit_amount, payment_status, status)
-       VALUES ('SL-TEST-PMT-001', 'branch', CURRENT_DATE, 'pos', 1, 1, 500, 0, 0, 500, 300, 200, 'paid', 'completed')
+       VALUES ('SL-TEST-PMT-001', 'branch', $1::date, 'pos', 1, 1, 500, 0, 0, 500, 300, 200, 'paid', 'completed')
        RETURNING id`,
+      [today],
     );
     saleId = saleRes.rows[0].id;
     await query(
-      `INSERT INTO payments (payment_number, reference_type, reference_id, amount, payment_method)
-       VALUES ('PMT-TEST-001', 'sale', $1, 500, 'cash')`,
-      [saleId],
+      `INSERT INTO payments (payment_number, reference_type, reference_id, amount, payment_method, created_at)
+       VALUES ('PMT-TEST-001', 'sale', $1, 500, 'cash', $2::timestamptz)`,
+      [saleId, `${today} 10:00:00Z`],
     );
 
     // 2) فاتورة آجلة مستقلة (سدادها كارت) — كانت مختفية قبل الإصلاح
     const invRes = await query(
-      `INSERT INTO invoices (invoice_number, subtotal, discount_amount, tax_amount, total_amount, payment_status)
-       VALUES ('INV-TEST-PMT-001', 700, 0, 0, 700, 'unpaid')
+      `INSERT INTO invoices (invoice_number, subtotal, discount_amount, tax_amount, total_amount, payment_status, created_at)
+       VALUES ('INV-TEST-PMT-001', 700, 0, 0, 700, 'unpaid', $1::timestamptz)
        RETURNING id`,
+      [`${today} 10:00:00Z`],
     );
     invoiceId = invRes.rows[0].id;
     await query(
-      `INSERT INTO payments (payment_number, reference_type, reference_id, amount, payment_method)
-       VALUES ('PMT-TEST-002', 'invoice', $1, 700, 'card')`,
-      [invoiceId],
+      `INSERT INTO payments (payment_number, reference_type, reference_id, amount, payment_method, created_at)
+       VALUES ('PMT-TEST-002', 'invoice', $1, 700, 'card', $2::timestamptz)`,
+      [invoiceId, `${today} 11:00:00Z`],
     );
 
     // 3) بيع مرتجع كان مدفوعًا كاش — يجب ألا يظهر (المبلغ رجع للعميل)
     const retRes = await query(
       `INSERT INTO sales (sale_number, sale_type, sale_date, entry_mode, warehouse_id, user_id, subtotal, discount_amount, tax_amount, total_amount, cost_amount, profit_amount, payment_status, status)
-       VALUES ('SL-TEST-PMT-002', 'branch', CURRENT_DATE, 'pos', 1, 1, 300, 0, 0, 300, 180, 120, 'refunded', 'returned')
+       VALUES ('SL-TEST-PMT-002', 'branch', $1::date, 'pos', 1, 1, 300, 0, 0, 300, 180, 120, 'refunded', 'returned')
        RETURNING id`,
+      [today],
     );
     returnedSaleId = retRes.rows[0].id;
     await query(
-      `INSERT INTO payments (payment_number, reference_type, reference_id, amount, payment_method)
-       VALUES ('PMT-TEST-004', 'sale', $1, 300, 'cash')`,
-      [returnedSaleId],
+      `INSERT INTO payments (payment_number, reference_type, reference_id, amount, payment_method, created_at)
+       VALUES ('PMT-TEST-004', 'sale', $1, 300, 'cash', $2::timestamptz)`,
+      [returnedSaleId, `${today} 12:00:00Z`],
     );
 
     // 4) دفعة مورد (خروج نقد) — لا تدخل في طرق دفع التحصيل
@@ -73,9 +73,9 @@ describe('رسم طرق الدفع (paymentMethodSummary)', () => {
     );
     supplierId = supRes.rows[0].id;
     await query(
-      `INSERT INTO payments (payment_number, reference_type, reference_id, amount, payment_method)
-       VALUES ('PMT-TEST-003', 'supplier', $1, 900, 'bank')`,
-      [supplierId],
+      `INSERT INTO payments (payment_number, reference_type, reference_id, amount, payment_method, created_at)
+       VALUES ('PMT-TEST-003', 'supplier', $1, 900, 'bank', $2::timestamptz)`,
+      [supplierId, `${today} 13:00:00Z`],
     );
 
     invalidateDashboardCache();

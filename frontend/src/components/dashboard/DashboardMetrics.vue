@@ -202,7 +202,7 @@ const mainMetrics = computed(() => {
           ? `منها ${moneyCompact(s?.cashDetails?.oldDebtCollections)} سداد ديون سابقة`
           : 'رصيد + تحصيلات − سداد موردين − مصاريف',
       icon: 'money',
-      tone: Number(s?.realIncomeMonth || 0) >= 0 ? 'profit' : 'danger',
+      tone: Number(s?.realIncomeMonth || 0) >= 0 ? 'teal' : 'danger',
       to: '/reports',
       perm: 'reports.view',
     },

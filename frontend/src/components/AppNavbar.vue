@@ -637,14 +637,16 @@ onBeforeUnmount(() => {
   gap: 10px;
 }
 
-/* ── Command Search Trigger ── */
+/* ── Command Search Trigger (Hero Command Center) ── */
 .search-wrap {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 14px;
-  border-radius: var(--radius-sm);
-  background: var(--color-bg-subtle);
+  gap: 10px;
+  min-width: 260px;
+  height: 38px;
+  padding: 0 14px;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-sunken);
   border: 1px solid var(--color-border);
   color: var(--color-text-muted);
   cursor: pointer;
@@ -655,14 +657,22 @@ onBeforeUnmount(() => {
     color var(--motion-hover);
   user-select: none;
 
+  .search-icon {
+    color: var(--color-text-muted);
+    transition:
+      color var(--motion-hover),
+      transform var(--motion-hover);
+  }
+
   &:hover {
-    border-color: var(--color-primary-border);
+    border-color: var(--color-primary);
     color: var(--color-text-strong);
     background: var(--color-surface);
-    box-shadow: var(--shadow-xs);
+    box-shadow: 0 0 0 3px var(--color-primary-halo);
 
     .search-icon {
       color: var(--color-primary);
+      transform: scale(1.1);
     }
   }
 
@@ -674,21 +684,36 @@ onBeforeUnmount(() => {
 }
 
 .search-label {
-  font-size: 0.82rem;
+  flex: 1;
+  font-size: 0.84rem;
+  font-weight: 500;
 }
 
 .command-kbd {
   font-family: var(--font-family-mono);
-  font-size: 0.68rem;
-  padding: 2px 6px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 7px;
   background: var(--color-surface);
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-xs);
   color: var(--color-text-muted);
-  box-shadow: var(--shadow-subtle);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+@media (max-width: 992px) {
+  .search-wrap {
+    min-width: 180px;
+  }
 }
 
 @media (max-width: 768px) {
+  .search-wrap {
+    min-width: 38px;
+    width: 38px;
+    padding: 0;
+    justify-content: center;
+  }
   .search-label,
   .command-kbd {
     display: none;

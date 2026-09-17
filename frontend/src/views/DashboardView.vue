@@ -10,7 +10,7 @@
       :aria-label="refreshing ? 'جاري تحديث البيانات' : 'الوقت المتبقي حتى التحديث التلقائي التالي'"
     ></div>
 
-    <section class="dashboard-header card mb-4">
+    <section class="dashboard-header surface-hero mb-4">
       <div class="header-main-info">
         <div class="flex items-center gap-3">
           <span class="header-brand-icon">
@@ -177,7 +177,7 @@
         <section class="overview-grid mt-4">
           <article
             v-if="authStore.hasPermission('reports.view') && widgetVisibility.financialChart"
-            class="panel chart-panel wide"
+            class="panel chart-panel wide surface-raised primary-stage"
           >
             <div class="panel-head">
               <div>

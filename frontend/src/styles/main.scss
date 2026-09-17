@@ -346,6 +346,76 @@ button:not(:disabled):active {
   padding: var(--space-5);
 }
 
+/* ── Layered Surface Architecture (De-Cardification) ── */
+.surface-sunken {
+  background: var(--surface-sunken);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+}
+
+.surface-raised {
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.surface-hero {
+  background: linear-gradient(
+    145deg,
+    var(--surface-raised) 0%,
+    color-mix(in srgb, var(--primary-subtle) 40%, var(--surface-raised)) 100%
+  );
+  border: 1px solid color-mix(in srgb, var(--primary-border) 70%, var(--border));
+  border-radius: var(--radius-lg);
+  box-shadow:
+    var(--shadow-sm),
+    0 8px 24px -10px color-mix(in srgb, var(--primary) 12%, transparent);
+}
+
+.surface-accent-indigo {
+  background: var(--primary-subtle);
+  border: 1px solid var(--primary-border);
+}
+
+.surface-accent-emerald {
+  background: var(--color-success-subtle);
+  border: 1px solid var(--color-success-border);
+}
+
+.surface-accent-teal {
+  background: var(--teal-subtle);
+  border: 1px solid var(--teal-border);
+}
+
+.surface-accent-amber {
+  background: var(--color-warning-subtle);
+  border: 1px solid var(--color-warning-border);
+}
+
+.surface-accent-danger {
+  background: var(--color-danger-subtle);
+  border: 1px solid var(--color-danger-border);
+}
+
+/* ── Page Transitions ── */
+.page-fade-enter-active,
+.page-fade-leave-active {
+  transition:
+    opacity var(--motion-page) ease,
+    transform var(--motion-page) ease;
+}
+
+.page-fade-enter-from {
+  opacity: 0;
+  transform: translateY(4px);
+}
+
+.page-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
 .form-group {
   margin-bottom: var(--space-4);
 
@@ -1533,16 +1603,17 @@ table {
 /* ═══════════════════════════════════════════════════════════════════════════════
    Hub-Level Tab Navigation — نظام تبويبات موحد لكل المراكز التشغيلية
    ═══════════════════════════════════════════════════════════════════════════════ */
-.hub-tabs {
+.hub-tabs,
+.dashboard-hub-tabs {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: var(--space-2);
-  padding: var(--space-3);
+  padding: 6px;
   margin-bottom: var(--space-4);
-  background: var(--tab-bg);
-  border: 1px solid var(--tab-border);
-  border-radius: var(--radius-md);
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
   box-shadow: var(--shadow-xs);
 }
 
@@ -1550,27 +1621,30 @@ table {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  padding: var(--space-2) var(--space-4);
-  border-radius: var(--radius-sm);
+  padding: 8px 16px;
+  border-radius: var(--radius-md);
   font-size: var(--text-sm);
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
-  border: none;
+  border: 1px solid transparent;
   background: transparent;
   color: var(--text-muted);
   transition:
-    background-color var(--transition),
-    color var(--transition),
-    box-shadow var(--transition);
+    background-color var(--motion-hover),
+    color var(--motion-hover),
+    box-shadow var(--motion-hover),
+    border-color var(--motion-hover);
 
   &:hover {
-    background: var(--tab-hover-bg);
-    color: var(--text);
+    background: var(--color-surface);
+    color: var(--text-strong);
+    border-color: var(--border-subtle);
   }
 
   &.active {
-    background: var(--tab-active-bg);
-    color: var(--tab-active-text);
+    background: var(--surface-raised);
+    color: var(--primary);
+    border-color: var(--border);
     box-shadow: var(--shadow-xs);
   }
 }

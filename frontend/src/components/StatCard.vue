@@ -1,5 +1,9 @@
 <template>
-  <div class="stat-card animate-in" :style="{ animationDelay: delay }">
+  <div
+    class="stat-card animate-in"
+    :class="[`tone-${tone}`, `surface-raised`]"
+    :style="{ animationDelay: delay }"
+  >
     <span class="stat-icon-wrap">
       <AppIcon class="stat-icon" :name="iconName" />
     </span>
@@ -23,6 +27,7 @@ const props = defineProps({
   sub: String,
   format: { type: String, default: 'currency' },
   delay: String,
+  tone: { type: String, default: 'default' },
 });
 
 const formattedValue = computed(() => {
@@ -42,8 +47,14 @@ const iconName = computed(() => props.icon || 'dashboard');
   padding: 16px;
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  background: var(--bg-elevated);
-  box-shadow: var(--shadow-xs);
+  background: linear-gradient(
+    180deg,
+    var(--color-surface, var(--bg-elevated)) 0%,
+    var(--color-surface-sunken, var(--bg-elevated)) 100%
+  );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    var(--shadow-xs);
   transition:
     transform var(--motion-hover),
     box-shadow var(--motion-hover),
@@ -58,8 +69,64 @@ const iconName = computed(() => props.icon || 'dashboard');
 
     .stat-icon-wrap {
       transform: scale(1.06);
-      background: color-mix(in srgb, var(--primary) 16%, var(--bg-elevated));
-      color: var(--primary);
+    }
+  }
+
+  &.tone-emerald,
+  &.tone-success {
+    &:hover {
+      border-color: var(--color-emerald-border, var(--success));
+      box-shadow:
+        var(--shadow-sm),
+        0 8px 18px -4px var(--color-emerald-halo, rgba(16, 185, 129, 0.2));
+    }
+    .stat-icon-wrap {
+      background: var(--color-emerald-soft, rgba(16, 185, 129, 0.12));
+      color: var(--color-emerald, #10b981);
+      border-color: var(--color-emerald-border, rgba(16, 185, 129, 0.3));
+    }
+  }
+
+  &.tone-teal {
+    &:hover {
+      border-color: var(--color-teal-border, #14b8a6);
+      box-shadow:
+        var(--shadow-sm),
+        0 8px 18px -4px var(--color-teal-halo, rgba(20, 184, 166, 0.2));
+    }
+    .stat-icon-wrap {
+      background: var(--color-teal-soft, rgba(20, 184, 166, 0.12));
+      color: var(--color-teal, #0d9488);
+      border-color: var(--color-teal-border, rgba(20, 184, 166, 0.3));
+    }
+  }
+
+  &.tone-amber,
+  &.tone-warning {
+    &:hover {
+      border-color: var(--color-amber-border, var(--warning));
+      box-shadow:
+        var(--shadow-sm),
+        0 8px 18px -4px var(--color-amber-halo, rgba(245, 158, 11, 0.2));
+    }
+    .stat-icon-wrap {
+      background: var(--color-amber-soft, rgba(245, 158, 11, 0.12));
+      color: var(--color-amber, #f59e0b);
+      border-color: var(--color-amber-border, rgba(245, 158, 11, 0.3));
+    }
+  }
+
+  &.tone-danger {
+    &:hover {
+      border-color: var(--color-danger-border, var(--danger));
+      box-shadow:
+        var(--shadow-sm),
+        0 8px 18px -4px var(--color-danger-halo, rgba(239, 68, 68, 0.2));
+    }
+    .stat-icon-wrap {
+      background: var(--color-danger-soft, rgba(239, 68, 68, 0.12));
+      color: var(--color-danger, #ef4444);
+      border-color: var(--color-danger-border, rgba(239, 68, 68, 0.3));
     }
   }
 }
@@ -72,12 +139,14 @@ const iconName = computed(() => props.icon || 'dashboard');
   justify-content: center;
   border-radius: var(--radius-md);
   background: color-mix(in srgb, var(--primary) 10%, var(--bg-elevated));
-  color: var(--primary-dark);
+  color: var(--primary);
+  border: 1px solid var(--border-subtle, transparent);
   flex-shrink: 0;
   transition:
     transform var(--motion-hover),
     background-color var(--motion-hover),
-    color var(--motion-hover);
+    color var(--motion-hover),
+    border-color var(--motion-hover);
 }
 
 .stat-icon {

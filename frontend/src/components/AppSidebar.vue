@@ -19,7 +19,10 @@
         <AppLogo size="sm" class="brand-logo" />
         <transition name="brand-fade">
           <div v-if="isExpanded" class="brand-text">
-            <span class="brand-name">{{ companyName }}</span>
+            <div class="brand-name-wrap">
+              <span class="brand-name">{{ companyName }}</span>
+              <span class="brand-live-dot" title="النظام متصل ونشط"></span>
+            </div>
             <span class="brand-sub">{{ tagline }}</span>
           </div>
         </transition>
@@ -210,7 +213,7 @@ const menuGroups = computed(() => {
 <style lang="scss" scoped>
 .sidebar {
   position: fixed;
-  right: 0;
+  inset-inline-end: 0;
   top: 0;
   bottom: 0;
   width: var(--sidebar-collapsed, 68px);
@@ -221,15 +224,19 @@ const menuGroups = computed(() => {
   overflow-x: hidden;
   overflow-y: auto;
   color: var(--sidebar-text);
-  background: var(--sidebar-bg);
-  border-left: 1px solid var(--sidebar-border);
-  box-shadow: -2px 0 12px rgba(15, 23, 42, 0.08);
+  background: linear-gradient(
+    180deg,
+    var(--sidebar-bg) 0%,
+    color-mix(in srgb, var(--sidebar-surface) 65%, var(--sidebar-bg)) 100%
+  );
+  border-inline-start: 1px solid var(--sidebar-border);
+  box-shadow: -4px 0 28px rgba(2, 6, 23, 0.28);
   transition: width var(--transition);
   will-change: width;
 
   &.is-expanded {
     width: var(--sidebar-width, 260px);
-    box-shadow: -6px 0 24px rgba(15, 23, 42, 0.12);
+    box-shadow: -8px 0 32px rgba(2, 6, 23, 0.35);
   }
 
   &.is-collapsed {
@@ -246,11 +253,12 @@ const menuGroups = computed(() => {
       width: 44px;
       height: 44px;
       padding: 0;
-      margin: 0 auto;
+      margin: 2px auto;
       border-radius: var(--radius-md);
 
       &:hover {
-        transform: scale(1.06);
+        transform: scale(1.08);
+        background: rgba(255, 255, 255, 0.1);
       }
 
       .active-rail {
@@ -260,13 +268,23 @@ const menuGroups = computed(() => {
       }
 
       &.active {
-        box-shadow: 0 0 14px var(--color-primary-glow);
+        background: var(--color-primary);
+        color: #ffffff;
+        box-shadow: 0 0 16px var(--color-primary-glow);
+
+        .nav-icon {
+          color: #ffffff;
+          transform: scale(1.08);
+        }
       }
     }
 
     .group-divider {
-      width: 24px;
-      margin: 6px auto;
+      width: 20px;
+      height: 2px;
+      background: var(--sidebar-border);
+      margin: 8px auto;
+      border-radius: 2px;
     }
   }
 }
@@ -278,6 +296,7 @@ const menuGroups = computed(() => {
   padding: 16px;
   min-height: 64px;
   border-bottom: 1px solid var(--sidebar-border);
+  background: rgba(255, 255, 255, 0.02);
   gap: 8px;
 }
 
@@ -297,43 +316,74 @@ const menuGroups = computed(() => {
   overflow: hidden;
 }
 
+.brand-name-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .brand-name {
-  font-size: 0.95rem;
+  font-size: 0.96rem;
   font-weight: 800;
   white-space: nowrap;
-  color: var(--sidebar-text);
+  color: #ffffff;
+  letter-spacing: -0.01em;
   text-overflow: ellipsis;
   overflow: hidden;
 }
 
+.brand-live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-success);
+  box-shadow: 0 0 8px var(--color-success);
+  animation: beaconPulse 2.5s infinite;
+  flex-shrink: 0;
+}
+
+@keyframes beaconPulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.45;
+    transform: scale(0.85);
+  }
+}
+
 .brand-sub {
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   color: var(--sidebar-muted);
   white-space: nowrap;
+  font-weight: 500;
 }
 
 .pin-toggle-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
+  width: 28px;
+  height: 28px;
   border-radius: var(--radius-sm);
-  border: 1px solid transparent;
-  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
   color: var(--sidebar-muted);
   cursor: pointer;
   transition: all var(--transition);
 
   &:hover {
-    background: var(--sidebar-hover-bg);
-    color: var(--sidebar-text);
+    background: rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+    border-color: rgba(255, 255, 255, 0.16);
   }
 }
 
 .sidebar-nav {
   flex: 1;
-  padding: 12px 0;
+  padding: 14px 0;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -347,14 +397,24 @@ const menuGroups = computed(() => {
 }
 
 .group-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 0.68rem;
   font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
   color: var(--sidebar-muted);
-  padding: 8px 12px 4px;
+  padding: 10px 12px 4px;
   margin: 0;
-  opacity: 0.85;
+  opacity: 0.9;
+
+  &::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: color-mix(in srgb, var(--sidebar-border) 60%, transparent);
+  }
 }
 
 .group-divider {
@@ -369,15 +429,17 @@ const menuGroups = computed(() => {
   align-items: center;
   gap: 12px;
   padding: 9px 12px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   color: var(--sidebar-muted);
   text-decoration: none;
-  font-size: 0.86rem;
+  font-size: 0.88rem;
   font-weight: 600;
+  border: 1px solid transparent;
   transition:
     background-color var(--motion-hover),
     color var(--motion-hover),
-    transform var(--motion-hover);
+    transform var(--motion-hover),
+    border-color var(--motion-hover);
   position: relative;
   overflow: hidden;
 
@@ -386,32 +448,35 @@ const menuGroups = computed(() => {
     top: 4px;
     bottom: 4px;
     inset-inline-start: 0;
-    width: 3.5px;
+    width: 4px;
     border-radius: 0 4px 4px 0;
     background: var(--color-primary);
     opacity: 0;
-    transform: scaleY(0.4);
+    transform: scaleY(0.3);
     transition:
       opacity var(--motion-hover),
       transform var(--motion-hover);
-    box-shadow: 0 0 8px var(--color-primary-glow);
+    box-shadow: 0 0 10px var(--color-primary-glow);
   }
 
   &:hover {
-    background: var(--sidebar-hover-bg);
-    color: var(--sidebar-text);
-    transform: translateX(-2px);
+    background: rgba(255, 255, 255, 0.08);
+    color: #ffffff;
+    transform: translateX(-3px);
+    border-color: rgba(255, 255, 255, 0.05);
 
     .nav-icon {
       color: var(--color-primary);
-      transform: scale(1.06);
+      transform: scale(1.1);
     }
   }
 
   &.active {
-    background: var(--sidebar-active-bg);
-    color: var(--sidebar-active-text);
+    background: linear-gradient(90deg, rgba(29, 78, 216, 0.28) 0%, rgba(29, 78, 216, 0.12) 100%);
+    color: #ffffff;
     font-weight: 700;
+    border-color: rgba(59, 130, 246, 0.35);
+    box-shadow: inset 0 0 12px rgba(29, 78, 216, 0.15);
 
     .active-rail {
       opacity: 1;
@@ -419,8 +484,9 @@ const menuGroups = computed(() => {
     }
 
     .nav-icon {
-      color: var(--sidebar-active-text);
+      color: #ffffff;
       transform: none;
+      filter: drop-shadow(0 0 6px var(--color-primary-glow));
     }
   }
 }
@@ -469,20 +535,21 @@ const menuGroups = computed(() => {
 .sidebar-user-area {
   padding: 12px 14px;
   border-top: 1px solid var(--sidebar-border);
-  background: var(--sidebar-surface);
+  background: rgba(0, 0, 0, 0.2);
 }
 
 .user-avatar-mini {
   width: 38px;
   height: 38px;
   margin: 0 auto;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   background: var(--color-primary);
   color: #ffffff;
   display: grid;
   place-items: center;
   font-weight: 800;
   font-size: 0.9rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
 }
 
 .user-profile-expanded {
@@ -494,7 +561,7 @@ const menuGroups = computed(() => {
 .user-avatar {
   width: 36px;
   height: 36px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   background: var(--color-primary);
   color: #ffffff;
   display: grid;
@@ -502,6 +569,7 @@ const menuGroups = computed(() => {
   font-weight: 800;
   font-size: 0.88rem;
   flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
 }
 
 .user-info {
@@ -514,7 +582,7 @@ const menuGroups = computed(() => {
 .user-name {
   font-size: 0.84rem;
   font-weight: 700;
-  color: var(--sidebar-text);
+  color: #ffffff;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -535,7 +603,7 @@ const menuGroups = computed(() => {
   border-radius: var(--radius-xs);
 
   &:hover {
-    color: var(--sidebar-text);
+    color: #ffffff;
   }
 }
 

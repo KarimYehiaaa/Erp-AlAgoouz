@@ -64,6 +64,18 @@
   --border: var(--color-border);
   --border-strong: var(--color-border-strong);
 
+  /* ── Secondary Accent (Teal / Cyan) & Layered Surfaces ── */
+  --teal: var(--color-teal);
+  --teal-soft: var(--color-teal-soft);
+  --teal-subtle: var(--color-teal-subtle);
+  --teal-border: var(--color-teal-border);
+  --teal-halo: var(--color-teal-halo);
+  --teal-glow: var(--color-teal-glow);
+
+  --surface-raised: var(--color-surface-raised);
+  --surface-sunken: var(--color-surface-sunken);
+  --surface-overlay: var(--color-surface-overlay);
+
   /* ── Layout Measurements ── */
   --sidebar-width: 260px;
   --sidebar-collapsed: 68px;
@@ -78,13 +90,6 @@
   --shadow-sm: var(--shadow-sm);
   --shadow-md: var(--shadow-md);
   --shadow-lg: var(--shadow-lg);
-
-  /* ── Sidebar (Enterprise Slate / Navy) ── */
-  --sidebar-bg: var(--color-bg-subtle);
-  --sidebar-surface: var(--color-surface);
-  --sidebar-text: var(--color-text);
-  --sidebar-muted: var(--color-text-muted);
-  --sidebar-active-bg: var(--color-primary-soft);
 
   /* ── Glassmorphism & App Gradients ── */
   --glass-bg: rgba(255, 255, 255, 0.85);
@@ -147,8 +152,16 @@
   --danger: var(--color-danger);
   --info: var(--color-info);
 
-  --border: var(--color-border);
-  --border-strong: var(--color-border-strong);
+  --teal: var(--color-teal);
+  --teal-soft: var(--color-teal-soft);
+  --teal-subtle: var(--color-teal-subtle);
+  --teal-border: var(--color-teal-border);
+  --teal-halo: var(--color-teal-halo);
+  --teal-glow: var(--color-teal-glow);
+
+  --surface-raised: var(--color-surface-raised);
+  --surface-sunken: var(--color-surface-sunken);
+  --surface-overlay: var(--color-surface-overlay);
 
   --glass-bg: rgba(30, 41, 59, 0.85);
   --glass-border: var(--color-border);

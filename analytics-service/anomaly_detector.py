@@ -1,6 +1,6 @@
 """
 anomaly_detector.py — Operational anomaly detection for Bin Al-Agoouz ERP.
-══════════════════════════════════════════════════════════════════════════════
+
 Detects operational variances (cash discrepancies, void spikes, discount ratios)
 using standard statistical Z-Scores combined with Tukey's IQR (Interquartile Range) fences.
 """

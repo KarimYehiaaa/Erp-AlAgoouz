@@ -64,10 +64,14 @@ desktop-pos/dist/
 desktop-pos/dist-electron/
 desktop-pos/release/
 
-# Python cache
+# Python cache & venv
 __pycache__/
 *.py[cod]
+.venv/
+venv/
+ENV/
 
 # IDE / Session plans
 .zcode/
+
 

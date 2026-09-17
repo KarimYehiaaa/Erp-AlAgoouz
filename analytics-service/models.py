@@ -60,8 +60,24 @@ class ChurnRiskRequest(BaseModel):
 class CustomerChurnOutput(BaseModel):
     customer_id: int
     name_ar: str
-    churn_probability: float
-    churn_risk_score: float = 0.0  # Heuristic 0-100 score
+    churn_risk_estimate: float = Field(
+        default=0.0,
+        ge=0.0,
+        le=1.0,
+        description="Rule-based heuristic risk estimate (0.0 to 1.0) based on recency cadence. Not a calibrated probability.",
+    )
+    churn_probability: float = Field(
+        default=0.0,
+        ge=0.0,
+        le=1.0,
+        description="Deprecated compatibility alias matching churn_risk_estimate.",
+    )
+    churn_risk_score: float = Field(
+        default=0.0,
+        ge=0.0,
+        le=100.0,
+        description="Heuristic 0-100 score.",
+    )
     risk_level: str  # 'low', 'medium', 'high', 'critical'
     recommended_action: str
 

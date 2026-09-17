@@ -1,6 +1,6 @@
 """
 clustering.py — Backward-compatibility re-export shim.
-══════════════════════════════════════════════════════
+
 The modules have been properly separated into:
   - menu_engineering.py (Kasavana & Smith Menu Engineering Matrix)
   - churn_risk.py (Heuristic RFM Churn Risk Scoring)

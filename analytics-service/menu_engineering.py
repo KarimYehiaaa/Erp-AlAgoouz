@@ -1,6 +1,6 @@
 """
 menu_engineering.py — Menu Engineering Matrix for Cafes and Roasteries.
-══════════════════════════════════════════════════════════════════════
+
 Implements the Kasavana & Smith (1982) Menu Engineering model, evaluating items
 across two dimensions:
   1. Popularity (Sales Volume) relative to the menu average benchmark.

@@ -11,8 +11,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Offline / Storage Bridge
   saveOfflineTransaction: (data: any) => ipcRenderer.invoke('storage:save-transaction', data),
   getPendingTransactions: () => ipcRenderer.invoke('storage:get-pending'),
-  updateTransactionStatus: (syncId: string, status: string, serverId?: any) =>
-    ipcRenderer.invoke('storage:update-status', syncId, status, serverId),
+  updateTransactionStatus: (syncId: string, status: string, serverId?: any, errorMessage?: string) =>
+    ipcRenderer.invoke('storage:update-status', syncId, status, serverId, errorMessage),
 
   // Session, Config & Sync Bridge
   getServerUrl: () => ipcRenderer.invoke('config:get-server-url'),

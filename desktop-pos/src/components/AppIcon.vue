@@ -138,7 +138,7 @@ import {
   Wine,
   X,
   Zap,
-} from 'lucide-vue-next';
+} from '@lucide/vue';
 
 const props = defineProps({
   name: { type: String, default: 'dashboard' },

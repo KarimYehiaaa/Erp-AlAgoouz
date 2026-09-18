@@ -196,9 +196,23 @@ jobs:
         run: npm run build
       - name: Build Windows NSIS Installer (.EXE)
         working-directory: desktop-pos
-        run: npm run electron:build
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run electron:build -- --publish never
+
+      - name: Verify NSIS Installer Generated
+        shell: pwsh
+        working-directory: desktop-pos
+        run: |
+          $installer = Get-ChildItem "release/AlAgoouz-POS-Setup-*.exe"
+          if (-not $installer) {
+            Write-Error "❌ NSIS installer not found in desktop-pos/release!"
+            exit 1
+          }
+          if ($installer.Length -lt 20000000) {
+            Write-Error "❌ NSIS installer size ($($installer.Length) bytes) is suspiciously small!"
+            exit 1
+          }
+          Write-Host "✅ Verified NSIS Installer: $($installer.Name)"
+
       - name: Upload Desktop Installer Artifact
         uses: actions/upload-artifact@v4
         with:

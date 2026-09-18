@@ -20,7 +20,7 @@ export class PosSyncWorker {
 
   constructor(
     private readQueue: () => any[],
-    private updateStatus: (syncId: string, status: string, serverId?: any) => boolean,
+    private updateStatus: (syncId: string, status: string, serverId?: any, errorMessage?: string) => boolean,
     private getMainWindow: () => BrowserWindow | null
   ) {}
 
@@ -35,7 +35,17 @@ export class PosSyncWorker {
 
   public setServerUrl(url: string) {
     if (url && typeof url === 'string') {
-      this.serverUrl = url.replace(/\/+$/, '');
+      const cleanUrl = url.trim().replace(/\/+$/, '');
+      try {
+        const parsed = new URL(cleanUrl);
+        const isLocal = parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1';
+        if (process.env.NODE_ENV === 'production' && parsed.protocol !== 'https:' && !isLocal) {
+          console.warn('[SyncWorker Security Warning] Production Central Server URL must use HTTPS. Provided:', cleanUrl);
+        }
+      } catch {
+        console.error('[SyncWorker] Invalid URL format provided for server URL:', cleanUrl);
+      }
+      this.serverUrl = cleanUrl;
       console.log('[SyncWorker] Central server URL updated to:', this.serverUrl);
     }
   }
@@ -69,7 +79,9 @@ export class PosSyncWorker {
     if (this.syncInFlight) {
       console.log('[SyncWorker] Sync cycle already in flight. Skipping overlapping run.');
       const queue = this.readQueue();
-      const remaining = queue.filter((item) => item.status === 'PENDING' || item.status === 'FAILED').length;
+      const remaining = queue.filter(
+        (item) => (item.status === 'PENDING' || item.status === 'FAILED') && (item.retry_count || 0) < 10
+      ).length;
       return { success: false, synced: 0, remaining };
     }
 
@@ -80,23 +92,23 @@ export class PosSyncWorker {
         (item) => (item.status === 'PENDING' || item.status === 'FAILED') && (item.retry_count || 0) < 10
       );
 
-    if (pendingItems.length === 0) {
-      return { success: true, synced: 0, remaining: 0 };
-    }
+      if (pendingItems.length === 0) {
+        return { success: true, synced: 0, remaining: 0 };
+      }
 
-    if (!this.authToken) {
-      console.log('[SyncWorker] Pending items detected, but no active cashier session token. Waiting for login...');
-      return { success: false, synced: 0, remaining: pendingItems.length };
-    }
+      if (!this.authToken) {
+        console.log('[SyncWorker] Pending items detected, but no active cashier session token. Waiting for login...');
+        return { success: false, synced: 0, remaining: pendingItems.length };
+      }
 
-    console.log(`[SyncWorker] Found ${pendingItems.length} pending items. Attempting sync...`);
+      console.log(`[SyncWorker] Found ${pendingItems.length} pending items. Attempting sync...`);
 
-    // Check server health
-    const isOnline = await this.pingServer();
-    if (!isOnline) {
-      console.log('[SyncWorker] Central server offline. Will retry on next cycle.');
-      return { success: false, synced: 0, remaining: pendingItems.length };
-    }
+      // Check server health
+      const isOnline = await this.pingServer();
+      if (!isOnline) {
+        console.log('[SyncWorker] Central server offline. Will retry on next cycle.');
+        return { success: false, synced: 0, remaining: pendingItems.length };
+      }
 
       try {
         const payload = {
@@ -111,28 +123,55 @@ export class PosSyncWorker {
           let syncedCount = 0;
           for (const res of result.results) {
             if (res.status === 'SYNCED') {
-              this.updateStatus(res.sync_id, 'SYNCED', res.sale_id);
-              syncedCount++;
+              const localUpdated = this.updateStatus(res.sync_id, 'SYNCED', res.sale_id);
+              if (localUpdated) {
+                syncedCount++;
+              } else {
+                console.error(
+                  `[SyncWorker] CRITICAL PERSISTENCE FAILURE: Server confirmed SYNCED for transaction ${res.sync_id}, but local queue update failed to persist to disk! Retaining for local reconciliation.`
+                );
+              }
             } else if (res.status === 'FAILED') {
-              this.updateStatus(res.sync_id, 'FAILED');
+              this.updateStatus(res.sync_id, 'FAILED', undefined, res.error || 'SERVER_SYNC_REJECTED');
             }
           }
-          console.log(`[SyncWorker] Batch sync completed successfully. Synced: ${syncedCount}/${pendingItems.length}`);
+          console.log(`[SyncWorker] Batch sync completed. Locally persisted sync: ${syncedCount}/${pendingItems.length}`);
+
+          const currentQueue = this.readQueue();
+          const remaining = currentQueue.filter(
+            (item) => (item.status === 'PENDING' || item.status === 'FAILED') && (item.retry_count || 0) < 10
+          ).length;
 
           // Notify Vue renderer
           const win = this.getMainWindow();
           if (win && !win.isDestroyed()) {
             win.webContents.send('sync:updated', {
               synced: syncedCount,
-              remaining: pendingItems.length - syncedCount,
+              remaining,
             });
           }
-          return { success: true, synced: syncedCount, remaining: pendingItems.length - syncedCount };
+          return { success: syncedCount > 0 && syncedCount === pendingItems.length, synced: syncedCount, remaining };
         }
-        return { success: false, synced: 0, remaining: pendingItems.length };
+
+        // Server returned failure or invalid result structure
+        for (const item of pendingItems) {
+          this.updateStatus(item.sync_id, 'FAILED', undefined, result?.message || 'INVALID_BATCH_RESPONSE');
+        }
+        const currentQueue = this.readQueue();
+        const remaining = currentQueue.filter(
+          (item) => (item.status === 'PENDING' || item.status === 'FAILED') && (item.retry_count || 0) < 10
+        ).length;
+        return { success: false, synced: 0, remaining };
       } catch (err: any) {
         console.error('[SyncWorker] Error during batch sync:', err.message);
-        return { success: false, synced: 0, remaining: pendingItems.length };
+        for (const item of pendingItems) {
+          this.updateStatus(item.sync_id, 'FAILED', undefined, err.message || 'NETWORK_OR_SERVER_ERROR');
+        }
+        const currentQueue = this.readQueue();
+        const remaining = currentQueue.filter(
+          (item) => (item.status === 'PENDING' || item.status === 'FAILED') && (item.retry_count || 0) < 10
+        ).length;
+        return { success: false, synced: 0, remaining };
       }
     } finally {
       this.syncInFlight = false;

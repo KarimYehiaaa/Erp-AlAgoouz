@@ -1,11 +1,11 @@
-import { createRouter, createWebHashHistory } from 'vue-router';
+import { createRouter, createWebHashHistory, type RouteRecordRaw } from 'vue-router';
 import PosLoginView from '../views/PosLoginView.vue';
 import PosShiftOpenView from '../views/PosShiftOpenView.vue';
 import PosSalesView from '../views/PosSalesView.vue';
 import PosShiftCloseView from '../views/PosShiftCloseView.vue';
 import PosSyncStatusView from '../views/PosSyncStatusView.vue';
 
-const routes = [
+const routes: RouteRecordRaw[] = [
   { path: '/', redirect: '/sales' },
   { path: '/login', name: 'login', component: PosLoginView },
   { path: '/shift/open', name: 'shiftOpen', component: PosShiftOpenView },

@@ -327,4 +327,10 @@ export type {
   PurchaseOrder,
   CreatePurchaseOrderPayload,
   ReceiveGoodsPayload,
+  BankStatementTransaction,
+  AgingReconciliationSide,
+  AgingReconciliationResponse,
+  IncomeStatementResponse,
+  FinancialPeriod,
+  PeriodChecklistResponse,
 } from './accounting.api';

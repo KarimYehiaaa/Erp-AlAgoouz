@@ -79,11 +79,14 @@ export const purchaseReturnService = {
         [invoiceId],
       );
 
-      const origItemsMap = new Map();
+      const origItemsByItemMap = new Map<number, any>();
+      const origItemsByProductMap = new Map<number, any>();
       for (const row of origItemsRes.rows) {
-        origItemsMap.set(Number(row.product_id), row);
+        origItemsByItemMap.set(Number(row.id), row);
+        origItemsByProductMap.set(Number(row.product_id), row);
       }
 
+      const cumulativeRequested = new Map<number, number>();
       let returnSubtotal = 0;
       const validatedItems: Array<{
         product_id: number;
@@ -95,7 +98,7 @@ export const purchaseReturnService = {
         notes?: string;
       }> = [];
 
-      // 3. التحقق من كل بند مراد إرجاعه
+      // 3. التحقق من كل بند مراد إرجاعه بدقة على مستوى السطر
       for (const item of items) {
         const productId = Number(item.product_id);
         const returnQty = Number(item.quantity);
@@ -104,21 +107,32 @@ export const purchaseReturnService = {
           throw new AppError('بيانات الأصناف والكميات المرتجعة غير صحيحة', 400);
         }
 
-        const origItem = origItemsMap.get(productId);
+        let origItem: any = null;
+        if (item.purchase_invoice_item_id) {
+          origItem = origItemsByItemMap.get(Number(item.purchase_invoice_item_id));
+        }
+        if (!origItem) {
+          origItem = origItemsByProductMap.get(productId);
+        }
+
         if (!origItem) {
           throw new AppError(`الصنف رقم ${productId} غير موجود ضمن فاتورة الشراء الأصلية`, 400);
         }
 
         const purchasedQty = Number(origItem.quantity);
         const alreadyReturned = Number(origItem.already_returned_qty || 0);
+        const priorInBatch = cumulativeRequested.get(origItem.id) || 0;
+        const totalPendingReturn = roundMoney(priorInBatch + returnQty);
         const maxReturnable = roundMoney(purchasedQty - alreadyReturned);
 
-        if (returnQty > maxReturnable) {
+        if (totalPendingReturn > maxReturnable) {
           throw new AppError(
-            `الكمية المراد إرجاعها (${returnQty}) تتجاوز الكمية المتبقية القابلة للإرجاع (${maxReturnable}) للصنف`,
+            `الكمية المراد إرجاعها (${returnQty}) تتجاوز الكمية المتبقية القابلة للإرجاع (${maxReturnable}) للبند`,
             400,
           );
         }
+
+        cumulativeRequested.set(origItem.id, totalPendingReturn);
 
         // التحقق من توفر رصيد كافٍ في المخزن للإرجاع
         const stockRes = await client.query(

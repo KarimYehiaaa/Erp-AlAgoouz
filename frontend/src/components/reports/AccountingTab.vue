@@ -66,6 +66,14 @@
         <AppIcon name="check" :size="16" />
         <span>مطابقة الأرباح مع الأستاذ</span>
       </button>
+      <button
+        type="button"
+        :class="['sub-nav-btn', { active: subTab === 'periods' }]"
+        @click="switchSubTab('periods')"
+      >
+        <AppIcon name="calendar" :size="16" />
+        <span>الفترات والإقفال المالي</span>
+      </button>
     </div>
 
     <!-- Error / Loading indicators -->
@@ -665,75 +673,280 @@
          6. BANK & TREASURY RECONCILIATION (مطابقة وتسوية البنك والخزينة)
          ========================================================================= -->
     <div v-if="!loading && subTab === 'reconciliation'" class="card">
-      <div class="card-header-row">
-        <div>
-          <h3>مطابقة وتسوية الحسابات البنكية والخزينة</h3>
-          <p class="text-muted">
-            مطابقة كشوف حسابات البنوك والخزينة مع رصيد دفتر الأستاذ العام وتوثيق الفروقات
-          </p>
+      <!-- Session List View -->
+      <template v-if="!selectedRec">
+        <div class="card-header-row">
+          <div>
+            <h3>مطابقة وتسوية الحسابات البنكية والخزينة</h3>
+            <p class="text-muted">
+              مطابقة كشوف حسابات البنوك والخزينة مع رصيد دفتر الأستاذ العام وتوثيق الفروقات
+            </p>
+          </div>
+          <div>
+            <button type="button" class="btn btn-primary" @click="openNewRecModal">
+              <AppIcon name="plus" :size="16" />
+              <span>تسجيل جلسة مطابقة وتسوية</span>
+            </button>
+          </div>
         </div>
-        <div>
-          <button type="button" class="btn btn-primary" @click="openNewRecModal">
-            <AppIcon name="plus" :size="16" />
-            <span>تسجيل جلسة مطابقة وتسوية</span>
-          </button>
-        </div>
-      </div>
 
-      <div class="table-container">
-        <table class="items-table">
-          <thead>
-            <tr>
-              <th>رقم التسوية</th>
-              <th>الحساب</th>
-              <th>تاريخ الكشف</th>
-              <th>رصيد الكشف البنكي</th>
-              <th>رصيد دفتر الأستاذ</th>
-              <th>الفارق</th>
-              <th>القائم بالمطابقة</th>
-              <th>الحالة</th>
-              <th>ملاحظات</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-if="reconciliationsList.length === 0">
-              <td colspan="9" class="text-center py-4 text-muted">
-                لا توجد جلسات مطابقة سابقة مسجلة. اضغط "تسجيل جلسة مطابقة وتسوية" للبدء.
-              </td>
-            </tr>
-            <tr v-for="rec in reconciliationsList" :key="rec.id">
-              <td>
-                <strong>{{ rec.reconciliation_number }}</strong>
-              </td>
-              <td>{{ rec.account_code }} - {{ rec.account_name }}</td>
-              <td>{{ rec.statement_date }}</td>
-              <td class="num-cell">{{ formatMoney(rec.statement_balance) }}</td>
-              <td class="num-cell">{{ formatMoney(rec.ledger_balance) }}</td>
-              <td class="num-cell">
-                <span
-                  class="badge"
-                  :class="
-                    Math.abs(rec.difference) <= 0.01 ? 'bg-success-light' : 'bg-warning-light'
-                  "
-                >
-                  {{ formatMoney(rec.difference) }}
-                  <span v-if="Math.abs(rec.difference) <= 0.01"> ✓ مطابق</span>
-                </span>
-              </td>
-              <td>{{ rec.reconciled_by_name || '—' }}</td>
-              <td>
+        <div class="table-container">
+          <table class="items-table">
+            <thead>
+              <tr>
+                <th>رقم التسوية</th>
+                <th>الحساب</th>
+                <th>تاريخ الكشف</th>
+                <th>رصيد الكشف البنكي</th>
+                <th>رصيد دفتر الأستاذ</th>
+                <th>الفارق</th>
+                <th>القائم بالمطابقة</th>
+                <th>الحالة</th>
+                <th>الإجراءات</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-if="reconciliationsList.length === 0">
+                <td colspan="9" class="text-center py-4 text-muted">
+                  لا توجد جلسات مطابقة سابقة مسجلة. اضغط "تسجيل جلسة مطابقة وتسوية" للبدء.
+                </td>
+              </tr>
+              <tr v-for="rec in reconciliationsList" :key="rec.id">
+                <td>
+                  <strong>{{ rec.reconciliation_number }}</strong>
+                </td>
+                <td>{{ rec.account_code }} - {{ rec.account_name }}</td>
+                <td>{{ rec.statement_date }}</td>
+                <td class="num-cell">{{ formatMoney(rec.statement_balance) }}</td>
+                <td class="num-cell">{{ formatMoney(rec.ledger_balance) }}</td>
+                <td class="num-cell">
+                  <span
+                    class="badge"
+                    :class="
+                      Math.abs(rec.difference) <= 0.01 ? 'bg-success-light' : 'bg-warning-light'
+                    "
+                  >
+                    {{ formatMoney(rec.difference) }}
+                    <span v-if="Math.abs(rec.difference) <= 0.01"> ✓ مطابق</span>
+                  </span>
+                </td>
+                <td>{{ rec.reconciled_by_name || '—' }}</td>
+                <td>
+                  <span
+                    class="type-pill"
+                    :class="rec.status === 'completed' ? 'revenue' : 'liability'"
+                  >
+                    {{ rec.status === 'completed' ? 'مكتملة ومطابقة' : 'مسودة قيد المطابقة' }}
+                  </span>
+                </td>
+                <td>
+                  <button
+                    type="button"
+                    class="btn btn-secondary btn-sm"
+                    @click="viewRecDetails(rec)"
+                  >
+                    عرض الحركات والمطابقة
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </template>
+
+      <!-- Selected Session Details & Statement Matching View -->
+      <template v-else>
+        <div class="card-header-row">
+          <div>
+            <button type="button" class="btn btn-secondary btn-sm mb-2" @click="backToRecList">
+              ← العودة لقائمة جلسات التسوية
+            </button>
+            <h3>جلسة مطابقة: {{ selectedRec.reconciliation_number }}</h3>
+            <p class="text-muted">
+              {{ selectedRec.account_code }} - {{ selectedRec.account_name }} | تاريخ الكشف:
+              {{ selectedRec.statement_date }}
+            </p>
+          </div>
+          <div class="action-buttons-group">
+            <input
+              ref="statementFileInput"
+              type="file"
+              accept=".csv,.xlsx,.xls,text/csv"
+              style="display: none"
+              @change="onStatementFileSelected"
+            />
+            <button
+              v-if="selectedRec.status === 'draft'"
+              type="button"
+              class="btn btn-secondary"
+              :disabled="uploadingStatement"
+              @click="statementFileInput?.click()"
+            >
+              <AppIcon name="receipt" :size="16" />
+              <span>{{
+                uploadingStatement ? 'جاري الرفع...' : 'استيراد كشف حساب (CSV/Excel)'
+              }}</span>
+            </button>
+            <button
+              v-if="selectedRec.status === 'draft'"
+              type="button"
+              class="btn btn-primary"
+              :disabled="autoMatching || statementTransactions.length === 0"
+              @click="triggerAutoMatch"
+            >
+              <AppIcon name="check" :size="16" />
+              <span>{{ autoMatching ? 'جاري المطابقة...' : 'المطابقة الآلية الذكية' }}</span>
+            </button>
+            <button
+              v-if="selectedRec.status === 'draft'"
+              type="button"
+              class="btn btn-success"
+              :disabled="Math.abs(selectedRec.difference) > 0.01 || finalizingRec"
+              @click="finalizeRec"
+            >
+              <AppIcon name="check" :size="16" />
+              <span>{{ finalizingRec ? 'جاري الاعتماد...' : 'اعتماد وإقفال المطابقة' }}</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Session KPI Strip -->
+        <div class="kpi-grid kpi-grid-4 mb-4">
+          <div class="kpi-card">
+            <div class="kpi-body">
+              <div class="kpi-label">رصيد الكشف البنكي</div>
+              <div class="kpi-value text-primary">
+                {{ formatMoney(selectedRec.statement_balance) }}
+              </div>
+            </div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-body">
+              <div class="kpi-label">رصيد دفتر الأستاذ (GL)</div>
+              <div class="kpi-value text-primary">
+                {{ formatMoney(selectedRec.ledger_balance) }}
+              </div>
+            </div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-body">
+              <div class="kpi-label">فارق المطابقة الحالي</div>
+              <div
+                class="kpi-value"
+                :class="Math.abs(selectedRec.difference) <= 0.01 ? 'text-success' : 'text-danger'"
+              >
+                {{ formatMoney(selectedRec.difference) }}
+              </div>
+            </div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-body">
+              <div class="kpi-label">حالة الجلسة</div>
+              <div class="kpi-value">
                 <span
                   class="type-pill"
-                  :class="rec.status === 'completed' ? 'revenue' : 'liability'"
+                  :class="selectedRec.status === 'completed' ? 'revenue' : 'liability'"
                 >
-                  {{ rec.status === 'completed' ? 'مكتملة ومطابقة' : rec.status }}
+                  {{ selectedRec.status === 'completed' ? 'معتمدة ومقفلة' : 'مسودة قيد العمل' }}
                 </span>
-              </td>
-              <td>{{ rec.notes || '—' }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Transactions Table -->
+        <div class="table-header-row mb-2">
+          <h4>حركات كشف الحساب البنكي ({{ statementTransactions.length }})</h4>
+        </div>
+        <div class="table-container">
+          <table class="items-table">
+            <thead>
+              <tr>
+                <th>تاريخ الحركة</th>
+                <th>البيان / الوصف</th>
+                <th>المرجع البنكي</th>
+                <th>سحب (مدين)</th>
+                <th>إيداع (دائن)</th>
+                <th>حالة المطابقة</th>
+                <th>ملاحظات / قاعدة الربط</th>
+                <th>إجراءات</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-if="statementTransactions.length === 0">
+                <td colspan="8" class="text-center py-4 text-muted">
+                  لم يتم استيراد أي حركات بنكية لهذه الجلسة بعد. اضغط "استيراد كشف حساب" للرفع من
+                  ملف CSV أو Excel.
+                </td>
+              </tr>
+              <tr v-for="tx in statementTransactions" :key="tx.id">
+                <td>{{ tx.transaction_date ? tx.transaction_date.slice(0, 10) : '—' }}</td>
+                <td>
+                  <strong>{{ tx.description }}</strong>
+                </td>
+                <td>
+                  <code>{{ tx.reference_number || '—' }}</code>
+                </td>
+                <td class="num-cell text-danger">
+                  {{ tx.debit > 0 ? formatMoney(tx.debit) : '—' }}
+                </td>
+                <td class="num-cell text-success">
+                  {{ tx.credit > 0 ? formatMoney(tx.credit) : '—' }}
+                </td>
+                <td>
+                  <span
+                    class="type-pill"
+                    :class="
+                      tx.status === 'matched'
+                        ? 'revenue'
+                        : tx.status === 'excluded'
+                          ? 'liability'
+                          : 'expense'
+                    "
+                  >
+                    {{
+                      tx.status === 'matched'
+                        ? 'مطابق ✓'
+                        : tx.status === 'excluded'
+                          ? 'مستبعد'
+                          : 'غير مطابق'
+                    }}
+                  </span>
+                </td>
+                <td>
+                  <span v-if="tx.match_rule" class="text-sm text-muted">
+                    {{ tx.match_rule }} (ثقة: {{ Math.round((tx.match_confidence || 0) * 100) }}%)
+                  </span>
+                  <span v-else class="text-sm text-muted">{{ tx.notes || '—' }}</span>
+                </td>
+                <td>
+                  <div v-if="selectedRec.status === 'draft'" class="action-buttons-group">
+                    <button
+                      v-if="tx.status === 'matched'"
+                      type="button"
+                      class="btn btn-secondary btn-sm"
+                      @click="unmatchTx(tx.id)"
+                      title="إلغاء مطابقة الحركة"
+                    >
+                      إلغاء الربط
+                    </button>
+                    <button
+                      v-if="tx.status === 'unmatched'"
+                      type="button"
+                      class="btn btn-secondary btn-sm text-danger"
+                      @click="excludeTx(tx.id)"
+                      title="استبعاد الحركة من المطابقة"
+                    >
+                      استبعاد
+                    </button>
+                  </div>
+                  <span v-else class="text-muted">—</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </template>
     </div>
 
     <!-- =========================================================================
@@ -764,6 +977,61 @@
           >
             مستحقات الموردين
           </button>
+        </div>
+      </div>
+
+      <!-- Subledger vs Control Account GL Reconciliation Banner -->
+      <div
+        v-if="agingRecData"
+        class="gl-reconcile-banner card mb-4"
+        :class="agingRecData.is_all_reconciled ? 'reconciled' : 'unreconciled'"
+      >
+        <div class="banner-header">
+          <div class="banner-title">
+            <span class="status-dot"></span>
+            <strong>{{
+              agingRecData.is_all_reconciled
+                ? 'مطابقة تامة وموثقة مع حسابات المراقبة بالأستاذ العام (Zero Discrepancy)'
+                : 'تنبيه: يوجد فارق بين مديونيات العمليات وحساب الأستاذ العام!'
+            }}</strong>
+          </div>
+          <span class="text-sm text-muted">تاريخ التدقيق: {{ agingRecData.as_of_date }}</span>
+        </div>
+        <div class="banner-details-grid">
+          <div class="banner-item">
+            <span class="item-label">مديونيات العملاء:</span>
+            <span class="item-val font-bold">{{
+              formatMoney(agingRecData.customers.subledger_total)
+            }}</span>
+            <span class="item-sep">vs</span>
+            <span class="item-label">حساب المراقبة (1102):</span>
+            <span class="item-val font-bold">{{
+              formatMoney(agingRecData.customers.control_account_balance)
+            }}</span>
+            <span
+              class="badge"
+              :class="agingRecData.customers.is_reconciled ? 'bg-success-light' : 'bg-danger-light'"
+            >
+              الفارق: {{ formatMoney(agingRecData.customers.variance) }}
+            </span>
+          </div>
+          <div class="banner-item">
+            <span class="item-label">مستحقات الموردين:</span>
+            <span class="item-val font-bold">{{
+              formatMoney(agingRecData.suppliers.subledger_total)
+            }}</span>
+            <span class="item-sep">vs</span>
+            <span class="item-label">حساب المراقبة (2101):</span>
+            <span class="item-val font-bold">{{
+              formatMoney(agingRecData.suppliers.control_account_balance)
+            }}</span>
+            <span
+              class="badge"
+              :class="agingRecData.suppliers.is_reconciled ? 'bg-success-light' : 'bg-danger-light'"
+            >
+              الفارق: {{ formatMoney(agingRecData.suppliers.variance) }}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -993,6 +1261,97 @@
       </div>
     </div>
 
+    <!-- =========================================================================
+         9. FINANCIAL PERIODS (الفترات المحاسبية وإقفال الحسابات)
+         ========================================================================= -->
+    <div v-if="!loading && subTab === 'periods'" class="card">
+      <div class="card-header-row">
+        <div>
+          <h3>الفترات المحاسبية وإقفال الحسابات (Financial Periods)</h3>
+          <p class="text-muted">
+            إدارة الفترات المالية وتدقيق الاشتراطات المحاسبية قبل الإقفال النهائي وحماية السجلات من
+            التعديل
+          </p>
+        </div>
+        <div>
+          <button type="button" class="btn btn-primary" @click="showNewPeriodModal = true">
+            <AppIcon name="plus" :size="16" />
+            <span>إنشاء فترة مالية جديدة</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="table-container">
+        <table class="items-table">
+          <thead>
+            <tr>
+              <th>كود الفترة</th>
+              <th>اسم الفترة</th>
+              <th>السنة المالية</th>
+              <th>تاريخ البدء</th>
+              <th>تاريخ الانتهاء</th>
+              <th>الحالة</th>
+              <th>تاريخ الإقفال</th>
+              <th>الإجراءات</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-if="periodsList.length === 0">
+              <td colspan="8" class="text-center py-4 text-muted">
+                لا توجد فترات مالية مسجلة حالياً. اضغط "إنشاء فترة مالية جديدة" للبدء.
+              </td>
+            </tr>
+            <tr v-for="p in periodsList" :key="p.id">
+              <td>
+                <code>{{ p.period_code }}</code>
+              </td>
+              <td>
+                <strong>{{ p.period_name }}</strong>
+              </td>
+              <td>{{ p.fiscal_year }}</td>
+              <td>{{ p.start_date }}</td>
+              <td>{{ p.end_date }}</td>
+              <td>
+                <span class="type-pill" :class="p.status === 'open' ? 'revenue' : 'liability'">
+                  {{
+                    p.status === 'open'
+                      ? 'مفتوحة (Open)'
+                      : p.status === 'closed'
+                        ? 'مقفلة (Closed)'
+                        : 'مغلقة تماماً (Locked)'
+                  }}
+                </span>
+              </td>
+              <td>{{ p.closed_at ? p.closed_at.slice(0, 10) : '—' }}</td>
+              <td>
+                <div class="action-buttons-group">
+                  <button type="button" class="btn btn-secondary btn-sm" @click="openChecklist(p)">
+                    قائمة التدقيق
+                  </button>
+                  <button
+                    v-if="p.status === 'open'"
+                    type="button"
+                    class="btn btn-primary btn-sm"
+                    @click="openChecklist(p)"
+                  >
+                    إقفال
+                  </button>
+                  <button
+                    v-if="p.status === 'closed'"
+                    type="button"
+                    class="btn btn-warning btn-sm"
+                    @click="openReopenModal(p)"
+                  >
+                    إعادة فتح
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
     <!-- Modal: إضافة حساب جديد في شجرة الحسابات -->
     <Teleport to="body">
       <div
@@ -1140,6 +1499,230 @@
         </div>
       </div>
     </Teleport>
+
+    <!-- Modal: قائمة تدقيق إقفال الفترة (Period Checklist Modal) -->
+    <Teleport to="body">
+      <div v-if="showChecklistModal" class="modal-overlay" @click.self="showChecklistModal = false">
+        <div class="modal-card card">
+          <div class="modal-header">
+            <h3>قائمة تدقيق إقفال الفترة: {{ selectedPeriod?.period_name }}</h3>
+            <button type="button" class="icon-btn" @click="showChecklistModal = false">✕</button>
+          </div>
+          <div v-if="!periodChecklist" class="py-4 text-center">
+            ⏳ جاري فحص وتدقيق الاشتراطات...
+          </div>
+          <div v-else class="checklist-body">
+            <div
+              class="balance-status-badge mb-4"
+              :class="periodChecklist.is_ready_to_close ? 'balanced' : 'imbalanced'"
+            >
+              <span class="status-dot"></span>
+              <span>
+                {{
+                  periodChecklist.is_ready_to_close
+                    ? 'الفترة مستوفية لكافة الشروط وجاهزة للإقفال التام'
+                    : 'يوجد موانع تمنع الإقفال أو تتطلب مراجعة'
+                }}
+              </span>
+            </div>
+
+            <ul class="checklist-items-list mb-4">
+              <li
+                :class="
+                  periodChecklist.checks.unbalanced_journal_entries.passed
+                    ? 'check-pass'
+                    : 'check-fail'
+                "
+              >
+                <span class="check-icon">{{
+                  periodChecklist.checks.unbalanced_journal_entries.passed ? '✓' : '✗'
+                }}</span>
+                <span
+                  >توازن كافة قيود اليومية (قيود غير متوازنة:
+                  {{ periodChecklist.checks.unbalanced_journal_entries.count }})</span
+                >
+              </li>
+              <li
+                :class="
+                  periodChecklist.checks.draft_journal_entries.passed ? 'check-pass' : 'check-fail'
+                "
+              >
+                <span class="check-icon">{{
+                  periodChecklist.checks.draft_journal_entries.passed ? '✓' : '✗'
+                }}</span>
+                <span
+                  >عدم وجود مسودات قيود معلقة (قيود مسودة:
+                  {{ periodChecklist.checks.draft_journal_entries.count }})</span
+                >
+              </li>
+              <li
+                :class="
+                  periodChecklist.checks.unreconciled_bank_sessions.passed
+                    ? 'check-pass'
+                    : 'check-fail'
+                "
+              >
+                <span class="check-icon">{{
+                  periodChecklist.checks.unreconciled_bank_sessions.passed ? '✓' : '✗'
+                }}</span>
+                <span
+                  >إتمام كافة جلسات المطابقة البنكية (جلسات غير معتمدة:
+                  {{ periodChecklist.checks.unreconciled_bank_sessions.count }})</span
+                >
+              </li>
+              <li
+                :class="
+                  periodChecklist.checks.aging_ledger_discrepancies.passed
+                    ? 'check-pass'
+                    : 'check-fail'
+                "
+              >
+                <span class="check-icon">{{
+                  periodChecklist.checks.aging_ledger_discrepancies.passed ? '✓' : '✗'
+                }}</span>
+                <span>
+                  تطابق مديونيات العملاء والموردين مع الأستاذ (فارق عملاء:
+                  {{
+                    formatMoney(periodChecklist.checks.aging_ledger_discrepancies.customer_variance)
+                  }}
+                  / موردين:
+                  {{
+                    formatMoney(
+                      periodChecklist.checks.aging_ledger_discrepancies.supplier_variance,
+                    )
+                  }})
+                </span>
+              </li>
+            </ul>
+
+            <div v-if="periodChecklist.blockers.length > 0" class="blockers-box mb-4">
+              <strong>الموانع الحرجة:</strong>
+              <ul>
+                <li v-for="(b, i) in periodChecklist.blockers" :key="i" class="text-danger">
+                  {{ b }}
+                </li>
+              </ul>
+            </div>
+
+            <div class="form-actions-row">
+              <button
+                v-if="selectedPeriod?.status === 'open'"
+                type="button"
+                class="btn btn-primary"
+                :disabled="closingPeriod || !periodChecklist.is_ready_to_close"
+                @click="closePeriodNow"
+              >
+                {{
+                  closingPeriod ? 'جاري الإقفال وتفعيل القفل...' : 'إقفال الفترة المحاسبية نهائياً'
+                }}
+              </button>
+              <button type="button" class="btn btn-secondary" @click="showChecklistModal = false">
+                إغلاق
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- Modal: إعادة فتح فترة مقفلة -->
+    <Teleport to="body">
+      <div v-if="showReopenModal" class="modal-overlay" @click.self="showReopenModal = false">
+        <div class="modal-card card">
+          <div class="modal-header">
+            <h3>إعادة فتح الفترة المحاسبية: {{ selectedPeriod?.period_name }}</h3>
+            <button type="button" class="icon-btn" @click="showReopenModal = false">✕</button>
+          </div>
+          <form @submit.prevent="confirmReopenPeriod">
+            <p class="text-muted mb-3">
+              إعادة فتح الفترة سيتيح للمستخدمين المصرح لهم تعديل وإدخال قيود محاسبية ضمن تواريخها
+              مرة أخرى. يتطلب ذلك تسجيلاً إدارياً للسبب.
+            </p>
+            <div class="form-group mb-3">
+              <label>سبب إعادة الفتح (إلزامي للتدقيق المالي)</label>
+              <textarea
+                v-model="reopenReason"
+                class="field-like"
+                rows="3"
+                placeholder="أدخل سبب إعادة فتح الفترة بالتفصيل..."
+                required
+              ></textarea>
+            </div>
+            <div class="form-actions-row">
+              <button type="submit" class="btn btn-warning" :disabled="periodSubmitting">
+                {{ periodSubmitting ? 'جاري التنفيذ...' : 'تأكيد إعادة فتح الفترة' }}
+              </button>
+              <button type="button" class="btn btn-secondary" @click="showReopenModal = false">
+                إلغاء
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- Modal: إنشاء فترة محاسبية جديدة -->
+    <Teleport to="body">
+      <div v-if="showNewPeriodModal" class="modal-overlay" @click.self="showNewPeriodModal = false">
+        <div class="modal-card card">
+          <div class="modal-header">
+            <h3>إنشاء فترة محاسبية جديدة</h3>
+            <button type="button" class="icon-btn" @click="showNewPeriodModal = false">✕</button>
+          </div>
+          <form @submit.prevent="submitCreatePeriod">
+            <div class="grid grid-2 mb-3">
+              <div class="form-group">
+                <label>كود الفترة (فريد)</label>
+                <input
+                  v-model="newPeriodForm.period_code"
+                  type="text"
+                  class="field-like"
+                  placeholder="مثال: 2026-M09 أو 2026-Q3"
+                  required
+                />
+              </div>
+              <div class="form-group">
+                <label>السنة المالية</label>
+                <input
+                  v-model.number="newPeriodForm.fiscal_year"
+                  type="number"
+                  class="field-like num-cell"
+                  required
+                />
+              </div>
+            </div>
+            <div class="form-group mb-3">
+              <label>اسم الفترة بالعربية</label>
+              <input
+                v-model="newPeriodForm.period_name"
+                type="text"
+                class="field-like"
+                placeholder="مثال: شهر سبتمبر 2026"
+                required
+              />
+            </div>
+            <div class="grid grid-2 mb-3">
+              <div class="form-group">
+                <label>تاريخ بداية الفترة</label>
+                <input v-model="newPeriodForm.start_date" type="date" class="field-like" required />
+              </div>
+              <div class="form-group">
+                <label>تاريخ نهاية الفترة</label>
+                <input v-model="newPeriodForm.end_date" type="date" class="field-like" required />
+              </div>
+            </div>
+            <div class="form-actions-row">
+              <button type="submit" class="btn btn-primary" :disabled="periodSubmitting">
+                {{ periodSubmitting ? 'جاري الحفظ...' : 'إنشاء الفترة' }}
+              </button>
+              <button type="button" class="btn btn-secondary" @click="showNewPeriodModal = false">
+                إلغاء
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -1155,6 +1738,10 @@ import {
   type CustomerAgingResponse,
   type SupplierAgingResponse,
   type LedgerReconciliationSummary,
+  type BankStatementTransaction,
+  type AgingReconciliationResponse,
+  type FinancialPeriod,
+  type PeriodChecklistResponse,
 } from '@/api';
 import { formatMoney } from '@/utils/formatters';
 import AppIcon from '@/components/AppIcon.vue';
@@ -1173,6 +1760,7 @@ const subTab = ref<
   | 'reconciliation'
   | 'aging'
   | 'proof'
+  | 'periods'
 >('trial_balance');
 const loading = ref(false);
 const error = ref<string | null>(null);
@@ -1185,6 +1773,12 @@ const accountsList = ref<AccountItem[]>([]);
 
 // Reconciliation Data
 const reconciliationsList = ref<BankReconciliation[]>([]);
+const selectedRec = ref<BankReconciliation | null>(null);
+const statementTransactions = ref<BankStatementTransaction[]>([]);
+const statementFileInput = ref<HTMLInputElement | null>(null);
+const uploadingStatement = ref(false);
+const autoMatching = ref(false);
+const finalizingRec = ref(false);
 const showNewRecModal = ref(false);
 const recSubmitting = ref(false);
 const newRecForm = ref({
@@ -1194,10 +1788,33 @@ const newRecForm = ref({
   notes: '',
 });
 
-// Aging Data
+// Aging Data & GL Reconciliation
 const customerAgingData = ref<CustomerAgingResponse | null>(null);
 const supplierAgingData = ref<SupplierAgingResponse | null>(null);
+const agingRecData = ref<AgingReconciliationResponse | null>(null);
 const agingActiveTab = ref<'customers' | 'suppliers'>('customers');
+
+// Financial Periods Data
+const periodsList = ref<FinancialPeriod[]>([]);
+const selectedPeriod = ref<FinancialPeriod | null>(null);
+const periodChecklist = ref<PeriodChecklistResponse | null>(null);
+const showChecklistModal = ref(false);
+const showNewPeriodModal = ref(false);
+const showReopenModal = ref(false);
+const reopenReason = ref('');
+const closingPeriod = ref(false);
+const periodSubmitting = ref(false);
+const newPeriodForm = ref({
+  period_name: '',
+  period_code: '',
+  start_date: new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+    .toISOString()
+    .slice(0, 10),
+  end_date: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0)
+    .toISOString()
+    .slice(0, 10),
+  fiscal_year: new Date().getFullYear(),
+});
 
 // Ledger Proof Data
 const ledgerProofData = ref<LedgerReconciliationSummary | null>(null);
@@ -1413,6 +2030,112 @@ const loadReconciliations = async () => {
   }
 };
 
+const viewRecDetails = async (rec: BankReconciliation) => {
+  selectedRec.value = rec;
+  await loadStatementTransactions(rec.id);
+};
+
+const backToRecList = () => {
+  selectedRec.value = null;
+  statementTransactions.value = [];
+};
+
+const loadStatementTransactions = async (recId: number) => {
+  try {
+    const res = await accountingApi.getStatementTransactions(recId);
+    if (res.data) statementTransactions.value = res.data;
+  } catch (err: any) {
+    console.error('Failed to load statement transactions', err);
+  }
+};
+
+const onStatementFileSelected = async (e: Event) => {
+  const target = e.target as HTMLInputElement;
+  const file = target.files?.[0];
+  if (!file || !selectedRec.value) return;
+
+  uploadingStatement.value = true;
+  try {
+    const res = await accountingApi.importBankStatement(selectedRec.value.id, file);
+    alert(`تم استيراد ${res.data?.imported_count || 0} حركة بنكية بنجاح`);
+    await loadStatementTransactions(selectedRec.value.id);
+    const updatedRec = await accountingApi.getReconciliationById(selectedRec.value.id);
+    if (updatedRec.data) selectedRec.value = updatedRec.data;
+    await loadReconciliations();
+  } catch (err: any) {
+    alert(err.response?.data?.message || err.message || 'فشل استيراد كشف الحساب البنكي');
+  } finally {
+    uploadingStatement.value = false;
+    target.value = '';
+  }
+};
+
+const triggerAutoMatch = async () => {
+  if (!selectedRec.value) return;
+  autoMatching.value = true;
+  try {
+    const res = await accountingApi.autoMatchTransactions(selectedRec.value.id);
+    alert(`اكتملت المطابقة: تمت مطابقة ${res.data?.matched_count || 0} حركة`);
+    await loadStatementTransactions(selectedRec.value.id);
+    const updatedRec = await accountingApi.getReconciliationById(selectedRec.value.id);
+    if (updatedRec.data) selectedRec.value = updatedRec.data;
+    await loadReconciliations();
+  } catch (err: any) {
+    alert(err.response?.data?.message || err.message || 'فشل تشغيل المطابقة الآلية');
+  } finally {
+    autoMatching.value = false;
+  }
+};
+
+const unmatchTx = async (txId: number) => {
+  if (!selectedRec.value) return;
+  try {
+    await accountingApi.unmatchTransaction(txId);
+    await loadStatementTransactions(selectedRec.value.id);
+    const updatedRec = await accountingApi.getReconciliationById(selectedRec.value.id);
+    if (updatedRec.data) selectedRec.value = updatedRec.data;
+    await loadReconciliations();
+  } catch (err: any) {
+    alert(err.response?.data?.message || err.message || 'فشل إلغاء المطابقة');
+  }
+};
+
+const excludeTx = async (txId: number) => {
+  if (!selectedRec.value) return;
+  const reason = prompt('سبب استبعاد الحركة البنكية من المطابقة:');
+  if (reason === null) return;
+  try {
+    await accountingApi.excludeTransaction(txId, reason);
+    await loadStatementTransactions(selectedRec.value.id);
+    const updatedRec = await accountingApi.getReconciliationById(selectedRec.value.id);
+    if (updatedRec.data) selectedRec.value = updatedRec.data;
+    await loadReconciliations();
+  } catch (err: any) {
+    alert(err.response?.data?.message || err.message || 'فشل استبعاد الحركة');
+  }
+};
+
+const finalizeRec = async () => {
+  if (!selectedRec.value) return;
+  if (Math.abs(selectedRec.value.difference) > 0.01) {
+    alert('لا يمكن اعتماد المطابقة بوجود فارق مالي! يجب أن يكون الفارق 0.00');
+    return;
+  }
+  if (!confirm('هل أنت متأكد من اعتماد وإقفال جلسة المطابقة نهائياً؟')) return;
+
+  finalizingRec.value = true;
+  try {
+    const res = await accountingApi.finalizeReconciliation(selectedRec.value.id);
+    alert('تم اعتماد وإقفال جلسة المطابقة بنجاح');
+    if (res.data) selectedRec.value = res.data;
+    await loadReconciliations();
+  } catch (err: any) {
+    alert(err.response?.data?.message || err.message || 'فشل اعتماد المطابقة');
+  } finally {
+    finalizingRec.value = false;
+  }
+};
+
 const loadAgingData = async () => {
   loading.value = true;
   error.value = null;
@@ -1424,10 +2147,98 @@ const loadAgingData = async () => {
       const res = await accountingApi.getSupplierAging(props.toDate);
       if (res.data) supplierAgingData.value = res.data;
     }
+    const recRes = await accountingApi.getAgingReconciliation(props.toDate);
+    if (recRes.data) agingRecData.value = recRes.data;
   } catch (err: any) {
     error.value = err.response?.data?.message || err.message || 'فشل تحميل بيانات أعمار الديون';
   } finally {
     loading.value = false;
+  }
+};
+
+const loadPeriods = async () => {
+  loading.value = true;
+  error.value = null;
+  try {
+    const res = await accountingApi.listPeriods();
+    if (res.data) periodsList.value = res.data;
+  } catch (err: any) {
+    error.value = err.response?.data?.message || err.message || 'فشل تحميل الفترات المحاسبية';
+  } finally {
+    loading.value = false;
+  }
+};
+
+const openChecklist = async (p: FinancialPeriod) => {
+  selectedPeriod.value = p;
+  showChecklistModal.value = true;
+  periodChecklist.value = null;
+  try {
+    const res = await accountingApi.getPeriodChecklist(p.id);
+    if (res.data) periodChecklist.value = res.data;
+  } catch (err: any) {
+    alert(err.response?.data?.message || err.message || 'فشل جلب قائمة تدقيق الفترة');
+  }
+};
+
+const closePeriodNow = async () => {
+  if (!selectedPeriod.value) return;
+  if (
+    !confirm(
+      `هل أنت متأكد من إقفال الفترة ${selectedPeriod.value.period_name}؟ بعد الإقفال سيتم منع أي تعديل أو إنشاء قيود بتاريخ يقع ضمن هذه الفترة.`,
+    )
+  )
+    return;
+
+  closingPeriod.value = true;
+  try {
+    await accountingApi.closePeriod(selectedPeriod.value.id);
+    alert('تم إقفال الفترة المحاسبية بنجاح وتفعيل قفل السجلات');
+    showChecklistModal.value = false;
+    await loadPeriods();
+  } catch (err: any) {
+    alert(err.response?.data?.message || err.message || 'فشل إقفال الفترة المحاسبية');
+  } finally {
+    closingPeriod.value = false;
+  }
+};
+
+const openReopenModal = (p: FinancialPeriod) => {
+  selectedPeriod.value = p;
+  reopenReason.value = '';
+  showReopenModal.value = true;
+};
+
+const confirmReopenPeriod = async () => {
+  if (!selectedPeriod.value || !reopenReason.value.trim()) {
+    alert('يرجى كتابة سبب وجيه لإعادة فتح الفترة المقفلة');
+    return;
+  }
+  periodSubmitting.value = true;
+  try {
+    await accountingApi.reopenPeriod(selectedPeriod.value.id, reopenReason.value);
+    alert('تم إعادة فتح الفترة المحاسبية بنجاح');
+    showReopenModal.value = false;
+    await loadPeriods();
+  } catch (err: any) {
+    alert(err.response?.data?.message || err.message || 'فشل إعادة فتح الفترة');
+  } finally {
+    periodSubmitting.value = false;
+  }
+};
+
+const submitCreatePeriod = async () => {
+  if (!newPeriodForm.value.period_code || !newPeriodForm.value.period_name) return;
+  periodSubmitting.value = true;
+  try {
+    await accountingApi.createPeriod(newPeriodForm.value);
+    alert('تم إنشاء الفترة المحاسبية بنجاح');
+    showNewPeriodModal.value = false;
+    await loadPeriods();
+  } catch (err: any) {
+    alert(err.response?.data?.message || err.message || 'فشل إنشاء الفترة');
+  } finally {
+    periodSubmitting.value = false;
   }
 };
 
@@ -1489,6 +2300,8 @@ const loadCurrentSubTab = async () => {
     await loadAgingData();
   } else if (subTab.value === 'proof') {
     await loadLedgerProof();
+  } else if (subTab.value === 'periods') {
+    await loadPeriods();
   }
 };
 
@@ -1758,5 +2571,110 @@ onMounted(async () => {
 .bg-danger-light {
   background: #fee2e2;
   color: #991b1b;
+}
+
+.action-buttons-group {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.gl-reconcile-banner {
+  padding: 16px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color, #e2e8f0);
+}
+
+.gl-reconcile-banner.reconciled {
+  background: #f0fdf4;
+  border-color: #86efac;
+}
+
+.gl-reconcile-banner.unreconciled {
+  background: #fef2f2;
+  border-color: #fca5a5;
+}
+
+.banner-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.banner-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.95rem;
+}
+
+.banner-details-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+.banner-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.875rem;
+  flex-wrap: wrap;
+}
+
+.item-sep {
+  color: var(--text-muted, #64748b);
+  font-weight: bold;
+}
+
+.checklist-items-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.checklist-items-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+}
+
+.checklist-items-list li.check-pass {
+  background: #f0fdf4;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+}
+
+.checklist-items-list li.check-fail {
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+.check-icon {
+  font-weight: bold;
+  font-size: 1.1rem;
+}
+
+.blockers-box {
+  background: #fff1f2;
+  border: 1px solid #fecdd3;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 0.875rem;
+}
+
+.table-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 </style>

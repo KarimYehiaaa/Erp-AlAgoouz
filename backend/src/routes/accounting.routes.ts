@@ -7,6 +7,7 @@ import { authenticate, authorize } from '../middleware/auth.ts';
 import { accountingController } from '../controllers/accountingController.ts';
 import { purchaseReturnController } from '../controllers/purchaseReturnController.ts';
 import { purchaseOrderController } from '../controllers/purchaseOrderController.ts';
+import { upload } from './helpers.ts';
 
 const router = Router();
 
@@ -47,7 +48,14 @@ router.post(
   accountingController.createJournalEntry,
 );
 
-// ─── 3. القوائم والتقارير المالية الدفترية (General Ledger, Trial Balance, BS) ──
+router.post(
+  '/accounting/journal-entries/:id/reverse',
+  authenticate,
+  authorize('accounting.manage'),
+  accountingController.reverseJournalEntry,
+);
+
+// ─── 3. القوائم والتقارير المالية الدفترية (General Ledger, Trial Balance, BS, P&L) ──
 router.get(
   '/accounting/general-ledger',
   authenticate,
@@ -67,6 +75,13 @@ router.get(
   authenticate,
   authorize('accounting.view', 'reports.view'),
   accountingController.getBalanceSheet,
+);
+
+router.get(
+  '/accounting/income-statement',
+  authenticate,
+  authorize('accounting.view', 'reports.view'),
+  accountingController.getIncomeStatement,
 );
 
 // ─── 4. مرتجعات المشتريات (Purchase Returns) ──────────────────────────────────
@@ -106,6 +121,13 @@ router.get(
   accountingController.getSupplierAging,
 );
 
+router.get(
+  '/accounting/aging/reconciliation',
+  authenticate,
+  authorize('accounting.view', 'reports.view'),
+  accountingController.reconcileAgingWithLedger,
+);
+
 // ─── 6. مطابقة أرقام العمليات مع الأستاذ العام (P&L Ledger Reconciliation) ───
 router.get(
   '/accounting/ledger-reconciliation',
@@ -134,6 +156,56 @@ router.post(
   authenticate,
   authorize('reconciliation.manage', 'accounting.manage'),
   accountingController.createReconciliation,
+);
+
+router.post(
+  '/accounting/reconciliations/:id/import-statement',
+  authenticate,
+  authorize('reconciliation.manage', 'accounting.manage'),
+  upload.single('file'),
+  accountingController.importStatement,
+);
+
+router.get(
+  '/accounting/reconciliations/:id/transactions',
+  authenticate,
+  authorize('reconciliation.view', 'accounting.view'),
+  accountingController.getStatementTransactions,
+);
+
+router.post(
+  '/accounting/reconciliations/:id/auto-match',
+  authenticate,
+  authorize('reconciliation.manage', 'accounting.manage'),
+  accountingController.autoMatchTransactions,
+);
+
+router.post(
+  '/accounting/reconciliations/transactions/:txId/match',
+  authenticate,
+  authorize('reconciliation.manage', 'accounting.manage'),
+  accountingController.matchTransaction,
+);
+
+router.post(
+  '/accounting/reconciliations/transactions/:txId/unmatch',
+  authenticate,
+  authorize('reconciliation.manage', 'accounting.manage'),
+  accountingController.unmatchTransaction,
+);
+
+router.post(
+  '/accounting/reconciliations/transactions/:txId/exclude',
+  authenticate,
+  authorize('reconciliation.manage', 'accounting.manage'),
+  accountingController.excludeTransaction,
+);
+
+router.post(
+  '/accounting/reconciliations/:id/finalize',
+  authenticate,
+  authorize('reconciliation.manage', 'accounting.manage'),
+  accountingController.finalizeReconciliation,
 );
 
 // ─── 8. دورة أوامر الشراء والاستلام (Purchase Orders) ─────────────────────────
@@ -177,6 +249,49 @@ router.post(
   authenticate,
   authorize('purchase_orders.manage', 'purchases.create'),
   purchaseOrderController.cancelPurchaseOrder,
+);
+
+// ─── 9. الفترات والإقفال المالي (Financial Periods) ─────────────────────────
+router.get(
+  '/accounting/periods',
+  authenticate,
+  authorize('accounting.view', 'settings.view'),
+  accountingController.listPeriods,
+);
+
+router.post(
+  '/accounting/periods',
+  authenticate,
+  authorize('accounting.period_close', 'accounting.manage', 'settings.edit'),
+  accountingController.createPeriod,
+);
+
+router.get(
+  '/accounting/periods/:id',
+  authenticate,
+  authorize('accounting.view', 'settings.view'),
+  accountingController.getPeriodById,
+);
+
+router.get(
+  '/accounting/periods/:id/checklist',
+  authenticate,
+  authorize('accounting.view', 'settings.view'),
+  accountingController.getPeriodChecklist,
+);
+
+router.post(
+  '/accounting/periods/:id/close',
+  authenticate,
+  authorize('accounting.period_close', 'accounting.manage'),
+  accountingController.closePeriod,
+);
+
+router.post(
+  '/accounting/periods/:id/reopen',
+  authenticate,
+  authorize('accounting.period_reopen', 'accounting.manage'),
+  accountingController.reopenPeriod,
 );
 
 export default router;

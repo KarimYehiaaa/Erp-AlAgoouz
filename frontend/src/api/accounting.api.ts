@@ -2,7 +2,7 @@
  * api/accounting.api.ts — واجهة الاتصال البرمجية للنظام المحاسبي ودفتر الأستاذ ومرتجعات المشتريات
  */
 
-import { get, post, put } from './client';
+import { get, post, put, uploadFile } from './client';
 
 export interface AccountItem {
   id: number;
@@ -296,6 +296,86 @@ export interface ReceiveGoodsPayload {
   notes?: string;
 }
 
+export interface BankStatementTransaction {
+  id: number;
+  reconciliation_id: number;
+  transaction_date: string;
+  description: string;
+  reference_number?: string;
+  debit: number;
+  credit: number;
+  status: 'unmatched' | 'matched' | 'excluded';
+  matched_journal_entry_line_id?: number;
+  match_confidence?: number;
+  match_rule?: string;
+  notes?: string;
+}
+
+export interface AgingReconciliationSide {
+  subledger_total: number;
+  control_account_balance: number;
+  variance: number;
+  is_reconciled: boolean;
+}
+
+export interface AgingReconciliationResponse {
+  as_of_date: string;
+  customers: AgingReconciliationSide;
+  suppliers: AgingReconciliationSide;
+  is_all_reconciled: boolean;
+}
+
+export interface IncomeStatementResponse {
+  period: { from_date: string; to_date: string };
+  revenues: {
+    items: Array<{ account_id: number; code: string; name_ar: string; balance: number }>;
+    total: number;
+  };
+  cogs: {
+    items: Array<{ account_id: number; code: string; name_ar: string; balance: number }>;
+    total: number;
+  };
+  gross_profit: number;
+  expenses: {
+    items: Array<{ account_id: number; code: string; name_ar: string; balance: number }>;
+    total: number;
+  };
+  net_operating_income: number;
+}
+
+export interface FinancialPeriod {
+  id: number;
+  period_name: string;
+  period_code: string;
+  start_date: string;
+  end_date: string;
+  fiscal_year: number;
+  status: 'open' | 'closed' | 'locked';
+  closed_at?: string;
+  closed_by?: number;
+  reopened_at?: string;
+  reopened_by?: number;
+  checklist?: any;
+  notes?: string;
+}
+
+export interface PeriodChecklistResponse {
+  period: FinancialPeriod;
+  is_ready_to_close: boolean;
+  blockers: string[];
+  warnings: string[];
+  checks: {
+    unbalanced_journal_entries: { passed: boolean; count: number };
+    draft_journal_entries: { passed: boolean; count: number };
+    unreconciled_bank_sessions: { passed: boolean; count: number };
+    aging_ledger_discrepancies: {
+      passed: boolean;
+      customer_variance: number;
+      supplier_variance: number;
+    };
+  };
+}
+
 export const accountingApi = {
   // دليل الحسابات
   getAccounts: (params?: { account_type?: string; is_active?: boolean; parent_id?: number }) =>
@@ -312,6 +392,9 @@ export const accountingApi = {
   createJournalEntry: (data: CreateJournalEntryPayload) =>
     post<any>('/accounting/journal-entries', data),
 
+  reverseJournalEntry: (id: number, reason?: string) =>
+    post<any>(`/accounting/journal-entries/${id}/reverse`, { reason }),
+
   // القوائم والدفاتر
   getGeneralLedger: (params: {
     account_id?: number;
@@ -325,6 +408,9 @@ export const accountingApi = {
 
   getBalanceSheet: (asOfDate?: string) =>
     get<BalanceSheetResponse>('/accounting/balance-sheet', { params: { as_of_date: asOfDate } }),
+
+  getIncomeStatement: (params?: { from_date?: string; to_date?: string }) =>
+    get<IncomeStatementResponse>('/accounting/income-statement', { params }),
 
   // مرتجعات المشتريات
   getPurchaseReturns: (params?: {
@@ -340,12 +426,17 @@ export const accountingApi = {
   createPurchaseReturn: (data: CreatePurchaseReturnPayload) =>
     post<PurchaseReturn>('/purchases/returns', data),
 
-  // تحليل أعمار الديون
+  // تحليل أعمار الديون والمطابقة
   getCustomerAging: (asOfDate?: string) =>
     get<CustomerAgingResponse>('/accounting/aging/customers', { params: { as_of_date: asOfDate } }),
 
   getSupplierAging: (asOfDate?: string) =>
     get<SupplierAgingResponse>('/accounting/aging/suppliers', { params: { as_of_date: asOfDate } }),
+
+  getAgingReconciliation: (asOfDate?: string) =>
+    get<AgingReconciliationResponse>('/accounting/aging/reconciliation', {
+      params: { as_of_date: asOfDate },
+    }),
 
   // مطابقة الأرباح مع الأستاذ العام
   getLedgerReconciliationSummary: (fromDate?: string, toDate?: string) =>
@@ -366,6 +457,61 @@ export const accountingApi = {
 
   createReconciliation: (data: CreateBankReconciliationPayload) =>
     post<BankReconciliation>('/accounting/reconciliations', data),
+
+  importBankStatement: (reconciliationId: number, file: File) =>
+    uploadFile<{ imported_count: number }>(
+      `/accounting/reconciliations/${reconciliationId}/import-statement`,
+      file,
+      'file',
+    ),
+
+  getStatementTransactions: (reconciliationId: number, params?: { status?: string }) =>
+    get<BankStatementTransaction[]>(
+      `/accounting/reconciliations/${reconciliationId}/transactions`,
+      {
+        params,
+      },
+    ),
+
+  autoMatchTransactions: (reconciliationId: number) =>
+    post<{ matched_count: number; remaining_unmatched: number }>(
+      `/accounting/reconciliations/${reconciliationId}/auto-match`,
+    ),
+
+  matchTransaction: (
+    txId: number,
+    data: { journal_entry_line_id?: number; bank_diff_entry?: boolean; notes?: string },
+  ) =>
+    post<BankStatementTransaction>(`/accounting/reconciliations/transactions/${txId}/match`, data),
+
+  unmatchTransaction: (txId: number) =>
+    post<BankStatementTransaction>(`/accounting/reconciliations/transactions/${txId}/unmatch`),
+
+  excludeTransaction: (txId: number, reason?: string) =>
+    post<BankStatementTransaction>(`/accounting/reconciliations/transactions/${txId}/exclude`, {
+      reason,
+    }),
+
+  finalizeReconciliation: (reconciliationId: number) =>
+    post<BankReconciliation>(`/accounting/reconciliations/${reconciliationId}/finalize`),
+
+  // الفترات المحاسبية والإقفال المالي
+  listPeriods: (params?: { status?: string }) =>
+    get<FinancialPeriod[]>('/accounting/periods', { params }),
+
+  getPeriodById: (id: number) => get<FinancialPeriod>(`/accounting/periods/${id}`),
+
+  createPeriod: (data: Partial<FinancialPeriod>) =>
+    post<FinancialPeriod>('/accounting/periods', data),
+
+  getPeriodChecklist: (id: number) =>
+    get<PeriodChecklistResponse>(`/accounting/periods/${id}/checklist`),
+
+  closePeriod: (id: number, data?: { notes?: string }) =>
+    post<FinancialPeriod>(`/accounting/periods/${id}/close`, data),
+
+  reopenPeriod: (id: number, reason?: string) =>
+    post<FinancialPeriod>(`/accounting/periods/${id}/reopen`, { reason }),
 
   // أوامر الشراء والاستلام
   listPurchaseOrders: (params?: {

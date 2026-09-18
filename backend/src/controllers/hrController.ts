@@ -164,6 +164,16 @@ export const hr = {
     ok(res, await hrService.getPayrollRun(req.params.id));
   }),
   /**
+   * اعتماد مسير رواتب دورة محددة وترحيل قيد الاستحقاق.
+   */
+  approvePayroll: wrap(async (req, res) => {
+    ok(
+      res,
+      await hrService.approvePayrollRun(Number(req.params.id), req.user.id),
+      'تم اعتماد مسير المرتبات وإثبات قيد الاستحقاق',
+    );
+  }),
+  /**
    * تسجيل صرف رواتب دورة محددة.
    * @param {import('express').Request} req طلب HTTP
    * @param {import('express').Response} res استجابة HTTP
@@ -172,7 +182,7 @@ export const hr = {
   payPayroll: wrap(async (req, res) => {
     ok(
       res,
-      await hrService.payPayrollRun(req.params.id, req.user.id, req.body?.payment_method),
+      await hrService.payPayrollRun(Number(req.params.id), req.user.id, req.body?.payment_method),
       'تم صرف المرتبات',
     );
   }),

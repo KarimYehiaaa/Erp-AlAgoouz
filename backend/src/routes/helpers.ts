@@ -17,6 +17,7 @@ const ALLOWED_MIMES = new Set([
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // xlsx
   'application/vnd.ms-excel', // xls
   'text/csv',
+  'text/plain',
   'application/json',
   'application/sql',
   'application/x-sql', // backup restore

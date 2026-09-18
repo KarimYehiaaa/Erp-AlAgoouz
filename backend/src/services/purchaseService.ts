@@ -349,13 +349,18 @@ export const listPurchaseInvoices = async (filters: Record<string, any> = {}) =>
  * @param {number} userId معرف المستخدم المنفّذ
  * @returns {Promise<any>}
  */
-export const createPurchaseInvoice = async (payload: Record<string, any>, userId: number) => {
+export const createPurchaseInvoice = async (
+  payload: Record<string, any>,
+  userId: number,
+  providedClient?: any,
+) => {
   const items = Array.isArray(payload.items) ? payload.items : [];
   if (!items.length) throw new AppError('لا توجد أصناف في الفاتورة', 400);
 
-  const client = await getClient();
+  const client = providedClient || (await getClient());
+  const shouldManageTransaction = !providedClient;
   try {
-    await client.query('BEGIN');
+    if (shouldManageTransaction) await client.query('BEGIN');
 
     const invoiceNumber = await generateNumber(client);
     let subtotal = 0;
@@ -515,14 +520,14 @@ export const createPurchaseInvoice = async (payload: Record<string, any>, userId
       console.warn(`[Accounting] تعذر ترحيل قيد المشتريات تلقائياً: ${accErr.message}`);
     }
 
-    await client.query('COMMIT');
+    if (shouldManageTransaction) await client.query('COMMIT');
     invalidateDashboardCache();
     return invoice;
   } catch (e: any) {
-    await client.query('ROLLBACK');
+    if (shouldManageTransaction) await client.query('ROLLBACK');
     throw e;
   } finally {
-    client.release();
+    if (shouldManageTransaction) client.release();
   }
 };
 

@@ -81,6 +81,12 @@ router.post(
 );
 router.get('/hr/payroll/:id', authenticate, authorize('hr.view'), api.hr.getPayroll);
 router.post(
+  '/hr/payroll/:id/approve',
+  authenticate,
+  authorize('hr.pay', 'hr.manage'),
+  api.hr.approvePayroll,
+);
+router.post(
   '/hr/payroll/:id/pay',
   authenticate,
   authorize('hr.pay'),

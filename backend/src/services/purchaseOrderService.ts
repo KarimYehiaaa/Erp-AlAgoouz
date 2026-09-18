@@ -336,29 +336,31 @@ export const purchaseOrderService = {
       throw new AppError('لم يتم تحديد أي كميات موجبة للاستلام', 400);
     }
 
-    // إذا اختار المستخدم التحويل التلقائي لفاتورة مشتريات
+    // إذا اختار المستخدم التحويل التلقائي لفاتورة مشتريات (معاملة ذرية واحدة متكاملة)
     if (payload.convertToInvoice) {
-      const invoiceItems = receiptLines.map((line) => ({
-        product_id: line.product_id,
-        quantity: line.quantity_to_receive,
-        unit_price: line.unit_price,
-      }));
-
-      // إنشاء فاتورة المشتريات (تقوم بإضافة المخزون وحساب التكلفة وترحيل القيد للأستاذ)
-      const invoice = await createPurchaseInvoice(
-        {
-          supplier_id: po.supplier_id,
-          warehouse_id: po.warehouse_id,
-          notes: `استلام آلي من أمر الشراء ${po.po_number}${payload.notes ? ' - ' + payload.notes : ''}`,
-          items: invoiceItems,
-        },
-        userId,
-      );
-
-      // تحديث الكميات المستلمة وحالة أمر الشراء
       const client = await getClient();
       try {
         await client.query('BEGIN');
+
+        const invoiceItems = receiptLines.map((line) => ({
+          product_id: line.product_id,
+          quantity: line.quantity_to_receive,
+          unit_price: line.unit_price,
+        }));
+
+        // إنشاء فاتورة المشتريات ذرياً (إضافة المخزون وحساب التكلفة وترحيل القيد للأستاذ)
+        const invoice = await createPurchaseInvoice(
+          {
+            supplier_id: po.supplier_id,
+            warehouse_id: po.warehouse_id,
+            notes: `استلام آلي من أمر الشراء ${po.po_number}${payload.notes ? ' - ' + payload.notes : ''}`,
+            items: invoiceItems,
+          },
+          userId,
+          client,
+        );
+
+        // تحديث الكميات المستلمة في بنود أمر الشراء
         for (const line of receiptLines) {
           await client.query(
             `UPDATE purchase_order_items
@@ -387,17 +389,17 @@ export const purchaseOrderService = {
         );
 
         await client.query('COMMIT');
+
+        return {
+          purchase_order: await this.getPurchaseOrderById(id),
+          purchase_invoice: invoice,
+        };
       } catch (err) {
         await client.query('ROLLBACK');
         throw err;
       } finally {
         client.release();
       }
-
-      return {
-        purchase_order: await this.getPurchaseOrderById(id),
-        purchase_invoice: invoice,
-      };
     }
 
     // الاستلام المخزني فقط (بدون فاتورة مشتريات مالية فورية)

@@ -875,6 +875,48 @@ const applyAdvanceDeductions = async (client, employeeId, amount) => {
 };
 
 /**
+ * اعتماد مسير الرواتب وترحيل قيد الاستحقاق إلى دفتر الأستاذ العام
+ * مدين: 5201 (مصاريف رواتب) / دائن: 210301 (رواتب مستحقة)
+ */
+export const approvePayrollRun = async (id: number, userId: number) => {
+  const client = await getClient();
+  try {
+    await client.query('BEGIN');
+    const runRes = await client.query(
+      `SELECT * FROM payroll_runs WHERE id = $1 AND deleted_at IS NULL FOR UPDATE`,
+      [id],
+    );
+    const run = runRes.rows[0];
+    if (!run) throw new AppError('مسير المرتبات غير موجود', 404);
+    if (run.status !== 'draft') {
+      throw new AppError('لا يمكن اعتماد مسير غير مسودة أو تم اعتماده مسبقاً', 400);
+    }
+
+    const updated = await client.query(
+      `UPDATE payroll_runs SET status = 'approved', updated_at = NOW() WHERE id = $1 RETURNING *`,
+      [id],
+    );
+
+    // ترحيل قيد الاستحقاق المحاسبي ذرياً
+    const { accountingService } = await import('./accountingService.ts');
+    await accountingService.postPayrollAccrualJournalEntry(client, {
+      id: run.id,
+      period_month: run.period_month,
+      total_net: Number(run.total_net),
+      user_id: userId,
+    });
+
+    await client.query('COMMIT');
+    return getPayrollRun(id);
+  } catch (e: any) {
+    await client.query('ROLLBACK');
+    throw e;
+  } finally {
+    client.release();
+  }
+};
+
+/**
  * صرف مسير رواتب (تحديد طريقة الدفع).
  * @param {number} id معرف المسير
  * @param {number} userId معرف المستخدم المنفّذ
@@ -919,6 +961,28 @@ export const payPayrollRun = async (id: number, userId: number, paymentMethod: s
       `UPDATE payroll_runs SET status = 'paid', paid_at = NOW(), expense_id = $1, user_id = $2 WHERE id = $3 RETURNING *`,
       [expense.rows[0].id, userId, id],
     );
+
+    // التكامل المحاسبي الدفتري الكامل:
+    const { accountingService } = await import('./accountingService.ts');
+    // ضمان وجود قيد الاستحقاق (Accrual) إذا لم يكن المسير قد اعتُمد قبلاً
+    await accountingService.postPayrollAccrualJournalEntry(client, {
+      id: run.id,
+      period_month: run.period_month,
+      total_net: Number(run.total_net),
+      user_id: userId,
+    });
+    // ترحيل قيد الصرف (Disbursement): مدين رواتب مستحقة 210301، دائن الخزينة/البنك
+    await accountingService.postPayrollDisbursementJournalEntry(
+      client,
+      {
+        id: run.id,
+        period_month: run.period_month,
+        total_net: Number(run.total_net),
+        user_id: userId,
+      },
+      paymentMethod,
+    );
+
     await client.query('COMMIT');
     invalidateDashboardCache();
     return getPayrollRun(updated.rows[0].id);
@@ -958,7 +1022,7 @@ export const deleteAdvance = async (id: number) => {
   }
 };
 
-/** حذف مسير رواتب. */
+/** حذف مسير رواتب وعكس قيوده المحاسبية. */
 export const deletePayrollRun = async (id: number) => {
   const client = await getClient();
   try {
@@ -971,6 +1035,11 @@ export const deletePayrollRun = async (id: number) => {
     ).rows[0];
     if (!run) throw new AppError('مسير المرتبات غير موجود', 404);
     if (run.status === 'paid') throw new AppError('لا يمكن حذف مسير مرتبات تم صرفه بالفعل', 400);
+
+    // عكس قيود الاستحقاق المحاسبية
+    const { accountingService } = await import('./accountingService.ts');
+    await accountingService.reversePayrollJournalEntries(client, id);
+
     await client.query(`UPDATE payroll_runs SET deleted_at = NOW() WHERE id = $1`, [id]);
     await client.query(`DELETE FROM payroll_items WHERE payroll_run_id = $1`, [id]);
     await client.query('COMMIT');

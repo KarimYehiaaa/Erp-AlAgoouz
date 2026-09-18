@@ -50,15 +50,27 @@ export function validateWorkerServerUrl(
 export class PosSyncWorker {
   private isRunning = false;
   private intervalId: NodeJS.Timeout | null = null;
-  private serverUrl = process.env.POS_SERVER_URL || 'http://localhost:3000/api/v1';
+  private serverUrl: string;
   private authToken: string | null = null;
   private syncInFlight = false;
 
   constructor(
     private readQueue: () => any[],
     private updateStatus: (syncId: string, status: string, serverId?: any, errorMessage?: string) => boolean,
-    private getMainWindow: () => BrowserWindow | null
-  ) {}
+    private getMainWindow: () => BrowserWindow | null,
+    private isPackaged: boolean = false
+  ) {
+    const rawInitial = process.env.POS_SERVER_URL || 'http://localhost:3000/api/v1';
+    const validation = validateWorkerServerUrl(rawInitial, this.isPackaged);
+    if (validation.valid && validation.normalizedUrl) {
+      this.serverUrl = validation.normalizedUrl;
+    } else {
+      console.warn(
+        `[SyncWorker Security] Initial server URL (${rawInitial}) rejected for production environment: ${validation.error}. Falling back to default secure localhost.`
+      );
+      this.serverUrl = 'http://localhost:3000/api/v1';
+    }
+  }
 
   public getServerUrl(): string {
     return this.serverUrl;
@@ -70,7 +82,7 @@ export class PosSyncWorker {
   }
 
   public setServerUrl(url: string, isPackaged?: boolean): boolean {
-    const packaged = isPackaged !== undefined ? isPackaged : (process.env.NODE_ENV === 'production');
+    const packaged = isPackaged !== undefined ? isPackaged : this.isPackaged;
     const res = validateWorkerServerUrl(url, packaged);
     if (!res.valid || !res.normalizedUrl) {
       console.error('[SyncWorker Security] Rejected invalid or unencrypted server URL:', url, 'Error:', res.error);
@@ -133,6 +145,15 @@ export class PosSyncWorker {
       }
 
       console.log(`[SyncWorker] Found ${pendingItems.length} pending items. Attempting sync...`);
+
+      // Pre-flight server URL security verification
+      const urlCheck = validateWorkerServerUrl(this.serverUrl, this.isPackaged);
+      if (!urlCheck.valid || !urlCheck.normalizedUrl) {
+        console.error(
+          `[SyncWorker Security] Blocked outbound sync: unencrypted or invalid URL in production (${this.serverUrl}): ${urlCheck.error}`
+        );
+        return { success: false, synced: 0, remaining: pendingItems.length };
+      }
 
       // Check server health
       const isOnline = await this.pingServer();

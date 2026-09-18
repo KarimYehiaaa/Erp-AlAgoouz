@@ -25,7 +25,10 @@ export const usePosAuthStore = defineStore('posAuth', () => {
       localStorage.setItem('pos_user', JSON.stringify(payload.user));
 
       if (window.electronAPI?.setAuthToken) {
-        await window.electronAPI.setAuthToken(payload.token, localStorage.getItem('pos_server_url') || undefined);
+        const sessionRes = await window.electronAPI.setAuthToken(payload.token, localStorage.getItem('pos_server_url') || undefined);
+        if (sessionRes && !sessionRes.success) {
+          console.warn('[PosAuth] Background sync session warning:', sessionRes.error);
+        }
       }
       return payload;
     }

@@ -15,6 +15,10 @@ import { AppError } from '../types/errors.ts';
 import { roundMoney, sumMoney } from '../utils/money.ts';
 import { appCache } from '../utils/cache.ts';
 
+export function getLocalTodayDate(): string {
+  return new Date().toLocaleDateString('en-CA');
+}
+
 // أكواد الحسابات القياسية الافتراضية
 export const STANDARD_ACCOUNTS = {
   // الأصول
@@ -911,7 +915,7 @@ export const accountingService = {
   /**
    * الميزانية العمومية (Balance Sheet): الأصول = الخصوم + حقوق الملكية
    */
-  async getBalanceSheet(asOfDate: string = new Date().toISOString().slice(0, 10)) {
+  async getBalanceSheet(asOfDate: string = getLocalTodayDate()) {
     // نجلب ميزان المراجعة حتى هذا التاريخ
     const tb = await this.getTrialBalance({ from_date: '2000-01-01', to_date: asOfDate });
 
@@ -1678,7 +1682,7 @@ export const accountingService = {
    * تحليل أعمار ديون العملاء (Customer Aging)
    */
   async getCustomerAging(asOfDate?: string) {
-    const dateStr = asOfDate || new Date().toISOString().slice(0, 10);
+    const dateStr = asOfDate || getLocalTodayDate();
     const sql = `
       WITH unpaid_debts AS (
         SELECT 
@@ -1742,7 +1746,7 @@ export const accountingService = {
    * تحليل أعمار مستحقات الموردين (Supplier Aging)
    */
   async getSupplierAging(asOfDate?: string) {
-    const dateStr = asOfDate || new Date().toISOString().slice(0, 10);
+    const dateStr = asOfDate || getLocalTodayDate();
     const sql = `
       WITH unpaid_bills AS (
         SELECT 
@@ -1807,8 +1811,8 @@ export const accountingService = {
    * تقرير مطابقة أرقام العمليات التشغيلية مع الأستاذ العام
    */
   async getLedgerReconciliationSummary(fromDate?: string, toDate?: string) {
-    const fDate = fromDate || new Date().toISOString().slice(0, 8) + '01';
-    const tDate = toDate || new Date().toISOString().slice(0, 10);
+    const fDate = fromDate || getLocalTodayDate().slice(0, 8) + '01';
+    const tDate = toDate || getLocalTodayDate();
 
     const glRes = await query(
       `SELECT 
@@ -1916,8 +1920,8 @@ export const accountingService = {
    * قائمة الدخل الرسمية المباشرة من دفتر الأستاذ العام (Pure GL Income Statement)
    */
   async getIncomeStatement(fromDate?: string, toDate?: string) {
-    const fDate = fromDate || new Date().toISOString().slice(0, 8) + '01';
-    const tDate = toDate || new Date().toISOString().slice(0, 10);
+    const fDate = fromDate || getLocalTodayDate().slice(0, 8) + '01';
+    const tDate = toDate || getLocalTodayDate();
 
     const res = await query(
       `SELECT 
@@ -2003,7 +2007,7 @@ export const accountingService = {
    * مطابقة تقارير الأعمار مع حسابات المراقبة بالأستاذ العام (Subledger vs Control Account)
    */
   async reconcileAgingWithLedger(asOfDate?: string) {
-    const dateStr = asOfDate || new Date().toISOString().slice(0, 10);
+    const dateStr = asOfDate || getLocalTodayDate();
     const customerAging = await this.getCustomerAging(dateStr);
     const supplierAging = await this.getSupplierAging(dateStr);
 

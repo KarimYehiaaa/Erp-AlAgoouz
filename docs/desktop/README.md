@@ -40,7 +40,7 @@ desktop-pos/release/AlAgoouz-POS-Setup-1.0.0.exe
 ```
 
 - **نوع الحزمة:** NSIS Windows Installer (x64).
-- **إصدار Electron:** 44.4.3 (سلسلة الإنتاج المدعومة والمستقرة، خالية من ثغرات الأمان).
+- **إصدار Electron:** 44.4.3 (Supported stable production series).
 - **إصدار Electron Builder:** 26.15.3 مع `--publish never`.
 - **المميزات:**
   - إنشاء اختصار رسمي على سطح المكتب وفي قائمة ابدأ (Start Menu).

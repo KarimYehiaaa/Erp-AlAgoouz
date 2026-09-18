@@ -20,7 +20,8 @@
       }
     ],
     "executableName": "AlAgoouz-POS",
-    "artifactName": "AlAgoouz-POS-Setup-${version}.${ext}"
+    "artifactName": "AlAgoouz-POS-Setup-${version}.${ext}",
+    "signExecutable": false
   },
   "nsis": {
     "oneClick": false,

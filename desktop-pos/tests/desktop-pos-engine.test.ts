@@ -202,6 +202,58 @@ describe('Desktop POS Production Engine & Durability Tests', () => {
     fs.rmSync(testDir, { recursive: true, force: true });
   });
 
+  it('Production Queue Storage Engine: Scenario F & H (Persistence of retry_count, last_error, and server_id)', () => {
+    const testDir = fs.mkdtempSync(path.join(os.tmpdir(), 'alagoouz-pos-status-'));
+
+    // 1. Initial save
+    const saveRes = saveTransaction({ sync_id: 'tx-status-1', total_amount: 150 }, testDir);
+    expect(saveRes.success).toBe(true);
+
+    // 2. Mark as FAILED with error message -> retry_count increments to 1
+    const failRes1 = updateQueueItemStatus('tx-status-1', 'FAILED', undefined, 'ECONNREFUSED 127.0.0.1', testDir);
+    expect(failRes1).toBe(true);
+    let queue = readPendingQueue(testDir);
+    expect(queue[0].status).toBe('FAILED');
+    expect(queue[0].retry_count).toBe(1);
+    expect(queue[0].last_error).toBe('ECONNREFUSED 127.0.0.1');
+
+    // 3. Mark as FAILED second time -> retry_count increments to 2
+    updateQueueItemStatus('tx-status-1', 'FAILED', undefined, 'TIMEOUT', testDir);
+    queue = readPendingQueue(testDir);
+    expect(queue[0].retry_count).toBe(2);
+    expect(queue[0].last_error).toBe('TIMEOUT');
+
+    // 4. Scenario H: Mark as SYNCED with server_id -> persists server_id and status to disk
+    const syncRes = updateQueueItemStatus('tx-status-1', 'SYNCED', 7788, undefined, testDir);
+    expect(syncRes).toBe(true);
+    queue = readPendingQueue(testDir);
+    expect(queue[0].status).toBe('SYNCED');
+    expect(queue[0].server_id).toBe(7788);
+
+    fs.rmSync(testDir, { recursive: true, force: true });
+  });
+
+  it('Production Queue Storage Engine: Scenario G (Idempotency & Deduplication Protection)', () => {
+    const testDir = fs.mkdtempSync(path.join(os.tmpdir(), 'alagoouz-pos-idempotency-'));
+
+    // 1. Save transaction first time
+    const res1 = saveTransaction({ sync_id: 'duplicate-check-1', total_amount: 500, note: 'Initial' }, testDir);
+    expect(res1.success).toBe(true);
+    expect(readPendingQueue(testDir).length).toBe(1);
+
+    // 2. Save same sync_id second time (e.g. retry from UI or re-submit)
+    const res2 = saveTransaction({ sync_id: 'duplicate-check-1', total_amount: 500, note: 'Updated note' }, testDir);
+    expect(res2.success).toBe(true);
+
+    // Verify queue length remains 1 (no duplicates!)
+    const queue = readPendingQueue(testDir);
+    expect(queue.length).toBe(1);
+    expect(queue[0].sync_id).toBe('duplicate-check-1');
+    expect(queue[0].note).toBe('Updated note');
+
+    fs.rmSync(testDir, { recursive: true, force: true });
+  });
+
   // ─────────────────────────────────────────────────────────────
   // 3. Server URL Validation & Security Policy Tests
   // ─────────────────────────────────────────────────────────────
@@ -258,6 +310,53 @@ describe('Desktop POS Production Engine & Durability Tests', () => {
       const acceptRes = worker.setServerUrl('https://secure-api.alagoouz.com/api/v1', true);
       expect(acceptRes).toBe(true);
       expect(worker.getServerUrl()).toBe('https://secure-api.alagoouz.com/api/v1');
+    });
+
+    it('Packaged SyncWorker safely rejects insecure initial environment URL and falls back to localhost', () => {
+      const origEnv = process.env.POS_SERVER_URL;
+      try {
+        process.env.POS_SERVER_URL = 'http://external-insecure-api.com/api/v1';
+
+        // When packaged = true, insecure external HTTP must be rejected at initialization
+        const packagedWorker = new PosSyncWorker(() => [], () => true, () => null, true);
+        expect(packagedWorker.getServerUrl()).toBe('http://localhost:3000/api/v1');
+
+        // When packaged = false (dev mode), localhost is fine
+        process.env.POS_SERVER_URL = 'http://localhost:4000/api/v1';
+        const devWorker = new PosSyncWorker(() => [], () => true, () => null, false);
+        expect(devWorker.getServerUrl()).toBe('http://localhost:4000/api/v1');
+
+        // When packaged = true, valid HTTPS is accepted
+        process.env.POS_SERVER_URL = 'https://cloud-api.alagoouz.com/api/v1';
+        const prodHttpsWorker = new PosSyncWorker(() => [], () => true, () => null, true);
+        expect(prodHttpsWorker.getServerUrl()).toBe('https://cloud-api.alagoouz.com/api/v1');
+      } finally {
+        if (origEnv !== undefined) {
+          process.env.POS_SERVER_URL = origEnv;
+        } else {
+          delete process.env.POS_SERVER_URL;
+        }
+      }
+    });
+
+    it('SyncWorker runSyncCycle pre-flight aborts and blocks outbound sync if serverUrl is invalid in production', async () => {
+      const queue = [{ sync_id: 'preflight-test-1', status: 'PENDING', total_amount: 100 }];
+      const worker = new PosSyncWorker(() => queue, () => true, () => null, true);
+      worker.setAuthToken('mock-auth-token');
+
+      // Force invalid URL on worker instance
+      (worker as any).serverUrl = 'http://remote-external-insecure.com/api/v1';
+
+      const postSpy = vi.spyOn(worker as any, 'postJson');
+      const pingSpy = vi.spyOn(worker as any, 'pingServer');
+
+      const result = await worker.runSyncCycle();
+      expect(result.success).toBe(false);
+      expect(result.synced).toBe(0);
+
+      // Pre-flight check MUST have blocked network requests
+      expect(pingSpy).not.toHaveBeenCalled();
+      expect(postSpy).not.toHaveBeenCalled();
     });
   });
 

@@ -283,13 +283,20 @@ ipcMain.handle('config:set-server-url', (_event, url: string) => {
 
 // 7. Session & Background Sync Bridge
 ipcMain.handle('auth:set-session', (_event, token: string | null, serverUrl?: string) => {
-  if (syncWorker) {
-    syncWorker.setAuthToken(token);
-    if (serverUrl) {
-      syncWorker.setServerUrl(serverUrl, app.isPackaged);
+  if (!syncWorker) {
+    return { success: false, error: 'محرك المزامنة غير مهيأ' };
+  }
+  syncWorker.setAuthToken(token);
+  if (serverUrl) {
+    const ok = syncWorker.setServerUrl(serverUrl, app.isPackaged);
+    if (!ok) {
+      return {
+        success: false,
+        error: 'عنوان الخادم غير صالح أو غير مسموح به في بيئة الإنتاج (يجب استخدام HTTPS)',
+      };
     }
   }
-  return true;
+  return { success: true };
 });
 
 ipcMain.handle('sync:trigger-now', async () => {
@@ -308,7 +315,8 @@ app.whenReady().then(() => {
   syncWorker = new PosSyncWorker(
     readPendingQueue,
     updateQueueItemStatus,
-    () => mainWindow
+    () => mainWindow,
+    app.isPackaged
   );
   syncWorker.start(15000);
 

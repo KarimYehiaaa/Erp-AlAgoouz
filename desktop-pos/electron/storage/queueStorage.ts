@@ -109,14 +109,27 @@ export function saveTransaction(
   try {
     const queue = readPendingQueue(customDir);
     const syncId = transaction.sync_id || randomUUID();
-    const record = {
-      ...transaction,
-      sync_id: syncId,
-      status: 'PENDING',
-      retry_count: 0,
-      created_at: new Date().toISOString(),
-    };
-    queue.push(record);
+    const existingIndex = queue.findIndex((t) => t.sync_id === syncId);
+    let record: any;
+
+    if (existingIndex >= 0) {
+      record = {
+        ...queue[existingIndex],
+        ...transaction,
+        updated_at: new Date().toISOString(),
+      };
+      queue[existingIndex] = record;
+    } else {
+      record = {
+        ...transaction,
+        sync_id: syncId,
+        status: 'PENDING',
+        retry_count: 0,
+        created_at: new Date().toISOString(),
+      };
+      queue.push(record);
+    }
+
     const writeOk = writePendingQueue(queue, customDir);
     if (!writeOk) {
       return {

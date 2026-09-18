@@ -62,6 +62,16 @@ export interface DeviceInfo {
   terminalCode: string;
 }
 
+export interface ServerUrlResult {
+  success: boolean;
+  error?: string;
+}
+
+export interface SessionResult {
+  success: boolean;
+  error?: string;
+}
+
 export interface ElectronAPI {
   printReceipt: (invoiceData: any, printerName?: string) => Promise<HardwareResult>;
   openCashDrawer: (printerName?: string) => Promise<HardwareResult>;
@@ -72,8 +82,8 @@ export interface ElectronAPI {
   getPendingTransactions: () => Promise<OfflineSaleTransaction[]>;
   updateTransactionStatus: (syncId: string, status: string, serverId?: any, errorMessage?: string) => Promise<boolean>;
   getServerUrl: () => Promise<string>;
-  setServerUrl: (url: string) => Promise<boolean>;
-  setAuthToken: (token: string | null, serverUrl?: string) => Promise<boolean>;
+  setServerUrl: (url: string) => Promise<ServerUrlResult>;
+  setAuthToken: (token: string | null, serverUrl?: string) => Promise<SessionResult>;
   triggerManualSync: () => Promise<SyncCycleResult>;
   getDeviceInfo: () => Promise<DeviceInfo>;
   onBarcodeScan: (callback: (barcode: string) => void) => void;

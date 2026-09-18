@@ -92,7 +92,7 @@ let bankAccountId: number;
 let cashAccountId: number;
 let capitalAccountId: number;
 
-const TEST_DATE = new Date().toISOString().slice(0, 10);
+const TEST_DATE = new Date().toLocaleDateString('en-CA');
 const CURRENT_MONTH = TEST_DATE.slice(0, 7);
 
 beforeAll(async () => {

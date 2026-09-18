@@ -39,7 +39,7 @@ export function validateServerUrl(url: string): { valid: boolean; normalizedUrl?
 }
 
 export function getServerUrl(): string {
-  return localStorage.getItem('pos_server_url') || DEFAULT_SERVER_URL;
+  return (typeof localStorage !== 'undefined' ? localStorage.getItem('pos_server_url') : null) || DEFAULT_SERVER_URL;
 }
 
 export async function setServerUrl(url: string): Promise<{ success: boolean; error?: string }> {
@@ -49,37 +49,53 @@ export async function setServerUrl(url: string): Promise<{ success: boolean; err
   }
 
   const cleanUrl = validation.normalizedUrl;
-  localStorage.setItem('pos_server_url', cleanUrl);
-  api.defaults.baseURL = cleanUrl;
 
-  if (window.electronAPI?.setServerUrl) {
+  if (typeof window !== 'undefined' && window.electronAPI?.setServerUrl) {
     try {
-      await window.electronAPI.setServerUrl(cleanUrl);
-    } catch (err) {
-      console.warn('[Config] Failed to push server URL to Electron main process:', err);
+      const ipcRes = await window.electronAPI.setServerUrl(cleanUrl);
+      if (!ipcRes || !ipcRes.success) {
+        return {
+          success: false,
+          error: ipcRes?.error || 'رفض النظام عنوان الخادم لأسباب أمنية',
+        };
+      }
+    } catch (err: any) {
+      return {
+        success: false,
+        error: err.message || 'فشل الاتصال ببيئة سطح المكتب لتحديث عنوان الخادم',
+      };
     }
   }
+
+  if (typeof localStorage !== 'undefined') {
+    localStorage.setItem('pos_server_url', cleanUrl);
+  }
+  api.defaults.baseURL = cleanUrl;
 
   return { success: true };
 }
 
 export async function initServerConfig(): Promise<string> {
   // If Electron has an environment or main-process URL, reconcile it
-  if (window.electronAPI?.getServerUrl) {
+  if (typeof window !== 'undefined' && window.electronAPI?.getServerUrl) {
     try {
       const electronUrl = await window.electronAPI.getServerUrl();
-      const localUrl = localStorage.getItem('pos_server_url');
+      const localUrl = typeof localStorage !== 'undefined' ? localStorage.getItem('pos_server_url') : null;
       if (localUrl) {
         const val = validateServerUrl(localUrl);
         if (val.valid && val.normalizedUrl) {
-          await window.electronAPI.setServerUrl(val.normalizedUrl);
-          api.defaults.baseURL = val.normalizedUrl;
-          return val.normalizedUrl;
+          const ipcRes = await window.electronAPI.setServerUrl(val.normalizedUrl);
+          if (ipcRes?.success) {
+            api.defaults.baseURL = val.normalizedUrl;
+            return val.normalizedUrl;
+          }
         }
       } else if (electronUrl) {
         const val = validateServerUrl(electronUrl);
         if (val.valid && val.normalizedUrl) {
-          localStorage.setItem('pos_server_url', val.normalizedUrl);
+          if (typeof localStorage !== 'undefined') {
+            localStorage.setItem('pos_server_url', val.normalizedUrl);
+          }
           api.defaults.baseURL = val.normalizedUrl;
           return val.normalizedUrl;
         }

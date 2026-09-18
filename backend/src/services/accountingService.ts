@@ -14,9 +14,10 @@ import { query, getClient } from '../database/pool.ts';
 import { AppError } from '../types/errors.ts';
 import { roundMoney, sumMoney } from '../utils/money.ts';
 import { appCache } from '../utils/cache.ts';
+import { businessToday } from '../utils/localDate.ts';
 
 export function getLocalTodayDate(): string {
-  return new Date().toLocaleDateString('en-CA');
+  return businessToday();
 }
 
 // أكواد الحسابات القياسية الافتراضية
@@ -1071,6 +1072,7 @@ export const accountingService = {
       payment_method?: string;
       notes?: string;
       user_id?: number;
+      payment_date?: string;
     },
   ) {
     const amount = roundMoney(Number(payment.amount || 0));
@@ -1103,6 +1105,7 @@ export const accountingService = {
 
     return this.createJournalEntry(
       {
+        entry_date: payment.payment_date,
         reference_type: 'payment',
         reference_id: payment.id,
         idempotency_key: `customer_payment:${payment.id}`,
@@ -1127,6 +1130,7 @@ export const accountingService = {
       payment_method?: string;
       notes?: string;
       user_id?: number;
+      payment_date?: string;
     },
   ) {
     const amount = roundMoney(Number(payment.amount || 0));
@@ -1159,6 +1163,7 @@ export const accountingService = {
 
     return this.createJournalEntry(
       {
+        entry_date: payment.payment_date,
         reference_type: 'payment',
         reference_id: payment.id,
         idempotency_key: `supplier_payment:${payment.id}`,

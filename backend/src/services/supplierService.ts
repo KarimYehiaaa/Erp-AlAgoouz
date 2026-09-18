@@ -307,6 +307,7 @@ export const recordSupplierPayment = async (supplierId: number, data: any, userI
       payment_method: data.payment_method || 'cash',
       notes: data.notes || `سداد مستحقات مورد`,
       user_id: userId,
+      payment_date: data.payment_date || data.date,
     });
 
     await client.query('COMMIT');

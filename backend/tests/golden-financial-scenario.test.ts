@@ -28,6 +28,7 @@ import { createDailySale, returnSale } from '../src/services/salesService.ts';
 import { createOrRecalculatePayroll, approvePayrollRun, payPayrollRun } from '../src/services/hrService.ts';
 import { bankReconciliationService } from '../src/services/bankReconciliationService.ts';
 import { financialPeriodService } from '../src/services/financialPeriodService.ts';
+import { businessToday } from '../src/utils/localDate.ts';
 
 let server: http.Server;
 let baseUrl: string;
@@ -92,7 +93,7 @@ let bankAccountId: number;
 let cashAccountId: number;
 let capitalAccountId: number;
 
-const TEST_DATE = new Date().toLocaleDateString('en-CA');
+const TEST_DATE = businessToday();
 const CURRENT_MONTH = TEST_DATE.slice(0, 7);
 
 beforeAll(async () => {
@@ -379,6 +380,7 @@ describe('Golden Financial Lifecycle Scenario', () => {
   it('Step 4: Wholesale sale with receivable (20 units @ 200 = 4,000 EGP)', async () => {
     const sale = await createDailySale({
       date: TEST_DATE,
+      sale_date: TEST_DATE,
       total_amount: 4000,
       paid_amount: 0, // on credit
       remaining_amount: 4000,
@@ -439,6 +441,7 @@ describe('Golden Financial Lifecycle Scenario', () => {
     // إنشاء بيع فرعي نقدي (5 وحدات = 1000 ج.م) ثم إرجاعه
     const sale2 = await createDailySale({
       date: TEST_DATE,
+      sale_date: TEST_DATE,
       total_amount: 1000,
       paid_amount: 1000,
       payment_status: 'paid',

@@ -464,6 +464,7 @@ export const recordPayment = async (customerId: number, data: Record<string, any
       payment_method: data.payment_method || 'cash',
       notes: data.notes || `تحصيل دفعة حساب عميل ${customer.name_ar}`,
       user_id: data.user_id,
+      payment_date: data.payment_date || data.date,
     });
 
     await client.query('COMMIT');
@@ -554,6 +555,7 @@ export const recordSalePayment = async (saleId: number, data: Record<string, any
       payment_method: data.payment_method || 'cash',
       notes: data.notes || `تحصيل دفعة مبيعات ${sale.sale_number}`,
       user_id: data.user_id,
+      payment_date: data.payment_date || data.date,
     });
 
     return {

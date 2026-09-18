@@ -39,6 +39,7 @@ export interface ReceiveGoodsInput {
   items: ReceiveGoodsItemInput[];
   convertToInvoice?: boolean;
   notes?: string;
+  invoice_date?: string;
 }
 
 export const purchaseOrderService = {
@@ -355,6 +356,7 @@ export const purchaseOrderService = {
             warehouse_id: po.warehouse_id,
             notes: `استلام آلي من أمر الشراء ${po.po_number}${payload.notes ? ' - ' + payload.notes : ''}`,
             items: invoiceItems,
+            invoice_date: payload.invoice_date || po.order_date,
           },
           userId,
           client,

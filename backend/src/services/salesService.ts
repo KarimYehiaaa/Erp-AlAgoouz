@@ -83,7 +83,7 @@ const createDailySale = async (data: Record<string, any>, userId: number) => {
     totalAmount,
     data.paid_amount || 0,
   );
-  const saleDate = data.sale_date || businessToday();
+  const saleDate = data.sale_date || data.date || businessToday();
   let profitAmount = parseAmount(data.profit_amount);
   const client = await getClient();
   try {

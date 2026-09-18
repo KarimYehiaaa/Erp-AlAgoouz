@@ -100,7 +100,13 @@ onMounted(() => {
 
 const saveServerUrl = async () => {
   if (!serverUrlInput.value.trim()) return;
-  await setServerUrl(serverUrlInput.value.trim());
+  const res = await setServerUrl(serverUrlInput.value.trim());
+  if (!res.success) {
+    errorMsg.value = res.error || 'فشل تحديث عنوان الخادم المركزي';
+    serverSavedMsg.value = '';
+    return;
+  }
+  errorMsg.value = '';
   serverSavedMsg.value = 'تم حفظ وتحديث عنوان الخادم المركزي بنجاح';
   setTimeout(() => {
     serverSavedMsg.value = '';
@@ -112,7 +118,12 @@ const handleLogin = async () => {
   errorMsg.value = '';
   try {
     if (serverUrlInput.value.trim()) {
-      await setServerUrl(serverUrlInput.value.trim());
+      const res = await setServerUrl(serverUrlInput.value.trim());
+      if (!res.success) {
+        errorMsg.value = res.error || 'عنوان الخادم المركزي غير صالح';
+        loading.value = false;
+        return;
+      }
     }
     await authStore.login(form.value);
     router.push('/shift/open');

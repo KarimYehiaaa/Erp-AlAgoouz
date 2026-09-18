@@ -4,9 +4,19 @@ import path from 'node:path';
 import os from 'node:os';
 import net from 'node:net';
 import { PosPrinterDriver, type ReceiptData } from '../electron/hardware/printer';
-import { PosSyncWorker } from '../electron/sync/syncWorker';
+import { PosSyncWorker, validateWorkerServerUrl } from '../electron/sync/syncWorker';
+import {
+  readPendingQueue,
+  writePendingQueue,
+  saveTransaction,
+  updateQueueItemStatus,
+  getStoragePaths,
+} from '../electron/storage/queueStorage';
 
-describe('Desktop POS Engine & Drivers', () => {
+describe('Desktop POS Production Engine & Durability Tests', () => {
+  // ─────────────────────────────────────────────────────────────
+  // 1. Hardware Drivers & ESC/POS Protocol Contracts
+  // ─────────────────────────────────────────────────────────────
   it('PosPrinterDriver: ESC/POS Cash Drawer Kick Command', () => {
     const kick = PosPrinterDriver.getDrawerKickCommand();
     expect(Buffer.isBuffer(kick)).toBe(true);
@@ -50,229 +60,7 @@ describe('Desktop POS Engine & Drivers', () => {
     expect(receipt).toContain('المستلم: 400.00 ج.م');
   });
 
-  it('Atomic Storage Queue: Write, Read, and Backup Recovery on Corruption', () => {
-    const testDir = fs.mkdtempSync(path.join(os.tmpdir(), 'alagoouz-pos-test-'));
-    const primaryFile = path.join(testDir, 'pending_queue.json');
-    const backupFile = path.join(testDir, 'pending_queue.json.bak');
-    const tempFile = path.join(testDir, 'pending_queue.json.tmp');
-
-    const writeQueue = (queue: any[]) => {
-      const data = JSON.stringify(queue, null, 2);
-      fs.writeFileSync(tempFile, data, 'utf8');
-      if (fs.existsSync(primaryFile)) {
-        try {
-          fs.copyFileSync(primaryFile, backupFile);
-        } catch {}
-      }
-      fs.renameSync(tempFile, primaryFile);
-    };
-
-    const readQueue = (): any[] => {
-      if (fs.existsSync(primaryFile)) {
-        try {
-          const raw = fs.readFileSync(primaryFile, 'utf8');
-          if (raw.trim()) {
-            const parsed = JSON.parse(raw);
-            if (Array.isArray(parsed)) return parsed;
-          }
-        } catch {}
-      }
-      if (fs.existsSync(backupFile)) {
-        try {
-          const raw = fs.readFileSync(backupFile, 'utf8');
-          if (raw.trim()) {
-            const parsed = JSON.parse(raw);
-            if (Array.isArray(parsed)) {
-              fs.copyFileSync(backupFile, primaryFile);
-              return parsed;
-            }
-          }
-        } catch {}
-      }
-      return [];
-    };
-
-    // 1. Initial write
-    writeQueue([{ sync_id: 'sync-1', total: 100, status: 'PENDING' }]);
-    expect(readQueue().length).toBe(1);
-    expect(readQueue()[0].sync_id).toBe('sync-1');
-
-    // 2. Second write (creates backup of state 1)
-    writeQueue([
-      { sync_id: 'sync-1', total: 100, status: 'PENDING' },
-      { sync_id: 'sync-2', total: 200, status: 'PENDING' },
-    ]);
-    expect(readQueue().length).toBe(2);
-    expect(fs.existsSync(backupFile)).toBe(true);
-
-    // 3. Corrupt primary file (simulate crash mid-write)
-    fs.writeFileSync(primaryFile, 'CORRUPTED_PARTIAL_JSON_{invalid', 'utf8');
-
-    // 4. Read should seamlessly recover from backup file
-    const recovered = readQueue();
-    expect(recovered.length).toBe(1);
-    expect(recovered[0].sync_id).toBe('sync-1');
-
-    // 5. Case D: Primary + backup corrupted -> graceful empty fallback without throwing
-    fs.writeFileSync(primaryFile, 'CORRUPTED_PRIMARY_{', 'utf8');
-    fs.writeFileSync(backupFile, 'CORRUPTED_BACKUP_{', 'utf8');
-    const emptyFallback = readQueue();
-    expect(emptyFallback).toEqual([]);
-
-    // Clean up
-    fs.rmSync(testDir, { recursive: true, force: true });
-  });
-
-  it('Restart Durability E2E (Item 34 & 35): Pending transactions survive application reboot', () => {
-    const testDir = fs.mkdtempSync(path.join(os.tmpdir(), 'alagoouz-pos-restart-'));
-    const queueFile = path.join(testDir, 'pos-offline-sales.json');
-
-    // 1. Before restart: save 3 sales
-    const initialSales = [
-      { sync_id: 'sale-uuid-1', invoice_number: 'INV-001', total_amount: 150, status: 'PENDING' },
-      { sync_id: 'sale-uuid-2', invoice_number: 'INV-002', total_amount: 280, status: 'PENDING' },
-      { sync_id: 'sale-uuid-3', invoice_number: 'INV-003', total_amount: 95, status: 'FAILED', retry_count: 2 },
-    ];
-    fs.writeFileSync(queueFile, JSON.stringify(initialSales, null, 2), 'utf8');
-
-    const pendingBefore = initialSales.filter((s) => s.status === 'PENDING' || s.status === 'FAILED').length;
-    expect(pendingBefore).toBe(3);
-
-    // 2. Simulate complete application reboot (re-reading queue from fresh state)
-    const rawLoaded = fs.readFileSync(queueFile, 'utf8');
-    const loadedQueue = JSON.parse(rawLoaded);
-
-    const pendingAfter = loadedQueue.filter((s: any) => s.status === 'PENDING' || s.status === 'FAILED').length;
-    expect(pendingAfter).toBe(pendingBefore);
-    expect(loadedQueue.map((s: any) => s.sync_id)).toEqual(['sale-uuid-1', 'sale-uuid-2', 'sale-uuid-3']);
-
-    // Clean up
-    fs.rmSync(testDir, { recursive: true, force: true });
-  });
-
-  it('Sync Worker Concurrency Lock (Item 21)', async () => {
-    let localQueue = [
-      { sync_id: 'sync-cycle-1', status: 'PENDING', total_amount: 250, retry_count: 0 },
-    ];
-
-    const worker = new PosSyncWorker(
-      () => localQueue,
-      (syncId, status, serverId) => {
-        const item = localQueue.find((t) => t.sync_id === syncId);
-        if (item) {
-          item.status = status;
-          if (serverId) (item as any).server_id = serverId;
-          return true;
-        }
-        return false;
-      },
-      () => null
-    );
-
-    (worker as any).pingServer = vi.fn().mockResolvedValue(true);
-    (worker as any).postJson = vi.fn().mockImplementation(async () => {
-      await new Promise((r) => setTimeout(r, 50));
-      return {
-        success: true,
-        results: [{ sync_id: 'sync-cycle-1', status: 'SYNCED', sale_id: 999 }],
-      };
-    });
-
-    worker.setAuthToken('test-bearer-token');
-
-    // Launch first cycle
-    const cycle1Promise = worker.runSyncCycle();
-
-    // Concurrently trigger second cycle while first is in flight
-    const cycle2 = await worker.runSyncCycle();
-    expect(cycle2.success).toBe(false);
-
-    // Cycle 1 finishes successfully
-    const cycle1 = await cycle1Promise;
-    expect(cycle1.success).toBe(true);
-    expect(cycle1.synced).toBe(1);
-    expect(localQueue[0].status).toBe('SYNCED');
-  });
-
-  it('Sync Worker Retry Logic & Max Limit (Blocker 2 / Items 7, 8, 9)', async () => {
-    const testItem = { sync_id: 'retry-test-1', status: 'PENDING', total_amount: 100, retry_count: 0, last_error: '' };
-    const queue = [testItem];
-
-    const updateStatus = (syncId: string, status: string, serverId?: any, errorMessage?: string) => {
-      const item = queue.find((t) => t.sync_id === syncId);
-      if (item) {
-        item.status = status;
-        if (status === 'FAILED') {
-          item.retry_count = (item.retry_count || 0) + 1;
-          if (errorMessage) item.last_error = errorMessage;
-        }
-        return true;
-      }
-      return false;
-    };
-
-    const worker = new PosSyncWorker(() => queue, updateStatus, () => null);
-    worker.setAuthToken('mock-token');
-    (worker as any).pingServer = vi.fn().mockResolvedValue(true);
-
-    // Mock server returning FAILED for the transaction
-    (worker as any).postJson = vi.fn().mockResolvedValue({
-      success: true,
-      results: [{ sync_id: 'retry-test-1', status: 'FAILED', error: 'WAREHOUSE_STOCK_DEFICIT' }],
-    });
-
-    // Attempt 1
-    expect(testItem.retry_count).toBe(0);
-    const run1 = await worker.runSyncCycle();
-    expect(run1.success).toBe(false);
-    expect(testItem.retry_count).toBe(1);
-    expect(testItem.status).toBe('FAILED');
-    expect(testItem.last_error).toBe('WAREHOUSE_STOCK_DEFICIT');
-
-    // Attempt 2
-    const run2 = await worker.runSyncCycle();
-    expect(run2.success).toBe(false);
-    expect(testItem.retry_count).toBe(2);
-
-    // Set to 9 and run -> reaches 10
-    testItem.retry_count = 9;
-    const run10 = await worker.runSyncCycle();
-    expect(testItem.retry_count).toBe(10);
-
-    // When retry_count = 10, worker must NOT attempt automatic retry on it
-    const runAfterLimit = await worker.runSyncCycle();
-    expect(runAfterLimit.synced).toBe(0);
-    expect(runAfterLimit.remaining).toBe(0); // 0 eligible pending items
-    expect(testItem.retry_count).toBe(10); // Unchanged, retained for manual review
-  });
-
-  it('Local Queue Persistence Failure Protection (Blocker 3 / Items 10, 11, 12)', async () => {
-    const queue = [{ sync_id: 'persist-fail-1', status: 'PENDING', total_amount: 300, retry_count: 0 }];
-
-    // Simulate disk failure in updateStatus
-    const updateStatusFails = vi.fn().mockReturnValue(false);
-
-    const worker = new PosSyncWorker(() => queue, updateStatusFails, () => null);
-    worker.setAuthToken('token');
-    (worker as any).pingServer = vi.fn().mockResolvedValue(true);
-
-    // Server returns SYNCED, but local disk write fails
-    (worker as any).postJson = vi.fn().mockResolvedValue({
-      success: true,
-      results: [{ sync_id: 'persist-fail-1', status: 'SYNCED', sale_id: 555 }],
-    });
-
-    const result = await worker.runSyncCycle();
-
-    // MUST NOT claim false success!
-    expect(updateStatusFails).toHaveBeenCalledWith('persist-fail-1', 'SYNCED', 555);
-    expect(result.synced).toBe(0); // Synced count NOT incremented
-    expect(result.success).toBe(false);
-    expect(result.remaining).toBe(1); // Item remains pending reconciliation
-  });
-
   it('Hardware Contract: Windows Spooler Direct Drawer returns NOT_SUPPORTED', async () => {
-    // Contract verification: Windows driver direct spooler pulse must return NOT_SUPPORTED
     const handleDrawerOpen = async (isDev: boolean, printerName: string) => {
       if (isDev) {
         return { success: true, status: 'SIMULATED', simulated: true, printer: printerName };
@@ -318,9 +106,257 @@ describe('Desktop POS Engine & Drivers', () => {
     // 2. Connection failure path (dead port)
     const failResult = await PosPrinterDriver.printNetworkRaw(
       '127.0.0.1',
-      65530, // Unopened port
+      65530,
       PosPrinterDriver.getDrawerKickCommand()
     );
     expect(failResult).toBe(false);
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  // 2. Real Production Storage Engine Tests (Scenarios A through E)
+  // ─────────────────────────────────────────────────────────────
+  it('Production Queue Storage Engine: Scenarios A, B, C (Durability & Corruption Recovery)', () => {
+    const testDir = fs.mkdtempSync(path.join(os.tmpdir(), 'alagoouz-pos-storage-'));
+    const paths = getStoragePaths(testDir);
+
+    // Scenario A: Primary valid -> read primary
+    const tx1 = { sync_id: 'tx-1', invoice_number: 'INV-001', total_amount: 120 };
+    const saveRes = saveTransaction(tx1, testDir);
+    expect(saveRes.success).toBe(true);
+    expect(saveRes.transaction.status).toBe('PENDING');
+
+    const queueAfterA = readPendingQueue(testDir);
+    expect(queueAfterA.length).toBe(1);
+    expect(queueAfterA[0].sync_id).toBe('tx-1');
+
+    // Add second transaction (creates backup of state 1)
+    const tx2 = { sync_id: 'tx-2', invoice_number: 'INV-002', total_amount: 250 };
+    saveTransaction(tx2, testDir);
+    expect(readPendingQueue(testDir).length).toBe(2);
+    expect(fs.existsSync(paths.backupFile)).toBe(true);
+
+    // Scenario B: Primary corrupted -> recover from backup
+    fs.writeFileSync(paths.primaryFile, 'MALFORMED_JSON_CORRUPTION{{{{', 'utf8');
+    const recovered = readPendingQueue(testDir);
+    expect(recovered.length).toBe(1);
+    expect(recovered[0].sync_id).toBe('tx-1');
+
+    // Scenario C: Both corrupted -> safe fallback without throwing
+    fs.writeFileSync(paths.primaryFile, 'CORRUPTED_PRIMARY', 'utf8');
+    fs.writeFileSync(paths.backupFile, 'CORRUPTED_BACKUP', 'utf8');
+    const safeFallback = readPendingQueue(testDir);
+    expect(safeFallback).toEqual([]);
+
+    fs.rmSync(testDir, { recursive: true, force: true });
+  });
+
+  it('Production Queue Storage Engine: Scenario D (Atomic Write Failure Protection)', () => {
+    // If a write cannot proceed (e.g. invalid path or file lock), saveTransaction returns explicit failure
+    const invalidDir = os.platform() === 'win32' ? 'Z:\\non_existent_drive_9999\\pos_test' : '/root/non_existent_9999';
+    const res = saveTransaction({ total_amount: 50 }, invalidDir);
+    expect(res.success).toBe(false);
+    expect(res.error).toBe('OFFLINE_STORAGE_WRITE_FAILED');
+  });
+
+  it('Production Queue Storage Engine: Scenario E (Server SYNCED + Local Persistence Failure Protection)', async () => {
+    const queue = [{ sync_id: 'persist-fail-1', status: 'PENDING', total_amount: 300, retry_count: 0 }];
+
+    // Simulate disk failure in updateStatus
+    const updateStatusFails = vi.fn().mockReturnValue(false);
+
+    const worker = new PosSyncWorker(() => queue, updateStatusFails, () => null);
+    worker.setAuthToken('token');
+    (worker as any).pingServer = vi.fn().mockResolvedValue(true);
+
+    // Server returns SYNCED, but local disk write fails
+    (worker as any).postJson = vi.fn().mockResolvedValue({
+      success: true,
+      results: [{ sync_id: 'persist-fail-1', status: 'SYNCED', sale_id: 555 }],
+    });
+
+    const result = await worker.runSyncCycle();
+
+    // MUST NOT claim false success!
+    expect(updateStatusFails).toHaveBeenCalledWith('persist-fail-1', 'SYNCED', 555);
+    expect(result.synced).toBe(0); // Synced count NOT incremented
+    expect(result.success).toBe(false);
+    expect(result.remaining).toBe(1); // Item remains pending reconciliation
+  });
+
+  it('Application Reboot Durability: Pending transactions survive reload from real disk', () => {
+    const testDir = fs.mkdtempSync(path.join(os.tmpdir(), 'alagoouz-pos-reboot-'));
+
+    // 1. Write 3 transactions using real module
+    saveTransaction({ sync_id: 'reboot-1', total_amount: 100 }, testDir);
+    saveTransaction({ sync_id: 'reboot-2', total_amount: 200 }, testDir);
+    saveTransaction({ sync_id: 'reboot-3', total_amount: 300 }, testDir);
+    updateQueueItemStatus('reboot-3', 'FAILED', undefined, 'Network error', testDir);
+
+    // 2. Simulate fresh boot: re-read from disk
+    const freshQueue = readPendingQueue(testDir);
+    expect(freshQueue.length).toBe(3);
+    expect(freshQueue.find((t) => t.sync_id === 'reboot-3')?.status).toBe('FAILED');
+    expect(freshQueue.find((t) => t.sync_id === 'reboot-3')?.retry_count).toBe(1);
+    expect(freshQueue.find((t) => t.sync_id === 'reboot-3')?.last_error).toBe('Network error');
+
+    fs.rmSync(testDir, { recursive: true, force: true });
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  // 3. Server URL Validation & Security Policy Tests
+  // ─────────────────────────────────────────────────────────────
+  describe('Server URL Validation Policy (Development & Production)', () => {
+    it('Development: Accepts http://localhost and http://127.0.0.1', () => {
+      const devLocalhost = validateWorkerServerUrl('http://localhost:3000/api/v1', false);
+      expect(devLocalhost.valid).toBe(true);
+      expect(devLocalhost.normalizedUrl).toBe('http://localhost:3000/api/v1');
+
+      const devIp = validateWorkerServerUrl('http://127.0.0.1:3000/api/v1/', false);
+      expect(devIp.valid).toBe(true);
+      expect(devIp.normalizedUrl).toBe('http://127.0.0.1:3000/api/v1');
+    });
+
+    it('Production: Accepts secure https:// endpoints', () => {
+      const prodHttps = validateWorkerServerUrl('https://api.alagoouz.com/api/v1', true);
+      expect(prodHttps.valid).toBe(true);
+      expect(prodHttps.normalizedUrl).toBe('https://api.alagoouz.com/api/v1');
+    });
+
+    it('Production: Strictly rejects unencrypted external http:// endpoints', () => {
+      const prodHttp = validateWorkerServerUrl('http://api.alagoouz.com/api/v1', true);
+      expect(prodHttp.valid).toBe(false);
+      expect(prodHttp.error).toContain('HTTPS');
+    });
+
+    it('Strictly rejects invalid, malformed, empty, or dangerous schemes', () => {
+      // Empty string
+      const emptyRes = validateWorkerServerUrl('', false);
+      expect(emptyRes.valid).toBe(false);
+
+      // Not a URL
+      const malformedRes = validateWorkerServerUrl('not-a-url', false);
+      expect(malformedRes.valid).toBe(false);
+
+      // Dangerous schemes
+      const jsScheme = validateWorkerServerUrl('javascript://alert(1)', false);
+      expect(jsScheme.valid).toBe(false);
+
+      const fileScheme = validateWorkerServerUrl('file:///etc/passwd', false);
+      expect(fileScheme.valid).toBe(false);
+    });
+
+    it('SyncWorker.setServerUrl defensively rejects invalid URLs and leaves serverUrl unchanged', () => {
+      const worker = new PosSyncWorker(() => [], () => true, () => null);
+      const initialUrl = worker.getServerUrl();
+
+      // Attempt to set invalid URL in production
+      const rejectRes = worker.setServerUrl('http://insecure-remote.com/api/v1', true);
+      expect(rejectRes).toBe(false);
+      expect(worker.getServerUrl()).toBe(initialUrl); // Unchanged!
+
+      // Attempt to set valid HTTPS URL in production
+      const acceptRes = worker.setServerUrl('https://secure-api.alagoouz.com/api/v1', true);
+      expect(acceptRes).toBe(true);
+      expect(worker.getServerUrl()).toBe('https://secure-api.alagoouz.com/api/v1');
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  // 4. Retry Logic & Sync Engine Lifecycle
+  // ─────────────────────────────────────────────────────────────
+  it('Sync Worker Concurrency Lock', async () => {
+    let localQueue = [
+      { sync_id: 'sync-cycle-1', status: 'PENDING', total_amount: 250, retry_count: 0 },
+    ];
+
+    const worker = new PosSyncWorker(
+      () => localQueue,
+      (syncId, status, serverId) => {
+        const item = localQueue.find((t) => t.sync_id === syncId);
+        if (item) {
+          item.status = status;
+          if (serverId) (item as any).server_id = serverId;
+          return true;
+        }
+        return false;
+      },
+      () => null
+    );
+
+    (worker as any).pingServer = vi.fn().mockResolvedValue(true);
+    (worker as any).postJson = vi.fn().mockImplementation(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+      return {
+        success: true,
+        results: [{ sync_id: 'sync-cycle-1', status: 'SYNCED', sale_id: 999 }],
+      };
+    });
+
+    worker.setAuthToken('test-bearer-token');
+
+    // Launch first cycle
+    const cycle1Promise = worker.runSyncCycle();
+
+    // Concurrently trigger second cycle while first is in flight
+    const cycle2 = await worker.runSyncCycle();
+    expect(cycle2.success).toBe(false);
+
+    // Cycle 1 finishes successfully
+    const cycle1 = await cycle1Promise;
+    expect(cycle1.success).toBe(true);
+    expect(cycle1.synced).toBe(1);
+    expect(localQueue[0].status).toBe('SYNCED');
+  });
+
+  it('Sync Worker Retry Progression up to 10 and Halting Auto-Sync', async () => {
+    const testItem = { sync_id: 'retry-test-1', status: 'PENDING', total_amount: 100, retry_count: 0, last_error: '' };
+    const queue = [testItem];
+
+    const updateStatus = (syncId: string, status: string, serverId?: any, errorMessage?: string) => {
+      const item = queue.find((t) => t.sync_id === syncId);
+      if (item) {
+        item.status = status;
+        if (status === 'FAILED') {
+          item.retry_count = (item.retry_count || 0) + 1;
+          if (errorMessage) item.last_error = errorMessage;
+        }
+        return true;
+      }
+      return false;
+    };
+
+    const worker = new PosSyncWorker(() => queue, updateStatus, () => null);
+    worker.setAuthToken('mock-token');
+    (worker as any).pingServer = vi.fn().mockResolvedValue(true);
+
+    // Mock server returning FAILED
+    (worker as any).postJson = vi.fn().mockResolvedValue({
+      success: true,
+      results: [{ sync_id: 'retry-test-1', status: 'FAILED', error: 'WAREHOUSE_STOCK_DEFICIT' }],
+    });
+
+    // Attempt 1
+    expect(testItem.retry_count).toBe(0);
+    const run1 = await worker.runSyncCycle();
+    expect(run1.success).toBe(false);
+    expect(testItem.retry_count).toBe(1);
+    expect(testItem.status).toBe('FAILED');
+    expect(testItem.last_error).toBe('WAREHOUSE_STOCK_DEFICIT');
+
+    // Attempt 2
+    const run2 = await worker.runSyncCycle();
+    expect(run2.success).toBe(false);
+    expect(testItem.retry_count).toBe(2);
+
+    // Fast forward to 9 and run -> reaches 10
+    testItem.retry_count = 9;
+    const run10 = await worker.runSyncCycle();
+    expect(testItem.retry_count).toBe(10);
+
+    // When retry_count = 10, worker MUST NOT attempt automatic retry on it
+    const runAfterLimit = await worker.runSyncCycle();
+    expect(runAfterLimit.synced).toBe(0);
+    expect(runAfterLimit.remaining).toBe(0); // 0 eligible pending items
+    expect(testItem.retry_count).toBe(10); // Unchanged, retained for manual reconciliation
   });
 });

@@ -13,86 +13,12 @@ const __dirname = path.dirname(__filename);
 let mainWindow: BrowserWindow | null = null;
 let syncWorker: PosSyncWorker | null = null;
 
-// ═══════════════════ ATOMIC OFFLINE STORAGE ENGINE ═══════════════════
-const getStorageDir = () => {
-  const dir = path.join(app.getPath('userData'), 'pos_storage');
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-  return dir;
-};
-
-const getPendingQueueFile = () => path.join(getStorageDir(), 'pending_queue.json');
-const getBackupQueueFile = () => path.join(getStorageDir(), 'pending_queue.json.bak');
-const getTempQueueFile = () => path.join(getStorageDir(), 'pending_queue.json.tmp');
-
-const readPendingQueue = (): any[] => {
-  const primaryFile = getPendingQueueFile();
-  const backupFile = getBackupQueueFile();
-
-  if (fs.existsSync(primaryFile)) {
-    try {
-      const raw = fs.readFileSync(primaryFile, 'utf8');
-      if (raw.trim()) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) return parsed;
-      }
-    } catch (err) {
-      console.error('[Storage] Primary queue file corrupted, attempting backup recovery:', err);
-    }
-  }
-
-  // Backup fallback
-  if (fs.existsSync(backupFile)) {
-    try {
-      const raw = fs.readFileSync(backupFile, 'utf8');
-      if (raw.trim()) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) {
-          console.warn('[Storage] Restored pending queue from backup file.');
-          try {
-            fs.copyFileSync(backupFile, primaryFile);
-          } catch {}
-          return parsed;
-        }
-      }
-    } catch (bakErr) {
-      console.error('[Storage] Backup queue read failure:', bakErr);
-    }
-  }
-
-  return [];
-};
-
-const writePendingQueue = (queue: any[]): boolean => {
-  try {
-    getStorageDir();
-    const primaryFile = getPendingQueueFile();
-    const backupFile = getBackupQueueFile();
-    const tempFile = getTempQueueFile();
-
-    const data = JSON.stringify(queue, null, 2);
-
-    // 1. Write to temporary file
-    fs.writeFileSync(tempFile, data, 'utf8');
-
-    // 2. Backup previous primary
-    if (fs.existsSync(primaryFile)) {
-      try {
-        fs.copyFileSync(primaryFile, backupFile);
-      } catch (copyErr) {
-        console.warn('[Storage] Warning: Failed to copy backup file:', copyErr);
-      }
-    }
-
-    // 3. Atomic rename tmp -> primary
-    fs.renameSync(tempFile, primaryFile);
-    return true;
-  } catch (err) {
-    console.error('[Storage] Atomic write failed:', err);
-    return false;
-  }
-};
+import {
+  readPendingQueue,
+  writePendingQueue,
+  saveTransaction,
+  updateQueueItemStatus,
+} from './storage/queueStorage';
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -325,55 +251,8 @@ ipcMain.handle('hardware:print-receipt', async (_event, invoiceData: any, printe
 
 // 5. Storage: Offline Transactions with Durability & Write Failure Protection
 ipcMain.handle('storage:save-transaction', (_event, transaction) => {
-  try {
-    const queue = readPendingQueue();
-    const syncId = transaction.sync_id || randomUUID();
-    const record = {
-      ...transaction,
-      sync_id: syncId,
-      status: 'PENDING',
-      retry_count: 0,
-      created_at: new Date().toISOString(),
-    };
-    queue.push(record);
-    const writeOk = writePendingQueue(queue);
-    if (!writeOk) {
-      return {
-        success: false,
-        error: 'OFFLINE_STORAGE_WRITE_FAILED',
-        message: 'فشلت كتابة الفاتورة في التخزين المحلي الآمن',
-      };
-    }
-    return {
-      success: true,
-      transaction: record,
-    };
-  } catch (err: any) {
-    return {
-      success: false,
-      error: 'OFFLINE_STORAGE_WRITE_FAILED',
-      message: err.message || 'خطأ غير متوقع أثناء حفظ الفاتورة محلياً',
-    };
-  }
+  return saveTransaction(transaction);
 });
-
-const updateQueueItemStatus = (syncId: string, status: string, serverId?: any, errorMessage?: string): boolean => {
-  const queue = readPendingQueue();
-  const item = queue.find((t) => t.sync_id === syncId);
-  if (item) {
-    item.status = status;
-    if (status === 'FAILED') {
-      item.retry_count = (item.retry_count || 0) + 1;
-      if (errorMessage) {
-        item.last_error = errorMessage;
-      }
-    }
-    if (serverId) item.server_id = serverId;
-    item.updated_at = new Date().toISOString();
-    return writePendingQueue(queue);
-  }
-  return false;
-};
 
 ipcMain.handle('storage:get-pending', () => {
   return readPendingQueue().filter((t) => t.status === 'PENDING' || t.status === 'FAILED');
@@ -389,10 +268,17 @@ ipcMain.handle('config:get-server-url', () => {
 });
 
 ipcMain.handle('config:set-server-url', (_event, url: string) => {
-  if (syncWorker && url) {
-    syncWorker.setServerUrl(url);
+  if (!syncWorker) {
+    return { success: false, error: 'محرك المزامنة غير مهيأ' };
   }
-  return true;
+  const ok = syncWorker.setServerUrl(url, app.isPackaged);
+  if (!ok) {
+    return {
+      success: false,
+      error: 'عنوان الخادم غير صالح أو غير مسموح به في بيئة الإنتاج (يجب استخدام HTTPS)',
+    };
+  }
+  return { success: true };
 });
 
 // 7. Session & Background Sync Bridge
@@ -400,7 +286,7 @@ ipcMain.handle('auth:set-session', (_event, token: string | null, serverUrl?: st
   if (syncWorker) {
     syncWorker.setAuthToken(token);
     if (serverUrl) {
-      syncWorker.setServerUrl(serverUrl);
+      syncWorker.setServerUrl(serverUrl, app.isPackaged);
     }
   }
   return true;

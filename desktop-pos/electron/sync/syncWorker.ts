@@ -11,6 +11,42 @@ export interface SyncConfig {
   checkIntervalMs: number;
 }
 
+export function validateWorkerServerUrl(
+  url: string,
+  isPackaged = false
+): { valid: boolean; normalizedUrl?: string; error?: string } {
+  if (!url || typeof url !== 'string' || !url.trim()) {
+    return { valid: false, error: 'عنوان الخادم مطلوب ولا يمكن أن يكون فارغاً' };
+  }
+
+  let parsed: URL;
+  try {
+    parsed = new URL(url.trim());
+  } catch {
+    return { valid: false, error: 'صيغة عنوان الخادم غير صالحة (مثال صحيح: https://api.alagoouz.com/api/v1)' };
+  }
+
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    return { valid: false, error: 'يجب أن يبدأ عنوان الخادم ببروتوكول http:// أو https://' };
+  }
+
+  const isLocal =
+    parsed.hostname === 'localhost' ||
+    parsed.hostname === '127.0.0.1' ||
+    parsed.hostname === '0.0.0.0';
+  const isProduction = isPackaged || process.env.NODE_ENV === 'production';
+
+  if (isProduction && parsed.protocol === 'http:' && !isLocal) {
+    return {
+      valid: false,
+      error: 'في بيئة الإنتاج، يجب استخدام بروتوكول مشفر وآمن (HTTPS) للاتصال بالخادم المركزي لحماية البيانات',
+    };
+  }
+
+  const cleanUrl = url.trim().replace(/\/+$/, '');
+  return { valid: true, normalizedUrl: cleanUrl };
+}
+
 export class PosSyncWorker {
   private isRunning = false;
   private intervalId: NodeJS.Timeout | null = null;
@@ -33,21 +69,16 @@ export class PosSyncWorker {
     console.log('[SyncWorker] Auth token updated in background sync engine:', token ? 'ACTIVE' : 'CLEARED');
   }
 
-  public setServerUrl(url: string) {
-    if (url && typeof url === 'string') {
-      const cleanUrl = url.trim().replace(/\/+$/, '');
-      try {
-        const parsed = new URL(cleanUrl);
-        const isLocal = parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1';
-        if (process.env.NODE_ENV === 'production' && parsed.protocol !== 'https:' && !isLocal) {
-          console.warn('[SyncWorker Security Warning] Production Central Server URL must use HTTPS. Provided:', cleanUrl);
-        }
-      } catch {
-        console.error('[SyncWorker] Invalid URL format provided for server URL:', cleanUrl);
-      }
-      this.serverUrl = cleanUrl;
-      console.log('[SyncWorker] Central server URL updated to:', this.serverUrl);
+  public setServerUrl(url: string, isPackaged?: boolean): boolean {
+    const packaged = isPackaged !== undefined ? isPackaged : (process.env.NODE_ENV === 'production');
+    const res = validateWorkerServerUrl(url, packaged);
+    if (!res.valid || !res.normalizedUrl) {
+      console.error('[SyncWorker Security] Rejected invalid or unencrypted server URL:', url, 'Error:', res.error);
+      return false;
     }
+    this.serverUrl = res.normalizedUrl;
+    console.log('[SyncWorker] Central server URL updated to:', this.serverUrl);
+    return true;
   }
 
   public start(intervalMs = 15000) {

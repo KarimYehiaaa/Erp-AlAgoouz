@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { getServerUrl, DEFAULT_SERVER_URL } from './config';
+import { getServerUrl, DEFAULT_SERVER_URL } from './serverUrlPolicy';
 
 let forceProductionMode: boolean | undefined = undefined;
 

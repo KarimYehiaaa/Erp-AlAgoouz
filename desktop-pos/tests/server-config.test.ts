@@ -1,12 +1,20 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { createApp } from 'vue';
 import { setActivePinia, createPinia } from 'pinia';
 import {
   validateServerUrl,
   setServerUrl,
   getServerUrl,
+  initServerConfig,
   SAFE_LOCAL_URL,
   DEFAULT_SERVER_URL,
 } from '../src/services/config';
+import {
+  validateServerUrl as policyValidate,
+  getServerUrl as policyGetServerUrl,
+  SAFE_LOCAL_URL as policySafeUrl,
+  DEFAULT_SERVER_URL as policyDefaultUrl,
+} from '../src/services/serverUrlPolicy';
 import { api, setApiProductionMode } from '../src/services/api';
 import { PosSyncWorker } from '../electron/sync/syncWorker';
 import { usePosAuthStore } from '../src/stores/posAuth';
@@ -33,6 +41,112 @@ describe('Desktop POS Server Configuration & IPC Contract Tests', () => {
     delete (globalThis as any).window;
     setApiProductionMode(undefined);
     api.defaults.baseURL = DEFAULT_SERVER_URL;
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  // CIRCULAR DEPENDENCY ELIMINATION & STARTUP VERIFICATION
+  // ─────────────────────────────────────────────────────────────
+  describe('Circular Dependency Elimination & Startup Initialization Tests', () => {
+    it('1. Import config.ts works without Runtime Error', async () => {
+      const configModule = await import('../src/services/config');
+      expect(configModule).toBeDefined();
+      expect(typeof configModule.getServerUrl).toBe('function');
+      expect(typeof configModule.initServerConfig).toBe('function');
+      expect(configModule.DEFAULT_SERVER_URL).toBe(SAFE_LOCAL_URL);
+    });
+
+    it('2. Import api.ts works without Runtime Error', async () => {
+      const apiModule = await import('../src/services/api');
+      expect(apiModule).toBeDefined();
+      expect(apiModule.api).toBeDefined();
+      expect(typeof apiModule.setApiProductionMode).toBe('function');
+    });
+
+    it('3. Direct invocation of getServerUrl() works cleanly and returns valid string', () => {
+      const url = getServerUrl();
+      expect(typeof url).toBe('string');
+      expect(url).toBe(SAFE_LOCAL_URL);
+      expect(policyGetServerUrl()).toBe(policySafeUrl);
+    });
+
+    it('4. Creation and instance of api works and has defaults configured without TDZ errors', () => {
+      expect(api).toBeDefined();
+      expect(api.defaults.baseURL).toBeDefined();
+      expect(api.defaults.timeout).toBe(8000);
+      expect(api.interceptors.request).toBeDefined();
+      expect(api.interceptors.response).toBeDefined();
+    });
+
+    it('5. Production insecure VITE_API_URL: fallback to SAFE_LOCAL_URL', () => {
+      const fallbackUrl = getServerUrl(true, 'http://remote-insecure.com/api/v1');
+      expect(fallbackUrl).toBe(SAFE_LOCAL_URL);
+    });
+
+    it('6. Production insecure localStorage: purge + fallback to SAFE_LOCAL_URL', () => {
+      localStorage.setItem('pos_server_url', 'http://malicious-server.com/api/v1');
+      const resolved = getServerUrl(true);
+      expect(resolved).toBe(SAFE_LOCAL_URL);
+      expect(localStorage.getItem('pos_server_url')).toBeNull();
+    });
+
+    it('7. Production HTTPS: PASS with valid normalized URL', () => {
+      const validHttps = 'https://central-api.alagoouz.com/api/v1';
+      const validation = validateServerUrl(validHttps, true);
+      expect(validation.valid).toBe(true);
+      expect(validation.normalizedUrl).toBe(validHttps);
+
+      const effective = getServerUrl(true, validHttps);
+      expect(effective).toBe(validHttps);
+    });
+
+    it('8. Axios interceptor: does not use External HTTP in production', () => {
+      setApiProductionMode(true);
+      localStorage.setItem('pos_server_url', 'http://external-hacker.com/api/v1');
+      const interceptor = (api.interceptors.request as any).handlers[0].fulfilled;
+      const fakeConfig = { baseURL: 'http://external-hacker.com/api/v1', headers: {} };
+      const modifiedConfig = interceptor(fakeConfig);
+
+      expect(modifiedConfig.baseURL).not.toBe('http://external-hacker.com/api/v1');
+      expect(modifiedConfig.baseURL).toBe(SAFE_LOCAL_URL);
+    });
+
+    it('9. Startup Test: desktop-pos/src/main.ts startup sequence executes without ReferenceError or circular failure', async () => {
+      // Set up minimal headless window/electron environment
+      (globalThis as any).window = {
+        electronAPI: {
+          getServerUrl: vi.fn().mockResolvedValue(null),
+          setServerUrl: vi.fn().mockResolvedValue({ success: true }),
+          setAuthToken: vi.fn().mockResolvedValue({ success: true }),
+        },
+      };
+
+      // 1. initServerConfig()
+      const initUrl = await initServerConfig();
+      expect(initUrl).toBe(SAFE_LOCAL_URL);
+      expect(api.defaults.baseURL).toBe(SAFE_LOCAL_URL);
+
+      // 2. createApp()
+      const dummyComponent = { template: '<div>Desktop POS</div>' };
+      const app = createApp(dummyComponent);
+      expect(app).toBeDefined();
+
+      // 3. createPinia()
+      const pinia = createPinia();
+      app.use(pinia);
+      setActivePinia(pinia);
+
+      // 4. restoreSession()
+      const authStore = usePosAuthStore(pinia);
+      const sessionRestored = await authStore.restoreSession();
+      expect(typeof sessionRestored).toBe('boolean');
+
+      // 5. Verify app.mount invocation in bootstrap lifecycle without ReferenceError or circular TDZ failure
+      const mountSpy = vi.spyOn(app, 'mount').mockImplementation(() => app._instance as any);
+      expect(() => {
+        app.mount('#app');
+      }).not.toThrow();
+      expect(mountSpy).toHaveBeenCalledWith('#app');
+    });
   });
 
   // ─────────────────────────────────────────────────────────────

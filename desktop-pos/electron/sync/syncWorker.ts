@@ -3,6 +3,7 @@
  * يفحص الاتصال بالسيرفر كل 15 ثانية، ويرحل الفواتير المعلقة دون أي تدخل يدوي
  */
 import http from 'http';
+import https from 'https';
 import { BrowserWindow } from 'electron';
 
 export interface SyncConfig {
@@ -13,13 +14,26 @@ export interface SyncConfig {
 export class PosSyncWorker {
   private isRunning = false;
   private intervalId: NodeJS.Timeout | null = null;
-  private serverUrl = 'http://localhost:3000/api/v1';
+  private serverUrl = process.env.POS_SERVER_URL || 'http://localhost:3000/api/v1';
+  private authToken: string | null = null;
 
   constructor(
     private readQueue: () => any[],
     private updateStatus: (syncId: string, status: string, serverId?: any) => boolean,
     private getMainWindow: () => BrowserWindow | null
   ) {}
+
+  public setAuthToken(token: string | null) {
+    this.authToken = token;
+    console.log('[SyncWorker] Auth token updated in background sync engine:', token ? 'ACTIVE' : 'CLEARED');
+  }
+
+  public setServerUrl(url: string) {
+    if (url && typeof url === 'string') {
+      this.serverUrl = url.replace(/\/+$/, '');
+      console.log('[SyncWorker] Central server URL updated to:', this.serverUrl);
+    }
+  }
 
   public start(intervalMs = 15000) {
     if (this.isRunning) return;
@@ -45,11 +59,18 @@ export class PosSyncWorker {
     console.log('[SyncWorker] Background sync worker stopped.');
   }
 
-  public async runSyncCycle() {
+  public async runSyncCycle(): Promise<{ success: boolean; synced: number; remaining: number }> {
     const queue = this.readQueue();
     const pendingItems = queue.filter((item) => item.status === 'PENDING' || item.status === 'FAILED');
 
-    if (pendingItems.length === 0) return;
+    if (pendingItems.length === 0) {
+      return { success: true, synced: 0, remaining: 0 };
+    }
+
+    if (!this.authToken) {
+      console.log('[SyncWorker] Pending items detected, but no active cashier session token. Waiting for login...');
+      return { success: false, synced: 0, remaining: pendingItems.length };
+    }
 
     console.log(`[SyncWorker] Found ${pendingItems.length} pending items. Attempting sync...`);
 
@@ -57,7 +78,7 @@ export class PosSyncWorker {
     const isOnline = await this.pingServer();
     if (!isOnline) {
       console.log('[SyncWorker] Central server offline. Will retry on next cycle.');
-      return;
+      return { success: false, synced: 0, remaining: pendingItems.length };
     }
 
     // Send batch
@@ -76,6 +97,8 @@ export class PosSyncWorker {
           if (res.status === 'SYNCED') {
             this.updateStatus(res.sync_id, 'SYNCED', res.sale_id);
             syncedCount++;
+          } else if (res.status === 'FAILED') {
+            this.updateStatus(res.sync_id, 'FAILED');
           }
         }
         console.log(`[SyncWorker] Batch sync completed successfully. Synced: ${syncedCount}/${pendingItems.length}`);
@@ -88,63 +111,90 @@ export class PosSyncWorker {
             remaining: pendingItems.length - syncedCount,
           });
         }
+        return { success: true, synced: syncedCount, remaining: pendingItems.length - syncedCount };
       }
+      return { success: false, synced: 0, remaining: pendingItems.length };
     } catch (err: any) {
       console.error('[SyncWorker] Error during batch sync:', err.message);
+      return { success: false, synced: 0, remaining: pendingItems.length };
     }
   }
 
   private pingServer(): Promise<boolean> {
     return new Promise((resolve) => {
-      const req = http.get(`${this.serverUrl}/sync/status`, { timeout: 3000 }, (res) => {
-        resolve(res.statusCode === 200);
-      });
-      req.on('error', () => resolve(false));
-      req.on('timeout', () => {
-        req.destroy();
+      try {
+        const parsedUrl = new URL(`${this.serverUrl}/sync/status`);
+        const isHttps = parsedUrl.protocol === 'https:';
+        const client = isHttps ? https : http;
+
+        const req = client.get(
+          parsedUrl.toString(),
+          { timeout: 3000 },
+          (res) => {
+            resolve(res.statusCode === 200);
+          }
+        );
+        req.on('error', () => resolve(false));
+        req.on('timeout', () => {
+          req.destroy();
+          resolve(false);
+        });
+      } catch {
         resolve(false);
-      });
+      }
     });
   }
 
   private postJson(url: string, data: any): Promise<any> {
     return new Promise((resolve, reject) => {
-      const parsedUrl = new URL(url);
-      const postData = JSON.stringify(data);
+      try {
+        const parsedUrl = new URL(url);
+        const postData = JSON.stringify(data);
+        const isHttps = parsedUrl.protocol === 'https:';
+        const client = isHttps ? https : http;
 
-      const req = http.request(
-        {
-          hostname: parsedUrl.hostname,
-          port: parsedUrl.port || 80,
-          path: parsedUrl.pathname,
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Content-Length': Buffer.byteLength(postData),
-          },
-          timeout: 6000,
-        },
-        (res) => {
-          let body = '';
-          res.on('data', (chunk) => (body += chunk));
-          res.on('end', () => {
-            try {
-              resolve(JSON.parse(body));
-            } catch {
-              resolve({ success: false });
-            }
-          });
+        const headers: Record<string, string | number> = {
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(postData),
+        };
+
+        if (this.authToken) {
+          headers['Authorization'] = `Bearer ${this.authToken}`;
         }
-      );
 
-      req.on('error', (err) => reject(err));
-      req.on('timeout', () => {
-        req.destroy();
-        reject(new Error('Request timeout'));
-      });
+        const req = client.request(
+          {
+            hostname: parsedUrl.hostname,
+            port: parsedUrl.port || (isHttps ? 443 : 80),
+            path: parsedUrl.pathname + parsedUrl.search,
+            method: 'POST',
+            headers,
+            timeout: 8000,
+          },
+          (res) => {
+            let body = '';
+            res.on('data', (chunk) => (body += chunk));
+            res.on('end', () => {
+              try {
+                resolve(JSON.parse(body));
+              } catch {
+                resolve({ success: false, statusCode: res.statusCode });
+              }
+            });
+          }
+        );
 
-      req.write(postData);
-      req.end();
+        req.on('error', (err) => reject(err));
+        req.on('timeout', () => {
+          req.destroy();
+          reject(new Error('Request timeout'));
+        });
+
+        req.write(postData);
+        req.end();
+      } catch (err) {
+        reject(err);
+      }
     });
   }
 }

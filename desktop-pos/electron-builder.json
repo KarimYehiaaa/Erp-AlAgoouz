@@ -10,7 +10,22 @@
     "package.json"
   ],
   "win": {
-    "target": "dir",
-    "executableName": "AlAgoouz-POS"
+    "target": [
+      {
+        "target": "nsis",
+        "arch": [
+          "x64"
+        ]
+      }
+    ],
+    "executableName": "AlAgoouz-POS",
+    "artifactName": "AlAgoouz-POS-Setup-${version}.${ext}"
+  },
+  "nsis": {
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true,
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true,
+    "shortcutName": "بن العجوز POS"
   }
 }

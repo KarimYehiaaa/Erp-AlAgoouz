@@ -18,11 +18,14 @@ if (!process.env.POSTGRES_PASSWORD && fs.existsSync(localPgFile)) {
 }
 const { Client } = pg;
 
+const isCI = !!process.env.CI;
 const DB_NAME = process.env.DB_NAME || 'bin_al_ajouz';
 const DB_USER = process.env.DB_USER || 'erp_user';
-const DB_PASSWORD = process.env.DB_PASSWORD;
+const DB_PASSWORD =
+  process.env.DB_PASSWORD || process.env.POSTGRES_PASSWORD || (isCI ? 'postgres' : '');
 const ADMIN_USER = process.env.POSTGRES_USER || 'postgres';
-const ADMIN_PASSWORD = process.env.POSTGRES_PASSWORD || '';
+const ADMIN_PASSWORD =
+  process.env.POSTGRES_PASSWORD || process.env.DB_PASSWORD || (isCI ? 'postgres' : '');
 
 async function connectAsAdmin() {
   const client = new Client({
@@ -115,7 +118,7 @@ async function main() {
   if (!userExists.rows.length) {
     await admin.query(`CREATE USER ${safeUser} WITH PASSWORD '${safePassword}'`);
     console.log(` إنشاء المستخدم: ${DB_USER}`);
-  } else {
+  } else if (DB_USER !== ADMIN_USER) {
     await admin.query(`ALTER USER ${safeUser} WITH PASSWORD '${safePassword}'`);
     console.log(` تحديث كلمة مرور: ${DB_USER}`);
   }
@@ -140,10 +143,16 @@ async function main() {
     );
   `);
 
+  const appliedRes = await app
+    .query(`SELECT version FROM schema_migrations`)
+    .catch(() => ({ rows: [] }));
+  const applied = new Set(appliedRes.rows.map((r: any) => r.version));
   const files = getMigrationFiles();
 
   for (const file of files) {
     if (!fs.existsSync(file)) throw new Error(`ملف غير موجود: ${file}`);
+    const filename = path.basename(file);
+    if (applied.has(filename)) continue;
     await runSqlFile(app, file);
   }
 

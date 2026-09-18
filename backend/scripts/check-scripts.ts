@@ -18,23 +18,31 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const backendRoot = path.join(__dirname, '..');
-
-// كلمة مرور postgres المحلي (تُحفظ في .postgres.local عند تهيئة البيئة المحلية)
 const localPgFile = path.join(backendRoot, '.postgres.local');
-let localPassword = '0120';
-if (fs.existsSync(localPgFile)) {
-  localPassword = fs.readFileSync(localPgFile, 'utf8').trim();
-}
+
+const isCI = !!process.env.CI;
+const effectivePassword =
+  process.env.POSTGRES_PASSWORD ||
+  process.env.DB_PASSWORD ||
+  (fs.existsSync(localPgFile)
+    ? fs.readFileSync(localPgFile, 'utf8').trim()
+    : isCI
+      ? 'postgres'
+      : '0120');
+
+const effectiveUser = process.env.POSTGRES_USER || process.env.DB_USER || 'postgres';
 
 // فرض قاعدة محلية معزولة — يمنع تمامًا لمس قاعدة .env (Supabase/الإنتاج)
 const testEnv: NodeJS.ProcessEnv = {
   ...process.env,
   NODE_ENV: 'test',
-  DB_HOST: 'localhost',
-  DB_PORT: '5432',
-  DB_NAME: 'bin_al_ajouz_test',
-  DB_USER: 'postgres',
-  DB_PASSWORD: process.env.POSTGRES_PASSWORD || localPassword,
+  DB_HOST: process.env.DB_HOST || 'localhost',
+  DB_PORT: process.env.DB_PORT || '5432',
+  DB_NAME: process.env.DB_NAME || 'bin_al_ajouz_test',
+  DB_USER: effectiveUser,
+  DB_PASSWORD: effectivePassword,
+  POSTGRES_USER: effectiveUser,
+  POSTGRES_PASSWORD: effectivePassword,
   DB_SSL: 'false',
   DATABASE_URL: '',
 };

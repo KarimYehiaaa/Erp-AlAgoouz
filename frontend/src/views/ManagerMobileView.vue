@@ -1302,12 +1302,16 @@ onUnmounted(() => {
 .brand-emblem {
   width: 42px;
   height: 42px;
-  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  background: linear-gradient(
+    135deg,
+    var(--color-primary, #5a3825) 0%,
+    var(--color-primary-active, #3b2418) 100%
+  );
   border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 16px rgba(37, 99, 235, 0.35);
+  box-shadow: 0 4px 16px rgba(90, 56, 37, 0.35);
   color: #ffffff;
 }
 
@@ -1721,12 +1725,20 @@ onUnmounted(() => {
 }
 
 .bar-fill.branch-fill {
-  background: linear-gradient(90deg, #d9a86c, #f59e0b);
+  background: linear-gradient(
+    90deg,
+    var(--color-gold, #b58a4a),
+    var(--color-gold-soft-bright, #d1b06b)
+  );
   transition: width 0.6s ease;
 }
 
 .bar-fill.wholesale-fill {
-  background: linear-gradient(90deg, #38bdf8, #0284c7);
+  background: linear-gradient(
+    90deg,
+    var(--color-primary, #5a3825),
+    var(--color-primary-hover, #4a2e1e)
+  );
   transition: width 0.6s ease;
 }
 

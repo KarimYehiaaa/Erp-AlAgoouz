@@ -92,7 +92,7 @@
       font-weight: 750;
 
       &.highlight {
-        color: var(--primary, #10b981);
+        color: var(--color-gold, #b58a4a);
         font-weight: 850;
       }
     }
@@ -120,9 +120,9 @@
       transition: all 0.2s ease;
 
       &:hover {
-        background: rgba(16, 185, 129, 0.15);
-        border-color: var(--primary, #10b981);
-        color: var(--primary, #10b981);
+        background: rgba(181, 138, 74, 0.18);
+        border-color: var(--color-gold, #b58a4a);
+        color: var(--color-gold, #b58a4a);
         transform: translateY(-1px);
       }
     }
@@ -189,7 +189,7 @@
       .held-total {
         font-size: 0.88rem;
         font-weight: 850;
-        color: var(--primary, #10b981);
+        color: var(--color-gold, #b58a4a);
       }
 
       .held-remove-btn {
@@ -509,7 +509,7 @@
       border-radius: 6px;
       font-family: monospace;
       font-weight: 850;
-      color: var(--primary, #10b981);
+      color: var(--color-gold, #b58a4a);
       box-shadow: 0 2px 0 rgba(0, 0, 0, 0.2);
     }
   }

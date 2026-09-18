@@ -58,12 +58,12 @@
     background: color-mix(in srgb, #b45309 4%, var(--bg-card));
   }
   &.inventory {
-    border-color: color-mix(in srgb, #6366f1 30%, var(--border));
-    background: color-mix(in srgb, #6366f1 4%, var(--bg-card));
+    border-color: color-mix(in srgb, var(--color-primary) 30%, var(--border));
+    background: color-mix(in srgb, var(--color-primary) 4%, var(--bg-card));
   }
   &.customers {
-    border-color: color-mix(in srgb, #0891b2 30%, var(--border));
-    background: color-mix(in srgb, #0891b2 4%, var(--bg-card));
+    border-color: color-mix(in srgb, var(--color-gold) 30%, var(--border));
+    background: color-mix(in srgb, var(--color-gold) 4%, var(--bg-card));
   }
   &.danger {
     border-color: color-mix(in srgb, var(--danger) 30%, var(--border));
@@ -179,12 +179,12 @@
     color: #2e7d4f;
   }
   &.wholesale {
-    background: rgba(99, 102, 241, 0.12);
-    color: #4f46e5;
+    background: var(--color-primary-soft, rgba(90, 56, 37, 0.12));
+    color: var(--color-primary, #5a3825);
   }
   &.retail {
-    background: rgba(8, 145, 178, 0.12);
-    color: #0891b2;
+    background: var(--color-gold-soft, rgba(181, 138, 74, 0.12));
+    color: var(--color-gold, #b58a4a);
   }
 }
 .status-badge {

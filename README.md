@@ -56,5 +56,5 @@ npm run build -w frontend
 ## 📚 التوثيق الإضافي (Documentation)
 
 - 📖 [دليل المطور الكامل](docs/README.md)
-- 🛡️ [تقرير التدقيق الفني الشامل](docs/FULL_AUDIT_REPORT.md)
+- 🛡️ [تقرير التدقيق الفني الشامل](docs/audits/FULL_AUDIT_REPORT.md)
 - 🧠 [الذاكرة المعمارية للنظام](.agents/skills/erp-brain/SKILL.md)

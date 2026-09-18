@@ -24,6 +24,8 @@ export const defaultBranding: EnterpriseBranding = {
   companyName: 'بن العجوز',
   tagline: 'منظومة الإدارة والتشغيل المؤسسية',
   companyLogo: '/logo.png',
+  primaryColor: '#5A3825',
+  secondaryColor: '#B58A4A',
   borderRadius: 'md',
   density: 'cozy',
 };

@@ -2,8 +2,10 @@ import { contextBridge, ipcRenderer } from 'electron';
 
 contextBridge.exposeInMainWorld('electronAPI', {
   // Hardware
-  printReceipt: (invoiceData: any) => ipcRenderer.invoke('hardware:print-receipt', invoiceData),
-  openCashDrawer: () => ipcRenderer.invoke('hardware:open-drawer'),
+  printReceipt: (invoiceData: any, printerName?: string) =>
+    ipcRenderer.invoke('hardware:print-receipt', invoiceData, printerName),
+  openCashDrawer: (printerName?: string) =>
+    ipcRenderer.invoke('hardware:open-drawer', printerName),
   getPrinters: () => ipcRenderer.invoke('hardware:get-printers'),
 
   // Offline / Storage Bridge
@@ -12,9 +14,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
   updateTransactionStatus: (syncId: string, status: string, serverId?: any) =>
     ipcRenderer.invoke('storage:update-status', syncId, status, serverId),
 
+  // Session & Sync Bridge
+  setAuthToken: (token: string | null, serverUrl?: string) =>
+    ipcRenderer.invoke('auth:set-session', token, serverUrl),
+  triggerManualSync: () => ipcRenderer.invoke('sync:trigger-now'),
+
   // App & Device Info
   getDeviceInfo: () => ipcRenderer.invoke('app:get-device-info'),
   onBarcodeScan: (callback: (barcode: string) => void) => {
     ipcRenderer.on('barcode:scanned', (_event, barcode) => callback(barcode));
+  },
+  onSyncUpdated: (callback: (info: { synced: number; remaining: number }) => void) => {
+    ipcRenderer.on('sync:updated', (_event, info) => callback(info));
   },
 });

@@ -2398,14 +2398,14 @@ onMounted(async () => {
 }
 
 .sub-nav-btn:hover {
-  background: var(--bg-hover, #f1f5f9);
-  color: var(--text-main, #0f172a);
+  background: var(--color-surface-hover, #faf6f0);
+  color: var(--color-text-strong, #1d120b);
 }
 
 .sub-nav-btn.active {
-  background: var(--primary-light, #eff6ff);
-  color: var(--primary-color, #2563eb);
-  border-color: var(--primary-color, #2563eb);
+  background: var(--color-primary-soft, #f5efe9);
+  color: var(--color-primary, #5a3825);
+  border-color: var(--color-primary, #5a3825);
   font-weight: 600;
 }
 

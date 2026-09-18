@@ -10,6 +10,11 @@ export const usePosAuthStore = defineStore('posAuth', () => {
   const isAuthenticated = computed(() => !!token.value && !!user.value);
   const isCashier = computed(() => user.value?.role_name === 'cashier' || user.value?.role_name === 'admin');
 
+  // Sync token to Electron syncWorker on initial load
+  if (token.value && window.electronAPI?.setAuthToken) {
+    window.electronAPI.setAuthToken(token.value, localStorage.getItem('pos_server_url') || undefined);
+  }
+
   const login = async (credentials: { username: string; password: string }) => {
     const res = await api.post('/auth/login', credentials);
     const payload = res.data?.data || res.data;
@@ -18,6 +23,10 @@ export const usePosAuthStore = defineStore('posAuth', () => {
       user.value = payload.user;
       localStorage.setItem('pos_token', payload.token);
       localStorage.setItem('pos_user', JSON.stringify(payload.user));
+
+      if (window.electronAPI?.setAuthToken) {
+        await window.electronAPI.setAuthToken(payload.token, localStorage.getItem('pos_server_url') || undefined);
+      }
       return payload;
     }
     throw new Error(res.data?.message || 'اسم المستخدم أو كلمة المرور غير صحيحة');
@@ -28,6 +37,10 @@ export const usePosAuthStore = defineStore('posAuth', () => {
     user.value = null;
     localStorage.removeItem('pos_token');
     localStorage.removeItem('pos_user');
+
+    if (window.electronAPI?.setAuthToken) {
+      window.electronAPI.setAuthToken(null);
+    }
   };
 
   return {

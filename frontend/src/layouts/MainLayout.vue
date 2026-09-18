@@ -444,21 +444,21 @@ onBeforeUnmount(() => {
   direction: rtl;
 
   &.success {
-    background: #15803d !important;
+    background: var(--color-success, #28724c) !important;
     color: #ffffff !important;
-    border-color: #166534 !important;
+    border-color: var(--color-success-border, rgba(40, 114, 76, 0.4)) !important;
   }
 
   &.error {
-    background: #dc2626 !important;
+    background: var(--color-danger, #b9382e) !important;
     color: #ffffff !important;
-    border-color: #991b1b !important;
+    border-color: var(--color-danger-border, rgba(185, 56, 46, 0.4)) !important;
   }
 
   &.warning {
-    background: #d97706 !important;
+    background: var(--color-warning, #b66d1b) !important;
     color: #ffffff !important;
-    border-color: #92400e !important;
+    border-color: var(--color-warning-border, rgba(182, 109, 27, 0.4)) !important;
   }
 }
 

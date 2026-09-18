@@ -582,24 +582,24 @@ onMounted(async () => {
 
 /* CSS CUSTOM PROPERTIES (Universal Enterprise Theme) */
 .login-page {
-  --bg-cream: #f8fafc;
-  --bg-white: #ffffff;
-  --surface: #f1f5f9;
-  --border-light: #e2e8f0;
-  --border-medium: #cbd5e1;
+  --bg-cream: var(--color-bg, #f7f3ec);
+  --bg-white: var(--color-surface, #ffffff);
+  --surface: var(--color-surface-hover, #faf6f0);
+  --border-light: var(--color-border-subtle, #efe9df);
+  --border-medium: var(--color-border, #e3dacd);
 
-  --text-primary: #0f172a;
-  --text-secondary: #475569;
-  --text-muted: #64748b;
+  --text-primary: var(--color-text-strong, #1d120b);
+  --text-secondary: var(--color-text-secondary, #553f33);
+  --text-muted: var(--color-text-muted, #7e685a);
 
-  --accent: #2563eb;
-  --accent-dark: #1d4ed8;
-  --accent-light: #3b82f6;
-  --accent-glow: rgba(37, 99, 235, 0.18);
+  --accent: var(--color-primary, #5a3825);
+  --accent-dark: var(--color-primary-active, #3b2418);
+  --accent-light: var(--color-gold, #b58a4a);
+  --accent-glow: rgba(90, 56, 37, 0.2);
 
-  --brand-gradient-start: #0b0f17;
-  --brand-gradient-mid: #0f172a;
-  --brand-gradient-end: #1e293b;
+  --brand-gradient-start: #2a1b11;
+  --brand-gradient-mid: #1e130b;
+  --brand-gradient-end: #120c08;
 
   --radius-sm: 8px;
   --radius-md: 12px;
@@ -1679,7 +1679,11 @@ onMounted(async () => {
 }
 
 .btn-save {
-  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  background: linear-gradient(
+    135deg,
+    var(--color-primary, #5a3825),
+    var(--color-primary-active, #3b2418)
+  );
   border: none;
   color: #ffffff;
   padding: 8px 18px;
@@ -1688,27 +1692,27 @@ onMounted(async () => {
   font-weight: 800;
   cursor: pointer;
   font-family: inherit;
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+  box-shadow: 0 4px 12px rgba(90, 56, 37, 0.3);
 }
 </style>
 
 <!-- ═══════════ كتلة غير معزولة: متغيرات صفحة الدخول في الوضع الداكن ═══════════ -->
 <style lang="scss">
 html[data-theme='dark'] .login-page {
-  --bg-cream: #0b0f17;
-  --bg-white: #111827;
-  --surface: #1e293b;
-  --border-light: #1e293b;
-  --border-medium: #334155;
+  --bg-cream: var(--color-bg, #120c08);
+  --bg-white: var(--color-surface, #211710);
+  --surface: var(--color-surface-raised, #2c1f17);
+  --border-light: var(--color-border-subtle, #2a1e16);
+  --border-medium: var(--color-border, #3a2a20);
 
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
+  --text-primary: var(--color-text-strong, #ffffff);
+  --text-secondary: var(--color-text-secondary, #d6c5b5);
+  --text-muted: var(--color-text-muted, #9e8c7f);
 
-  --accent: #3b82f6;
-  --accent-dark: #60a5fa;
-  --accent-light: #1d4ed8;
-  --accent-glow: rgba(59, 130, 246, 0.2);
+  --accent: var(--color-gold, #d1b06b);
+  --accent-dark: #e2c586;
+  --accent-light: #b58a4a;
+  --accent-glow: rgba(209, 176, 107, 0.25);
 
   --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.5), 0 1px 3px rgba(0, 0, 0, 0.3);
   --shadow-card-hover: 0 8px 30px rgba(0, 0, 0, 0.6), 0 2px 6px rgba(0, 0, 0, 0.4);

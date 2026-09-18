@@ -29,6 +29,8 @@ jobs:
       DB_NAME: bin_al_ajouz_test
       DB_USER: postgres
       DB_PASSWORD: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
       DB_SSL: 'false'
       DATABASE_URL: ''
       NODE_ENV: test

@@ -182,16 +182,16 @@ const onFilterChange = (e: Event) => {
     color: #2e7d4f;
   }
   &.purchase {
-    background: rgba(99, 102, 241, 0.12);
-    color: #4f46e5;
+    background: var(--color-primary-soft, rgba(90, 56, 37, 0.12));
+    color: var(--color-primary, #5a3825);
   }
   &.purchase_reversal {
     background: rgba(180, 35, 24, 0.12);
     color: #b42318;
   }
   &.transfer {
-    background: rgba(8, 145, 178, 0.12);
-    color: #0891b2;
+    background: var(--color-gold-soft, rgba(181, 138, 74, 0.12));
+    color: var(--color-gold, #b58a4a);
   }
   &.adjustment {
     background: rgba(180, 83, 9, 0.12);

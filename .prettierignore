@@ -1,4 +1,7 @@
 dist/
+frontend/dist/
+frontend/android/app/src/main/assets/public/
+frontend/android/build/
 node_modules/
 *.min.js
 *.min.css

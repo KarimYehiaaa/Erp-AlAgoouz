@@ -8,6 +8,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "test": "vitest run tests",
     "electron:dev": "vite",
     "electron:build": "vite build && electron-builder"
   },

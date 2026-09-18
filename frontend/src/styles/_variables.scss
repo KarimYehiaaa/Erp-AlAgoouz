@@ -64,13 +64,21 @@
   --border: var(--color-border);
   --border-strong: var(--color-border-strong);
 
-  /* ── Secondary Accent (Teal / Cyan) & Layered Surfaces ── */
+  /* ── Secondary Accent (Warm Gold / Telemetry) & Layered Surfaces ── */
   --teal: var(--color-teal);
   --teal-soft: var(--color-teal-soft);
   --teal-subtle: var(--color-teal-subtle);
   --teal-border: var(--color-teal-border);
   --teal-halo: var(--color-teal-halo);
   --teal-glow: var(--color-teal-glow);
+
+  /* ── Explicit Coffee & Gold System Tokens ── */
+  --coffee-primary: var(--color-primary);
+  --coffee-deep: var(--color-primary-active);
+  --coffee-soft: var(--color-primary-soft);
+  --gold-warm: var(--color-gold);
+  --gold-soft: var(--color-gold-soft-bright);
+  --gold-subtle: var(--color-gold-subtle);
 
   --surface-raised: var(--color-surface-raised);
   --surface-sunken: var(--color-surface-sunken);
@@ -163,7 +171,7 @@
   --surface-sunken: var(--color-surface-sunken);
   --surface-overlay: var(--color-surface-overlay);
 
-  --glass-bg: rgba(30, 41, 59, 0.85);
+  --glass-bg: rgba(33, 23, 16, 0.85);
   --glass-border: var(--color-border);
 
   --app-bg: var(--color-bg);

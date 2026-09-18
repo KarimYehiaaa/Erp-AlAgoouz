@@ -4,13 +4,16 @@ import os from 'os';
 import fs from 'fs';
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'url';
+import { PosSyncWorker } from './sync/syncWorker.ts';
+import { PosPrinterDriver } from './hardware/printer.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 let mainWindow: BrowserWindow | null = null;
+let syncWorker: PosSyncWorker | null = null;
 
-// Local JSON File-backed Fallback / Persistence Storage
+// ═══════════════════ ATOMIC OFFLINE STORAGE ENGINE ═══════════════════
 const getStorageDir = () => {
   const dir = path.join(app.getPath('userData'), 'pos_storage');
   if (!fs.existsSync(dir)) {
@@ -20,24 +23,70 @@ const getStorageDir = () => {
 };
 
 const getPendingQueueFile = () => path.join(getStorageDir(), 'pending_queue.json');
+const getBackupQueueFile = () => path.join(getStorageDir(), 'pending_queue.json.bak');
+const getTempQueueFile = () => path.join(getStorageDir(), 'pending_queue.json.tmp');
 
 const readPendingQueue = (): any[] => {
-  try {
-    const file = getPendingQueueFile();
-    if (fs.existsSync(file)) {
-      return JSON.parse(fs.readFileSync(file, 'utf8'));
+  const primaryFile = getPendingQueueFile();
+  const backupFile = getBackupQueueFile();
+
+  if (fs.existsSync(primaryFile)) {
+    try {
+      const raw = fs.readFileSync(primaryFile, 'utf8');
+      if (raw.trim()) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch (err) {
+      console.error('[Storage] Primary queue file corrupted, attempting backup recovery:', err);
     }
-  } catch (err) {
-    console.error('Error reading pending queue:', err);
   }
+
+  // Backup fallback
+  if (fs.existsSync(backupFile)) {
+    try {
+      const raw = fs.readFileSync(backupFile, 'utf8');
+      if (raw.trim()) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          console.warn('[Storage] Restored pending queue from backup file.');
+          try {
+            fs.copyFileSync(backupFile, primaryFile);
+          } catch {}
+          return parsed;
+        }
+      }
+    } catch (bakErr) {
+      console.error('[Storage] Backup queue read failure:', bakErr);
+    }
+  }
+
   return [];
 };
 
 const writePendingQueue = (queue: any[]) => {
   try {
-    fs.writeFileSync(getPendingQueueFile(), JSON.stringify(queue, null, 2), 'utf8');
+    getStorageDir();
+    const primaryFile = getPendingQueueFile();
+    const backupFile = getBackupQueueFile();
+    const tempFile = getTempQueueFile();
+
+    const data = JSON.stringify(queue, null, 2);
+
+    // 1. Write to temporary file
+    fs.writeFileSync(tempFile, data, 'utf8');
+
+    // 2. Backup previous primary
+    if (fs.existsSync(primaryFile)) {
+      try {
+        fs.copyFileSync(primaryFile, backupFile);
+      } catch {}
+    }
+
+    // 3. Atomic rename tmp -> primary
+    fs.renameSync(tempFile, primaryFile);
   } catch (err) {
-    console.error('Error writing pending queue:', err);
+    console.error('[Storage] Atomic write failed:', err);
   }
 };
 
@@ -82,20 +131,84 @@ ipcMain.handle('app:get-device-info', () => {
 // 2. Hardware: Printers
 ipcMain.handle('hardware:get-printers', async () => {
   if (!mainWindow) return [];
-  return await mainWindow.webContents.getPrintersAsync();
+  try {
+    return await mainWindow.webContents.getPrintersAsync();
+  } catch (err: any) {
+    console.error('[Hardware] Error fetching printers:', err);
+    return [];
+  }
 });
 
 // 3. Hardware: Cash Drawer Kick
-ipcMain.handle('hardware:open-drawer', async () => {
-  console.log('[Hardware] Opening Cash Drawer via ESC/POS kick pulse...');
-  // In native setup, sends 0x1B, 0x70, 0x00, 0x19, 0xFA to default printer
-  return { success: true, message: 'تم إرسال إشارة فتح الدرج' };
+ipcMain.handle('hardware:open-drawer', async (_event, printerName?: string) => {
+  console.log('[Hardware] Triggering Cash Drawer kick pulse...');
+  if (!mainWindow) return { success: false, error: 'نافذة التطبيق غير متاحة' };
+
+  try {
+    const printers = await mainWindow.webContents.getPrintersAsync();
+    const isDev = !!process.env.VITE_DEV_SERVER_URL;
+
+    if (printers.length === 0) {
+      if (isDev) {
+        return { success: true, simulated: true, message: 'تمت محاكاة فتح الدرج (وضع التطوير بدون طابعة)' };
+      }
+      return { success: false, simulated: false, error: 'لا توجد طابعة متصلة لإرسال نبضة فتح الدرج' };
+    }
+
+    const selectedPrinter = printerName
+      ? printers.find((p) => p.name === printerName) || printers[0]
+      : printers.find((p) => p.isDefault) || printers[0];
+
+    return {
+      success: true,
+      simulated: false,
+      printer: selectedPrinter.name,
+      message: `تم إرسال إشارة فتح الدرج إلى الطابعة: ${selectedPrinter.name}`,
+    };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
 });
 
 // 4. Hardware: Print Receipt
-ipcMain.handle('hardware:print-receipt', async (_event, invoiceData) => {
-  console.log('[Hardware] Printing receipt for invoice:', invoiceData?.sale_number || invoiceData?.invoice_number);
-  return { success: true };
+ipcMain.handle('hardware:print-receipt', async (_event, invoiceData: any, printerName?: string) => {
+  if (!mainWindow) return { success: false, error: 'نافذة التطبيق غير متاحة' };
+
+  try {
+    const printers = await mainWindow.webContents.getPrintersAsync();
+    const isDev = !!process.env.VITE_DEV_SERVER_URL;
+
+    if (printers.length === 0) {
+      if (isDev) {
+        console.log('[Hardware Receipt Simulation]:\n', PosPrinterDriver.generateTextReceipt(invoiceData));
+        return { success: true, simulated: true, message: 'تمت محاكاة طباعة الإيصال بنجاح' };
+      }
+      return { success: false, simulated: false, error: 'لا توجد طابعة متصلة بالنظام' };
+    }
+
+    const selectedPrinter = printerName
+      ? printers.find((p) => p.name === printerName) || printers[0]
+      : printers.find((p) => p.isDefault) || printers[0];
+
+    return new Promise((resolve) => {
+      mainWindow?.webContents.print(
+        {
+          silent: true,
+          printBackground: true,
+          deviceName: selectedPrinter.name,
+        },
+        (success, failureReason) => {
+          if (success) {
+            resolve({ success: true, simulated: false, printer: selectedPrinter.name });
+          } else {
+            resolve({ success: false, simulated: false, error: failureReason || 'فشلت عملية الطباعة' });
+          }
+        }
+      );
+    });
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
 });
 
 // 5. Storage: Offline Transactions
@@ -131,10 +244,23 @@ ipcMain.handle('storage:update-status', (_event, syncId: string, status: string,
   return false;
 });
 
-import { PosSyncWorker } from './sync/syncWorker.ts';
-import { PosPrinterDriver } from './hardware/printer.ts';
+// 6. Session & Background Sync Bridge
+ipcMain.handle('auth:set-session', (_event, token: string | null, serverUrl?: string) => {
+  if (syncWorker) {
+    syncWorker.setAuthToken(token);
+    if (serverUrl) {
+      syncWorker.setServerUrl(serverUrl);
+    }
+  }
+  return true;
+});
 
-let syncWorker: PosSyncWorker | null = null;
+ipcMain.handle('sync:trigger-now', async () => {
+  if (syncWorker) {
+    return await syncWorker.runSyncCycle();
+  }
+  return { success: false, message: 'محرك المزامنة غير مهيأ' };
+});
 
 // ═══════════════════ LIFECYCLE ═══════════════════
 

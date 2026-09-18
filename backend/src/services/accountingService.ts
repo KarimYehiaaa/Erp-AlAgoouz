@@ -354,6 +354,7 @@ export const accountingService = {
       customer_id?: number;
       warehouse_id?: number;
       user_id?: number;
+      sale_date?: string;
     },
   ) {
     const totalAmount = roundMoney(Number(sale.total_amount || 0));
@@ -439,6 +440,7 @@ export const accountingService = {
 
     return this.createJournalEntry(
       {
+        entry_date: sale.sale_date,
         reference_type: 'sale',
         reference_id: sale.id,
         idempotency_key: `sale:${sale.id}`,
@@ -466,6 +468,7 @@ export const accountingService = {
       supplier_id?: number;
       warehouse_id?: number;
       user_id?: number;
+      invoice_date?: string;
     },
   ) {
     const totalAmount = roundMoney(Number(purchase.total_amount || 0));
@@ -495,6 +498,7 @@ export const accountingService = {
 
     return this.createJournalEntry(
       {
+        entry_date: purchase.invoice_date,
         reference_type: 'purchase',
         reference_id: purchase.id,
         idempotency_key: `purchase:${purchase.id}`,
@@ -520,6 +524,7 @@ export const accountingService = {
       supplier_id?: number;
       warehouse_id?: number;
       user_id?: number;
+      return_date?: string;
     },
   ) {
     const totalAmount = roundMoney(Number(returnDoc.total_amount || 0));
@@ -544,6 +549,7 @@ export const accountingService = {
 
     return this.createJournalEntry(
       {
+        entry_date: returnDoc.return_date,
         reference_type: 'purchase_return',
         reference_id: returnDoc.id,
         idempotency_key: `purchase_return:${returnDoc.id}`,

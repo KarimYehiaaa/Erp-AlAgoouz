@@ -222,30 +222,33 @@ export const posShiftService = {
    * تسجيل حركة نقدية (توريد نقدية للخزينة أو إيداع فكة)
    */
   async recordCashMovement(userId: number, data: CashMovementData) {
-    const shiftRes = await query(
-      `SELECT id, status FROM pos_shifts WHERE id = $1 AND cashier_user_id = $2`,
-      [data.shift_id, userId],
-    );
-
-    if (shiftRes.rows.length === 0 || shiftRes.rows[0].status !== 'open') {
-      throw new AppError('الوردية غير موجودة أو مغلقة', 400);
-    }
-
-    const amount = Number(data.amount);
-    if (amount <= 0) {
-      throw new AppError('يجب أن يكون المبلغ أكبر من صفر', 400);
-    }
-
-    const res = await query(
-      `INSERT INTO pos_cash_movements (shift_id, movement_type, amount, reason, authorized_by)
-       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-      [data.shift_id, data.movement_type, amount, data.reason, userId],
-    );
-
-    const movement = res.rows[0];
+    const client = await getClient();
     try {
+      await client.query('BEGIN');
+
+      const shiftRes = await client.query(
+        `SELECT id, status FROM pos_shifts WHERE id = $1 AND cashier_user_id = $2 FOR UPDATE`,
+        [data.shift_id, userId],
+      );
+
+      if (shiftRes.rows.length === 0 || shiftRes.rows[0].status !== 'open') {
+        throw new AppError('الوردية غير موجودة أو مغلقة', 400);
+      }
+
+      const amount = Number(data.amount);
+      if (amount <= 0) {
+        throw new AppError('يجب أن يكون المبلغ أكبر من صفر', 400);
+      }
+
+      const res = await client.query(
+        `INSERT INTO pos_cash_movements (shift_id, movement_type, amount, reason, authorized_by)
+         VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+        [data.shift_id, data.movement_type, amount, data.reason, userId],
+      );
+
+      const movement = res.rows[0];
       const { accountingService } = await import('./accountingService.ts');
-      await accountingService.postShiftCashMovementJournalEntry(null, {
+      await accountingService.postShiftCashMovementJournalEntry(client, {
         id: movement.id,
         shift_id: movement.shift_id,
         movement_type: movement.movement_type,
@@ -253,11 +256,15 @@ export const posShiftService = {
         reason: movement.reason,
         user_id: userId,
       });
-    } catch (accErr: any) {
-      console.warn(`[Accounting] تعذر ترحيل حركة نقدية الوردية تلقائياً: ${accErr.message}`);
-    }
 
-    return movement;
+      await client.query('COMMIT');
+      return movement;
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
   },
 
   /**
@@ -319,17 +326,13 @@ export const posShiftService = {
       );
 
       if (Math.abs(cashDifference) > 0.01) {
-        try {
-          const { accountingService } = await import('./accountingService.ts');
-          await accountingService.postShiftDifferenceJournalEntry(client, {
-            id: shiftId,
-            shift_number: shift.shift_number || `SHIFT-${shiftId}`,
-            cash_difference: cashDifference,
-            user_id: userId,
-          });
-        } catch (accErr: any) {
-          console.warn(`[Accounting] تعذر ترحيل فرق نقدية الوردية تلقائياً: ${accErr.message}`);
-        }
+        const { accountingService } = await import('./accountingService.ts');
+        await accountingService.postShiftDifferenceJournalEntry(client, {
+          id: shiftId,
+          shift_number: shift.shift_number || `SHIFT-${shiftId}`,
+          cash_difference: cashDifference,
+          user_id: userId,
+        });
       }
 
       await client.query('COMMIT');

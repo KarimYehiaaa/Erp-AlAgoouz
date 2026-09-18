@@ -514,6 +514,9 @@ export const createPurchaseInvoice = async (
       supplier_id: supplierId || undefined,
       warehouse_id: invoiceWarehouseId,
       user_id: userId,
+      invoice_date:
+        payload.invoice_date ||
+        (invoice.invoice_date ? String(invoice.invoice_date).slice(0, 10) : undefined),
     });
 
     if (shouldManageTransaction) await client.query('COMMIT');
@@ -617,6 +620,22 @@ export const updatePurchaseInvoice = async (
       await recalculateSupplierBalance(client, newSupplierId);
     }
 
+    // الترحيل المحاسبي التلقائي بعد التعديل
+    const { accountingService } = await import('./accountingService.ts');
+    await accountingService.deleteJournalEntryByReference(client, 'purchase', id);
+    await accountingService.postPurchaseJournalEntry(client, {
+      id: id,
+      invoice_number: updated.invoice_number,
+      total_amount: subtotal,
+      payment_status: updated.payment_status || 'unpaid',
+      supplier_id: newSupplierId || undefined,
+      warehouse_id: invoiceWarehouseId,
+      user_id: userId,
+      invoice_date:
+        payload.invoice_date ||
+        (updated.invoice_date ? String(updated.invoice_date).slice(0, 10) : undefined),
+    });
+
     await client.query('COMMIT');
     invalidateDashboardCache();
     return {
@@ -679,12 +698,8 @@ export const deletePurchaseInvoice = async (invoiceId: number, userId: number) =
       await recalculateSupplierBalance(client, inv.supplier_id);
     }
 
-    try {
-      const { accountingService } = await import('./accountingService.ts');
-      await accountingService.deleteJournalEntryByReference(client, 'purchase', id);
-    } catch {
-      // ignore if no journal entry
-    }
+    const { accountingService } = await import('./accountingService.ts');
+    await accountingService.deleteJournalEntryByReference(client, 'purchase', id);
 
     await client.query('COMMIT');
     invalidateDashboardCache();

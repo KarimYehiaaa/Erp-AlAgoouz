@@ -237,6 +237,9 @@ const createDailySale = async (data: Record<string, any>, userId: number) => {
       customer_id: customerId,
       warehouse_id: warehouseId,
       user_id: userId,
+      sale_date: sale.sale_date
+        ? sale.sale_date.toISOString?.().slice(0, 10) || String(sale.sale_date).slice(0, 10)
+        : saleDate,
     });
 
     await client.query('COMMIT');
@@ -472,6 +475,26 @@ const updateSale = async (saleId: number, data: Record<string, any>, userId: num
         JSON.stringify({ sale_id: saleId, amount: totalAmount }),
       ],
     );
+
+    // الترحيل المحاسبي التلقائي للقيد المزدوج بعد التعديل
+    const { accountingService } = await import('./accountingService.ts');
+    await accountingService.deleteJournalEntryByReference(client, 'sale', saleId);
+    await accountingService.postSaleJournalEntry(client, {
+      id: saleId,
+      sale_number: existingSale.sale_number,
+      sale_type: saleType,
+      total_amount: totalAmount,
+      cost_amount: costAmount,
+      tax_amount: totals.taxAmount || 0,
+      payment_method: data.payment_method || existingSale.payment_method || 'cash',
+      customer_id: customerId,
+      warehouse_id: warehouseId,
+      user_id: userId,
+      sale_date: saleDate
+        ? saleDate.toISOString?.().slice(0, 10) || String(saleDate).slice(0, 10)
+        : undefined,
+    });
+
     await client.query('COMMIT');
     invalidateDashboardCache();
     broadcast('sales_changed', { action: 'update', sale_id: saleId });
@@ -666,12 +689,8 @@ const deleteAllSales = async (userId: number) => {
       );
       for (const row of posSales.rows) {
         await restoreInventoryForSale(client, row.id, userId);
-        try {
-          const { accountingService } = await import('./accountingService.ts');
-          await accountingService.deleteJournalEntryByReference(client, 'sale', row.id);
-        } catch {
-          // ignore if no journal entry
-        }
+        const { accountingService } = await import('./accountingService.ts');
+        await accountingService.deleteJournalEntryByReference(client, 'sale', row.id);
       }
       await client.query(
         `UPDATE sales
@@ -739,12 +758,8 @@ const deleteSalesByDate = async (saleDate: string, userId: number) => {
       );
       for (const row of posSales.rows) {
         await restoreInventoryForSale(client, row.id, userId);
-        try {
-          const { accountingService } = await import('./accountingService.ts');
-          await accountingService.deleteJournalEntryByReference(client, 'sale', row.id);
-        } catch {
-          // ignore if no journal entry
-        }
+        const { accountingService } = await import('./accountingService.ts');
+        await accountingService.deleteJournalEntryByReference(client, 'sale', row.id);
       }
       await client.query(
         `UPDATE sales
@@ -815,12 +830,8 @@ const deleteSalesByType = async (saleType: string, userId: number) => {
       );
       for (const row of posSales.rows) {
         await restoreInventoryForSale(client, row.id, userId);
-        try {
-          const { accountingService } = await import('./accountingService.ts');
-          await accountingService.deleteJournalEntryByReference(client, 'sale', row.id);
-        } catch {
-          // ignore if no journal entry
-        }
+        const { accountingService } = await import('./accountingService.ts');
+        await accountingService.deleteJournalEntryByReference(client, 'sale', row.id);
       }
       await client.query(
         `UPDATE sales SET deleted_at = NOW(), status = 'cancelled', updated_at = NOW()

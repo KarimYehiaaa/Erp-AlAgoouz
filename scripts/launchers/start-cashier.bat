@@ -1,16 +1,37 @@
 @echo off
 chcp 65001 > nul
-cd /d "%~dp0..\.."
 
-:: 1. التحقق من السيرفر وتشغيله في الخلفية بدون أي شاشة
-powershell -NoProfile -Command "try { (Invoke-WebRequest -Uri 'http://localhost:3000/api/v1/sync/status' -TimeoutSec 1).StatusCode } catch { Start-Process powershell -ArgumentList '-NoProfile -WindowStyle Hidden -Command npm start --prefix backend' -WindowStyle Hidden }" > nul 2>&1
+:: ============================================================================
+:: بن العجوز ERP — مشغل تطبيق الكاشير المكتبي للإنتاج (Production Native Launcher)
+:: تشغيل مباشر للتطبيق المجمع بدون الحاجة لـ Node.js أو npm أو أية بيئة تطوير
+:: ============================================================================
 
-:: 2. تشغيل تطبيق الكاشير المكتبي كبرنامج ويندوز أصيل مباشرة
-if exist "%~dp0..\..\desktop-pos\release\win-unpacked\AlAgoouz-POS.exe" (
-    start "" "%~dp0..\..\desktop-pos\release\win-unpacked\AlAgoouz-POS.exe"
-) else (
-    start "" "%~dp0..\..\desktop-pos\node_modules\electron\dist\electron.exe" "%~dp0..\..\desktop-pos"
+:: 1. فحص مسار التثبيت الافتراضي للمستخدم
+if exist "%LocalAppData%\Programs\AlAgoouz-POS\AlAgoouz-POS.exe" (
+    start "" "%LocalAppData%\Programs\AlAgoouz-POS\AlAgoouz-POS.exe"
+    exit
 )
 
-:: 3. إغلاق شاشة الدوس فوراً
+:: 2. فحص مسار تثبيت البرامج العام (Program Files)
+if exist "%ProgramFiles%\AlAgoouz-POS\AlAgoouz-POS.exe" (
+    start "" "%ProgramFiles%\AlAgoouz-POS\AlAgoouz-POS.exe"
+    exit
+)
+
+:: 3. فحص مجلد الإصدار المستقل داخل المستودع (Standalone Unpacked)
+if exist "%~dp0..\..\desktop-pos\release\win-unpacked\AlAgoouz-POS.exe" (
+    start "" "%~dp0..\..\desktop-pos\release\win-unpacked\AlAgoouz-POS.exe"
+    exit
+)
+
+:: إذا لم يتم العثور على التطبيق المثبت، توجيه المستخدم لتثبيت المثبت الرسمي
+echo.
+echo ======================================================================
+echo    تنبيه: تطبيق كاشير بن العجوز غير مثبت على هذا الجهاز
+echo ======================================================================
+echo.
+echo يرجى تشغيل مثبت الإنتاج الرسمي:
+echo desktop-pos\release\AlAgoouz-POS-Setup-1.0.0.exe
+echo.
+pause
 exit

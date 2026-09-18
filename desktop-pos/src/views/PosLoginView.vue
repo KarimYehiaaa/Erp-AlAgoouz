@@ -38,6 +38,27 @@
           />
         </div>
 
+        <div class="server-config-toggle">
+          <button type="button" class="btn-text-link" @click="showServerConfig = !showServerConfig">
+            <AppIcon name="settings" :size="14" />
+            <span>{{ showServerConfig ? 'إخفاء إعدادات الخادم' : 'إعدادات اتصال الخادم المركزي' }}</span>
+          </button>
+        </div>
+
+        <div v-if="showServerConfig" class="server-config-panel">
+          <label>رابط الخادم المركزي (Central Server API):</label>
+          <div class="server-input-row">
+            <input
+              v-model="serverUrlInput"
+              type="text"
+              placeholder="http://localhost:3000/api/v1 أو https://..."
+              class="pos-input text-xs"
+            />
+            <button type="button" class="btn-save-server" @click="saveServerUrl">حفظ</button>
+          </div>
+          <span v-if="serverSavedMsg" class="server-saved-hint">{{ serverSavedMsg }}</span>
+        </div>
+
         <button type="submit" class="btn-pos-login" :disabled="loading">
           <span v-if="loading" class="spinner"></span>
           <span v-else>تسجيل الدخول وبدء الوردية</span>
@@ -53,10 +74,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import AppIcon from '../components/AppIcon.vue';
 import { usePosAuthStore } from '../stores/posAuth';
+import { getServerUrl, setServerUrl } from '../services/config';
 
 const router = useRouter();
 const authStore = usePosAuthStore();
@@ -68,11 +90,30 @@ const form = ref({
 
 const loading = ref(false);
 const errorMsg = ref('');
+const showServerConfig = ref(false);
+const serverUrlInput = ref(getServerUrl());
+const serverSavedMsg = ref('');
+
+onMounted(() => {
+  serverUrlInput.value = getServerUrl();
+});
+
+const saveServerUrl = async () => {
+  if (!serverUrlInput.value.trim()) return;
+  await setServerUrl(serverUrlInput.value.trim());
+  serverSavedMsg.value = 'تم حفظ وتحديث عنوان الخادم المركزي بنجاح';
+  setTimeout(() => {
+    serverSavedMsg.value = '';
+  }, 3000);
+};
 
 const handleLogin = async () => {
   loading.value = true;
   errorMsg.value = '';
   try {
+    if (serverUrlInput.value.trim()) {
+      await setServerUrl(serverUrlInput.value.trim());
+    }
     await authStore.login(form.value);
     router.push('/shift/open');
   } catch (err: any) {
@@ -198,6 +239,79 @@ const handleLogin = async () => {
       background: linear-gradient(135deg, #9b6330 0%, #7d4a20 100%);
       transform: translateY(-2px);
       box-shadow: 0 6px 18px rgba(138, 87, 42, 0.4);
+    }
+  }
+
+  .server-config-toggle {
+    display: flex;
+    justify-content: center;
+
+    .btn-text-link {
+      background: none;
+      border: none;
+      color: var(--primary, #8a572a);
+      font-size: 0.8rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 8px;
+      border-radius: 4px;
+
+      &:hover {
+        background: rgba(138, 87, 42, 0.08);
+      }
+    }
+  }
+
+  .server-config-panel {
+    background: #faf8f5;
+    border: 1px dashed var(--border, #e7e2d9);
+    border-radius: 8px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+
+    label {
+      font-size: 0.75rem;
+      color: var(--text-muted, #78716c);
+      font-weight: 700;
+    }
+
+    .server-input-row {
+      display: flex;
+      gap: 6px;
+
+      input {
+        flex: 1;
+        height: 36px;
+        font-size: 0.8rem;
+        direction: ltr;
+        text-align: left;
+      }
+
+      .btn-save-server {
+        background: var(--primary, #8a572a);
+        color: #fff;
+        border: none;
+        border-radius: 6px;
+        padding: 0 12px;
+        font-size: 0.8rem;
+        font-weight: 700;
+        cursor: pointer;
+
+        &:hover {
+          background: #73451e;
+        }
+      }
+    }
+
+    .server-saved-hint {
+      font-size: 0.75rem;
+      color: #15803d;
+      font-weight: 700;
     }
   }
 }

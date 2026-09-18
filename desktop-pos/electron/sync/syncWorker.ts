@@ -16,12 +16,17 @@ export class PosSyncWorker {
   private intervalId: NodeJS.Timeout | null = null;
   private serverUrl = process.env.POS_SERVER_URL || 'http://localhost:3000/api/v1';
   private authToken: string | null = null;
+  private syncInFlight = false;
 
   constructor(
     private readQueue: () => any[],
     private updateStatus: (syncId: string, status: string, serverId?: any) => boolean,
     private getMainWindow: () => BrowserWindow | null
   ) {}
+
+  public getServerUrl(): string {
+    return this.serverUrl;
+  }
 
   public setAuthToken(token: string | null) {
     this.authToken = token;
@@ -56,12 +61,24 @@ export class PosSyncWorker {
       this.intervalId = null;
     }
     this.isRunning = false;
+    this.syncInFlight = false;
     console.log('[SyncWorker] Background sync worker stopped.');
   }
 
   public async runSyncCycle(): Promise<{ success: boolean; synced: number; remaining: number }> {
-    const queue = this.readQueue();
-    const pendingItems = queue.filter((item) => item.status === 'PENDING' || item.status === 'FAILED');
+    if (this.syncInFlight) {
+      console.log('[SyncWorker] Sync cycle already in flight. Skipping overlapping run.');
+      const queue = this.readQueue();
+      const remaining = queue.filter((item) => item.status === 'PENDING' || item.status === 'FAILED').length;
+      return { success: false, synced: 0, remaining };
+    }
+
+    this.syncInFlight = true;
+    try {
+      const queue = this.readQueue();
+      const pendingItems = queue.filter(
+        (item) => (item.status === 'PENDING' || item.status === 'FAILED') && (item.retry_count || 0) < 10
+      );
 
     if (pendingItems.length === 0) {
       return { success: true, synced: 0, remaining: 0 };
@@ -81,42 +98,44 @@ export class PosSyncWorker {
       return { success: false, synced: 0, remaining: pendingItems.length };
     }
 
-    // Send batch
-    try {
-      const payload = {
-        sales: pendingItems.map((item) => ({
-          ...item,
-          pos_shift_id: item.pos_shift_id || undefined,
-        })),
-      };
+      try {
+        const payload = {
+          sales: pendingItems.map((item) => ({
+            ...item,
+            pos_shift_id: item.pos_shift_id || undefined,
+          })),
+        };
 
-      const result = await this.postJson(`${this.serverUrl}/sales/batch-sync`, payload);
-      if (result && result.success && Array.isArray(result.results)) {
-        let syncedCount = 0;
-        for (const res of result.results) {
-          if (res.status === 'SYNCED') {
-            this.updateStatus(res.sync_id, 'SYNCED', res.sale_id);
-            syncedCount++;
-          } else if (res.status === 'FAILED') {
-            this.updateStatus(res.sync_id, 'FAILED');
+        const result = await this.postJson(`${this.serverUrl}/sales/batch-sync`, payload);
+        if (result && result.success && Array.isArray(result.results)) {
+          let syncedCount = 0;
+          for (const res of result.results) {
+            if (res.status === 'SYNCED') {
+              this.updateStatus(res.sync_id, 'SYNCED', res.sale_id);
+              syncedCount++;
+            } else if (res.status === 'FAILED') {
+              this.updateStatus(res.sync_id, 'FAILED');
+            }
           }
-        }
-        console.log(`[SyncWorker] Batch sync completed successfully. Synced: ${syncedCount}/${pendingItems.length}`);
+          console.log(`[SyncWorker] Batch sync completed successfully. Synced: ${syncedCount}/${pendingItems.length}`);
 
-        // Notify Vue renderer
-        const win = this.getMainWindow();
-        if (win && !win.isDestroyed()) {
-          win.webContents.send('sync:updated', {
-            synced: syncedCount,
-            remaining: pendingItems.length - syncedCount,
-          });
+          // Notify Vue renderer
+          const win = this.getMainWindow();
+          if (win && !win.isDestroyed()) {
+            win.webContents.send('sync:updated', {
+              synced: syncedCount,
+              remaining: pendingItems.length - syncedCount,
+            });
+          }
+          return { success: true, synced: syncedCount, remaining: pendingItems.length - syncedCount };
         }
-        return { success: true, synced: syncedCount, remaining: pendingItems.length - syncedCount };
+        return { success: false, synced: 0, remaining: pendingItems.length };
+      } catch (err: any) {
+        console.error('[SyncWorker] Error during batch sync:', err.message);
+        return { success: false, synced: 0, remaining: pendingItems.length };
       }
-      return { success: false, synced: 0, remaining: pendingItems.length };
-    } catch (err: any) {
-      console.error('[SyncWorker] Error during batch sync:', err.message);
-      return { success: false, synced: 0, remaining: pendingItems.length };
+    } finally {
+      this.syncInFlight = false;
     }
   }
 

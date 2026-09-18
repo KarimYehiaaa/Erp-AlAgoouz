@@ -320,7 +320,11 @@ const handleCompleteSale = async () => {
       saleRecord = res.data?.data || res.data;
     } else {
       if ((window as any).electronAPI) {
-        saleRecord = await (window as any).electronAPI.saveOfflineTransaction(salePayload);
+        const saveRes = await (window as any).electronAPI.saveOfflineTransaction(salePayload);
+        if (!saveRes || saveRes.success === false) {
+          throw new Error(saveRes?.message || saveRes?.error || 'فشلت كتابة الفاتورة محلياً في التخزين الآمن');
+        }
+        saleRecord = saveRes.transaction || salePayload;
       } else {
         const offlineSales = JSON.parse(localStorage.getItem('pos_offline_sales') || '[]');
         offlineSales.push(salePayload);

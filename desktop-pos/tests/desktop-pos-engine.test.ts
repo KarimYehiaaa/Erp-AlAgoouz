@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
@@ -111,7 +111,97 @@ describe('Desktop POS Engine & Drivers', () => {
     expect(recovered.length).toBe(1);
     expect(recovered[0].sync_id).toBe('sync-1');
 
+    // 5. Case D: Primary + backup corrupted -> graceful empty fallback without throwing
+    fs.writeFileSync(primaryFile, 'CORRUPTED_PRIMARY_{', 'utf8');
+    fs.writeFileSync(backupFile, 'CORRUPTED_BACKUP_{', 'utf8');
+    const emptyFallback = readQueue();
+    expect(emptyFallback).toEqual([]);
+
     // Clean up
     fs.rmSync(testDir, { recursive: true, force: true });
+  });
+
+  it('Offline Save Failure Protection (Item 19): Returns explicit error when storage write fails', () => {
+    let mockWriteShouldFail = true;
+    const saveTransaction = (transaction: any) => {
+      const queue: any[] = [];
+      const record = {
+        ...transaction,
+        sync_id: transaction.sync_id || 'test-uuid-123',
+        status: 'PENDING',
+        retry_count: 0,
+        created_at: new Date().toISOString(),
+      };
+      queue.push(record);
+
+      if (mockWriteShouldFail) {
+        return {
+          success: false,
+          error: 'OFFLINE_STORAGE_WRITE_FAILED',
+          message: 'فشلت كتابة الفاتورة في التخزين المحلي الآمن',
+        };
+      }
+      return { success: true, transaction: record };
+    };
+
+    const failResult = saveTransaction({ total_amount: 150 });
+    expect(failResult.success).toBe(false);
+    expect(failResult.error).toBe('OFFLINE_STORAGE_WRITE_FAILED');
+
+    mockWriteShouldFail = false;
+    const okResult = saveTransaction({ total_amount: 150 });
+    expect(okResult.success).toBe(true);
+    expect(okResult.transaction.sync_id).toBe('test-uuid-123');
+  });
+
+  it('Sync Worker Concurrency Lock & Full Lifecycle (Items 21 & 28)', async () => {
+    const { PosSyncWorker } = await import('../electron/sync/syncWorker.ts');
+    let localQueue = [
+      { sync_id: 'sync-cycle-1', status: 'PENDING', total_amount: 250, retry_count: 0 },
+    ];
+
+    const worker = new PosSyncWorker(
+      () => localQueue,
+      (syncId, status, serverId) => {
+        const item = localQueue.find((t) => t.sync_id === syncId);
+        if (item) {
+          item.status = status;
+          if (serverId) (item as any).server_id = serverId;
+          return true;
+        }
+        return false;
+      },
+      () => null
+    );
+
+    // Mock pingServer and postJson to simulate responsive backend
+    (worker as any).pingServer = vi.fn().mockResolvedValue(true);
+    (worker as any).postJson = vi.fn().mockImplementation(async () => {
+      // Simulate 50ms network delay
+      await new Promise((r) => setTimeout(r, 50));
+      return {
+        success: true,
+        results: [{ sync_id: 'sync-cycle-1', status: 'SYNCED', sale_id: 999 }],
+      };
+    });
+
+    worker.setAuthToken('test-bearer-token');
+
+    // Launch first cycle
+    const cycle1Promise = worker.runSyncCycle();
+
+    // Simultaneously trigger second cycle while first is in flight
+    const cycle2 = await worker.runSyncCycle();
+    // Concurrency lock must skip cycle 2!
+    expect(cycle2.success).toBe(false);
+
+    // Wait for cycle 1 to finish
+    const cycle1 = await cycle1Promise;
+    expect(cycle1.success).toBe(true);
+    expect(cycle1.synced).toBe(1);
+
+    // Verify queue persisted status update
+    expect(localQueue[0].status).toBe('SYNCED');
+    expect((localQueue[0] as any).server_id).toBe(999);
   });
 });

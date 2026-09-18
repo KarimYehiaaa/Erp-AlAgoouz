@@ -11,6 +11,10 @@ export const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
+  const currentBase = localStorage.getItem('pos_server_url');
+  if (currentBase && config.baseURL !== currentBase) {
+    config.baseURL = currentBase;
+  }
   const token = localStorage.getItem('pos_token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;

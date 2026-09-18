@@ -64,7 +64,7 @@ const readPendingQueue = (): any[] => {
   return [];
 };
 
-const writePendingQueue = (queue: any[]) => {
+const writePendingQueue = (queue: any[]): boolean => {
   try {
     getStorageDir();
     const primaryFile = getPendingQueueFile();
@@ -80,13 +80,17 @@ const writePendingQueue = (queue: any[]) => {
     if (fs.existsSync(primaryFile)) {
       try {
         fs.copyFileSync(primaryFile, backupFile);
-      } catch {}
+      } catch (copyErr) {
+        console.warn('[Storage] Warning: Failed to copy backup file:', copyErr);
+      }
     }
 
     // 3. Atomic rename tmp -> primary
     fs.renameSync(tempFile, primaryFile);
+    return true;
   } catch (err) {
     console.error('[Storage] Atomic write failed:', err);
+    return false;
   }
 };
 
@@ -140,13 +144,30 @@ ipcMain.handle('hardware:get-printers', async () => {
 });
 
 // 3. Hardware: Cash Drawer Kick
-ipcMain.handle('hardware:open-drawer', async (_event, printerName?: string) => {
+ipcMain.handle('hardware:open-drawer', async (_event, printerNameOrIp?: string) => {
   console.log('[Hardware] Triggering Cash Drawer kick pulse...');
   if (!mainWindow) return { success: false, error: 'نافذة التطبيق غير متاحة' };
 
+  const isDev = !!process.env.VITE_DEV_SERVER_URL;
+
+  // Check if target is a network IP printer
+  const isIpAddress = printerNameOrIp && /^(\d{1,3}\.){3}\d{1,3}$/.test(printerNameOrIp);
+  if (isIpAddress) {
+    try {
+      const pulseBuffer = PosPrinterDriver.getDrawerKickCommand();
+      const networkSent = await PosPrinterDriver.printNetworkRaw(printerNameOrIp, 9100, pulseBuffer);
+      if (networkSent) {
+        return { success: true, simulated: false, method: 'network_raw', target: printerNameOrIp };
+      } else {
+        return { success: false, simulated: false, error: `تعذر الاتصال بطابعة الشبكة (${printerNameOrIp}) لفتح الدرج` };
+      }
+    } catch (err: any) {
+      return { success: false, simulated: false, error: err.message };
+    }
+  }
+
   try {
     const printers = await mainWindow.webContents.getPrintersAsync();
-    const isDev = !!process.env.VITE_DEV_SERVER_URL;
 
     if (printers.length === 0) {
       if (isDev) {
@@ -155,13 +176,23 @@ ipcMain.handle('hardware:open-drawer', async (_event, printerName?: string) => {
       return { success: false, simulated: false, error: 'لا توجد طابعة متصلة لإرسال نبضة فتح الدرج' };
     }
 
-    const selectedPrinter = printerName
-      ? printers.find((p) => p.name === printerName) || printers[0]
+    const selectedPrinter = printerNameOrIp
+      ? printers.find((p) => p.name === printerNameOrIp) || printers[0]
       : printers.find((p) => p.isDefault) || printers[0];
+
+    if (isDev) {
+      return {
+        success: true,
+        simulated: true,
+        printer: selectedPrinter.name,
+        message: `تمت محاكاة إرسال نبضة فتح الدرج للطابعة: ${selectedPrinter.name}`,
+      };
+    }
 
     return {
       success: true,
       simulated: false,
+      method: 'windows_driver',
       printer: selectedPrinter.name,
       message: `تم إرسال إشارة فتح الدرج إلى الطابعة: ${selectedPrinter.name}`,
     };
@@ -171,8 +202,28 @@ ipcMain.handle('hardware:open-drawer', async (_event, printerName?: string) => {
 });
 
 // 4. Hardware: Print Receipt
-ipcMain.handle('hardware:print-receipt', async (_event, invoiceData: any, printerName?: string) => {
+ipcMain.handle('hardware:print-receipt', async (_event, invoiceData: any, printerNameOrIp?: string) => {
   if (!mainWindow) return { success: false, error: 'نافذة التطبيق غير متاحة' };
+
+  // Network IP receipt printer support
+  const isIpAddress = printerNameOrIp && /^(\d{1,3}\.){3}\d{1,3}$/.test(printerNameOrIp);
+  if (isIpAddress) {
+    try {
+      const receiptText = PosPrinterDriver.generateTextReceipt(invoiceData);
+      const receiptBuffer = Buffer.concat([
+        Buffer.from(receiptText, 'utf8'),
+        PosPrinterDriver.getPaperCutCommand(),
+      ]);
+      const sent = await PosPrinterDriver.printNetworkRaw(printerNameOrIp, 9100, receiptBuffer);
+      if (sent) {
+        return { success: true, simulated: false, method: 'network_raw', target: printerNameOrIp };
+      } else {
+        return { success: false, simulated: false, error: `فشلت الطباعة عبر طابعة الشبكة (${printerNameOrIp})` };
+      }
+    } catch (err: any) {
+      return { success: false, simulated: false, error: err.message };
+    }
+  }
 
   try {
     const printers = await mainWindow.webContents.getPrintersAsync();
@@ -181,13 +232,13 @@ ipcMain.handle('hardware:print-receipt', async (_event, invoiceData: any, printe
     if (printers.length === 0) {
       if (isDev) {
         console.log('[Hardware Receipt Simulation]:\n', PosPrinterDriver.generateTextReceipt(invoiceData));
-        return { success: true, simulated: true, message: 'تمت محاكاة طباعة الإيصال بنجاح' };
+        return { success: true, simulated: true, message: 'تمت محاكاة طباعة الإيصال بنجاح (وضع التطوير)' };
       }
       return { success: false, simulated: false, error: 'لا توجد طابعة متصلة بالنظام' };
     }
 
-    const selectedPrinter = printerName
-      ? printers.find((p) => p.name === printerName) || printers[0]
+    const selectedPrinter = printerNameOrIp
+      ? printers.find((p) => p.name === printerNameOrIp) || printers[0]
       : printers.find((p) => p.isDefault) || printers[0];
 
     return new Promise((resolve) => {
@@ -199,7 +250,7 @@ ipcMain.handle('hardware:print-receipt', async (_event, invoiceData: any, printe
         },
         (success, failureReason) => {
           if (success) {
-            resolve({ success: true, simulated: false, printer: selectedPrinter.name });
+            resolve({ success: true, simulated: false, method: 'windows_spooler', printer: selectedPrinter.name });
           } else {
             resolve({ success: false, simulated: false, error: failureReason || 'فشلت عملية الطباعة' });
           }
@@ -211,20 +262,38 @@ ipcMain.handle('hardware:print-receipt', async (_event, invoiceData: any, printe
   }
 });
 
-// 5. Storage: Offline Transactions
+// 5. Storage: Offline Transactions with Durability & Write Failure Protection
 ipcMain.handle('storage:save-transaction', (_event, transaction) => {
-  const queue = readPendingQueue();
-  const syncId = transaction.sync_id || randomUUID();
-  const record = {
-    ...transaction,
-    sync_id: syncId,
-    status: 'PENDING',
-    retry_count: 0,
-    created_at: new Date().toISOString(),
-  };
-  queue.push(record);
-  writePendingQueue(queue);
-  return record;
+  try {
+    const queue = readPendingQueue();
+    const syncId = transaction.sync_id || randomUUID();
+    const record = {
+      ...transaction,
+      sync_id: syncId,
+      status: 'PENDING',
+      retry_count: 0,
+      created_at: new Date().toISOString(),
+    };
+    queue.push(record);
+    const writeOk = writePendingQueue(queue);
+    if (!writeOk) {
+      return {
+        success: false,
+        error: 'OFFLINE_STORAGE_WRITE_FAILED',
+        message: 'فشلت كتابة الفاتورة في التخزين المحلي الآمن',
+      };
+    }
+    return {
+      success: true,
+      transaction: record,
+    };
+  } catch (err: any) {
+    return {
+      success: false,
+      error: 'OFFLINE_STORAGE_WRITE_FAILED',
+      message: err.message || 'خطأ غير متوقع أثناء حفظ الفاتورة محلياً',
+    };
+  }
 });
 
 ipcMain.handle('storage:get-pending', () => {
@@ -236,15 +305,29 @@ ipcMain.handle('storage:update-status', (_event, syncId: string, status: string,
   const item = queue.find((t) => t.sync_id === syncId);
   if (item) {
     item.status = status;
+    if (status === 'FAILED') {
+      item.retry_count = (item.retry_count || 0) + 1;
+    }
     if (serverId) item.server_id = serverId;
     item.updated_at = new Date().toISOString();
-    writePendingQueue(queue);
-    return true;
+    return writePendingQueue(queue);
   }
   return false;
 });
 
-// 6. Session & Background Sync Bridge
+// 6. Central Configuration & Server URL Bridge
+ipcMain.handle('config:get-server-url', () => {
+  return syncWorker ? syncWorker.getServerUrl() : (process.env.POS_SERVER_URL || 'http://localhost:3000/api/v1');
+});
+
+ipcMain.handle('config:set-server-url', (_event, url: string) => {
+  if (syncWorker && url) {
+    syncWorker.setServerUrl(url);
+  }
+  return true;
+});
+
+// 7. Session & Background Sync Bridge
 ipcMain.handle('auth:set-session', (_event, token: string | null, serverUrl?: string) => {
   if (syncWorker) {
     syncWorker.setAuthToken(token);

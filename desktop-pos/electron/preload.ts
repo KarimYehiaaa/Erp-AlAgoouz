@@ -14,7 +14,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   updateTransactionStatus: (syncId: string, status: string, serverId?: any) =>
     ipcRenderer.invoke('storage:update-status', syncId, status, serverId),
 
-  // Session & Sync Bridge
+  // Session, Config & Sync Bridge
+  getServerUrl: () => ipcRenderer.invoke('config:get-server-url'),
+  setServerUrl: (url: string) => ipcRenderer.invoke('config:set-server-url', url),
   setAuthToken: (token: string | null, serverUrl?: string) =>
     ipcRenderer.invoke('auth:set-session', token, serverUrl),
   triggerManualSync: () => ipcRenderer.invoke('sync:trigger-now'),

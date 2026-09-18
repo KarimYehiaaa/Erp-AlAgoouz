@@ -92,8 +92,9 @@ describe('backup-system.ts (cross-platform tar with relative path)', () => {
   });
 
   it('buildTarCommand يبني أمرًا نسبيًا خاليًا من المسارات المطلقة', () => {
-    const cmd = buildTarCommand(['node_modules', '.env'], path.join('full-backups', 'x.tar.gz'));
-    expect(cmd).toBe('tar --exclude="node_modules" --exclude=".env" -czf "full-backups\\x.tar.gz" .');
+    const expectedPath = path.join('full-backups', 'x.tar.gz');
+    const cmd = buildTarCommand(['node_modules', '.env'], expectedPath);
+    expect(cmd).toBe(`tar --exclude="node_modules" --exclude=".env" -czf "${expectedPath}" .`);
     expect(cmd).not.toMatch(/[A-Za-z]:/);
   });
 

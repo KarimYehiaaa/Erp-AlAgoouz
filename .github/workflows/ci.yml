@@ -99,6 +99,12 @@ jobs:
       - name: Frontend Tests
         run: npm run test:unit -w frontend
 
+      - name: Desktop POS Tests
+        working-directory: desktop-pos
+        run: |
+          npm ci
+          npm test
+
       # بناء الواجهة بالأمر الموحّد (نفس ما يستخدمه المطور محليًا) + دخان يثبت
       # أن الناتج يذهب إلى frontend/dist (الذي يقدّمه الخادم) وليس dist/ جذر زائد.
       # أي انتكاس في --outDir أو في مسار resolveFrontendDist يكسر هذه الخطوة.
@@ -165,3 +171,38 @@ jobs:
 
           echo "✅ Smoke OK: POST JSON يعمل + الواجهة تُقدَّم من frontend/dist"
           kill "$SERVER_PID" 2>/dev/null || true
+
+  desktop-build:
+    name: Desktop POS Windows Build & Artifact
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24.x'
+          cache: 'npm'
+          cache-dependency-path: './package-lock.json'
+      - name: Install dependencies
+        run: npm ci
+      - name: Install Desktop POS dependencies
+        working-directory: desktop-pos
+        run: npm ci
+      - name: Desktop POS Tests
+        working-directory: desktop-pos
+        run: npm test
+      - name: Build Desktop POS Web Bundle
+        working-directory: desktop-pos
+        run: npm run build
+      - name: Build Windows NSIS Installer (.EXE)
+        working-directory: desktop-pos
+        run: npm run electron:build
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload Desktop Installer Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AlAgoouz-POS-Setup-Windows
+          path: desktop-pos/release/AlAgoouz-POS-Setup-*.exe
+          if-no-files-found: error
+

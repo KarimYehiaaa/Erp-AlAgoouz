@@ -103,6 +103,20 @@ const createDailySale = async (data: Record<string, any>, userId: number) => {
         return { ...(await getSaleById(existingId)), _duplicateSync: true };
       }
     }
+
+    // التحقق الصارم من عزل الفروع: التأكد من أن المستخدم مصرح له بالمخزن المستنتج فعلياً
+    const userRes = await client.query(
+      `SELECT u.role_id, r.name as role_name FROM users u JOIN roles r ON u.role_id = r.id WHERE u.id = $1`,
+      [userId],
+    );
+    const userRole = userRes.rows[0]?.role_name;
+    if (userRole && !ADMIN_ROLES.includes(userRole)) {
+      const allowedWarehouses = await getAllowedWarehouses(userId);
+      if (!warehouseId || !allowedWarehouses.includes(Number(warehouseId))) {
+        throw new AppError('غير مصرح لك بإنشاء مبيعات على هذا المخزن/الفرع', 403);
+      }
+    }
+
     const saleNumber = await generateNumber(client, 'SL', 'sale');
     const entryMode = items.length ? 'pos' : 'daily';
     const saleResult = await client.query(

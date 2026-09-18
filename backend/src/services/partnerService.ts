@@ -1,4 +1,4 @@
-import { query } from '../database/pool.ts';
+import { query, getClient } from '../database/pool.ts';
 import { AppError } from '../types/errors.ts';
 import { getProfitAndLoss } from './plService.ts';
 import { roundMoney } from '../utils/money.ts';
@@ -326,33 +326,36 @@ export const createPartnerDrawing = async (data: DrawingInput, userId: number) =
     data.voucher_number ||
     `DRW-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Math.floor(1000 + Math.random() * 9000)}`;
 
-  const res = await query(
-    `INSERT INTO partner_drawings (
-      partner_id, amount, drawing_date, source_type, warehouse_id, recipient_name, payment_method, voucher_number, notes, created_by
-    ) VALUES ($1, $2, COALESCE($3::date, CURRENT_DATE), $4, $5, $6, $7, $8, $9, $10)
-    RETURNING *`,
-    [
-      data.partner_id,
-      amount,
-      data.drawing_date || null,
-      data.source_type || 'cash_drawer',
-      data.warehouse_id || null,
-      data.recipient_name || partner.name_ar,
-      data.payment_method || 'cash',
-      voucherNum,
-      data.notes?.trim() || null,
-      userId,
-    ],
-  );
-
-  const drawing = res.rows[0];
-  logger.info(
-    `[Partner Drawings] تم تسجيل سند صرف مسحوبات بقيمة ${amount} ج.م للشريك (${partner.name_ar}) سند رقم ${voucherNum}`,
-  );
-
+  const client = await getClient();
   try {
+    await client.query('BEGIN');
+
+    const res = await client.query(
+      `INSERT INTO partner_drawings (
+        partner_id, amount, drawing_date, source_type, warehouse_id, recipient_name, payment_method, voucher_number, notes, created_by
+      ) VALUES ($1, $2, COALESCE($3::date, CURRENT_DATE), $4, $5, $6, $7, $8, $9, $10)
+      RETURNING *`,
+      [
+        data.partner_id,
+        amount,
+        data.drawing_date || null,
+        data.source_type || 'cash_drawer',
+        data.warehouse_id || null,
+        data.recipient_name || partner.name_ar,
+        data.payment_method || 'cash',
+        voucherNum,
+        data.notes?.trim() || null,
+        userId,
+      ],
+    );
+
+    const drawing = res.rows[0];
+    logger.info(
+      `[Partner Drawings] تم تسجيل سند صرف مسحوبات بقيمة ${amount} ج.م للشريك (${partner.name_ar}) سند رقم ${voucherNum}`,
+    );
+
     const { accountingService } = await import('./accountingService.ts');
-    await accountingService.postPartnerDrawingJournalEntry(null, {
+    await accountingService.postPartnerDrawingJournalEntry(client, {
       id: drawing.id,
       voucher_number: voucherNum,
       partner_id: drawing.partner_id,
@@ -362,36 +365,49 @@ export const createPartnerDrawing = async (data: DrawingInput, userId: number) =
       notes: drawing.notes,
       user_id: userId,
     });
-  } catch (accErr: any) {
-    logger.warn(`[Accounting] تعذر ترحيل قيد مسحوبات الشريك تلقائياً: ${accErr.message}`);
-  }
 
-  return {
-    ...drawing,
-    amount: Number(drawing.amount),
-    partner_name: partner.name_ar,
-  };
+    await client.query('COMMIT');
+    return {
+      ...drawing,
+      amount: Number(drawing.amount),
+      partner_name: partner.name_ar,
+    };
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
 };
 
 /**
  * حذف سند مسحوبات
  */
 export const deletePartnerDrawing = async (id: number) => {
-  const existing = await query(`SELECT * FROM partner_drawings WHERE id = $1`, [id]);
-  if (!existing.rows.length) {
-    throw new AppError('سند المسحوبات غير موجود', 404);
-  }
-
-  await query(`DELETE FROM partner_drawings WHERE id = $1`, [id]);
-
+  const client = await getClient();
   try {
-    const { accountingService } = await import('./accountingService.ts');
-    await accountingService.deleteJournalEntryByReference('manual', id);
-  } catch (accErr: any) {
-    logger.warn(`[Accounting] تعذر حذف قيد مسحوبات الشريك الملغى: ${accErr.message}`);
-  }
+    await client.query('BEGIN');
 
-  return { message: 'تم حذف سند المسحوبات بنجاح وتعديل رصيد الشريك' };
+    const existing = await client.query(`SELECT * FROM partner_drawings WHERE id = $1 FOR UPDATE`, [
+      id,
+    ]);
+    if (!existing.rows.length) {
+      throw new AppError('سند المسحوبات غير موجود', 404);
+    }
+
+    await client.query(`DELETE FROM partner_drawings WHERE id = $1`, [id]);
+
+    const { accountingService } = await import('./accountingService.ts');
+    await accountingService.deleteJournalEntryByReference('manual', id, client);
+
+    await client.query('COMMIT');
+    return { message: 'تم حذف سند المسحوبات بنجاح وتعديل رصيد الشريك' };
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
 };
 
 /**

@@ -1,4 +1,4 @@
-import { query } from '../database/pool.ts';
+import { query, getClient } from '../database/pool.ts';
 import { AppError } from '../types/errors.ts';
 
 /**
@@ -267,7 +267,7 @@ export const recalculateSupplierBalance = async (
  * @param {number} [userId] معرف المستخدم المنفذ
  * @returns {Promise<Record<string, any>>} الدفعة المسجلة
  */
-export const recordSupplierPayment = async (supplierId, data, userId) => {
+export const recordSupplierPayment = async (supplierId: number, data: any, userId?: number) => {
   const amount = Number(data.amount);
   if (isNaN(amount) || amount <= 0) {
     throw new AppError('المبلغ المدفوع يجب أن يكون أكبر من الصفر', 400);
@@ -276,20 +276,30 @@ export const recordSupplierPayment = async (supplierId, data, userId) => {
   // Verify supplier exists
   await getSupplierById(supplierId);
 
-  const resSeq = await query(`SELECT nextval('seq_payments_number') AS next_val`);
-  const paymentNumber = `SUP-PAY-${resSeq.rows[0].next_val}`;
-  const res = await query(
-    `INSERT INTO payments (payment_number, reference_type, reference_id, amount, payment_method, notes, user_id)
-     VALUES ($1, 'supplier', $2, $3, $4, $5, $6)
-     RETURNING *`,
-    [paymentNumber, supplierId, amount, data.payment_method || 'cash', data.notes || null, userId],
-  );
-
-  await recalculateSupplierBalance(query, supplierId);
-
+  const client = await getClient();
   try {
+    await client.query('BEGIN');
+
+    const resSeq = await client.query(`SELECT nextval('seq_payments_number') AS next_val`);
+    const paymentNumber = `SUP-PAY-${resSeq.rows[0].next_val}`;
+    const res = await client.query(
+      `INSERT INTO payments (payment_number, reference_type, reference_id, amount, payment_method, notes, user_id)
+       VALUES ($1, 'supplier', $2, $3, $4, $5, $6)
+       RETURNING *`,
+      [
+        paymentNumber,
+        supplierId,
+        amount,
+        data.payment_method || 'cash',
+        data.notes || null,
+        userId,
+      ],
+    );
+
+    await recalculateSupplierBalance(client, supplierId);
+
     const { accountingService } = await import('./accountingService.ts');
-    await accountingService.postSupplierPaymentJournalEntry(null, {
+    await accountingService.postSupplierPaymentJournalEntry(client, {
       id: res.rows[0].id,
       payment_number: paymentNumber,
       supplier_id: supplierId,
@@ -298,9 +308,13 @@ export const recordSupplierPayment = async (supplierId, data, userId) => {
       notes: data.notes || `سداد مستحقات مورد`,
       user_id: userId,
     });
-  } catch (accErr: any) {
-    console.warn(`[Accounting] تعذر ترحيل قيد سداد المورد تلقائياً: ${accErr.message}`);
-  }
 
-  return res.rows[0];
+    await client.query('COMMIT');
+    return res.rows[0];
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
 };

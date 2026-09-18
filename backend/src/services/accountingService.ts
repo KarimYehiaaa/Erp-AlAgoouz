@@ -72,7 +72,7 @@ export interface CreateJournalEntryInput {
     | 'opening'
     | 'transfer'
     | 'reversal';
-  reference_id?: number;
+  reference_id?: number | string;
   description: string;
   lines: JournalLineInput[];
   created_by?: number;
@@ -561,7 +561,7 @@ export const accountingService = {
   async postStocktakeJournalEntry(
     client: any,
     stocktake: {
-      id: number;
+      id: number | string;
       warehouse_id: number;
       total_deficit: number;
       total_surplus: number;
@@ -982,6 +982,12 @@ export const accountingService = {
     const amount = roundMoney(Number(expense.amount || 0));
     if (amount <= 0) return;
 
+    const method = (expense.payment_method || 'cash').toLowerCase();
+    if (method === 'adjustment') {
+      // مصاريف التسوية (عجز الجرد) ترحل بقيد مستقل عبر postStocktakeJournalEntry (Dr 5204, Cr 110301)
+      return null;
+    }
+
     let debitAccountCode = STANDARD_ACCOUNTS.GENERAL_EXPENSE;
     const title = (expense.title || '').toLowerCase();
     const catName = (expense.category_name || '').toLowerCase();
@@ -1003,7 +1009,6 @@ export const accountingService = {
     }
 
     let creditAccountCode = STANDARD_ACCOUNTS.MAIN_TREASURY;
-    const method = (expense.payment_method || 'cash').toLowerCase();
     if (method === 'card' || method === 'bank') {
       creditAccountCode = STANDARD_ACCOUNTS.BANK_ACCOUNTS;
     } else if (method === 'drawer') {

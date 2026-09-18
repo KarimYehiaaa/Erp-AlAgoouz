@@ -1,4 +1,4 @@
-import { query } from '../database/pool.ts';
+import { query, getClient } from '../database/pool.ts';
 import { AppError } from '../types/errors.ts';
 import { invalidateDashboardCache } from './dashboardService.ts';
 import { broadcast } from './websocketService.ts';
@@ -47,29 +47,33 @@ export const createExpense = async (data: Record<string, any>, userId: number) =
   if (isNaN(amount) || amount <= 0) {
     throw new AppError('مبلغ المصروف يجب أن يكون رقماً موجباً أكبر من الصفر');
   }
-  const resSeq = await query(`SELECT nextval('seq_expenses_number') AS next_val`);
-  const num = `EXP-${resSeq.rows[0].next_val}`;
-  const isFixed = data.is_fixed === true || String(data.is_fixed) === 'true';
-  const result = await query(
-    `INSERT INTO expenses (expense_number, category_id, title, amount, expense_date, payment_method, recurring, is_fixed, notes, user_id)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
-    [
-      num,
-      data.category_id,
-      data.title,
-      data.amount,
-      data.expense_date || new Date(),
-      data.payment_method || 'cash',
-      data.recurring || false,
-      isFixed,
-      data.notes,
-      userId,
-    ],
-  );
 
-  const createdRow = result.rows[0];
+  const client = await getClient();
   try {
-    await accountingService.postExpenseJournalEntry(null, {
+    await client.query('BEGIN');
+
+    const resSeq = await client.query(`SELECT nextval('seq_expenses_number') AS next_val`);
+    const num = `EXP-${resSeq.rows[0].next_val}`;
+    const isFixed = data.is_fixed === true || String(data.is_fixed) === 'true';
+    const result = await client.query(
+      `INSERT INTO expenses (expense_number, category_id, title, amount, expense_date, payment_method, recurring, is_fixed, notes, user_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+      [
+        num,
+        data.category_id,
+        data.title,
+        data.amount,
+        data.expense_date || new Date(),
+        data.payment_method || 'cash',
+        data.recurring || false,
+        isFixed,
+        data.notes,
+        userId,
+      ],
+    );
+
+    const createdRow = result.rows[0];
+    await accountingService.postExpenseJournalEntry(client, {
       id: createdRow.id,
       expense_number: createdRow.expense_number,
       title: createdRow.title,
@@ -80,13 +84,17 @@ export const createExpense = async (data: Record<string, any>, userId: number) =
       user_id: createdRow.user_id,
       expense_date: createdRow.expense_date,
     });
-  } catch (accErr: any) {
-    console.warn(`[Accounting] تعذر ترحيل قيد المصروف تلقائياً: ${accErr.message}`);
-  }
 
-  invalidateDashboardCache();
-  broadcast('expenses_changed', createdRow);
-  return createdRow;
+    await client.query('COMMIT');
+    invalidateDashboardCache();
+    broadcast('expenses_changed', createdRow);
+    return createdRow;
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
 };
 
 /**
@@ -102,41 +110,59 @@ export const updateExpense = async (id: number, data: Record<string, any>) => {
       throw new AppError('مبلغ المصروف يجب أن يكون رقماً موجباً أكبر من الصفر');
     }
   }
-  const isFixed =
-    data.is_fixed !== undefined && data.is_fixed !== null
-      ? data.is_fixed === true || String(data.is_fixed) === 'true'
-      : null;
 
-  const result = await query(
-    `UPDATE expenses
-     SET category_id = COALESCE($1, category_id),
-         title = COALESCE($2, title),
-         amount = COALESCE($3, amount),
-         expense_date = COALESCE($4, expense_date),
-         payment_method = COALESCE($5, payment_method),
-         recurring = COALESCE($6, recurring),
-         is_fixed = CASE WHEN $7::boolean IS NOT NULL THEN $7::boolean ELSE is_fixed END,
-         notes = COALESCE($8, notes)
-     WHERE id = $9 AND deleted_at IS NULL
-     RETURNING *`,
-    [
-      data.category_id,
-      data.title,
-      data.amount,
-      data.expense_date,
-      data.payment_method,
-      data.recurring,
-      isFixed,
-      data.notes,
-      id,
-    ],
-  );
-  if (!result.rows[0]) throw new AppError('المصروف غير موجود', 404);
-  const updatedRow = result.rows[0];
-
+  const client = await getClient();
   try {
-    await accountingService.deleteJournalEntryByReference('expense', id);
-    await accountingService.postExpenseJournalEntry(null, {
+    await client.query('BEGIN');
+
+    const existing = await client.query(
+      `SELECT * FROM expenses WHERE id = $1 AND deleted_at IS NULL FOR UPDATE`,
+      [id],
+    );
+    if (!existing.rows[0]) throw new AppError('المصروف غير موجود', 404);
+    if (
+      existing.rows[0].payment_method === 'adjustment' ||
+      existing.rows[0].expense_number?.startsWith('EXP-STK-')
+    ) {
+      throw new AppError(
+        'لا يمكن تعديل مصروف عجز الجرد المخزني يدويًا. يتم ضبطه تلقائيًا من منظومة الجرد.',
+        400,
+      );
+    }
+
+    const isFixed =
+      data.is_fixed !== undefined && data.is_fixed !== null
+        ? data.is_fixed === true || String(data.is_fixed) === 'true'
+        : null;
+
+    const result = await client.query(
+      `UPDATE expenses
+       SET category_id = COALESCE($1, category_id),
+           title = COALESCE($2, title),
+           amount = COALESCE($3, amount),
+           expense_date = COALESCE($4, expense_date),
+           payment_method = COALESCE($5, payment_method),
+           recurring = COALESCE($6, recurring),
+           is_fixed = CASE WHEN $7::boolean IS NOT NULL THEN $7::boolean ELSE is_fixed END,
+           notes = COALESCE($8, notes)
+       WHERE id = $9 AND deleted_at IS NULL
+       RETURNING *`,
+      [
+        data.category_id,
+        data.title,
+        data.amount,
+        data.expense_date,
+        data.payment_method,
+        data.recurring,
+        isFixed,
+        data.notes,
+        id,
+      ],
+    );
+    const updatedRow = result.rows[0];
+
+    await accountingService.deleteJournalEntryByReference('expense', id, client);
+    await accountingService.postExpenseJournalEntry(client, {
       id: updatedRow.id,
       expense_number: updatedRow.expense_number,
       title: updatedRow.title,
@@ -147,13 +173,17 @@ export const updateExpense = async (id: number, data: Record<string, any>) => {
       user_id: updatedRow.user_id,
       expense_date: updatedRow.expense_date,
     });
-  } catch (accErr: any) {
-    console.warn(`[Accounting] تعذر تحديث قيد المصروف في الأستاذ العام: ${accErr.message}`);
-  }
 
-  invalidateDashboardCache();
-  broadcast('expenses_changed', updatedRow);
-  return updatedRow;
+    await client.query('COMMIT');
+    invalidateDashboardCache();
+    broadcast('expenses_changed', updatedRow);
+    return updatedRow;
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
 };
 
 /**
@@ -197,14 +227,37 @@ export const getExpenseReport = async (year: number | string, month: number | st
 
 /** حذف مصروف. */
 export const deleteExpense = async (id: number) => {
-  await query(`UPDATE expenses SET deleted_at = NOW() WHERE id = $1`, [id]);
+  const client = await getClient();
   try {
-    await accountingService.deleteJournalEntryByReference('expense', id);
-  } catch (accErr: any) {
-    console.warn(`[Accounting] تعذر إلغاء قيد اليومية للمصروف المحذوف: ${accErr.message}`);
+    await client.query('BEGIN');
+
+    const existing = await client.query(
+      `SELECT * FROM expenses WHERE id = $1 AND deleted_at IS NULL FOR UPDATE`,
+      [id],
+    );
+    if (!existing.rows[0]) throw new AppError('المصروف غير موجود', 404);
+    if (
+      existing.rows[0].payment_method === 'adjustment' ||
+      existing.rows[0].expense_number?.startsWith('EXP-STK-')
+    ) {
+      throw new AppError(
+        'لا يمكن حذف مصروف عجز الجرد المخزني يدويًا. يرتبط بعملية جرد معتمدة.',
+        400,
+      );
+    }
+
+    await client.query(`UPDATE expenses SET deleted_at = NOW() WHERE id = $1`, [id]);
+    await accountingService.deleteJournalEntryByReference('expense', id, client);
+
+    await client.query('COMMIT');
+    invalidateDashboardCache();
+    broadcast('expenses_changed', { id });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
   }
-  invalidateDashboardCache();
-  broadcast('expenses_changed', { id });
 };
 
 /**

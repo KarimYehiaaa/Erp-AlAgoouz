@@ -115,7 +115,7 @@ export const getStocktakeList = async () => {
  * جلب تفاصيل عملية جرد محددة مع بنودها
  */
 /** جلب تفاصيل جرد (الأصناف والكميات الفعلية). */
-export const getStocktakeDetails = async (stocktakeId: number) => {
+export const getStocktakeDetails = async (stocktakeId: number | string) => {
   const stocktakeRes = await query(
     `SELECT
        s.id,
@@ -174,7 +174,10 @@ export const getStocktakeDetails = async (stocktakeId: number) => {
  * @param {Record<string, any>} data عناصر الجرد
  * @returns {Promise<any>}
  */
-export const updateStocktakeItems = async (stocktakeId: number, data: Record<string, any>) => {
+export const updateStocktakeItems = async (
+  stocktakeId: number | string,
+  data: Record<string, any>,
+) => {
   const { items = [], notes } = data;
   const client = await getClient();
 
@@ -249,7 +252,7 @@ export const updateStocktakeItems = async (stocktakeId: number, data: Record<str
  * @param {number} userId معرف المستخدم المنفّذ
  * @returns {Promise<any>}
  */
-export const completeStocktake = async (stocktakeId: number, userId: number) => {
+export const completeStocktake = async (stocktakeId: number | string, userId: number) => {
   const client = await getClient();
   try {
     await client.query('BEGIN');
@@ -393,18 +396,14 @@ export const completeStocktake = async (stocktakeId: number, userId: number) => 
 
     // 6. ترحيل قيد الفروقات الجردية (عجز أو فائض) إلى الأستاذ العام
     if (totalDeficit > 0.001 || totalSurplus > 0.001) {
-      try {
-        const { accountingService } = await import('./accountingService.ts');
-        await accountingService.postStocktakeJournalEntry(client, {
-          id: stocktake.id,
-          warehouse_id: stocktake.warehouse_id,
-          total_deficit: totalDeficit,
-          total_surplus: totalSurplus,
-          user_id: userId,
-        });
-      } catch (accErr: any) {
-        console.warn(`[Accounting] تعذر ترحيل قيد الجرد إلى الأستاذ العام: ${accErr.message}`);
-      }
+      const { accountingService } = await import('./accountingService.ts');
+      await accountingService.postStocktakeJournalEntry(client, {
+        id: stocktake.id,
+        warehouse_id: stocktake.warehouse_id,
+        total_deficit: totalDeficit,
+        total_surplus: totalSurplus,
+        user_id: userId,
+      });
     }
 
     await client.query('COMMIT');
@@ -425,7 +424,7 @@ export const completeStocktake = async (stocktakeId: number, userId: number) => 
 };
 
 /** حذف جرد (المسودة فقط) — داخل معاملة مع قفل لمنع سباق الاعتماد المتزامن. */
-export const deleteStocktake = async (stocktakeId: number) => {
+export const deleteStocktake = async (stocktakeId: number | string) => {
   const client = await getClient();
   try {
     await client.query('BEGIN');

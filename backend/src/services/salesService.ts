@@ -222,26 +222,22 @@ const createDailySale = async (data: Record<string, any>, userId: number) => {
     );
 
     // الترحيل المحاسبي التلقائي للقيد المزدوج
-    try {
-      const { accountingService } = await import('./accountingService.ts');
-      await accountingService.postSaleJournalEntry(client, {
-        id: sale.id,
-        sale_number: sale.sale_number,
-        sale_type: sale.sale_type,
-        total_amount: totalAmount,
-        cost_amount: costAmount,
-        tax_amount: totals.taxAmount || 0,
-        payment_method:
-          data.payment_method ||
-          (Array.isArray(data.payments) && data.payments[0]?.payment_method) ||
-          'cash',
-        customer_id: customerId,
-        warehouse_id: warehouseId,
-        user_id: userId,
-      });
-    } catch (accErr: any) {
-      console.warn(`[Accounting] تعذر ترحيل قيد المبيعات تلقائياً: ${accErr.message}`);
-    }
+    const { accountingService } = await import('./accountingService.ts');
+    await accountingService.postSaleJournalEntry(client, {
+      id: sale.id,
+      sale_number: sale.sale_number,
+      sale_type: sale.sale_type,
+      total_amount: totalAmount,
+      cost_amount: costAmount,
+      tax_amount: totals.taxAmount || 0,
+      payment_method:
+        data.payment_method ||
+        (Array.isArray(data.payments) && data.payments[0]?.payment_method) ||
+        'cash',
+      customer_id: customerId,
+      warehouse_id: warehouseId,
+      user_id: userId,
+    });
 
     await client.query('COMMIT');
     invalidateDashboardCache();
@@ -627,23 +623,19 @@ const returnSale = async (saleId: number, userId: number, notes?: string) => {
       }
     }
 
-    try {
-      const { accountingService } = await import('./accountingService.ts');
-      await accountingService.postSalesRefundJournalEntry(client, {
-        id: sale.id,
-        sale_number: sale.sale_number,
-        total_amount: Number(sale.total_amount),
-        tax_amount: Number(sale.tax_amount || 0),
-        cost_amount: Number(sale.cost_amount || 0),
-        sale_type: sale.sale_type,
-        payment_method: sale.payment_method,
-        customer_id: sale.customer_id,
-        warehouse_id: sale.warehouse_id,
-        user_id: userId,
-      });
-    } catch (accErr: any) {
-      console.warn(`[Accounting] تعذر ترحيل قيد مردودات المبيعات تلقائياً: ${accErr.message}`);
-    }
+    const { accountingService } = await import('./accountingService.ts');
+    await accountingService.postSalesRefundJournalEntry(client, {
+      id: sale.id,
+      sale_number: sale.sale_number,
+      total_amount: Number(sale.total_amount),
+      tax_amount: Number(sale.tax_amount || 0),
+      cost_amount: Number(sale.cost_amount || 0),
+      sale_type: sale.sale_type,
+      payment_method: sale.payment_method,
+      customer_id: sale.customer_id,
+      warehouse_id: sale.warehouse_id,
+      user_id: userId,
+    });
 
     await client.query('COMMIT');
     invalidateDashboardCache();

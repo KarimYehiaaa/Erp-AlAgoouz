@@ -1,7 +1,12 @@
-import { describe, it, expect, afterAll } from 'vitest';
+import { describe, it, expect, afterAll, vi } from 'vitest';
 import { query } from '../src/database/pool.ts';
 import { accountingService, STANDARD_ACCOUNTS } from '../src/services/accountingService.ts';
 import { recalculateSupplierBalance } from '../src/services/supplierService.ts';
+import {
+  createStocktake,
+  updateStocktakeItems,
+  completeStocktake,
+} from '../src/services/stocktakeService.ts';
 
 describe('Financial Audit Invariants Suite (Real PostgreSQL Invariants)', () => {
   const cleanup = {
@@ -11,13 +16,17 @@ describe('Financial Audit Invariants Suite (Real PostgreSQL Invariants)', () => 
     periodIds: [] as number[],
     expenseIds: [] as number[],
     journalEntryIds: [] as number[],
+    paymentIds: [] as number[],
+    warehouseIds: [] as number[],
+    productIds: [] as number[],
+    categoryIds: [] as number[],
+    stocktakeIds: [] as (number | string)[],
   };
 
   afterAll(async () => {
     // Cleanup generated records - ensure periods opened first
     if (cleanup.periodIds.length > 0) {
       await query("UPDATE financial_periods SET status = 'open' WHERE id = ANY($1)", [cleanup.periodIds]);
-      await query('DELETE FROM financial_periods WHERE id = ANY($1)', [cleanup.periodIds]);
     }
     if (cleanup.journalEntryIds.length > 0) {
       await query('DELETE FROM journal_entry_lines WHERE journal_entry_id = ANY($1)', [cleanup.journalEntryIds]);
@@ -25,6 +34,29 @@ describe('Financial Audit Invariants Suite (Real PostgreSQL Invariants)', () => 
     }
     if (cleanup.expenseIds.length > 0) {
       await query('DELETE FROM expenses WHERE id = ANY($1)', [cleanup.expenseIds]);
+    }
+    if (cleanup.paymentIds.length > 0) {
+      await query('DELETE FROM payments WHERE id = ANY($1)', [cleanup.paymentIds]);
+    }
+    if (cleanup.stocktakeIds.length > 0) {
+      await query('DELETE FROM stocktake_items WHERE stocktake_id = ANY($1)', [cleanup.stocktakeIds]);
+      await query('DELETE FROM stocktakes WHERE id = ANY($1)', [cleanup.stocktakeIds]);
+    }
+    if (cleanup.warehouseIds.length > 0) {
+      await query(
+        'DELETE FROM stock_movements WHERE from_warehouse_id = ANY($1) OR to_warehouse_id = ANY($1)',
+        [cleanup.warehouseIds],
+      );
+      await query('DELETE FROM inventory WHERE warehouse_id = ANY($1)', [cleanup.warehouseIds]);
+      await query('DELETE FROM warehouses WHERE id = ANY($1)', [cleanup.warehouseIds]);
+    }
+    if (cleanup.productIds.length > 0) {
+      await query('DELETE FROM inventory WHERE product_id = ANY($1)', [cleanup.productIds]);
+      await query('DELETE FROM stock_movements WHERE product_id = ANY($1)', [cleanup.productIds]);
+      await query('DELETE FROM products WHERE id = ANY($1)', [cleanup.productIds]);
+    }
+    if (cleanup.categoryIds.length > 0) {
+      await query('DELETE FROM product_categories WHERE id = ANY($1)', [cleanup.categoryIds]);
     }
     if (cleanup.purchaseReturnIds.length > 0) {
       await query('DELETE FROM purchase_returns WHERE id = ANY($1)', [cleanup.purchaseReturnIds]);
@@ -34,6 +66,9 @@ describe('Financial Audit Invariants Suite (Real PostgreSQL Invariants)', () => 
     }
     if (cleanup.supplierIds.length > 0) {
       await query('DELETE FROM suppliers WHERE id = ANY($1)', [cleanup.supplierIds]);
+    }
+    if (cleanup.periodIds.length > 0) {
+      await query('DELETE FROM financial_periods WHERE id = ANY($1)', [cleanup.periodIds]);
     }
   });
 
@@ -179,35 +214,244 @@ describe('Financial Audit Invariants Suite (Real PostgreSQL Invariants)', () => 
     });
   });
 
-  describe('Invariant 4: Stocktake GL Posting Integration', () => {
-    it('يرحل قيد فروقات الجرد (عجز وفائض) بنجاح إلى حسابات الأستاذ العام', async () => {
-      const stocktakeMock = {
-        id: 999991,
-        warehouse_id: 1,
-        total_deficit: 450.00,
-        total_surplus: 0,
-        user_id: 1,
-      };
+  describe('Invariant 4: Stocktake Atomic Reconciliation & Complete Rollback on GL Failure', () => {
+    it('يتراجع عن تسوية الجرد وحركات المخزون والمصروف بالكامل عند فشل ترحيل قيد الأستاذ العام (Atomic Rollback)', async () => {
+      // 1. إنشاء مستودع تجريبي وتصنيف ومنتج مع رصيد ابتدائي
+      const whCode = 'WHR-' + (Date.now() % 10000000);
+      const whRes = await query(
+        `INSERT INTO warehouses (code, name_ar, type, is_active)
+         VALUES ($1, 'مخزن اختبار التراجع الذري', 'store', true)
+         RETURNING id`,
+        [whCode],
+      );
+      const whId = whRes.rows[0].id;
+      cleanup.warehouseIds.push(whId);
 
-      const entry = await accountingService.postStocktakeJournalEntry(null, stocktakeMock);
-      expect(entry).toBeDefined();
-      expect(entry?.id).toBeGreaterThan(0);
-      cleanup.journalEntryIds.push(entry!.id);
+      const catRes = await query(
+        `INSERT INTO product_categories (name_ar) VALUES ('تصنيف اختبار التراجع الذري') RETURNING id`,
+      );
+      const catId = catRes.rows[0].id;
+      cleanup.categoryIds.push(catId);
 
-      // التحقق من توازن القيد وسطور الحسابات (5204 مدين و 110301 دائن)
-      const lines = (await query(
-        'SELECT jel.*, a.code FROM journal_entry_lines jel JOIN accounts a ON a.id = jel.account_id WHERE jel.journal_entry_id = $1',
-        [entry!.id],
-      )).rows;
+      const sku = 'SKU-ROLLBACK-' + Date.now();
+      const prodRes = await query(
+        `INSERT INTO products (sku, name_ar, purchase_price, sale_price, category_id, is_active)
+         VALUES ($1, 'منتج اختبار التراجع', 25.00, 40.00, $2, true)
+         RETURNING id`,
+        [sku, catId],
+      );
+      const prodId = prodRes.rows[0].id;
+      cleanup.productIds.push(prodId);
 
-      expect(lines.length).toBe(2);
-      const shortageLine = lines.find((l: any) => l.code === '5204');
-      const stockLine = lines.find((l: any) => l.code === '110301');
+      // رصيد ابتدائي 50 قطعة
+      await query(
+        `INSERT INTO inventory (product_id, warehouse_id, quantity) VALUES ($1, $2, 50.000)`,
+        [prodId, whId],
+      );
 
+      // 2. إنشاء مسودة جرد
+      const stk = await createStocktake(whId, 1, 'جرد اختبار التراجع الذري');
+      expect(stk.id).toBeDefined();
+      expect(stk.status).toBe('draft');
+      cleanup.stocktakeIds.push(stk.id);
+
+      // 3. تحديث كمية الجرد الفعلية لتكون 40 (عجز بمقدار 10 قطع = 250 ج.م)
+      await updateStocktakeItems(stk.id, {
+        items: [{ product_id: prodId, actual_quantity: 40 }],
+      });
+
+      // 4. محاكاة فشل في خدمة الأستاذ العام أثناء ترحيل القيد
+      const glSpy = vi.spyOn(accountingService, 'postStocktakeJournalEntry').mockRejectedValueOnce(
+        new Error('Simulated GL Posting Database Failure'),
+      );
+
+      // 5. محاولة اعتماد الجرد مع تعطل GL => يجب أن تفشل المعاملة وترمي استثناء
+      await expect(completeStocktake(stk.id, 1)).rejects.toThrow(
+        'Simulated GL Posting Database Failure',
+      );
+
+      // 6. التحقق الدقيق من سلامة قاعدة البيانات وتراجع كافة العمليات الوسيطة
+      // أ) حالة الجرد يجب أن تظل 'draft' ولم تتحول إلى 'completed'
+      const stkCheck = (await query('SELECT status FROM stocktakes WHERE id = $1', [stk.id])).rows[0];
+      expect(stkCheck.status).toBe('draft');
+
+      // ب) رصيد المخزون يجب أن يظل 50 كما هو دون أي تغيير
+      const invCheck = (
+        await query('SELECT quantity FROM inventory WHERE product_id = $1 AND warehouse_id = $2', [
+          prodId,
+          whId,
+        ])
+      ).rows[0];
+      expect(Number(invCheck.quantity)).toBe(50);
+
+      // ج) لم يتم إنشاء أي حركة مخزنية
+      const movCount = (
+        await query('SELECT COUNT(*) FROM stock_movements WHERE notes LIKE $1', [
+          `%معرف الجرد: ${stk.id}%`,
+        ])
+      ).rows[0];
+      expect(Number(movCount.count)).toBe(0);
+
+      // د) لم يتم إنشاء أي مصروف عجز
+      const expCount = (
+        await query('SELECT COUNT(*) FROM expenses WHERE expense_number LIKE $1', [
+          `EXP-STK-${stk.id}-%`,
+        ])
+      ).rows[0];
+      expect(Number(expCount.count)).toBe(0);
+
+      // هـ) لم يتم إنشاء أي قيد يومية
+      const jeCount = (
+        await query('SELECT COUNT(*) FROM journal_entries WHERE idempotency_key = $1', [
+          `stocktake_adjustment:${stk.id}`,
+        ])
+      ).rows[0];
+      expect(Number(jeCount.count)).toBe(0);
+
+      // 7. استعادة دالة GL للتحقق من نجاح الاعتماد الكامل في المرة التالية (Atomic Commit)
+      glSpy.mockRestore();
+
+      const successResult = await completeStocktake(stk.id, 1);
+      expect(successResult.success).toBe(true);
+
+      // التحقق من اكتمال عناصر الدورة الـ 5 بنجاح:
+      // 1. حالة الجرد أصبحت completed
+      const stkSuccess = (
+        await query('SELECT status, total_deficit_value FROM stocktakes WHERE id = $1', [stk.id])
+      ).rows[0];
+      expect(stkSuccess.status).toBe('completed');
+      expect(Number(stkSuccess.total_deficit_value)).toBe(250);
+
+      // 2. كمية المخزون تم تسويتها إلى 40
+      const invSuccess = (
+        await query('SELECT quantity FROM inventory WHERE product_id = $1 AND warehouse_id = $2', [
+          prodId,
+          whId,
+        ])
+      ).rows[0];
+      expect(Number(invSuccess.quantity)).toBe(40);
+
+      // 3. تم تسجيل حركة مخزنية واحدة
+      const movSuccess = (
+        await query(
+          'SELECT movement_type, quantity, total_cost FROM stock_movements WHERE notes LIKE $1',
+          [`%معرف الجرد: ${stk.id}%`],
+        )
+      ).rows;
+      expect(movSuccess.length).toBe(1);
+      expect(movSuccess[0].movement_type).toBe('adjustment');
+      expect(Number(movSuccess[0].quantity)).toBe(10);
+      expect(Number(movSuccess[0].total_cost)).toBe(250);
+
+      // 4. تم تسجيل مصروف العجز بطريقة دفع adjustment (دون المساس بالخزينة)
+      const expSuccess = (
+        await query('SELECT id, amount, payment_method FROM expenses WHERE expense_number LIKE $1', [
+          `EXP-STK-${stk.id}-%`,
+        ])
+      ).rows;
+      expect(expSuccess.length).toBe(1);
+      expect(Number(expSuccess[0].amount)).toBe(250);
+      expect(expSuccess[0].payment_method).toBe('adjustment');
+      cleanup.expenseIds.push(expSuccess[0].id);
+
+      // 5. تم إنشاء قيد يومية متوازن (مدين 5204 ودائن 110301)
+      const jeSuccess = (
+        await query('SELECT id FROM journal_entries WHERE idempotency_key = $1', [
+          `stocktake_adjustment:${stk.id}`,
+        ])
+      ).rows;
+      expect(jeSuccess.length).toBe(1);
+      const jeId = jeSuccess[0].id;
+      cleanup.journalEntryIds.push(jeId);
+
+      const jeLines = (
+        await query(
+          'SELECT jel.*, a.code FROM journal_entry_lines jel JOIN accounts a ON a.id = jel.account_id WHERE jel.journal_entry_id = $1',
+          [jeId],
+        )
+      ).rows;
+      expect(jeLines.length).toBe(2);
+      const shortageLine = jeLines.find((l: any) => l.code === '5204');
+      const stockLine = jeLines.find((l: any) => l.code === '110301');
       expect(shortageLine).toBeDefined();
-      expect(Number(shortageLine.debit)).toBe(450);
+      expect(Number(shortageLine.debit)).toBe(250);
       expect(stockLine).toBeDefined();
-      expect(Number(stockLine.credit)).toBe(450);
+      expect(Number(stockLine.credit)).toBe(250);
+
+      // التحقق من عدم لمس حساب النقدية (1101) نهائياً
+      const cashLine = jeLines.find((l: any) => l.code === '1101');
+      expect(cashLine).toBeUndefined();
+    });
+  });
+
+  describe('Invariant 5: Financial Period Lock Hardening on Payments and Cascade Safety', () => {
+    it('يمنع تسجيل مدفوعات جديدة (payments) إذا كانت تقع ضمن فترة مقفلة حتى لو لم يُحدد created_at صراحة', async () => {
+      // 1. إنشاء فترة مقفلة تغطي اليوم الحالي
+      const today = new Date().toISOString().slice(0, 10);
+      const perRes = await query(
+        `INSERT INTO financial_periods (period_start, period_end, status, notes)
+         VALUES ($1, $2, 'locked', 'فترة مقفلة لليوم')
+         RETURNING id`,
+        [today, today],
+      );
+      const periodId = perRes.rows[0].id;
+      cleanup.periodIds.push(periodId);
+
+      // 2. محاولة إدراج payment بدون created_at (يعتمد على CURRENT_DATE في الـ trigger المحدث)
+      await expect(
+        query(
+          `INSERT INTO payments (payment_number, reference_type, reference_id, amount, payment_method, user_id)
+           VALUES ($1, 'sale', 99999, 150.00, 'cash', 1)`,
+          ['PAY-LOCK-' + Date.now()],
+        ),
+      ).rejects.toThrow(/لا يمكن تعديل أو تسجيل عملية في فترة محاسبية مغلقة/);
+
+      // 3. فتح الفترة للتنظيف
+      await query(`UPDATE financial_periods SET status = 'open' WHERE id = $1`, [periodId]);
+    });
+
+    it('يمنع حذف سطر قيد فردي (journal_entry_lines) في فترة مقفلة', async () => {
+      const pStart = '2018-05-01';
+      const pEnd = '2018-05-31';
+
+      // إنشاء فترة مفتوحة
+      const perRes = await query(
+        `INSERT INTO financial_periods (period_start, period_end, status, notes)
+         VALUES ($1, $2, 'open', 'فترة أسطر القيود')
+         RETURNING id`,
+        [pStart, pEnd],
+      );
+      const periodId = perRes.rows[0].id;
+      cleanup.periodIds.push(periodId);
+
+      // إنشاء قيد وسطور
+      const jeRes = await query(
+        `INSERT INTO journal_entries (entry_number, entry_date, status, description)
+         VALUES ($1, '2018-05-15', 'posted', 'قيد اختبار قفل الأسطر')
+         RETURNING id`,
+        ['JE-LINE-LOCK-' + Date.now()],
+      );
+      const jeId = jeRes.rows[0].id;
+      cleanup.journalEntryIds.push(jeId);
+
+      const lineRes = await query(
+        `INSERT INTO journal_entry_lines (journal_entry_id, account_id, debit, credit)
+         VALUES ($1, 1, 100, 0)
+         RETURNING id`,
+        [jeId],
+      );
+      const lineId = lineRes.rows[0].id;
+
+      // إقفال الفترة
+      await query(`UPDATE financial_periods SET status = 'locked' WHERE id = $1`, [periodId]);
+
+      // محاولة حذف السطر
+      await expect(
+        query('DELETE FROM journal_entry_lines WHERE id = $1', [lineId]),
+      ).rejects.toThrow(/لا يمكن حذف سجل في فترة محاسبية مغلقة/);
+
+      // فتح الفترة للتنظيف
+      await query(`UPDATE financial_periods SET status = 'open' WHERE id = $1`, [periodId]);
     });
   });
 });

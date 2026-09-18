@@ -4,6 +4,7 @@ import path from 'node:path';
 import os from 'node:os';
 import net from 'node:net';
 import { PosPrinterDriver, type ReceiptData } from '../electron/hardware/printer';
+import { handleOpenCashDrawer, handlePrintReceipt } from '../electron/hardware/hardwareService';
 import { PosSyncWorker, validateWorkerServerUrl } from '../electron/sync/syncWorker';
 import {
   readPendingQueue,
@@ -60,28 +61,88 @@ describe('Desktop POS Production Engine & Durability Tests', () => {
     expect(receipt).toContain('المستلم: 400.00 ج.م');
   });
 
-  it('Hardware Contract: Windows Spooler Direct Drawer returns NOT_SUPPORTED', async () => {
-    const handleDrawerOpen = async (isDev: boolean, printerName: string) => {
-      if (isDev) {
-        return { success: true, status: 'SIMULATED', simulated: true, printer: printerName };
-      }
-      return {
-        success: false,
-        status: 'NOT_SUPPORTED',
-        simulated: false,
-        method: 'windows_driver',
-        printer: printerName,
-        error: `فتح درج النقدية المباشر عبر Windows Spooler للطابعة (${printerName}) غير مدعوم مباشرة`,
-      };
-    };
+  it('Production Hardware Service: Cash Drawer contracts across Dev, Prod without printer, and Windows Spooler', async () => {
+    const mockPrinters = [{ name: 'EPSON TM-T20', isDefault: true }];
 
-    const devResult = await handleDrawerOpen(true, 'EPSON TM-T20');
-    expect(devResult.status).toBe('SIMULATED');
-    expect(devResult.success).toBe(true);
+    // 1. Dev mode: with printers -> SIMULATED
+    const devWithPrinters = await handleOpenCashDrawer('EPSON TM-T20', {
+      isDev: true,
+      getPrintersAsync: async () => mockPrinters,
+    });
+    expect(devWithPrinters.status).toBe('SIMULATED');
+    expect(devWithPrinters.success).toBe(true);
+    expect(devWithPrinters.printer).toBe('EPSON TM-T20');
 
-    const prodResult = await handleDrawerOpen(false, 'EPSON TM-T20');
-    expect(prodResult.status).toBe('NOT_SUPPORTED');
-    expect(prodResult.success).toBe(false);
+    // 2. Dev mode: without printers -> SIMULATED
+    const devNoPrinters = await handleOpenCashDrawer(undefined, {
+      isDev: true,
+      getPrintersAsync: async () => [],
+    });
+    expect(devNoPrinters.status).toBe('SIMULATED');
+    expect(devNoPrinters.success).toBe(true);
+
+    // 3. Prod mode: without printers -> FAILED
+    const prodNoPrinters = await handleOpenCashDrawer(undefined, {
+      isDev: false,
+      getPrintersAsync: async () => [],
+    });
+    expect(prodNoPrinters.status).toBe('FAILED');
+    expect(prodNoPrinters.success).toBe(false);
+    expect(prodNoPrinters.error).toContain('لا توجد طابعة متصلة');
+
+    // 4. Prod mode: Windows Spooler -> strictly NOT_SUPPORTED
+    const prodSpooler = await handleOpenCashDrawer('EPSON TM-T20', {
+      isDev: false,
+      getPrintersAsync: async () => mockPrinters,
+    });
+    expect(prodSpooler.status).toBe('NOT_SUPPORTED');
+    expect(prodSpooler.success).toBe(false);
+    expect(prodSpooler.method).toBe('windows_driver');
+    expect(prodSpooler.printer).toBe('EPSON TM-T20');
+    expect(prodSpooler.error).toContain('غير مدعوم مباشرة');
+  });
+
+  it('Production Hardware Service: Thermal Receipt Printing across Dev, Spooler callback, and errors', async () => {
+    const sampleInvoice = { invoice_number: 'INV-100', items: [], total_amount: 50 };
+    const mockPrinters = [{ name: 'Thermal-Receipt-80', isDefault: true }];
+
+    // 1. Dev mode simulation
+    const devPrint = await handlePrintReceipt(sampleInvoice, 'Thermal-Receipt-80', {
+      isDev: true,
+      getPrintersAsync: async () => mockPrinters,
+    });
+    expect(devPrint.status).toBe('SIMULATED');
+    expect(devPrint.success).toBe(true);
+
+    // 2. Prod mode without printers -> FAILED
+    const prodNoPrinters = await handlePrintReceipt(sampleInvoice, undefined, {
+      isDev: false,
+      getPrintersAsync: async () => [],
+    });
+    expect(prodNoPrinters.status).toBe('FAILED');
+    expect(prodNoPrinters.success).toBe(false);
+    expect(prodNoPrinters.error).toContain('لا توجد طابعة متصلة');
+
+    // 3. Prod mode with Windows Spooler success callback
+    const prodSuccess = await handlePrintReceipt(sampleInvoice, 'Thermal-Receipt-80', {
+      isDev: false,
+      getPrintersAsync: async () => mockPrinters,
+      printFn: (_options, callback) => callback(true, ''),
+    });
+    expect(prodSuccess.status).toBe('SUCCESS');
+    expect(prodSuccess.success).toBe(true);
+    expect(prodSuccess.method).toBe('windows_spooler');
+    expect(prodSuccess.printer).toBe('Thermal-Receipt-80');
+
+    // 4. Prod mode with Windows Spooler failure callback
+    const prodFailure = await handlePrintReceipt(sampleInvoice, 'Thermal-Receipt-80', {
+      isDev: false,
+      getPrintersAsync: async () => mockPrinters,
+      printFn: (_options, callback) => callback(false, 'Spooler Out of Paper'),
+    });
+    expect(prodFailure.status).toBe('FAILED');
+    expect(prodFailure.success).toBe(false);
+    expect(prodFailure.error).toBe('Spooler Out of Paper');
   });
 
   it('Hardware Network Printer: Socket connection and timeout paths', async () => {

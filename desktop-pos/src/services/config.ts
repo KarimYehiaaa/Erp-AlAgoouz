@@ -8,7 +8,10 @@ import { api } from './api';
 export const DEFAULT_SERVER_URL =
   (import.meta as any).env?.VITE_API_URL || 'http://localhost:3000/api/v1';
 
-export function validateServerUrl(url: string): { valid: boolean; normalizedUrl?: string; error?: string } {
+export function validateServerUrl(
+  url: string,
+  forceProduction?: boolean
+): { valid: boolean; normalizedUrl?: string; error?: string } {
   if (!url || typeof url !== 'string' || !url.trim()) {
     return { valid: false, error: 'عنوان الخادم مطلوب ولا يمكن أن يكون فارغاً' };
   }
@@ -25,7 +28,7 @@ export function validateServerUrl(url: string): { valid: boolean; normalizedUrl?
   }
 
   const isLocal = parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1' || parsed.hostname === '0.0.0.0';
-  const isProduction = (import.meta as any).env?.PROD;
+  const isProduction = forceProduction !== undefined ? forceProduction : ((import.meta as any).env?.PROD ?? false);
 
   if (isProduction && parsed.protocol === 'http:' && !isLocal) {
     return {
@@ -38,8 +41,19 @@ export function validateServerUrl(url: string): { valid: boolean; normalizedUrl?
   return { valid: true, normalizedUrl: cleanUrl };
 }
 
-export function getServerUrl(): string {
-  return (typeof localStorage !== 'undefined' ? localStorage.getItem('pos_server_url') : null) || DEFAULT_SERVER_URL;
+export function getServerUrl(forceProduction?: boolean): string {
+  if (typeof localStorage !== 'undefined') {
+    const raw = localStorage.getItem('pos_server_url');
+    if (raw) {
+      const validation = validateServerUrl(raw, forceProduction);
+      if (validation.valid && validation.normalizedUrl) {
+        return validation.normalizedUrl;
+      }
+      // Purge invalid or insecure URL from localStorage
+      localStorage.removeItem('pos_server_url');
+    }
+  }
+  return DEFAULT_SERVER_URL;
 }
 
 export async function setServerUrl(url: string): Promise<{ success: boolean; error?: string }> {

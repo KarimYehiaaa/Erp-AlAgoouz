@@ -76,9 +76,46 @@ export class PosSyncWorker {
     return this.serverUrl;
   }
 
+  public getAuthToken(): string | null {
+    return this.authToken;
+  }
+
   public setAuthToken(token: string | null) {
     this.authToken = token;
     console.log('[SyncWorker] Auth token updated in background sync engine:', token ? 'ACTIVE' : 'CLEARED');
+  }
+
+  public setSession(
+    token: string | null,
+    serverUrl?: string,
+    isPackaged?: boolean
+  ): { success: boolean; error?: string } {
+    const packaged = isPackaged !== undefined ? isPackaged : this.isPackaged;
+
+    // Pre-validate serverUrl if provided. Reject ATOMICALLY without touching state if invalid.
+    let validatedUrl: string | undefined;
+    if (serverUrl) {
+      const res = validateWorkerServerUrl(serverUrl, packaged);
+      if (!res.valid || !res.normalizedUrl) {
+        console.error('[SyncWorker Security] Session configuration rejected invalid URL:', serverUrl, res.error);
+        return {
+          success: false,
+          error: res.error || 'عنوان الخادم غير صالح أو غير مسموح به في بيئة الإنتاج (يجب استخدام HTTPS)',
+        };
+      }
+      validatedUrl = res.normalizedUrl;
+    }
+
+    // Atomic update
+    if (validatedUrl) {
+      this.serverUrl = validatedUrl;
+      console.log('[SyncWorker] Central server URL atomically updated to:', this.serverUrl);
+    }
+
+    this.authToken = token;
+    console.log('[SyncWorker] Auth session token atomically updated:', token ? 'ACTIVE' : 'CLEARED');
+
+    return { success: true };
   }
 
   public setServerUrl(url: string, isPackaged?: boolean): boolean {

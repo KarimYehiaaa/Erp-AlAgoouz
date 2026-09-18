@@ -53,6 +53,17 @@ jobs:
       - name: Install dependencies (workspaces)
         run: npm ci
 
+      # الفحص الأمني الصارم للاعتماديات التشغيلية (npm audit --omit=dev)
+      # يمنع أي ثغرات High/Critical في بيئة الإنتاج بدون أي continue-on-error.
+      - name: Security Audit — Production Runtime (Central ERP)
+        run: node scripts/security-audit.ts
+
+      - name: Security Audit — Production Runtime (Desktop POS)
+        working-directory: desktop-pos
+        run: |
+          npm ci
+          npm audit --omit=dev
+
       # بوابة نصوص مشوّهة (mojibake): يمنع اندفاع سلاسل '?????' الناتجة عن
       # أخطاء ترميز إلى رسائل المستخدم. أي 4 علامات استفهام متتالية داخل
       # كود المصدر تفشل البناء فوراً.
@@ -188,6 +199,9 @@ jobs:
       - name: Install Desktop POS dependencies
         working-directory: desktop-pos
         run: npm ci
+      - name: Desktop POS Security Audit
+        working-directory: desktop-pos
+        run: npm audit --omit=dev
       - name: Desktop POS Tests
         working-directory: desktop-pos
         run: npm test

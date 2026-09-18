@@ -1,11 +1,8 @@
 import axios from 'axios';
-
-const BASE_URL =
-  (typeof localStorage !== 'undefined' ? localStorage.getItem('pos_server_url') : null) ||
-  'http://localhost:3000/api/v1';
+import { getServerUrl, DEFAULT_SERVER_URL } from './config';
 
 export const api = axios.create({
-  baseURL: BASE_URL,
+  baseURL: DEFAULT_SERVER_URL,
   timeout: 8000,
   headers: {
     'Content-Type': 'application/json',
@@ -13,10 +10,9 @@ export const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-  const currentBase = typeof localStorage !== 'undefined' ? localStorage.getItem('pos_server_url') : null;
-  if (currentBase && config.baseURL !== currentBase) {
-    config.baseURL = currentBase;
-  }
+  const currentBase = getServerUrl();
+  config.baseURL = currentBase;
+
   const token = typeof localStorage !== 'undefined' ? localStorage.getItem('pos_token') : null;
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;

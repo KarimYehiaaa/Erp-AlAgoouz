@@ -177,6 +177,39 @@
 
         <!-- ===== HUB SECTION: ACCOUNTING ===== -->
         <div v-else-if="hubTab === 'accounting'" class="tab-view-container">
+          <div class="reports-header card" style="margin-bottom: 1rem">
+            <div class="header-title">
+              <span class="header-icon"><AppIcon name="file-text" :size="24" /></span>
+              <div>
+                <h2>الدفاتر المحاسبية والأستاذ العام</h2>
+                <p>ميزان المراجعة، الأستاذ العام، الميزانية العمومية، وقائمة الدخل ومطابقة البنك</p>
+              </div>
+            </div>
+            <div class="header-filters">
+              <div class="form-group">
+                <label>من</label>
+                <input v-model="filters.from_date" type="date" />
+              </div>
+              <div class="form-group">
+                <label>إلى</label>
+                <input v-model="filters.to_date" type="date" />
+              </div>
+              <div class="form-group month-picker-group">
+                <label>&nbsp;</label>
+                <div class="month-filter-btn" title="اختر الشهر بالكامل">
+                  <AppIcon name="calendar" :size="18" />
+                  <input type="month" class="month-picker-overlay" @change="selectMonth" />
+                </div>
+              </div>
+              <div class="quick-dates">
+                <button @click="setQuick('today')">اليوم</button>
+                <button @click="setQuick('week')">أسبوع</button>
+                <button @click="setQuick('month')">شهر</button>
+                <button @click="setQuick('year')">سنة</button>
+                <button @click="setQuick('all')">الكل</button>
+              </div>
+            </div>
+          </div>
           <AccountingTab :from-date="filters.from_date" :to-date="filters.to_date" />
         </div>
 

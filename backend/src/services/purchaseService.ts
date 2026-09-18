@@ -683,6 +683,13 @@ export const deletePurchaseInvoice = async (invoiceId: number, userId: number) =
       await recalculateSupplierBalance(client, inv.supplier_id);
     }
 
+    try {
+      const { accountingService } = await import('./accountingService.ts');
+      await accountingService.deleteJournalEntryByReference(client, 'purchase', id);
+    } catch {
+      // ignore if no journal entry
+    }
+
     await client.query('COMMIT');
     invalidateDashboardCache();
     return { success: true, deletedId: id, invoice_number: inv.invoice_number, shortages };

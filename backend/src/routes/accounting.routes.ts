@@ -4,10 +4,12 @@
 
 import { Router } from 'express';
 import { authenticate, authorize } from '../middleware/auth.ts';
+import { validateBody } from '../middleware/validate.ts';
 import { accountingController } from '../controllers/accountingController.ts';
 import { purchaseReturnController } from '../controllers/purchaseReturnController.ts';
 import { purchaseOrderController } from '../controllers/purchaseOrderController.ts';
 import { upload } from './helpers.ts';
+import { createAccountSchema, updateAccountSchema, createJournalEntrySchema } from './schemas.ts';
 
 const router = Router();
 
@@ -30,6 +32,7 @@ router.post(
   '/accounting/accounts',
   authenticate,
   authorize('accounting.manage', 'settings.edit'),
+  validateBody(createAccountSchema),
   accountingController.createAccount,
 );
 
@@ -37,6 +40,7 @@ router.put(
   '/accounting/accounts/:id',
   authenticate,
   authorize('accounting.manage', 'settings.edit'),
+  validateBody(updateAccountSchema),
   accountingController.updateAccount,
 );
 
@@ -45,6 +49,7 @@ router.post(
   '/accounting/journal-entries',
   authenticate,
   authorize('accounting.manage'),
+  validateBody(createJournalEntrySchema),
   accountingController.createJournalEntry,
 );
 

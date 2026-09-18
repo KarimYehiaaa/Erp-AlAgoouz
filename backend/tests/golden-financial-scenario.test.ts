@@ -186,7 +186,8 @@ beforeAll(async () => {
   customerId = custRes.rows[0].id;
   cleanup.customerIds.push(customerId);
 
-  // 5. Employee
+  // 5. Employee (deactivate any other employees to isolate payroll run)
+  await query(`UPDATE employees SET is_active = FALSE`);
   const empRes = await query(
     `INSERT INTO employees (code, full_name, phone, base_salary, is_active)
      VALUES ($1, $2, $3, 6000.00, TRUE) RETURNING id`,
@@ -214,6 +215,11 @@ beforeAll(async () => {
 afterAll(async () => {
   if (server) await new Promise<void>((resolve) => server.close(resolve));
 
+  if (cleanup.periodIds.length > 0) {
+    await query(`UPDATE financial_periods SET status = 'open' WHERE id = ANY($1::int[])`, [cleanup.periodIds]);
+    await query(`DELETE FROM financial_periods WHERE id = ANY($1::int[])`, [cleanup.periodIds]);
+  }
+
   if (cleanup.reconciliationIds.length > 0) {
     await query(
       `DELETE FROM bank_statement_transactions WHERE reconciliation_id = ANY($1::int[])`,
@@ -231,9 +237,6 @@ afterAll(async () => {
   if (cleanup.journalEntryIds.length > 0) {
     await query(`DELETE FROM journal_entry_lines WHERE journal_entry_id = ANY($1::int[])`, [cleanup.journalEntryIds]);
     await query(`DELETE FROM journal_entries WHERE id = ANY($1::int[])`, [cleanup.journalEntryIds]);
-  }
-  if (cleanup.periodIds.length > 0) {
-    await query(`DELETE FROM financial_periods WHERE id = ANY($1::int[])`, [cleanup.periodIds]);
   }
   if (cleanup.saleIds.length > 0) {
     await query(`DELETE FROM invoice_items WHERE invoice_id IN (SELECT id FROM invoices WHERE sale_id = ANY($1::int[]))`, [cleanup.saleIds]);
@@ -616,5 +619,8 @@ describe('Golden Financial Lifecycle Scenario', () => {
       }
     }
     expect(triggerBlocked).toBe(true);
+
+    // Reopen period so that cleanup operations and subsequent tests proceed normally
+    await financialPeriodService.reopenPeriod(periodId, adminUserId, 'إعادة فتح بعد انتهاء الاختبار بنجاح');
   });
 });

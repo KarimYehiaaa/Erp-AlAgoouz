@@ -102,6 +102,19 @@ export const permissionEquivalents = {
     'shifts.view', 'shifts.add', 'shifts.edit', 'shifts.delete',
     'hr.view', 'hr.add', 'hr.edit', 'hr.delete', 'hr.pay',
   ],
+
+  // ── المحاسبة المالية والأستاذ العام ومرتجعات المشتريات ──
+  'accounting.view': ['accounting.view', 'reports.view', 'settings.view'],
+  'accounting.manage': ['accounting.manage', 'settings.edit', 'settings.view'],
+  'accounting.period_close': ['accounting.period_close', 'accounting.manage'],
+  'accounting.period_reopen': ['accounting.period_reopen', 'accounting.manage'],
+  'purchase_returns.view': ['purchase_returns.view', 'purchases.view', 'inventory.view'],
+  'purchase_returns.create': ['purchase_returns.create', 'purchases.edit', 'inventory.edit'],
+  'purchase_returns.delete': ['purchase_returns.delete', 'purchases.delete', 'inventory.delete'],
+  'purchases.manage': [
+    'purchases.view', 'purchases.add', 'purchases.edit', 'purchases.delete',
+    'purchase_returns.view', 'purchase_returns.create', 'purchase_returns.delete',
+  ],
 };
 
 /**

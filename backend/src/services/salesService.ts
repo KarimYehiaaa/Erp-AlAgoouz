@@ -606,6 +606,27 @@ const returnSale = async (saleId: number, userId: number, notes?: string) => {
       [userId, `مرتجع بيع ${sale.sale_number}`, JSON.stringify({ sale_id: saleId })],
     );
 
+    // إذا كانت الفاتورة المرتجعة نقدية، وكان للمستخدم وردية POS مفتوحة، نسجل حركة سحب نقدي بالوردية الحالية
+    const isCashRefund = (sale.payment_method || 'cash').toLowerCase() === 'cash';
+    if (isCashRefund) {
+      const activeShiftRes = await client.query(
+        `SELECT id FROM pos_shifts WHERE cashier_user_id = $1 AND warehouse_id = $2 AND status = 'open' LIMIT 1`,
+        [userId, sale.warehouse_id],
+      );
+      if (activeShiftRes.rows.length > 0) {
+        await client.query(
+          `INSERT INTO pos_cash_movements (shift_id, movement_type, amount, reason, authorized_by)
+           VALUES ($1, 'expense', $2, $3, $4)`,
+          [
+            activeShiftRes.rows[0].id,
+            Number(sale.total_amount),
+            `رد نقدية لمرتجع بيع ${sale.sale_number}`,
+            userId,
+          ],
+        );
+      }
+    }
+
     try {
       const { accountingService } = await import('./accountingService.ts');
       await accountingService.postSalesRefundJournalEntry(client, {
@@ -653,6 +674,12 @@ const deleteAllSales = async (userId: number) => {
       );
       for (const row of posSales.rows) {
         await restoreInventoryForSale(client, row.id, userId);
+        try {
+          const { accountingService } = await import('./accountingService.ts');
+          await accountingService.deleteJournalEntryByReference(client, 'sale', row.id);
+        } catch {
+          // ignore if no journal entry
+        }
       }
       await client.query(
         `UPDATE sales
@@ -720,6 +747,12 @@ const deleteSalesByDate = async (saleDate: string, userId: number) => {
       );
       for (const row of posSales.rows) {
         await restoreInventoryForSale(client, row.id, userId);
+        try {
+          const { accountingService } = await import('./accountingService.ts');
+          await accountingService.deleteJournalEntryByReference(client, 'sale', row.id);
+        } catch {
+          // ignore if no journal entry
+        }
       }
       await client.query(
         `UPDATE sales
@@ -751,7 +784,7 @@ const deleteSalesByDate = async (saleDate: string, userId: number) => {
        VALUES ($1,'sales',$2,$3)`,
       [
         userId,
-        `\u062D\u0630\u0641 \u0645\u0628\u064A\u0639\u0627\u062A \u0628\u062A\u0627\u0631\u064A\u062E ${saleDate}`,
+        `حذف مبيعات بتاريخ ${saleDate}`,
         JSON.stringify({ sale_date: saleDate, deleted_count: deletedCount }),
       ],
     );
@@ -769,10 +802,7 @@ const deleteSalesByDate = async (saleDate: string, userId: number) => {
 /** حذف المبيعات حسب النوع (branch/wholesale/pos). */
 const deleteSalesByType = async (saleType: string, userId: number) => {
   if (!['branch', 'wholesale'].includes(saleType)) {
-    throw new AppError(
-      '\u0646\u0648\u0639 \u0627\u0644\u0628\u064A\u0639 \u063A\u064A\u0631 \u0635\u0627\u0644\u062D',
-      400,
-    );
+    throw new AppError('نوع البيع غير صالح', 400);
   }
   const client = await getClient();
   try {
@@ -793,6 +823,12 @@ const deleteSalesByType = async (saleType: string, userId: number) => {
       );
       for (const row of posSales.rows) {
         await restoreInventoryForSale(client, row.id, userId);
+        try {
+          const { accountingService } = await import('./accountingService.ts');
+          await accountingService.deleteJournalEntryByReference(client, 'sale', row.id);
+        } catch {
+          // ignore if no journal entry
+        }
       }
       await client.query(
         `UPDATE sales SET deleted_at = NOW(), status = 'cancelled', updated_at = NOW()

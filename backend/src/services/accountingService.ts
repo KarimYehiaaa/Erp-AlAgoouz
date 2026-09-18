@@ -231,7 +231,7 @@ export const accountingService = {
 
     // التحقق الصارم من التوازن المحاسبي: مجموع المدين = مجموع الدائن
     const imbalance = Math.abs(roundMoney(totalDebit - totalCredit));
-    if (imbalance > 0.01) {
+    if (imbalance > 0.0001) {
       throw new AppError(
         `قيد اليومية غير متوازن! إجمالي المدين (${totalDebit}) لا يساوي إجمالي الدائن (${totalCredit}) الفارق: ${imbalance}`,
         400,
@@ -550,6 +550,75 @@ export const accountingService = {
         description: `إثبات قيد مرتجع مشتريات ${returnDoc.return_number}`,
         lines,
         created_by: returnDoc.user_id,
+      },
+      client,
+    );
+  },
+
+  /**
+   * ترحيل قيد فروقات الجرد المخزني (عجز أو فائض) إلى الأستاذ العام
+   */
+  async postStocktakeJournalEntry(
+    client: any,
+    stocktake: {
+      id: number;
+      warehouse_id: number;
+      total_deficit: number;
+      total_surplus: number;
+      user_id?: number;
+    },
+  ) {
+    const deficit = roundMoney(Number(stocktake.total_deficit || 0));
+    const surplus = roundMoney(Number(stocktake.total_surplus || 0));
+
+    if (deficit <= 0.001 && surplus <= 0.001) return null;
+
+    const lines: JournalLineInput[] = [];
+
+    // في حالة العجز: مدين عجز الجرد (5204) ودائن المخزون (110301)
+    if (deficit > 0.001) {
+      lines.push({
+        account_code: STANDARD_ACCOUNTS.SHORTAGE_EXPENSE,
+        debit: deficit,
+        credit: 0,
+        description: `تسوية عجز جرد مخزني #${stocktake.id}`,
+        warehouse_id: stocktake.warehouse_id,
+      });
+      lines.push({
+        account_code: STANDARD_ACCOUNTS.FINISHED_GOODS,
+        debit: 0,
+        credit: deficit,
+        description: `تخفيض المخزون لعجز جرد #${stocktake.id}`,
+        warehouse_id: stocktake.warehouse_id,
+      });
+    }
+
+    // في حالة الفائض: مدين المخزون (110301) ودائن إيرادات متنوعة (4201)
+    if (surplus > 0.001) {
+      lines.push({
+        account_code: STANDARD_ACCOUNTS.FINISHED_GOODS,
+        debit: surplus,
+        credit: 0,
+        description: `إضافة مخزون لفائض جرد #${stocktake.id}`,
+        warehouse_id: stocktake.warehouse_id,
+      });
+      lines.push({
+        account_code: STANDARD_ACCOUNTS.OTHER_INCOME,
+        debit: 0,
+        credit: surplus,
+        description: `إثبات أرباح فروقات جرد زائدة #${stocktake.id}`,
+        warehouse_id: stocktake.warehouse_id,
+      });
+    }
+
+    return this.createJournalEntry(
+      {
+        reference_type: 'stocktake',
+        reference_id: stocktake.id,
+        idempotency_key: `stocktake_adjustment:${stocktake.id}`,
+        description: `إثبات فروقات جرد المخزن #${stocktake.id}`,
+        lines,
+        created_by: stocktake.user_id,
       },
       client,
     );
@@ -1560,16 +1629,35 @@ export const accountingService = {
   /**
    * حذف قيد يومية مرتبط بمرجع تشغيلي
    */
-  async deleteJournalEntryByReference(referenceType: string, referenceId: number, client?: any) {
-    const runner = client || query;
-    await runner(
+  async deleteJournalEntryByReference(first: any, second: any, third?: any) {
+    let client: any = null;
+    let referenceType = '';
+    let referenceId = 0;
+
+    if (typeof first === 'string') {
+      referenceType = first;
+      referenceId = Number(second);
+      client = third;
+    } else {
+      client = first;
+      referenceType = String(second);
+      referenceId = Number(third);
+    }
+
+    const exec = (sql: string, params?: any[]) => {
+      if (client?.query) return client.query(sql, params);
+      if (typeof client === 'function') return client(sql, params);
+      return query(sql, params);
+    };
+
+    await exec(
       `DELETE FROM journal_entry_lines 
        WHERE journal_entry_id IN (
          SELECT id FROM journal_entries WHERE reference_type = $1 AND reference_id = $2
        )`,
       [referenceType, referenceId],
     );
-    await runner(`DELETE FROM journal_entries WHERE reference_type = $1 AND reference_id = $2`, [
+    await exec(`DELETE FROM journal_entries WHERE reference_type = $1 AND reference_id = $2`, [
       referenceType,
       referenceId,
     ]);
@@ -1592,7 +1680,8 @@ export const accountingService = {
           ($1::date - s.sale_date::date) AS age_days,
           s.total_amount - COALESCE((
             SELECT SUM(amount) FROM payments 
-            WHERE reference_type = 'sale' AND reference_id = s.id
+            WHERE (reference_type = 'sale' AND reference_id = s.id)
+               OR (reference_type = 'invoice' AND reference_id IN (SELECT id FROM invoices WHERE sale_id = s.id))
           ), 0) AS remaining_amount
         FROM sales s
         JOIN customers c ON c.id = s.customer_id
@@ -1654,6 +1743,9 @@ export const accountingService = {
           pi.invoice_date,
           ($1::date - pi.invoice_date::date) AS age_days,
           pi.total_amount - COALESCE((
+            SELECT SUM(total_amount) FROM purchase_returns 
+            WHERE purchase_invoice_id = pi.id AND status = 'completed' AND deleted_at IS NULL
+          ), 0) - COALESCE((
             SELECT SUM(amount) FROM payments 
             WHERE (reference_type = 'purchase_invoice' AND reference_id = pi.id)
                OR (reference_type = 'supplier' AND reference_id = s.id)

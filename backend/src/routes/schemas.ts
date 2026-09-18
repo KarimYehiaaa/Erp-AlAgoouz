@@ -523,12 +523,55 @@ const reverseProductionSchema = z
     reverse_qty: optionalNonNegativeNumber,
   })
   .strip();
+const createAccountSchema = z
+  .object({
+    code: shortText(50),
+    name_ar: shortText(200),
+    name_en: nullableText(200),
+    account_type: z.enum(['asset', 'liability', 'equity', 'revenue', 'expense']),
+    nature: z.enum(['debit', 'credit']),
+    parent_id: optionalPositiveId,
+    description: nullableText(500),
+    is_active: optionalBool,
+  })
+  .strip();
+const updateAccountSchema = z
+  .object({
+    name_ar: shortText(200).optional(),
+    name_en: nullableText(200),
+    description: nullableText(500),
+    is_active: optionalBool,
+  })
+  .strip();
+const createJournalEntrySchema = z
+  .object({
+    entry_date: optionalDateText,
+    reference_type: z.string().trim().max(50).optional(),
+    reference_id: z.coerce.number().int().positive().optional(),
+    idempotency_key: z.string().trim().max(150).optional(),
+    description: shortText(500),
+    lines: z
+      .array(
+        z.object({
+          account_id: optionalPositiveId,
+          account_code: z.string().trim().max(50).optional(),
+          debit: z.coerce.number().min(0).default(0),
+          credit: z.coerce.number().min(0).default(0),
+          description: z.string().trim().max(500).optional(),
+          warehouse_id: optionalPositiveId,
+        }),
+      )
+      .min(2, 'يجب أن يحتوي القيد على سطرين على الأقل'),
+  })
+  .strip();
 export {
   advanceSchema,
   attendanceSchema,
   bulkPriceAdjustSchema,
   categoryCreateSchema,
   categoryUpdateSchema,
+  createAccountSchema,
+  createJournalEntrySchema,
   commonQuerySchema,
   copilotSchema,
   createRoleSchema,
@@ -583,6 +626,7 @@ export {
   supplierUpdateSchema,
   unitCreateSchema,
   unitUpdateSchema,
+  updateAccountSchema,
   updateRolePermissionsSchema,
   updateRoleSchema,
   userCreateSchema,

@@ -54,7 +54,7 @@ class InvoicesRepository extends BaseRepository {
       '[]'::json
     ) as items`;
     const result = await query(
-      `SELECT i.*, c.name_ar as customer_name, c.phone as customer_phone, c.address as customer_address,
+      `SELECT i.*, s.warehouse_id, c.name_ar as customer_name, c.phone as customer_phone, c.address as customer_address,
         c.tax_number as customer_tax, s.sale_number, s.sale_type, u.full_name as issued_by,
         ${loadItemsJson}
        FROM invoices i

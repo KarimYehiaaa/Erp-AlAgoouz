@@ -245,6 +245,10 @@ export const recalculateSupplierBalance = async (
        FROM purchase_invoices
        WHERE supplier_id = $1 AND deleted_at IS NULL
      ), 0) - COALESCE((
+       SELECT COALESCE(SUM(total_amount), 0)
+       FROM purchase_returns
+       WHERE supplier_id = $1 AND status = 'completed' AND deleted_at IS NULL
+     ), 0) - COALESCE((
        SELECT COALESCE(SUM(amount), 0)
        FROM payments
        WHERE (reference_type = 'supplier' AND reference_id = $1)

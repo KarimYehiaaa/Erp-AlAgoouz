@@ -116,6 +116,10 @@ afterAll(async () => {
   if (server) await new Promise<void>((resolve) => server.close(resolve));
 
   // Cleanup in order
+  if (cleanup.periodIds.length > 0) {
+    await query(`UPDATE financial_periods SET status = 'open' WHERE id = ANY($1::int[])`, [cleanup.periodIds]);
+    await query(`DELETE FROM financial_periods WHERE id = ANY($1::int[])`, [cleanup.periodIds]);
+  }
   if (cleanup.journalEntryIds.length > 0) {
     await query(
       `DELETE FROM journal_entry_lines WHERE journal_entry_id = ANY($1::int[])`,
@@ -125,9 +129,6 @@ afterAll(async () => {
       `DELETE FROM journal_entries WHERE id = ANY($1::int[])`,
       [cleanup.journalEntryIds],
     );
-  }
-  if (cleanup.periodIds.length > 0) {
-    await query(`DELETE FROM financial_periods WHERE id = ANY($1::int[])`, [cleanup.periodIds]);
   }
   if (cleanup.userIds.length > 0) {
     await query(`DELETE FROM users WHERE id = ANY($1::int[])`, [cleanup.userIds]);

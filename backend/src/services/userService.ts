@@ -63,8 +63,13 @@ const updateUser = async (id, data) => {
     // إبطال كاش المستخدمين لضمان عدم حدوث تضارب في التوكنات (SESSION_REVOKED)
     appCache.delete(`auth_user:${id}`);
     appCache.invalidateByTag('auth_users');
-    // تغيير الدور/التفعيل يؤثر على المخازن المسموحة — مسح كاش العزل فوراً
-    if (data.role_id !== undefined || data.is_active !== undefined) {
+    // تغيير الدور/التفعيل/المخزن/الفرع يؤثر على المخازن المسموحة — مسح كاش العزل فوراً
+    if (
+      data.role_id !== undefined ||
+      data.is_active !== undefined ||
+      data.warehouse_id !== undefined ||
+      data.branch_id !== undefined
+    ) {
       clearWarehouseCache(id);
     }
     return result.rows[0];

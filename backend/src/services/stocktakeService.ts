@@ -391,6 +391,22 @@ export const completeStocktake = async (stocktakeId: number, userId: number) => 
       );
     }
 
+    // 6. ترحيل قيد الفروقات الجردية (عجز أو فائض) إلى الأستاذ العام
+    if (totalDeficit > 0.001 || totalSurplus > 0.001) {
+      try {
+        const { accountingService } = await import('./accountingService.ts');
+        await accountingService.postStocktakeJournalEntry(client, {
+          id: stocktake.id,
+          warehouse_id: stocktake.warehouse_id,
+          total_deficit: totalDeficit,
+          total_surplus: totalSurplus,
+          user_id: userId,
+        });
+      } catch (accErr: any) {
+        console.warn(`[Accounting] تعذر ترحيل قيد الجرد إلى الأستاذ العام: ${accErr.message}`);
+      }
+    }
+
     await client.query('COMMIT');
     invalidateDashboardCache();
 

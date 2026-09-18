@@ -5,8 +5,15 @@
  */
 import { api } from './api';
 
-export const DEFAULT_SERVER_URL =
-  (import.meta as any).env?.VITE_API_URL || 'http://localhost:3000/api/v1';
+export const SAFE_LOCAL_URL = 'http://localhost:3000/api/v1';
+
+export function getRawEnvUrl(): string | undefined {
+  try {
+    return (import.meta as any).env?.VITE_API_URL;
+  } catch {
+    return undefined;
+  }
+}
 
 export function validateServerUrl(
   url: string,
@@ -27,7 +34,10 @@ export function validateServerUrl(
     return { valid: false, error: 'يجب أن يبدأ عنوان الخادم ببروتوكول http:// أو https://' };
   }
 
-  const isLocal = parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1' || parsed.hostname === '0.0.0.0';
+  const isLocal =
+    parsed.hostname === 'localhost' ||
+    parsed.hostname === '127.0.0.1' ||
+    parsed.hostname === '0.0.0.0';
   const isProduction = forceProduction !== undefined ? forceProduction : ((import.meta as any).env?.PROD ?? false);
 
   if (isProduction && parsed.protocol === 'http:' && !isLocal) {
@@ -41,20 +51,36 @@ export function validateServerUrl(
   return { valid: true, normalizedUrl: cleanUrl };
 }
 
-export function getServerUrl(forceProduction?: boolean): string {
+export function getServerUrl(forceProduction?: boolean, customEnvUrl?: string): string {
+  const isProd = forceProduction !== undefined ? forceProduction : ((import.meta as any).env?.PROD ?? false);
+
+  // 1. Check localStorage if available
   if (typeof localStorage !== 'undefined') {
-    const raw = localStorage.getItem('pos_server_url');
-    if (raw) {
-      const validation = validateServerUrl(raw, forceProduction);
-      if (validation.valid && validation.normalizedUrl) {
-        return validation.normalizedUrl;
+    const rawLocal = localStorage.getItem('pos_server_url');
+    if (rawLocal) {
+      const localVal = validateServerUrl(rawLocal, isProd);
+      if (localVal.valid && localVal.normalizedUrl) {
+        return localVal.normalizedUrl;
       }
       // Purge invalid or insecure URL from localStorage
       localStorage.removeItem('pos_server_url');
     }
   }
-  return DEFAULT_SERVER_URL;
+
+  // 2. Check VITE_API_URL / environment fallback
+  const envUrl = customEnvUrl !== undefined ? customEnvUrl : getRawEnvUrl();
+  if (envUrl && typeof envUrl === 'string' && envUrl.trim()) {
+    const envVal = validateServerUrl(envUrl, isProd);
+    if (envVal.valid && envVal.normalizedUrl) {
+      return envVal.normalizedUrl;
+    }
+  }
+
+  // 3. Fallback to guaranteed safe local URL
+  return SAFE_LOCAL_URL;
 }
+
+export const DEFAULT_SERVER_URL = SAFE_LOCAL_URL;
 
 export async function setServerUrl(url: string): Promise<{ success: boolean; error?: string }> {
   const validation = validateServerUrl(url);

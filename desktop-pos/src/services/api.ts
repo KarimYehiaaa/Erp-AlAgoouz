@@ -1,6 +1,12 @@
 import axios from 'axios';
 import { getServerUrl, DEFAULT_SERVER_URL } from './config';
 
+let forceProductionMode: boolean | undefined = undefined;
+
+export function setApiProductionMode(prod: boolean | undefined) {
+  forceProductionMode = prod;
+}
+
 export const api = axios.create({
   baseURL: DEFAULT_SERVER_URL,
   timeout: 8000,
@@ -10,7 +16,9 @@ export const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-  const currentBase = getServerUrl();
+  const isProd =
+    forceProductionMode !== undefined ? forceProductionMode : ((import.meta as any).env?.PROD ?? false);
+  const currentBase = getServerUrl(isProd);
   config.baseURL = currentBase;
 
   const token = typeof localStorage !== 'undefined' ? localStorage.getItem('pos_token') : null;

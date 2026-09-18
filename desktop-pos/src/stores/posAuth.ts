@@ -7,14 +7,52 @@ export const usePosAuthStore = defineStore('posAuth', () => {
   const user = ref<any>(JSON.parse(localStorage.getItem('pos_user') || 'null'));
   const token = ref<string | null>(localStorage.getItem('pos_token'));
   const terminal = ref<any>(JSON.parse(localStorage.getItem('pos_terminal') || 'null'));
+  const sessionInitializing = ref(false);
 
-  const isAuthenticated = computed(() => !!token.value && !!user.value);
+  const isAuthenticated = computed(() => !sessionInitializing.value && !!token.value && !!user.value);
   const isCashier = computed(() => user.value?.role_name === 'cashier' || user.value?.role_name === 'admin');
 
-  // Sync token to Electron syncWorker on initial load
-  if (token.value && window.electronAPI?.setAuthToken) {
-    window.electronAPI.setAuthToken(token.value, getServerUrl());
-  }
+  /**
+   * استعادة جلسة العمل بأمان عند إقلاع التطبيق (Startup Session Restoration)
+   * تضمن التحقق من قبول Electron للجلسة وعنوان الخادم المعتمد قبل اعتبار المستخدم مسجلاً
+   */
+  const restoreSession = async (): Promise<boolean> => {
+    if (!token.value) {
+      return false;
+    }
+
+    if (typeof window !== 'undefined' && window.electronAPI?.setAuthToken) {
+      sessionInitializing.value = true;
+      try {
+        const validatedUrl = getServerUrl();
+        const sessionRes = await window.electronAPI.setAuthToken(token.value, validatedUrl);
+
+        if (!sessionRes || !sessionRes.success) {
+          console.warn('[PosAuth] Session restoration rejected by Electron:', sessionRes?.error);
+          token.value = null;
+          user.value = null;
+          if (typeof localStorage !== 'undefined') {
+            localStorage.removeItem('pos_token');
+            localStorage.removeItem('pos_user');
+          }
+          return false;
+        }
+      } catch (err: any) {
+        console.error('[PosAuth] Session restoration exception:', err);
+        token.value = null;
+        user.value = null;
+        if (typeof localStorage !== 'undefined') {
+          localStorage.removeItem('pos_token');
+          localStorage.removeItem('pos_user');
+        }
+        return false;
+      } finally {
+        sessionInitializing.value = false;
+      }
+    }
+
+    return !!token.value && !!user.value;
+  };
 
   const login = async (credentials: { username: string; password: string }) => {
     const res = await api.post('/auth/login', credentials);
@@ -57,8 +95,10 @@ export const usePosAuthStore = defineStore('posAuth', () => {
     user,
     token,
     terminal,
+    sessionInitializing,
     isAuthenticated,
     isCashier,
+    restoreSession,
     login,
     logout,
   };

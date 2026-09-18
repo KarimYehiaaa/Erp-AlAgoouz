@@ -859,4 +859,664 @@ export const accountingService = {
       variance: roundMoney(totalAssets - (totalLiabilities + totalEquityWithIncome)),
     };
   },
+
+  /**
+   * ترحيل قيد مصروفات تشغيلية
+   */
+  async postExpenseJournalEntry(
+    client: any,
+    expense: {
+      id: number;
+      expense_number?: string;
+      title: string;
+      amount: number;
+      category_id?: number;
+      category_name?: string;
+      payment_method?: string;
+      is_fixed?: boolean;
+      user_id?: number;
+      warehouse_id?: number;
+      expense_date?: string;
+    },
+  ) {
+    const amount = roundMoney(Number(expense.amount || 0));
+    if (amount <= 0) return;
+
+    let debitAccountCode = STANDARD_ACCOUNTS.GENERAL_EXPENSE;
+    const title = (expense.title || '').toLowerCase();
+    const catName = (expense.category_name || '').toLowerCase();
+
+    if (title.includes('رواتب') || title.includes('مرتب') || catName.includes('رواتب')) {
+      debitAccountCode = STANDARD_ACCOUNTS.SALARIES_EXPENSE;
+    } else if (
+      title.includes('إيجار') ||
+      title.includes('ايجار') ||
+      title.includes('كهرباء') ||
+      title.includes('مياه') ||
+      catName.includes('إيجار')
+    ) {
+      debitAccountCode = STANDARD_ACCOUNTS.RENT_UTILITIES;
+    } else if (title.includes('صيانة') || title.includes('تصليح') || catName.includes('صيانة')) {
+      debitAccountCode = STANDARD_ACCOUNTS.MAINTENANCE_EXPENSE;
+    } else if (title.includes('هدر') || title.includes('تالف') || catName.includes('هدر')) {
+      debitAccountCode = STANDARD_ACCOUNTS.WASTE_EXPENSE;
+    }
+
+    let creditAccountCode = STANDARD_ACCOUNTS.MAIN_TREASURY;
+    const method = (expense.payment_method || 'cash').toLowerCase();
+    if (method === 'card' || method === 'bank') {
+      creditAccountCode = STANDARD_ACCOUNTS.BANK_ACCOUNTS;
+    } else if (method === 'drawer') {
+      creditAccountCode = STANDARD_ACCOUNTS.BRANCH_DRAWER;
+    } else if (method === 'wallet' || method === 'instapay') {
+      creditAccountCode = STANDARD_ACCOUNTS.E_WALLETS;
+    }
+
+    const lines: JournalLineInput[] = [
+      {
+        account_code: debitAccountCode,
+        debit: amount,
+        credit: 0,
+        description: `إثبات مصروف: ${expense.title}`,
+        warehouse_id: expense.warehouse_id,
+      },
+      {
+        account_code: creditAccountCode,
+        debit: 0,
+        credit: amount,
+        description: `سداد مصروف: ${expense.title} (${expense.payment_method || 'نقداً'})`,
+        warehouse_id: expense.warehouse_id,
+      },
+    ];
+
+    return this.createJournalEntry(
+      {
+        reference_type: 'expense',
+        reference_id: expense.id,
+        description: `إثبات مصروف ${expense.expense_number || 'EXP-' + expense.id}: ${expense.title}`,
+        entry_date: expense.expense_date,
+        lines,
+        created_by: expense.user_id,
+      },
+      client,
+    );
+  },
+
+  /**
+   * ترحيل تحصيل دفعة من عميل
+   */
+  async postCustomerPaymentJournalEntry(
+    client: any,
+    payment: {
+      id: number;
+      payment_number?: string;
+      customer_id?: number;
+      amount: number;
+      payment_method?: string;
+      notes?: string;
+      user_id?: number;
+    },
+  ) {
+    const amount = roundMoney(Number(payment.amount || 0));
+    if (amount <= 0) return;
+
+    let debitAccountCode = STANDARD_ACCOUNTS.MAIN_TREASURY;
+    const method = (payment.payment_method || 'cash').toLowerCase();
+    if (method === 'card' || method === 'bank') {
+      debitAccountCode = STANDARD_ACCOUNTS.BANK_ACCOUNTS;
+    } else if (method === 'wallet' || method === 'instapay') {
+      debitAccountCode = STANDARD_ACCOUNTS.E_WALLETS;
+    } else if (method === 'drawer') {
+      debitAccountCode = STANDARD_ACCOUNTS.BRANCH_DRAWER;
+    }
+
+    const lines: JournalLineInput[] = [
+      {
+        account_code: debitAccountCode,
+        debit: amount,
+        credit: 0,
+        description: `تحصيل دفعة نقدية من العميل`,
+      },
+      {
+        account_code: STANDARD_ACCOUNTS.CUSTOMERS_RECEIVABLE,
+        debit: 0,
+        credit: amount,
+        description: `سداد من رصيد مديونية العميل`,
+      },
+    ];
+
+    return this.createJournalEntry(
+      {
+        reference_type: 'payment',
+        reference_id: payment.id,
+        description: `تحصيل دفعة عميل ${payment.payment_number || 'PAY-' + payment.id}`,
+        lines,
+        created_by: payment.user_id,
+      },
+      client,
+    );
+  },
+
+  /**
+   * ترحيل سداد دفعة لمورد
+   */
+  async postSupplierPaymentJournalEntry(
+    client: any,
+    payment: {
+      id: number;
+      payment_number?: string;
+      supplier_id?: number;
+      amount: number;
+      payment_method?: string;
+      notes?: string;
+      user_id?: number;
+    },
+  ) {
+    const amount = roundMoney(Number(payment.amount || 0));
+    if (amount <= 0) return;
+
+    let creditAccountCode = STANDARD_ACCOUNTS.MAIN_TREASURY;
+    const method = (payment.payment_method || 'cash').toLowerCase();
+    if (method === 'card' || method === 'bank') {
+      creditAccountCode = STANDARD_ACCOUNTS.BANK_ACCOUNTS;
+    } else if (method === 'wallet' || method === 'instapay') {
+      creditAccountCode = STANDARD_ACCOUNTS.E_WALLETS;
+    } else if (method === 'drawer') {
+      creditAccountCode = STANDARD_ACCOUNTS.BRANCH_DRAWER;
+    }
+
+    const lines: JournalLineInput[] = [
+      {
+        account_code: STANDARD_ACCOUNTS.SUPPLIERS_PAYABLE,
+        debit: amount,
+        credit: 0,
+        description: `سداد مستحقات للمورد`,
+      },
+      {
+        account_code: creditAccountCode,
+        debit: 0,
+        credit: amount,
+        description: `صرف نقدي لسداد مستحقات مورد (${payment.payment_method || 'نقداً'})`,
+      },
+    ];
+
+    return this.createJournalEntry(
+      {
+        reference_type: 'payment',
+        reference_id: payment.id,
+        description: `سداد مستحقات مورد ${payment.payment_number || 'PAY-' + payment.id}`,
+        lines,
+        created_by: payment.user_id,
+      },
+      client,
+    );
+  },
+
+  /**
+   * ترحيل مسحوبات شريك
+   */
+  async postPartnerDrawingJournalEntry(
+    client: any,
+    drawing: {
+      id: number;
+      voucher_number?: string;
+      partner_id: number;
+      amount: number;
+      source_type?: string;
+      payment_method?: string;
+      notes?: string;
+      user_id?: number;
+    },
+  ) {
+    const amount = roundMoney(Number(drawing.amount || 0));
+    if (amount <= 0) return;
+
+    let creditAccountCode = STANDARD_ACCOUNTS.MAIN_TREASURY;
+    if (drawing.source_type === 'cash_drawer') {
+      creditAccountCode = STANDARD_ACCOUNTS.BRANCH_DRAWER;
+    } else if (drawing.payment_method === 'bank') {
+      creditAccountCode = STANDARD_ACCOUNTS.BANK_ACCOUNTS;
+    }
+
+    const lines: JournalLineInput[] = [
+      {
+        account_code: STANDARD_ACCOUNTS.PARTNER_DRAWINGS,
+        debit: amount,
+        credit: 0,
+        description: `مسحوبات شريك سند ${drawing.voucher_number || drawing.id}`,
+      },
+      {
+        account_code: creditAccountCode,
+        debit: 0,
+        credit: amount,
+        description: `صرف مسحوبات الشريك نقداً`,
+      },
+    ];
+
+    return this.createJournalEntry(
+      {
+        reference_type: 'manual',
+        reference_id: drawing.id,
+        description: `صرف مسحوبات شريك سند ${drawing.voucher_number || drawing.id}`,
+        lines,
+        created_by: drawing.user_id,
+      },
+      client,
+    );
+  },
+
+  /**
+   * ترحيل قيد مردودات مبيعات (Sales Refund)
+   */
+  async postSalesRefundJournalEntry(
+    client: any,
+    sale: {
+      id: number;
+      sale_number: string;
+      total_amount: number;
+      cost_amount?: number;
+      customer_id?: number;
+      warehouse_id?: number;
+      user_id?: number;
+    },
+  ) {
+    const totalAmount = roundMoney(Number(sale.total_amount || 0));
+    if (totalAmount <= 0) return;
+    const costAmount = roundMoney(Number(sale.cost_amount || 0));
+
+    const creditAccountCode = sale.customer_id
+      ? STANDARD_ACCOUNTS.CUSTOMERS_RECEIVABLE
+      : STANDARD_ACCOUNTS.BRANCH_DRAWER;
+
+    const lines: JournalLineInput[] = [
+      {
+        account_code: STANDARD_ACCOUNTS.SALES_RETURNS_ALLOWANCE,
+        debit: totalAmount,
+        credit: 0,
+        description: `إثبات مرتجع مبيعات ${sale.sale_number}`,
+        warehouse_id: sale.warehouse_id,
+      },
+      {
+        account_code: creditAccountCode,
+        debit: 0,
+        credit: totalAmount,
+        description: `رد قيمة مبيعات مرتجعة ${sale.sale_number}`,
+        warehouse_id: sale.warehouse_id,
+      },
+    ];
+
+    if (costAmount > 0) {
+      lines.push({
+        account_code: STANDARD_ACCOUNTS.FINISHED_GOODS,
+        debit: costAmount,
+        credit: 0,
+        description: `إعادة المخزون السلعي لمرتجع ${sale.sale_number}`,
+        warehouse_id: sale.warehouse_id,
+      });
+      lines.push({
+        account_code: STANDARD_ACCOUNTS.COGS_POS,
+        debit: 0,
+        credit: costAmount,
+        description: `تخفيض تكلفة البضاعة المباعة لمرتجع ${sale.sale_number}`,
+        warehouse_id: sale.warehouse_id,
+      });
+    }
+
+    return this.createJournalEntry(
+      {
+        reference_type: 'sale',
+        reference_id: sale.id,
+        description: `إثبات قيد مردودات مبيعات ${sale.sale_number}`,
+        lines,
+        created_by: sale.user_id,
+      },
+      client,
+    );
+  },
+
+  /**
+   * ترحيل حركات نقدية للوردية (توريد/تغذية)
+   */
+  async postShiftCashMovementJournalEntry(
+    client: any,
+    movement: {
+      id: number;
+      shift_id: number;
+      movement_type: 'drop' | 'deposit' | 'expense';
+      amount: number;
+      reason?: string;
+      user_id?: number;
+    },
+  ) {
+    const amount = roundMoney(Number(movement.amount || 0));
+    if (amount <= 0) return;
+
+    let lines: JournalLineInput[] = [];
+
+    if (movement.movement_type === 'drop') {
+      lines = [
+        {
+          account_code: STANDARD_ACCOUNTS.MAIN_TREASURY,
+          debit: amount,
+          credit: 0,
+          description: `توريد نقدية من درج الكاشير إلى الخزينة الرئيسية (وردية #${movement.shift_id})`,
+        },
+        {
+          account_code: STANDARD_ACCOUNTS.BRANCH_DRAWER,
+          debit: 0,
+          credit: amount,
+          description: `سحب نقدية من درج الكاشير للتوريد (وردية #${movement.shift_id})`,
+        },
+      ];
+    } else if (movement.movement_type === 'deposit') {
+      lines = [
+        {
+          account_code: STANDARD_ACCOUNTS.BRANCH_DRAWER,
+          debit: amount,
+          credit: 0,
+          description: `إيداع فكة/عهدة في درج الكاشير (وردية #${movement.shift_id})`,
+        },
+        {
+          account_code: STANDARD_ACCOUNTS.MAIN_TREASURY,
+          debit: 0,
+          credit: amount,
+          description: `صرف فكة من الخزينة لدرج الكاشير (وردية #${movement.shift_id})`,
+        },
+      ];
+    } else {
+      return;
+    }
+
+    return this.createJournalEntry(
+      {
+        reference_type: 'transfer',
+        reference_id: movement.id,
+        description: `تحويل نقدية بين الخزينة ودرج الوردية #${movement.shift_id}: ${movement.reason || movement.movement_type}`,
+        lines,
+        created_by: movement.user_id,
+      },
+      client,
+    );
+  },
+
+  /**
+   * ترحيل عجز أو زيادة نقدية عند إغلاق الوردية
+   */
+  async postShiftDifferenceJournalEntry(
+    client: any,
+    shift: {
+      id: number;
+      shift_number: string;
+      cash_difference: number;
+      user_id?: number;
+    },
+  ) {
+    const diff = roundMoney(Number(shift.cash_difference || 0));
+    if (Math.abs(diff) <= 0.01) return;
+
+    let lines: JournalLineInput[] = [];
+
+    if (diff < 0) {
+      const absDiff = Math.abs(diff);
+      lines = [
+        {
+          account_code: STANDARD_ACCOUNTS.SHORTAGE_EXPENSE,
+          debit: absDiff,
+          credit: 0,
+          description: `إثبات عجز نقدية نهاية الوردية ${shift.shift_number}`,
+        },
+        {
+          account_code: STANDARD_ACCOUNTS.BRANCH_DRAWER,
+          debit: 0,
+          credit: absDiff,
+          description: `تسوية عجز درج الكاشير وردية ${shift.shift_number}`,
+        },
+      ];
+    } else {
+      lines = [
+        {
+          account_code: STANDARD_ACCOUNTS.BRANCH_DRAWER,
+          debit: diff,
+          credit: 0,
+          description: `إثبات زيادة نقدية فعلية في درج الكاشير وردية ${shift.shift_number}`,
+        },
+        {
+          account_code: STANDARD_ACCOUNTS.OTHER_INCOME,
+          debit: 0,
+          credit: diff,
+          description: `إيراد زيادة نقدية تسوية وردية ${shift.shift_number}`,
+        },
+      ];
+    }
+
+    return this.createJournalEntry(
+      {
+        reference_type: 'manual',
+        reference_id: shift.id,
+        description: `تسوية فروقات نقدية الوردية ${shift.shift_number} (${diff < 0 ? 'عجز' : 'زيادة'})`,
+        lines,
+        created_by: shift.user_id,
+      },
+      client,
+    );
+  },
+
+  /**
+   * حذف قيد يومية مرتبط بمرجع تشغيلي
+   */
+  async deleteJournalEntryByReference(referenceType: string, referenceId: number, client?: any) {
+    const runner = client || query;
+    await runner(
+      `DELETE FROM journal_entry_lines 
+       WHERE journal_entry_id IN (
+         SELECT id FROM journal_entries WHERE reference_type = $1 AND reference_id = $2
+       )`,
+      [referenceType, referenceId],
+    );
+    await runner(`DELETE FROM journal_entries WHERE reference_type = $1 AND reference_id = $2`, [
+      referenceType,
+      referenceId,
+    ]);
+  },
+
+  /**
+   * تحليل أعمار ديون العملاء (Customer Aging)
+   */
+  async getCustomerAging(asOfDate?: string) {
+    const dateStr = asOfDate || new Date().toISOString().slice(0, 10);
+    const sql = `
+      WITH unpaid_debts AS (
+        SELECT 
+          c.id AS customer_id,
+          c.name_ar AS customer_name,
+          c.phone AS customer_phone,
+          s.id AS sale_id,
+          s.sale_number AS invoice_number,
+          s.sale_date AS invoice_date,
+          ($1::date - s.sale_date::date) AS age_days,
+          s.total_amount - COALESCE((
+            SELECT SUM(amount) FROM payments 
+            WHERE reference_type = 'sale' AND reference_id = s.id
+          ), 0) AS remaining_amount
+        FROM sales s
+        JOIN customers c ON c.id = s.customer_id
+        WHERE s.deleted_at IS NULL 
+          AND s.status = 'completed'
+          AND s.payment_status != 'paid'
+          AND s.sale_date <= $1::date
+      )
+      SELECT 
+        customer_id,
+        customer_name,
+        customer_phone,
+        COUNT(sale_id)::int AS invoices_count,
+        COALESCE(SUM(CASE WHEN age_days <= 30 THEN remaining_amount ELSE 0 END), 0) AS current_0_30,
+        COALESCE(SUM(CASE WHEN age_days BETWEEN 31 AND 60 THEN remaining_amount ELSE 0 END), 0) AS days_31_60,
+        COALESCE(SUM(CASE WHEN age_days BETWEEN 61 AND 90 THEN remaining_amount ELSE 0 END), 0) AS days_61_90,
+        COALESCE(SUM(CASE WHEN age_days > 90 THEN remaining_amount ELSE 0 END), 0) AS over_90,
+        COALESCE(SUM(remaining_amount), 0) AS total_due
+      FROM unpaid_debts
+      WHERE remaining_amount > 0.01
+      GROUP BY customer_id, customer_name, customer_phone
+      ORDER BY total_due DESC
+    `;
+    const res = await query(sql, [dateStr]);
+    const customers = res.rows.map((r: any) => ({
+      ...r,
+      invoices_count: Number(r.invoices_count),
+      current_0_30: roundMoney(Number(r.current_0_30)),
+      days_31_60: roundMoney(Number(r.days_31_60)),
+      days_61_90: roundMoney(Number(r.days_61_90)),
+      over_90: roundMoney(Number(r.over_90)),
+      total_due: roundMoney(Number(r.total_due)),
+    }));
+
+    const totals = {
+      current_0_30: roundMoney(customers.reduce((s: number, c: any) => s + c.current_0_30, 0)),
+      days_31_60: roundMoney(customers.reduce((s: number, c: any) => s + c.days_31_60, 0)),
+      days_61_90: roundMoney(customers.reduce((s: number, c: any) => s + c.days_61_90, 0)),
+      over_90: roundMoney(customers.reduce((s: number, c: any) => s + c.over_90, 0)),
+      total_due: roundMoney(customers.reduce((s: number, c: any) => s + c.total_due, 0)),
+    };
+
+    return { as_of_date: dateStr, totals, customers };
+  },
+
+  /**
+   * تحليل أعمار مستحقات الموردين (Supplier Aging)
+   */
+  async getSupplierAging(asOfDate?: string) {
+    const dateStr = asOfDate || new Date().toISOString().slice(0, 10);
+    const sql = `
+      WITH unpaid_bills AS (
+        SELECT 
+          s.id AS supplier_id,
+          s.name_ar AS supplier_name,
+          s.phone AS supplier_phone,
+          pi.id AS invoice_id,
+          pi.invoice_number,
+          pi.invoice_date,
+          ($1::date - pi.invoice_date::date) AS age_days,
+          pi.total_amount - COALESCE((
+            SELECT SUM(amount) FROM payments 
+            WHERE (reference_type = 'purchase_invoice' AND reference_id = pi.id)
+               OR (reference_type = 'supplier' AND reference_id = s.id)
+          ), 0) AS remaining_amount
+        FROM purchase_invoices pi
+        JOIN suppliers s ON s.id = pi.supplier_id
+        WHERE pi.deleted_at IS NULL
+          AND pi.invoice_date <= $1::date
+      )
+      SELECT 
+        supplier_id,
+        supplier_name,
+        supplier_phone,
+        COUNT(invoice_id)::int AS invoices_count,
+        COALESCE(SUM(CASE WHEN age_days <= 30 THEN remaining_amount ELSE 0 END), 0) AS current_0_30,
+        COALESCE(SUM(CASE WHEN age_days BETWEEN 31 AND 60 THEN remaining_amount ELSE 0 END), 0) AS days_31_60,
+        COALESCE(SUM(CASE WHEN age_days BETWEEN 61 AND 90 THEN remaining_amount ELSE 0 END), 0) AS days_61_90,
+        COALESCE(SUM(CASE WHEN age_days > 90 THEN remaining_amount ELSE 0 END), 0) AS over_90,
+        COALESCE(SUM(remaining_amount), 0) AS total_due
+      FROM unpaid_bills
+      WHERE remaining_amount > 0.01
+      GROUP BY supplier_id, supplier_name, supplier_phone
+      ORDER BY total_due DESC
+    `;
+    const res = await query(sql, [dateStr]);
+    const suppliers = res.rows.map((r: any) => ({
+      ...r,
+      invoices_count: Number(r.invoices_count),
+      current_0_30: roundMoney(Number(r.current_0_30)),
+      days_31_60: roundMoney(Number(r.days_31_60)),
+      days_61_90: roundMoney(Number(r.days_61_90)),
+      over_90: roundMoney(Number(r.over_90)),
+      total_due: roundMoney(Number(r.total_due)),
+    }));
+
+    const totals = {
+      current_0_30: roundMoney(suppliers.reduce((s: number, c: any) => s + c.current_0_30, 0)),
+      days_31_60: roundMoney(suppliers.reduce((s: number, c: any) => s + c.days_31_60, 0)),
+      days_61_90: roundMoney(suppliers.reduce((s: number, c: any) => s + c.days_61_90, 0)),
+      over_90: roundMoney(suppliers.reduce((s: number, c: any) => s + c.over_90, 0)),
+      total_due: roundMoney(suppliers.reduce((s: number, c: any) => s + c.total_due, 0)),
+    };
+
+    return { as_of_date: dateStr, totals, suppliers };
+  },
+
+  /**
+   * تقرير مطابقة أرقام العمليات التشغيلية مع الأستاذ العام
+   */
+  async getLedgerReconciliationSummary(fromDate?: string, toDate?: string) {
+    const fDate = fromDate || new Date().toISOString().slice(0, 8) + '01';
+    const tDate = toDate || new Date().toISOString().slice(0, 10);
+
+    const glRes = await query(
+      `SELECT 
+         COALESCE(SUM(CASE WHEN a.code LIKE '4%' THEN jel.credit - jel.debit ELSE 0 END), 0) AS gl_revenue,
+         COALESCE(SUM(CASE WHEN a.code LIKE '51%' THEN jel.debit - jel.credit ELSE 0 END), 0) AS gl_cogs,
+         COALESCE(SUM(CASE WHEN a.code LIKE '52%' THEN jel.debit - jel.credit ELSE 0 END), 0) AS gl_expenses
+       FROM journal_entry_lines jel
+       JOIN accounts a ON a.id = jel.account_id
+       JOIN journal_entries je ON je.id = jel.journal_entry_id
+       WHERE je.status = 'posted'
+         AND je.entry_date BETWEEN $1::date AND $2::date`,
+      [fDate, tDate],
+    );
+
+    const opsSalesRes = await query(
+      `SELECT COALESCE(SUM(total_amount), 0) AS ops_revenue,
+              COALESCE(SUM(cost_amount), 0) AS ops_cogs
+       FROM sales 
+       WHERE status = 'completed' AND deleted_at IS NULL
+         AND sale_date BETWEEN $1::date AND $2::date`,
+      [fDate, tDate],
+    );
+
+    const opsExpRes = await query(
+      `SELECT COALESCE(SUM(amount), 0) AS ops_expenses
+       FROM expenses 
+       WHERE deleted_at IS NULL
+         AND expense_date BETWEEN $1::date AND $2::date`,
+      [fDate, tDate],
+    );
+
+    const glRevenue = roundMoney(Number(glRes.rows[0].gl_revenue));
+    const glCogs = roundMoney(Number(glRes.rows[0].gl_cogs));
+    const glExpenses = roundMoney(Number(glRes.rows[0].gl_expenses));
+    const glNetProfit = roundMoney(glRevenue - glCogs - glExpenses);
+
+    const opsRevenue = roundMoney(Number(opsSalesRes.rows[0].ops_revenue));
+    const opsCogs = roundMoney(Number(opsSalesRes.rows[0].ops_cogs));
+    const opsExpenses = roundMoney(Number(opsExpRes.rows[0].ops_expenses));
+    const opsNetProfit = roundMoney(opsRevenue - opsCogs - opsExpenses);
+
+    const revenueDiff = roundMoney(Math.abs(glRevenue - opsRevenue));
+    const cogsDiff = roundMoney(Math.abs(glCogs - opsCogs));
+    const expensesDiff = roundMoney(Math.abs(glExpenses - opsExpenses));
+    const netProfitDiff = roundMoney(Math.abs(glNetProfit - opsNetProfit));
+
+    return {
+      period: { from_date: fDate, to_date: tDate },
+      general_ledger: {
+        revenue: glRevenue,
+        cogs: glCogs,
+        expenses: glExpenses,
+        net_profit: glNetProfit,
+      },
+      operational: {
+        revenue: opsRevenue,
+        cogs: opsCogs,
+        expenses: opsExpenses,
+        net_profit: opsNetProfit,
+      },
+      variances: {
+        revenue: revenueDiff,
+        cogs: cogsDiff,
+        expenses: expensesDiff,
+        net_profit: netProfitDiff,
+        is_fully_reconciled: netProfitDiff <= 0.05,
+      },
+    };
+  },
 };

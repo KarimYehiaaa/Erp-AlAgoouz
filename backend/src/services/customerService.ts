@@ -455,6 +455,21 @@ export const recordPayment = async (customerId: number, data: Record<string, any
       ],
     );
 
+    try {
+      const { accountingService } = await import('./accountingService.ts');
+      await accountingService.postCustomerPaymentJournalEntry(client, {
+        id: customerId,
+        payment_number: `PAY-CUST-${customerId}-${stamp}`,
+        customer_id: customerId,
+        amount,
+        payment_method: data.payment_method || 'cash',
+        notes: data.notes || `تحصيل دفعة حساب عميل ${customer.name_ar}`,
+        user_id: data.user_id,
+      });
+    } catch (accErr: any) {
+      console.warn(`[Accounting] تعذر ترحيل قيد تحصيل العميل تلقائياً: ${accErr.message}`);
+    }
+
     await client.query('COMMIT');
     invalidateDashboardCache();
     return { success: true, amount, customer_name: customer.name_ar, allocations };
@@ -533,6 +548,21 @@ export const recordSalePayment = async (saleId: number, data: Record<string, any
         JSON.stringify({ sale_id: saleId, amount }),
       ],
     );
+
+    try {
+      const { accountingService } = await import('./accountingService.ts');
+      await accountingService.postCustomerPaymentJournalEntry(client, {
+        id: saleId,
+        payment_number: payNum,
+        customer_id: sale.customer_id,
+        amount,
+        payment_method: data.payment_method || 'cash',
+        notes: data.notes || `تحصيل دفعة مبيعات ${sale.sale_number}`,
+        user_id: data.user_id,
+      });
+    } catch (accErr: any) {
+      console.warn(`[Accounting] تعذر ترحيل قيد تحصيل فاتورة المبيعات تلقائياً: ${accErr.message}`);
+    }
 
     return {
       success: true,

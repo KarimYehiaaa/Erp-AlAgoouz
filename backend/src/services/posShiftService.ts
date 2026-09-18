@@ -242,7 +242,22 @@ export const posShiftService = {
       [data.shift_id, data.movement_type, amount, data.reason, userId],
     );
 
-    return res.rows[0];
+    const movement = res.rows[0];
+    try {
+      const { accountingService } = await import('./accountingService.ts');
+      await accountingService.postShiftCashMovementJournalEntry(null, {
+        id: movement.id,
+        shift_id: movement.shift_id,
+        movement_type: movement.movement_type,
+        amount: movement.amount,
+        reason: movement.reason,
+        user_id: userId,
+      });
+    } catch (accErr: any) {
+      console.warn(`[Accounting] تعذر ترحيل حركة نقدية الوردية تلقائياً: ${accErr.message}`);
+    }
+
+    return movement;
   },
 
   /**
@@ -302,6 +317,20 @@ export const posShiftService = {
           shiftId,
         ],
       );
+
+      if (Math.abs(cashDifference) > 0.01) {
+        try {
+          const { accountingService } = await import('./accountingService.ts');
+          await accountingService.postShiftDifferenceJournalEntry(client, {
+            id: shiftId,
+            shift_number: shift.shift_number || `SHIFT-${shiftId}`,
+            cash_difference: cashDifference,
+            user_id: userId,
+          });
+        } catch (accErr: any) {
+          console.warn(`[Accounting] تعذر ترحيل فرق نقدية الوردية تلقائياً: ${accErr.message}`);
+        }
+      }
 
       await client.query('COMMIT');
       return {

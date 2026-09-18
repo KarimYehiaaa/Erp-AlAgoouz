@@ -14,6 +14,15 @@
       <button
         type="button"
         class="hub-tab"
+        :class="{ active: activeTab === 'orders' }"
+        @click="switchTab('orders')"
+      >
+        <AppIcon name="purchases" :size="16" />
+        <span>أوامر الشراء والاستلام</span>
+      </button>
+      <button
+        type="button"
+        class="hub-tab"
         :class="{ active: activeTab === 'returns' }"
         @click="switchTab('returns')"
       >
@@ -315,6 +324,128 @@
                 </tr>
               </tbody>
             </table>
+          </div>
+        </div>
+
+        <!-- ==============================================
+             1.5 PURCHASE ORDERS & RECEIVING TAB
+             ============================================== -->
+        <div v-else-if="activeTab === 'orders'" class="tab-content">
+          <div class="card">
+            <div class="card-header-row mb-4">
+              <div>
+                <h3>أوامر الشراء والاستلام المخزني (Purchase Orders & GRN)</h3>
+                <p style="font-size: 0.85rem; color: var(--text-muted); margin: 4px 0 0">
+                  تخطيط المشتريات، اعتماد الطلبات، استلام البضائع، والتحويل المباشر لفواتير مرحلة
+                  دفترياً
+                </p>
+              </div>
+              <div class="purchases-filters">
+                <div class="filter-group">
+                  <label>الحالة</label>
+                  <select v-model="ordersFilterStatus" @change="loadOrdersOnly" class="field-like">
+                    <option value="">كل الحالات</option>
+                    <option value="draft">مسودة (Draft)</option>
+                    <option value="approved">معتمد (Approved)</option>
+                    <option value="partially_received">مستلم جزئياً</option>
+                    <option value="received">مستلم بالكامل</option>
+                    <option value="cancelled">ملغي</option>
+                  </select>
+                </div>
+                <button type="button" class="btn btn-primary" @click="openNewPoModal">
+                  <AppIcon name="plus" :size="16" />
+                  <span>+ أمر شراء جديد</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Table of Purchase Orders -->
+            <div class="table-container">
+              <table class="items-table">
+                <thead>
+                  <tr>
+                    <th>رقم الأمر</th>
+                    <th>المورد</th>
+                    <th>المخزن</th>
+                    <th>تاريخ الطلب</th>
+                    <th>تاريخ التوقع</th>
+                    <th>الإجمالي</th>
+                    <th>الحالة</th>
+                    <th>البنود المستلمة</th>
+                    <th>الإجراءات</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-if="loadingOrders">
+                    <td
+                      colspan="9"
+                      style="text-align: center; padding: 24px; color: var(--text-muted)"
+                    >
+                      ⏳ جاري تحميل أوامر الشراء...
+                    </td>
+                  </tr>
+                  <tr v-else-if="!purchaseOrdersList.length">
+                    <td
+                      colspan="9"
+                      style="text-align: center; padding: 24px; color: var(--text-muted)"
+                    >
+                      لا توجد أوامر شراء مسجلة حالياً
+                    </td>
+                  </tr>
+                  <tr v-else v-for="po in purchaseOrdersList" :key="po.id">
+                    <td>
+                      <strong>{{ po.po_number }}</strong>
+                    </td>
+                    <td>{{ po.supplier_name || '—' }}</td>
+                    <td>{{ po.warehouse_name || '—' }}</td>
+                    <td>{{ po.order_date }}</td>
+                    <td>{{ po.expected_date || '—' }}</td>
+                    <td class="num-cell" style="font-weight: bold; color: var(--primary)">
+                      {{ formatMoney(po.total_amount) }}
+                    </td>
+                    <td>
+                      <span class="type-pill" :class="getPoStatusClass(po.status)">
+                        {{ getPoStatusLabel(po.status) }}
+                      </span>
+                    </td>
+                    <td>
+                      {{ getPoReceivedSummary(po) }}
+                    </td>
+                    <td>
+                      <div style="display: flex; gap: 6px; align-items: center">
+                        <button
+                          v-if="po.status === 'draft'"
+                          type="button"
+                          class="btn btn-sm btn-primary"
+                          @click="approveOrder(po.id)"
+                          title="اعتماد أمر الشراء"
+                        >
+                          اعتماد
+                        </button>
+                        <button
+                          v-if="po.status === 'approved' || po.status === 'partially_received'"
+                          type="button"
+                          class="btn btn-sm btn-success"
+                          @click="openReceiveModal(po)"
+                          title="تسجيل استلام بضاعة"
+                        >
+                          استلام
+                        </button>
+                        <button
+                          v-if="po.status === 'draft' || po.status === 'approved'"
+                          type="button"
+                          class="btn btn-sm btn-outline danger"
+                          @click="cancelOrder(po.id)"
+                          title="إلغاء أمر الشراء"
+                        >
+                          إلغاء
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
 
@@ -950,6 +1081,247 @@
         </div>
       </div>
     </Teleport>
+
+    <!-- ==============================================
+         MODAL: CREATE PURCHASE ORDER
+         ============================================== -->
+    <Teleport to="body">
+      <div v-if="showNewPoModal" class="modal-overlay" @click.self="showNewPoModal = false">
+        <div class="card modal-card" style="max-width: 800px; width: 95%">
+          <div class="card-header-row">
+            <div>
+              <h3>إنشاء أمر شراء جديد (Purchase Order)</h3>
+              <p style="font-size: 0.85rem; color: var(--text-muted); margin: 4px 0 0">
+                تسجيل طلب شراء تخطيطي لاعتماده واستلام بضائعه لاحقاً
+              </p>
+            </div>
+            <button type="button" class="icon-btn" @click="showNewPoModal = false">✕</button>
+          </div>
+
+          <form @submit.prevent="submitCreatePo">
+            <div class="invoice-meta-panel grid grid-3 mb-3">
+              <div class="form-group">
+                <label>المورد</label>
+                <select v-model.number="newPoForm.supplier_id" class="field-like">
+                  <option :value="null">— بدون مورد محدد —</option>
+                  <option v-for="s in suppliersList" :key="s.id" :value="s.id">
+                    {{ s.name_ar }}
+                  </option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>تاريخ الطلب</label>
+                <input v-model="newPoForm.order_date" type="date" class="field-like" required />
+              </div>
+              <div class="form-group">
+                <label>تاريخ التوريد المتوقع</label>
+                <input v-model="newPoForm.expected_date" type="date" class="field-like" />
+              </div>
+            </div>
+
+            <div class="form-group mb-3">
+              <label>ملاحظات أمر الشراء</label>
+              <input
+                v-model="newPoForm.notes"
+                type="text"
+                class="field-like"
+                placeholder="ملاحظات توضيحية..."
+              />
+            </div>
+
+            <div class="table-container mb-3">
+              <table class="items-table">
+                <thead>
+                  <tr>
+                    <th style="width: 40%">المنتج</th>
+                    <th style="width: 20%">الكمية</th>
+                    <th style="width: 20%">سعر الوحدة المتوقع</th>
+                    <th style="width: 15%">الإجمالي</th>
+                    <th style="width: 5%">حذف</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="(it, idx) in newPoForm.items" :key="idx">
+                    <td>
+                      <select v-model.number="it.product_id" class="field-like" required>
+                        <option :value="null">— اختر المنتج —</option>
+                        <option v-for="p in products" :key="p.id" :value="p.id">
+                          {{ p.name_ar }} ({{ unitLabel(p.unit) }})
+                        </option>
+                      </select>
+                    </td>
+                    <td>
+                      <input
+                        v-model.number="it.quantity"
+                        type="number"
+                        step="0.01"
+                        min="0.01"
+                        class="field-like num-cell"
+                        required
+                      />
+                    </td>
+                    <td>
+                      <input
+                        v-model.number="it.unit_price"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        class="field-like num-cell"
+                        required
+                      />
+                    </td>
+                    <td class="num-cell font-bold">
+                      {{ formatMoney((Number(it.quantity) || 0) * (Number(it.unit_price) || 0)) }}
+                    </td>
+                    <td>
+                      <button
+                        type="button"
+                        class="icon-btn danger"
+                        :disabled="newPoForm.items.length <= 1"
+                        @click="removePoLine(idx)"
+                      >
+                        ✕
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+              <div class="mt-2">
+                <button type="button" class="btn btn-secondary btn-sm" @click="addPoLine">
+                  <AppIcon name="plus" :size="14" />
+                  <span>إضافة صنف آخر</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="invoice-summary-bar">
+              <div class="invoice-total-badge">
+                <span class="total-label">إجمالي أمر الشراء:</span>
+                <span class="total-value">{{ formatMoney(newPoTotalCalculated) }}</span>
+              </div>
+              <div class="actions">
+                <button
+                  type="submit"
+                  class="btn btn-primary"
+                  :disabled="poSubmitting || newPoTotalCalculated <= 0"
+                >
+                  {{ poSubmitting ? 'جاري الحفظ...' : 'حفظ أمر الشراء' }}
+                </button>
+                <button type="button" class="btn btn-outline" @click="showNewPoModal = false">
+                  إلغاء
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- ==============================================
+         MODAL: RECEIVE GOODS (استلام البضاعة / GRN)
+         ============================================== -->
+    <Teleport to="body">
+      <div v-if="showReceiveModal" class="modal-overlay" @click.self="showReceiveModal = false">
+        <div class="card modal-card" style="max-width: 800px; width: 95%">
+          <div class="card-header-row">
+            <div>
+              <h3>
+                استلام بضاعة أمر شراء <code>{{ activePoForReceive?.po_number }}</code>
+              </h3>
+              <p style="font-size: 0.85rem; color: var(--text-muted); margin: 4px 0 0">
+                تسجيل الكميات الفعلية المستلمة في المخزن وإمكانية التحويل التلقائي لفاتورة مشتريات
+              </p>
+            </div>
+            <button type="button" class="icon-btn" @click="showReceiveModal = false">✕</button>
+          </div>
+
+          <form @submit.prevent="submitReceiveGoods">
+            <div class="table-container mb-3">
+              <table class="items-table">
+                <thead>
+                  <tr>
+                    <th>المنتج</th>
+                    <th>الكمية المطلوبة</th>
+                    <th>المستلم سابقاً</th>
+                    <th>المتبقي</th>
+                    <th style="width: 150px">الكمية المستلمة الآن</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="line in receiveLines" :key="line.item_id">
+                    <td>
+                      <strong>{{ line.product_name }}</strong>
+                    </td>
+                    <td>{{ line.ordered }}</td>
+                    <td>{{ line.received }}</td>
+                    <td>
+                      <span class="badge bg-warning-light">{{ line.remaining }}</span>
+                    </td>
+                    <td>
+                      <input
+                        v-model.number="line.quantity_to_receive"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        :max="line.remaining"
+                        class="field-like num-cell"
+                        required
+                      />
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="form-group mb-3">
+              <label>ملاحظات الاستلام</label>
+              <input
+                v-model="receiveNotes"
+                type="text"
+                class="field-like"
+                placeholder="ملاحظات الفحص والاستلام..."
+              />
+            </div>
+
+            <div
+              class="form-group mb-4"
+              style="background: var(--bg-hover); padding: 12px; border-radius: 8px"
+            >
+              <label
+                style="
+                  display: flex;
+                  align-items: center;
+                  gap: 8px;
+                  cursor: pointer;
+                  font-weight: 600;
+                "
+              >
+                <input
+                  v-model="receiveConvertToInvoice"
+                  type="checkbox"
+                  style="width: 18px; height: 18px"
+                />
+                <span
+                  >تحويل الاستلام تلقائياً إلى فاتورة مشتريات وترحيل القيد للأستاذ العام ومستحقات
+                  المورد</span
+                >
+              </label>
+            </div>
+
+            <div class="invoice-summary-bar">
+              <div class="actions" style="width: 100%; justify-content: flex-end">
+                <button type="submit" class="btn btn-primary" :disabled="receiveSubmitting">
+                  {{ receiveSubmitting ? 'جاري تسجيل الاستلام...' : 'تأكيد استلام البضاعة' }}
+                </button>
+                <button type="button" class="btn btn-outline" @click="showReceiveModal = false">
+                  إلغاء
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -962,6 +1334,7 @@ import {
   suppliers as suppliersApi,
   expenses as expensesApi,
   accountingApi,
+  type PurchaseOrder,
 } from '@/api';
 import { formatMoney } from '@/utils/currency';
 import { useProductMeta } from '@/composables/useProductMeta';
@@ -991,6 +1364,7 @@ watch(
     if (newTab && newTab !== activeTab.value) {
       activeTab.value = String(newTab);
       if (newTab === 'purchases') loadPurchasesOnly();
+      else if (newTab === 'orders') loadOrdersOnly();
       else if (newTab === 'returns') loadReturnsOnly();
       else if (newTab === 'expenses') loadExpensesOnly();
     }
@@ -1001,6 +1375,7 @@ const switchTab = (tab: any) => {
   activeTab.value = tab;
   router.replace({ query: { ...route.query, tab } }).catch(() => {});
   if (tab === 'purchases') loadPurchasesOnly();
+  else if (tab === 'orders') loadOrdersOnly();
   else if (tab === 'returns') loadReturnsOnly();
   else if (tab === 'expenses') loadExpensesOnly();
 };
@@ -1587,9 +1962,234 @@ const removeExpense = async (row: any) => {
   }
 };
 
+// PURCHASE ORDERS LOGIC
+const loadingOrders = ref(false);
+const purchaseOrdersList = ref<PurchaseOrder[]>([]);
+const ordersFilterStatus = ref('');
+const showNewPoModal = ref(false);
+const poSubmitting = ref(false);
+
+const newPoForm = ref({
+  supplier_id: null as number | null,
+  order_date: todayStr,
+  expected_date: '',
+  notes: '',
+  items: [{ product_id: null as number | null, quantity: 1, unit_price: 0 }],
+});
+
+const newPoTotalCalculated = computed(() => {
+  return newPoForm.value.items.reduce(
+    (sum, it) => sum + (Number(it.quantity) || 0) * (Number(it.unit_price) || 0),
+    0,
+  );
+});
+
+const addPoLine = () => {
+  newPoForm.value.items.push({
+    product_id: null,
+    quantity: 1,
+    unit_price: 0,
+  });
+};
+
+const removePoLine = (idx: number) => {
+  if (newPoForm.value.items.length > 1) {
+    newPoForm.value.items.splice(idx, 1);
+  }
+};
+
+const openNewPoModal = () => {
+  newPoForm.value = {
+    supplier_id: null,
+    order_date: todayStr,
+    expected_date: '',
+    notes: '',
+    items: [{ product_id: null, quantity: 1, unit_price: 0 }],
+  };
+  showNewPoModal.value = true;
+};
+
+const loadOrdersOnly = async () => {
+  loadingOrders.value = true;
+  try {
+    const res = await accountingApi.listPurchaseOrders({
+      status: ordersFilterStatus.value || undefined,
+    });
+    purchaseOrdersList.value = (res as any).data || res || [];
+  } catch (err: any) {
+    console.error('Failed to load purchase orders:', err);
+  } finally {
+    loadingOrders.value = false;
+  }
+};
+
+const submitCreatePo = async () => {
+  const validItems = newPoForm.value.items.filter((it) => it.product_id && Number(it.quantity) > 0);
+  if (validItems.length === 0) {
+    window.alert('يجب إضافة بند واحد على الأقل بكمية صالحة');
+    return;
+  }
+  poSubmitting.value = true;
+  try {
+    await accountingApi.createPurchaseOrder({
+      supplier_id: newPoForm.value.supplier_id || undefined,
+      order_date: newPoForm.value.order_date,
+      expected_date: newPoForm.value.expected_date || undefined,
+      notes: newPoForm.value.notes,
+      items: validItems.map((it) => ({
+        product_id: it.product_id!,
+        quantity: Number(it.quantity),
+        unit_price: Number(it.unit_price || 0),
+      })),
+    });
+    showNewPoModal.value = false;
+    await loadOrdersOnly();
+    window.alert('تم إنشاء أمر الشراء بنجاح');
+  } catch (err: any) {
+    window.alert(err?.response?.data?.message || err?.message || 'فشل إنشاء أمر الشراء');
+  } finally {
+    poSubmitting.value = false;
+  }
+};
+
+const approveOrder = async (id: number) => {
+  if (!confirm('هل تريد بالتأكيد اعتماد أمر الشراء هذا؟')) return;
+  try {
+    await accountingApi.approvePurchaseOrder(id);
+    await loadOrdersOnly();
+    window.alert('تم اعتماد أمر الشراء بنجاح');
+  } catch (err: any) {
+    window.alert(err?.response?.data?.message || err?.message || 'فشل اعتماد أمر الشراء');
+  }
+};
+
+const cancelOrder = async (id: number) => {
+  if (!confirm('هل تريد بالتأكيد إلغاء أمر الشراء هذا؟')) return;
+  try {
+    await accountingApi.cancelPurchaseOrder(id);
+    await loadOrdersOnly();
+    window.alert('تم إلغاء أمر الشراء بنجاح');
+  } catch (err: any) {
+    window.alert(err?.response?.data?.message || err?.message || 'فشل إلغاء أمر الشراء');
+  }
+};
+
+// RECEIVING GOODS
+const showReceiveModal = ref(false);
+const receiveSubmitting = ref(false);
+const activePoForReceive = ref<PurchaseOrder | null>(null);
+const receiveLines = ref<
+  Array<{
+    item_id: number;
+    product_name: string;
+    ordered: number;
+    received: number;
+    remaining: number;
+    quantity_to_receive: number;
+  }>
+>([]);
+const receiveConvertToInvoice = ref(true);
+const receiveNotes = ref('');
+
+const openReceiveModal = (po: PurchaseOrder) => {
+  activePoForReceive.value = po;
+  receiveNotes.value = '';
+  receiveConvertToInvoice.value = true;
+  receiveLines.value = (po.items || []).map((it) => {
+    const rem = Math.max(0, Number(it.quantity) - Number(it.received_quantity || 0));
+    return {
+      item_id: it.id!,
+      product_name: it.product_name || `صنف #${it.product_id}`,
+      ordered: Number(it.quantity),
+      received: Number(it.received_quantity || 0),
+      remaining: rem,
+      quantity_to_receive: rem,
+    };
+  });
+  showReceiveModal.value = true;
+};
+
+const submitReceiveGoods = async () => {
+  if (!activePoForReceive.value) return;
+  const itemsToReceive = receiveLines.value
+    .filter((l) => Number(l.quantity_to_receive) > 0)
+    .map((l) => ({
+      item_id: l.item_id,
+      quantity_to_receive: Number(l.quantity_to_receive),
+    }));
+
+  if (itemsToReceive.length === 0) {
+    window.alert('يجب تحديد كمية مستلمة أكبر من صفر لبند واحد على الأقل');
+    return;
+  }
+
+  receiveSubmitting.value = true;
+  try {
+    await accountingApi.receiveGoods(activePoForReceive.value.id, {
+      items: itemsToReceive,
+      convertToInvoice: receiveConvertToInvoice.value,
+      notes: receiveNotes.value,
+    });
+    showReceiveModal.value = false;
+    await loadOrdersOnly();
+    if (receiveConvertToInvoice.value) {
+      await loadPurchasesOnly();
+      window.alert('تم استلام البضاعة وإنشاء فاتورة المشتريات وترحيلها محاسبياً بنجاح');
+    } else {
+      window.alert('تم تسجيل استلام البضاعة في المخزن بنجاح');
+    }
+  } catch (err: any) {
+    window.alert(err?.response?.data?.message || err?.message || 'فشل استلام البضاعة');
+  } finally {
+    receiveSubmitting.value = false;
+  }
+};
+
+const getPoStatusLabel = (status: string) => {
+  switch (status) {
+    case 'draft':
+      return 'مسودة (Draft)';
+    case 'approved':
+      return 'معتمد';
+    case 'partially_received':
+      return 'مستلم جزئياً';
+    case 'received':
+      return 'مستلم بالكامل';
+    case 'cancelled':
+      return 'ملغي';
+    default:
+      return status;
+  }
+};
+
+const getPoStatusClass = (status: string) => {
+  switch (status) {
+    case 'draft':
+      return 'liability';
+    case 'approved':
+      return 'asset';
+    case 'partially_received':
+      return 'equity';
+    case 'received':
+      return 'revenue';
+    case 'cancelled':
+      return 'expense';
+    default:
+      return '';
+  }
+};
+
+const getPoReceivedSummary = (po: PurchaseOrder) => {
+  if (!po.items || !po.items.length) return '—';
+  const totalQty = po.items.reduce((s, it) => s + Number(it.quantity || 0), 0);
+  const recQty = po.items.reduce((s, it) => s + Number(it.received_quantity || 0), 0);
+  return `${recQty} / ${totalQty}`;
+};
+
 // On Mounted Load
 onMounted(() => {
   if (activeTab.value === 'purchases') loadPurchasesOnly();
+  else if (activeTab.value === 'orders') loadOrdersOnly();
   else if (activeTab.value === 'returns') loadReturnsOnly();
   else loadExpensesOnly();
 });

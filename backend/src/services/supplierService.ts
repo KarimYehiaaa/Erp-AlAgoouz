@@ -282,5 +282,21 @@ export const recordSupplierPayment = async (supplierId, data, userId) => {
   );
 
   await recalculateSupplierBalance(query, supplierId);
+
+  try {
+    const { accountingService } = await import('./accountingService.ts');
+    await accountingService.postSupplierPaymentJournalEntry(null, {
+      id: res.rows[0].id,
+      payment_number: paymentNumber,
+      supplier_id: supplierId,
+      amount,
+      payment_method: data.payment_method || 'cash',
+      notes: data.notes || `سداد مستحقات مورد`,
+      user_id: userId,
+    });
+  } catch (accErr: any) {
+    console.warn(`[Accounting] تعذر ترحيل قيد سداد المورد تلقائياً: ${accErr.message}`);
+  }
+
   return res.rows[0];
 };

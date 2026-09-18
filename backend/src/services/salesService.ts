@@ -605,6 +605,22 @@ const returnSale = async (saleId: number, userId: number, notes?: string) => {
       `INSERT INTO activity_logs (user_id, module, action_ar, details) VALUES ($1,'sales',$2,$3)`,
       [userId, `مرتجع بيع ${sale.sale_number}`, JSON.stringify({ sale_id: saleId })],
     );
+
+    try {
+      const { accountingService } = await import('./accountingService.ts');
+      await accountingService.postSalesRefundJournalEntry(client, {
+        id: sale.id,
+        sale_number: sale.sale_number,
+        total_amount: Number(sale.total_amount),
+        cost_amount: Number(sale.cost_amount || 0),
+        customer_id: sale.customer_id,
+        warehouse_id: sale.warehouse_id,
+        user_id: userId,
+      });
+    } catch (accErr: any) {
+      console.warn(`[Accounting] تعذر ترحيل قيد مردودات المبيعات تلقائياً: ${accErr.message}`);
+    }
+
     await client.query('COMMIT');
     invalidateDashboardCache();
     broadcast('sales_changed', { action: 'return', sale_id: saleId });

@@ -3,6 +3,7 @@ import { AppError } from '../types/errors.ts';
 import { invalidateDashboardCache } from './dashboardService.ts';
 import { broadcast } from './websocketService.ts';
 import { sanitizeLimit } from '../utils/money.ts';
+import { accountingService } from './accountingService.ts';
 
 /**
  * جلب المصاريف مع فلترة وترقيم.
@@ -65,9 +66,27 @@ export const createExpense = async (data: Record<string, any>, userId: number) =
       userId,
     ],
   );
+
+  const createdRow = result.rows[0];
+  try {
+    await accountingService.postExpenseJournalEntry(null, {
+      id: createdRow.id,
+      expense_number: createdRow.expense_number,
+      title: createdRow.title,
+      amount: createdRow.amount,
+      category_id: createdRow.category_id,
+      payment_method: createdRow.payment_method,
+      is_fixed: createdRow.is_fixed,
+      user_id: createdRow.user_id,
+      expense_date: createdRow.expense_date,
+    });
+  } catch (accErr: any) {
+    console.warn(`[Accounting] تعذر ترحيل قيد المصروف تلقائياً: ${accErr.message}`);
+  }
+
   invalidateDashboardCache();
-  broadcast('expenses_changed', result.rows[0]);
-  return result.rows[0];
+  broadcast('expenses_changed', createdRow);
+  return createdRow;
 };
 
 /**
@@ -113,9 +132,28 @@ export const updateExpense = async (id: number, data: Record<string, any>) => {
     ],
   );
   if (!result.rows[0]) throw new AppError('المصروف غير موجود', 404);
+  const updatedRow = result.rows[0];
+
+  try {
+    await accountingService.deleteJournalEntryByReference('expense', id);
+    await accountingService.postExpenseJournalEntry(null, {
+      id: updatedRow.id,
+      expense_number: updatedRow.expense_number,
+      title: updatedRow.title,
+      amount: updatedRow.amount,
+      category_id: updatedRow.category_id,
+      payment_method: updatedRow.payment_method,
+      is_fixed: updatedRow.is_fixed,
+      user_id: updatedRow.user_id,
+      expense_date: updatedRow.expense_date,
+    });
+  } catch (accErr: any) {
+    console.warn(`[Accounting] تعذر تحديث قيد المصروف في الأستاذ العام: ${accErr.message}`);
+  }
+
   invalidateDashboardCache();
-  broadcast('expenses_changed', result.rows[0]);
-  return result.rows[0];
+  broadcast('expenses_changed', updatedRow);
+  return updatedRow;
 };
 
 /**
@@ -160,6 +198,11 @@ export const getExpenseReport = async (year: number | string, month: number | st
 /** حذف مصروف. */
 export const deleteExpense = async (id: number) => {
   await query(`UPDATE expenses SET deleted_at = NOW() WHERE id = $1`, [id]);
+  try {
+    await accountingService.deleteJournalEntryByReference('expense', id);
+  } catch (accErr: any) {
+    console.warn(`[Accounting] تعذر إلغاء قيد اليومية للمصروف المحذوف: ${accErr.message}`);
+  }
   invalidateDashboardCache();
   broadcast('expenses_changed', { id });
 };

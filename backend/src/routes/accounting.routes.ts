@@ -6,6 +6,7 @@ import { Router } from 'express';
 import { authenticate, authorize } from '../middleware/auth.ts';
 import { accountingController } from '../controllers/accountingController.ts';
 import { purchaseReturnController } from '../controllers/purchaseReturnController.ts';
+import { purchaseOrderController } from '../controllers/purchaseOrderController.ts';
 
 const router = Router();
 
@@ -88,6 +89,94 @@ router.post(
   authenticate,
   authorize('purchase_returns.create', 'inventory.edit'),
   purchaseReturnController.createPurchaseReturn,
+);
+
+// ─── 5. تحليل أعمار الديون والمديونيات (Aging Analysis) ───────────────────────
+router.get(
+  '/accounting/aging/customers',
+  authenticate,
+  authorize('accounting.view', 'reports.view', 'customers.view'),
+  accountingController.getCustomerAging,
+);
+
+router.get(
+  '/accounting/aging/suppliers',
+  authenticate,
+  authorize('accounting.view', 'reports.view', 'suppliers.view'),
+  accountingController.getSupplierAging,
+);
+
+// ─── 6. مطابقة أرقام العمليات مع الأستاذ العام (P&L Ledger Reconciliation) ───
+router.get(
+  '/accounting/ledger-reconciliation',
+  authenticate,
+  authorize('accounting.view', 'reports.view'),
+  accountingController.getLedgerReconciliationSummary,
+);
+
+// ─── 7. مطابقة وتسوية الحسابات البنكية والخزينة (Bank Reconciliation) ────────
+router.get(
+  '/accounting/reconciliations',
+  authenticate,
+  authorize('reconciliation.view', 'accounting.view'),
+  accountingController.getReconciliations,
+);
+
+router.get(
+  '/accounting/reconciliations/:id',
+  authenticate,
+  authorize('reconciliation.view', 'accounting.view'),
+  accountingController.getReconciliationById,
+);
+
+router.post(
+  '/accounting/reconciliations',
+  authenticate,
+  authorize('reconciliation.manage', 'accounting.manage'),
+  accountingController.createReconciliation,
+);
+
+// ─── 8. دورة أوامر الشراء والاستلام (Purchase Orders) ─────────────────────────
+router.get(
+  ['/purchases/orders', '/accounting/purchase-orders'],
+  authenticate,
+  authorize('purchase_orders.view', 'purchases.view', 'inventory.view'),
+  purchaseOrderController.listPurchaseOrders,
+);
+
+router.get(
+  ['/purchases/orders/:id', '/accounting/purchase-orders/:id'],
+  authenticate,
+  authorize('purchase_orders.view', 'purchases.view', 'inventory.view'),
+  purchaseOrderController.getPurchaseOrderById,
+);
+
+router.post(
+  ['/purchases/orders', '/accounting/purchase-orders'],
+  authenticate,
+  authorize('purchase_orders.manage', 'purchases.create'),
+  purchaseOrderController.createPurchaseOrder,
+);
+
+router.post(
+  ['/purchases/orders/:id/approve', '/accounting/purchase-orders/:id/approve'],
+  authenticate,
+  authorize('purchase_orders.manage', 'purchases.create'),
+  purchaseOrderController.approvePurchaseOrder,
+);
+
+router.post(
+  ['/purchases/orders/:id/receive', '/accounting/purchase-orders/:id/receive'],
+  authenticate,
+  authorize('purchase_orders.manage', 'inventory.edit'),
+  purchaseOrderController.receiveGoods,
+);
+
+router.post(
+  ['/purchases/orders/:id/cancel', '/accounting/purchase-orders/:id/cancel'],
+  authenticate,
+  authorize('purchase_orders.manage', 'purchases.create'),
+  purchaseOrderController.cancelPurchaseOrder,
 );
 
 export default router;

@@ -4,6 +4,7 @@
 
 import type { Request, Response } from 'express';
 import { accountingService } from '../services/accountingService.ts';
+import { bankReconciliationService } from '../services/bankReconciliationService.ts';
 import { ok, wrap } from './helper.ts';
 import { AppError } from '../types/errors.ts';
 
@@ -72,5 +73,48 @@ export const accountingController = {
     const asOfDate = req.query.as_of_date as string | undefined;
     const bs = await accountingService.getBalanceSheet(asOfDate);
     ok(res, bs);
+  }),
+
+  getCustomerAging: wrap(async (req: Request, res: Response) => {
+    const asOfDate = req.query.as_of_date as string | undefined;
+    const aging = await accountingService.getCustomerAging(asOfDate);
+    ok(res, aging);
+  }),
+
+  getSupplierAging: wrap(async (req: Request, res: Response) => {
+    const asOfDate = req.query.as_of_date as string | undefined;
+    const aging = await accountingService.getSupplierAging(asOfDate);
+    ok(res, aging);
+  }),
+
+  getLedgerReconciliationSummary: wrap(async (req: Request, res: Response) => {
+    const fromDate = req.query.from_date as string | undefined;
+    const toDate = req.query.to_date as string | undefined;
+    const summary = await accountingService.getLedgerReconciliationSummary(fromDate, toDate);
+    ok(res, summary);
+  }),
+
+  getReconciliations: wrap(async (req: Request, res: Response) => {
+    const filters = {
+      account_id: req.query.account_id ? Number(req.query.account_id) : undefined,
+      from_date: req.query.from_date as string | undefined,
+      to_date: req.query.to_date as string | undefined,
+      status: req.query.status as string | undefined,
+    };
+    const recs = await bankReconciliationService.getReconciliations(filters);
+    ok(res, recs);
+  }),
+
+  getReconciliationById: wrap(async (req: Request, res: Response) => {
+    const id = Number(req.params.id);
+    if (!id) throw new AppError('معرف المطابقة غير صحيح', 400);
+    const rec = await bankReconciliationService.getReconciliationById(id);
+    ok(res, rec);
+  }),
+
+  createReconciliation: wrap(async (req: Request, res: Response) => {
+    const userId = (req as any).user?.id || (req as any).user?.userId;
+    const rec = await bankReconciliationService.createReconciliation(userId, req.body);
+    ok(res, rec, 'تم حفظ وتسجيل جلسة المطابقة بنجاح', void 0);
   }),
 };

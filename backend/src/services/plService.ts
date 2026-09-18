@@ -355,6 +355,18 @@ export const getProfitAndLoss = async (fromDate: string, toDate: string) => {
     },
   };
 
+  // ── مطابقة أرقام قائمة الدخل مع دفتر الأستاذ العام (General Ledger Reconciliation) ──
+  try {
+    const { accountingService } = await import('./accountingService.ts');
+    (result as any).ledger_reconciliation = await accountingService.getLedgerReconciliationSummary(
+      fromDate,
+      toDate,
+    );
+  } catch (glErr: any) {
+    // Fallback gracefully if ledger is unavailable
+    (result as any).ledger_reconciliation = null;
+  }
+
   appCache.set(cacheKey, result, 15 * 60 * 1000, ['pl_report']);
   return result;
 };

@@ -42,6 +42,30 @@
         <AppIcon name="plus" :size="16" />
         <span>تسجيل قيد يومية</span>
       </button>
+      <button
+        type="button"
+        :class="['sub-nav-btn', { active: subTab === 'reconciliation' }]"
+        @click="switchSubTab('reconciliation')"
+      >
+        <AppIcon name="receipt" :size="16" />
+        <span>مطابقة البنك والخزينة</span>
+      </button>
+      <button
+        type="button"
+        :class="['sub-nav-btn', { active: subTab === 'aging' }]"
+        @click="switchSubTab('aging')"
+      >
+        <AppIcon name="clock" :size="16" />
+        <span>أعمار الديون والمديونيات</span>
+      </button>
+      <button
+        type="button"
+        :class="['sub-nav-btn', { active: subTab === 'proof' }]"
+        @click="switchSubTab('proof')"
+      >
+        <AppIcon name="check" :size="16" />
+        <span>مطابقة الأرباح مع الأستاذ</span>
+      </button>
     </div>
 
     <!-- Error / Loading indicators -->
@@ -637,6 +661,338 @@
       </form>
     </div>
 
+    <!-- =========================================================================
+         6. BANK & TREASURY RECONCILIATION (مطابقة وتسوية البنك والخزينة)
+         ========================================================================= -->
+    <div v-if="!loading && subTab === 'reconciliation'" class="card">
+      <div class="card-header-row">
+        <div>
+          <h3>مطابقة وتسوية الحسابات البنكية والخزينة</h3>
+          <p class="text-muted">
+            مطابقة كشوف حسابات البنوك والخزينة مع رصيد دفتر الأستاذ العام وتوثيق الفروقات
+          </p>
+        </div>
+        <div>
+          <button type="button" class="btn btn-primary" @click="openNewRecModal">
+            <AppIcon name="plus" :size="16" />
+            <span>تسجيل جلسة مطابقة وتسوية</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="table-container">
+        <table class="items-table">
+          <thead>
+            <tr>
+              <th>رقم التسوية</th>
+              <th>الحساب</th>
+              <th>تاريخ الكشف</th>
+              <th>رصيد الكشف البنكي</th>
+              <th>رصيد دفتر الأستاذ</th>
+              <th>الفارق</th>
+              <th>القائم بالمطابقة</th>
+              <th>الحالة</th>
+              <th>ملاحظات</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-if="reconciliationsList.length === 0">
+              <td colspan="9" class="text-center py-4 text-muted">
+                لا توجد جلسات مطابقة سابقة مسجلة. اضغط "تسجيل جلسة مطابقة وتسوية" للبدء.
+              </td>
+            </tr>
+            <tr v-for="rec in reconciliationsList" :key="rec.id">
+              <td>
+                <strong>{{ rec.reconciliation_number }}</strong>
+              </td>
+              <td>{{ rec.account_code }} - {{ rec.account_name }}</td>
+              <td>{{ rec.statement_date }}</td>
+              <td class="num-cell">{{ formatMoney(rec.statement_balance) }}</td>
+              <td class="num-cell">{{ formatMoney(rec.ledger_balance) }}</td>
+              <td class="num-cell">
+                <span
+                  class="badge"
+                  :class="
+                    Math.abs(rec.difference) <= 0.01 ? 'bg-success-light' : 'bg-warning-light'
+                  "
+                >
+                  {{ formatMoney(rec.difference) }}
+                  <span v-if="Math.abs(rec.difference) <= 0.01"> ✓ مطابق</span>
+                </span>
+              </td>
+              <td>{{ rec.reconciled_by_name || '—' }}</td>
+              <td>
+                <span
+                  class="type-pill"
+                  :class="rec.status === 'completed' ? 'revenue' : 'liability'"
+                >
+                  {{ rec.status === 'completed' ? 'مكتملة ومطابقة' : rec.status }}
+                </span>
+              </td>
+              <td>{{ rec.notes || '—' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- =========================================================================
+         7. CUSTOMER & SUPPLIER AGING (أعمار الديون والمديونيات)
+         ========================================================================= -->
+    <div v-if="!loading && subTab === 'aging'" class="card">
+      <div class="card-header-row">
+        <div>
+          <h3>تحليل أعمار الديون والمديونيات (Aging Analysis)</h3>
+          <p class="text-muted">
+            مراقبة تواريخ استحقاق المديونيات وحساب فترات التأخير (0-30، 31-60، 61-90، +90 يوماً)
+          </p>
+        </div>
+        <div class="aging-toggle-tabs">
+          <button
+            type="button"
+            class="btn btn-sm"
+            :class="agingActiveTab === 'customers' ? 'btn-primary' : 'btn-secondary'"
+            @click="switchAgingTab('customers')"
+          >
+            مديونيات العملاء
+          </button>
+          <button
+            type="button"
+            class="btn btn-sm"
+            :class="agingActiveTab === 'suppliers' ? 'btn-primary' : 'btn-secondary'"
+            @click="switchAgingTab('suppliers')"
+          >
+            مستحقات الموردين
+          </button>
+        </div>
+      </div>
+
+      <!-- Aging KPI strip -->
+      <div class="kpi-grid kpi-grid-5 mb-4">
+        <div class="kpi-card">
+          <div class="kpi-body">
+            <div class="kpi-label">جاري (0 - 30 يوم)</div>
+            <div class="kpi-value text-success">
+              {{ formatMoney(currentAgingTotals?.current_0_30 || 0) }}
+            </div>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-body">
+            <div class="kpi-label">مستحق (31 - 60 يوم)</div>
+            <div class="kpi-value text-primary">
+              {{ formatMoney(currentAgingTotals?.days_31_60 || 0) }}
+            </div>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-body">
+            <div class="kpi-label">متأخر (61 - 90 يوم)</div>
+            <div class="kpi-value text-warning">
+              {{ formatMoney(currentAgingTotals?.days_61_90 || 0) }}
+            </div>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-body">
+            <div class="kpi-label">حرج (+90 يوم)</div>
+            <div class="kpi-value text-danger font-bold">
+              {{ formatMoney(currentAgingTotals?.over_90 || 0) }}
+            </div>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-body">
+            <div class="kpi-label">إجمالي الرصيد القائم</div>
+            <div class="kpi-value text-main font-bold">
+              {{ formatMoney(currentAgingTotals?.total_due || 0) }}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Aging Table -->
+      <div class="table-container">
+        <table class="items-table">
+          <thead>
+            <tr>
+              <th>{{ agingActiveTab === 'customers' ? 'العميل' : 'المورد' }}</th>
+              <th>الهاتف</th>
+              <th>عدد الفواتير</th>
+              <th>0 - 30 يوم</th>
+              <th>31 - 60 يوم</th>
+              <th>61 - 90 يوم</th>
+              <th>+90 يوم</th>
+              <th>إجمالي المستحق</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-if="currentAgingRows.length === 0">
+              <td colspan="8" class="text-center py-4 text-muted">
+                لا توجد أرصدة آجلة مستحقة في هذه الفئة.
+              </td>
+            </tr>
+            <tr v-for="r in currentAgingRows" :key="r.id">
+              <td>
+                <strong>{{ r.name }}</strong>
+              </td>
+              <td>{{ r.phone || '—' }}</td>
+              <td>{{ r.invoices_count }}</td>
+              <td class="num-cell">{{ formatMoney(r.current_0_30) }}</td>
+              <td class="num-cell">{{ formatMoney(r.days_31_60) }}</td>
+              <td class="num-cell">{{ formatMoney(r.days_61_90) }}</td>
+              <td class="num-cell text-danger font-bold">{{ formatMoney(r.over_90) }}</td>
+              <td class="num-cell font-bold">{{ formatMoney(r.total_due) }}</td>
+            </tr>
+          </tbody>
+          <tfoot>
+            <tr class="summary-footer-row">
+              <td colspan="3">الإجمالي العام</td>
+              <td class="num-cell">{{ formatMoney(currentAgingTotals?.current_0_30 || 0) }}</td>
+              <td class="num-cell">{{ formatMoney(currentAgingTotals?.days_31_60 || 0) }}</td>
+              <td class="num-cell">{{ formatMoney(currentAgingTotals?.days_61_90 || 0) }}</td>
+              <td class="num-cell text-danger">
+                {{ formatMoney(currentAgingTotals?.over_90 || 0) }}
+              </td>
+              <td class="num-cell text-primary font-bold">
+                {{ formatMoney(currentAgingTotals?.total_due || 0) }}
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+
+    <!-- =========================================================================
+         8. P&L TO GL RECONCILIATION PROOF (مطابقة الأرباح مع الأستاذ العام)
+         ========================================================================= -->
+    <div v-if="!loading && subTab === 'proof'" class="card">
+      <div class="card-header-row">
+        <div>
+          <h3>مطابقة قائمة الدخل التشغيلية مع دفتر الأستاذ العام</h3>
+          <p class="text-muted">
+            التحقق الرياضي الصارم من تطابق أرقام المبيعات والمصروفات والأرباح التشغيلية مع القيود
+            المرحلة في دفتر الأستاذ
+          </p>
+        </div>
+        <div
+          class="balance-status-badge"
+          :class="ledgerProofData?.variances.is_fully_reconciled ? 'balanced' : 'imbalanced'"
+        >
+          <span class="status-dot"></span>
+          <span>{{
+            ledgerProofData?.variances.is_fully_reconciled
+              ? 'تطابق تام وموثق مع دفتر الأستاذ (Zero Variance)'
+              : 'تنبيه: يوجد فارق بين السجلات التشغيلية ودفتر الأستاذ'
+          }}</span>
+        </div>
+      </div>
+
+      <div class="table-container">
+        <table class="items-table">
+          <thead>
+            <tr>
+              <th>البند المالي</th>
+              <th>الرصيد في دفتر الأستاذ (GL)</th>
+              <th>الرصيد التشغيلي (Operations)</th>
+              <th>الفارق (Variance)</th>
+              <th>حالة المطابقة</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>إجمالي الإيرادات (Revenue)</strong></td>
+              <td class="num-cell">
+                {{ formatMoney(ledgerProofData?.general_ledger.revenue || 0) }}
+              </td>
+              <td class="num-cell">{{ formatMoney(ledgerProofData?.operational.revenue || 0) }}</td>
+              <td class="num-cell">{{ formatMoney(ledgerProofData?.variances.revenue || 0) }}</td>
+              <td>
+                <span
+                  class="badge"
+                  :class="
+                    (ledgerProofData?.variances.revenue || 0) <= 0.05
+                      ? 'bg-success-light'
+                      : 'bg-warning-light'
+                  "
+                >
+                  {{ (ledgerProofData?.variances.revenue || 0) <= 0.05 ? '✓ مطابق' : 'فارق' }}
+                </span>
+              </td>
+            </tr>
+            <tr>
+              <td><strong>تكلفة البضاعة المباعة (COGS)</strong></td>
+              <td class="num-cell">{{ formatMoney(ledgerProofData?.general_ledger.cogs || 0) }}</td>
+              <td class="num-cell">{{ formatMoney(ledgerProofData?.operational.cogs || 0) }}</td>
+              <td class="num-cell">{{ formatMoney(ledgerProofData?.variances.cogs || 0) }}</td>
+              <td>
+                <span
+                  class="badge"
+                  :class="
+                    (ledgerProofData?.variances.cogs || 0) <= 0.05
+                      ? 'bg-success-light'
+                      : 'bg-warning-light'
+                  "
+                >
+                  {{ (ledgerProofData?.variances.cogs || 0) <= 0.05 ? '✓ مطابق' : 'فارق' }}
+                </span>
+              </td>
+            </tr>
+            <tr>
+              <td><strong>المصروفات التشغيلية (Operating Expenses)</strong></td>
+              <td class="num-cell">
+                {{ formatMoney(ledgerProofData?.general_ledger.expenses || 0) }}
+              </td>
+              <td class="num-cell">
+                {{ formatMoney(ledgerProofData?.operational.expenses || 0) }}
+              </td>
+              <td class="num-cell">{{ formatMoney(ledgerProofData?.variances.expenses || 0) }}</td>
+              <td>
+                <span
+                  class="badge"
+                  :class="
+                    (ledgerProofData?.variances.expenses || 0) <= 0.05
+                      ? 'bg-success-light'
+                      : 'bg-warning-light'
+                  "
+                >
+                  {{ (ledgerProofData?.variances.expenses || 0) <= 0.05 ? '✓ مطابق' : 'فارق' }}
+                </span>
+              </td>
+            </tr>
+            <tr class="summary-footer-row">
+              <td><strong>صافي الربح المحقق (Net Profit)</strong></td>
+              <td class="num-cell font-bold text-primary">
+                {{ formatMoney(ledgerProofData?.general_ledger.net_profit || 0) }}
+              </td>
+              <td class="num-cell font-bold text-primary">
+                {{ formatMoney(ledgerProofData?.operational.net_profit || 0) }}
+              </td>
+              <td class="num-cell font-bold">
+                {{ formatMoney(ledgerProofData?.variances.net_profit || 0) }}
+              </td>
+              <td>
+                <span
+                  class="badge"
+                  :class="
+                    (ledgerProofData?.variances.net_profit || 0) <= 0.05
+                      ? 'bg-success-light'
+                      : 'bg-danger-light'
+                  "
+                >
+                  {{
+                    (ledgerProofData?.variances.net_profit || 0) <= 0.05
+                      ? '✓ تطابق تام'
+                      : 'غير متطابق'
+                  }}
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
     <!-- Modal: إضافة حساب جديد في شجرة الحسابات -->
     <Teleport to="body">
       <div
@@ -718,6 +1074,72 @@
         </div>
       </div>
     </Teleport>
+
+    <!-- Modal: تسجيل جلسة مطابقة وتسوية جديدة -->
+    <Teleport to="body">
+      <div v-if="showNewRecModal" class="modal-overlay" @click.self="showNewRecModal = false">
+        <div class="modal-card card">
+          <div class="modal-header">
+            <h3>تسجيل مطابقة وتسوية بنكية / خزينة</h3>
+            <button type="button" class="icon-btn" @click="showNewRecModal = false">✕</button>
+          </div>
+          <form @submit.prevent="submitCreateReconciliation">
+            <div class="form-group mb-3">
+              <label>الحساب المراد مطابقته (بنك أو خزينة)</label>
+              <select v-model.number="newRecForm.account_id" class="field-like" required>
+                <option :value="undefined">— اختر الحساب —</option>
+                <option
+                  v-for="a in accountsList.filter((acc) => acc.account_type === 'asset')"
+                  :key="a.id"
+                  :value="a.id"
+                >
+                  {{ a.code }} - {{ a.name_ar }}
+                </option>
+              </select>
+            </div>
+            <div class="grid grid-2 mb-3">
+              <div class="form-group">
+                <label>تاريخ كشف الحساب</label>
+                <input
+                  v-model="newRecForm.statement_date"
+                  type="date"
+                  class="field-like"
+                  required
+                />
+              </div>
+              <div class="form-group">
+                <label>الرصيد الفعلي في الكشف (Statement Balance)</label>
+                <input
+                  v-model.number="newRecForm.statement_balance"
+                  type="number"
+                  step="0.01"
+                  class="field-like num-cell"
+                  placeholder="0.00"
+                  required
+                />
+              </div>
+            </div>
+            <div class="form-group mb-3">
+              <label>ملاحظات التسوية</label>
+              <textarea
+                v-model="newRecForm.notes"
+                class="field-like"
+                rows="2"
+                placeholder="ملاحظات توضيحية حول التسوية أو الفروقات..."
+              ></textarea>
+            </div>
+            <div class="form-actions-row">
+              <button type="submit" class="btn btn-primary" :disabled="recSubmitting">
+                {{ recSubmitting ? 'جاري الحفظ...' : 'حفظ واحتساب المطابقة' }}
+              </button>
+              <button type="button" class="btn btn-secondary" @click="showNewRecModal = false">
+                إلغاء
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -729,6 +1151,10 @@ import {
   type TrialBalanceResponse,
   type GeneralLedgerResponse,
   type BalanceSheetResponse,
+  type BankReconciliation,
+  type CustomerAgingResponse,
+  type SupplierAgingResponse,
+  type LedgerReconciliationSummary,
 } from '@/api';
 import { formatMoney } from '@/utils/formatters';
 import AppIcon from '@/components/AppIcon.vue';
@@ -738,9 +1164,16 @@ const props = defineProps<{
   toDate?: string;
 }>();
 
-const subTab = ref<'trial_balance' | 'general_ledger' | 'balance_sheet' | 'coa' | 'new_entry'>(
-  'trial_balance',
-);
+const subTab = ref<
+  | 'trial_balance'
+  | 'general_ledger'
+  | 'balance_sheet'
+  | 'coa'
+  | 'new_entry'
+  | 'reconciliation'
+  | 'aging'
+  | 'proof'
+>('trial_balance');
 const loading = ref(false);
 const error = ref<string | null>(null);
 
@@ -749,6 +1182,25 @@ const trialBalanceData = ref<TrialBalanceResponse | null>(null);
 const generalLedgerData = ref<GeneralLedgerResponse | null>(null);
 const balanceSheetData = ref<BalanceSheetResponse | null>(null);
 const accountsList = ref<AccountItem[]>([]);
+
+// Reconciliation Data
+const reconciliationsList = ref<BankReconciliation[]>([]);
+const showNewRecModal = ref(false);
+const recSubmitting = ref(false);
+const newRecForm = ref({
+  account_id: undefined as number | undefined,
+  statement_date: new Date().toISOString().slice(0, 10),
+  statement_balance: 0,
+  notes: '',
+});
+
+// Aging Data
+const customerAgingData = ref<CustomerAgingResponse | null>(null);
+const supplierAgingData = ref<SupplierAgingResponse | null>(null);
+const agingActiveTab = ref<'customers' | 'suppliers'>('customers');
+
+// Ledger Proof Data
+const ledgerProofData = ref<LedgerReconciliationSummary | null>(null);
 
 // Filters and selections
 const tbSearch = ref('');
@@ -908,6 +1360,120 @@ const loadBalanceSheet = async () => {
   }
 };
 
+// Computed for Aging
+const currentAgingTotals = computed(() => {
+  if (agingActiveTab.value === 'customers') {
+    return customerAgingData.value?.totals;
+  }
+  return supplierAgingData.value?.totals;
+});
+
+const currentAgingRows = computed(() => {
+  if (agingActiveTab.value === 'customers') {
+    return (customerAgingData.value?.customers || []).map((c) => ({
+      id: c.customer_id,
+      name: c.customer_name,
+      phone: c.customer_phone,
+      invoices_count: c.invoices_count,
+      current_0_30: c.current_0_30,
+      days_31_60: c.days_31_60,
+      days_61_90: c.days_61_90,
+      over_90: c.over_90,
+      total_due: c.total_due,
+    }));
+  }
+  return (supplierAgingData.value?.suppliers || []).map((s) => ({
+    id: s.supplier_id,
+    name: s.supplier_name,
+    phone: s.supplier_phone,
+    invoices_count: s.invoices_count,
+    current_0_30: s.current_0_30,
+    days_31_60: s.days_31_60,
+    days_61_90: s.days_61_90,
+    over_90: s.over_90,
+    total_due: s.total_due,
+  }));
+});
+
+const switchAgingTab = async (tab: 'customers' | 'suppliers') => {
+  agingActiveTab.value = tab;
+  await loadAgingData();
+};
+
+const loadReconciliations = async () => {
+  loading.value = true;
+  error.value = null;
+  try {
+    const res = await accountingApi.getReconciliations();
+    if (res.data) reconciliationsList.value = res.data;
+  } catch (err: any) {
+    error.value = err.response?.data?.message || err.message || 'فشل تحميل بيانات مطابقات البنك';
+  } finally {
+    loading.value = false;
+  }
+};
+
+const loadAgingData = async () => {
+  loading.value = true;
+  error.value = null;
+  try {
+    if (agingActiveTab.value === 'customers') {
+      const res = await accountingApi.getCustomerAging(props.toDate);
+      if (res.data) customerAgingData.value = res.data;
+    } else {
+      const res = await accountingApi.getSupplierAging(props.toDate);
+      if (res.data) supplierAgingData.value = res.data;
+    }
+  } catch (err: any) {
+    error.value = err.response?.data?.message || err.message || 'فشل تحميل بيانات أعمار الديون';
+  } finally {
+    loading.value = false;
+  }
+};
+
+const loadLedgerProof = async () => {
+  loading.value = true;
+  error.value = null;
+  try {
+    const res = await accountingApi.getLedgerReconciliationSummary(props.fromDate, props.toDate);
+    if (res.data) ledgerProofData.value = res.data;
+  } catch (err: any) {
+    error.value = err.response?.data?.message || err.message || 'فشل تحميل تقرير مطابقة الأستاذ';
+  } finally {
+    loading.value = false;
+  }
+};
+
+const openNewRecModal = () => {
+  newRecForm.value = {
+    account_id: undefined,
+    statement_date: new Date().toISOString().slice(0, 10),
+    statement_balance: 0,
+    notes: '',
+  };
+  showNewRecModal.value = true;
+};
+
+const submitCreateReconciliation = async () => {
+  if (!newRecForm.value.account_id) return;
+  recSubmitting.value = true;
+  try {
+    await accountingApi.createReconciliation({
+      account_id: newRecForm.value.account_id,
+      statement_date: newRecForm.value.statement_date,
+      statement_balance: newRecForm.value.statement_balance,
+      notes: newRecForm.value.notes,
+    });
+    showNewRecModal.value = false;
+    await loadReconciliations();
+    alert('تم تسجيل جلسة المطابقة وحساب الفارق بنجاح');
+  } catch (err: any) {
+    alert(err.response?.data?.message || err.message || 'فشل حفظ جلسة المطابقة');
+  } finally {
+    recSubmitting.value = false;
+  }
+};
+
 const loadCurrentSubTab = async () => {
   if (subTab.value === 'trial_balance') {
     await loadTrialBalance();
@@ -917,6 +1483,12 @@ const loadCurrentSubTab = async () => {
     await loadBalanceSheet();
   } else if (subTab.value === 'coa') {
     await loadAccounts();
+  } else if (subTab.value === 'reconciliation') {
+    await loadReconciliations();
+  } else if (subTab.value === 'aging') {
+    await loadAgingData();
+  } else if (subTab.value === 'proof') {
+    await loadLedgerProof();
   }
 };
 
@@ -1160,5 +1732,31 @@ onMounted(async () => {
   align-items: center;
   gap: 16px;
   margin-top: 16px;
+}
+
+.kpi-grid-5 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.aging-toggle-tabs {
+  display: flex;
+  gap: 8px;
+}
+
+.bg-success-light {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.bg-warning-light {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.bg-danger-light {
+  background: #fee2e2;
+  color: #991b1b;
 }
 </style>

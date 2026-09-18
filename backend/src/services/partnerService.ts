@@ -350,6 +350,22 @@ export const createPartnerDrawing = async (data: DrawingInput, userId: number) =
     `[Partner Drawings] تم تسجيل سند صرف مسحوبات بقيمة ${amount} ج.م للشريك (${partner.name_ar}) سند رقم ${voucherNum}`,
   );
 
+  try {
+    const { accountingService } = await import('./accountingService.ts');
+    await accountingService.postPartnerDrawingJournalEntry(null, {
+      id: drawing.id,
+      voucher_number: voucherNum,
+      partner_id: drawing.partner_id,
+      amount,
+      source_type: drawing.source_type,
+      payment_method: drawing.payment_method,
+      notes: drawing.notes,
+      user_id: userId,
+    });
+  } catch (accErr: any) {
+    logger.warn(`[Accounting] تعذر ترحيل قيد مسحوبات الشريك تلقائياً: ${accErr.message}`);
+  }
+
   return {
     ...drawing,
     amount: Number(drawing.amount),
@@ -367,6 +383,14 @@ export const deletePartnerDrawing = async (id: number) => {
   }
 
   await query(`DELETE FROM partner_drawings WHERE id = $1`, [id]);
+
+  try {
+    const { accountingService } = await import('./accountingService.ts');
+    await accountingService.deleteJournalEntryByReference('manual', id);
+  } catch (accErr: any) {
+    logger.warn(`[Accounting] تعذر حذف قيد مسحوبات الشريك الملغى: ${accErr.message}`);
+  }
+
   return { message: 'تم حذف سند المسحوبات بنجاح وتعديل رصيد الشريك' };
 };
 

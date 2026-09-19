@@ -102,7 +102,7 @@ const saveServerUrl = async () => {
   if (!serverUrlInput.value.trim()) return;
   const res = await setServerUrl(serverUrlInput.value.trim());
   if (!res.success) {
-    errorMsg.value = res.error || 'فشل تحديث عنوان الخادم المركزي';
+    errorMsg.value = res.error || 'عنوان الخادم غير موثوق به لهذا الجهاز';
     serverSavedMsg.value = '';
     return;
   }
@@ -120,7 +120,7 @@ const handleLogin = async () => {
     if (serverUrlInput.value.trim()) {
       const res = await setServerUrl(serverUrlInput.value.trim());
       if (!res.success) {
-        errorMsg.value = res.error || 'عنوان الخادم المركزي غير صالح';
+        errorMsg.value = res.error || 'عنوان الخادم غير موثوق به لهذا الجهاز';
         loading.value = false;
         return;
       }

@@ -8,6 +8,8 @@ import {
   SAFE_LOCAL_URL,
   DEFAULT_SERVER_URL,
   getRawEnvUrl,
+  getTrustedServerList,
+  isTrustedServerUrl,
   validateServerUrl,
   getServerUrl,
 } from './serverUrlPolicy';
@@ -16,6 +18,8 @@ export {
   SAFE_LOCAL_URL,
   DEFAULT_SERVER_URL,
   getRawEnvUrl,
+  getTrustedServerList,
+  isTrustedServerUrl,
   validateServerUrl,
   getServerUrl,
 };

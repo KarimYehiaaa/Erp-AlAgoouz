@@ -5,6 +5,7 @@
 import http from 'http';
 import https from 'https';
 import { BrowserWindow } from 'electron';
+import { validateServerUrl, SAFE_LOCAL_URL } from '../../src/services/serverUrlPolicy';
 
 export interface SyncConfig {
   serverUrl: string;
@@ -15,36 +16,7 @@ export function validateWorkerServerUrl(
   url: string,
   isPackaged = false
 ): { valid: boolean; normalizedUrl?: string; error?: string } {
-  if (!url || typeof url !== 'string' || !url.trim()) {
-    return { valid: false, error: 'عنوان الخادم مطلوب ولا يمكن أن يكون فارغاً' };
-  }
-
-  let parsed: URL;
-  try {
-    parsed = new URL(url.trim());
-  } catch {
-    return { valid: false, error: 'صيغة عنوان الخادم غير صالحة (مثال صحيح: https://api.alagoouz.com/api/v1)' };
-  }
-
-  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-    return { valid: false, error: 'يجب أن يبدأ عنوان الخادم ببروتوكول http:// أو https://' };
-  }
-
-  const isLocal =
-    parsed.hostname === 'localhost' ||
-    parsed.hostname === '127.0.0.1' ||
-    parsed.hostname === '0.0.0.0';
-  const isProduction = isPackaged || process.env.NODE_ENV === 'production';
-
-  if (isProduction && parsed.protocol === 'http:' && !isLocal) {
-    return {
-      valid: false,
-      error: 'في بيئة الإنتاج، يجب استخدام بروتوكول مشفر وآمن (HTTPS) للاتصال بالخادم المركزي لحماية البيانات',
-    };
-  }
-
-  const cleanUrl = url.trim().replace(/\/+$/, '');
-  return { valid: true, normalizedUrl: cleanUrl };
+  return validateServerUrl(url, isPackaged);
 }
 
 export class PosSyncWorker {
@@ -155,7 +127,7 @@ export class PosSyncWorker {
     console.log('[SyncWorker] Background sync worker stopped.');
   }
 
-  public async runSyncCycle(): Promise<{ success: boolean; synced: number; remaining: number }> {
+  public async runSyncCycle(): Promise<{ success: boolean; synced: number; remaining: number; message?: string }> {
     if (this.syncInFlight) {
       console.log('[SyncWorker] Sync cycle already in flight. Skipping overlapping run.');
       const queue = this.readQueue();
@@ -189,7 +161,7 @@ export class PosSyncWorker {
         console.error(
           `[SyncWorker Security] Blocked outbound sync: unencrypted or invalid URL in production (${this.serverUrl}): ${urlCheck.error}`
         );
-        return { success: false, synced: 0, remaining: pendingItems.length };
+        return { success: false, synced: 0, remaining: pendingItems.length, message: urlCheck.error };
       }
 
       // Check server health

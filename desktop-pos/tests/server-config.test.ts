@@ -372,4 +372,121 @@ describe('Desktop POS Server Configuration & IPC Contract Tests', () => {
       expect(worker.getServerUrl()).toBe('https://central-api.alagoouz.com/api/v1');
     });
   });
+
+  // ─────────────────────────────────────────────────────────────
+  // PHASE 1: TRUSTED SERVER WHITELIST & PROTOCOL SECURITY MATRIX
+  // ─────────────────────────────────────────────────────────────
+  describe('Phase 1: Trusted Server Whitelist & Protocol Security Matrix', () => {
+    it('1. Trusted HTTPS → PASS', () => {
+      const res = validateServerUrl('https://api.alagoouz.com/api/v1', true);
+      expect(res.valid).toBe(true);
+      expect(res.normalizedUrl).toBe('https://api.alagoouz.com/api/v1');
+
+      // Custom trusted list support
+      const customRes = validateServerUrl(
+        'https://partner-cloud.com/api/v1',
+        true,
+        ['https://partner-cloud.com/api/v1']
+      );
+      expect(customRes.valid).toBe(true);
+    });
+
+    it('2. Untrusted HTTPS → FAIL', () => {
+      const res = validateServerUrl('https://untrusted-external-domain.com/api/v1', true);
+      expect(res.valid).toBe(false);
+      expect(res.error).toBe('عنوان الخادم غير موثوق به لهذا الجهاز');
+    });
+
+    it('3. External HTTP Production → FAIL', () => {
+      const res = validateServerUrl('http://insecure-external.com/api/v1', true);
+      expect(res.valid).toBe(false);
+      expect(res.error).toContain('HTTPS');
+    });
+
+    it('4. Localhost → PASS', () => {
+      const res = validateServerUrl('http://localhost:3000/api/v1', true);
+      expect(res.valid).toBe(true);
+      expect(res.normalizedUrl).toBe('http://localhost:3000/api/v1');
+    });
+
+    it('5. 127.0.0.1 → PASS', () => {
+      const res = validateServerUrl('http://127.0.0.1:8080/api/v1', true);
+      expect(res.valid).toBe(true);
+      expect(res.normalizedUrl).toBe('http://127.0.0.1:8080/api/v1');
+    });
+
+    it('6. Malformed URL → FAIL', () => {
+      const res = validateServerUrl('invalid_domain_string_without_scheme', true);
+      expect(res.valid).toBe(false);
+      expect(res.error).toContain('صيغة');
+    });
+
+    it('7. javascript:// → FAIL', () => {
+      const res = validateServerUrl('javascript:alert("exploit")', true);
+      expect(res.valid).toBe(false);
+      expect(res.error).toContain('http');
+    });
+
+    it('8. file:// → FAIL', () => {
+      const res = validateServerUrl('file:///C:/Users/Administrator/secret.json', true);
+      expect(res.valid).toBe(false);
+      expect(res.error).toContain('http');
+    });
+
+    it('9. Trusted URL with trailing slash → normalized', () => {
+      const res = validateServerUrl('https://api.alagoouz.com/api/v1/////', true);
+      expect(res.valid).toBe(true);
+      expect(res.normalizedUrl).toBe('https://api.alagoouz.com/api/v1');
+    });
+
+    it('10. Untrusted URL → cannot be saved', async () => {
+      localStorage.setItem('pos_server_url', 'http://localhost:3000/api/v1');
+      api.defaults.baseURL = 'http://localhost:3000/api/v1';
+
+      // Mock production environment for renderer
+      const originalEnv = process.env.NODE_ENV;
+      process.env.NODE_ENV = 'production';
+      try {
+        const res = await setServerUrl('https://fake-phishing-host.com/api/v1');
+        expect(res.success).toBe(false);
+        expect(res.error).toBe('عنوان الخادم غير موثوق به لهذا الجهاز');
+
+        // Verify state is NOT mutated
+        expect(localStorage.getItem('pos_server_url')).toBe('http://localhost:3000/api/v1');
+        expect(api.defaults.baseURL).toBe('http://localhost:3000/api/v1');
+      } finally {
+        process.env.NODE_ENV = originalEnv;
+      }
+    });
+
+    it('11. Untrusted URL → cannot authenticate', () => {
+      const worker = new PosSyncWorker(() => [], () => true, () => null, true);
+      const res = worker.setSession('session-token-xyz', 'https://rogue-server.com/api/v1', true);
+
+      expect(res.success).toBe(false);
+      expect(res.error).toBe('عنوان الخادم غير موثوق به لهذا الجهاز');
+      expect(worker.getAuthToken()).toBeNull();
+    });
+
+    it('12. Untrusted URL → cannot start sync', async () => {
+      const pendingItems = [
+        { sync_id: 'sync-untrusted-1', invoice_number: 'INV-UNTRUSTED', status: 'PENDING', retry_count: 0 },
+      ];
+      const worker = new PosSyncWorker(
+        () => pendingItems,
+        () => true,
+        () => null,
+        true
+      );
+
+      // Attempt to force an untrusted URL directly
+      (worker as any).serverUrl = 'https://untrusted-host.com/api/v1';
+      (worker as any).authToken = 'dummy-token';
+
+      const syncRes = await worker.runSyncCycle();
+      expect(syncRes.success).toBe(false);
+      expect(syncRes.message).toBe('عنوان الخادم غير موثوق به لهذا الجهاز');
+      expect(pendingItems[0].status).toBe('PENDING'); // No data was dispatched to untrusted host
+    });
+  });
 });

@@ -21,6 +21,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('auth:set-session', token, serverUrl),
   triggerManualSync: () => ipcRenderer.invoke('sync:trigger-now'),
 
+  // Secure OS Session Storage (safeStorage)
+  saveSecureSession: (sessionData: any) => ipcRenderer.invoke('session:save', sessionData),
+  loadSecureSession: () => ipcRenderer.invoke('session:load'),
+  clearSecureSession: () => ipcRenderer.invoke('session:clear'),
+  hasSecureSession: () => ipcRenderer.invoke('session:has'),
+
   // App & Device Info
   getDeviceInfo: () => ipcRenderer.invoke('app:get-device-info'),
   onBarcodeScan: (callback: (barcode: string) => void) => {

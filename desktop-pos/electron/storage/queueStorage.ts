@@ -1,11 +1,11 @@
 /**
  * electron/storage/queueStorage.ts
  * محرك التخزين الذري لفواتير نقاط البيع المعلقة (Atomic Offline Queue Storage Engine)
- * يوفر كتابة ذرية مع نسخة احتياطية واستعادة تلقائية عند تلف الملف وحماية ضد فشل التخزين.
+ * يوفر كتابة ذرية مع تشفير/تأمين سلامة البيانات (SHA-256 Checksum) ونسخ احتياطي واستعادة تلقائية.
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { randomUUID } from 'node:crypto';
+import { randomUUID, createHash } from 'node:crypto';
 import { app } from 'electron';
 
 export interface QueueStoragePaths {
@@ -13,6 +13,8 @@ export interface QueueStoragePaths {
   primaryFile: string;
   backupFile: string;
   tempFile: string;
+  checksumFile: string;
+  backupChecksumFile: string;
 }
 
 export function getStoragePaths(customDir?: string): QueueStoragePaths {
@@ -28,7 +30,7 @@ export function getStoragePaths(customDir?: string): QueueStoragePaths {
   }
 
   if (!fs.existsSync(storageDir)) {
-    fs.mkdirSync(storageDir, { recursive: true });
+    fs.mkdirSync(storageDir, { recursive: true, mode: 0o700 });
   }
 
   return {
@@ -36,18 +38,36 @@ export function getStoragePaths(customDir?: string): QueueStoragePaths {
     primaryFile: path.join(storageDir, 'pending_queue.json'),
     backupFile: path.join(storageDir, 'pending_queue.json.bak'),
     tempFile: path.join(storageDir, 'pending_queue.json.tmp'),
+    checksumFile: path.join(storageDir, 'pending_queue.sha256'),
+    backupChecksumFile: path.join(storageDir, 'pending_queue.sha256.bak'),
   };
 }
 
+function calculateSha256(content: string): string {
+  return createHash('sha256').update(content, 'utf8').digest('hex');
+}
+
 export function readPendingQueue(customDir?: string): any[] {
-  const { primaryFile, backupFile } = getStoragePaths(customDir);
+  const { primaryFile, backupFile, checksumFile, backupChecksumFile } = getStoragePaths(customDir);
 
   if (fs.existsSync(primaryFile)) {
     try {
       const raw = fs.readFileSync(primaryFile, 'utf8');
       if (raw.trim()) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) return parsed;
+        let isChecksumValid = true;
+        if (fs.existsSync(checksumFile)) {
+          const expectedHash = fs.readFileSync(checksumFile, 'utf8').trim();
+          const actualHash = calculateSha256(raw);
+          if (expectedHash !== actualHash) {
+            console.warn('[Storage Security] Primary queue checksum mismatch! Potential corruption or tampering.');
+            isChecksumValid = false;
+          }
+        }
+
+        if (isChecksumValid) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) return parsed;
+        }
       }
     } catch (err) {
       console.error('[Storage] Primary queue file corrupted, attempting backup recovery:', err);
@@ -59,13 +79,28 @@ export function readPendingQueue(customDir?: string): any[] {
     try {
       const raw = fs.readFileSync(backupFile, 'utf8');
       if (raw.trim()) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) {
-          console.warn('[Storage] Restored pending queue from backup file.');
-          try {
-            fs.copyFileSync(backupFile, primaryFile);
-          } catch {}
-          return parsed;
+        let isBackupChecksumValid = true;
+        if (fs.existsSync(backupChecksumFile)) {
+          const expectedHash = fs.readFileSync(backupChecksumFile, 'utf8').trim();
+          const actualHash = calculateSha256(raw);
+          if (expectedHash !== actualHash) {
+            console.warn('[Storage Security] Backup queue checksum mismatch!');
+            isBackupChecksumValid = false;
+          }
+        }
+
+        if (isBackupChecksumValid) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) {
+            console.warn('[Storage] Restored pending queue from verified backup file.');
+            try {
+              fs.copyFileSync(backupFile, primaryFile);
+              if (fs.existsSync(backupChecksumFile)) {
+                fs.copyFileSync(backupChecksumFile, checksumFile);
+              }
+            } catch {}
+            return parsed;
+          }
         }
       }
     } catch (bakErr) {
@@ -78,23 +113,30 @@ export function readPendingQueue(customDir?: string): any[] {
 
 export function writePendingQueue(queue: any[], customDir?: string): boolean {
   try {
-    const { primaryFile, backupFile, tempFile } = getStoragePaths(customDir);
+    const { primaryFile, backupFile, tempFile, checksumFile, backupChecksumFile } = getStoragePaths(customDir);
     const data = JSON.stringify(queue, null, 2);
+    const hash = calculateSha256(data);
+    const tempChecksumFile = `${checksumFile}.tmp`;
 
-    // 1. Write to temporary file
-    fs.writeFileSync(tempFile, data, 'utf8');
+    // 1. Write to temporary files with strict permissions (0o600)
+    fs.writeFileSync(tempFile, data, { encoding: 'utf8', mode: 0o600 });
+    fs.writeFileSync(tempChecksumFile, hash, { encoding: 'utf8', mode: 0o600 });
 
-    // 2. Backup previous primary
+    // 2. Backup previous primary and checksum
     if (fs.existsSync(primaryFile)) {
       try {
         fs.copyFileSync(primaryFile, backupFile);
+        if (fs.existsSync(checksumFile)) {
+          fs.copyFileSync(checksumFile, backupChecksumFile);
+        }
       } catch (copyErr) {
         console.warn('[Storage] Warning: Failed to copy backup file:', copyErr);
       }
     }
 
-    // 3. Atomic rename tmp -> primary
+    // 3. Atomic renames tmp -> primary
     fs.renameSync(tempFile, primaryFile);
+    fs.renameSync(tempChecksumFile, checksumFile);
     return true;
   } catch (err) {
     console.error('[Storage] Atomic write failed:', err);

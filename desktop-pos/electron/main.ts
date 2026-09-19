@@ -7,12 +7,15 @@ import { fileURLToPath } from 'url';
 import { PosSyncWorker } from './sync/syncWorker';
 import { PosPrinterDriver } from './hardware/printer';
 import { handleOpenCashDrawer, handlePrintReceipt } from './hardware/hardwareService';
+import { validateServerUrl } from '../src/services/serverUrlPolicy';
+import { SecureSessionStore } from './security/secureSessionStore';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 let mainWindow: BrowserWindow | null = null;
 let syncWorker: PosSyncWorker | null = null;
+let secureSessionStore: SecureSessionStore | null = null;
 
 import {
   readPendingQueue,
@@ -118,11 +121,18 @@ ipcMain.handle('config:set-server-url', (_event, url: string) => {
   if (!syncWorker) {
     return { success: false, error: 'محرك المزامنة غير مهيأ' };
   }
-  const ok = syncWorker.setServerUrl(url, app.isPackaged);
+  const validation = validateServerUrl(url, app.isPackaged);
+  if (!validation.valid || !validation.normalizedUrl) {
+    return {
+      success: false,
+      error: validation.error || 'عنوان الخادم غير موثوق به لهذا الجهاز',
+    };
+  }
+  const ok = syncWorker.setServerUrl(validation.normalizedUrl, app.isPackaged);
   if (!ok) {
     return {
       success: false,
-      error: 'عنوان الخادم غير صالح أو غير مسموح به في بيئة الإنتاج (يجب استخدام HTTPS)',
+      error: 'عنوان الخادم غير موثوق به لهذا الجهاز',
     };
   }
   return { success: true };
@@ -133,7 +143,39 @@ ipcMain.handle('auth:set-session', (_event, token: string | null, serverUrl?: st
   if (!syncWorker) {
     return { success: false, error: 'محرك المزامنة غير مهيأ' };
   }
+  if (serverUrl) {
+    const validation = validateServerUrl(serverUrl, app.isPackaged);
+    if (!validation.valid || !validation.normalizedUrl) {
+      return {
+        success: false,
+        error: validation.error || 'عنوان الخادم غير موثوق به لهذا الجهاز',
+      };
+    }
+  }
   return syncWorker.setSession(token, serverUrl, app.isPackaged);
+});
+
+// 8. Secure OS Session Storage (safeStorage)
+ipcMain.handle('session:save', async (_event, sessionData: any) => {
+  if (!secureSessionStore) {
+    return { success: false, error: 'مخزن الجلسة المشفر غير مهيأ' };
+  }
+  return await secureSessionStore.saveSession(sessionData);
+});
+
+ipcMain.handle('session:load', async () => {
+  if (!secureSessionStore) return null;
+  return await secureSessionStore.loadSession();
+});
+
+ipcMain.handle('session:clear', async () => {
+  if (!secureSessionStore) return true;
+  return await secureSessionStore.clearSession();
+});
+
+ipcMain.handle('session:has', async () => {
+  if (!secureSessionStore) return false;
+  return await secureSessionStore.hasSession();
 });
 
 ipcMain.handle('sync:trigger-now', async () => {
@@ -147,6 +189,9 @@ ipcMain.handle('sync:trigger-now', async () => {
 
 app.whenReady().then(() => {
   createWindow();
+
+  // Initialize secure session storage
+  secureSessionStore = new SecureSessionStore();
 
   // Initialize and start background sync engine
   syncWorker = new PosSyncWorker(

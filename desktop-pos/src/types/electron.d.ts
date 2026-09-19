@@ -85,6 +85,10 @@ export interface ElectronAPI {
   setServerUrl: (url: string) => Promise<ServerUrlResult>;
   setAuthToken: (token: string | null, serverUrl?: string) => Promise<SessionResult>;
   triggerManualSync: () => Promise<SyncCycleResult>;
+  saveSecureSession?: (sessionData: any) => Promise<{ success: boolean; error?: string }>;
+  loadSecureSession?: () => Promise<any>;
+  clearSecureSession?: () => Promise<boolean>;
+  hasSecureSession?: () => Promise<boolean>;
   getDeviceInfo: () => Promise<DeviceInfo>;
   onBarcodeScan: (callback: (barcode: string) => void) => void;
   onSyncUpdated: (callback: (info: { synced: number; remaining: number }) => void) => void;

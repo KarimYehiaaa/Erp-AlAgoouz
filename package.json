@@ -23,8 +23,8 @@
     "pm2:start": "pm2 start config/pm2/ecosystem.config.cjs",
     "pm2:stop": "pm2 stop bin-al-ajouz-erp",
     "pm2:logs": "pm2 logs bin-al-ajouz-erp",
-    "lint": "eslint backend/src frontend/src",
-    "lint:fix": "eslint --fix backend/src frontend/src",
+    "lint": "eslint --config config/eslint/eslint.config.js backend/src frontend/src",
+    "lint:fix": "eslint --config config/eslint/eslint.config.js --fix backend/src frontend/src",
     "format": "prettier --ignore-path config/prettier/.prettierignore --write .",
     "format:check": "prettier --ignore-path config/prettier/.prettierignore --check .",
     "prepare": "husky"
@@ -40,11 +40,11 @@
   },
   "lint-staged": {
     "backend/src/**/*.{js,ts,mjs}": [
-      "eslint --fix",
+      "eslint --config config/eslint/eslint.config.js --fix",
       "prettier --write"
     ],
     "frontend/src/**/*.{vue,js,ts}": [
-      "eslint --fix",
+      "eslint --config config/eslint/eslint.config.js --fix",
       "prettier --write"
     ],
     "{backend,frontend}/src/**/*.{json,css,scss}": [

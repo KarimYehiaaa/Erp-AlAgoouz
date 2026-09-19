@@ -1,3 +1,6 @@
 {
-    "claudeCodeChat.permissions.yoloMode": true
+    "claudeCodeChat.permissions.yoloMode": true,
+    "eslint.options": {
+        "overrideConfigFile": "config/eslint/eslint.config.js"
+    }
 }

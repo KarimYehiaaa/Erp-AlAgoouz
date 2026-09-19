@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, ipcMain, shell } from 'electron';
 import path from 'path';
 import os from 'os';
 import fs from 'fs';
@@ -9,6 +9,12 @@ import { PosPrinterDriver } from './hardware/printer';
 import { handleOpenCashDrawer, handlePrintReceipt } from './hardware/hardwareService';
 import { validateServerUrl } from '../src/services/serverUrlPolicy';
 import { SecureSessionStore } from './security/secureSessionStore';
+import {
+  validateIpcSender,
+  validateSessionPayload,
+  validateTransactionPayload,
+  sanitizeIpcError,
+} from './security/ipcSecurity';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -36,7 +42,41 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
       contextIsolation: true,
+      sandbox: true,
     },
+  });
+
+  // 1. تأمين فتح النوافذ الجديدة (Window Open Policy)
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (url.startsWith('https://') || url.startsWith('http://')) {
+      // فتح الروابط الخارجية في متصفح النظام الافتراضي فقط
+      shell.openExternal(url).catch(() => {});
+    }
+    return { action: 'deny' };
+  });
+
+  // 2. تأمين التنقل (Navigation Security Policy)
+  mainWindow.webContents.on('will-navigate', (event, navigationUrl) => {
+    const devUrl = process.env.VITE_DEV_SERVER_URL;
+    if (devUrl) {
+      try {
+        const allowedOrigin = new URL(devUrl).origin;
+        const targetOrigin = new URL(navigationUrl).origin;
+        if (targetOrigin === allowedOrigin) return;
+      } catch {}
+    } else if (navigationUrl.startsWith('file://')) {
+      const normalized = navigationUrl.replace(/\\/g, '/');
+      if (normalized.includes('/dist/index.html')) return;
+    }
+
+    console.warn(`[Window Security] Blocked unauthorized navigation to: ${navigationUrl}`);
+    event.preventDefault();
+  });
+
+  // 3. منع إرفاق عناصر webview غير الموثوقة
+  mainWindow.webContents.on('will-attach-webview', (event) => {
+    console.warn('[Window Security] Denied webview attachment');
+    event.preventDefault();
   });
 
   if (process.env.VITE_DEV_SERVER_URL) {
@@ -45,14 +85,17 @@ function createWindow() {
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
   }
 
-  // Remove default menu for maximum POS screen area
+  // إخفاء القائمة الافتراضية لمنح مساحة كاملة لشاشة الكاشير
   mainWindow.setMenuBarVisibility(false);
 }
 
 // ═══════════════════ IPC HANDLERS ═══════════════════
 
 // 1. Device Info
-ipcMain.handle('app:get-device-info', () => {
+ipcMain.handle('app:get-device-info', (event) => {
+  if (!validateIpcSender(event, app.isPackaged, process.env.VITE_DEV_SERVER_URL)) {
+    throw new Error('تم رفض الطلب: مرسل غير مصرح له');
+  }
   return {
     hostname: os.hostname(),
     platform: os.platform(),
@@ -63,63 +106,107 @@ ipcMain.handle('app:get-device-info', () => {
 });
 
 // 2. Hardware: Printers
-ipcMain.handle('hardware:get-printers', async () => {
+ipcMain.handle('hardware:get-printers', async (event) => {
+  if (!validateIpcSender(event, app.isPackaged, process.env.VITE_DEV_SERVER_URL)) {
+    throw new Error('تم رفض الطلب: مرسل غير مصرح له');
+  }
   if (!mainWindow) return [];
   try {
     return await mainWindow.webContents.getPrintersAsync();
   } catch (err: any) {
-    console.error('[Hardware] Error fetching printers:', err);
+    console.error('[Hardware] Error fetching printers:', sanitizeIpcError(err));
     return [];
   }
 });
 
 // 3. Hardware: Cash Drawer Kick
-ipcMain.handle('hardware:open-drawer', async (_event, printerNameOrIp?: string) => {
-  console.log('[Hardware] Triggering Cash Drawer kick pulse...');
+ipcMain.handle('hardware:open-drawer', async (event, printerNameOrIp?: string) => {
+  if (!validateIpcSender(event, app.isPackaged, process.env.VITE_DEV_SERVER_URL)) {
+    return { success: false, status: 'FAILED', simulated: false, error: 'تم رفض الطلب: مرسل غير مصرح له' };
+  }
   if (!mainWindow) {
     return { success: false, status: 'FAILED', simulated: false, error: 'نافذة التطبيق غير متاحة' };
   }
 
-  return await handleOpenCashDrawer(printerNameOrIp, {
-    isDev: !!process.env.VITE_DEV_SERVER_URL,
-    getPrintersAsync: () => mainWindow!.webContents.getPrintersAsync(),
-  });
+  try {
+    return await handleOpenCashDrawer(printerNameOrIp, {
+      isDev: !!process.env.VITE_DEV_SERVER_URL,
+      getPrintersAsync: () => mainWindow!.webContents.getPrintersAsync(),
+    });
+  } catch (err: any) {
+    return { success: false, status: 'FAILED', simulated: false, error: sanitizeIpcError(err) };
+  }
 });
 
 // 4. Hardware: Print Receipt
-ipcMain.handle('hardware:print-receipt', async (_event, invoiceData: any, printerNameOrIp?: string) => {
+ipcMain.handle('hardware:print-receipt', async (event, invoiceData: any, printerNameOrIp?: string) => {
+  if (!validateIpcSender(event, app.isPackaged, process.env.VITE_DEV_SERVER_URL)) {
+    return { success: false, status: 'FAILED', simulated: false, error: 'تم رفض الطلب: مرسل غير مصرح له' };
+  }
   if (!mainWindow) {
     return { success: false, status: 'FAILED', simulated: false, error: 'نافذة التطبيق غير متاحة' };
   }
 
-  return await handlePrintReceipt(invoiceData, printerNameOrIp, {
-    isDev: !!process.env.VITE_DEV_SERVER_URL,
-    getPrintersAsync: () => mainWindow!.webContents.getPrintersAsync(),
-    printFn: (options, callback) => mainWindow!.webContents.print(options, callback),
-  });
+  try {
+    return await handlePrintReceipt(invoiceData, printerNameOrIp, {
+      isDev: !!process.env.VITE_DEV_SERVER_URL,
+      getPrintersAsync: () => mainWindow!.webContents.getPrintersAsync(),
+      printFn: (options, callback) => mainWindow!.webContents.print(options, callback),
+    });
+  } catch (err: any) {
+    return { success: false, status: 'FAILED', simulated: false, error: sanitizeIpcError(err) };
+  }
 });
 
 // 5. Storage: Offline Transactions with Durability & Write Failure Protection
-ipcMain.handle('storage:save-transaction', (_event, transaction) => {
+ipcMain.handle('storage:save-transaction', (event, transaction) => {
+  if (!validateIpcSender(event, app.isPackaged, process.env.VITE_DEV_SERVER_URL)) {
+    return { success: false, error: 'تم رفض الطلب: مرسل غير مصرح له' };
+  }
+  const validation = validateTransactionPayload(transaction);
+  if (!validation.valid) {
+    return { success: false, error: validation.error || 'بيانات العملية غير صالحة' };
+  }
   return saveTransaction(transaction);
 });
 
-ipcMain.handle('storage:get-pending', () => {
+ipcMain.handle('storage:get-pending', (event) => {
+  if (!validateIpcSender(event, app.isPackaged, process.env.VITE_DEV_SERVER_URL)) {
+    return [];
+  }
   return readPendingQueue().filter((t) => t.status === 'PENDING' || t.status === 'FAILED');
 });
 
-ipcMain.handle('storage:update-status', (_event, syncId: string, status: string, serverId?: any, errorMessage?: string) => {
-  return updateQueueItemStatus(syncId, status, serverId, errorMessage);
-});
+ipcMain.handle(
+  'storage:update-status',
+  (event, syncId: string, status: string, serverId?: any, errorMessage?: string) => {
+    if (!validateIpcSender(event, app.isPackaged, process.env.VITE_DEV_SERVER_URL)) {
+      return false;
+    }
+    if (typeof syncId !== 'string' || typeof status !== 'string') {
+      return false;
+    }
+    return updateQueueItemStatus(syncId, status, serverId, errorMessage);
+  }
+);
 
 // 6. Central Configuration & Server URL Bridge
-ipcMain.handle('config:get-server-url', () => {
+ipcMain.handle('config:get-server-url', (event) => {
+  if (!validateIpcSender(event, app.isPackaged, process.env.VITE_DEV_SERVER_URL)) {
+    return 'http://localhost:3000/api/v1';
+  }
   return syncWorker ? syncWorker.getServerUrl() : (process.env.POS_SERVER_URL || 'http://localhost:3000/api/v1');
 });
 
-ipcMain.handle('config:set-server-url', (_event, url: string) => {
+ipcMain.handle('config:set-server-url', (event, url: string) => {
+  if (!validateIpcSender(event, app.isPackaged, process.env.VITE_DEV_SERVER_URL)) {
+    return { success: false, error: 'تم رفض الطلب: مرسل غير مصرح له' };
+  }
   if (!syncWorker) {
     return { success: false, error: 'محرك المزامنة غير مهيأ' };
+  }
+  if (typeof url !== 'string') {
+    return { success: false, error: 'عنوان الخادم غير صالح' };
   }
   const validation = validateServerUrl(url, app.isPackaged);
   if (!validation.valid || !validation.normalizedUrl) {
@@ -139,11 +226,20 @@ ipcMain.handle('config:set-server-url', (_event, url: string) => {
 });
 
 // 7. Session & Background Sync Bridge (Atomic Configuration)
-ipcMain.handle('auth:set-session', (_event, token: string | null, serverUrl?: string) => {
+ipcMain.handle('auth:set-session', (event, token: string | null, serverUrl?: string) => {
+  if (!validateIpcSender(event, app.isPackaged, process.env.VITE_DEV_SERVER_URL)) {
+    return { success: false, error: 'تم رفض الطلب: مرسل غير مصرح له' };
+  }
   if (!syncWorker) {
     return { success: false, error: 'محرك المزامنة غير مهيأ' };
   }
+  if (token !== null && typeof token !== 'string') {
+    return { success: false, error: 'رمز الجلسة غير صالح' };
+  }
   if (serverUrl) {
+    if (typeof serverUrl !== 'string') {
+      return { success: false, error: 'عنوان الخادم غير صالح' };
+    }
     const validation = validateServerUrl(serverUrl, app.isPackaged);
     if (!validation.valid || !validation.normalizedUrl) {
       return {
@@ -156,29 +252,66 @@ ipcMain.handle('auth:set-session', (_event, token: string | null, serverUrl?: st
 });
 
 // 8. Secure OS Session Storage (safeStorage)
-ipcMain.handle('session:save', async (_event, sessionData: any) => {
+ipcMain.handle('session:save', async (event, sessionData: any) => {
+  if (!validateIpcSender(event, app.isPackaged, process.env.VITE_DEV_SERVER_URL)) {
+    return { success: false, error: 'تم رفض الطلب: مرسل غير مصرح له' };
+  }
   if (!secureSessionStore) {
     return { success: false, error: 'مخزن الجلسة المشفر غير مهيأ' };
   }
-  return await secureSessionStore.saveSession(sessionData);
+  const validation = validateSessionPayload(sessionData);
+  if (!validation.valid) {
+    return { success: false, error: validation.error || 'حمولة الجلسة غير صالحة' };
+  }
+  try {
+    return await secureSessionStore.saveSession(sessionData);
+  } catch (err) {
+    return { success: false, error: sanitizeIpcError(err) };
+  }
 });
 
-ipcMain.handle('session:load', async () => {
+ipcMain.handle('session:load', async (event) => {
+  if (!validateIpcSender(event, app.isPackaged, process.env.VITE_DEV_SERVER_URL)) {
+    return null;
+  }
   if (!secureSessionStore) return null;
-  return await secureSessionStore.loadSession();
+  try {
+    return await secureSessionStore.loadSession();
+  } catch (err) {
+    console.error('[Session IPC] Failed to load session:', sanitizeIpcError(err));
+    return null;
+  }
 });
 
-ipcMain.handle('session:clear', async () => {
+ipcMain.handle('session:clear', async (event) => {
+  if (!validateIpcSender(event, app.isPackaged, process.env.VITE_DEV_SERVER_URL)) {
+    return false;
+  }
   if (!secureSessionStore) return true;
-  return await secureSessionStore.clearSession();
+  try {
+    return await secureSessionStore.clearSession();
+  } catch (err) {
+    console.error('[Session IPC] Failed to clear session:', sanitizeIpcError(err));
+    return false;
+  }
 });
 
-ipcMain.handle('session:has', async () => {
+ipcMain.handle('session:has', async (event) => {
+  if (!validateIpcSender(event, app.isPackaged, process.env.VITE_DEV_SERVER_URL)) {
+    return false;
+  }
   if (!secureSessionStore) return false;
-  return await secureSessionStore.hasSession();
+  try {
+    return await secureSessionStore.hasSession();
+  } catch {
+    return false;
+  }
 });
 
-ipcMain.handle('sync:trigger-now', async () => {
+ipcMain.handle('sync:trigger-now', async (event) => {
+  if (!validateIpcSender(event, app.isPackaged, process.env.VITE_DEV_SERVER_URL)) {
+    return { success: false, message: 'تم رفض الطلب: مرسل غير مصرح له' };
+  }
   if (syncWorker) {
     return await syncWorker.runSyncCycle();
   }
@@ -190,10 +323,10 @@ ipcMain.handle('sync:trigger-now', async () => {
 app.whenReady().then(() => {
   createWindow();
 
-  // Initialize secure session storage
+  // تهيئة مخزن الجلسات المشفر عبر safeStorage
   secureSessionStore = new SecureSessionStore();
 
-  // Initialize and start background sync engine
+  // تهيئة وبدء محرك المزامنة الخلفي
   syncWorker = new PosSyncWorker(
     readPendingQueue,
     updateQueueItemStatus,

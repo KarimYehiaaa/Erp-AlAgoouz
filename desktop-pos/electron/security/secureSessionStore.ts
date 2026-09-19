@@ -10,6 +10,7 @@ import { app, safeStorage } from 'electron';
 
 export interface PosSessionData {
   token: string;
+  refreshToken?: string;
   user: any;
   terminal?: any;
   savedAt?: string;

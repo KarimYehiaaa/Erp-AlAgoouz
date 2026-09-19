@@ -72,6 +72,14 @@ export interface SessionResult {
   error?: string;
 }
 
+export interface PosSessionData {
+  token: string;
+  refreshToken?: string;
+  user: any;
+  terminal?: any;
+  savedAt?: string;
+}
+
 export interface ElectronAPI {
   printReceipt: (invoiceData: any, printerName?: string) => Promise<HardwareResult>;
   openCashDrawer: (printerName?: string) => Promise<HardwareResult>;
@@ -85,8 +93,8 @@ export interface ElectronAPI {
   setServerUrl: (url: string) => Promise<ServerUrlResult>;
   setAuthToken: (token: string | null, serverUrl?: string) => Promise<SessionResult>;
   triggerManualSync: () => Promise<SyncCycleResult>;
-  saveSecureSession?: (sessionData: any) => Promise<{ success: boolean; error?: string }>;
-  loadSecureSession?: () => Promise<any>;
+  saveSecureSession?: (sessionData: PosSessionData) => Promise<{ success: boolean; error?: string }>;
+  loadSecureSession?: () => Promise<PosSessionData | null>;
   clearSecureSession?: () => Promise<boolean>;
   hasSecureSession?: () => Promise<boolean>;
   getDeviceInfo: () => Promise<DeviceInfo>;

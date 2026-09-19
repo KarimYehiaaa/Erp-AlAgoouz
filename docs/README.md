@@ -91,11 +91,23 @@ npm run reset-admin -- admin "NewStrongPasswordHere"
 
 ```text
 AlAgoouz-erp/
-├── assets/       # الشعار والموارد العامة
-├── backend/      # Express API و PostgreSQL (TypeScript)
-├── frontend/     # Vue 3 + Vite (TypeScript)
-├── docs/         # التوثيق
-└── scripts/      # سكربتات تشغيل وصيانة
+├── assets/          # الشعار والموارد العامة
+├── backend/         # Express API و PostgreSQL (TypeScript)
+├── frontend/        # Vue 3 + Vite (TypeScript)
+├── desktop-pos/     # تطبيق نقطة البيع لسطح المكتب (Electron + Vue 3)
+├── docs/            # التوثيق والتقارير والمعمارية
+│   ├── architecture/
+│   ├── audits/
+│   ├── deployment/
+│   ├── desktop/
+│   ├── reports/
+│   └── security/
+└── scripts/         # السكربتات المنظمة
+    ├── database/    # النسخ الاحتياطي، التهيئة، والهجرات
+    ├── deployment/  # بناء حزم الموبايل والفحص التكاملي
+    ├── maintenance/ # حارس مسار البناء، التحديث التلقائي، وإغلاق المنافذ
+    ├── security/    # فحص الأمان وتوليد الشهادات
+    └── windows/     # سكربتات ويندوز والتشغيل الصامت والمشغلات
 ```
 
 ## ملاحظات أمان

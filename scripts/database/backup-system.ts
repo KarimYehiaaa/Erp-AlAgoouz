@@ -14,10 +14,10 @@ import { execSync } from 'child_process';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath, pathToFileURL } from 'url';
-import { checkBuildPath, printBuildPathResult } from './lib/checkBuildPath.ts';
+import { checkBuildPath, printBuildPathResult } from '../maintenance/lib/checkBuildPath.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const rootDir = path.resolve(__dirname, '..');
+const rootDir = path.resolve(__dirname, '../..');
 const destinationFolder = path.join(rootDir, 'full-backups');
 
 /** تبعيات قابلة للحقن — افتراضيًا التنفيذ الفعلي. */

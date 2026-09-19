@@ -17,7 +17,7 @@
 
 المشروع مبني بهيكلية **npm workspace** (الاعتماديات تدار من الجذر):
 
-\ash
+```bash
 # 1. تثبيت الحزم من جذر المشروع
 npm install
 
@@ -27,21 +27,26 @@ cp .env.example .env
 # 3. تشغيل الخادم والواجهة
 npm run dev -w backend
 npm run dev -w frontend
-\\n
+```
+
 ---
 
 ## 🧪 الفحص والاختبارات (Verification & Quality)
 
-\ash
+```bash
 # فحص دقة الأنواع (TypeScript Typecheck)
 npm run typecheck
 
-# الفحص المحلي الموحد الشامل (Migrations + Vitest 68 Tests)
+# الفحص المحلي الموحد الشامل (Migrations + Isolated Tests)
 npm run check:local
+
+# فحص الأمان للاعتماديات التشغيلية
+npm run security:audit
 
 # بناء حزمة الإنتاج
 npm run build -w frontend
-\\n
+```
+
 ---
 
 ## 🐳 خيارات الاستضافة والتشغيل (Deployment)
@@ -56,5 +61,7 @@ npm run build -w frontend
 ## 📚 التوثيق الإضافي (Documentation)
 
 - 📖 [دليل المطور الكامل](docs/README.md)
-- 🛡️ [تقرير التدقيق الفني الشامل](docs/audits/FULL_AUDIT_REPORT.md)
+- 🛡️ [سياسات الأمان والحماية المتقدمة](docs/security/SECURITY.md)
+- 📊 [تقرير التحقق النهائي والإصدار](docs/reports/RELEASE_VERIFICATION_REPORT.md)
+- 🔍 [تقرير التدقيق الفني الشامل](docs/audits/FULL_AUDIT_REPORT.md)
 - 🧠 [الذاكرة المعمارية للنظام](.agents/skills/erp-brain/SKILL.md)

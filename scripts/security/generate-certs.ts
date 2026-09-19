@@ -14,7 +14,7 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const certsDir = path.join(__dirname, '../backend/certs');
+const certsDir = path.join(__dirname, '../../backend/certs');
 
 if (!fs.existsSync(certsDir)) {
   fs.mkdirSync(certsDir, { recursive: true });

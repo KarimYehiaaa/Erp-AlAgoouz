@@ -13,7 +13,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const rootDir = path.resolve(__dirname, '..');
+const rootDir = path.resolve(__dirname, '../..');
 
 console.log('==================================================');
 console.log('         AlAgoouz ERP - Safe Auto-Updater         ');
@@ -29,7 +29,7 @@ async function main(): Promise<void> {
   try {
     // 1. نسخة احتياطية كاملة (النظام + قاعدة البيانات)
     console.log('\n\x1b[36m[1/5] Taking safety backup...\x1b[0m');
-    runCommand('node scripts/backup-system.ts', rootDir);
+    runCommand('node scripts/database/backup-system.ts', rootDir);
 
     // 2. سحب آخر التحديثات من Git
     console.log('\n\x1b[36m[2/5] Pulling latest updates from Git...\x1b[0m');

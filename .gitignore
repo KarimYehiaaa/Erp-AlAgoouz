@@ -67,6 +67,7 @@ desktop-pos/release/
 # Python cache & venv
 __pycache__/
 *.py[cod]
+.pytest_cache/
 .venv/
 venv/
 ENV/

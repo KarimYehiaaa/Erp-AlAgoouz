@@ -14,7 +14,7 @@ import { fileURLToPath } from 'url';
 import readline from 'readline';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const rootDir = path.resolve(__dirname, '..');
+const rootDir = path.resolve(__dirname, '../..');
 
 console.log('==================================================');
 console.log('         AlAgoouz ERP - Setup Wizard              ');

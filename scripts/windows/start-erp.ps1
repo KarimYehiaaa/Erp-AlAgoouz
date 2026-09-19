@@ -1,5 +1,5 @@
-﻿# Bin Al-Ajouz ERP - start unified server (port 3000)
-$Root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
+# Bin Al-Ajouz ERP - start unified server (port 3000)
+$Root = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
 Set-Location $Root
 
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
@@ -57,7 +57,7 @@ if ($ready) {
     Write-Host "OK - Unified Server is READY and connected!" -ForegroundColor Green
     Write-Host "Opening system: http://localhost:3000" -ForegroundColor Cyan
     Start-Process "http://localhost:3000"
-    Write-Host "To stop server: scripts\stop-erp.ps1" -ForegroundColor Gray
+    Write-Host "To stop server: scripts\windows\stop-erp.ps1" -ForegroundColor Gray
 } else {
     Write-Host ""
     Write-Host "Error: Server did not respond within 35 seconds." -ForegroundColor Red

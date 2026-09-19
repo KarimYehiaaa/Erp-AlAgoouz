@@ -74,7 +74,7 @@ if (!process.env.VERCEL) {
       if (err.code === 'EADDRINUSE') {
         console.error(`\n [خطأ تشغيل الخادم] البورت ${config.port} مشغول حالياً بعملية أخرى!`);
         console.error(
-          ` لإيقاف العملية التي تشغل البورت ${config.port}، يمكنك تنفيذ: npm run kill:port أو استخدام scripts\\stop-erp.ps1\n`,
+          ` لإيقاف العملية التي تشغل البورت ${config.port}، يمكنك تنفيذ: npm run kill:port أو استخدام scripts\\windows\\stop-erp.ps1\n`,
         );
         process.exit(1);
       } else {

@@ -17,7 +17,7 @@ import { fileURLToPath } from 'url';
 import { checkBuildPath, printBuildPathResult } from './lib/checkBuildPath.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const rootDir = path.resolve(__dirname, '..');
+const rootDir = path.resolve(__dirname, '../..');
 
 const result = checkBuildPath(rootDir, { fops: fs });
 const ok = printBuildPathResult(result);

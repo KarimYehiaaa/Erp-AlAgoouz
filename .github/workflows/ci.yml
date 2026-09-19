@@ -56,7 +56,7 @@ jobs:
       # الفحص الأمني الصارم للاعتماديات التشغيلية (npm audit --omit=dev)
       # يمنع أي ثغرات High/Critical في بيئة الإنتاج بدون أي continue-on-error.
       - name: Security Audit — Production Runtime (Central ERP)
-        run: node scripts/security-audit.ts
+        run: node scripts/security/security-audit.ts
 
       - name: Security Audit — Production Runtime (Desktop POS)
         working-directory: desktop-pos

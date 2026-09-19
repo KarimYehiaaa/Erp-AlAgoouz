@@ -1,7 +1,7 @@
 # Register ERP to start on Windows login (PM2 resurrect)
 $TaskName = "BinAlAjouzERP"
 $Pm2Path = (Get-Command pm2 -ErrorAction Stop).Source
-$Root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
+$Root = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
 
 $Action = New-ScheduledTaskAction -Execute $Pm2Path -Argument "resurrect" -WorkingDirectory $Root
 $Trigger = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME

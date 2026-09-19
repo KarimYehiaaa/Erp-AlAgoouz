@@ -2,8 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
-import { buildArchiveName, buildTarCommand, runBackup, type BackupDeps } from '../../scripts/backup-system.ts';
-import { checkBuildPath, type CheckBuildPathFs } from '../../scripts/lib/checkBuildPath.ts';
+import { buildArchiveName, buildTarCommand, runBackup, type BackupDeps } from '../../scripts/database/backup-system.ts';
+import { checkBuildPath, type CheckBuildPathFs } from '../../scripts/maintenance/lib/checkBuildPath.ts';
 
 /**
  * اختبار وحدة لـ backup-system.ts — عبر المنصات وبدون قاعدة بيانات.

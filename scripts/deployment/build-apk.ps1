@@ -7,7 +7,7 @@ Write-Host "     Bin Al-Agoouz ERP - Mobile APK Builder (Android)               
 Write-Host "====================================================================" -ForegroundColor Yellow
 Write-Host ""
 
-$rootDir = "D:\AlAgoouz System\AlAgoouz-erp"
+$rootDir = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 
 # Set Java 17 Home
 $possibleJdk = "C:\Program Files\Microsoft\jdk-17.0.20.101-hotspot"

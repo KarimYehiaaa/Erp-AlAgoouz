@@ -1,17 +1,24 @@
 /**
  * middleware/idempotency.ts — حماية تكرار العمليات المالية والحرجة
- * يتحقق من وجود رأس Idempotency-Key أو X-Idempotency-Key لمنع تكرار
- * العمليات المالية (مثل إنشاء الفواتير أو تسديد الدفعات) في حال انقطاع الاتصال
- * أو إعادة إرسال الطلب من العميل.
+ * ═════════════════════════════════════════════════════════════════════
+ * يعتمد معمارية القفل الذري (Atomic Lock Claim) على مستوى قاعدة البيانات المركزية
+ * لمنع حدوث أي Race Condition عند وصول طلبات متزامنة تحمل نفس المفتاح.
  *
- * يدعم التخزين المركزي في قاعدة البيانات (PostgreSQL) لتوافق تام مع بيئة Vercel Serverless،
- * مع وجود ذاكرة محلية (Memory Fallback) في حال تعذر الاتصال اللحظي.
+ * سير العمل:
+ *  1. محاولة حجز المفتاح ذرياً (Atomic Claim: INSERT ... ON CONFLICT DO NOTHING)
+ *  2. إذا نجح الحجز: ينفّذ الطلب ويُحدّث السجل بالنتيجة عند الاكتمال (status: COMPLETED)
+ *  3. إذا فشل الحجز (مفتاح موجود مسبقاً):
+ *     - إذا كان مكتملاً (COMPLETED): يُعاد الرد المخزن فوراً دون إعادة التنفيذ
+ *     - إذا كان قيد التنفيذ (PROCESSING) ضمن مهلة القفل (30s): يُرجع 409 Conflict
+ *     - إذا كان معلقاً وتجاوز 30 ثانية (Stale Lock): يُعاد استملاكه ذرياً والمتابعة
+ *  4. إذا انتهى الطلب بخطأ خادم (5xx) أو انقطع الاتصال: يُحذف حجز المفتاح للسماح بإعادة المحاولة فوراً
  */
 import type { Request, Response, NextFunction } from 'express';
 import { query } from '../database/pool.ts';
 import { logger } from '../services/loggerService.ts';
 
 interface CachedResponse {
+  status: 'COMPLETED';
   statusCode: number;
   headers: Record<string, string>;
   body: any;
@@ -25,18 +32,19 @@ interface InFlightRequest {
 
 type MemoryEntry = CachedResponse | InFlightRequest;
 
-// تخزين محلي احتياطي (Memory Fallback)
+// ذاكرة محلية احتياطية (Memory Store Fallback للبيئات المحلية أو عند تعذر قاعدة البيانات)
 const memoryStore = new Map<string, MemoryEntry>();
 const TTL_MS = 24 * 60 * 60 * 1000;
+const LOCK_TIMEOUT_MS = 30_000;
 
 // تنظيف دوري للذاكرة المحلية
 setInterval(
   () => {
     const now = Date.now();
     for (const [key, value] of memoryStore.entries()) {
-      if ('createdAt' in value && now - value.createdAt > TTL_MS) {
+      if (value.status === 'COMPLETED' && now - value.createdAt > TTL_MS) {
         memoryStore.delete(key);
-      } else if ('startedAt' in value && now - value.startedAt > 30_000) {
+      } else if (value.status === 'PROCESSING' && now - value.startedAt > LOCK_TIMEOUT_MS) {
         memoryStore.delete(key);
       }
     }
@@ -44,15 +52,20 @@ setInterval(
   60 * 60 * 1000,
 ).unref?.();
 
+/** مساعدة في تنظيف السجل المحلي */
+export const clearIdempotencyMemory = () => {
+  memoryStore.clear();
+};
+
 /**
- * Middleware لتطبيق مبدأ Idempotency عبر قاعدة البيانات المركزية
+ * Middleware لتطبيق مبدأ Idempotency عبر القفل الذري المركزي
  */
 export const requireIdempotency = async (
   req: Request,
   res: Response,
   next: NextFunction,
 ): Promise<void> => {
-  // تطبيق فقط على طلبات التعديل والإنشاء
+  // تطبيق فقط على عمليات التعديل والإنشاء
   if (!['POST', 'PUT', 'PATCH'].includes(req.method)) {
     return next();
   }
@@ -65,124 +78,177 @@ export const requireIdempotency = async (
   }
 
   const cleanKey = idempotencyKey.trim();
-  // نطاق المفتاح: مستخدم:مسار:مفتاح
-  // - المسار يمنع إعادة استخدام مفتاح نقطة نهاية في أخرى (يعمل فوراً حتى قبل المصادقة)
-  // - المستخدم يحمي من التصادم بين الحسابات متى توفر req.user (بعد المصادقة)
   const basePath = (req.originalUrl || req.url || '').split('?')[0];
-  const scopedKey = `${(req as any).user?.id || 'anon'}:${basePath}:${cleanKey}`;
+  const userId = (req as any).user?.id || null;
+  const scopedKey = `${userId || 'anon'}:${basePath}:${cleanKey}`;
 
-  // 1. فحص الذاكرة المحلية أولاً
-  const memCached = memoryStore.get(scopedKey);
-  if (memCached) {
-    if ('status' in memCached && memCached.status === 'PROCESSING') {
-      const elapsed = Date.now() - memCached.startedAt;
-      if (elapsed < 30_000) {
-        res.status(409).json({
-          success: false,
-          message: 'الطلب قيد المعالجة حالياً. يرجى الانتظار.',
-          code: 'REQUEST_IN_PROGRESS',
-        });
-        return;
-      } else {
-        // انتهت مهلة المعالجة (30 ثانية) — تنظيف القفل للسماح بإعادة المحاولة
-        memoryStore.delete(scopedKey);
-      }
-    } else if ('statusCode' in memCached) {
-      res.status(memCached.statusCode).json({
-        ...memCached.body,
-        _idempotentReplay: true,
-      });
-      return;
-    }
-  }
+  let dbAvailable = true;
+  let wonLock = false;
 
-  // 2. فحص قاعدة البيانات المركزية
+  // 1. محاولة حجز المفتاح ذرياً في قاعدة البيانات المركزية
   try {
-    const dbResult = await query(
-      `SELECT status_code, response_body
-       FROM idempotency_records
-       WHERE key = $1 AND expires_at > NOW()
-       LIMIT 1`,
-      [scopedKey],
+    const claimRes = await query(
+      `INSERT INTO idempotency_records (key, user_id, request_path, status, locked_at, expires_at)
+       VALUES ($1, $2, $3, 'PROCESSING', NOW(), NOW() + INTERVAL '24 hours')
+       ON CONFLICT (key) DO NOTHING
+       RETURNING key, status`,
+      [scopedKey, userId, basePath],
     );
 
-    if (dbResult.rows && dbResult.rows.length > 0) {
-      const record = dbResult.rows[0];
-      const parsedBody =
-        typeof record.response_body === 'string'
-          ? JSON.parse(record.response_body)
-          : record.response_body;
+    if (claimRes.rowCount && claimRes.rowCount > 0) {
+      wonLock = true;
+    } else {
+      // المفتاح موجود مسبقاً في قاعدة البيانات — فحص حالته
+      const existingRes = await query(
+        `SELECT status, status_code, response_body, locked_at, expires_at
+         FROM idempotency_records
+         WHERE key = $1 AND expires_at > NOW()`,
+        [scopedKey],
+      );
 
-      res.status(record.status_code).json({
-        ...parsedBody,
-        _idempotentReplay: true,
-      });
-      return;
+      if (existingRes.rows.length > 0) {
+        const record = existingRes.rows[0];
+
+        if (record.status === 'COMPLETED' && record.status_code) {
+          const parsedBody =
+            typeof record.response_body === 'string'
+              ? JSON.parse(record.response_body)
+              : record.response_body;
+
+          res.status(record.status_code).json({
+            ...parsedBody,
+            _idempotentReplay: true,
+          });
+          return;
+        }
+
+        // قيد المعالجة (PROCESSING)
+        const lockedAt = record.locked_at ? new Date(record.locked_at).getTime() : 0;
+        const elapsed = Date.now() - lockedAt;
+
+        if (elapsed < LOCK_TIMEOUT_MS) {
+          res.status(409).json({
+            success: false,
+            message: 'الطلب قيد المعالجة حالياً. يرجى الانتظار.',
+            code: 'REQUEST_IN_PROGRESS',
+          });
+          return;
+        }
+
+        // قفل عالق (Stale Lock تجاوز 30 ثانية) — محاولة إعادة الاستملاك الذرية
+        const reclaimRes = await query(
+          `UPDATE idempotency_records
+           SET status = 'PROCESSING', locked_at = NOW(), user_id = $2, request_path = $3
+           WHERE key = $1 AND status = 'PROCESSING' AND locked_at <= NOW() - INTERVAL '30 seconds'
+           RETURNING key`,
+          [scopedKey, userId, basePath],
+        );
+
+        if (reclaimRes.rowCount && reclaimRes.rowCount > 0) {
+          wonLock = true;
+        } else {
+          // استملكه طلب آخر بالتزامن
+          res.status(409).json({
+            success: false,
+            message: 'الطلب قيد المعالجة حالياً. يرجى الانتظار.',
+            code: 'REQUEST_IN_PROGRESS',
+          });
+          return;
+        }
+      }
     }
   } catch (err: any) {
-    // في حال عدم وجود الجدول بعد أو تعذر الاتصال، نستمر بالذاكرة المحلية دون كسر الطلب
+    dbAvailable = false;
     if (process.env.NODE_ENV === 'development') {
-      logger.warn('[Idempotency] DB lookup bypassed:', err.message);
+      logger.warn('[Idempotency] Central DB bypassed, using atomic memory store:', err.message);
     }
   }
 
-  // 3. تسجيل المفتاح كقيد المعالجة في الذاكرة مع توقيت البدء (TTL)
-  memoryStore.set(scopedKey, { status: 'PROCESSING', startedAt: Date.now() });
+  // 2. الحماية الذرية في الذاكرة المحلية (في حال تعذر قاعدة البيانات أو كحزام أمان إضافي)
+  if (!dbAvailable) {
+    const memEntry = memoryStore.get(scopedKey);
+    if (memEntry) {
+      if (memEntry.status === 'PROCESSING') {
+        const elapsed = Date.now() - memEntry.startedAt;
+        if (elapsed < LOCK_TIMEOUT_MS) {
+          res.status(409).json({
+            success: false,
+            message: 'الطلب قيد المعالجة حالياً. يرجى الانتظار.',
+            code: 'REQUEST_IN_PROGRESS',
+          });
+          return;
+        }
+        // تجاوز المهلة في الذاكرة — إعادة ضبط
+        memoryStore.set(scopedKey, { status: 'PROCESSING', startedAt: Date.now() });
+        wonLock = true;
+      } else if (memEntry.status === 'COMPLETED') {
+        res.status(memEntry.statusCode).json({
+          ...memEntry.body,
+          _idempotentReplay: true,
+        });
+        return;
+      }
+    } else {
+      memoryStore.set(scopedKey, { status: 'PROCESSING', startedAt: Date.now() });
+      wonLock = true;
+    }
+  } else {
+    // تحديث حالة الذاكرة المتزامنة مع الـ DB
+    memoryStore.set(scopedKey, { status: 'PROCESSING', startedAt: Date.now() });
+  }
 
-  const cleanupProcessing = () => {
-    const curr = memoryStore.get(scopedKey);
-    if (curr && 'status' in curr && curr.status === 'PROCESSING') {
-      memoryStore.delete(scopedKey);
+  // 3. تنظيف القفل في حال حدوث خطأ أو إغلاق الاتصال المبكر
+  const cleanupLock = () => {
+    memoryStore.delete(scopedKey);
+    if (dbAvailable) {
+      query(`DELETE FROM idempotency_records WHERE key = $1 AND status = 'PROCESSING'`, [
+        scopedKey,
+      ]).catch(() => {});
     }
   };
 
-  res.once('close', () => {
-    if (res.statusCode >= 500) cleanupProcessing();
+  res.once('error', cleanupLock);
+  res.on('close', () => {
+    if (!res.writableEnded && res.statusCode < 200) {
+      cleanupLock();
+    }
   });
-  res.once('error', cleanupProcessing);
 
-  // 4. اعتراض الرد لحفظه
+  // 4. اعتراض الرد لتخزين النتيجة عند النجاح أو تحرير المفتاح عند أخطاء الخادم
   const originalJson = res.json.bind(res);
   res.json = function (body: any) {
     if (res.statusCode < 500) {
-      // حفظ في الذاكرة المحلية
+      // العملية اكتملت بنجاح أو بخطأ عميل معتمد (4xx) -> تسجيل النتيجة الدائمة
       memoryStore.set(scopedKey, {
+        status: 'COMPLETED',
         statusCode: res.statusCode,
         headers: {},
         body,
         createdAt: Date.now(),
       });
 
-      // حفظ غير متزامن في قاعدة البيانات المركزية
-      const userId = (req as any).user?.id || null;
-      const requestPath = req.originalUrl || req.url || '';
-
-      query(
-        `INSERT INTO idempotency_records (key, user_id, request_path, status_code, response_body)
-         VALUES ($1, $2, $3, $4, $5)
-         ON CONFLICT (key) DO UPDATE
-         SET status_code = EXCLUDED.status_code,
-             response_body = EXCLUDED.response_body`,
-        [scopedKey, userId, requestPath, res.statusCode, JSON.stringify(body)],
-      ).catch((err: any) => {
-        if (process.env.NODE_ENV === 'development') {
-          logger.warn('[Idempotency] Failed to persist key to DB:', err.message);
-        }
-      });
+      if (dbAvailable) {
+        query(
+          `UPDATE idempotency_records
+           SET status = 'COMPLETED',
+               status_code = $2,
+               response_body = $3,
+               locked_at = NULL
+           WHERE key = $1`,
+          [scopedKey, res.statusCode, JSON.stringify(body)],
+        ).catch((err: any) => {
+          if (process.env.NODE_ENV === 'development') {
+            logger.warn('[Idempotency] Failed to mark key COMPLETED in DB:', err.message);
+          }
+        });
+      }
     } else {
-      // في حال خطأ الخادم، نحذف المفتاح للسماح بالمحاولة مجدداً
-      memoryStore.delete(scopedKey);
+      // خطأ خادم (5xx) -> تحرير المفتاح فوراً للسماح بإعادة المحاولة
+      cleanupLock();
     }
 
     return originalJson(body);
   };
-
-  res.on('close', () => {
-    const entry = memoryStore.get(scopedKey);
-    if (!res.writableEnded && entry && 'status' in entry && entry.status === 'PROCESSING') {
-      memoryStore.delete(scopedKey);
-    }
-  });
 
   next();
 };

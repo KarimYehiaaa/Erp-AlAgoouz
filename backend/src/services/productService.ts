@@ -707,11 +707,21 @@ export const bulkAdjustPrices = async (data: Record<string, any>, __userId: numb
   const val = Number(value);
   if (!Number.isFinite(val)) throw new AppError('القيمة غير صالحة', 400);
 
-  if (!category_id && !all_products) {
-    throw new AppError(
-      'يجب تحديد التصنيف المطلوب تعديل أسعاره، أو تأكيد التطبيق على جميع المنتجات (all_products: true)',
-      400,
-    );
+  const isAllProducts = all_products === true || all_products === 'true';
+  let parsedCatId: number | null = null;
+
+  if (!isAllProducts) {
+    parsedCatId = parseInt(category_id, 10);
+    if (!Number.isInteger(parsedCatId) || parsedCatId <= 0) {
+      throw new AppError(
+        'يجب تحديد التصنيف المطلوب تعديل أسعاره بشكل صحيح، أو تأكيد التطبيق على جميع المنتجات (all_products: true)',
+        400,
+      );
+    }
+    const catCheck = await query('SELECT id FROM product_categories WHERE id = $1', [parsedCatId]);
+    if (!catCheck.rows[0]) {
+      throw new AppError('التصنيف المحدد غير موجود', 404);
+    }
   }
 
   let sql = `UPDATE products SET `;
@@ -736,9 +746,9 @@ export const bulkAdjustPrices = async (data: Record<string, any>, __userId: numb
   params.push(val);
   sql += `, updated_at = NOW() WHERE deleted_at IS NULL`;
 
-  if (category_id) {
+  if (parsedCatId) {
     sql += ` AND category_id = $2`;
-    params.push(Number(category_id));
+    params.push(parsedCatId);
   }
 
   const result = await query(sql, params);

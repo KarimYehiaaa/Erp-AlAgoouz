@@ -17,6 +17,8 @@ export interface User {
   role_id?: number;
   role_name?: string;
   role_name_ar?: string;
+  branch_id?: number | null;
+  warehouse_id?: number | null;
   [key: string]: any;
 }
 

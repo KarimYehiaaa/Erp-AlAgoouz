@@ -1,19 +1,18 @@
 import crypto from 'crypto';
-import { logger } from '../services/loggerService.ts';
 
 const ALGORITHM = 'aes-256-gcm';
 
 const isProd = process.env.NODE_ENV === 'production';
-const backupKeySecret =
-  process.env.BACKUP_ENCRYPTION_KEY?.trim() ||
-  process.env.JWT_SECRET?.trim() ||
-  (isProd ? '' : 'dev_backup_encryption_secret_key_32_chars_long!');
+const rawBackupKey = process.env.BACKUP_ENCRYPTION_KEY?.trim();
 
-if (isProd && !process.env.BACKUP_ENCRYPTION_KEY && !process.env.JWT_SECRET) {
+if (isProd && (!rawBackupKey || rawBackupKey.length < 32)) {
   throw new Error(
-    '[Security Error] BACKUP_ENCRYPTION_KEY or JWT_SECRET is required for encrypted backups in production.',
+    '[Security Error] BACKUP_ENCRYPTION_KEY is strictly required and must be at least 32 characters long in production.',
   );
 }
+
+const backupKeySecret =
+  rawBackupKey || (isProd ? '' : 'dev_backup_encryption_secret_key_32_chars_long!');
 
 // Derives a 32-byte key from the environment secret
 const ENCRYPTION_KEY = crypto.scryptSync(

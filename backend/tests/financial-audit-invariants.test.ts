@@ -1,5 +1,5 @@
 import { describe, it, expect, afterAll, vi } from 'vitest';
-import { query } from '../src/database/pool.ts';
+import { query, getClient } from '../src/database/pool.ts';
 import { accountingService, STANDARD_ACCOUNTS } from '../src/services/accountingService.ts';
 import { recalculateSupplierBalance } from '../src/services/supplierService.ts';
 import {
@@ -464,23 +464,38 @@ describe('Financial Audit Invariants Suite (Real PostgreSQL Invariants)', () => 
       const periodId = perRes.rows[0].id;
       cleanup.periodIds.push(periodId);
 
-      // إنشاء قيد وسطور
-      const jeRes = await query(
-        `INSERT INTO journal_entries (entry_number, entry_date, status, description)
-         VALUES ($1, '2018-05-15', 'posted', 'قيد اختبار قفل الأسطر')
-         RETURNING id`,
-        ['JE-LINE-LOCK-' + Date.now()],
-      );
-      const jeId = jeRes.rows[0].id;
-      cleanup.journalEntryIds.push(jeId);
+      // إنشاء قيد وسطور متوازنة داخل معاملة
+      const client = await getClient();
+      let lineId: number;
+      try {
+        await client.query('BEGIN');
+        const jeRes = await client.query(
+          `INSERT INTO journal_entries (entry_number, entry_date, status, description)
+           VALUES ($1, '2018-05-15', 'posted', 'قيد اختبار قفل الأسطر')
+           RETURNING id`,
+          ['JE-LINE-LOCK-' + Date.now()],
+        );
+        const jeId = jeRes.rows[0].id;
+        cleanup.journalEntryIds.push(jeId);
 
-      const lineRes = await query(
-        `INSERT INTO journal_entry_lines (journal_entry_id, account_id, debit, credit)
-         VALUES ($1, 1, 100, 0)
-         RETURNING id`,
-        [jeId],
-      );
-      const lineId = lineRes.rows[0].id;
+        const lineRes = await client.query(
+          `INSERT INTO journal_entry_lines (journal_entry_id, account_id, debit, credit)
+           VALUES ($1, 1, 100, 0)
+           RETURNING id`,
+          [jeId],
+        );
+        lineId = lineRes.rows[0].id;
+
+        await client.query(
+          `INSERT INTO journal_entry_lines (journal_entry_id, account_id, debit, credit)
+           VALUES ($1, 2, 0, 100)
+           RETURNING id`,
+          [jeId],
+        );
+        await client.query('COMMIT');
+      } finally {
+        client.release();
+      }
 
       // إقفال الفترة
       await query(`UPDATE financial_periods SET status = 'locked' WHERE id = $1`, [periodId]);

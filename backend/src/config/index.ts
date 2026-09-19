@@ -210,6 +210,15 @@ if (!process.env.DATABASE_URL && !config.db.host) {
   throw new Error(' لا يوجد إعداد قاعدة بيانات: يجب توفير DATABASE_URL أو DB_HOST');
 }
 
+if (isProdEnv) {
+  const backupKey = process.env.BACKUP_ENCRYPTION_KEY?.trim();
+  if (!backupKey || backupKey.length < 32) {
+    throw new Error(
+      '[Security Error] متغير البيئة BACKUP_ENCRYPTION_KEY إجباري في بيئة الإنتاج ويجب أن يتكون من 32 حرفاً على الأقل لتأمين النسخ الاحتياطية.',
+    );
+  }
+}
+
 // طباعة ملخص الإعدادات عند التشغيل (في بيئة التطوير فقط)
 if (config.isDevelopment && !process.env.SUPPRESS_CONFIG_LOG) {
   const dbInfo = process.env.DATABASE_URL

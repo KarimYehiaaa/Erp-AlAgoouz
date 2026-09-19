@@ -21,64 +21,15 @@ async function main(): Promise<void> {
   console.log('       🧪 تشغيل حزمة الاختبارات على قاعدة بيانات معزولة');
   console.log('======================================================\n');
 
-  // 1. فرض اتصال محلي معزول — يمنع لمس قاعدة الإنتاج (Supabase) من .env
-  const localPgFile = path.join(__dirname, '..', '.postgres.local');
-  let localPassword = '0120';
-  if (fs.existsSync(localPgFile)) {
-    try {
-      localPassword = fs.readFileSync(localPgFile, 'utf8').trim();
-    } catch {
-      // تجاهل مقصود: نستخدم كلمة المرور الافتراضية عند غياب الملف
-    }
-  }
-
-  const isCI = !!process.env.CI;
-  const effectivePassword =
-    process.env.POSTGRES_PASSWORD ||
-    process.env.DB_PASSWORD ||
-    (fs.existsSync(localPgFile) ? localPassword : isCI ? 'postgres' : '0120');
-
-  const effectiveUser = process.env.POSTGRES_USER || process.env.DB_USER || 'postgres';
-
-  const testEnv: NodeJS.ProcessEnv = {
-    ...process.env,
-    NODE_ENV: 'test',
-    DB_HOST: process.env.DB_HOST || 'localhost',
-    DB_PORT: process.env.DB_PORT || '5432',
-    DB_NAME: process.env.DB_NAME || 'bin_al_ajouz_test',
-    DB_USER: effectiveUser,
-    DB_PASSWORD: effectivePassword,
-    POSTGRES_USER: effectiveUser,
-    POSTGRES_PASSWORD: effectivePassword,
-    DB_SSL: 'false',
-    DATABASE_URL: '', // مسح أي DATABASE_URL لمنع الاتصال بالقاعدة السحابية
-  };
-
   try {
-    // 2. تهيئة قاعدة الاختبارات (إنشاء + هجرات)
-    console.log('⏳ جاري تهيئة قاعدة بيانات الاختبارات (bin_al_ajouz_test)...');
-    execSync('node src/database/setup.ts', {
+    const vitestRunner = path.join(__dirname, 'run-vitest-local.ts');
+    const extraArgs = process.argv.slice(2).join(' ');
+    const cmd = `npx tsx "${vitestRunner}" ${extraArgs}`.trim();
+    execSync(cmd, {
       cwd: path.join(__dirname, '..'),
       stdio: 'inherit',
-      env: testEnv,
+      env: process.env,
     });
-
-    console.log('⏳ جاري تشغيل الهجرات المعلقة لقاعدة بيانات الاختبارات...');
-    execSync('node scripts/migrate.ts', {
-      cwd: path.join(__dirname, '..'),
-      stdio: 'inherit',
-      env: testEnv,
-    });
-
-    // 3. تشغيل الاختبارات التلقائية
-    console.log('\n⏳ جاري تشغيل الاختبارات التلقائية...');
-    execSync('node --import tsx --test --test-concurrency=1 "test/**/*.js" "test/**/*.mjs"', {
-      cwd: path.join(__dirname, '..'),
-      stdio: 'inherit',
-      env: testEnv,
-    });
-
-    console.log('\n✅ اكتملت جميع الاختبارات بنجاح!');
     process.exit(0);
   } catch (err) {
     console.error('\n❌ فشل تشغيل الاختبارات:', (err as Error).message);

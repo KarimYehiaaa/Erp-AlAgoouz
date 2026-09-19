@@ -259,10 +259,11 @@ export const repairSequences = async () => {
 };
 
 /**
- * إنشاء لقطة نسخ احتياطي فورية للنظام.
+ * إنشاء لقطة تشخيصية فورية للنظام (عينة تصل إلى 5000 سجل لكل جدول رئيسي للتشخيص والفحص).
+ * للنسخ الاحتياطي الكامل والمشفر للاسترجاع بعد الكوارث، استخدم backupService.
  * @returns {Promise<Record<string, any>>} اللقطة المنشأة
  */
-export const generateBackupSnapshot = async () => {
+export const generateDiagnosticSnapshot = async () => {
   const tables = [
     'users',
     'roles',
@@ -279,21 +280,27 @@ export const generateBackupSnapshot = async () => {
   ];
   const snapshot = {
     version: '1.0',
+    type: 'diagnostic_snapshot',
+    disclaimer:
+      'This is a diagnostic snapshot sample (max 5000 rows per table), not a complete disaster-recovery backup. Use backupService for full encrypted backups.',
     generated_at: new Date().toISOString(),
-    system: 'AlAgoouz ERP Command Center Backup',
-    data: {},
+    system: 'AlAgoouz ERP Command Center Diagnostic Snapshot',
+    data: {} as Record<string, any[]>,
   };
   for (const table of tables) {
     try {
       const res = await query(`SELECT * FROM "${table}" LIMIT 5000`);
       snapshot.data[table] = res.rows;
     } catch (err: any) {
-      logger.warn(`[SystemHealth] تخطي جدول ${table} في اللقطة: ${err.message}`);
+      logger.warn(`[SystemHealth] تخطي جدول ${table} في اللقطة التشخيصية: ${err.message}`);
       snapshot.data[table] = [];
     }
   }
   return snapshot;
 };
+
+/** الاسم التوافقي القديم للقطة التشخيصية */
+export const generateBackupSnapshot = generateDiagnosticSnapshot;
 
 /**
  * جلب تقرير رادار المخاطر (مخزون منخفض، عملاء متأخرون...).

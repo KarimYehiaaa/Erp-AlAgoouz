@@ -804,9 +804,9 @@ export const accountingService = {
   /**
    * ميزان المراجعة (Trial Balance) — التوازن الإلزامي: إجمالي المدين = إجمالي الدائن
    */
-  async getTrialBalance(params: { from_date?: string; to_date?: string }) {
-    const fromDate = params.from_date || '2000-01-01';
-    const toDate = params.to_date || '2099-12-31';
+  async getTrialBalance(params: { from_date?: string; to_date?: string } = {}) {
+    const fromDate = params?.from_date || '2000-01-01';
+    const toDate = params?.to_date || '2099-12-31';
 
     const sql = `
       WITH opening_moves AS (
@@ -899,6 +899,8 @@ export const accountingService = {
 
     return {
       period: { from_date: fromDate, to_date: toDate },
+      is_balanced: isBalanced,
+      variance: roundMoney(sumClosingDebit - sumClosingCredit),
       totals: {
         opening_debit: sumOpeningDebit,
         opening_credit: sumOpeningCredit,
@@ -1189,6 +1191,7 @@ export const accountingService = {
       payment_method?: string;
       notes?: string;
       user_id?: number;
+      drawing_date?: string;
     },
   ) {
     const amount = roundMoney(Number(drawing.amount || 0));
@@ -1218,6 +1221,7 @@ export const accountingService = {
 
     return this.createJournalEntry(
       {
+        entry_date: drawing.drawing_date,
         reference_type: 'manual',
         reference_id: drawing.id,
         idempotency_key: `drawing:${drawing.id}`,
@@ -1249,6 +1253,8 @@ export const accountingService = {
       customer_id?: number;
       warehouse_id?: number;
       user_id?: number;
+      refund_date?: string;
+      entry_date?: string;
     },
   ) {
     const totalAmount = roundMoney(Number(sale.total_amount || 0));
@@ -1273,7 +1279,7 @@ export const accountingService = {
         account_code: STANDARD_ACCOUNTS.SALES_RETURNS_ALLOWANCE,
         debit: netRevenue,
         credit: 0,
-        description: `إثبات مردودات مبيعات ${sale.sale_number}`,
+        description: `مردودات ومسموحات مبيعات ${sale.sale_number}`,
         warehouse_id: sale.warehouse_id,
       },
     ];
@@ -1283,7 +1289,7 @@ export const accountingService = {
         account_code: STANDARD_ACCOUNTS.VAT_PAYABLE,
         debit: taxAmount,
         credit: 0,
-        description: `تخفيض ضريبة مبيعات مرتجعة ${sale.sale_number}`,
+        description: `تخفيض أمانات ضريبة القيمة المضافة لمرتجع ${sale.sale_number}`,
         warehouse_id: sale.warehouse_id,
       });
     }
@@ -1292,7 +1298,7 @@ export const accountingService = {
       account_code: creditAccountCode,
       debit: 0,
       credit: totalAmount,
-      description: `رد قيمة مبيعات مرتجعة ${sale.sale_number}`,
+      description: `رد قيمة المبيعات للعميل (${sale.payment_method || 'نقداً'})`,
       warehouse_id: sale.warehouse_id,
     });
 
@@ -1320,6 +1326,7 @@ export const accountingService = {
 
     return this.createJournalEntry(
       {
+        entry_date: sale.refund_date || sale.entry_date,
         reference_type: 'sale',
         reference_id: sale.id,
         idempotency_key: `sales_refund:${sale.id}`,

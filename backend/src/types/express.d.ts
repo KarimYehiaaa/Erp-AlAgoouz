@@ -20,6 +20,8 @@ declare global {
         role_name?: string;
         role_name_ar?: string;
         role?: string;
+        branch_id?: number | null;
+        warehouse_id?: number | null;
         jti?: string;
         [key: string]: unknown;
       };

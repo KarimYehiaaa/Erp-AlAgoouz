@@ -192,7 +192,6 @@ app.get('/api/health', handleHealth);
 app.get('/api/v1/health', handleHealth);
 app.get('/v1/health', handleHealth);
 app.get('/health', handleHealth);
-app.get('/api/index', handleHealth);
 
 app.get('/api/sync/status', syncMonitorController.getStatus);
 app.get('/api/v1/sync/status', syncMonitorController.getStatus);

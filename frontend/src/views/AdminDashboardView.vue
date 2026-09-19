@@ -325,14 +325,16 @@ const handleBackup = async () => {
     link.href = url;
     link.setAttribute(
       'download',
-      `alagoouz_erp_backup_${new Date().toISOString().slice(0, 10)}.json`,
+      `alagoouz_erp_snapshot_${new Date().toISOString().slice(0, 10)}.json`,
     );
     document.body.appendChild(link);
     link.click();
     link.remove();
-    alert(' تم تنزيل نسخة احتياطية كاملة لقاعدة البيانات بنجاح');
+    alert(
+      ' تم تنزيل لقطة تشخيصية سريعة للنظام بنجاح (للنسخ الكامل يرجى استخدام صفحة النسخ الاحتياطي)',
+    );
   } catch (e: any) {
-    alert(' فشل تنزيل النسخة الاحتياطية: ' + (e.response?.data?.message || e.message));
+    alert(' فشل تنزيل اللقطة التشخيصية: ' + (e.response?.data?.message || e.message));
   }
 };
 

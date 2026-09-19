@@ -70,17 +70,17 @@ export const adminDashboard = {
     ok(res, await systemHealthService.getSystemCounts());
   }),
   /**
-   * إنشاء لقطة نسخ احتياطي فورية.
+   * إنشاء لقطة تشخيصية فورية للبيانات (عينة سريعة للأدمن).
    * @param {import('express').Request} req طلب HTTP
    * @param {import('express').Response} res استجابة HTTP
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
   backup: wrap(async (req, res) => {
-    const backupData = await systemHealthService.generateBackupSnapshot();
+    const backupData = await systemHealthService.generateDiagnosticSnapshot();
     res.setHeader('Content-Type', 'application/json');
     res.setHeader(
       'Content-Disposition',
-      `attachment; filename=alagoouz_erp_backup_${new Date().toISOString().slice(0, 10)}.json`,
+      `attachment; filename=alagoouz_erp_snapshot_${new Date().toISOString().slice(0, 10)}.json`,
     );
     res.send(JSON.stringify(backupData, null, 2));
   }),

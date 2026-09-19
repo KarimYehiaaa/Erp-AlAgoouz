@@ -87,11 +87,8 @@ export default async function handler(req: any, res: any) {
       }
     }
 
-    // د) إن ظل المسار /api/index بعد كل المحاولات -> تحويل افتراضي إلى /health لضمان استجابة 200 OK
-    if (req.url === '/api/index' || req.url.startsWith('/api/index?')) {
-      req.url = '/health';
-      req.originalUrl = req.url;
-    }
+    // د) في حال بقي المسار /api/index ولم يتم استخراج أي مسار صالح، لا نقوم بتحويل وهمي لـ /health
+    // بل يُترك ليعكس مسار 404 حقيقي دون إخفاء أي خلل في التوجيه
   }
   // ── الحالة 3: مسار سليم (محلي) ──
   // لا تعديل

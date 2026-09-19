@@ -111,8 +111,11 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       try {
+        const base = getBaseServerUrl();
+        const currentBase = `${base ? base : ''}/api/v1`;
+        api.defaults.baseURL = currentBase;
         const res = await axios.post(
-          `${api.defaults.baseURL}/auth/refresh`,
+          `${currentBase}/auth/refresh`,
           {},
           {
             withCredentials: true,

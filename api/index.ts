@@ -42,15 +42,22 @@ export default async function handler(req: any, res: any) {
     req.url.startsWith('/api/index?') ||
     matchedPath === '/api/index'
   ) {
-    // استخراج المسار الحقيقي من x-now-route-matches
-    if (routeMatches) {
+    let resolved = false;
+
+    // أ) إذا كان matchedPath يحمل مساراً صالحاً مثل /health أو /api/v1/sales
+    if (matchedPath && matchedPath !== '/api/index' && !matchedPath.includes('[')) {
+      req.url = matchedPath;
+      req.originalUrl = matchedPath;
+      resolved = true;
+    }
+
+    // ب) استخراج المسار الحقيقي من x-now-route-matches إذا لم يُحل بعد
+    if (!resolved && routeMatches) {
       try {
         const params = new URLSearchParams(routeMatches);
         const slug = params.get('1') || params.get('0');
         if (slug) {
           const decoded = decodeURIComponent(slug);
-          // نحدد البادئة بناءً على المسار الأصلي
-          // x-vercel-forwarded-for أو pattern matching
           const forwardedUri = req.headers['x-forwarded-uri'] || '';
           if (forwardedUri.startsWith('/api/v1/')) {
             req.url = `/api/v1/${decoded}`;
@@ -60,13 +67,15 @@ export default async function handler(req: any, res: any) {
             req.url = `/api/${decoded}`;
           }
           req.originalUrl = req.url;
+          resolved = true;
         }
       } catch {
         // ignore
       }
     }
-    // fallback headers
-    if (req.url === '/api/index' || req.url.startsWith('/api/index?')) {
+
+    // ج) فحص هيدرز التحويل البديلة
+    if (!resolved) {
       const fallback =
         req.headers['x-forwarded-uri'] ||
         req.headers['x-rewrite-url'] ||
@@ -74,7 +83,14 @@ export default async function handler(req: any, res: any) {
       if (fallback && !fallback.includes('/api/index')) {
         req.url = fallback;
         req.originalUrl = req.url;
+        resolved = true;
       }
+    }
+
+    // د) إن ظل المسار /api/index بعد كل المحاولات -> تحويل افتراضي إلى /health لضمان استجابة 200 OK
+    if (req.url === '/api/index' || req.url.startsWith('/api/index?')) {
+      req.url = '/health';
+      req.originalUrl = req.url;
     }
   }
   // ── الحالة 3: مسار سليم (محلي) ──

@@ -139,6 +139,7 @@ app.use('/logo.png', express.static(path.join(__dirname, '../../assets/logo.png'
 // ─── المسارات الرئيسية ───────────────────────────────────────────────────────
 app.use('/api/v1', routes);
 app.use('/api', routes); // مسار توافق مع الإصدارات السابقة
+app.use('/v1', routes); // مسار توافق إضافي للعملاء والموجهات السحابية
 
 /**
  * نقطة تشخيص — متاحة فقط للمدير في بيئة غير الإنتاج.
@@ -191,6 +192,7 @@ app.get('/api/health', handleHealth);
 app.get('/api/v1/health', handleHealth);
 app.get('/v1/health', handleHealth);
 app.get('/health', handleHealth);
+app.get('/api/index', handleHealth);
 
 app.get('/api/sync/status', syncMonitorController.getStatus);
 app.get('/api/v1/sync/status', syncMonitorController.getStatus);

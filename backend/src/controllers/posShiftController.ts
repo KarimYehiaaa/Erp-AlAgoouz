@@ -7,8 +7,50 @@ import { issueManagerOverrideToken } from '../middleware/managerOverride.ts';
 import { getAllowedWarehouses } from '../middleware/branchIsolation.ts';
 import { ADMIN_ROLES } from '../../../shared/permissions.js';
 
-// متتبع محاولات PIN الفاشلة لمنع التخمين (Lockout)
-const pinLockoutMap = new Map<string, { attempts: number; lockedUntil: number }>();
+const PIN_LOCKOUT_MINUTES = 15;
+
+const getPinLockout = async (lockKey: string) => {
+  const result = await query(
+    `SELECT attempts, locked_until
+     FROM pos_pin_lockouts
+     WHERE lock_key = $1 AND locked_until IS NOT NULL AND locked_until > NOW()`,
+    [lockKey],
+  );
+  return result.rows[0] as { attempts: number; locked_until: Date } | undefined;
+};
+
+const recordFailedPinAttempt = async (lockKey: string) => {
+  const result = await query(
+    `INSERT INTO pos_pin_lockouts (lock_key, attempts, locked_until)
+     VALUES ($1, 1, NULL)
+     ON CONFLICT (lock_key) DO UPDATE SET
+       attempts = CASE
+         WHEN pos_pin_lockouts.locked_until IS NOT NULL
+              AND pos_pin_lockouts.locked_until <= NOW() THEN 1
+         ELSE pos_pin_lockouts.attempts + 1
+       END,
+       locked_until = CASE
+         WHEN pos_pin_lockouts.locked_until IS NOT NULL
+              AND pos_pin_lockouts.locked_until > NOW() THEN pos_pin_lockouts.locked_until
+         WHEN (
+           CASE
+             WHEN pos_pin_lockouts.locked_until IS NOT NULL
+                  AND pos_pin_lockouts.locked_until <= NOW() THEN 1
+             ELSE pos_pin_lockouts.attempts + 1
+           END
+         ) >= 5 THEN NOW() + ($2 * INTERVAL '1 minute')
+         ELSE NULL
+       END,
+       updated_at = NOW()
+     RETURNING attempts, locked_until`,
+    [lockKey, PIN_LOCKOUT_MINUTES],
+  );
+  return result.rows[0] as { attempts: number; locked_until: Date | null };
+};
+
+const clearPinLockout = async (lockKey: string) => {
+  await query('DELETE FROM pos_pin_lockouts WHERE lock_key = $1', [lockKey]);
+};
 
 export const posShiftController = {
   async openShift(req: Request, res: Response, next: NextFunction) {
@@ -154,11 +196,13 @@ export const posShiftController = {
       }
 
       const pinKey = `user:${(req as any).user?.id || req.ip}`;
-      const lockInfo = pinLockoutMap.get(pinKey);
+      const lockInfo = await getPinLockout(pinKey);
 
       // فحص القفل المؤقت ضد التخمين المتكرر
-      if (lockInfo && lockInfo.lockedUntil > Date.now()) {
-        const remainingMins = Math.ceil((lockInfo.lockedUntil - Date.now()) / (60 * 1000));
+      if (lockInfo) {
+        const remainingMins = Math.ceil(
+          (new Date(lockInfo.locked_until).getTime() - Date.now()) / (60 * 1000),
+        );
         return res.status(429).json({
           success: false,
           verified: false,
@@ -200,16 +244,14 @@ export const posShiftController = {
       }
 
       if (!matchedManager) {
-        const attempts = (lockInfo?.attempts || 0) + 1;
+        const updatedLock = await recordFailedPinAttempt(pinKey);
+        const attempts = Number(updatedLock.attempts);
         if (attempts >= 5) {
-          pinLockoutMap.set(pinKey, { attempts, lockedUntil: Date.now() + 15 * 60 * 1000 });
           return res.status(429).json({
             success: false,
             verified: false,
-            message: 'تم قفل محاولات التحقق من PIN مؤقتاً لمدة 15 دقيقة بعد 5 محاولات غير صحيحة',
+            message: `تم قفل محاولات التحقق من PIN مؤقتاً لمدة ${PIN_LOCKOUT_MINUTES} دقيقة بعد 5 محاولات غير صحيحة`,
           });
-        } else {
-          pinLockoutMap.set(pinKey, { attempts, lockedUntil: 0 });
         }
         return res.status(401).json({
           success: false,
@@ -219,7 +261,7 @@ export const posShiftController = {
       }
 
       // تصفير عداد المحاولات الفاشلة عند النجاح
-      pinLockoutMap.delete(pinKey);
+      await clearPinLockout(pinKey);
 
       // تسجيل المصادقة في سجل النشاط
       const currentUserId = (req as any).user?.id || matchedManager.id;

@@ -25,7 +25,7 @@ describe('auth store', () => {
     authApiMock.logout.mockReset();
   });
 
-  it('stores the user, token, and permissions on login', async () => {
+  it('stores the user and permissions while keeping the web JWT out of storage', async () => {
     authApiMock.login.mockResolvedValue({
       data: { user: cashierUser, token: 'mock-jwt-token-123', permissions: [{ code: 'pos.view' }] },
     });
@@ -34,8 +34,8 @@ describe('auth store', () => {
 
     expect(auth.user?.username).toBe('cash');
     expect(auth.isAuthenticated).toBe(true);
-    expect(localStorage.getItem('token')).toBe('mock-jwt-token-123');
-    expect(auth.token).toBe('mock-jwt-token-123');
+    expect(localStorage.getItem('token')).toBeNull();
+    expect(auth.token).toBeNull();
   });
 
   it('grants admins every permission via bypass', async () => {

@@ -62,8 +62,10 @@ def detect_operational_anomalies(
         else:
             z = (val - mean_val) / std_val
             iqr_outlier = val < lower_bound or val > upper_bound
-            # Anomaly triggered when Z-score exceeds sensitivity threshold
-            is_anomaly = abs(z) >= sensitivity
+            # Treat either robust IQR evidence or a Z-score spike as an
+            # anomaly. IQR catches extreme values that inflate the standard
+            # deviation and would otherwise hide behind a weak Z-score.
+            is_anomaly = abs(z) >= sensitivity or iqr_outlier
 
             if is_anomaly:
                 anomalies_count += 1

@@ -13,7 +13,7 @@ import logger from './loggerService.ts';
 export class TelegramBotService {
   private static isPolling = false;
   private static lastUpdateId = 0;
-  private static pollingInterval: NodeJS.Timeout | null = null;
+  private static pollingInterval: ReturnType<typeof setTimeout> | null = null;
   private static cachedToken: string | null = null;
 
   /**
@@ -47,15 +47,25 @@ export class TelegramBotService {
       // Ignore network hiccups on webhook clear
     }
 
-    if (this.pollingInterval) clearInterval(this.pollingInterval);
+    if (this.pollingInterval) clearTimeout(this.pollingInterval);
 
-    this.pollingInterval = setInterval(async () => {
+    this.schedulePoll(0);
+  }
+
+  /**
+   * Long polling متسلسل لمنع تداخل طلبات getUpdates عند بطء Telegram.
+   */
+  private static schedulePoll(delayMs: number) {
+    if (!this.isPolling) return;
+    this.pollingInterval = setTimeout(async () => {
       try {
         await this.pollUpdates();
       } catch {
-        // Silent loop error
+        // Silent loop error; the next scheduled poll retries automatically.
+      } finally {
+        this.schedulePoll(1000);
       }
-    }, 2000);
+    }, delayMs);
   }
 
   /**
@@ -64,7 +74,7 @@ export class TelegramBotService {
   static async restartListening() {
     this.isPolling = false;
     if (this.pollingInterval) {
-      clearInterval(this.pollingInterval);
+      clearTimeout(this.pollingInterval);
       this.pollingInterval = null;
     }
     await this.startListening();
@@ -96,11 +106,11 @@ export class TelegramBotService {
     const { token } = await this.getBotCredentials();
     if (!token) {
       this.isPolling = false;
-      if (this.pollingInterval) clearInterval(this.pollingInterval);
+      if (this.pollingInterval) clearTimeout(this.pollingInterval);
       return;
     }
 
-    const url = `https://api.telegram.org/bot${token}/getUpdates?offset=${this.lastUpdateId + 1}&timeout=1`;
+    const url = `https://api.telegram.org/bot${token}/getUpdates?offset=${this.lastUpdateId + 1}&timeout=25`;
     const res = await fetch(url);
     if (!res.ok) return;
 

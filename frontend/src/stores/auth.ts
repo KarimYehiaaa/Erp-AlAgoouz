@@ -13,7 +13,10 @@ export const useAuthStore = defineStore('auth', () => {
 
   let activeProfilePromise: Promise<any> | null = null;
 
-  const token = ref<string | null>(localStorage.getItem('token'));
+  // Web sessions are authenticated through the HttpOnly access_token cookie.
+  // Keeping the JWT in localStorage would make an XSS bug immediately become
+  // a session theft bug. Desktop POS has its own Electron safeStorage flow.
+  const token = ref<string | null>(null);
 
   const fetchProfile = async () => {
     if (activeProfilePromise) return activeProfilePromise;
@@ -63,10 +66,9 @@ export const useAuthStore = defineStore('auth', () => {
     user.value = res.data.user;
     permissions.value = res.data.permissions || [];
     profileLoaded.value = true;
-    if (res.data.token) {
-      token.value = res.data.token;
-      localStorage.setItem('token', res.data.token);
-    }
+    // The API still returns a token for Desktop POS compatibility, but the web
+    // client deliberately does not persist or mirror it in JavaScript storage.
+    token.value = null;
     localStorage.setItem('user', JSON.stringify(res.data.user));
     return res;
   };
@@ -82,6 +84,7 @@ export const useAuthStore = defineStore('auth', () => {
     permissions.value = [];
     profileLoaded.value = false;
     localStorage.removeItem('user');
+    // Remove any legacy browser token left by older versions.
     localStorage.removeItem('token');
   };
 

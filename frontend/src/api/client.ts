@@ -2,11 +2,7 @@ import axios from 'axios';
 import * as Sentry from '@sentry/vue';
 import type { AxiosError, AxiosRequestConfig } from 'axios';
 import type { ApiEnvelope } from '../../../shared/types';
-import {
-  getManagerOverride,
-  clearManagerOverride,
-  OVERRIDE_HEADER_NAME,
-} from '@/services/managerOverride';
+import { getManagerOverride, OVERRIDE_HEADER_NAME } from '@/services/managerOverride';
 
 export const CLOUD_SERVER_URL = 'https://agoouz.vercel.app';
 
@@ -53,10 +49,8 @@ api.interceptors.request.use((config: any) => {
   const base = getBaseServerUrl();
   config.baseURL = `${base ? base : ''}/api/v1`;
 
-  const token = localStorage.getItem('token');
-  if (token && !config.headers.Authorization) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
+  // Browser authentication uses the HttpOnly cookie. Do not read JWTs from
+  // localStorage; that storage is accessible to any injected script.
   // توكن تجاوز المدير (يُصدر من /pos/verify-pin) — يُرفق تلقائيًا للطلبات الحساسة
   const overrideToken = getManagerOverride();
   if (overrideToken && !config.headers[OVERRIDE_HEADER_NAME]) {
@@ -114,7 +108,7 @@ api.interceptors.response.use(
         const base = getBaseServerUrl();
         const currentBase = `${base ? base : ''}/api/v1`;
         api.defaults.baseURL = currentBase;
-        const res = await axios.post(
+        await axios.post(
           `${currentBase}/auth/refresh`,
           {},
           {
@@ -122,15 +116,9 @@ api.interceptors.response.use(
             headers: { 'Content-Type': 'application/json' },
           },
         );
-        const newToken = res.data?.data?.token || res.data?.token;
-        if (newToken) {
-          localStorage.setItem('token', newToken);
-          api.defaults.headers.common.Authorization = `Bearer ${newToken}`;
-          if (originalRequest.headers) {
-            originalRequest.headers.Authorization = `Bearer ${newToken}`;
-          }
-        }
-        processQueue(null, newToken);
+        // Refresh rotates the HttpOnly cookie. The response token remains
+        // available to native clients, but is never copied into web storage.
+        processQueue(null, null);
         return api.request(originalRequest);
       } catch (refreshErr: any) {
         processQueue(refreshErr, null);

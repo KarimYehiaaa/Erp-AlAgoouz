@@ -83,7 +83,6 @@ export const requireIdempotency = async (
   const scopedKey = `${userId || 'anon'}:${basePath}:${cleanKey}`;
 
   let dbAvailable = true;
-  let wonLock = false;
 
   // 1. محاولة حجز المفتاح ذرياً في قاعدة البيانات المركزية
   try {
@@ -96,7 +95,6 @@ export const requireIdempotency = async (
     );
 
     if (claimRes.rowCount && claimRes.rowCount > 0) {
-      wonLock = true;
     } else {
       // المفتاح موجود مسبقاً في قاعدة البيانات — فحص حالته
       const existingRes = await query(
@@ -145,7 +143,6 @@ export const requireIdempotency = async (
         );
 
         if (reclaimRes.rowCount && reclaimRes.rowCount > 0) {
-          wonLock = true;
         } else {
           // استملكه طلب آخر بالتزامن
           res.status(409).json({
@@ -180,7 +177,6 @@ export const requireIdempotency = async (
         }
         // تجاوز المهلة في الذاكرة — إعادة ضبط
         memoryStore.set(scopedKey, { status: 'PROCESSING', startedAt: Date.now() });
-        wonLock = true;
       } else if (memEntry.status === 'COMPLETED') {
         res.status(memEntry.statusCode).json({
           ...memEntry.body,
@@ -190,7 +186,6 @@ export const requireIdempotency = async (
       }
     } else {
       memoryStore.set(scopedKey, { status: 'PROCESSING', startedAt: Date.now() });
-      wonLock = true;
     }
   } else {
     // تحديث حالة الذاكرة المتزامنة مع الـ DB

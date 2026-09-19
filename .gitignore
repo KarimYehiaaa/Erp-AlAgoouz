@@ -74,5 +74,7 @@ ENV/
 
 # IDE / Session plans
 .zcode/
+.kiro/
+.vscode/
 
 

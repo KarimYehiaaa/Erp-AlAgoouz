@@ -99,6 +99,7 @@ api.interceptors.response.use(
             timeout: 6000,
             headers: {
               'Content-Type': 'application/json',
+              'X-Client-Type': 'desktop-pos',
               ...(refreshToken ? { 'x-refresh-token': refreshToken } : {}),
             },
           }

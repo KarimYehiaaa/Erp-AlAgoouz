@@ -8,7 +8,7 @@
 </script>
 
 <style lang="scss">
-@import './styles/pos-theme.scss';
+@use './styles/pos-theme.scss';
 
 * {
   box-sizing: border-box;

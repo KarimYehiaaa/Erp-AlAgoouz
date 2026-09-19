@@ -2,6 +2,13 @@ import { query } from '../database/pool.ts';
 import { convertQty, normalizeUnit } from './productCostService.ts';
 import { logger } from './loggerService.ts';
 
+const formatLocalDate = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 // Fit simple linear regression on a dataset
 const fitLinearRegression = (y) => {
   const n = y.length;
@@ -106,7 +113,7 @@ export const getDemandForecast = async (filters: Record<string, any> = {}) => {
   for (let i = 89; i >= 0; i--) {
     const d = new Date(today);
     d.setDate(today.getDate() - i);
-    const dateStr = d.toISOString().split('T')[0];
+    const dateStr = formatLocalDate(d);
     dateList.push(dateStr);
   }
 
@@ -314,7 +321,7 @@ export const getDemandForecast = async (filters: Record<string, any> = {}) => {
         runwayDays = d + 1;
         const oosDate = new Date();
         oosDate.setDate(oosDate.getDate() + d + 1);
-        outOfStockDateStr = oosDate.toISOString().split('T')[0];
+        outOfStockDateStr = formatLocalDate(oosDate);
         break;
       }
       if (d === forecastDays - 1) {
@@ -325,7 +332,7 @@ export const getDemandForecast = async (filters: Record<string, any> = {}) => {
         } else {
           const oosDate = new Date();
           oosDate.setDate(oosDate.getDate() + runwayDays);
-          outOfStockDateStr = oosDate.toISOString().split('T')[0];
+          outOfStockDateStr = formatLocalDate(oosDate);
         }
       }
     }

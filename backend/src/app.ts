@@ -98,8 +98,6 @@ app.use(
         origin === 'https://localhost' ||
         origin.startsWith('http://localhost') ||
         origin.startsWith('http://127.0.0.1') ||
-        origin.startsWith('http://192.168.') ||
-        origin.startsWith('http://10.') ||
         config.lanOrigins.includes(origin)
       ) {
         return callback(null, true);
@@ -182,7 +180,8 @@ const handleHealth = async (req: any, res: any) => {
     db: {
       connected: health.ok,
       latencyMs: health.latencyMs,
-      ...(health.error ? { error: health.error } : {}),
+      // Never expose driver/host details from an unauthenticated endpoint.
+      ...(health.error && !config.isProduction ? { error: health.error } : {}),
       pool: health.poolStats,
     },
   });

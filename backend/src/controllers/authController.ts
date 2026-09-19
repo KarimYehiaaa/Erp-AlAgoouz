@@ -59,10 +59,13 @@ const profile = async (req, res, next) => {
  */
 const refresh = async (req, res, next) => {
   try {
+    // Web clients use the HttpOnly cookie only. The desktop client uses its
+    // OS-protected session store, so it is allowed to send the rotated token
+    // through the explicitly identified desktop channel.
+    const isDesktopClient = req.get('x-client-type') === 'desktop-pos';
     const refreshToken =
       req.cookies?.refresh_token ||
-      req.body?.refreshToken ||
-      (req.headers['x-refresh-token'] as string);
+      (isDesktopClient ? req.body?.refreshToken || req.get('x-refresh-token') : undefined);
     if (!refreshToken)
       return res.status(401).json({ success: false, message: 'رمز التحديث (Refresh token) مطلوب' });
     const data = await authService.refreshAccessToken(refreshToken);

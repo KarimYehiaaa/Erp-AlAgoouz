@@ -16,16 +16,6 @@ dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 /**
- * الحصول على متغير بيئة أو استخدام قيمة افتراضية للإنتاج لضمان عمل Vercel تلقائياً
- */
-const _requireEnv = (name, fallback = '') => {
-  const value = process.env[name];
-  if (value && value.trim()) return value.trim();
-  if (fallback) return fallback;
-  throw new Error(`تعذر العثور على متغير البيئة المطلوب: ${name}`);
-};
-
-/**
  * دالة مساعدة لجلب متغير بيئة اختياري مع قيمة افتراضية
  */
 const optionalEnv = (name, defaultValue = '') => {
@@ -67,7 +57,6 @@ if (process.env.DATABASE_URL) {
   if (dbHost && dbHost.includes('pooler.supabase.com') && portNum === 5432) {
     portNum = 6543; // Switch to Transaction Mode (pooled clients)
   }
-  const isProd = process.env.NODE_ENV === 'production';
   const dbUser = process.env.DB_USER?.trim();
   const dbPassword = process.env.DB_PASSWORD?.trim();
   if (!dbUser || !dbPassword) {
@@ -96,7 +85,7 @@ const isCloudDB =
 const sslEnabled = process.env.DB_SSL === 'true' || !!isCloudDB;
 
 dbConfig.ssl = sslEnabled
-  ? { rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED === 'true' }
+  ? { rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false' }
   : false;
 
 // ─── Export Configuration ──────────────────────────────────────────────────────

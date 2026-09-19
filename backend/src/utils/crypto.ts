@@ -48,12 +48,14 @@ export const decrypt = (text) => {
   // Support legacy CBC format (iv:ciphertext) or new GCM format (iv:authTag:ciphertext)
   if (textParts.length === 2) {
     // Fallback to AES-256-CBC for older backups (legacy key kept ONLY for decrypting old files)
+    const legacySecret = process.env.BACKUP_ENCRYPTION_KEY?.trim();
+    if (!legacySecret) {
+      throw new Error(
+        'لا يمكن فك تشفير نسخة احتياطية قديمة بدون BACKUP_ENCRYPTION_KEY. اضبط المفتاح نفسه المستخدم عند إنشاء النسخة.',
+      );
+    }
     const legacyAlgorithm = 'aes-256-cbc';
-    const legacyKey = crypto.scryptSync(
-      process.env.BACKUP_ENCRYPTION_KEY || 'bin_al_ajouz_erp_secret_salt_2026',
-      'salt_al_ajouz',
-      32,
-    );
+    const legacyKey = crypto.scryptSync(legacySecret, 'salt_al_ajouz', 32);
     const iv = Buffer.from(textParts.shift(), 'hex');
     const encryptedText = Buffer.from(textParts.join(':'), 'hex');
     const decipher = crypto.createDecipheriv(legacyAlgorithm, legacyKey, iv);

@@ -20,14 +20,23 @@
     "update": "node scripts/maintenance/update-project.ts",
     "kill:port": "node scripts/maintenance/kill-port.ts",
     "security:audit": "node scripts/security/security-audit.ts",
-    "pm2:start": "pm2 start ecosystem.config.cjs",
+    "pm2:start": "pm2 start config/pm2/ecosystem.config.cjs",
     "pm2:stop": "pm2 stop bin-al-ajouz-erp",
     "pm2:logs": "pm2 logs bin-al-ajouz-erp",
     "lint": "eslint backend/src frontend/src",
     "lint:fix": "eslint --fix backend/src frontend/src",
-    "format": "prettier --write .",
-    "format:check": "prettier --check .",
+    "format": "prettier --ignore-path config/prettier/.prettierignore --write .",
+    "format:check": "prettier --ignore-path config/prettier/.prettierignore --check .",
     "prepare": "husky"
+  },
+  "prettier": {
+    "semi": true,
+    "singleQuote": true,
+    "trailingComma": "all",
+    "printWidth": 100,
+    "tabWidth": 2,
+    "arrowParens": "always",
+    "endOfLine": "lf"
   },
   "lint-staged": {
     "backend/src/**/*.{js,ts,mjs}": [

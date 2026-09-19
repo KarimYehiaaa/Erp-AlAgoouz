@@ -1,0 +1,15 @@
+**/node_modules/**
+**/dist/**
+**/dist-electron/**
+**/build/**
+**/android/**
+**/backups/**
+**/full-backups/**
+**/logs/**
+**/.gemini/**
+**/*.min.js
+**/*.min.css
+**/docs/generate_docs_pdf.cjs
+**/docs/documentation_source.html
+**/tmp/**
+**/test-results/**

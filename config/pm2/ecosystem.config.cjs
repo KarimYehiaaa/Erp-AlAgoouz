@@ -1,9 +1,11 @@
+const path = require('path');
+
 /** PM2 process definitions for Bin Al-Ajouz ERP — Unified on Port 3000 */
 module.exports = {
   apps: [
     {
       name: 'bin-al-ajouz-erp',
-      cwd: './backend',
+      cwd: path.resolve(__dirname, '../../backend'),
       script: 'src/index.ts',
       interpreter: 'node',
       watch: false,

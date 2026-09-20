@@ -40,7 +40,7 @@ describe('navigation guard', () => {
 
   it('redirects unauthenticated users away from protected routes', async () => {
     const { next } = await runGuard({ meta: { requiresAuth: true } });
-    expect(next).toHaveBeenCalledWith('/login');
+    expect(next).toHaveBeenCalledWith({ path: '/login', query: { redirect: '/somewhere' } });
   });
 
   it('allows unauthenticated access to guest pages', async () => {

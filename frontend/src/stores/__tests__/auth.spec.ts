@@ -35,7 +35,8 @@ describe('auth store', () => {
     expect(auth.user?.username).toBe('cash');
     expect(auth.isAuthenticated).toBe(true);
     expect(localStorage.getItem('token')).toBeNull();
-    expect(auth.token).toBeNull();
+    // The web fallback is memory-only; it must never reach persistent storage.
+    expect(auth.token).toBe('mock-jwt-token-123');
   });
 
   it('grants admins every permission via bypass', async () => {

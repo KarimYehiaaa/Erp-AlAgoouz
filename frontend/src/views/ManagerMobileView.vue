@@ -897,12 +897,12 @@ const filteredApprovals = computed(() => {
 const serverTypeBadge = computed(() => {
   const url = getBaseServerUrl();
   if (!url || url.includes('agoouz.vercel.app') || url.startsWith('https://')) {
-    return '☁️ سحابي أونلاين';
+    return 'سحابي أونلاين';
   }
   if (url.includes('192.168.') || url.includes('localhost') || url.includes('127.0.0.1')) {
-    return '🏢 محلي LAN';
+    return 'سيرفر محلي';
   }
-  return '🌐 مخصص';
+  return 'سيرفر مخصص';
 });
 
 const pendingApprovalsCount = computed(() => {
@@ -2878,5 +2878,421 @@ onUnmounted(() => {
   font-weight: 800;
   cursor: pointer;
   box-shadow: 0 4px 14px rgba(217, 168, 108, 0.35);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   EXECUTIVE LEDGER REDESIGN — Editorial coffee house / Swiss grid
+   Purpose: make the report feel like a decision instrument, not a
+   collection of generic dark cards.
+   ═══════════════════════════════════════════════════════════════ */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;500;600;700;800&family=Noto+Naskh+Arabic:wght@500;600;700&display=swap');
+
+.luxury-mobile-container {
+  --ledger-ink: #201a16;
+  --ledger-muted: #766b61;
+  --ledger-paper: #f4efe8;
+  --ledger-paper-strong: #fffdf9;
+  --ledger-line: #ded4c8;
+  --ledger-coffee: #6f4933;
+  --ledger-copper: #b86d3d;
+  --ledger-green: #2c7a64;
+  max-width: 760px;
+  min-height: 100dvh;
+  margin: 0 auto;
+  padding-bottom: 104px;
+  color: var(--ledger-ink);
+  background:
+    radial-gradient(circle at 100% 0%, rgba(184, 109, 61, 0.12), transparent 28rem),
+    var(--ledger-paper);
+  font-family: 'Noto Sans Arabic', 'Cairo', sans-serif;
+  box-shadow: 0 0 70px rgba(75, 48, 31, 0.14);
+}
+
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  padding: 18px clamp(18px, 4vw, 34px) 14px;
+  background: rgba(244, 239, 232, 0.92);
+  border-bottom: 1px solid var(--ledger-line);
+  backdrop-filter: blur(18px);
+}
+
+.header-inner {
+  gap: 18px;
+}
+.brand-identity {
+  gap: 13px;
+}
+.brand-emblem {
+  width: 48px;
+  height: 48px;
+  border-radius: 16px 16px 6px 16px;
+  background: var(--ledger-coffee);
+  box-shadow: 7px 7px 0 rgba(184, 109, 61, 0.18);
+}
+.brand-emblem img {
+  width: 34px;
+  height: 34px;
+}
+.brand-name {
+  color: var(--ledger-ink);
+  font-family: 'Noto Naskh Arabic', serif;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: -0.6px;
+}
+.brand-tagline {
+  color: var(--ledger-copper);
+  font-size: 11px;
+}
+.header-quick-actions {
+  gap: 7px;
+}
+.header-btn {
+  width: 42px;
+  height: 42px;
+  border: 1px solid var(--ledger-line);
+  border-radius: 12px;
+  color: var(--ledger-coffee);
+  background: var(--ledger-paper-strong);
+  box-shadow: none;
+}
+.header-btn:hover,
+.header-btn:focus-visible {
+  color: #fff;
+  background: var(--ledger-coffee);
+  border-color: var(--ledger-coffee);
+  transform: translateY(-2px);
+}
+.live-status-strip {
+  margin-top: 20px;
+  padding-top: 12px;
+  border-top: 1px solid var(--ledger-line);
+}
+.live-badge {
+  color: var(--ledger-muted);
+  font-size: 11px;
+}
+.live-badge.connected {
+  color: var(--ledger-green);
+}
+.live-dot {
+  width: 7px;
+  height: 7px;
+  background: currentColor;
+  box-shadow: 0 0 0 4px rgba(44, 122, 100, 0.12);
+}
+.date-quick-selector {
+  gap: 6px;
+}
+.date-pill-btn,
+.date-picker-label {
+  min-width: 48px;
+  min-height: 42px;
+  border: 1px solid var(--ledger-line);
+  border-radius: 11px;
+  color: var(--ledger-muted);
+  background: var(--ledger-paper-strong);
+}
+.date-pill-btn.active {
+  color: #fff;
+  background: var(--ledger-coffee);
+  border-color: var(--ledger-coffee);
+}
+
+.report-context-card,
+.report-kpi-strip,
+.glass-content-card,
+.channel-metric-card,
+.finance-grid,
+.recent-sales-stream,
+.luxury-hero-card,
+.diagnostic-banner {
+  border: 1px solid var(--ledger-line);
+  border-radius: 20px;
+  box-shadow: 0 12px 30px rgba(75, 48, 31, 0.07);
+}
+.report-context-card {
+  margin: 24px clamp(16px, 4vw, 34px) 12px;
+  padding: 18px 20px;
+  background: var(--ledger-coffee);
+  color: #fffaf4;
+  border-color: var(--ledger-coffee);
+  position: relative;
+  overflow: hidden;
+}
+.report-context-card::after {
+  content: 'REPORT / 01';
+  position: absolute;
+  left: 18px;
+  bottom: 12px;
+  color: rgba(255, 250, 244, 0.42);
+  direction: ltr;
+  font:
+    600 9px/1.2 ui-monospace,
+    monospace;
+  letter-spacing: 1.5px;
+}
+.report-context-kicker {
+  color: #f1c4a4;
+}
+.report-context-main strong {
+  display: block;
+  font-family: 'Noto Naskh Arabic', serif;
+  font-size: 24px;
+}
+.report-context-caption {
+  color: rgba(255, 250, 244, 0.68);
+}
+.report-context-status {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.16);
+}
+.report-context-status.offline {
+  background: #9b463e;
+  border-color: #9b463e;
+}
+.report-kpi-strip {
+  margin: 0 clamp(16px, 4vw, 34px) 18px;
+  padding: 0;
+  overflow: hidden;
+  background: var(--ledger-paper-strong);
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+}
+.report-kpi-item {
+  padding: 15px 14px;
+  border-inline-start: 1px solid var(--ledger-line);
+}
+.report-kpi-item:first-child {
+  border-inline-start: 0;
+}
+.report-kpi-label {
+  color: var(--ledger-muted);
+  font-size: 11px;
+}
+.report-kpi-item strong {
+  color: var(--ledger-ink);
+  font-size: 20px;
+  font-variant-numeric: tabular-nums;
+}
+.report-kpi-item strong small {
+  color: var(--ledger-muted);
+  font-size: 10px;
+}
+.report-kpi-item strong.positive {
+  color: var(--ledger-green);
+}
+.report-kpi-item strong.negative {
+  color: #a44c42;
+}
+
+.diagnostic-banner {
+  margin: 0 clamp(16px, 4vw, 34px) 18px;
+  padding: 16px;
+  color: var(--ledger-ink);
+  background: #fff7ee;
+  border-color: #e7b28a;
+  box-shadow: none;
+}
+.diag-icon {
+  color: var(--ledger-copper);
+  background: #f8dfc9;
+}
+.diag-text strong {
+  color: #8f4933;
+}
+.diag-text p {
+  color: var(--ledger-muted);
+}
+.diag-actions {
+  gap: 7px;
+}
+.btn-diag-cfg,
+.btn-diag-demo,
+.btn-diag-retry {
+  min-height: 42px;
+  border-radius: 11px;
+  font-family: inherit;
+  transition:
+    transform 0.2s ease,
+    background 0.2s ease;
+}
+.btn-diag-cfg {
+  color: var(--ledger-coffee);
+  background: #f3e2d2;
+  border-color: #e6c7ae;
+}
+.btn-diag-demo {
+  color: #fff;
+  background: var(--ledger-coffee);
+  border-color: var(--ledger-coffee);
+}
+.btn-diag-retry {
+  color: #fff;
+  background: var(--ledger-copper);
+  border-color: var(--ledger-copper);
+}
+.btn-diag-cfg:hover,
+.btn-diag-demo:hover,
+.btn-diag-retry:hover {
+  transform: translateY(-2px);
+}
+
+.mobile-viewport {
+  padding: 0 clamp(16px, 4vw, 34px);
+}
+.luxury-hero-card {
+  padding: clamp(22px, 5vw, 34px);
+  background: var(--ledger-ink);
+  border-color: var(--ledger-ink);
+  box-shadow: 10px 12px 0 rgba(184, 109, 61, 0.2);
+}
+.luxury-hero-card::before {
+  background: linear-gradient(90deg, var(--ledger-copper), transparent);
+  opacity: 0.8;
+}
+.hero-title-badge {
+  color: #f2c6a5;
+}
+.growth-chip {
+  border-radius: 8px;
+}
+.hero-amount-display {
+  margin: 26px 0 22px;
+}
+.amount-number {
+  color: #fffaf4;
+  font-size: clamp(42px, 12vw, 72px);
+  letter-spacing: -3px;
+}
+.currency-prefix {
+  color: #d79a70;
+}
+.hero-stats-subbar {
+  border-top-color: rgba(255, 255, 255, 0.15);
+}
+.sub-label {
+  color: rgba(255, 255, 255, 0.55);
+}
+.sub-val {
+  color: #fffaf4;
+}
+.section-heading h3,
+.card-title {
+  color: var(--ledger-ink);
+  font-family: 'Noto Naskh Arabic', serif;
+  font-size: 21px;
+}
+.channel-ratio,
+.card-meta-tag {
+  color: var(--ledger-muted);
+}
+.comparative-ratio-bar {
+  background: #e5dcd2;
+}
+.bar-fill.branch-fill {
+  background: var(--ledger-coffee);
+}
+.bar-fill.wholesale-fill {
+  background: var(--ledger-copper);
+}
+.channel-metric-card {
+  background: var(--ledger-paper-strong);
+  color: var(--ledger-ink);
+  box-shadow: none;
+}
+.channel-metric-card.branch-theme {
+  border-top: 4px solid var(--ledger-coffee);
+}
+.channel-metric-card.wholesale-theme {
+  border-top: 4px solid var(--ledger-copper);
+}
+.card-top-icon .icon-wrap {
+  color: var(--ledger-coffee);
+  background: #f1e5d9;
+}
+.card-label,
+.channel-foot {
+  color: var(--ledger-muted);
+}
+.channel-val {
+  color: var(--ledger-ink);
+  font-variant-numeric: tabular-nums;
+}
+.channel-val small,
+.payment-val small {
+  color: var(--ledger-muted);
+}
+.glass-content-card,
+.finance-grid,
+.recent-sales-stream {
+  background: var(--ledger-paper-strong);
+  color: var(--ledger-ink);
+}
+.payment-row,
+.finance-cell,
+.recent-sale-row,
+.category-stat-item {
+  border-color: var(--ledger-line);
+}
+.payment-text-group .p-name,
+.fin-val,
+.sale-amt,
+.cat-money,
+.cell-val {
+  color: var(--ledger-ink);
+}
+.payment-text-group .p-sub,
+.fin-lbl,
+.fin-sub,
+.sale-sub-line,
+.cat-footer-sub,
+.cell-lbl {
+  color: var(--ledger-muted);
+}
+.text-cyan,
+.text-purple,
+.text-emerald,
+.text-rose {
+  color: var(--ledger-copper);
+}
+.bottom-navigation {
+  background: rgba(255, 253, 249, 0.95);
+  border-top: 1px solid var(--ledger-line);
+  box-shadow: 0 -12px 28px rgba(75, 48, 31, 0.08);
+}
+.bottom-nav-item {
+  color: var(--ledger-muted);
+  min-height: 58px;
+}
+.bottom-nav-item.active {
+  color: var(--ledger-coffee);
+}
+.bottom-nav-item.active::before {
+  background: var(--ledger-copper);
+}
+
+@media (min-width: 700px) {
+  .luxury-mobile-container {
+    border-inline: 1px solid var(--ledger-line);
+  }
+  .channel-cards-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .dual-distribution-section {
+    padding-inline: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .luxury-mobile-container *,
+  .luxury-mobile-container *::before,
+  .luxury-mobile-container *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 </style>

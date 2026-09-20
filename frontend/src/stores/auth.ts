@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { auth as authApi } from '@/api';
+import { setSessionAccessToken } from '@/api/client';
 import { ADMIN_ROLES, satisfiesPermission } from '../../../shared/permissions.js';
 import type { User, Permission } from '../../../shared/types.ts';
 
@@ -13,9 +14,9 @@ export const useAuthStore = defineStore('auth', () => {
 
   let activeProfilePromise: Promise<any> | null = null;
 
-  // Web sessions are authenticated through the HttpOnly access_token cookie.
-  // Keeping the JWT in localStorage would make an XSS bug immediately become
-  // a session theft bug. Desktop POS has its own Electron safeStorage flow.
+  // Web sessions prefer the HttpOnly access_token cookie. The short-lived
+  // in-memory value is only a fallback for cross-origin browser sessions and
+  // is never persisted in localStorage.
   const token = ref<string | null>(null);
 
   const fetchProfile = async () => {
@@ -66,9 +67,11 @@ export const useAuthStore = defineStore('auth', () => {
     user.value = res.data.user;
     permissions.value = res.data.permissions || [];
     profileLoaded.value = true;
-    // The API still returns a token for Desktop POS compatibility, but the web
-    // client deliberately does not persist or mirror it in JavaScript storage.
-    token.value = null;
+    // The API still returns a token for Desktop POS compatibility. Keep it in
+    // memory only so local frontend -> cloud API sessions survive blocked
+    // cross-site cookies without creating a persistent XSS target.
+    token.value = res.data.token || null;
+    setSessionAccessToken(token.value);
     localStorage.setItem('user', JSON.stringify(res.data.user));
     return res;
   };
@@ -80,6 +83,7 @@ export const useAuthStore = defineStore('auth', () => {
       console.error('Logout API failed:', e);
     }
     token.value = null;
+    setSessionAccessToken(null);
     user.value = null;
     permissions.value = [];
     profileLoaded.value = false;

@@ -400,7 +400,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, nextTick } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import AppIcon from '@/components/AppIcon.vue';
 import { useAuthStore } from '@/stores/auth';
 import { useTypingEffect } from '@/composables/useTypingEffect';
@@ -415,6 +415,7 @@ import { brandingState } from '@/design-system/themes/themeEngine';
 import axios from 'axios';
 
 const router = useRouter();
+const route = useRoute();
 const auth = useAuthStore();
 
 // ─── Form State ───────────────────────────────────────────
@@ -538,12 +539,11 @@ const handleLogin = async () => {
         window.location.protocol === 'capacitor:' ||
         window.location.protocol === 'file:');
 
-    if (isNative) {
-      router.push('/mobile');
-    } else {
-      const targetRoute = auth.isCashier ? '/branch-sales' : '/';
-      router.push(targetRoute);
-    }
+    const requestedRoute = typeof route.query.redirect === 'string' ? route.query.redirect : '';
+    const safeRedirect = requestedRoute.startsWith('/') ? requestedRoute : '';
+    const targetRoute =
+      safeRedirect || (isNative ? '/mobile' : auth.isCashier ? '/branch-sales' : '/');
+    router.push(targetRoute);
   } catch (e: any) {
     error.value = e.message || 'اسم المستخدم أو كلمة المرور غير صحيحة';
     triggerShake();

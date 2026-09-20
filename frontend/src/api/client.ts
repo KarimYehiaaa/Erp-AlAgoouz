@@ -6,6 +6,15 @@ import { getManagerOverride, OVERRIDE_HEADER_NAME } from '@/services/managerOver
 
 export const CLOUD_SERVER_URL = 'https://agoouz.vercel.app';
 
+// Keep the short-lived access token in memory as a fallback for browsers that
+// block cross-site cookies (for example local frontend -> cloud API). It is
+// deliberately never persisted in localStorage or cookies from JavaScript.
+let inMemoryAccessToken: string | null = null;
+
+export const setSessionAccessToken = (token: string | null) => {
+  inMemoryAccessToken = token;
+};
+
 export const getBaseServerUrl = (): string => {
   if (typeof window === 'undefined') return '';
   const saved = localStorage.getItem('binalagoouz_server_url');
@@ -50,7 +59,12 @@ api.interceptors.request.use((config: any) => {
   config.baseURL = `${base ? base : ''}/api/v1`;
 
   // Browser authentication uses the HttpOnly cookie. Do not read JWTs from
-  // localStorage; that storage is accessible to any injected script.
+  // localStorage; that storage is accessible to any injected script. The
+  // in-memory fallback only covers the current page session when cookies are
+  // unavailable across origins.
+  if (inMemoryAccessToken && !config.headers.Authorization) {
+    config.headers.Authorization = `Bearer ${inMemoryAccessToken}`;
+  }
   // توكن تجاوز المدير (يُصدر من /pos/verify-pin) — يُرفق تلقائيًا للطلبات الحساسة
   const overrideToken = getManagerOverride();
   if (overrideToken && !config.headers[OVERRIDE_HEADER_NAME]) {
@@ -108,7 +122,7 @@ api.interceptors.response.use(
         const base = getBaseServerUrl();
         const currentBase = `${base ? base : ''}/api/v1`;
         api.defaults.baseURL = currentBase;
-        await axios.post(
+        const refreshResponse = await axios.post(
           `${currentBase}/auth/refresh`,
           {},
           {
@@ -116,6 +130,9 @@ api.interceptors.response.use(
             headers: { 'Content-Type': 'application/json' },
           },
         );
+        const refreshedToken =
+          refreshResponse.data?.data?.token || refreshResponse.data?.token || null;
+        if (refreshedToken) setSessionAccessToken(refreshedToken);
         // Refresh rotates the HttpOnly cookie. The response token remains
         // available to native clients, but is never copied into web storage.
         processQueue(null, null);
@@ -125,6 +142,7 @@ api.interceptors.response.use(
         // فشل التجديد — مسح الجلسة وإعادة التوجيه (replace بدل href لتجنّب تلويث التاريخ)
         localStorage.removeItem('user');
         localStorage.removeItem('token');
+        setSessionAccessToken(null);
         if (!window.location.pathname.includes('/login')) {
           window.location.replace('/login');
         }

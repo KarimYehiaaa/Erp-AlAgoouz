@@ -18,7 +18,11 @@ export const navigationGuard: NavigationGuard = async (to, _from, next) => {
     await Promise.race([auth.fetchProfile(), new Promise((resolve) => setTimeout(resolve, 4_000))]);
   }
 
-  if (to.meta.requiresAuth && !auth.isAuthenticated) return next('/login');
+  if (to.meta.requiresAuth && !auth.isAuthenticated) {
+    // Preserve the protected destination so login returns the user to the
+    // screen they originally requested (especially /mobile).
+    return next({ path: '/login', query: { redirect: to.fullPath || to.path } });
+  }
   if (to.meta.guest && auth.isAuthenticated) {
     if (isNative) return next('/mobile');
     return next(auth.isCashier ? '/branch-sales' : '/');

@@ -61,6 +61,8 @@
           class="status-pill"
           :class="isOnline ? 'online' : 'offline'"
           @click="router.push('/sync')"
+          :aria-label="isOnline ? 'متصل بالسيرفر - فتح المزامنة' : 'غير متصل - فتح المزامنة'"
+          aria-live="polite"
           title="حالة المزامنة والاتصال"
         >
           <span class="status-dot"></span>
@@ -613,6 +615,67 @@ onBeforeUnmount(() => {
   .cart-section {
     height: 100%;
     overflow: hidden;
+  }
+}
+
+.pos-top-ribbon button:focus-visible {
+  outline: 3px solid #fff3d6;
+  outline-offset: 3px;
+}
+
+@media (max-width: 1100px) {
+  .pos-top-ribbon {
+    height: auto;
+    min-height: 60px;
+    flex-wrap: wrap;
+    padding-block: 9px;
+
+    .ribbon-stats {
+      order: 3;
+      width: 100%;
+      justify-content: center;
+      padding-top: 4px;
+      border-top: 1px solid rgba(255, 255, 255, 0.12);
+    }
+  }
+
+  .pos-main-workspace {
+    grid-template-columns: minmax(0, 1fr) 360px;
+  }
+}
+
+@media (max-width: 820px) {
+  .pos-top-ribbon {
+    .ribbon-brand .brand-titles .terminal-badge,
+    .ribbon-actions .btn-ribbon-action span:not(.held-badge),
+    .ribbon-actions .status-pill > span:not(.status-dot):not(.pending-count-badge),
+    .ribbon-actions .btn-close-shift span {
+      display: none;
+    }
+
+    .ribbon-actions {
+      gap: 6px;
+
+      .btn-ribbon-action,
+      .status-pill,
+      .btn-close-shift {
+        width: 36px;
+        justify-content: center;
+        padding: 0;
+      }
+    }
+  }
+
+  .pos-main-workspace {
+    grid-template-columns: 1fr;
+    overflow-y: auto;
+
+    .catalog-section,
+    .cart-section {
+      min-height: 420px;
+      height: auto;
+      overflow: visible;
+    }
   }
 }
 </style>

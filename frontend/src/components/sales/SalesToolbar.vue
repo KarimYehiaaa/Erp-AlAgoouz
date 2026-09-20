@@ -8,28 +8,30 @@
     <div v-if="activeTab !== 'monthly'" class="toolbar-actions">
       <router-link
         to="/invoices/create"
-        class="btn btn-primary btn-sm"
-        style="display: inline-flex; align-items: center; gap: 6px; font-weight: 600"
+        class="btn btn-primary btn-sm sales-action sales-action-primary"
       >
-        <span>+ إنشاء فاتورة جملة</span>
+        <AppIcon name="receipt" :size="15" />
+        <span>إنشاء فاتورة جملة</span>
       </router-link>
-      <router-link
-        to="/invoices/quotes"
-        class="btn btn-outline btn-sm"
-        style="display: inline-flex; align-items: center; gap: 6px"
-      >
+      <router-link to="/invoices/quotes" class="btn btn-outline btn-sm sales-action">
+        <AppIcon name="quote" :size="15" />
         <span>عرض أسعار</span>
       </router-link>
       <button
         type="button"
         class="icon-btn"
         title="تحميل قالب الاستيراد"
+        aria-label="تحميل قالب الاستيراد"
         @click="$emit('downloadTemplate')"
-      ></button>
-      <label class="icon-btn import-btn" title="فحص ملف Excel">
+      >
+        <AppIcon name="download" :size="16" />
+      </button>
+      <label class="icon-btn import-btn" title="فحص ملف Excel" aria-label="فحص ملف Excel">
+        <AppIcon name="check" :size="16" />
         <input type="file" accept=".xlsx,.xls" hidden @change="onFile('validate')" />
       </label>
-      <label class="icon-btn import-btn" title="استيراد من Excel">
+      <label class="icon-btn import-btn" title="استيراد من Excel" aria-label="استيراد من Excel">
+        <AppIcon name="upload" :size="16" />
         <input type="file" accept=".xlsx,.xls" hidden @change="onFile('import')" />
       </label>
     </div>
@@ -129,6 +131,17 @@ const onMonth = (e: Event) => {
   background: color-mix(in srgb, var(--bg-elevated) 72%, transparent);
   border: 1px solid color-mix(in srgb, var(--primary) 10%, var(--border));
 }
+.sales-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 38px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+.sales-action-primary {
+  box-shadow: 0 10px 22px color-mix(in srgb, var(--primary) 22%, transparent);
+}
 .import-btn {
   cursor: pointer;
   margin: 0;
@@ -145,6 +158,7 @@ const onMonth = (e: Event) => {
   color: var(--text);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
   cursor: pointer;
+  flex: 0 0 38px;
   transition:
     transform var(--transition),
     box-shadow var(--transition),
@@ -162,6 +176,11 @@ const onMonth = (e: Event) => {
   &.danger {
     color: var(--danger);
     border-color: color-mix(in srgb, var(--danger) 30%, transparent);
+  }
+  &:focus-visible,
+  &:has(input:focus-visible) {
+    outline: 3px solid color-mix(in srgb, var(--primary) 34%, transparent);
+    outline-offset: 2px;
   }
 }
 .filter-row {

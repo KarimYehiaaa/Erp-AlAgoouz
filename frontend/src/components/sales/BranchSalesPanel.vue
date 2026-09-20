@@ -13,6 +13,7 @@
       >
         <div class="card form-card" :class="{ 'modal-card': editingSaleId }">
           <h3>
+            <AppIcon :name="editingSaleId ? 'edit' : 'plus'" :size="17" />
             {{ editingSaleId ? 'تعديل بيع' : 'تسجيل مبيعات يومية' }}
           </h3>
           <form @submit.prevent="$emit('submit')">
@@ -75,12 +76,13 @@
     <div class="card table-wrap list-card sales-history-card">
       <div class="history-head">
         <div>
-          <h3>سجل المبيعات اليومية</h3>
+          <h3><AppIcon name="sales" :size="17" /> سجل المبيعات اليومية</h3>
           <p>{{ sales.length }} عملية</p>
         </div>
-        <div style="display: flex; align-items: center; gap: 12px">
+        <div class="history-actions">
           <router-link to="/branch-sales" class="btn btn-outline btn-sm">
-            <span> شاشة الكاشير والمبيعات السريعة</span>
+            <AppIcon name="pos" :size="15" />
+            <span>شاشة الكاشير والمبيعات السريعة</span>
           </router-link>
           <span class="history-total">{{ formatMoney(periodTotal) }}</span>
         </div>
@@ -146,6 +148,7 @@
  * @emits startEdit    بدء تعديل فاتورة (item)
  */
 import BaseTable from '@/components/ui/BaseTable.vue';
+import AppIcon from '@/components/AppIcon.vue';
 
 defineProps<{
   editingSaleId: number | null;
@@ -288,6 +291,17 @@ defineProps<{
 }
 .history-head h3 {
   margin: 0 0 5px;
+}
+.history-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.history-actions .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  white-space: nowrap;
 }
 .history-head p {
   margin: 0;
@@ -460,6 +474,15 @@ defineProps<{
   }
 }
 @media (max-width: 640px) {
+  .history-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .history-actions {
+    width: 100%;
+    justify-content: space-between;
+    flex-wrap: wrap;
+  }
   .list-card {
     max-height: none;
     overflow: hidden;

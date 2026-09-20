@@ -178,17 +178,17 @@ const rawMenuGroups = [
     label: 'نظرة عامة',
     items: [
       { to: '/', label: 'لوحة التحكم', icon: 'dashboard', perm: null },
-      { to: '/branch-sales', label: 'شاشة المبيعات (POS)', icon: 'shop', perm: 'pos.view' },
+      { to: '/branch-sales', label: 'نقطة البيع (POS)', icon: 'shop', perm: 'pos.view' },
     ],
   },
   {
     label: 'العمليات التشغيلية',
     items: [
       { to: '/sales', label: 'المبيعات والعملاء', icon: 'sales', perm: 'sales.view' },
-      { to: '/inventory', label: 'المخزون والمستودعات', icon: 'inventory', perm: 'inventory.view' },
+      { to: '/inventory', label: 'المخزون', icon: 'inventory', perm: 'inventory.view' },
       {
         to: '/products',
-        label: 'المنتجات والإنتاج والتكاليف',
+        label: 'المنتجات والتكاليف',
         icon: 'products',
         perm: 'products.view',
       },
@@ -199,7 +199,7 @@ const rawMenuGroups = [
     items: [
       {
         to: '/purchases',
-        label: 'المشتريات والمصروفات والشركاء',
+        label: 'المشتريات والمالية',
         icon: 'purchases',
         perm: ['inventory.view', 'expenses.view', 'suppliers.view', 'reports.view'],
       },
@@ -210,7 +210,7 @@ const rawMenuGroups = [
     items: [
       {
         to: '/reports',
-        label: 'التقارير والتحليلات والذكاء',
+        label: 'التقارير والتحليلات',
         icon: 'reports',
         perm: 'reports.view',
       },
@@ -221,7 +221,7 @@ const rawMenuGroups = [
     items: [
       {
         to: '/settings',
-        label: 'إدارة المنشأة والإعدادات',
+        label: 'الإدارة والإعدادات',
         icon: 'settings',
         perm: 'settings.view',
       },
@@ -543,12 +543,22 @@ const menuGroups = computed(() => {
     }
   }
 
+  &:focus-visible {
+    outline: none;
+    border-color: var(--color-gold);
+    box-shadow: 0 0 0 3px var(--color-gold-halo);
+  }
+
   &.active {
-    background: linear-gradient(270deg, rgba(29, 78, 216, 0.28) 0%, rgba(29, 78, 216, 0.12) 100%);
+    background: linear-gradient(
+      270deg,
+      var(--sidebar-active-bg),
+      color-mix(in srgb, var(--sidebar-active-bg) 45%, transparent)
+    );
     color: #ffffff;
     font-weight: 700;
-    border-color: rgba(59, 130, 246, 0.35);
-    box-shadow: inset 0 0 12px rgba(29, 78, 216, 0.15);
+    border-color: var(--color-gold-border);
+    box-shadow: inset 0 0 12px var(--color-gold-subtle);
 
     .active-rail {
       opacity: 1;

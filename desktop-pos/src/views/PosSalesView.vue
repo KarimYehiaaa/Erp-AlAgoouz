@@ -3,7 +3,9 @@
     <!-- ═══════════════════ TOP TERMINAL RIBBON ═══════════════════ -->
     <header class="pos-top-ribbon">
       <div class="ribbon-brand">
-        <span class="coffee-badge"><AppIcon name="coffee" :size="20" /></span>
+        <span class="coffee-badge">
+          <img src="/logo-transparent.png" alt="" aria-hidden="true" />
+        </span>
         <div class="brand-titles">
           <h2>بن العجوز ERP</h2>
           <span class="terminal-badge">نقطة البيع TRM-01</span>
@@ -420,12 +422,19 @@ onBeforeUnmount(() => {
     gap: 10px;
 
     .coffee-badge {
-      color: var(--primary, #8a572a);
-      display: flex;
+      width: 34px;
+      height: 34px;
+      display: inline-flex;
       background: var(--primary-soft, rgba(138, 87, 42, 0.08));
       padding: 6px;
       border-radius: var(--radius-sm, 6px);
       border: 1px solid var(--primary-border, rgba(138, 87, 42, 0.2));
+
+      img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+      }
     }
 
     .brand-titles {

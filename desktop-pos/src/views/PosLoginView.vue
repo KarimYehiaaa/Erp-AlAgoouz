@@ -2,8 +2,8 @@
   <div class="pos-login-page">
     <div class="login-modal-card">
       <div class="brand-header">
-        <div class="logo-circle">
-          <AppIcon name="coffee" :size="36" />
+        <div class="logo-circle" aria-hidden="true">
+          <img src="/logo-transparent.png" alt="" />
         </div>
         <h2>بن العجوز ERP</h2>
         <p>نقطة بيع الكاشير (Desktop POS Terminal)</p>
@@ -39,7 +39,12 @@
         </div>
 
         <div class="server-config-toggle">
-          <button type="button" class="btn-text-link" @click="showServerConfig = !showServerConfig">
+          <button
+            type="button"
+            class="btn-text-link"
+            :aria-expanded="showServerConfig"
+            @click="showServerConfig = !showServerConfig"
+          >
             <AppIcon name="settings" :size="14" />
             <span>{{ showServerConfig ? 'إخفاء إعدادات الخادم' : 'إعدادات اتصال الخادم المركزي' }}</span>
           </button>
@@ -170,6 +175,13 @@ const handleLogin = async () => {
     justify-content: center;
     margin-bottom: 14px;
     box-shadow: 0 4px 14px rgba(138, 87, 42, 0.3);
+
+    img {
+      width: 48px;
+      height: 48px;
+      object-fit: contain;
+      filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.22));
+    }
   }
 
   h2 {

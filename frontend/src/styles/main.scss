@@ -55,6 +55,28 @@ button:not(:disabled):active {
   transform: scale(0.98);
 }
 
+/* Shared interaction contract: every control has a visible keyboard state. */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid var(--color-gold, #b58a4a);
+  outline-offset: 2px;
+}
+
+/* Keep motion helpful but never required for using the ERP. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 .btn {
   display: inline-flex;
   align-items: center;

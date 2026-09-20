@@ -7,7 +7,7 @@
       <div class="header-inner">
         <div class="brand-identity">
           <div class="brand-emblem">
-            <AppIcon name="shield-check" :size="22" />
+            <img src="/logo-transparent.png" alt="شعار بن العجوز" />
           </div>
           <div class="brand-text">
             <h1 class="brand-name">{{ companyName }}</h1>
@@ -118,7 +118,11 @@
         <div class="luxury-hero-card">
           <div class="card-glow-orb"></div>
           <div class="hero-header-row">
-            <span class="hero-title-badge">💰 إجمالي الإيرادات ({{ selectedDateFormatted }})</span>
+            <span class="hero-title-badge"
+              ><AppIcon name="money" :size="15" /> إجمالي الإيرادات ({{
+                selectedDateFormatted
+              }})</span
+            >
             <div
               class="growth-chip"
               :class="currentSummary.growthPercent >= 0 ? 'chip-up' : 'chip-down'"
@@ -156,7 +160,7 @@
         <!-- 2. Dual Breakdown: Branch vs Wholesale -->
         <div class="dual-distribution-section">
           <div class="section-heading">
-            <h3>📊 توزيع المبيعات حسب القناة</h3>
+            <h3><AppIcon name="chart" :size="18" /> توزيع المبيعات حسب القناة</h3>
             <span class="channel-ratio">
               {{ branchPercent }}% فرع / {{ wholesalePercent }}% جملة
             </span>
@@ -172,14 +176,17 @@
             <!-- Branch Card -->
             <div class="channel-metric-card branch-theme">
               <div class="card-top-icon">
-                <span class="icon-wrap">🏪</span>
+                <span class="icon-wrap"><AppIcon name="shop" :size="20" /></span>
                 <span class="card-label">مبيعات الفرع (POS)</span>
               </div>
               <div class="channel-val">
                 {{ formatMoney(currentSummary.branch?.total || 0) }} <small>ج.م</small>
               </div>
               <div class="channel-foot">
-                <span>📦 {{ currentSummary.branch?.count || 0 }} فاتورة</span>
+                <span
+                  ><AppIcon name="receipt" :size="14" />
+                  {{ currentSummary.branch?.count || 0 }} فاتورة</span
+                >
                 <span v-if="currentSummary.branch?.discount" class="discount-pill">
                   خصم: {{ formatMoney(currentSummary.branch.discount) }}
                 </span>
@@ -189,14 +196,17 @@
             <!-- Wholesale Card -->
             <div class="channel-metric-card wholesale-theme">
               <div class="card-top-icon">
-                <span class="icon-wrap">🚛</span>
+                <span class="icon-wrap"><AppIcon name="truck" :size="20" /></span>
                 <span class="card-label">مبيعات الجملة</span>
               </div>
               <div class="channel-val">
                 {{ formatMoney(currentSummary.wholesale?.total || 0) }} <small>ج.م</small>
               </div>
               <div class="channel-foot">
-                <span>📦 {{ currentSummary.wholesale?.count || 0 }} فاتورة</span>
+                <span
+                  ><AppIcon name="receipt" :size="14" />
+                  {{ currentSummary.wholesale?.count || 0 }} فاتورة</span
+                >
                 <span v-if="currentSummary.wholesale?.discount" class="discount-pill">
                   خصم: {{ formatMoney(currentSummary.wholesale.discount) }}
                 </span>
@@ -208,14 +218,16 @@
         <!-- 3. Payment Methods Breakdown -->
         <div class="glass-content-card">
           <div class="card-header-flex">
-            <h3 class="card-title">💳 تفصيل طرق التحصيل المالي</h3>
+            <h3 class="card-title">
+              <AppIcon name="creditCard" :size="18" /> تفصيل طرق التحصيل المالي
+            </h3>
             <span class="card-meta-tag">تحصيل الخزينة</span>
           </div>
 
           <div class="payment-stack">
             <!-- Cash -->
             <div class="payment-row cash-row">
-              <div class="payment-symbol">💵</div>
+              <div class="payment-symbol"><AppIcon name="cash" :size="18" /></div>
               <div class="payment-text-group">
                 <span class="p-name">نـقـداً (كـاش)</span>
                 <span class="p-sub">في درج الفرع والخزينة</span>
@@ -227,7 +239,7 @@
 
             <!-- InstaPay -->
             <div class="payment-row instapay-row">
-              <div class="payment-symbol">📱</div>
+              <div class="payment-symbol"><AppIcon name="monitor" :size="18" /></div>
               <div class="payment-text-group">
                 <span class="p-name">انـسـتـابـاي ومحافظ</span>
                 <span class="p-sub">تحويلات بنكية فورية</span>
@@ -239,7 +251,7 @@
 
             <!-- Card / POS -->
             <div class="payment-row card-row">
-              <div class="payment-symbol">💳</div>
+              <div class="payment-symbol"><AppIcon name="creditCard" :size="18" /></div>
               <div class="payment-text-group">
                 <span class="p-name">فيزا وبطاقات بنكية</span>
                 <span class="p-sub">ماكينات الدفع الإلكتروني</span>
@@ -254,7 +266,9 @@
         <!-- 4. Expenses & Net Cashflow Pulse -->
         <div class="glass-content-card">
           <div class="card-header-flex">
-            <h3 class="card-title">📉 المصروفات وصافي السيولة</h3>
+            <h3 class="card-title">
+              <AppIcon name="trendingDown" :size="18" /> المصروفات وصافي السيولة
+            </h3>
             <span class="card-meta-tag">اليوم</span>
           </div>
 
@@ -285,7 +299,9 @@
           <div class="card-header-flex">
             <div class="title-with-pulse">
               <span :class="currentSummary.activeShift ? 'pulse-green' : 'pulse-amber'"></span>
-              <h3 class="card-title">🏬 الوردية الحالية في الفرع</h3>
+              <h3 class="card-title">
+                <AppIcon name="shop" :size="18" /> الوردية الحالية في الفرع
+              </h3>
             </div>
             <span v-if="currentSummary.activeShift" class="status-badge-active">شفت نشط 🟢</span>
             <span v-else class="status-badge-closed">الوردية مغلقة 🔒</span>
@@ -331,16 +347,25 @@
         <!-- 6. Recent Sales Stream (Live Pulse) -->
         <div v-if="currentSummary.recentSales?.length" class="glass-content-card">
           <div class="card-header-flex">
-            <h3 class="card-title">⚡ أحدث الفواتير المسجلة اليوم</h3>
+            <h3 class="card-title">
+              <AppIcon name="zap" :size="18" /> أحدث الفواتير المسجلة اليوم
+            </h3>
             <span class="card-meta-tag">{{ currentSummary.recentSales.length }} فواتير</span>
           </div>
 
           <div class="recent-sales-stream">
             <div v-for="s in currentSummary.recentSales" :key="s.id" class="recent-sale-row">
               <div class="sale-icon-box">
-                {{
-                  s.paymentMethod === 'cash' ? '💵' : s.paymentMethod === 'instapay' ? '📱' : '💳'
-                }}
+                <AppIcon
+                  :name="
+                    s.paymentMethod === 'cash'
+                      ? 'cash'
+                      : s.paymentMethod === 'instapay'
+                        ? 'monitor'
+                        : 'creditCard'
+                  "
+                  :size="18"
+                />
               </div>
               <div class="sale-details">
                 <div class="sale-main-line">
@@ -363,7 +388,9 @@
         <div class="luxury-hero-card inventory-gold-theme">
           <div class="card-glow-orb gold-glow"></div>
           <div class="hero-header-row">
-            <span class="hero-title-badge">📦 إجمالي القيمة المالية للمخزون</span>
+            <span class="hero-title-badge"
+              ><AppIcon name="inventory" :size="15" /> إجمالي القيمة المالية للمخزون</span
+            >
             <div class="growth-chip chip-gold">رأس مال مربوط</div>
           </div>
 
@@ -440,7 +467,9 @@
           <div class="card-header-flex">
             <div class="title-with-pulse">
               <span class="pulse-red"></span>
-              <h3 class="card-title text-red">⚠️ رادار النواقص وتنبيهات إعادة الطلب</h3>
+              <h3 class="card-title text-red">
+                <AppIcon name="warning" :size="18" /> رادار النواقص وتنبيهات إعادة الطلب
+              </h3>
             </div>
             <span class="badge-count-red"
               >{{ currentInventory.lowStockItems?.length || 0 }} صنف</span
@@ -467,7 +496,10 @@
           </div>
 
           <div v-else class="clean-empty-state">
-            <span>✅ المخزون سليم — لا توجد نواقص تحت حد الأمان حالياً!</span>
+            <span
+              ><AppIcon name="check" :size="16" /> المخزون سليم — لا توجد نواقص تحت حد الأمان
+              حالياً</span
+            >
           </div>
         </div>
       </section>
@@ -476,10 +508,14 @@
       <section v-else-if="activeTab === 'approvals'" class="tab-pane">
         <div class="approvals-header-banner">
           <div>
-            <h2 class="banner-title">🔔 طلبات موافقات الكاشير اللحظية</h2>
+            <h2 class="banner-title">
+              <AppIcon name="bell" :size="20" /> طلبات موافقات الكاشير اللحظية
+            </h2>
             <p class="banner-desc">اعتماد أو رفض طلبات الخصم والاستثناءات بضغطة زر</p>
           </div>
-          <button class="banner-refresh-btn" @click="fetchApprovals">🔄 تحديث</button>
+          <button class="banner-refresh-btn" @click="fetchApprovals">
+            <AppIcon name="refresh" :size="15" /> تحديث
+          </button>
         </div>
 
         <!-- Approval Status Filter Tabs -->
@@ -1313,6 +1349,12 @@ onUnmounted(() => {
   justify-content: center;
   box-shadow: 0 4px 16px rgba(90, 56, 37, 0.35);
   color: #ffffff;
+
+  img {
+    width: 30px;
+    height: 30px;
+    object-fit: contain;
+  }
 }
 
 .brand-name {
@@ -1610,6 +1652,9 @@ onUnmounted(() => {
 }
 
 .hero-title-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-size: 13px;
   font-weight: 700;
   color: #d9a86c;
@@ -1820,6 +1865,9 @@ onUnmounted(() => {
 }
 
 .card-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
   font-size: 14px;
   font-weight: 800;
   color: #d9a86c;
@@ -1850,6 +1898,12 @@ onUnmounted(() => {
 }
 
 .payment-symbol {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  color: #d9a86c;
   font-size: 24px;
 }
 .payment-text-group {
@@ -2208,6 +2262,9 @@ onUnmounted(() => {
 }
 
 .banner-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
   font-size: 15px;
   font-weight: 900;
   color: #ffffff;
@@ -2220,6 +2277,9 @@ onUnmounted(() => {
 }
 
 .banner-refresh-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   background: rgba(217, 168, 108, 0.2);
   border: 1px solid #d9a86c;
   color: #d9a86c;

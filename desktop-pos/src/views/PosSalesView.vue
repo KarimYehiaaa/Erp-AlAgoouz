@@ -406,8 +406,10 @@ onBeforeUnmount(() => {
 
 .pos-top-ribbon {
   height: 60px;
-  background: var(--bg-surface, #ffffff);
-  border-bottom: 1.5px solid var(--border, #e7e2d9);
+  background:
+    radial-gradient(circle at 14% 20%, rgba(209, 176, 107, 0.18), transparent 24%),
+    linear-gradient(135deg, #1e130b 0%, #3b2418 60%, #5a3825 100%);
+  border-bottom: 1.5px solid rgba(209, 176, 107, 0.4);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -445,14 +447,14 @@ onBeforeUnmount(() => {
       h2 {
         font-size: 1.12rem;
         font-weight: 900;
-        color: var(--text-strong, #0c0a09);
+        color: #fffaf2;
         margin: 0;
       }
 
       .terminal-badge {
-        background: #fdfaf5;
-        border: 1px solid var(--primary-border, rgba(138, 87, 42, 0.25));
-        color: var(--primary, #8a572a);
+        background: rgba(209, 176, 107, 0.18);
+        border: 1px solid rgba(209, 176, 107, 0.35);
+        color: #f3d7a0;
         padding: 1px 7px;
         border-radius: 4px;
         font-size: 0.72rem;
@@ -471,21 +473,21 @@ onBeforeUnmount(() => {
       align-items: center;
       gap: 6px;
       font-size: 0.85rem;
-      color: var(--text-main, #292524);
+      color: rgba(255, 250, 242, 0.9);
 
       .stat-label {
-        color: var(--text-muted, #78716c);
+        color: rgba(255, 250, 242, 0.62);
         font-weight: 750;
       }
 
       .stat-money {
-        color: var(--primary, #8a572a);
+        color: #f3d7a0;
         font-size: 1rem;
         font-weight: 900;
       }
 
       .stat-invoices {
-        color: var(--text-strong, #0c0a09);
+        color: #fffaf2;
         font-weight: 900;
       }
     }
@@ -502,10 +504,10 @@ onBeforeUnmount(() => {
       gap: 6px;
       height: 34px;
       padding: 0 10px;
-      background: #ffffff;
-      border: 1.5px solid var(--border, #e7e2d9);
+      background: rgba(255, 255, 255, 0.08);
+      border: 1.5px solid rgba(255, 255, 255, 0.2);
       border-radius: var(--radius-sm, 6px);
-      color: var(--text-main, #292524);
+      color: #fffaf2;
       font-size: 0.78rem;
       font-weight: 800;
       cursor: pointer;
@@ -513,9 +515,9 @@ onBeforeUnmount(() => {
       transition: all 0.15s ease;
 
       &:hover {
-        background: var(--bg-soft, #fbf9f6);
-        border-color: var(--primary, #8a572a);
-        color: var(--primary, #8a572a);
+        background: rgba(255, 255, 255, 0.12);
+        border-color: #f3d7a0;
+        color: #f3d7a0;
       }
 
       &.held-btn .held-badge {
@@ -576,19 +578,19 @@ onBeforeUnmount(() => {
       gap: 6px;
       height: 34px;
       padding: 0 12px;
-      background: #ffffff;
-      border: 1.5px solid var(--border, #e7e2d9);
+      background: #f3d7a0;
+      border: 1.5px solid #f3d7a0;
       border-radius: var(--radius-sm, 6px);
-      color: var(--text-main, #292524);
+      color: #2a1b11;
       font-size: 0.8rem;
       font-weight: 800;
       cursor: pointer;
       transition: all 0.15s ease;
 
       &:hover {
-        background: #fdfaf5;
-        color: var(--primary, #8a572a);
-        border-color: var(--primary, #8a572a);
+        background: #fff3d6;
+        color: #2a1b11;
+        border-color: #fff3d6;
       }
     }
   }

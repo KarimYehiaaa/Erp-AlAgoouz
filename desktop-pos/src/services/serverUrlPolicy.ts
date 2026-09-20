@@ -5,7 +5,9 @@
  */
 
 export const SAFE_LOCAL_URL = 'http://localhost:3000/api/v1';
-export const DEFAULT_SERVER_URL = SAFE_LOCAL_URL;
+export const SAFE_PRODUCTION_URL = 'https://agoouz.vercel.app/api/v1';
+const IS_PRODUCTION_BUILD = Boolean((import.meta as any).env?.PROD ?? false);
+export const DEFAULT_SERVER_URL = IS_PRODUCTION_BUILD ? SAFE_PRODUCTION_URL : SAFE_LOCAL_URL;
 
 /**
  * دالة مساعدة لقراءة متغيرات البيئة بمرونة عبر Node و Vite
@@ -68,6 +70,11 @@ export function getTrustedServerList(
     if (trimmed && !cleaned.includes(trimmed)) {
       cleaned.push(trimmed);
     }
+  }
+
+  // The deployed ERP API is a fixed, trusted production endpoint.
+  if (!cleaned.includes(SAFE_PRODUCTION_URL)) {
+    cleaned.push(SAFE_PRODUCTION_URL);
   }
 
   return cleaned;
@@ -262,6 +269,6 @@ export function getServerUrl(
     }
   }
 
-  // 3. التراجع الآمن للخادم المحلي الافتراضي
-  return SAFE_LOCAL_URL;
+  // 3. الإنتاج يستخدم الخادم السحابي؛ التطوير فقط يرجع للخادم المحلي.
+  return isProd ? SAFE_PRODUCTION_URL : SAFE_LOCAL_URL;
 }

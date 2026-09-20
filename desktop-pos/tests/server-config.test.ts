@@ -7,6 +7,7 @@ import {
   getServerUrl,
   initServerConfig,
   SAFE_LOCAL_URL,
+  SAFE_PRODUCTION_URL,
   DEFAULT_SERVER_URL,
 } from '../src/services/config';
 import {
@@ -77,15 +78,15 @@ describe('Desktop POS Server Configuration & IPC Contract Tests', () => {
       expect(api.interceptors.response).toBeDefined();
     });
 
-    it('5. Production insecure VITE_API_URL: fallback to SAFE_LOCAL_URL', () => {
+    it('5. Production insecure VITE_API_URL: fallback to SAFE_PRODUCTION_URL', () => {
       const fallbackUrl = getServerUrl(true, 'http://remote-insecure.com/api/v1');
-      expect(fallbackUrl).toBe(SAFE_LOCAL_URL);
+      expect(fallbackUrl).toBe(SAFE_PRODUCTION_URL);
     });
 
-    it('6. Production insecure localStorage: purge + fallback to SAFE_LOCAL_URL', () => {
+    it('6. Production insecure localStorage: purge + fallback to SAFE_PRODUCTION_URL', () => {
       localStorage.setItem('pos_server_url', 'http://malicious-server.com/api/v1');
       const resolved = getServerUrl(true);
-      expect(resolved).toBe(SAFE_LOCAL_URL);
+      expect(resolved).toBe(SAFE_PRODUCTION_URL);
       expect(localStorage.getItem('pos_server_url')).toBeNull();
     });
 
@@ -107,7 +108,7 @@ describe('Desktop POS Server Configuration & IPC Contract Tests', () => {
       const modifiedConfig = interceptor(fakeConfig);
 
       expect(modifiedConfig.baseURL).not.toBe('http://external-hacker.com/api/v1');
-      expect(modifiedConfig.baseURL).toBe(SAFE_LOCAL_URL);
+      expect(modifiedConfig.baseURL).toBe(SAFE_PRODUCTION_URL);
     });
 
     it('9. Startup Test: desktop-pos/src/main.ts startup sequence executes without ReferenceError or circular failure', async () => {
@@ -158,9 +159,9 @@ describe('Desktop POS Server Configuration & IPC Contract Tests', () => {
       expect(effectiveUrl).toBe('https://api.example.com/api/v1');
     });
 
-    it('Test B: Production + VITE_API_URL=http://external.example.com/api/v1 -> Must be rejected, falls back to safe local URL', () => {
+    it('Test B: Production + VITE_API_URL=http://external.example.com/api/v1 -> Must be rejected, falls back to safe production URL', () => {
       const effectiveUrl = getServerUrl(true, 'http://external.example.com/api/v1');
-      expect(effectiveUrl).toBe(SAFE_LOCAL_URL);
+      expect(effectiveUrl).toBe(SAFE_PRODUCTION_URL);
     });
 
     it('Test C: Production + insecure localStorage + valid HTTPS VITE_API_URL -> purges localStorage and uses HTTPS', () => {
@@ -170,10 +171,10 @@ describe('Desktop POS Server Configuration & IPC Contract Tests', () => {
       expect(localStorage.getItem('pos_server_url')).toBeNull(); // Purged!
     });
 
-    it('Test D: Production + insecure localStorage + insecure VITE_API_URL -> uses safe local fallback http://localhost:3000/api/v1', () => {
+    it('Test D: Production + insecure localStorage + insecure VITE_API_URL -> uses safe production fallback', () => {
       localStorage.setItem('pos_server_url', 'http://insecure-external.com/api/v1');
       const effectiveUrl = getServerUrl(true, 'http://another-insecure.com/api/v1');
-      expect(effectiveUrl).toBe(SAFE_LOCAL_URL);
+      expect(effectiveUrl).toBe(SAFE_PRODUCTION_URL);
       expect(localStorage.getItem('pos_server_url')).toBeNull(); // Purged!
     });
 
@@ -186,7 +187,7 @@ describe('Desktop POS Server Configuration & IPC Contract Tests', () => {
 
       // In production environment check, interceptor sanitizes via getServerUrl
       expect(modifiedConfig.baseURL).not.toBe('http://attacker-controlled.com/api/v1');
-      expect(modifiedConfig.baseURL).toBe(SAFE_LOCAL_URL);
+      expect(modifiedConfig.baseURL).toBe(SAFE_PRODUCTION_URL);
     });
   });
 

@@ -6,6 +6,7 @@
 import { api } from './api';
 import {
   SAFE_LOCAL_URL,
+  SAFE_PRODUCTION_URL,
   DEFAULT_SERVER_URL,
   getRawEnvUrl,
   getTrustedServerList,
@@ -16,6 +17,7 @@ import {
 
 export {
   SAFE_LOCAL_URL,
+  SAFE_PRODUCTION_URL,
   DEFAULT_SERVER_URL,
   getRawEnvUrl,
   getTrustedServerList,

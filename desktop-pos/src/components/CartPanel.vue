@@ -161,11 +161,23 @@
           <span class="line-val subtotal">{{ formatMoney(cartStore.subtotal) }}</span>
         </div>
 
-        <!-- Quick Discount Section -->
-        <div class="summary-line discount-line">
-          <div class="discount-label-group">
-            <span class="line-label">الخصم:</span>
-            <div class="discount-quick-pills">
+        <!-- Discount stays collapsed until the cashier needs it. -->
+        <div class="billing-actions-row">
+          <button
+            type="button"
+            class="billing-action-btn"
+            :class="{ active: showDiscountPanel || cartStore.discountAmount > 0 }"
+            @click="showDiscountPanel = !showDiscountPanel"
+          >
+            <AppIcon name="tag" :size="15" />
+            <span>الخصم</span>
+            <strong>{{ formatMoney(cartStore.discountAmount) }}</strong>
+            <AppIcon :name="showDiscountPanel ? 'minus' : 'plus'" :size="14" />
+          </button>
+        </div>
+
+        <div v-if="showDiscountPanel" class="discount-panel">
+          <div class="discount-quick-pills">
               <button
                 type="button"
                 class="disc-pill"
@@ -216,9 +228,7 @@
               >
                 30%
               </button>
-            </div>
           </div>
-
           <div class="discount-input-wrap">
             <input
               v-model.number="cartStore.discountAmount"
@@ -244,8 +254,18 @@
         </div>
       </div>
 
-      <!-- Payment Method Switcher -->
+      <!-- Payment Method Switcher: collapsed by default to preserve item space. -->
       <div class="payment-method-selector">
+        <button type="button" class="payment-summary-toggle" @click="showPaymentPanel = !showPaymentPanel">
+          <span class="payment-summary-leading">
+            <AppIcon name="creditCard" :size="16" />
+            <span>طريقة الدفع</span>
+          </span>
+          <strong>{{ paymentMethodLabel }}</strong>
+          <AppIcon :name="showPaymentPanel ? 'minus' : 'plus'" :size="14" />
+        </button>
+
+        <div v-if="showPaymentPanel" class="payment-options-grid">
         <button
           type="button"
           class="pay-btn"
@@ -285,10 +305,11 @@
           <div class="btn-icon-wrap credit"><AppIcon name="receipt" :size="16" /></div>
           <span>آجل</span>
         </button>
+        </div>
       </div>
 
       <!-- Cash Change Calculator (When Cash is selected) -->
-      <div v-if="cartStore.paymentMethod === 'cash' && cartStore.total > 0" class="cash-change-calculator">
+      <div v-if="showPaymentPanel && cartStore.paymentMethod === 'cash' && cartStore.total > 0" class="cash-change-calculator">
         <div class="cash-calc-row">
           <div class="received-input-group">
             <label>المبلغ المستلم من العميل:</label>
@@ -391,6 +412,8 @@ const cartStore = usePosCartStore();
 const orderType = ref<'takeaway' | 'dinein' | 'delivery'>('takeaway');
 const cashGiven = ref<number | null>(null);
 const currentTime = ref('');
+const showDiscountPanel = ref(false);
+const showPaymentPanel = ref(false);
 
 let timerInterval: any = null;
 
@@ -414,6 +437,16 @@ onBeforeUnmount(() => {
 const changeDue = computed(() => {
   if (!cashGiven.value || cashGiven.value <= cartStore.total) return 0;
   return Math.round((cashGiven.value - cartStore.total) * 100) / 100;
+});
+
+const paymentMethodLabel = computed(() => {
+  const labels: Record<string, string> = {
+    cash: 'نقدي',
+    card: 'بطاقة',
+    instapay: 'إنستاباي',
+    credit: 'آجل',
+  };
+  return labels[cartStore.paymentMethod] || 'نقدي';
 });
 
 const setCashGiven = (val: number) => {
@@ -805,6 +838,119 @@ const confirmClearCart = () => {
       min-width: 80px;
     }
   }
+}
+
+/* Collapsible checkout controls keep the receipt list as the primary workspace. */
+.billing-summary-box {
+  gap: 6px;
+  padding: 8px 10px;
+}
+
+.billing-actions-row {
+  display: flex;
+}
+
+.billing-action-btn,
+.payment-summary-toggle {
+  width: 100%;
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  border: 1px solid var(--border, #e7e2d9);
+  border-radius: 9px;
+  background: #ffffff;
+  color: var(--text-muted, #78716c);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 800;
+  cursor: pointer;
+  touch-action: manipulation;
+
+  strong {
+    margin-right: auto;
+    color: var(--text-strong, #0c0a09);
+  }
+
+  &:hover,
+  &.active {
+    border-color: var(--primary, #8a572a);
+    color: var(--primary, #8a572a);
+    background: var(--primary-soft, rgba(138, 87, 42, 0.07));
+  }
+}
+
+.discount-panel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px;
+  border: 1px dashed var(--border-strong, #d6cebf);
+  border-radius: 8px;
+  background: #ffffff;
+
+  .discount-quick-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    flex: 1;
+  }
+
+  .disc-pill {
+    min-width: 38px;
+    min-height: 32px;
+    padding: 0 7px;
+    border: 1px solid var(--border, #e7e2d9);
+    border-radius: 6px;
+    background: var(--bg-soft, #fbf9f6);
+    color: var(--text-muted, #78716c);
+    font-size: 0.72rem;
+    font-weight: 850;
+    cursor: pointer;
+
+    &.active,
+    &:hover {
+      background: var(--primary, #8a572a);
+      color: #ffffff;
+      border-color: var(--primary, #8a572a);
+    }
+  }
+
+  .discount-input-wrap {
+    flex: 0 0 auto;
+  }
+}
+
+.payment-method-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.payment-summary-toggle {
+  .payment-summary-leading {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+  }
+
+  strong {
+    margin-right: auto;
+    color: var(--primary, #8a572a);
+  }
+}
+
+.payment-options-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+
+.payment-options-grid .pay-btn {
+  min-height: 48px;
+  height: auto;
+  touch-action: manipulation;
 }
 
 /* ═══════════════════ RECEIPT FOOTER / TOTALS ═══════════════════ */
@@ -1323,5 +1469,114 @@ const confirmClearCart = () => {
       font-size: 0.9rem;
     }
   }
+}
+
+/* Final compact checkout overrides (kept last so they win over legacy footer rules). */
+.billing-summary-box {
+  gap: 6px;
+  padding: 8px 10px;
+}
+
+.billing-actions-row {
+  display: flex;
+}
+
+.billing-action-btn,
+.payment-summary-toggle {
+  width: 100%;
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  border: 1px solid var(--border, #e7e2d9);
+  border-radius: 9px;
+  background: #ffffff;
+  color: var(--text-muted, #78716c);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 800;
+  cursor: pointer;
+  touch-action: manipulation;
+
+  strong {
+    margin-right: auto;
+    color: var(--text-strong, #0c0a09);
+  }
+
+  &:hover,
+  &.active {
+    border-color: var(--primary, #8a572a);
+    color: var(--primary, #8a572a);
+    background: var(--primary-soft, rgba(138, 87, 42, 0.07));
+  }
+}
+
+.discount-panel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px;
+  border: 1px dashed var(--border-strong, #d6cebf);
+  border-radius: 8px;
+  background: #ffffff;
+
+  .discount-quick-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    flex: 1;
+  }
+
+  .disc-pill {
+    min-width: 38px;
+    min-height: 32px;
+    padding: 0 7px;
+    border: 1px solid var(--border, #e7e2d9);
+    border-radius: 6px;
+    background: var(--bg-soft, #fbf9f6);
+    color: var(--text-muted, #78716c);
+    font-size: 0.72rem;
+    font-weight: 850;
+    cursor: pointer;
+
+    &.active,
+    &:hover {
+      background: var(--primary, #8a572a);
+      color: #ffffff;
+      border-color: var(--primary, #8a572a);
+    }
+  }
+}
+
+.payment-method-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.payment-summary-toggle {
+  .payment-summary-leading {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+  }
+
+  strong {
+    margin-right: auto;
+    color: var(--primary, #8a572a);
+  }
+}
+
+.payment-options-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+
+.payment-options-grid .pay-btn {
+  min-height: 48px;
+  height: auto;
+  touch-action: manipulation;
 }
 </style>

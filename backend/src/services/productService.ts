@@ -537,6 +537,7 @@ export const getBranchProducts = async (filters: Record<string, any> = {}) => {
   let sql = `
     SELECT
       p.id, p.sku, p.barcode, p.name_ar, p.unit, p.sale_price, p.purchase_price,
+      p.image_url, p.is_active, p.min_stock,
       p.category_id, pc.name_ar AS category_name,
       p.primary_warehouse_id,
       (SELECT name_ar FROM warehouses w WHERE w.id = p.primary_warehouse_id) AS primary_warehouse_name,

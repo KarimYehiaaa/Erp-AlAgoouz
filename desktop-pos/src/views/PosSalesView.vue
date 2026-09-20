@@ -119,9 +119,9 @@
           :selected-category="selectedCategory"
           active-tab="products"
           :format-money="formatMoney"
-          :has-low-ingredients="() => false"
-          :get-product-stock-class="() => 'normal'"
-          :get-product-stock-title="() => 'متوفر'"
+          :has-low-ingredients="hasLowIngredients"
+          :get-product-stock-class="getProductStockClass"
+          :get-product-stock-title="getProductStockTitle"
           :is-in-cart="cartStore.isProductInCart"
           :get-cart-qty="cartStore.getItemQty"
           @add-to-cart="handleAddToCart"
@@ -242,6 +242,57 @@ const filteredProducts = computed(() => {
   return list;
 });
 
+const getNumericStock = (product: any) => {
+  const value = product?.store_stock ?? product?.stock_quantity ?? product?.quantity;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const getRecipeStockState = (product: any) => {
+  const ingredients = Array.isArray(product?.recipe_items) ? product.recipe_items : [];
+  if (!product?.has_recipe || ingredients.length === 0) return null;
+
+  const states = ingredients.map((ingredient: any) => {
+    const available = Number(ingredient?.stock_available);
+    const required = Number(ingredient?.quantity);
+    if (!Number.isFinite(available)) return 'unknown';
+    if (available <= 0 || (Number.isFinite(required) && required > 0 && available < required)) {
+      return 'out';
+    }
+    if (Number.isFinite(required) && required > 0 && available <= required * 3) return 'low';
+    return 'normal';
+  });
+
+  if (states.includes('out')) return 'out';
+  if (states.includes('low')) return 'low';
+  return states.includes('unknown') ? 'normal' : 'normal';
+};
+
+const getProductStockClass = (product: any) => {
+  if (product?.is_active === false) return 'out';
+
+  const recipeState = getRecipeStockState(product);
+  if (recipeState) return recipeState;
+
+  const stock = getNumericStock(product);
+  if (stock === null) return 'normal';
+  if (stock <= 0) return 'out';
+
+  const minimum = Number(product?.min_stock ?? product?.min_quantity ?? 5);
+  return stock <= (Number.isFinite(minimum) ? minimum : 5) ? 'low' : 'normal';
+};
+
+const hasLowIngredients = (product: any) =>
+  product?.has_recipe && getProductStockClass(product) === 'low';
+
+const getProductStockTitle = (product: any) => {
+  const state = getProductStockClass(product);
+  if (state === 'out') return 'غير متوفر حاليًا';
+  if (state === 'low') return 'المخزون منخفض';
+  const stock = getNumericStock(product);
+  return stock === null ? 'متوفر للبيع' : `متوفر: ${stock} ${product?.unit || ''}`.trim();
+};
+
 const loadCatalogData = async () => {
   loadingProducts.value = true;
   try {
@@ -266,6 +317,11 @@ const loadCatalogData = async () => {
 };
 
 const handleAddToCart = (product: any, customQty = 1, customNotes?: string) => {
+  if (getProductStockClass(product) === 'out') {
+    playErrorBuzz();
+    alert('هذا الصنف غير متوفر حاليًا.');
+    return;
+  }
   cartStore.addItem(product, customQty, customNotes);
   playScanBeep();
 };
@@ -281,8 +337,7 @@ useBarcodeScanner((barcode) => {
   );
 
   if (found) {
-    cartStore.addItem(found, 1);
-    playScanBeep();
+    handleAddToCart(found, 1);
   } else {
     playErrorBuzz();
     alert(`لم يتم العثور على صنف بالباركود: ${barcode}`);

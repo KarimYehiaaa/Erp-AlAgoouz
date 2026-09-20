@@ -982,7 +982,9 @@ const playAlertSound = () => {
     gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
     osc.start(ctx.currentTime);
     osc.stop(ctx.currentTime + 0.5);
-  } catch {}
+  } catch {
+    // Audio feedback is optional and may be blocked by the browser.
+  }
 };
 
 // ─── Server Diagnostics ─────────────────────────────────────
@@ -1257,15 +1259,9 @@ const initLiveConnection = () => {
   }
 
   const serverUrl = getBaseServerUrl();
-  let wsUrl = '';
-  if (serverUrl) {
-    const cleanHost = serverUrl.replace(/^https?:\/\//, '');
-    const wsProtocol = serverUrl.startsWith('https') ? 'wss:' : 'ws:';
-    wsUrl = `${wsProtocol}//${cleanHost}/ws`;
-  } else {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    wsUrl = `${protocol}//${window.location.host}/ws`;
-  }
+  const wsUrl = serverUrl
+    ? `${serverUrl.startsWith('https') ? 'wss:' : 'ws:'}//${serverUrl.replace(/^https?:\/\//, '')}/ws`
+    : `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws`;
 
   try {
     ws = new WebSocket(wsUrl);
@@ -1291,7 +1287,9 @@ const initLiveConnection = () => {
             approvalsList.value[idx] = msg.data;
           }
         }
-      } catch {}
+      } catch {
+        // Ignore malformed realtime messages and keep the connection alive.
+      }
     };
   } catch {
     isLiveConnected.value = false;

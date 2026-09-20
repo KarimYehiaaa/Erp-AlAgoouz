@@ -50,7 +50,9 @@ export const triggerHaptic = async (
         await Haptics.impact({ style: ImpactStyle.Medium });
         break;
     }
-  } catch {}
+  } catch {
+    // Haptics are optional on unsupported devices.
+  }
 };
 
 /**
@@ -71,7 +73,9 @@ export const setBiometricsEnabled = async (enabled: boolean): Promise<void> => {
       key: 'binalagoouz_biometrics_enabled',
       value: enabled ? 'true' : 'false',
     });
-  } catch {}
+  } catch {
+    // Preferences are best-effort and must not block the application.
+  }
 };
 
 export default {

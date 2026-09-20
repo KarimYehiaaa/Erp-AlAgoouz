@@ -393,9 +393,9 @@ export class WorkflowGraphService {
     const { default: TelegramService } = await import('./telegramService.ts');
     const creds = await TelegramBotService.getBotCredentials();
 
-    let notificationText = '';
+    let notificationText: string;
     let status: 'success' | 'failed' | 'warning' = 'success';
-    let title = '';
+    let title: string;
 
     try {
       if (key === 'daily_sales_report' || key === 'daily_summary') {

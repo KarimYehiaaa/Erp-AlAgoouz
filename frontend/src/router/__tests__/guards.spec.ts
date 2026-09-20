@@ -23,7 +23,6 @@ const route = (overrides: Record<string, any> = {}) => ({
 });
 
 const runGuard = async (to: Record<string, any>) => {
-  const result = Symbol('next-result');
   const next = vi.fn();
   await navigationGuard(route(to), route(), next as any);
   return { next };

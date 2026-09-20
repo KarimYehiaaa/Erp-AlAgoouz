@@ -59,12 +59,6 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
-
-const props = defineProps({
-  stats: { type: Object, default: () => ({}) },
-});
-
 const days = ['السبت', 'الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة'];
 const hours = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23];
 

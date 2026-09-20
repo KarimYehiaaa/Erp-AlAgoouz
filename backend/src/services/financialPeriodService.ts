@@ -8,7 +8,7 @@
  *  - إعادة فتح الفترة للمراجعة الاستثنائية مع توثيق السبب
  */
 
-import { query, getClient } from '../database/pool.ts';
+import { query } from '../database/pool.ts';
 import { AppError } from '../types/errors.ts';
 
 export interface CreatePeriodInput {

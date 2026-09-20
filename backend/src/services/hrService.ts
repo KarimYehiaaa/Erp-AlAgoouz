@@ -892,7 +892,7 @@ export const approvePayrollRun = async (id: number, userId: number) => {
       throw new AppError('لا يمكن اعتماد مسير غير مسودة أو تم اعتماده مسبقاً', 400);
     }
 
-    const updated = await client.query(
+    await client.query(
       `UPDATE payroll_runs SET status = 'approved', updated_at = NOW() WHERE id = $1 RETURNING *`,
       [id],
     );

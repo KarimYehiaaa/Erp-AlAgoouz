@@ -206,7 +206,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, reactive } from 'vue';
+import { computed, watch, reactive } from 'vue';
 import type { PosShift } from '@/api/pos.api';
 
 const props = defineProps<{

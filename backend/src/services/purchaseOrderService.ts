@@ -268,7 +268,7 @@ export const purchaseOrderService = {
       throw new AppError('لا يمكن اعتماد أمر شراء غير معلق أو تم اعتماده مسبقاً', 400);
     }
 
-    const res = await query(
+    await query(
       `UPDATE purchase_orders 
        SET status = 'approved', updated_at = NOW() 
        WHERE id = $1 

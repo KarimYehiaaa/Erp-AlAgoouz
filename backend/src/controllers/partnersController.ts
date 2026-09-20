@@ -6,14 +6,14 @@ export const partnersController = {
   /**
    * قائمة الشركاء
    */
-  listPartners: wrap(async (req: any, res: any, next: any) => {
+  listPartners: wrap(async (req: any, res: any, _next: any) => {
     ok(res, await partnerService.getPartners());
   }),
 
   /**
    * تفاصيل شريك محدد
    */
-  getPartner: wrap(async (req: any, res: any, next: any) => {
+  getPartner: wrap(async (req: any, res: any, _next: any) => {
     const id = Number(req.params.id);
     if (!id) throw new AppError('معرف الشريك غير صالح', 400);
     ok(res, await partnerService.getPartnerById(id));
@@ -22,14 +22,14 @@ export const partnersController = {
   /**
    * إضافة شريك
    */
-  createPartner: wrap(async (req: any, res: any, next: any) => {
+  createPartner: wrap(async (req: any, res: any, _next: any) => {
     ok(res, await partnerService.createPartner(req.body));
   }),
 
   /**
    * تعديل شريك
    */
-  updatePartner: wrap(async (req: any, res: any, next: any) => {
+  updatePartner: wrap(async (req: any, res: any, _next: any) => {
     const id = Number(req.params.id);
     if (!id) throw new AppError('معرف الشريك غير صالح', 400);
     ok(res, await partnerService.updatePartner(id, req.body));
@@ -38,7 +38,7 @@ export const partnersController = {
   /**
    * حذف شريك
    */
-  deletePartner: wrap(async (req: any, res: any, next: any) => {
+  deletePartner: wrap(async (req: any, res: any, _next: any) => {
     const id = Number(req.params.id);
     if (!id) throw new AppError('معرف الشريك غير صالح', 400);
     ok(res, await partnerService.deletePartner(id));
@@ -47,7 +47,7 @@ export const partnersController = {
   /**
    * قائمة سندات مسحوبات الشركاء
    */
-  listDrawings: wrap(async (req: any, res: any, next: any) => {
+  listDrawings: wrap(async (req: any, res: any, _next: any) => {
     const filters = {
       partner_id: req.query.partner_id ? Number(req.query.partner_id) : undefined,
       from_date: req.query.from_date as string | undefined,
@@ -61,7 +61,7 @@ export const partnersController = {
   /**
    * تسجيل سند مسحوبات شريك
    */
-  createDrawing: wrap(async (req: any, res: any, next: any) => {
+  createDrawing: wrap(async (req: any, res: any, _next: any) => {
     const userId = req.user?.id || null;
     ok(res, await partnerService.createPartnerDrawing(req.body, userId));
   }),
@@ -69,7 +69,7 @@ export const partnersController = {
   /**
    * حذف سند مسحوبات
    */
-  deleteDrawing: wrap(async (req: any, res: any, next: any) => {
+  deleteDrawing: wrap(async (req: any, res: any, _next: any) => {
     const id = Number(req.params.id);
     if (!id) throw new AppError('معرف سند المسحوبات غير صالح', 400);
     ok(res, await partnerService.deletePartnerDrawing(id));
@@ -78,7 +78,7 @@ export const partnersController = {
   /**
    * تسوية الأرباح التلقائية للفترة
    */
-  settlement: wrap(async (req: any, res: any, next: any) => {
+  settlement: wrap(async (req: any, res: any, _next: any) => {
     const { from_date, to_date } = req.query;
     if (!from_date || !to_date) {
       throw new AppError('from_date و to_date مطلوبان لحساب التسوية', 400);

@@ -362,7 +362,7 @@ export const getProfitAndLoss = async (fromDate: string, toDate: string) => {
       fromDate,
       toDate,
     );
-  } catch (glErr: any) {
+  } catch {
     // Fallback gracefully if ledger is unavailable
     (result as any).ledger_reconciliation = null;
   }
@@ -393,18 +393,6 @@ export const getMonthlyPLSummary = async (months: number = 6) => {
     [months],
   );
 
-  const purchasesRows = await query(
-    `SELECT
-       date_trunc('month', invoice_date)::date AS month,
-       COALESCE(SUM(total_amount), 0)          AS purchases
-     FROM purchase_invoices
-     WHERE deleted_at IS NULL
-     GROUP BY 1
-     ORDER BY 1 DESC
-     LIMIT $1`,
-    [months],
-  );
-
   const expensesRows = await query(
     `SELECT
        date_trunc('month', expense_date)::date AS month,
@@ -417,9 +405,6 @@ export const getMonthlyPLSummary = async (months: number = 6) => {
     [months],
   );
 
-  const purchasesMap = new Map(
-    purchasesRows.rows.map((r) => [String(r.month), toNum(r.purchases)]),
-  );
   const expensesMap = new Map(expensesRows.rows.map((r) => [String(r.month), toNum(r.expenses)]));
 
   return rows.rows

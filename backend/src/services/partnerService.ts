@@ -257,7 +257,7 @@ export const getPartnerDrawings = async (filters: {
   }
 
   if (filters.source_type) {
-    conditions.push(`d.source_type = $${pIdx++}`);
+    conditions.push(`d.source_type = $${pIdx}`);
     params.push(filters.source_type);
   }
 

@@ -1050,7 +1050,7 @@ const handleExportPdf = async () => {
       backgroundColor: '#1b120c',
     });
     showFeedback('تم تصدير ملف الـ PDF بنجاح! ');
-  } catch (_err) {
+  } catch {
     showFeedback('حدث خطأ أثناء تصدير الـ PDF', 'error');
   } finally {
     isExportingPdf.value = false;

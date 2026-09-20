@@ -17,7 +17,7 @@ const handleWebhook = async (req: Request, res: Response) => {
       await TelegramBotService.handleIncomingMessage(req.body.message);
     }
     res.status(200).json({ ok: true });
-  } catch (_err) {
+  } catch {
     res.status(200).json({ ok: true }); // Always 200 for telegram webhook
   }
 };

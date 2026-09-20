@@ -1355,7 +1355,7 @@ export const accountingService = {
     const amount = roundMoney(Number(movement.amount || 0));
     if (amount <= 0) return;
 
-    let lines: JournalLineInput[] = [];
+    let lines: JournalLineInput[];
 
     if (movement.movement_type === 'drop') {
       lines = [
@@ -1419,7 +1419,7 @@ export const accountingService = {
     const diff = roundMoney(Number(shift.cash_difference || 0));
     if (Math.abs(diff) <= 0.01) return;
 
-    let lines: JournalLineInput[] = [];
+    let lines: JournalLineInput[];
 
     if (diff < 0) {
       const absDiff = Math.abs(diff);
@@ -1658,8 +1658,8 @@ export const accountingService = {
    */
   async deleteJournalEntryByReference(first: any, second: any, third?: any) {
     let client: any = null;
-    let referenceType = '';
-    let referenceId = 0;
+    let referenceType: string;
+    let referenceId: number;
 
     if (typeof first === 'string') {
       referenceType = first;

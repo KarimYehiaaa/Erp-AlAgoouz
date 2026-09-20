@@ -103,7 +103,7 @@ export class AiVisualService {
    */
   public static matchImageForProduct(
     name: string,
-    categoryId?: number,
+    _categoryId?: number,
   ): { imageUrl: string; tag: string } {
     const n = (name || '').toLowerCase().trim();
 

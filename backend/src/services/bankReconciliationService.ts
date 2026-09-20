@@ -745,7 +745,7 @@ export const bankReconciliationService = {
     try {
       await client.query('BEGIN');
 
-      const updateRes = await client.query(
+      await client.query(
         `UPDATE bank_reconciliations
          SET status = 'completed',
              ledger_balance = $1,

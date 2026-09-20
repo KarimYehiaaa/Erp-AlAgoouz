@@ -371,7 +371,7 @@ export const posShiftService = {
       params.push(filters.cashier_id);
     }
     if (filters.status) {
-      sql += ` AND s.status = $${i++}`;
+      sql += ` AND s.status = $${i}`;
       params.push(filters.status);
     }
 

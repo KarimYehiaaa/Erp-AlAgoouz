@@ -95,6 +95,7 @@ export const requireIdempotency = async (
     );
 
     if (claimRes.rowCount && claimRes.rowCount > 0) {
+      // The request owns the idempotency key and may continue.
     } else {
       // المفتاح موجود مسبقاً في قاعدة البيانات — فحص حالته
       const existingRes = await query(
@@ -143,6 +144,7 @@ export const requireIdempotency = async (
         );
 
         if (reclaimRes.rowCount && reclaimRes.rowCount > 0) {
+          // The stale lock was reclaimed successfully.
         } else {
           // استملكه طلب آخر بالتزامن
           res.status(409).json({

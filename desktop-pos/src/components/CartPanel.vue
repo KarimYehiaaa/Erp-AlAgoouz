@@ -1175,4 +1175,55 @@ const confirmClearCart = () => {
     letter-spacing: -0.3px;
   }
 }
+
+/* Touch-first receipt controls: the cashier should not need pixel-perfect taps. */
+.order-type-tabs {
+  gap: 8px;
+  padding: 10px 14px;
+
+  .type-tab {
+    min-height: 52px;
+    height: auto;
+    padding-inline: 8px;
+    font-size: 0.9rem;
+    touch-action: manipulation;
+  }
+}
+
+.receipt-item-card {
+  padding: 14px 16px;
+  gap: 9px;
+
+  .item-card-top .btn-delete-item {
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    touch-action: manipulation;
+  }
+
+  .item-card-bottom .item-stepper {
+    border-radius: 10px;
+
+    .step-btn {
+      width: 48px;
+      height: 48px;
+      font-size: 1.35rem;
+      touch-action: manipulation;
+    }
+
+    .step-qty {
+      min-width: 44px;
+      font-size: 1.05rem;
+    }
+  }
+}
+
+.btn-checkout-master {
+  height: 64px;
+  touch-action: manipulation;
+}
 </style>

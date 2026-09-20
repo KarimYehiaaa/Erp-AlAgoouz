@@ -629,9 +629,9 @@ onBeforeUnmount(() => {
 .pos-main-workspace {
   flex: 1;
   display: grid;
-  grid-template-columns: 1fr 410px;
-  gap: 12px;
-  padding: 12px;
+  grid-template-columns: minmax(0, 1fr) minmax(430px, 38vw);
+  gap: 16px;
+  padding: 16px;
   overflow: hidden;
   background: var(--bg-main, #f6f4f0);
 
@@ -668,7 +668,7 @@ onBeforeUnmount(() => {
   }
 
   .pos-main-workspace {
-    grid-template-columns: minmax(0, 1fr) 360px;
+    grid-template-columns: minmax(0, 1fr) 390px;
   }
 }
 

@@ -67,7 +67,7 @@
 
     <!-- ═══════════════════ SECONDARY QUICK-SWITCH CATEGORY STRIP ═══════════════════ -->
     <!-- Visible when in products mode for rapid 1-tap switching without leaving -->
-    <div v-if="(selectedCategory || productSearch) && categories.length > 1" class="pos-categories-quick-strip">
+    <div v-if="categories.length > 1" class="pos-categories-quick-strip">
       <button
         type="button"
         class="quick-cat-pill"
@@ -191,17 +191,20 @@
                   'is-out-of-stock': getProductStockClass(product) === 'out',
                 },
               ]"
-              @mousedown="startLongPress(product)"
-              @mouseup="cancelLongPress"
-              @mouseleave="cancelLongPress"
-              @touchstart.passive="startLongPress(product)"
-              @touchend="cancelLongPress"
+              @pointerdown="startLongPress(product)"
+              @pointerup="cancelLongPress"
+              @pointercancel="cancelLongPress"
+              @pointerleave="cancelLongPress"
+              @pointermove="cancelLongPress"
+              @contextmenu.prevent
               @click="handleCardClick(product)"
+              @keydown.enter="handleCardClick(product)"
+              @keydown.space.prevent="handleCardClick(product)"
               role="button"
               tabindex="0"
               :title="
                 product.name_ar +
-                (isCoffeeProduct(product) ? ' (انقر مطولاً أو اضغط على الأيقونة للتخصيص)' : '')
+                ' (اضغط مطولاً أو اضغط على أيقونة التفاصيل للتخصيص)'
               "
             >
               <!-- Stock Status Dot -->
@@ -211,14 +214,13 @@
                 :title="getProductStockTitle(product)"
               ></span>
 
-              <!-- Coffee Customizer Action Button -->
+              <!-- Product Details / Customizer Action Button -->
               <button
-                v-if="isCoffeeProduct(product)"
                 type="button"
                 class="card-customizer-btn"
                 @click.stop="openCustomizer(product)"
-                title="تخصيص درجة الطحن والتحميص"
-                aria-label="تخصيص البن"
+                title="تفاصيل وإضافات المنتج"
+                aria-label="تفاصيل وإضافات المنتج"
               >
                 <AppIcon name="sliders" :size="14" />
               </button>
@@ -258,7 +260,7 @@
       </Transition>
     </div>
 
-    <!-- ═══════════════════ COFFEE & DRINK CUSTOMIZER MODAL ═══════════════════ -->
+    <!-- ═══════════════════ PRODUCT DETAILS / CUSTOMIZER MODAL ═══════════════════ -->
     <div
       v-if="showCustomizerModal && activeCustomProduct"
       class="customizer-modal-backdrop"
@@ -268,9 +270,9 @@
         <!-- Header -->
         <div class="customizer-header">
           <div class="header-title-wrap">
-            <span class="modal-coffee-icon"><AppIcon name="coffee" :size="20" /></span>
+            <span class="modal-coffee-icon"><AppIcon :name="isActiveCoffee ? 'coffee' : 'sliders'" :size="20" /></span>
             <div>
-              <h3>تخصيص مواصفات البن / الطلب</h3>
+              <h3>{{ isActiveCoffee ? 'تخصيص مواصفات البن / الطلب' : 'تفاصيل وإضافات المنتج' }}</h3>
               <p class="custom-prod-title">{{ activeCustomProduct.name_ar }}</p>
             </div>
           </div>
@@ -285,101 +287,63 @@
         </div>
 
         <div class="customizer-body">
-          <!-- 1. درجة الطحن -->
-          <div class="custom-section">
-            <label class="custom-sec-title">درجة الطحن المطلوبة:</label>
-            <div class="custom-options-grid">
-              <button
-                v-for="grind in grindOptions"
-                :key="grind.id"
-                type="button"
-                class="option-pill-btn"
-                :class="{ active: selectedGrind === grind.label }"
-                @click="selectedGrind = grind.label"
-              >
-                <AppIcon v-if="grind.icon" :name="grind.icon" :size="14" class="pill-emoji" />
-                <span>{{ grind.label }}</span>
-              </button>
+          <template v-if="isActiveCoffee">
+            <div class="custom-section">
+              <label class="custom-sec-title">درجة الطحن المطلوبة:</label>
+              <div class="custom-options-grid">
+                <button v-for="grind in grindOptions" :key="grind.id" type="button" class="option-pill-btn" :class="{ active: selectedGrind === grind.label }" @click="selectedGrind = grind.label">
+                  <AppIcon v-if="grind.icon" :name="grind.icon" :size="14" class="pill-emoji" />
+                  <span>{{ grind.label }}</span>
+                </button>
+              </div>
             </div>
-          </div>
 
-          <!-- 2. درجة التحميص -->
-          <div class="custom-section">
-            <label class="custom-sec-title">درجة التحميص:</label>
-            <div class="custom-options-grid cols-4">
-              <button
-                v-for="roast in roastOptions"
-                :key="roast.id"
-                type="button"
-                class="option-pill-btn"
-                :class="{ active: selectedRoast === roast.label }"
-                @click="selectedRoast = roast.label"
-              >
-                <AppIcon v-if="roast.icon" :name="roast.icon" :size="14" class="pill-emoji" />
-                <span>{{ roast.label }}</span>
-              </button>
+            <div class="custom-section">
+              <label class="custom-sec-title">درجة التحميص:</label>
+              <div class="custom-options-grid cols-4">
+                <button v-for="roast in roastOptions" :key="roast.id" type="button" class="option-pill-btn" :class="{ active: selectedRoast === roast.label }" @click="selectedRoast = roast.label">
+                  <AppIcon v-if="roast.icon" :name="roast.icon" :size="14" class="pill-emoji" />
+                  <span>{{ roast.label }}</span>
+                </button>
+              </div>
             </div>
-          </div>
 
-          <!-- 3. إضافات التحويجة -->
-          <div class="custom-section">
-            <label class="custom-sec-title">إضافات التحويجة والحبهان:</label>
-            <div class="custom-options-grid cols-3">
-              <button
-                v-for="spice in spiceOptions"
-                :key="spice.id"
-                type="button"
-                class="option-pill-btn"
-                :class="{ active: selectedSpices === spice.label }"
-                @click="selectedSpices = spice.label"
-              >
-                <AppIcon v-if="spice.icon" :name="spice.icon" :size="14" class="pill-emoji" />
-                <span>{{ spice.label }}</span>
-              </button>
+            <div class="custom-section">
+              <label class="custom-sec-title">إضافات التحويجة والحبهان:</label>
+              <div class="custom-options-grid cols-3">
+                <button v-for="spice in spiceOptions" :key="spice.id" type="button" class="option-pill-btn" :class="{ active: selectedSpices === spice.label }" @click="selectedSpices = spice.label">
+                  <AppIcon v-if="spice.icon" :name="spice.icon" :size="14" class="pill-emoji" />
+                  <span>{{ spice.label }}</span>
+                </button>
+              </div>
             </div>
-          </div>
 
-          <!-- 4. الوزن / الكمية السريعة -->
-          <div class="custom-section">
-            <label class="custom-sec-title">الوزن / الحجم المطلوب:</label>
-            <div class="custom-options-grid cols-4">
-              <button
-                type="button"
-                class="option-pill-btn"
-                :class="{ active: selectedWeight === 0.125 }"
-                @click="selectedWeight = 0.125"
-              >
-                ⅛ ثمن (125g)
-              </button>
-              <button
-                type="button"
-                class="option-pill-btn"
-                :class="{ active: selectedWeight === 0.25 }"
-                @click="selectedWeight = 0.25"
-              >
-                ¼ ربع (250g)
-              </button>
-              <button
-                type="button"
-                class="option-pill-btn"
-                :class="{ active: selectedWeight === 0.5 }"
-                @click="selectedWeight = 0.5"
-              >
-                ½ نصف (500g)
-              </button>
-              <button
-                type="button"
-                class="option-pill-btn highlight"
-                :class="{ active: selectedWeight === 1.0 }"
-                @click="selectedWeight = 1.0"
-              >
-                1k كيلو (1000g)
-              </button>
+            <div class="custom-section">
+              <label class="custom-sec-title">الوزن / الحجم المطلوب:</label>
+              <div class="custom-options-grid cols-4">
+                <button type="button" class="option-pill-btn" :class="{ active: selectedWeight === 0.125 }" @click="selectedWeight = 0.125">⅛ ثمن (125g)</button>
+                <button type="button" class="option-pill-btn" :class="{ active: selectedWeight === 0.25 }" @click="selectedWeight = 0.25">¼ ربع (250g)</button>
+                <button type="button" class="option-pill-btn" :class="{ active: selectedWeight === 0.5 }" @click="selectedWeight = 0.5">½ نصف (500g)</button>
+                <button type="button" class="option-pill-btn highlight" :class="{ active: selectedWeight === 1.0 }" @click="selectedWeight = 1.0">1k كيلو (1000g)</button>
+              </div>
             </div>
-          </div>
+          </template>
+
+          <template v-else>
+            <div class="custom-section">
+              <label class="custom-sec-title">الكمية:</label>
+              <div class="detail-quantity-control">
+                <button type="button" class="detail-quantity-btn" @click="customQuantity = Math.max(1, customQuantity - 1)">−</button>
+                <strong>{{ customQuantity }}</strong>
+                <button type="button" class="detail-quantity-btn" @click="customQuantity += 1">+</button>
+              </div>
+              <label class="custom-sec-title detail-notes-label">ملاحظات الطلب:</label>
+              <textarea v-model="customNotes" class="custom-notes-input" rows="3" placeholder="مثال: بدون سكر، إضافي، تجهيز خاص..."></textarea>
+            </div>
+          </template>
 
           <!-- ملخص المواصفات المجمعة -->
-          <div class="spec-summary-badge">
+          <div v-if="isActiveCoffee" class="spec-summary-badge">
             <span class="spec-label">المواصفات:</span>
             <strong class="spec-text">{{ compiledCustomNotes }}</strong>
           </div>
@@ -395,7 +359,7 @@
             class="btn btn-primary add-custom-btn"
             @click="confirmCustomization"
           >
-            إضافة للسلة مع المواصفات (Enter)
+            {{ isActiveCoffee ? 'إضافة للسلة مع المواصفات (Enter)' : 'إضافة للسلة' }}
           </button>
         </div>
       </div>
@@ -538,6 +502,8 @@ const selectedGrind = ref('تركي ناعم');
 const selectedRoast = ref('وسط');
 const selectedSpices = ref('حبهان مظبوط');
 const selectedWeight = ref(0.25);
+const customQuantity = ref(1);
+const customNotes = ref('');
 
 const isCoffeeProduct = (product: any) => {
   const cat = (product.category_name || '').toLowerCase();
@@ -554,6 +520,10 @@ const isCoffeeProduct = (product: any) => {
   );
 };
 
+const isActiveCoffee = computed(() =>
+  activeCustomProduct.value ? isCoffeeProduct(activeCustomProduct.value) : false
+);
+
 const compiledCustomNotes = computed(() => {
   return `طحن: ${selectedGrind.value} • تحميص: ${selectedRoast.value} • تحويجة: ${selectedSpices.value}`;
 });
@@ -564,6 +534,8 @@ const openCustomizer = (product: any) => {
   selectedRoast.value = 'وسط';
   selectedSpices.value = 'حبهان مظبوط';
   selectedWeight.value = 0.25;
+  customQuantity.value = 1;
+  customNotes.value = '';
   showCustomizerModal.value = true;
 };
 
@@ -574,7 +546,12 @@ const closeCustomizer = () => {
 
 const confirmCustomization = () => {
   if (activeCustomProduct.value) {
-    emit('addToCart', activeCustomProduct.value, selectedWeight.value, compiledCustomNotes.value);
+    emit(
+      'addToCart',
+      activeCustomProduct.value,
+      isActiveCoffee.value ? selectedWeight.value : customQuantity.value,
+      isActiveCoffee.value ? compiledCustomNotes.value : customNotes.value.trim() || undefined
+    );
   }
   closeCustomizer();
 };
@@ -584,7 +561,6 @@ let longPressTimer: any = null;
 let isLongPressTriggered = false;
 
 const startLongPress = (product: any) => {
-  if (!isCoffeeProduct(product)) return;
   isLongPressTriggered = false;
   longPressTimer = setTimeout(() => {
     isLongPressTriggered = true;
@@ -1481,5 +1457,137 @@ defineExpose({
   .add-custom-btn {
     flex: 1;
   }
+}
+
+/* Touch-first cashier sizing: every primary target stays comfortable on a POS screen. */
+.pos-categories-quick-strip {
+  padding: 2px 0 8px;
+
+  .quick-cat-pill {
+    min-height: 48px;
+    padding-inline: 16px;
+    border-radius: 12px;
+    font-size: 0.92rem;
+    touch-action: manipulation;
+  }
+}
+
+.pos-categories-grid {
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 18px;
+}
+
+.pos-category-card {
+  min-height: 216px;
+  padding: 18px;
+  touch-action: manipulation;
+  user-select: none;
+
+  .cat-card-visual-box {
+    height: 124px;
+
+    .cat-3d-asset {
+      max-width: 104px;
+      max-height: 104px;
+    }
+  }
+}
+
+.pos-products-grid {
+  grid-template-columns: repeat(auto-fill, minmax(205px, 1fr));
+  gap: 16px;
+}
+
+.pos-product-card {
+  min-height: 232px;
+  padding: 16px;
+  touch-action: manipulation;
+  user-select: none;
+
+  .card-customizer-btn {
+    width: 44px;
+    height: 44px;
+    top: 10px;
+    left: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    z-index: 3;
+  }
+
+  &:focus-visible {
+    outline: 3px solid color-mix(in srgb, var(--primary) 55%, transparent);
+    outline-offset: 3px;
+  }
+}
+
+.customizer-modal-card {
+  max-width: 720px;
+}
+
+.close-custom-btn {
+  min-width: 48px;
+  min-height: 48px;
+}
+
+.option-pill-btn {
+  min-height: 54px;
+  padding: 10px 8px;
+  font-size: 0.86rem;
+  touch-action: manipulation;
+}
+
+.detail-quantity-control {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 58px;
+  padding: 5px;
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+
+  strong {
+    min-width: 52px;
+    text-align: center;
+    font-size: 1.2rem;
+    color: var(--text-strong);
+  }
+}
+
+.detail-quantity-btn {
+  width: 48px;
+  height: 48px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--bg-elevated);
+  color: var(--text-strong);
+  font-size: 1.5rem;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.detail-notes-label {
+  margin-top: 8px;
+}
+
+.custom-notes-input {
+  width: 100%;
+  resize: vertical;
+  min-height: 88px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-elevated);
+  color: var(--text-strong);
+  font: inherit;
+  font-size: 0.95rem;
+}
+
+.customizer-footer .btn {
+  min-height: 56px;
+  touch-action: manipulation;
 }
 </style>

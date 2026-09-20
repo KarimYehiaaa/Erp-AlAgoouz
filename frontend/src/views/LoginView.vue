@@ -312,10 +312,20 @@
       <div class="server-modal-card">
         <div class="modal-head">
           <div class="modal-title-flex">
-            <span class="modal-icon">⚙️</span>
+            <span class="modal-icon" aria-hidden="true"
+              ><AppIcon name="settings" :size="18"
+            /></span>
             <h3>إعدادات خادم النظام (Backend Server)</h3>
           </div>
-          <button class="modal-close-btn" @click="showServerConfig = false">✕</button>
+          <button
+            type="button"
+            class="modal-close-btn"
+            aria-label="إغلاق إعدادات السيرفر"
+            title="إغلاق"
+            @click="showServerConfig = false"
+          >
+            <AppIcon name="close" :size="18" />
+          </button>
         </div>
 
         <div class="modal-body">
@@ -340,7 +350,8 @@
               :class="{ active: customServerUrl === 'https://agoouz.vercel.app' }"
               @click="customServerUrl = 'https://agoouz.vercel.app'"
             >
-              ☁️ السيرفر السحابي (أونلاين)
+              <AppIcon name="database" :size="16" />
+              <span>السيرفر السحابي (أونلاين)</span>
             </button>
             <button
               type="button"
@@ -348,7 +359,8 @@
               :class="{ active: customServerUrl === 'http://192.168.1.14:3000' }"
               @click="customServerUrl = 'http://192.168.1.14:3000'"
             >
-              🏢 سيرفر الفرع (192.168.1.14:3000)
+              <AppIcon name="building" :size="16" />
+              <span>سيرفر الفرع (192.168.1.14:3000)</span>
             </button>
             <button
               type="button"
@@ -356,7 +368,8 @@
               :class="{ active: customServerUrl === 'http://localhost:3000' }"
               @click="customServerUrl = 'http://localhost:3000'"
             >
-              💻 الكمبيوتر المباشر (Localhost:3000)
+              <AppIcon name="monitor" :size="16" />
+              <span>الكمبيوتر المباشر (Localhost:3000)</span>
             </button>
           </div>
 
@@ -372,9 +385,13 @@
             :disabled="testingConn"
             @click="testServerConnection"
           >
-            {{ testingConn ? 'جاري الفحص...' : '⚡ فحص الاتصال' }}
+            <AppIcon :name="testingConn ? 'refresh' : 'activity'" :size="15" />
+            <span>{{ testingConn ? 'جاري الفحص...' : 'فحص الاتصال' }}</span>
           </button>
-          <button type="button" class="btn-save" @click="saveServerConfig">💾 حفظ والاعتماد</button>
+          <button type="button" class="btn-save" @click="saveServerConfig">
+            <AppIcon name="save" :size="15" />
+            <span>حفظ والاعتماد</span>
+          </button>
         </div>
       </div>
     </div>
@@ -433,7 +450,7 @@ const {
 
 const { init: initParticles } = useParticles({
   count: 20,
-  color: 'rgba(59, 130, 246, 0.2)',
+  color: 'rgba(181, 138, 74, 0.22)',
   minSize: 3,
   maxSize: 7,
   speed: 0.3,
@@ -464,9 +481,9 @@ const testResultStatus = ref<'success' | 'error' | ''>('');
 
 const serverDisplayLabel = computed(() => {
   const url = getBaseServerUrl();
-  if (!url || url.includes('agoouz.vercel.app')) return 'سيرفر سحابي ☁️';
-  if (url.includes('192.168.') || url.includes('localhost')) return 'سيرفر محلي 🏢';
-  return 'سيرفر مخصص 🌐';
+  if (!url || url.includes('agoouz.vercel.app')) return 'سيرفر سحابي';
+  if (url.includes('192.168.') || url.includes('localhost')) return 'سيرفر محلي';
+  return 'سيرفر مخصص';
 });
 
 const testServerConnection = async () => {
@@ -1574,7 +1591,23 @@ onMounted(async () => {
   color: #a89f91;
   font-size: 1.2rem;
   cursor: pointer;
-  padding: 4px;
+  padding: 7px;
+  min-width: 36px;
+  min-height: 36px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease;
+}
+
+.modal-close-btn:hover,
+.modal-close-btn:focus-visible {
+  background: rgba(217, 168, 108, 0.14);
+  color: #ffffff;
+  outline: none;
 }
 
 .modal-body {
@@ -1624,6 +1657,15 @@ onMounted(async () => {
   cursor: pointer;
   transition: all 0.2s ease;
   font-family: inherit;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 44px;
+}
+
+.preset-chip .app-icon {
+  flex: 0 0 auto;
+  color: #d9a86c;
 }
 
 .preset-chip:hover {
@@ -1676,6 +1718,10 @@ onMounted(async () => {
   font-weight: 700;
   cursor: pointer;
   font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 40px;
 }
 
 .btn-save {
@@ -1693,6 +1739,10 @@ onMounted(async () => {
   cursor: pointer;
   font-family: inherit;
   box-shadow: 0 4px 12px rgba(90, 56, 37, 0.3);
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 40px;
 }
 </style>
 

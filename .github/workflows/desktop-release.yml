@@ -34,6 +34,17 @@ jobs:
         working-directory: desktop-pos
         run: npm test
 
+      - name: Verify release version matches package
+        working-directory: desktop-pos
+        shell: pwsh
+        run: |
+          $packageVersion = node -p "require('./package.json').version"
+          $tagVersion = "${{ github.ref_name }}" -replace '^desktop-v', ''
+          if ($tagVersion -and $tagVersion -ne $packageVersion) {
+            Write-Error "Release tag desktop-v$packageVersion is required; received ${{ github.ref_name }}"
+            exit 1
+          }
+
       - name: Build and publish Desktop POS
         working-directory: desktop-pos
         env:
@@ -41,7 +52,8 @@ jobs:
         shell: pwsh
         run: |
           for ($attempt = 1; $attempt -le 2; $attempt++) {
-            npm run electron:build -- --publish always
+            npm run build
+            npx electron-builder --publish always
             if ($LASTEXITCODE -eq 0) { exit 0 }
             if ($attempt -lt 2) { Start-Sleep -Seconds 20 }
           }

@@ -1633,8 +1633,8 @@ table {
   gap: var(--space-2);
   padding: 6px;
   margin-bottom: var(--space-4);
-  background: var(--surface-sunken);
-  border: 1px solid var(--border);
+  background: linear-gradient(180deg, var(--surface-raised), var(--surface-sunken));
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-xs);
 }
@@ -1664,10 +1664,10 @@ table {
   }
 
   &.active {
-    background: var(--surface-raised);
-    color: var(--primary);
-    border-color: var(--border);
-    box-shadow: var(--shadow-xs);
+    background: var(--color-primary);
+    color: var(--color-primary-contrast);
+    border-color: var(--color-primary);
+    box-shadow: 0 6px 14px var(--color-primary-glow);
   }
 }
 

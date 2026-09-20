@@ -210,6 +210,15 @@
   box-sizing: border-box;
   position: relative;
 
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0 0 auto;
+    height: 3px;
+    background: linear-gradient(90deg, var(--color-gold), var(--color-primary));
+    opacity: 0.9;
+  }
+
   &:hover {
     transform: translateY(-3px);
     box-shadow:
@@ -219,6 +228,14 @@
     .metric-icon {
       transform: scale(1.1);
     }
+  }
+
+  &:focus-visible {
+    outline: none;
+    border-color: var(--color-gold);
+    box-shadow:
+      0 0 0 3px var(--color-gold-halo),
+      var(--shadow-md);
   }
 
   &:active {

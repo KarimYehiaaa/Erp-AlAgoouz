@@ -1406,6 +1406,69 @@ onBeforeUnmount(() => {
   gap: 16px;
 }
 
+/* Executive cockpit visual refresh: the dashboard now owns a clear brand stage
+   while the data cards remain calm and readable underneath it. */
+.dashboard-header {
+  background:
+    radial-gradient(circle at 12% 20%, rgba(209, 176, 107, 0.2), transparent 28%),
+    linear-gradient(135deg, #1e130b 0%, #3b2418 58%, #5a3825 100%);
+  border-color: rgba(209, 176, 107, 0.42);
+  box-shadow: 0 16px 34px rgba(59, 36, 24, 0.2);
+
+  .header-title {
+    color: #fffaf2;
+  }
+
+  .header-desc {
+    color: rgba(255, 250, 242, 0.72);
+  }
+
+  .header-brand-icon {
+    background: rgba(209, 176, 107, 0.18);
+    color: #f3d7a0;
+    border: 1px solid rgba(209, 176, 107, 0.35);
+  }
+
+  .workspace-badge,
+  .period-context-badge {
+    color: #f3d7a0;
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.14);
+  }
+
+  .range-controls,
+  .auto-refresh-wrap {
+    background: rgba(0, 0, 0, 0.18);
+    border-color: rgba(255, 255, 255, 0.16);
+  }
+
+  .range-btn,
+  .last-updated {
+    color: rgba(255, 250, 242, 0.72);
+  }
+
+  .range-btn.active {
+    background: #f3d7a0;
+    color: #2a1b11;
+  }
+
+  .action-btn {
+    color: #fffaf2;
+    border-color: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.08);
+
+    &:hover {
+      color: #2a1b11;
+      background: #f3d7a0;
+      border-color: #f3d7a0;
+    }
+  }
+
+  .auto-refresh-toggle {
+    color: #f3d7a0;
+  }
+}
+
 /* ── شريط تقدم التحديث التلقائي (رفيع أعلى اللوحة) ── */
 .auto-refresh-bar {
   position: absolute;
@@ -2282,6 +2345,69 @@ onBeforeUnmount(() => {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+/* Final brand stage overrides intentionally live at the end of the scoped
+   sheet so page-specific legacy rules cannot flatten the new visual hierarchy. */
+.dashboard-header {
+  background:
+    radial-gradient(circle at 12% 20%, rgba(209, 176, 107, 0.2), transparent 28%),
+    linear-gradient(135deg, #1e130b 0%, #3b2418 58%, #5a3825 100%);
+  border-color: rgba(209, 176, 107, 0.42);
+  box-shadow: 0 16px 34px rgba(59, 36, 24, 0.2);
+
+  .header-title {
+    color: #fffaf2;
+  }
+
+  .header-desc {
+    color: rgba(255, 250, 242, 0.72);
+  }
+
+  .header-brand-icon {
+    background: rgba(209, 176, 107, 0.18);
+    color: #f3d7a0;
+    border: 1px solid rgba(209, 176, 107, 0.35);
+  }
+
+  .workspace-badge,
+  .period-context-badge {
+    color: #f3d7a0;
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.14);
+  }
+
+  .range-controls,
+  .auto-refresh-wrap {
+    background: rgba(0, 0, 0, 0.18);
+    border-color: rgba(255, 255, 255, 0.16);
+  }
+
+  .range-btn,
+  .last-updated {
+    color: rgba(255, 250, 242, 0.72);
+  }
+
+  .range-btn.active {
+    background: #f3d7a0;
+    color: #2a1b11;
+  }
+
+  .action-btn {
+    color: #fffaf2;
+    border-color: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.08);
+
+    &:hover {
+      color: #2a1b11;
+      background: #f3d7a0;
+      border-color: #f3d7a0;
+    }
+  }
+
+  .auto-refresh-toggle {
+    color: #f3d7a0;
   }
 }
 </style>

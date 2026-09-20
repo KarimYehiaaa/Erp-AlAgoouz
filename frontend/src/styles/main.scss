@@ -1715,7 +1715,10 @@ table {
 .inventory-page .page-header .hub-tabs,
 .products-page .page-header .hub-tabs,
 .purchases-page .page-header .hub-tabs,
-.reports-page .page-header .hub-tabs {
+.purchases-expenses-page > .hub-tabs,
+.reports-page .page-header .hub-tabs,
+.reports-page > .hub-tabs,
+.settings-page > .hub-tabs {
   background:
     radial-gradient(circle at 8% 50%, rgba(209, 176, 107, 0.14), transparent 26%),
     linear-gradient(135deg, #1e130b 0%, #3b2418 100%);
@@ -1747,7 +1750,9 @@ table {
 .inventory-page .card,
 .products-page .card,
 .purchases-page .card,
-.reports-page .card {
+.purchases-expenses-page .card,
+.reports-page .card,
+.settings-page .card {
   border-radius: 18px;
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.7) inset,
@@ -1761,12 +1766,34 @@ table {
 .table-wrap,
 .sales-page .table-wrap,
 .inventory-page .table-wrap,
-.products-page .table-wrap {
+.products-page .table-wrap,
+.purchases-expenses-page .table-wrap,
+.reports-page .table-wrap {
   overflow: hidden;
 
   table th {
     background: color-mix(in srgb, var(--color-gold-soft) 62%, var(--surface-raised));
     color: var(--color-text-strong);
+  }
+}
+
+@media (max-width: 760px) {
+  .page-header > .hub-tabs,
+  .sales-page > .hub-tabs,
+  .inventory-page .page-header .hub-tabs,
+  .products-page .page-header .hub-tabs,
+  .purchases-expenses-page > .hub-tabs,
+  .reports-page > .hub-tabs,
+  .settings-page > .hub-tabs {
+    justify-content: flex-start;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    scrollbar-width: thin;
+
+    .hub-tab {
+      flex: 0 0 auto;
+      white-space: nowrap;
+    }
   }
 }
 

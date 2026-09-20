@@ -95,7 +95,8 @@
                 <button @click="setQuick('all')">الكل</button>
               </div>
               <button class="btn btn-primary" :disabled="loading" @click="loadActiveTab">
-                {{ loading ? '⏳' : ' تحديث' }}
+                <AppIcon :name="loading ? 'refresh' : 'activity'" :size="16" />
+                {{ loading ? 'جاري التحديث' : 'تحديث التقرير' }}
               </button>
             </div>
           </div>
@@ -114,7 +115,10 @@
           </div>
 
           <div v-if="error" class="error-msg">{{ error }}</div>
-          <div v-if="loading" class="loading-state card">⏳ جاري تحميل التقرير...</div>
+          <div v-if="loading" class="loading-state card">
+            <AppIcon name="refresh" :size="18" />
+            <span>جاري تحميل التقرير...</span>
+          </div>
 
           <!-- ===== TAB COMPONENTS ===== -->
           <SummaryTab
@@ -471,6 +475,10 @@ onMounted(() => loadTab('summary'));
 
 /* Misc */
 .loading-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
   text-align: center;
   padding: 48px;
   color: var(--text-muted);

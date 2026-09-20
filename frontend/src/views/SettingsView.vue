@@ -5,6 +5,7 @@
       <button
         v-for="tab in tabs"
         :key="tab.id"
+        type="button"
         class="hub-tab"
         :class="{ active: activeTab === tab.id }"
         @click="switchTab(tab.id)"

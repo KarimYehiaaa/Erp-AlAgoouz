@@ -55,6 +55,19 @@
           <span v-if="heldOrdersCount > 0" class="held-badge">{{ heldOrdersCount }}</span>
         </button>
 
+        <!-- Update action appears only when a release is available or downloaded. -->
+        <button
+          v-if="updateState.state === 'available' || updateState.state === 'downloaded'"
+          type="button"
+          class="btn-ribbon-action update-btn"
+          :class="{ ready: updateState.state === 'downloaded' }"
+          :title="updateState.state === 'downloaded' ? 'تحديث البرنامج الآن' : 'يوجد تحديث جديد ويتم تنزيله'"
+          @click="handleUpdateAction"
+        >
+          <AppIcon :name="updateState.state === 'downloaded' ? 'download' : 'refreshCw'" :size="16" />
+          <span>{{ updateState.state === 'downloaded' ? 'تحديث الآن' : 'تحديث متاح' }}</span>
+        </button>
+
         <!-- Online / Sync Status Pill -->
         <button
           type="button"
@@ -187,6 +200,17 @@ const updateState = ref<{ state: string; version?: string; message?: string }>({
 const installAvailableUpdate = async () => {
   if (window.electronAPI?.installUpdate) {
     await window.electronAPI.installUpdate();
+  }
+};
+
+const handleUpdateAction = async () => {
+  if (updateState.value.state === 'downloaded') {
+    await installAvailableUpdate();
+    return;
+  }
+  if (window.electronAPI?.checkForUpdates) {
+    updateState.value = { state: 'checking' };
+    await window.electronAPI.checkForUpdates();
   }
 };
 
@@ -706,6 +730,24 @@ onBeforeUnmount(() => {
 .pos-top-ribbon button:focus-visible {
   outline: 3px solid #fff3d6;
   outline-offset: 3px;
+}
+
+.ribbon-actions .update-btn {
+  border-color: rgba(255, 230, 153, 0.7);
+  background: rgba(255, 230, 153, 0.14);
+  color: #fff0bf;
+
+  &.ready {
+    background: #f3d7a0;
+    border-color: #f3d7a0;
+    color: #2a1b11;
+    animation: updatePulse 1.8s ease-in-out infinite;
+  }
+}
+
+@keyframes updatePulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(243, 215, 160, 0.24); }
+  50% { box-shadow: 0 0 0 5px rgba(243, 215, 160, 0.08); }
 }
 
 @media (max-width: 1100px) {

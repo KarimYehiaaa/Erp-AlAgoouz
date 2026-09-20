@@ -38,4 +38,11 @@ jobs:
         working-directory: desktop-pos
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npm run electron:build -- --publish always
+        shell: pwsh
+        run: |
+          for ($attempt = 1; $attempt -le 2; $attempt++) {
+            npm run electron:build -- --publish always
+            if ($LASTEXITCODE -eq 0) { exit 0 }
+            if ($attempt -lt 2) { Start-Sleep -Seconds 20 }
+          }
+          exit 1

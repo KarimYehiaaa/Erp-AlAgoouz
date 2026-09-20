@@ -262,8 +262,18 @@
           :class="{ active: cartStore.paymentMethod === 'card' }"
           @click="cartStore.paymentMethod = 'card'"
         >
+          <div class="btn-icon-wrap card"><AppIcon name="creditCard" :size="16" /></div>
+          <span>بطاقة</span>
+        </button>
+
+        <button
+          type="button"
+          class="pay-btn"
+          :class="{ active: cartStore.paymentMethod === 'instapay' }"
+          @click="cartStore.paymentMethod = 'instapay'"
+        >
           <div class="btn-icon-wrap instapay"><AppIcon name="zap" :size="16" /></div>
-          <span>انستاباي</span>
+          <span>إنستاباي</span>
         </button>
 
         <button
@@ -340,7 +350,7 @@
         type="button"
         class="btn-checkout-master"
         :disabled="!cartStore.items.length || submitting"
-        @click="emit('completeSale')"
+        @click="emit('completeSale', { cashGiven, changeDue })"
       >
         <div class="checkout-content">
           <span v-if="submitting" class="checkout-spinner"></span>
@@ -371,7 +381,7 @@ defineProps<{
 }>();
 
 const emit = defineEmits<{
-  completeSale: [];
+  completeSale: [payload: { cashGiven: number | null; changeDue: number }];
   openDrawer: [];
   holdOrder: [];
 }>();
@@ -939,7 +949,7 @@ const confirmClearCart = () => {
 /* ═══════════════════ PAYMENT SELECTOR ═══════════════════ */
 .payment-method-selector {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 6px;
 
   .pay-btn {

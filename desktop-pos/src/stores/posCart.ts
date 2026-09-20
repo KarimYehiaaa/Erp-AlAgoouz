@@ -15,7 +15,7 @@ export interface CartItem {
 export const usePosCartStore = defineStore('posCart', () => {
   const items = ref<CartItem[]>([]);
   const discountAmount = ref<number>(0);
-  const paymentMethod = ref<'cash' | 'card' | 'credit'>('cash');
+  const paymentMethod = ref<'cash' | 'card' | 'instapay' | 'credit'>('cash');
   const customerId = ref<number | null>(null);
 
   const subtotal = computed(() => {

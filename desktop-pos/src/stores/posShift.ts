@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { api } from '../services/api';
+import { isRetryableNetworkError } from '../services/posReliability';
 
 export const usePosShiftStore = defineStore('posShift', () => {
   const currentShift = ref<any>(null);
@@ -16,7 +17,8 @@ export const usePosShiftStore = defineStore('posShift', () => {
       } else {
         currentShift.value = null;
       }
-    } catch {
+    } catch (err) {
+      if (!isRetryableNetworkError(err)) throw err;
       // Offline fallback: check local storage
       const cached = localStorage.getItem('pos_local_shift');
       if (cached) currentShift.value = JSON.parse(cached);
@@ -39,6 +41,7 @@ export const usePosShiftStore = defineStore('posShift', () => {
       }
       throw new Error(res.data.message || 'فشل فتح الوردية');
     } catch (err: any) {
+      if (!isRetryableNetworkError(err)) throw err;
       // Local fallback shift if offline
       const mockShift = {
         id: `offline_shf_${Date.now()}`,

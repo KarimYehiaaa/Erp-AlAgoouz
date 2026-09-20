@@ -6,7 +6,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { randomUUID, createHash } from 'node:crypto';
-import { app } from 'electron';
+import { app, safeStorage } from 'electron';
 
 export interface QueueStoragePaths {
   storageDir: string;
@@ -43,8 +43,32 @@ export function getStoragePaths(customDir?: string): QueueStoragePaths {
   };
 }
 
-function calculateSha256(content: string): string {
-  return createHash('sha256').update(content, 'utf8').digest('hex');
+function isEncryptionAvailable(): boolean {
+  try {
+    return safeStorage.isEncryptionAvailable();
+  } catch {
+    return false;
+  }
+}
+
+function encodeQueue(content: string): Buffer {
+  return isEncryptionAvailable() ? safeStorage.encryptString(content) : Buffer.from(content, 'utf8');
+}
+
+function decodeQueue(raw: Buffer): string | null {
+  const plainText = raw.toString('utf8');
+  // Backward compatibility: migrate an old plaintext queue on the next write.
+  if (plainText.trimStart().startsWith('[')) return plainText;
+  if (!isEncryptionAvailable()) return null;
+  try {
+    return safeStorage.decryptString(raw);
+  } catch {
+    return null;
+  }
+}
+
+function calculateSha256(content: Buffer): string {
+  return createHash('sha256').update(content).digest('hex');
 }
 
 export function readPendingQueue(customDir?: string): any[] {
@@ -52,8 +76,9 @@ export function readPendingQueue(customDir?: string): any[] {
 
   if (fs.existsSync(primaryFile)) {
     try {
-      const raw = fs.readFileSync(primaryFile, 'utf8');
-      if (raw.trim()) {
+      const raw = fs.readFileSync(primaryFile);
+      const decoded = decodeQueue(raw);
+      if (decoded?.trim()) {
         let isChecksumValid = true;
         if (fs.existsSync(checksumFile)) {
           const expectedHash = fs.readFileSync(checksumFile, 'utf8').trim();
@@ -65,7 +90,7 @@ export function readPendingQueue(customDir?: string): any[] {
         }
 
         if (isChecksumValid) {
-          const parsed = JSON.parse(raw);
+          const parsed = JSON.parse(decoded);
           if (Array.isArray(parsed)) return parsed;
         }
       }
@@ -77,8 +102,9 @@ export function readPendingQueue(customDir?: string): any[] {
   // Backup fallback
   if (fs.existsSync(backupFile)) {
     try {
-      const raw = fs.readFileSync(backupFile, 'utf8');
-      if (raw.trim()) {
+      const raw = fs.readFileSync(backupFile);
+      const decoded = decodeQueue(raw);
+      if (decoded?.trim()) {
         let isBackupChecksumValid = true;
         if (fs.existsSync(backupChecksumFile)) {
           const expectedHash = fs.readFileSync(backupChecksumFile, 'utf8').trim();
@@ -90,7 +116,7 @@ export function readPendingQueue(customDir?: string): any[] {
         }
 
         if (isBackupChecksumValid) {
-          const parsed = JSON.parse(raw);
+          const parsed = JSON.parse(decoded);
           if (Array.isArray(parsed)) {
             console.warn('[Storage] Restored pending queue from verified backup file.');
             try {
@@ -115,11 +141,12 @@ export function writePendingQueue(queue: any[], customDir?: string): boolean {
   try {
     const { primaryFile, backupFile, tempFile, checksumFile, backupChecksumFile } = getStoragePaths(customDir);
     const data = JSON.stringify(queue, null, 2);
-    const hash = calculateSha256(data);
+    const encodedData = encodeQueue(data);
+    const hash = calculateSha256(encodedData);
     const tempChecksumFile = `${checksumFile}.tmp`;
 
     // 1. Write to temporary files with strict permissions (0o600)
-    fs.writeFileSync(tempFile, data, { encoding: 'utf8', mode: 0o600 });
+    fs.writeFileSync(tempFile, encodedData, { mode: 0o600 });
     fs.writeFileSync(tempChecksumFile, hash, { encoding: 'utf8', mode: 0o600 });
 
     // 2. Backup previous primary and checksum

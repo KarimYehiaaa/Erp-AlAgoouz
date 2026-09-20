@@ -2,6 +2,7 @@
   "name": "bin-al-ajouz-desktop-pos",
   "version": "1.0.0",
   "description": "نظام نقاط البيع والكاشير المكتبي المتكامل - بن العجوز ERP",
+  "author": "بن العجوز ERP",
   "main": "dist-electron/main.js",
   "type": "module",
   "scripts": {

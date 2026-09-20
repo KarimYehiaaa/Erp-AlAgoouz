@@ -16,9 +16,7 @@ class SessionService {
   private currentTerminal: any = null;
   private initializing = false;
 
-  constructor() {
-    this.cleanseLegacyTokens();
-  }
+  constructor() {}
 
   /**
    * تطهير أي توكن نصي قديم متبقٍ في localStorage لمنع أي تسريب أمني
@@ -219,6 +217,8 @@ class SessionService {
       }
     }
 
+    // Any legacy token without a valid user payload is discarded explicitly.
+    this.cleanseLegacyTokens();
     return null;
   }
 

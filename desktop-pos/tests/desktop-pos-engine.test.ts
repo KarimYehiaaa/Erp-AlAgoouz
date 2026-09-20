@@ -6,6 +6,7 @@ import net from 'node:net';
 import { PosPrinterDriver, type ReceiptData } from '../electron/hardware/printer';
 import { handleOpenCashDrawer, handlePrintReceipt } from '../electron/hardware/hardwareService';
 import { PosSyncWorker, validateWorkerServerUrl } from '../electron/sync/syncWorker';
+import { checkoutPayloadKey, isRetryableNetworkError } from '../src/services/posReliability';
 import {
   readPendingQueue,
   writePendingQueue,
@@ -15,6 +16,25 @@ import {
 } from '../electron/storage/queueStorage';
 
 describe('Desktop POS Production Engine & Durability Tests', () => {
+  it('Checkout reliability: distinguishes retryable network failures from server validation errors', () => {
+    expect(isRetryableNetworkError({ code: 'ECONNABORTED' })).toBe(true);
+    expect(isRetryableNetworkError({ message: 'Network Error' })).toBe(true);
+    expect(isRetryableNetworkError({ response: { status: 422 }, message: 'Invalid sale' })).toBe(false);
+  });
+
+  it('Checkout reliability: creates a stable key for print retry without reposting a sale', () => {
+    const payload = {
+      total_amount: 100,
+      discount_amount: 0,
+      payment_method: 'card',
+      items: [{ product_id: 1, quantity: 2, unit_price: 50, notes: '' }],
+    };
+    expect(checkoutPayloadKey(payload)).toBe(checkoutPayloadKey({ ...payload, items: [...payload.items] }));
+    expect(checkoutPayloadKey(payload)).not.toBe(
+      checkoutPayloadKey({ ...payload, payment_method: 'cash' }),
+    );
+  });
+
   // ─────────────────────────────────────────────────────────────
   // 1. Hardware Drivers & ESC/POS Protocol Contracts
   // ─────────────────────────────────────────────────────────────
@@ -59,6 +79,18 @@ describe('Desktop POS Production Engine & Durability Tests', () => {
     expect(receipt).toContain('330.00 ج.م');
     expect(receipt).toContain('بدون سكر');
     expect(receipt).toContain('المستلم: 400.00 ج.م');
+  });
+
+  it('PosPrinterDriver: preserves card and InstaPay payment labels', () => {
+    const base = {
+      invoice_number: 'INV-100',
+      date_time: '2026-09-20 10:00',
+      items: [],
+      subtotal: 50,
+      total_amount: 50,
+    };
+    expect(PosPrinterDriver.generateTextReceipt({ ...base, payment_method: 'card' })).toContain('طريقة الدفع: بطاقة');
+    expect(PosPrinterDriver.generateTextReceipt({ ...base, payment_method: 'instapay' })).toContain('طريقة الدفع: إنستاباي');
   });
 
   it('Production Hardware Service: Cash Drawer contracts across Dev, Prod without printer, and Windows Spooler', async () => {

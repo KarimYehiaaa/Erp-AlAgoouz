@@ -151,6 +151,7 @@ import { usePosAudio } from '../composables/usePosAudio';
 import { useBarcodeScanner } from '../composables/useBarcodeScanner';
 import { api } from '../services/api';
 import { formatMoney } from '../utils/currency';
+import { checkoutPayloadKey, isRetryableNetworkError } from '../services/posReliability';
 
 const router = useRouter();
 const authStore = usePosAuthStore();
@@ -172,6 +173,7 @@ const heldOrdersCount = ref(0);
 
 const isOnline = ref(navigator.onLine);
 const pendingSyncCount = ref(0);
+const pendingPrint = ref<{ key: string; sale: any } | null>(null);
 
 const updateHeldCount = () => {
   try {
@@ -294,7 +296,24 @@ const handleCashMovementSaved = async () => {
   await shiftStore.fetchCurrentShift();
 };
 
-const handleCompleteSale = async () => {
+const saveOfflineSale = async (salePayload: any) => {
+  if ((window as any).electronAPI) {
+    const saveRes = await (window as any).electronAPI.saveOfflineTransaction(salePayload);
+    if (!saveRes || saveRes.success === false) {
+      throw new Error(saveRes?.message || saveRes?.error || 'فشلت كتابة الفاتورة محلياً في التخزين الآمن');
+    }
+    return saveRes.transaction || salePayload;
+  }
+
+  const offlineSales = JSON.parse(localStorage.getItem('pos_offline_sales') || '[]');
+  offlineSales.push(salePayload);
+  localStorage.setItem('pos_offline_sales', JSON.stringify(offlineSales));
+  return salePayload;
+};
+
+const handleCompleteSale = async (
+  payment: { cashGiven: number | null; changeDue: number } = { cashGiven: null, changeDue: 0 },
+) => {
   if (!cartStore.items.length || submittingSale.value) return;
   submittingSale.value = true;
 
@@ -307,6 +326,8 @@ const handleCompleteSale = async () => {
     payment_status: 'paid',
     discount_amount: cartStore.discountAmount,
     total_amount: cartStore.total,
+    cash_given: payment.cashGiven ?? undefined,
+    change_due: payment.changeDue,
     pos_shift_id: shiftStore.currentShift?.id || null,
     items: cartStore.items.map((i) => ({
       product_id: i.product_id,
@@ -318,23 +339,25 @@ const handleCompleteSale = async () => {
   };
 
   try {
-    let saleRecord = null;
-    if (navigator.onLine) {
-      const res = await api.post('/sales', salePayload);
-      saleRecord = res.data?.data || res.data;
-    } else {
-      if ((window as any).electronAPI) {
-        const saveRes = await (window as any).electronAPI.saveOfflineTransaction(salePayload);
-        if (!saveRes || saveRes.success === false) {
-          throw new Error(saveRes?.message || saveRes?.error || 'فشلت كتابة الفاتورة محلياً في التخزين الآمن');
-        }
-        saleRecord = saveRes.transaction || salePayload;
-      } else {
-        const offlineSales = JSON.parse(localStorage.getItem('pos_offline_sales') || '[]');
-        offlineSales.push(salePayload);
-        localStorage.setItem('pos_offline_sales', JSON.stringify(offlineSales));
-        saleRecord = salePayload;
+    const currentKey = checkoutPayloadKey(salePayload);
+    let saleRecord = pendingPrint.value?.key === currentKey ? pendingPrint.value.sale : null;
+    let savedOffline = false;
+
+    if (!saleRecord && navigator.onLine) {
+      try {
+        const res = await api.post('/sales', salePayload);
+        saleRecord = res.data?.data || res.data;
+      } catch (err) {
+        if (!isRetryableNetworkError(err)) throw err;
+        saleRecord = await saveOfflineSale(salePayload);
+        savedOffline = true;
       }
+    } else if (!saleRecord) {
+      saleRecord = await saveOfflineSale(salePayload);
+      savedOffline = true;
+    }
+
+    if (savedOffline) {
       pendingSyncCount.value++;
     }
 
@@ -343,10 +366,15 @@ const handleCompleteSale = async () => {
 
     // Trigger Print & Drawer
     if ((window as any).electronAPI) {
-      await (window as any).electronAPI.printReceipt(saleRecord);
+      const printResult = await (window as any).electronAPI.printReceipt(saleRecord);
+      if (!printResult?.success) {
+        pendingPrint.value = { key: currentKey, sale: saleRecord };
+        throw new Error(`تم حفظ الفاتورة لكن فشلت الطباعة: ${printResult?.error || 'خطأ غير معروف'}`);
+      }
       await (window as any).electronAPI.openCashDrawer();
     }
 
+    pendingPrint.value = null;
     cartStore.clearCart();
     await shiftStore.fetchCurrentShift();
   } catch (err: any) {

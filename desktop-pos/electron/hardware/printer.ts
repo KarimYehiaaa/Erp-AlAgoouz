@@ -124,7 +124,15 @@ export class PosPrinterDriver {
       receipt += `الخصم: ${data.discount_amount.toFixed(2)} ج.م\n`;
     }
     receipt += `الإجمالي النهائي: ${data.total_amount.toFixed(2)} ج.م\n`;
-    receipt += `طريقة الدفع: ${data.payment_method === 'cash' ? 'نقدي' : data.payment_method === 'card' || data.payment_method === 'instapay' ? 'انستاباي' : 'آجل'}\n`;
+    const paymentLabel =
+      data.payment_method === 'cash'
+        ? 'نقدي'
+        : data.payment_method === 'card'
+          ? 'بطاقة'
+          : data.payment_method === 'instapay'
+            ? 'إنستاباي'
+            : 'آجل';
+    receipt += `طريقة الدفع: ${paymentLabel}\n`;
 
     if (data.payment_method === 'cash' && data.cash_given) {
       receipt += `المستلم: ${data.cash_given.toFixed(2)} ج.م | الباقي: ${(data.change_due || 0).toFixed(2)} ج.م\n`;

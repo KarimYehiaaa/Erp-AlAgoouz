@@ -243,3 +243,14 @@ export function updateQueueItemStatus(
   }
   return false;
 }
+
+export function resetQueueItemRetry(syncId: string, customDir?: string): boolean {
+  const queue = readPendingQueue(customDir);
+  const item = queue.find((t) => t.sync_id === syncId);
+  if (!item) return false;
+  item.status = 'PENDING';
+  item.retry_count = 0;
+  item.last_error = undefined;
+  item.updated_at = new Date().toISOString();
+  return writePendingQueue(queue, customDir);
+}

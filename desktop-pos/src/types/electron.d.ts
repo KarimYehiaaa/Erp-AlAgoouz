@@ -89,6 +89,7 @@ export interface ElectronAPI {
   ) => Promise<{ success: boolean; transaction?: OfflineSaleTransaction; error?: string; message?: string }>;
   getPendingTransactions: () => Promise<OfflineSaleTransaction[]>;
   updateTransactionStatus: (syncId: string, status: string, serverId?: any, errorMessage?: string) => Promise<boolean>;
+  resetTransactionRetry: (syncId: string) => Promise<boolean>;
   getServerUrl: () => Promise<string>;
   setServerUrl: (url: string) => Promise<ServerUrlResult>;
   setAuthToken: (token: string | null, serverUrl?: string) => Promise<SessionResult>;

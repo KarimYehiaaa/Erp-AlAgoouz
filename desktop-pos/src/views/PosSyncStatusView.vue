@@ -31,6 +31,15 @@
           <span v-if="syncing">جاري المزامنة...</span>
           <span v-else>مزامنة الآن ({{ pendingQueue.length }})</span>
         </button>
+        <button
+          v-if="failedCount > 0 && isOnline"
+          type="button"
+          class="btn-retry-failed"
+          :disabled="syncing"
+          @click="retryFailedTransactions"
+        >
+          إعادة فتح الفاشلة ({{ failedCount }})
+        </button>
       </div>
 
       <!-- Pending Transactions Table -->
@@ -51,6 +60,7 @@
                 <th>إجمالي الفاتورة</th>
                 <th>عدد الأصناف</th>
                 <th>الحالة</th>
+                <th>آخر خطأ</th>
               </tr>
             </thead>
             <tbody>
@@ -64,6 +74,7 @@
                     {{ item.status || 'PENDING' }}
                   </span>
                 </td>
+                <td class="error-cell">{{ item.last_error || '—' }}</td>
               </tr>
             </tbody>
           </table>
@@ -74,7 +85,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import AppIcon from '../components/AppIcon.vue';
 import { api } from '../services/api';
@@ -84,6 +95,7 @@ const router = useRouter();
 const isOnline = ref(navigator.onLine);
 const pendingQueue = ref<any[]>([]);
 const syncing = ref(false);
+const failedCount = computed(() => pendingQueue.value.filter((item) => item.status === 'FAILED').length);
 
 const loadQueue = async () => {
   if ((window as any).electronAPI) {
@@ -97,24 +109,35 @@ const triggerBatchSync = async () => {
   if (!pendingQueue.value.length || syncing.value) return;
   syncing.value = true;
   try {
-    const res = await api.post('/sales/batch-sync', {
-      sales: pendingQueue.value,
-    });
-    if (res.data.success) {
-      if ((window as any).electronAPI) {
-        for (const item of res.data.results) {
-          if (item.status === 'SYNCED') {
-            await (window as any).electronAPI.updateTransactionStatus(item.sync_id, 'SYNCED', item.sale_id);
-          }
-        }
-      } else {
-        localStorage.removeItem('pos_offline_sales');
-      }
-      alert('تمت مزامنة جميع الفواتير بنجاح!');
-      await loadQueue();
+    if ((window as any).electronAPI) {
+      const res = await (window as any).electronAPI.triggerManualSync();
+      if (!res?.success && res?.synced === 0) throw new Error(res?.message || 'تعذر مزامنة الفواتير');
+    } else {
+      const res = await api.post('/sales/batch-sync', { sales: pendingQueue.value });
+      if (!res.data.success) throw new Error(res.data.message || 'تعذر مزامنة الفواتير');
+      localStorage.removeItem('pos_offline_sales');
     }
+    alert('تمت معالجة طابور المزامنة. راجع الحالات المتبقية إن وجدت.');
+    await loadQueue();
   } catch (err: any) {
     alert('حدث خطأ أثناء المزامنة: ' + err.message);
+  } finally {
+    syncing.value = false;
+  }
+};
+
+const retryFailedTransactions = async () => {
+  if (!(window as any).electronAPI || syncing.value) return;
+  syncing.value = true;
+  try {
+    for (const item of pendingQueue.value.filter((entry) => entry.status === 'FAILED')) {
+      await (window as any).electronAPI.resetTransactionRetry(item.sync_id);
+    }
+    await loadQueue();
+    syncing.value = false;
+    await triggerBatchSync();
+  } catch (err: any) {
+    alert('تعذر إعادة فتح العمليات الفاشلة: ' + err.message);
   } finally {
     syncing.value = false;
   }

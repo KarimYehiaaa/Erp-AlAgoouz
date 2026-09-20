@@ -12,6 +12,7 @@ import {
   writePendingQueue,
   saveTransaction,
   updateQueueItemStatus,
+  resetQueueItemRetry,
   getStoragePaths,
 } from '../electron/storage/queueStorage';
 
@@ -323,6 +324,19 @@ describe('Desktop POS Production Engine & Durability Tests', () => {
     expect(queue[0].status).toBe('SYNCED');
     expect(queue[0].server_id).toBe(7788);
 
+    fs.rmSync(testDir, { recursive: true, force: true });
+  });
+
+  it('Production Queue Storage Engine: manual retry reopens a failed transaction', () => {
+    const testDir = fs.mkdtempSync(path.join(os.tmpdir(), 'alagoouz-pos-manual-retry-'));
+    saveTransaction({ sync_id: 'manual-retry-1', total_amount: 150 }, testDir);
+    updateQueueItemStatus('manual-retry-1', 'FAILED', undefined, 'temporary network error', testDir);
+
+    expect(resetQueueItemRetry('manual-retry-1', testDir)).toBe(true);
+    const queue = readPendingQueue(testDir);
+    expect(queue[0].status).toBe('PENDING');
+    expect(queue[0].retry_count).toBe(0);
+    expect(queue[0].last_error).toBeUndefined();
     fs.rmSync(testDir, { recursive: true, force: true });
   });
 

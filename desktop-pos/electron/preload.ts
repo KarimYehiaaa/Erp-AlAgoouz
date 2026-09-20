@@ -13,6 +13,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getPendingTransactions: () => ipcRenderer.invoke('storage:get-pending'),
   updateTransactionStatus: (syncId: string, status: string, serverId?: any, errorMessage?: string) =>
     ipcRenderer.invoke('storage:update-status', syncId, status, serverId, errorMessage),
+  resetTransactionRetry: (syncId: string) => ipcRenderer.invoke('storage:reset-retry', syncId),
 
   // Session, Config & Sync Bridge
   getServerUrl: () => ipcRenderer.invoke('config:get-server-url'),

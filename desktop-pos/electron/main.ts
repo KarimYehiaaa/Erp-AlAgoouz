@@ -28,6 +28,7 @@ import {
   writePendingQueue,
   saveTransaction,
   updateQueueItemStatus,
+  resetQueueItemRetry,
 } from './storage/queueStorage';
 
 function createWindow() {
@@ -189,6 +190,12 @@ ipcMain.handle(
     return updateQueueItemStatus(syncId, status, serverId, errorMessage);
   }
 );
+
+ipcMain.handle('storage:reset-retry', (event, syncId: string) => {
+  if (!validateIpcSender(event, app.isPackaged, process.env.VITE_DEV_SERVER_URL)) return false;
+  if (typeof syncId !== 'string' || syncId.length > 128) return false;
+  return resetQueueItemRetry(syncId);
+});
 
 // 6. Central Configuration & Server URL Bridge
 ipcMain.handle('config:get-server-url', (event) => {

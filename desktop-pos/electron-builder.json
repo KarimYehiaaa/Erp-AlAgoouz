@@ -5,7 +5,7 @@
     "output": "release"
   },
   "publish": null,
-  "icon": "public/logo-transparent.png",
+  "icon": "public/icon.ico",
   "files": [
     "dist/**/*",
     "dist-electron/**/*",

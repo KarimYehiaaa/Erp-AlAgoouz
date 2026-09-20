@@ -83,7 +83,15 @@
           <span>إغلاق الوردية</span>
         </button>
       </div>
-    </header>
+  </header>
+
+    <div v-if="updateState.state === 'downloaded'" class="pos-update-banner" role="status">
+      <div>
+        <strong>تحديث جديد جاهز</strong>
+        <span>الإصدار {{ updateState.version }} جاهز، وسيتم تثبيته بعد إعادة تشغيل البرنامج.</span>
+      </div>
+      <button type="button" @click="installAvailableUpdate">إعادة التشغيل والتحديث</button>
+    </div>
 
     <!-- ═══════════════════ MAIN WORKSPACE (CATALOG + CART) ═══════════════════ -->
     <main class="pos-main-workspace">
@@ -174,6 +182,13 @@ const heldOrdersCount = ref(0);
 const isOnline = ref(navigator.onLine);
 const pendingSyncCount = ref(0);
 const pendingPrint = ref<{ key: string; sale: any } | null>(null);
+const updateState = ref<{ state: string; version?: string; message?: string }>({ state: 'idle' });
+
+const installAvailableUpdate = async () => {
+  if (window.electronAPI?.installUpdate) {
+    await window.electronAPI.installUpdate();
+  }
+};
 
 const updateHeldCount = () => {
   try {
@@ -277,6 +292,7 @@ const handleHoldOrder = () => {
   localStorage.setItem('pos_held_orders', JSON.stringify(held));
   cartStore.clearCart();
   updateHeldCount();
+
   playScanBeep();
   alert('تم تعليق الفاتورة بنجاح. يمكنك استرجاعها من زر "المعلقات".');
 };
@@ -408,6 +424,13 @@ onMounted(async () => {
   window.addEventListener('keydown', handleGlobalKeyDown);
 
   updateHeldCount();
+
+  if (window.electronAPI?.getUpdateStatus) {
+    updateState.value = await window.electronAPI.getUpdateStatus();
+  }
+  window.electronAPI?.onUpdateStatus?.((status) => {
+    updateState.value = status;
+  });
 
   await shiftStore.fetchCurrentShift();
   if (!shiftStore.isShiftOpen) {
@@ -643,6 +666,40 @@ onBeforeUnmount(() => {
   .cart-section {
     height: 100%;
     overflow: hidden;
+  }
+}
+
+.pos-update-banner {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 16px;
+  background: #fff7df;
+  border-bottom: 1px solid #e6c66a;
+  color: #5c3b00;
+
+  div {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    min-width: 0;
+  }
+
+  strong { font-size: 0.9rem; white-space: nowrap; }
+  span { font-size: 0.78rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  button {
+    flex: 0 0 auto;
+    min-height: 34px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 7px;
+    background: #8a572a;
+    color: #fff;
+    font-weight: 800;
+    cursor: pointer;
   }
 }
 

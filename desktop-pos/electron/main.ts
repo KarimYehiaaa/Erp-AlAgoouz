@@ -23,26 +23,55 @@ const __dirname = path.dirname(__filename);
 let mainWindow: BrowserWindow | null = null;
 let syncWorker: PosSyncWorker | null = null;
 let secureSessionStore: SecureSessionStore | null = null;
+let updateCheckTimer: NodeJS.Timeout | null = null;
+let latestUpdateStatus: { state: string; version?: string; message?: string } = { state: 'idle' };
+
+function publishUpdateStatus(status: { state: string; version?: string; message?: string }) {
+  latestUpdateStatus = status;
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('updater:status', status);
+  }
+}
+
+async function checkForUpdates() {
+  try {
+    publishUpdateStatus({ state: 'checking' });
+    await autoUpdater.checkForUpdates();
+  } catch (error) {
+    const message = sanitizeIpcError(error);
+    publishUpdateStatus({ state: 'error', message });
+    console.warn('[Updater] Update check failed:', message);
+  }
+}
 
 function configureAutoUpdates() {
   if (!app.isPackaged) return;
 
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
-  autoUpdater.on('checking-for-update', () => console.log('[Updater] Checking for updates'));
+  autoUpdater.on('checking-for-update', () => {
+    console.log('[Updater] Checking for updates');
+    publishUpdateStatus({ state: 'checking' });
+  });
+  autoUpdater.on('update-not-available', () => publishUpdateStatus({ state: 'current' }));
   autoUpdater.on('update-available', (info) => {
     console.log(`[Updater] Update available: ${info.version}`);
+    publishUpdateStatus({ state: 'available', version: info.version });
   });
   autoUpdater.on('update-downloaded', (info) => {
     console.log(`[Updater] Update downloaded: ${info.version}; it will install on next restart`);
+    publishUpdateStatus({ state: 'downloaded', version: info.version });
   });
   autoUpdater.on('error', (error) => {
-    console.warn('[Updater] Update check failed:', sanitizeIpcError(error));
+    const message = sanitizeIpcError(error);
+    publishUpdateStatus({ state: 'error', message });
+    console.warn('[Updater] Update check failed:', message);
   });
 
-  void autoUpdater.checkForUpdates().catch((error) => {
-    console.warn('[Updater] Update check failed:', sanitizeIpcError(error));
-  });
+  // First check shortly after startup, then retry periodically so a temporary
+  // network failure or a release still being published does not strand the POS.
+  setTimeout(() => void checkForUpdates(), 10_000);
+  updateCheckTimer = setInterval(() => void checkForUpdates(), 30 * 60 * 1000);
 }
 
 import {
@@ -126,6 +155,33 @@ ipcMain.handle('app:get-device-info', (event) => {
     appVersion: app.getVersion(),
     terminalCode: process.env.POS_TERMINAL_CODE || 'TRM-MAIN-01',
   };
+});
+
+ipcMain.handle('app:get-update-status', (event) => {
+  if (!validateIpcSender(event, app.isPackaged, process.env.VITE_DEV_SERVER_URL)) {
+    return { state: 'idle' };
+  }
+  return latestUpdateStatus;
+});
+
+ipcMain.handle('app:check-for-updates', async (event) => {
+  if (!validateIpcSender(event, app.isPackaged, process.env.VITE_DEV_SERVER_URL)) {
+    return { success: false, message: 'تم رفض الطلب: مرسل غير مصرح له' };
+  }
+  if (!app.isPackaged) return { success: false, message: 'التحديث التلقائي يعمل في النسخة المثبتة فقط' };
+  await checkForUpdates();
+  return { success: true };
+});
+
+ipcMain.handle('app:install-update', (event) => {
+  if (!validateIpcSender(event, app.isPackaged, process.env.VITE_DEV_SERVER_URL)) {
+    return { success: false, message: 'تم رفض الطلب: مرسل غير مصرح له' };
+  }
+  if (!app.isPackaged || latestUpdateStatus.state !== 'downloaded') {
+    return { success: false, message: 'لا يوجد تحديث جاهز للتثبيت' };
+  }
+  autoUpdater.quitAndInstall(false, true);
+  return { success: true };
 });
 
 // 2. Hardware: Printers
@@ -373,6 +429,7 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => {
+  if (updateCheckTimer) clearInterval(updateCheckTimer);
   if (process.platform !== 'darwin') {
     app.quit();
   }

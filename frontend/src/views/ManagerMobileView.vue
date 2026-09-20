@@ -3296,3 +3296,328 @@ onUnmounted(() => {
   }
 }
 </style>
+
+<style scoped lang="scss">
+/* Normalize nested report surfaces so no legacy dark cards leak into the light system. */
+.dual-distribution-section {
+  background: transparent;
+}
+
+.section-heading h3,
+.card-title {
+  color: #26221f;
+}
+
+.channel-metric-card {
+  background: #fffdfa;
+  border: 1px solid #e4ddd4;
+  box-shadow: 0 8px 18px rgba(75, 55, 39, 0.05);
+}
+
+.channel-metric-card.branch-theme,
+.channel-metric-card.wholesale-theme {
+  background: #fffdfa;
+}
+
+.channel-metric-card.branch-theme {
+  border-top: 3px solid #a96b45;
+}
+
+.channel-metric-card.wholesale-theme {
+  border-top: 3px solid #5b8f9b;
+}
+
+.card-label,
+.channel-foot,
+.card-meta-tag,
+.payment-text-group .p-sub,
+.fin-lbl,
+.fin-sub {
+  color: #756d65;
+}
+
+.channel-val,
+.payment-text-group .p-name,
+.fin-val,
+.cell-val {
+  color: #26221f;
+}
+
+.payment-row,
+.finance-grid,
+.finance-cell,
+.drawer-cash-highlight,
+.recent-sale-row,
+.shift-cell {
+  background: #f6f1eb;
+  border-color: #e4ddd4;
+}
+
+.payment-row {
+  box-shadow: none;
+}
+
+.payment-symbol {
+  background: #fffdfa;
+  border-color: #e4ddd4;
+}
+
+.cash-row .payment-symbol {
+  color: #a96b45;
+}
+.instapay-row .payment-symbol {
+  color: #3f8792;
+}
+.card-row .payment-symbol {
+  color: #7567a0;
+}
+
+.text-cyan {
+  color: #3f8792 !important;
+}
+.text-purple {
+  color: #7567a0 !important;
+}
+.text-rose {
+  color: #b45d55 !important;
+}
+.text-emerald {
+  color: #2d7762 !important;
+}
+
+.drawer-cash-highlight {
+  color: #26221f;
+  background: #f7eee6;
+  border: 1px solid #ead4c4;
+}
+
+.card-glow-orb {
+  display: none;
+}
+
+.comparative-ratio-bar {
+  background: #e8ded3;
+}
+
+.branch-fill {
+  background: #a96b45;
+}
+.wholesale-fill {
+  background: #5b8f9b;
+}
+
+.luxury-hero-card {
+  padding: 20px;
+}
+
+.hero-amount-display {
+  min-height: 72px;
+  align-items: center;
+}
+</style>
+
+<style scoped lang="scss">
+/* Hard override for the legacy dark nested surfaces. */
+.payment-row,
+.finance-cell,
+.recent-sale-row,
+.shift-cell {
+  background: #f6f1eb !important;
+  border-color: #e4ddd4 !important;
+}
+
+.payment-text-group .p-name,
+.payment-val,
+.fin-val,
+.cell-val {
+  color: #26221f !important;
+}
+
+.payment-text-group .p-sub,
+.fin-lbl,
+.fin-sub,
+.channel-foot,
+.card-meta-tag {
+  color: #756d65 !important;
+}
+
+.payment-symbol {
+  color: #a96b45 !important;
+  background: #fffdfa !important;
+  border-color: #e4ddd4 !important;
+}
+
+.instapay-row .payment-symbol {
+  color: #3f8792 !important;
+}
+.card-row .payment-symbol {
+  color: #7567a0 !important;
+}
+.text-cyan {
+  color: #3f8792 !important;
+}
+.text-purple {
+  color: #7567a0 !important;
+}
+.text-rose {
+  color: #b45d55 !important;
+}
+.text-emerald {
+  color: #2d7762 !important;
+}
+</style>
+
+<style scoped lang="scss">
+.hero-stats-subbar {
+  background: #f6f1eb;
+  border: 1px solid #e8ded3;
+  border-radius: 14px;
+}
+
+.luxury-bottom-nav {
+  background: rgba(255, 253, 250, 0.98);
+  border-top: 1px solid #ded5cb;
+  box-shadow: 0 -10px 28px rgba(75, 55, 39, 0.1);
+}
+
+.nav-tab-item {
+  color: #82766d;
+  min-height: 66px;
+  transition:
+    color 0.2s ease,
+    background 0.2s ease;
+}
+
+.nav-tab-item.active {
+  color: #76513a;
+  background: #f7eee6;
+}
+
+.nav-tab-item.active::after {
+  background: #a96b45;
+}
+</style>
+
+<style scoped lang="scss">
+/* Final visual correction: one calm surface system, one brand accent. */
+:global(body) {
+  background: #eee9e2;
+}
+
+.luxury-mobile-container {
+  --ledger-ink: #26221f;
+  --ledger-muted: #756d65;
+  --ledger-paper: #f3efe9;
+  --ledger-paper-strong: #fffdfa;
+  --ledger-line: #e4ddd4;
+  --ledger-coffee: #76513a;
+  --ledger-copper: #a96b45;
+  --ledger-green: #2d7762;
+  background: var(--ledger-paper);
+  color: var(--ledger-ink);
+}
+
+.app-header {
+  background: rgba(255, 253, 250, 0.94);
+  border-bottom-color: var(--ledger-line);
+}
+
+.report-context-card {
+  color: var(--ledger-ink);
+  background: var(--ledger-paper-strong);
+  border: 1px solid var(--ledger-line);
+  border-inline-start: 5px solid var(--ledger-copper);
+  box-shadow: 0 8px 20px rgba(75, 55, 39, 0.06);
+}
+
+.report-context-card::after {
+  color: #b6aaa0;
+}
+.report-context-kicker {
+  color: var(--ledger-copper);
+}
+.report-context-main strong {
+  color: var(--ledger-ink);
+}
+.report-context-caption {
+  color: var(--ledger-muted);
+}
+.report-context-status {
+  color: var(--ledger-green);
+  background: #edf7f1;
+  border-color: #cde4d8;
+}
+.report-context-status.offline {
+  color: #9a4d40;
+  background: #fff0ec;
+  border-color: #efc9c0;
+}
+
+.report-kpi-strip {
+  background: var(--ledger-paper-strong);
+  box-shadow: 0 8px 20px rgba(75, 55, 39, 0.05);
+}
+
+.luxury-hero-card {
+  color: var(--ledger-ink);
+  background: var(--ledger-paper-strong);
+  border: 1px solid var(--ledger-line);
+  border-top: 4px solid var(--ledger-coffee);
+  box-shadow: 0 10px 24px rgba(75, 55, 39, 0.07);
+}
+
+.luxury-hero-card::before {
+  display: none;
+}
+.hero-title-badge {
+  color: var(--ledger-coffee);
+}
+.amount-number {
+  color: var(--ledger-ink);
+}
+.currency-prefix {
+  color: var(--ledger-copper);
+}
+.hero-stats-subbar {
+  border-top-color: var(--ledger-line);
+}
+.sub-label {
+  color: var(--ledger-muted);
+}
+.sub-val {
+  color: var(--ledger-ink);
+}
+.sub-divider {
+  background: var(--ledger-line);
+}
+
+.section-heading h3,
+.card-title {
+  color: var(--ledger-ink);
+}
+.channel-metric-card {
+  box-shadow: 0 8px 18px rgba(75, 55, 39, 0.05);
+}
+.glass-content-card,
+.finance-grid,
+.recent-sales-stream {
+  box-shadow: 0 8px 18px rgba(75, 55, 39, 0.05);
+}
+
+.bottom-navigation {
+  background: rgba(255, 253, 250, 0.97);
+  border-top-color: var(--ledger-line);
+}
+
+@media (max-width: 520px) {
+  .luxury-mobile-container {
+    box-shadow: none;
+  }
+  .report-context-card {
+    border-radius: 14px;
+  }
+  .luxury-hero-card {
+    border-radius: 16px;
+  }
+}
+</style>

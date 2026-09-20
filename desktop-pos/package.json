@@ -1,6 +1,6 @@
 {
   "name": "bin-al-ajouz-desktop-pos",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "نظام نقاط البيع والكاشير المكتبي المتكامل - بن العجوز ERP",
   "author": "بن العجوز ERP",
   "main": "dist-electron/main.js",
@@ -20,6 +20,7 @@
   "dependencies": {
     "@lucide/vue": "^1.17.0",
     "axios": "^1.7.7",
+    "electron-updater": "^6.8.9",
     "pinia": "^3.0.0",
     "vue": "^3.5.6",
     "vue-router": "^4.4.5"

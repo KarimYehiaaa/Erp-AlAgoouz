@@ -1,4 +1,5 @@
 import { app, BrowserWindow, ipcMain, shell } from 'electron';
+import { autoUpdater } from 'electron-updater';
 import path from 'path';
 import os from 'os';
 import fs from 'fs';
@@ -22,6 +23,27 @@ const __dirname = path.dirname(__filename);
 let mainWindow: BrowserWindow | null = null;
 let syncWorker: PosSyncWorker | null = null;
 let secureSessionStore: SecureSessionStore | null = null;
+
+function configureAutoUpdates() {
+  if (!app.isPackaged) return;
+
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = true;
+  autoUpdater.on('checking-for-update', () => console.log('[Updater] Checking for updates'));
+  autoUpdater.on('update-available', (info) => {
+    console.log(`[Updater] Update available: ${info.version}`);
+  });
+  autoUpdater.on('update-downloaded', (info) => {
+    console.log(`[Updater] Update downloaded: ${info.version}; it will install on next restart`);
+  });
+  autoUpdater.on('error', (error) => {
+    console.warn('[Updater] Update check failed:', sanitizeIpcError(error));
+  });
+
+  void autoUpdater.checkForUpdates().catch((error) => {
+    console.warn('[Updater] Update check failed:', sanitizeIpcError(error));
+  });
+}
 
 import {
   readPendingQueue,
@@ -341,6 +363,7 @@ app.whenReady().then(() => {
     app.isPackaged
   );
   syncWorker.start(15000);
+  configureAutoUpdates();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {

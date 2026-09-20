@@ -4,7 +4,14 @@
   "directories": {
     "output": "release"
   },
-  "publish": null,
+  "publish": [
+    {
+      "provider": "github",
+      "owner": "KarimYehiaaa",
+      "repo": "Erp-AlAgoouz",
+      "releaseType": "release"
+    }
+  ],
   "icon": "public/icon.ico",
   "files": [
     "dist/**/*",

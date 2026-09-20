@@ -1226,4 +1226,102 @@ const confirmClearCart = () => {
   height: 64px;
   touch-action: manipulation;
 }
+
+/* Compact receipt mode: show more line items without shrinking touch targets. */
+.receipt-header {
+  padding: 10px 12px;
+
+  .receipt-brand-badge {
+    width: 34px;
+    height: 34px;
+  }
+}
+
+.order-type-tabs {
+  padding: 7px 10px;
+  gap: 6px;
+
+  .type-tab {
+    min-height: 44px;
+    font-size: 0.82rem;
+  }
+}
+
+.receipt-body {
+  padding: 8px;
+}
+
+.receipt-items-scroll {
+  gap: 6px;
+}
+
+.receipt-item-card {
+  padding: 8px 10px;
+  gap: 5px;
+
+  .item-card-top {
+    min-height: 44px;
+
+    .item-title-wrap {
+      min-width: 0;
+      flex: 1;
+
+      .item-name {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 0.88rem;
+      }
+    }
+  }
+
+  .item-custom-tags {
+    max-height: 27px;
+    overflow: hidden;
+    padding-right: 0;
+    white-space: nowrap;
+
+    .custom-note-chip {
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      padding: 2px 6px;
+      font-size: 0.7rem;
+    }
+  }
+
+  .item-card-bottom {
+    gap: 6px;
+    padding-top: 4px;
+
+    .unit-price-label {
+      min-width: 0;
+      flex: 1;
+      font-size: 0.72rem;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .item-stepper {
+      flex: 0 0 auto;
+
+      .step-btn {
+        width: 44px;
+        height: 44px;
+      }
+
+      .step-qty {
+        min-width: 36px;
+      }
+    }
+
+    .item-total-price {
+      min-width: 68px;
+      font-size: 0.9rem;
+    }
+  }
+}
 </style>

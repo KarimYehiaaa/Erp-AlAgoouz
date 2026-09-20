@@ -233,11 +233,13 @@
               <!-- 3D Rendered Product Image -->
               <div class="card-image-box" :class="getProductVisual(product).iconBgClass">
                 <img
+                  v-if="getProductVisual(product).isSpecificImage"
                   :src="getProductVisual(product).threeDImage"
                   :alt="product.name_ar"
                   class="card-3d-img"
                   loading="lazy"
                 />
+                <AppIcon v-else :name="getProductVisual(product).icon" :size="52" class="card-fallback-icon" />
               </div>
 
               <!-- Product Feature Visual Badge -->
@@ -290,7 +292,8 @@
           <div class="product-detail-layout">
             <div class="product-detail-preview">
               <div class="detail-product-image" :class="activeProductVisual.iconBgClass">
-                <img :src="activeProductVisual.threeDImage" :alt="activeCustomProduct.name_ar" />
+                <img v-if="activeProductVisual.isSpecificImage" :src="activeProductVisual.threeDImage" :alt="activeCustomProduct.name_ar" />
+                <AppIcon v-else :name="activeProductVisual.icon" :size="58" class="card-fallback-icon" />
               </div>
               <span class="detail-data-label">بيانات الصنف</span>
             </div>
@@ -1463,6 +1466,11 @@ defineExpose({
     outline: 3px solid color-mix(in srgb, var(--primary) 55%, transparent);
     outline-offset: 3px;
   }
+
+  .card-fallback-icon {
+    color: var(--primary);
+    opacity: 0.82;
+  }
 }
 
 .customizer-modal-card {
@@ -1576,6 +1584,11 @@ defineExpose({
     height: 118px;
     object-fit: contain;
     filter: drop-shadow(0 8px 12px rgba(0, 0, 0, 0.14));
+  }
+
+  .card-fallback-icon {
+    color: var(--primary);
+    opacity: 0.82;
   }
 }
 

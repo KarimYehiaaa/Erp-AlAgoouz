@@ -154,6 +154,17 @@
       <!-- Perforated Zigzag Divider -->
       <div class="receipt-perforation"></div>
 
+      <div v-if="showCheckoutPanel" class="checkout-panel">
+      <div class="checkout-panel-header">
+        <div>
+          <strong>مراجعة الدفع</strong>
+          <span>راجع الإجمالي ثم اختر طريقة التحصيل</span>
+        </div>
+        <button type="button" class="btn-back-to-cart" @click="showCheckoutPanel = false">
+          <AppIcon name="arrowRight" :size="14" />
+          السلة
+        </button>
+      </div>
       <!-- Financial Calculation Summary -->
       <div class="billing-summary-box">
         <div class="summary-line">
@@ -387,12 +398,30 @@
           {{ formatMoney(cartStore.total) }}
         </div>
       </button>
+      </div>
+
+      <button
+        v-else
+        type="button"
+        class="btn-open-checkout"
+        :disabled="!cartStore.items.length"
+        @click="showCheckoutPanel = true"
+      >
+        <span class="checkout-content">
+          <AppIcon name="creditCard" :size="20" />
+          <span class="btn-labels">
+            <strong class="main-label">مراجعة الدفع وإتمام البيع</strong>
+            <small class="sub-label">الخصم، طريقة الدفع والطباعة</small>
+          </span>
+        </span>
+        <strong class="checkout-badge">{{ formatMoney(cartStore.total) }}</strong>
+      </button>
     </footer>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
 import AppIcon from './AppIcon.vue';
 import { usePosCartStore } from '../stores/posCart';
 import { formatMoney } from '../utils/currency';
@@ -414,6 +443,18 @@ const cashGiven = ref<number | null>(null);
 const currentTime = ref('');
 const showDiscountPanel = ref(false);
 const showPaymentPanel = ref(false);
+const showCheckoutPanel = ref(false);
+
+watch(
+  () => cartStore.items.length,
+  (itemsLength) => {
+    if (itemsLength === 0) {
+      showCheckoutPanel.value = false;
+      showDiscountPanel.value = false;
+      showPaymentPanel.value = false;
+    }
+  }
+);
 
 let timerInterval: any = null;
 
@@ -1578,5 +1619,97 @@ const confirmClearCart = () => {
   min-height: 48px;
   height: auto;
   touch-action: manipulation;
+}
+
+.checkout-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.checkout-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 2px 2px 4px;
+
+  div {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  strong {
+    color: var(--text-strong, #0c0a09);
+    font-size: 0.95rem;
+  }
+
+  span {
+    color: var(--text-muted, #78716c);
+    font-size: 0.7rem;
+  }
+}
+
+.btn-back-to-cart {
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 10px;
+  border: 1px solid var(--border, #e7e2d9);
+  border-radius: 8px;
+  background: var(--bg-soft, #fbf9f6);
+  color: var(--primary, #8a572a);
+  font-size: 0.76rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.btn-open-checkout {
+  width: 100%;
+  min-height: 58px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 11px;
+  background: linear-gradient(135deg, #8a572a 0%, #6e411b 100%);
+  color: #ffffff;
+  box-shadow: 0 5px 14px rgba(138, 87, 42, 0.25);
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+
+  .checkout-content {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+  }
+
+  .btn-labels {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+
+    .main-label { font-size: 0.9rem; }
+    .sub-label { font-size: 0.68rem; opacity: 0.82; }
+  }
+
+  .checkout-badge {
+    padding: 5px 9px;
+    border-radius: 7px;
+    background: rgba(255, 255, 255, 0.18);
+    font-size: 1rem;
+  }
 }
 </style>

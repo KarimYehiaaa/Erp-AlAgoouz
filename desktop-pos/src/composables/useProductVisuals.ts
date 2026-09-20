@@ -14,6 +14,7 @@ export interface ProductVisual {
   glowColor: string;
   accentColor: string;
   threeDImage: string;
+  isSpecificImage: boolean;
 }
 
 export interface CategoryVisual {
@@ -417,15 +418,20 @@ export function getProductVisual(product: any): ProductVisual {
   // 1. الصورة الحقيقية من قاعدة البيانات
   // 2. الصورة المطابقة بدقة للاسم الحقيقي
   let threeDImage: string = DEFAULT_IMAGE;
+  let isSpecificImage = false;
 
   if (typeof product?.image_url === 'string' && product.image_url.startsWith('http')) {
     threeDImage = product.image_url;
+    isSpecificImage = true;
   } else if (typeof product?.image === 'string' && product.image.startsWith('http')) {
     threeDImage = product.image;
+    isSpecificImage = true;
   } else if (EXACT_PRODUCT_IMAGES[trimmedName]) {
     threeDImage = EXACT_PRODUCT_IMAGES[trimmedName];
+    isSpecificImage = true;
   } else if (EXACT_PRODUCT_IMAGES[rawName]) {
     threeDImage = EXACT_PRODUCT_IMAGES[rawName];
+    isSpecificImage = true;
   }
 
   const themeDef = (PRODUCT_THEMES[colorTheme] || PRODUCT_THEMES.espresso)!;
@@ -441,6 +447,7 @@ export function getProductVisual(product: any): ProductVisual {
     glowColor: themeDef.glow,
     accentColor: themeDef.accent,
     threeDImage,
+    isSpecificImage,
   };
 }
 

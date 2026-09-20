@@ -3298,6 +3298,107 @@ onUnmounted(() => {
 </style>
 
 <style scoped lang="scss">
+/* Contrast pass: keep the warm palette, but make every label readable at a glance. */
+.luxury-mobile-container {
+  --ledger-ink: #211c18;
+  --ledger-muted: #5e554d;
+}
+
+.app-header,
+.report-context-card,
+.luxury-mobile-container,
+.luxury-mobile-container button {
+  color: #211c18;
+}
+
+.header-tagline,
+.report-context-caption,
+.sub-label,
+.channel-ratio,
+.card-label,
+.card-meta-tag,
+.channel-foot,
+.fin-lbl,
+.fin-sub,
+.payment-text-group .p-sub,
+.section-heading .section-note {
+  color: #5e554d !important;
+}
+
+.report-context-kicker,
+.hero-title-badge,
+.section-heading h3,
+.card-title,
+.luxury-hero-card .amount-number,
+.channel-val,
+.payment-text-group .p-name,
+.fin-val,
+.cell-val,
+.sub-val {
+  color: #211c18 !important;
+}
+
+.date-pill-btn {
+  color: #5e554d !important;
+  border-color: #cfc3b8 !important;
+  background: #fffdfa !important;
+}
+
+.date-pill-btn.active {
+  color: #fffdfa !important;
+  background: #76513a !important;
+  border-color: #76513a !important;
+}
+
+.card-meta-tag,
+.report-kpi-label {
+  font-weight: 700;
+}
+
+.report-kpi-label {
+  color: #5e554d !important;
+}
+
+.report-kpi-item strong,
+.report-kpi-item strong small {
+  color: #211c18 !important;
+}
+
+.report-context-status {
+  color: #23634f !important;
+  background: #e2f2e9 !important;
+  border-color: #acd7c1 !important;
+}
+
+.growth-chip.chip-up {
+  color: #23634f !important;
+  background: #d9f0e3 !important;
+}
+
+.nav-tab-item,
+.nav-tab-item .nav-label {
+  color: #5e554d !important;
+}
+
+.nav-tab-item.active,
+.nav-tab-item.active .nav-label {
+  color: #76513a !important;
+}
+
+.payment-val,
+.payment-val small {
+  font-variant-numeric: tabular-nums;
+}
+
+.channel-val,
+.amount-number,
+.payment-val,
+.fin-val {
+  font-weight: 900;
+}
+</style>
+
+<style scoped lang="scss">
 /* Normalize nested report surfaces so no legacy dark cards leak into the light system. */
 .dual-distribution-section {
   background: transparent;
@@ -3619,5 +3720,90 @@ onUnmounted(() => {
   .luxury-hero-card {
     border-radius: 16px;
   }
+}
+</style>
+
+<style scoped lang="scss">
+/* Final contrast pass for labels and values. */
+.luxury-mobile-container {
+  --ledger-ink: #211c18;
+  --ledger-muted: #5e554d;
+}
+
+.luxury-mobile-container,
+.luxury-mobile-container button,
+.app-header,
+.report-context-card {
+  color: #211c18;
+}
+
+.header-tagline,
+.report-context-caption,
+.sub-label,
+.channel-ratio,
+.card-label,
+.card-meta-tag,
+.channel-foot,
+.fin-lbl,
+.fin-sub,
+.payment-text-group .p-sub,
+.report-kpi-label {
+  color: #5e554d !important;
+}
+
+.report-context-kicker,
+.hero-title-badge,
+.section-heading h3,
+.card-title,
+.amount-number,
+.channel-val,
+.payment-text-group .p-name,
+.fin-val,
+.cell-val,
+.sub-val,
+.report-kpi-item strong,
+.report-kpi-item strong small {
+  color: #211c18 !important;
+}
+
+.date-pill-btn {
+  color: #5e554d !important;
+  border-color: #cfc3b8 !important;
+  background: #fffdfa !important;
+}
+
+.date-pill-btn.active {
+  color: #fffdfa !important;
+  background: #76513a !important;
+  border-color: #76513a !important;
+}
+
+.report-context-status {
+  color: #23634f !important;
+  background: #e2f2e9 !important;
+  border-color: #acd7c1 !important;
+}
+
+.growth-chip.chip-up {
+  color: #23634f !important;
+  background: #d9f0e3 !important;
+}
+
+.nav-tab-item,
+.nav-tab-item .nav-label {
+  color: #5e554d !important;
+}
+
+.nav-tab-item.active,
+.nav-tab-item.active .nav-label {
+  color: #76513a !important;
+}
+
+.channel-val,
+.amount-number,
+.payment-val,
+.fin-val {
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
 }
 </style>

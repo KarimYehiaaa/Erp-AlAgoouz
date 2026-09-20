@@ -77,6 +77,35 @@
       </div>
     </header>
 
+    <section class="report-context-card" aria-label="ملخص حالة التقارير">
+      <div class="report-context-main">
+        <span class="report-context-kicker"><AppIcon name="chart" :size="14" /> مركز التقارير</span>
+        <strong>قراءة تنفيذية سريعة</strong>
+        <span class="report-context-caption">كل الأرقام للمتابعة واتخاذ القرار فقط</span>
+      </div>
+      <div class="report-context-status" :class="{ offline: fetchError, demo: isDemoMode }">
+        <span class="report-context-dot"></span>
+        <span>{{ isDemoMode ? 'معاينة' : fetchError ? 'آخر نسخة محفوظة' : 'بيانات مباشرة' }}</span>
+      </div>
+    </section>
+
+    <div class="report-kpi-strip" aria-label="مؤشرات التقرير الرئيسية">
+      <div class="report-kpi-item">
+        <span class="report-kpi-label">الإيراد</span>
+        <strong>{{ formatMoney(currentSummary.grandTotal) }} <small>ج.م</small></strong>
+      </div>
+      <div class="report-kpi-item">
+        <span class="report-kpi-label">الفواتير</span>
+        <strong>{{ currentSummary.totalCount }}</strong>
+      </div>
+      <div class="report-kpi-item">
+        <span class="report-kpi-label">صافي السيولة</span>
+        <strong :class="(currentSummary.netCashflow || 0) >= 0 ? 'positive' : 'negative'">
+          {{ formatMoney(currentSummary.netCashflow) }} <small>ج.م</small>
+        </strong>
+      </div>
+    </div>
+
     <!-- ═══════════════════════════════════════════════════════════════
          CONNECTION DIAGNOSTICS & RETRY BANNER
          ═══════════════════════════════════════════════════════════════ -->
@@ -93,7 +122,7 @@
           <AppIcon name="settings" :size="14" /> تعديل رابط السيرفر
         </button>
         <button class="btn-diag-demo" @click="loadDemoData">
-          <AppIcon name="sparkles" :size="14" /> عرض بيانات تجريبية
+          <AppIcon name="sparkles" :size="14" /> معاينة التقرير
         </button>
         <button class="btn-diag-retry" @click="refreshAll">
           <AppIcon name="refresh" :size="14" /> إعادة المحاولة
@@ -632,7 +661,7 @@
         @click="activeTab = 'sales'"
       >
         <span class="nav-icon"><AppIcon name="chart" :size="20" /></span>
-        <span class="nav-text">المبيعات</span>
+        <span class="nav-text">نظرة عامة</span>
       </button>
 
       <button
@@ -1378,8 +1407,8 @@ onUnmounted(() => {
 }
 
 .header-btn {
-  width: 38px;
-  height: 38px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.12);
@@ -1466,12 +1495,142 @@ onUnmounted(() => {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.12);
   color: #c4b9a8;
-  padding: 3px 10px;
+  min-height: 44px;
+  padding: 7px 12px;
   border-radius: 12px;
   font-size: 11px;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.2s ease;
+}
+
+.report-context-card {
+  margin: 12px 14px 0;
+  padding: 15px 16px;
+  border: 1px solid rgba(217, 168, 108, 0.22);
+  border-radius: 20px;
+  background:
+    radial-gradient(circle at 10% 0%, rgba(217, 168, 108, 0.18), transparent 42%),
+    linear-gradient(135deg, rgba(42, 27, 16, 0.95), rgba(18, 16, 14, 0.98));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.18);
+}
+
+.report-context-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.report-context-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #e7bc83;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.2px;
+}
+
+.report-context-main strong {
+  color: #fffaf3;
+  font-size: 16px;
+  line-height: 1.25;
+}
+
+.report-context-caption {
+  color: #b4a594;
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.report-context-status {
+  flex: 0 0 auto;
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid rgba(52, 211, 153, 0.26);
+  border-radius: 999px;
+  color: #75e3b5;
+  background: rgba(16, 185, 129, 0.1);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.report-context-status.offline {
+  color: #fbbf75;
+  border-color: rgba(251, 191, 36, 0.3);
+  background: rgba(245, 158, 11, 0.1);
+}
+
+.report-context-status.demo {
+  color: #8bd8ff;
+  border-color: rgba(56, 189, 248, 0.3);
+  background: rgba(14, 165, 233, 0.1);
+}
+
+.report-context-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 9px currentColor;
+}
+
+.report-kpi-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 10px 14px 0;
+}
+
+.report-kpi-item {
+  min-width: 0;
+  min-height: 76px;
+  padding: 11px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.045);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+}
+
+.report-kpi-label {
+  color: #a99d8d;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.report-kpi-item strong {
+  color: #fff8ee;
+  font-size: clamp(15px, 4.4vw, 21px);
+  line-height: 1.1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.report-kpi-item small {
+  color: #c6b49e;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.report-kpi-item strong.positive {
+  color: #65ddb0;
+}
+
+.report-kpi-item strong.negative {
+  color: #fb8c8c;
 }
 
 .date-pill-btn.active {
@@ -1543,7 +1702,8 @@ onUnmounted(() => {
   border: 1px solid rgba(217, 168, 108, 0.4);
   color: #d9a86c;
   border-radius: 8px;
-  padding: 6px 12px;
+  min-height: 44px;
+  padding: 8px 12px;
   font-size: 11px;
   font-weight: 700;
   cursor: pointer;
@@ -1554,7 +1714,8 @@ onUnmounted(() => {
   border: 1px solid rgba(56, 189, 248, 0.4);
   color: #38bdf8;
   border-radius: 8px;
-  padding: 6px 12px;
+  min-height: 44px;
+  padding: 8px 12px;
   font-size: 11px;
   font-weight: 700;
   cursor: pointer;
@@ -1565,7 +1726,8 @@ onUnmounted(() => {
   border: none;
   color: #ffffff;
   border-radius: 8px;
-  padding: 6px 14px;
+  min-height: 44px;
+  padding: 8px 14px;
   font-size: 11px;
   font-weight: 700;
   cursor: pointer;
@@ -2510,7 +2672,9 @@ onUnmounted(() => {
   gap: 4px;
   cursor: pointer;
   position: relative;
-  padding: 4px 16px;
+  min-width: 72px;
+  min-height: 48px;
+  padding: 5px 12px;
   transition: all 0.2s ease;
 }
 

@@ -3807,3 +3807,72 @@ onUnmounted(() => {
   font-variant-numeric: tabular-nums;
 }
 </style>
+
+<style scoped lang="scss">
+/* Inventory contrast pass: restore readable text on the light report surfaces. */
+.inventory-gold-theme .hero-title-badge,
+.inventory-gold-theme .amount-number,
+.inventory-gold-theme .sub-val,
+.inventory-gold-theme .sub-label {
+  color: #211c18 !important;
+}
+
+.inventory-gold-theme .currency-prefix {
+  color: #a96b45 !important;
+}
+
+.inventory-gold-theme .chip-gold {
+  color: #7a4b22 !important;
+  background: #f8e9cf !important;
+}
+
+.category-stat-item .cat-title,
+.category-stat-item .cat-money {
+  color: #211c18 !important;
+}
+
+.category-stat-item .cat-money {
+  font-weight: 900;
+}
+
+.cat-progress-track {
+  background: #e4d9ce !important;
+}
+
+.cat-progress-fill {
+  background: #a96b45 !important;
+}
+
+.category-stat-item .cat-footer-sub {
+  color: #5e554d !important;
+}
+
+.alert-border-card {
+  border-color: #e6b7b0 !important;
+}
+
+.badge-count-red {
+  color: #a33f36 !important;
+  background: #fbe3df !important;
+  border: 1px solid #efbdb6;
+}
+
+.low-stock-row {
+  background: #fff0ed !important;
+  border-color: #efc8c2 !important;
+}
+
+.stock-item-name {
+  color: #211c18 !important;
+}
+
+.stock-item-meta,
+.stock-limit-note {
+  color: #6c5d56 !important;
+}
+
+.stock-critical-badge {
+  color: #fffdfa !important;
+  background: #c24f45 !important;
+}
+</style>

@@ -270,9 +270,9 @@
         <!-- Header -->
         <div class="customizer-header">
           <div class="header-title-wrap">
-            <span class="modal-coffee-icon"><AppIcon :name="isActiveCoffee ? 'coffee' : 'sliders'" :size="20" /></span>
+            <span class="modal-coffee-icon"><AppIcon name="sliders" :size="20" /></span>
             <div>
-              <h3>{{ isActiveCoffee ? 'تخصيص مواصفات البن / الطلب' : 'تفاصيل وإضافات المنتج' }}</h3>
+              <h3>تفاصيل وإضافة الصنف</h3>
               <p class="custom-prod-title">{{ activeCustomProduct.name_ar }}</p>
             </div>
           </div>
@@ -287,65 +287,40 @@
         </div>
 
         <div class="customizer-body">
-          <template v-if="isActiveCoffee">
-            <div class="custom-section">
-              <label class="custom-sec-title">درجة الطحن المطلوبة:</label>
-              <div class="custom-options-grid">
-                <button v-for="grind in grindOptions" :key="grind.id" type="button" class="option-pill-btn" :class="{ active: selectedGrind === grind.label }" @click="selectedGrind = grind.label">
-                  <AppIcon v-if="grind.icon" :name="grind.icon" :size="14" class="pill-emoji" />
-                  <span>{{ grind.label }}</span>
-                </button>
+          <div class="product-detail-layout">
+            <div class="product-detail-preview">
+              <div class="detail-product-image" :class="activeProductVisual.iconBgClass">
+                <img :src="activeProductVisual.threeDImage" :alt="activeCustomProduct.name_ar" />
               </div>
+              <span class="detail-data-label">بيانات الصنف</span>
             </div>
 
-            <div class="custom-section">
-              <label class="custom-sec-title">درجة التحميص:</label>
-              <div class="custom-options-grid cols-4">
-                <button v-for="roast in roastOptions" :key="roast.id" type="button" class="option-pill-btn" :class="{ active: selectedRoast === roast.label }" @click="selectedRoast = roast.label">
-                  <AppIcon v-if="roast.icon" :name="roast.icon" :size="14" class="pill-emoji" />
-                  <span>{{ roast.label }}</span>
-                </button>
+            <div class="product-detail-info">
+              <span class="detail-kicker">إضافة سريعة للسلة</span>
+              <h4>{{ activeCustomProduct.name_ar }}</h4>
+              <div class="detail-facts">
+                <span v-if="activeProductCategory"><AppIcon name="layers" :size="14" /> {{ activeProductCategory }}</span>
+                <span><AppIcon name="tag" :size="14" /> {{ formatMoney(activeCustomProduct.sale_price) }}</span>
+                <span><AppIcon name="products" :size="14" /> {{ activeProductUnit }}</span>
               </div>
+              <span class="detail-stock-status" :class="activeStockClass">
+                {{ activeStockLabel }}
+              </span>
             </div>
+          </div>
 
-            <div class="custom-section">
-              <label class="custom-sec-title">إضافات التحويجة والحبهان:</label>
-              <div class="custom-options-grid cols-3">
-                <button v-for="spice in spiceOptions" :key="spice.id" type="button" class="option-pill-btn" :class="{ active: selectedSpices === spice.label }" @click="selectedSpices = spice.label">
-                  <AppIcon v-if="spice.icon" :name="spice.icon" :size="14" class="pill-emoji" />
-                  <span>{{ spice.label }}</span>
-                </button>
-              </div>
+          <div class="custom-section detail-quantity-section">
+            <label class="custom-sec-title">الكمية المطلوبة</label>
+            <div class="detail-quantity-control">
+              <button type="button" class="detail-quantity-btn" @click="customQuantity = Math.max(1, customQuantity - 1)">−</button>
+              <strong>{{ customQuantity }}</strong>
+              <button type="button" class="detail-quantity-btn" @click="customQuantity += 1">+</button>
             </div>
+          </div>
 
-            <div class="custom-section">
-              <label class="custom-sec-title">الوزن / الحجم المطلوب:</label>
-              <div class="custom-options-grid cols-4">
-                <button type="button" class="option-pill-btn" :class="{ active: selectedWeight === 0.125 }" @click="selectedWeight = 0.125">⅛ ثمن (125g)</button>
-                <button type="button" class="option-pill-btn" :class="{ active: selectedWeight === 0.25 }" @click="selectedWeight = 0.25">¼ ربع (250g)</button>
-                <button type="button" class="option-pill-btn" :class="{ active: selectedWeight === 0.5 }" @click="selectedWeight = 0.5">½ نصف (500g)</button>
-                <button type="button" class="option-pill-btn highlight" :class="{ active: selectedWeight === 1.0 }" @click="selectedWeight = 1.0">1k كيلو (1000g)</button>
-              </div>
-            </div>
-          </template>
-
-          <template v-else>
-            <div class="custom-section">
-              <label class="custom-sec-title">الكمية:</label>
-              <div class="detail-quantity-control">
-                <button type="button" class="detail-quantity-btn" @click="customQuantity = Math.max(1, customQuantity - 1)">−</button>
-                <strong>{{ customQuantity }}</strong>
-                <button type="button" class="detail-quantity-btn" @click="customQuantity += 1">+</button>
-              </div>
-              <label class="custom-sec-title detail-notes-label">ملاحظات الطلب:</label>
-              <textarea v-model="customNotes" class="custom-notes-input" rows="3" placeholder="مثال: بدون سكر، إضافي، تجهيز خاص..."></textarea>
-            </div>
-          </template>
-
-          <!-- ملخص المواصفات المجمعة -->
-          <div v-if="isActiveCoffee" class="spec-summary-badge">
-            <span class="spec-label">المواصفات:</span>
-            <strong class="spec-text">{{ compiledCustomNotes }}</strong>
+          <div class="custom-section">
+            <label class="custom-sec-title" for="pos-product-note">ملاحظة اختيارية للطلب</label>
+            <textarea id="pos-product-note" v-model="customNotes" class="custom-notes-input" rows="2" placeholder="مثال: بدون سكر أو تجهيز خاص..."></textarea>
           </div>
         </div>
 
@@ -359,7 +334,7 @@
             class="btn btn-primary add-custom-btn"
             @click="confirmCustomization"
           >
-            {{ isActiveCoffee ? 'إضافة للسلة مع المواصفات (Enter)' : 'إضافة للسلة' }}
+            إضافة للسلة
           </button>
         </div>
       </div>
@@ -473,67 +448,35 @@ const handleCardClick = (product: any) => {
 const showCustomizerModal = ref(false);
 const activeCustomProduct = ref<any>(null);
 
-const grindOptions = [
-  { id: 'beans', label: 'حبوب كاملة', icon: 'bean' },
-  { id: 'turkish', label: 'تركي ناعم', icon: 'coffee' },
-  { id: 'espresso', label: 'إسبريسو', icon: 'coffee' },
-  { id: 'v60', label: 'فلتر V60', icon: 'flask' },
-  { id: 'french', label: 'فرنش برس', icon: 'flask' },
-  { id: 'moka', label: 'موكا بوت', icon: 'coffee' },
-];
-
-const roastOptions = [
-  { id: 'light', label: 'فاتح', icon: 'sun' },
-  { id: 'medium', label: 'وسط', icon: 'zap' },
-  { id: 'dark', label: 'غامق', icon: 'moon' },
-  { id: 'med_dark', label: 'وسط مع غامق', icon: 'sparkles' },
-];
-
-const spiceOptions = [
-  { id: 'plain', label: 'بدون حبهان (سادة)', icon: 'tag' },
-  { id: 'light_card', label: 'حبهان خفيف', icon: 'sparkles' },
-  { id: 'med_card', label: 'حبهان مظبوط', icon: 'check' },
-  { id: 'extra_card', label: 'حبهان زيادة', icon: 'check' },
-  { id: 'mastic', label: 'مستكة وحبهان', icon: 'shield' },
-  { id: 'special', label: 'تحويجة العجوز الملكية', icon: 'sparkles' },
-];
-
-const selectedGrind = ref('تركي ناعم');
-const selectedRoast = ref('وسط');
-const selectedSpices = ref('حبهان مظبوط');
-const selectedWeight = ref(0.25);
 const customQuantity = ref(1);
 const customNotes = ref('');
 
-const isCoffeeProduct = (product: any) => {
-  const cat = (product.category_name || '').toLowerCase();
-  const name = (product.name_ar || '').toLowerCase();
-  return (
-    cat.includes('بن') ||
-    cat.includes('حبوب') ||
-    cat.includes('توليف') ||
-    cat.includes('قهو') ||
-    cat.includes('اسبريسو') ||
-    name.includes('بن') ||
-    name.includes('توليفة') ||
-    name.includes('قهوة')
-  );
-};
-
-const isActiveCoffee = computed(() =>
-  activeCustomProduct.value ? isCoffeeProduct(activeCustomProduct.value) : false
+const activeProductVisual = computed(() =>
+  activeCustomProduct.value ? getProductVisual(activeCustomProduct.value) : getProductVisual({})
 );
 
-const compiledCustomNotes = computed(() => {
-  return `طحن: ${selectedGrind.value} • تحميص: ${selectedRoast.value} • تحويجة: ${selectedSpices.value}`;
+const activeProductCategory = computed(() =>
+  activeCustomProduct.value?.category_name || activeCustomProduct.value?.category || ''
+);
+
+const activeProductUnit = computed(() =>
+  activeCustomProduct.value?.unit || activeCustomProduct.value?.unit_name || 'وحدة'
+);
+
+const activeStockClass = computed(() =>
+  activeCustomProduct.value ? props.getProductStockClass(activeCustomProduct.value) : ''
+);
+
+const activeStockLabel = computed(() => {
+  if (!activeCustomProduct.value) return '';
+  const stockClass = activeStockClass.value;
+  if (stockClass === 'out') return 'غير متوفر حاليًا';
+  if (stockClass === 'low') return 'المخزون منخفض';
+  return 'متوفر للبيع';
 });
 
 const openCustomizer = (product: any) => {
   activeCustomProduct.value = product;
-  selectedGrind.value = 'تركي ناعم';
-  selectedRoast.value = 'وسط';
-  selectedSpices.value = 'حبهان مظبوط';
-  selectedWeight.value = 0.25;
   customQuantity.value = 1;
   customNotes.value = '';
   showCustomizerModal.value = true;
@@ -549,8 +492,8 @@ const confirmCustomization = () => {
     emit(
       'addToCart',
       activeCustomProduct.value,
-      isActiveCoffee.value ? selectedWeight.value : customQuantity.value,
-      isActiveCoffee.value ? compiledCustomNotes.value : customNotes.value.trim() || undefined
+      customQuantity.value,
+      customNotes.value.trim() || undefined
     );
   }
   closeCustomizer();
@@ -1589,5 +1532,143 @@ defineExpose({
 .customizer-footer .btn {
   min-height: 56px;
   touch-action: manipulation;
+}
+
+/* Truthful, focused product detail panel. It only presents fields that exist on the product. */
+.customizer-modal-card {
+  max-width: 680px;
+  padding: 20px;
+}
+
+.customizer-body {
+  gap: 16px;
+  max-height: 68vh;
+}
+
+.product-detail-layout {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  gap: 18px;
+  align-items: stretch;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--bg-soft);
+}
+
+.product-detail-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.detail-product-image {
+  min-height: 142px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+
+  img {
+    width: 118px;
+    height: 118px;
+    object-fit: contain;
+    filter: drop-shadow(0 8px 12px rgba(0, 0, 0, 0.14));
+  }
+}
+
+.detail-data-label,
+.detail-kicker {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.product-detail-info {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 9px;
+
+  h4 {
+    margin: 0;
+    color: var(--text-strong);
+    font-size: 1.35rem;
+    line-height: 1.35;
+    font-weight: 900;
+  }
+}
+
+.detail-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+
+  span {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    min-height: 32px;
+    padding: 0 9px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg-elevated);
+    color: var(--text);
+    font-size: 0.78rem;
+    font-weight: 750;
+  }
+}
+
+.detail-stock-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: 8px;
+  background: var(--success-soft, rgba(22, 163, 74, 0.1));
+  color: var(--success, #15803d);
+  font-size: 0.78rem;
+  font-weight: 850;
+
+  &.low {
+    background: var(--warning-soft, rgba(217, 119, 6, 0.12));
+    color: var(--warning, #b45309);
+  }
+
+  &.out {
+    background: var(--danger-soft, rgba(220, 38, 38, 0.1));
+    color: var(--danger, #b91c1c);
+  }
+}
+
+.detail-quantity-section {
+  gap: 8px;
+}
+
+.custom-notes-input {
+  min-height: 72px;
+}
+
+@media (max-width: 560px) {
+  .product-detail-layout {
+    grid-template-columns: 110px minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  .detail-product-image {
+    min-height: 110px;
+
+    img {
+      width: 88px;
+      height: 88px;
+    }
+  }
+
+  .product-detail-info h4 {
+    font-size: 1.05rem;
+  }
 }
 </style>

@@ -1,8 +1,11 @@
 import crypto from 'crypto';
+import config from '../config/index.ts';
 
 const ALGORITHM = 'aes-256-gcm';
 
-const isProd = process.env.NODE_ENV === 'production';
+// Use centralized environment detection so Vercel cannot fall back to a
+// development encryption key when NODE_ENV is missing from the runtime.
+const isProd = config.isProduction;
 const rawBackupKey = process.env.BACKUP_ENCRYPTION_KEY?.trim();
 
 if (isProd && (!rawBackupKey || rawBackupKey.length < 32)) {

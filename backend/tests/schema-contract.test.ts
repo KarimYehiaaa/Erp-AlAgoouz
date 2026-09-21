@@ -14,4 +14,20 @@ describe('Database/application schema contracts', () => {
 
     expect(migrationText).toMatch(/ALTER TABLE warehouses[\s\S]*ADD COLUMN IF NOT EXISTS branch_id INT/);
   });
+
+  it('defines database guardrails for non-negative stock and financial values', () => {
+    const migrationDir = path.resolve(process.cwd(), 'migrations');
+    const migrationText = fs
+      .readdirSync(migrationDir)
+      .filter((file) => file.endsWith('.sql'))
+      .sort()
+      .map((file) => fs.readFileSync(path.join(migrationDir, file), 'utf8'))
+      .join('\n');
+
+    expect(migrationText).toContain('inventory_quantity_non_negative');
+    expect(migrationText).toContain('sale_items_values_valid');
+    expect(migrationText).toContain('sales_amounts_non_negative');
+    expect(migrationText).toContain('payments_amount_non_negative');
+    expect(migrationText).toContain('idx_products_active_sku_unique');
+  });
 });

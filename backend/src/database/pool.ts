@@ -17,14 +17,31 @@ const connectionOptions = process.env.DATABASE_URL
       password: config.db.password ?? undefined,
     };
 const dbSsl = config.db.ssl;
-// إصلاح التجمّد: رفع سقف الاتصالات (كان 5 فتُشبع تحت الحمل) مع الاحتفاظ بمهلات الحماية
-const maxConnections = process.env.VERCEL ? 3 : 10;
+// Keep a conservative serverless default, but make the limit explicit and
+// tunable for the selected Supabase pooler plan. Never accept an unsafe value.
+const isServerless = Boolean(
+  process.env.VERCEL || process.env.VERCEL_ENV || process.env.VERCEL_URL,
+);
+const configuredPoolMax = Number.parseInt(process.env.DB_POOL_MAX || '', 10);
+const maxConnections =
+  Number.isFinite(configuredPoolMax) && configuredPoolMax > 0
+    ? Math.min(configuredPoolMax, 50)
+    : isServerless
+      ? 3
+      : 10;
+const configuredIdleTimeout = Number.parseInt(process.env.DB_POOL_IDLE_TIMEOUT_MS || '', 10);
+const idleTimeoutMillis =
+  Number.isFinite(configuredIdleTimeout) && configuredIdleTimeout >= 0
+    ? Math.min(configuredIdleTimeout, 120_000)
+    : isServerless
+      ? 2_000
+      : 10_000;
 const pool = new Pool({
   ...connectionOptions,
   ssl: dbSsl,
   max: maxConnections,
-  min: process.env.VERCEL ? 0 : 1,
-  idleTimeoutMillis: process.env.VERCEL ? 2000 : 10000,
+  min: isServerless ? 0 : 1,
+  idleTimeoutMillis,
   connectionTimeoutMillis: 10000,
   statement_timeout: 30000,
   query_timeout: 30000,

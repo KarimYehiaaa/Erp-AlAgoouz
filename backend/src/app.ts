@@ -32,6 +32,7 @@ import { checkHealth } from './database/pool.ts';
 import { initSentry } from './services/sentry.ts';
 import { syncMonitorController } from './controllers/syncMonitorController.ts';
 import { logger } from './services/loggerService.ts';
+import { csrfProtection } from './middleware/csrf.ts';
 
 // ─── تحديد مجلد العمل (يعمل في ESM وفي العقدة العادية) ───────────────────────
 let __dirname = process.cwd();
@@ -71,6 +72,7 @@ app.use(
   }),
 );
 app.use(cookieParser());
+app.use(csrfProtection);
 app.use(
   cors({
     origin: (origin, callback) => {

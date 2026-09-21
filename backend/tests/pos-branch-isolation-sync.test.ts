@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { query, getClient } from '../src/database/pool.ts';
 import { createDailySale } from '../src/services/salesService.ts';
+import { getAllowedWarehouses } from '../src/middleware/branchIsolation.ts';
 import { randomUUID } from 'node:crypto';
 
 describe('POS Branch Isolation & Batch Sync Security (Items 24, 25, 26)', () => {
@@ -57,8 +58,12 @@ describe('POS Branch Isolation & Batch Sync Security (Items 24, 25, 26)', () => 
     );
     cashierUserId = cashierRes.rows[0].id;
 
-    // 4. Assign Cashier to allowedWarehouseId only
-    await query(`UPDATE users SET warehouse_id = $1, branch_id = NULL WHERE id = $2`, [allowedWarehouseId, cashierUserId]);
+    // 4. Assign explicit branches so the branch-to-warehouse path is exercised.
+    const allowedBranchId = 7001;
+    const forbiddenBranchId = 7002;
+    await query(`UPDATE warehouses SET branch_id = $1 WHERE id = $2`, [allowedBranchId, allowedWarehouseId]);
+    await query(`UPDATE warehouses SET branch_id = $1 WHERE id = $2`, [forbiddenBranchId, forbiddenWarehouseId]);
+    await query(`UPDATE users SET warehouse_id = NULL, branch_id = $1 WHERE id = $2`, [allowedBranchId, cashierUserId]);
 
     // 5. Create or get test product with stock in both warehouses
     const pRes = await query(`SELECT id FROM products WHERE deleted_at IS NULL LIMIT 1`);
@@ -79,6 +84,12 @@ describe('POS Branch Isolation & Batch Sync Security (Items 24, 25, 26)', () => 
       `INSERT INTO inventory (product_id, warehouse_id, quantity) VALUES ($1, $2, 500), ($1, $3, 500)`,
       [productId, allowedWarehouseId, forbiddenWarehouseId]
     );
+  });
+
+  it('resolves only warehouses assigned to the cashier branch', async () => {
+    const allowed = await getAllowedWarehouses(cashierUserId);
+    expect(allowed).toContain(allowedWarehouseId);
+    expect(allowed).not.toContain(forbiddenWarehouseId);
   });
 
   it('1. Cashier with allowed warehouse creates sale successfully', async () => {

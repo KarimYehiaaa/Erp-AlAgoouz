@@ -93,7 +93,12 @@ dbConfig.ssl = sslEnabled
  * إعدادات التطبيق المركزية (الخادم، قاعدة البيانات، JWT، CORS، معدل الطلبات، الشركة، النسخ الاحتياطي).
  * تُقرأ من متغيرات البيئة — لا توجد أسرار مضمّنة في الكود.
  */
-const isProdEnv = process.env.NODE_ENV === 'production';
+// Vercel does not reliably expose NODE_ENV to every serverless runtime. Treat
+// all deployed Vercel functions as production-like so security cannot fail open.
+const isVercelRuntime = Boolean(
+  process.env.VERCEL || process.env.VERCEL_ENV || process.env.VERCEL_URL,
+);
+const isProdEnv = process.env.NODE_ENV === 'production' || isVercelRuntime;
 const envJwtSecret = process.env.JWT_SECRET?.trim();
 let finalJwtSecret: string;
 
@@ -125,9 +130,9 @@ const config = {
   // ── Server ──
   port: parseInt(optionalEnv('PORT', '3000'), 10),
   httpsPort: parseInt(optionalEnv('HTTPS_PORT', '3443'), 10),
-  nodeEnv: optionalEnv('NODE_ENV', 'development'),
-  isProduction: optionalEnv('NODE_ENV', 'development') === 'production',
-  isDevelopment: optionalEnv('NODE_ENV', 'development') === 'development',
+  nodeEnv: isProdEnv ? 'production' : optionalEnv('NODE_ENV', 'development'),
+  isProduction: isProdEnv,
+  isDevelopment: !isProdEnv && optionalEnv('NODE_ENV', 'development') === 'development',
 
   // ── Database ──
   db: dbConfig,

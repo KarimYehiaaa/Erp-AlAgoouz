@@ -16,6 +16,7 @@ import { businessToday } from '../utils/localDate.ts';
 import {
   calculateOutstandingAmount,
   calculatePaidAmount,
+  calculatePaymentTotal,
   calculateSaleTotals,
   SALE_TYPES,
 } from './salesCalculations.ts';
@@ -84,7 +85,9 @@ const createDailySale = async (data: Record<string, any>, userId: number) => {
     data.paid_amount || 0,
   );
   const saleDate = data.sale_date || data.date || businessToday();
-  let profitAmount = parseAmount(data.profit_amount);
+  // Itemized sales always derive profit from server-side cost layers. Manual
+  // profit is retained only for historical/daily sales without line items.
+  let profitAmount = items.length ? 0 : parseAmount(data.profit_amount);
   const client = await getClient();
   try {
     await client.query('BEGIN');
@@ -151,13 +154,7 @@ const createDailySale = async (data: Record<string, any>, userId: number) => {
     const sale = saleResult.rows[0];
     if (items.length) {
       costAmount = await applySaleItems(client, { saleId: sale.id, items, warehouseId, userId });
-      if (
-        data.profit_amount === void 0 ||
-        data.profit_amount === null ||
-        data.profit_amount === ''
-      ) {
-        profitAmount = roundMoney(totalAmount - costAmount);
-      }
+      profitAmount = roundMoney(totalAmount - costAmount);
       await client.query(`UPDATE sales SET cost_amount = $1, profit_amount = $2 WHERE id = $3`, [
         costAmount,
         profitAmount,
@@ -165,6 +162,7 @@ const createDailySale = async (data: Record<string, any>, userId: number) => {
       ]);
     }
     if (Array.isArray(data.payments) && data.payments.length > 0) {
+      calculatePaymentTotal(data.payments, totalAmount);
       for (let idx = 0; idx < data.payments.length; idx++) {
         const p = data.payments[idx];
         const pAmount = roundMoney(Number(p.amount) || 0);
@@ -360,13 +358,7 @@ const updateSale = async (saleId: number, data: Record<string, any>, userId: num
       await client.query(`DELETE FROM sale_items WHERE sale_id = $1`, [saleId]);
       if (items.length) {
         costAmount = await applySaleItems(client, { saleId, items, warehouseId, userId });
-        if (
-          data.profit_amount === void 0 ||
-          data.profit_amount === null ||
-          data.profit_amount === ''
-        ) {
-          profitAmount = roundMoney(totalAmount - costAmount);
-        }
+        profitAmount = roundMoney(totalAmount - costAmount);
       } else {
         subtotal = totalAmount;
         costAmount = 0;

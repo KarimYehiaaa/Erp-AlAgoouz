@@ -1,5 +1,6 @@
 import { logger } from '../services/loggerService.ts';
 import { AppError } from '../types/errors.ts';
+import config from '../config/index.ts';
 /**
  * تصنيف أخطاء PostgreSQL (رموز pg) إلى AppError عربي واضح.
  * @param {any} err الخطأ الخام
@@ -88,7 +89,7 @@ const errorHandler = (err, req, res, _next) => {
     code,
     requestId,
     // تفاصيل إضافية في بيئة التطوير فقط
-    ...(process.env.NODE_ENV !== 'production' && err.stack
+    ...(config.isDevelopment && err.stack
       ? { stack: err.stack, pgCode: err.code, rawMessage: finalErr.message }
       : {}),
   });

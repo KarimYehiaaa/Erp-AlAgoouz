@@ -116,6 +116,18 @@ const calculatePaidAmount = (
 const calculateOutstandingAmount = (totalAmount: number, paidAmount: number = 0) =>
   roundMoney(Math.max(0, parseAmount(totalAmount) - parseAmount(paidAmount)));
 
+/** مجموع المدفوعات المتعددة مع منع تجاوز إجمالي الفاتورة. */
+const calculatePaymentTotal = (
+  payments: Array<{ amount: number | string }>,
+  totalAmount: number,
+) => {
+  const paymentTotal = sumMoney(...payments.map((payment) => payment.amount));
+  if (paymentTotal > totalAmount) {
+    throw new AppError('إجمالي المدفوعات لا يمكن أن يتجاوز إجمالي الفاتورة', 400);
+  }
+  return paymentTotal;
+};
+
 /** تسميات أنواع البيع بالعربية (للنشاط/السجلات). */
 const SALE_TYPES = {
   branch: '\u0641\u0631\u0639',
@@ -123,4 +135,10 @@ const SALE_TYPES = {
   pos: 'POS',
 };
 
-export { calculateOutstandingAmount, calculatePaidAmount, calculateSaleTotals, SALE_TYPES };
+export {
+  calculateOutstandingAmount,
+  calculatePaidAmount,
+  calculatePaymentTotal,
+  calculateSaleTotals,
+  SALE_TYPES,
+};

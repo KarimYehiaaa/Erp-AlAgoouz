@@ -10,6 +10,7 @@ import XLSX from 'xlsx';
 import { query, getClient } from '../database/pool.ts';
 import { AppError } from '../types/errors.ts';
 import { roundMoney } from '../utils/money.ts';
+import { readSafeWorkbook } from './excelSecurity.ts';
 
 export interface CreateReconciliationInput {
   account_id: number;
@@ -251,7 +252,7 @@ export const bankReconciliationService = {
       throw new AppError('لا يمكن استيراد كشف حساب لجلسة مطابقة مكتملة ومغلقة', 400);
     }
 
-    const workbook = XLSX.read(fileBuffer, { type: 'buffer', cellDates: true });
+    const workbook = readSafeWorkbook(fileBuffer, { cellDates: true });
     const sheetName = workbook.SheetNames[0];
     if (!sheetName) throw new AppError('الملف لا يحتوي على أي صفحات بيانات', 400);
 

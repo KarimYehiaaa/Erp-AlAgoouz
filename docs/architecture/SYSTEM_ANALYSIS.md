@@ -120,7 +120,7 @@ erDiagram
 
 ### د. مسارات الـ API والملفات المعنية
 * **الملفات المعنية**:
-  * [inventoryService.js](file:///d:/AlAgoouz%20System/AlAgoouz-erp/backend/src/services/inventoryService.js)
+  * [inventoryService.ts](file:///d:/AlAgoouz%20System/AlAgoouz-erp/backend/src/services/inventoryService.ts)
 * **المسارات**:
   * `GET /api/inventory` -> عرض حالة المخزون الحالية وتنبيهات النواقص.
   * `POST /api/inventory/transfer` -> تحويل كميات بين مستودعين.
@@ -182,8 +182,8 @@ sequenceDiagram
 
 ### د. مسارات الـ API والملفات المعنية
 * **الملفات المعنية**:
-  * [salesService.js](file:///d:/AlAgoouz%20System/AlAgoouz-erp/backend/src/services/salesService.js)
-  * [recipesService.js](file:///d:/AlAgoouz%20System/AlAgoouz-erp/backend/src/services/recipesService.js)
+  * [salesService.ts](file:///d:/AlAgoouz%20System/AlAgoouz-erp/backend/src/services/salesService.ts)
+  * [recipesService.ts](file:///d:/AlAgoouz%20System/AlAgoouz-erp/backend/src/services/recipesService.ts)
 * **المسارات**:
   * `POST /api/sales` -> إنشاء فاتورة بيع جديدة وتفعيل خوارزمية الخصم والتركيبات.
   * `PUT /api/sales/:id` -> تعديل فاتورة بيع.
@@ -284,7 +284,7 @@ function getEffectiveCost(productId, cache, stack):
 ### د. مسارات الـ API والملفات المعنية
 * **الملفات المعنية**:
   * [productCostService.js](file:///d:/AlAgoouz%20System/AlAgoouz-erp/backend/src/services/productCostService.js)
-  * [recipesService.js](file:///d:/AlAgoouz%20System/AlAgoouz-erp/backend/src/services/recipesService.js)
+  * [recipesService.ts](file:///d:/AlAgoouz%20System/AlAgoouz-erp/backend/src/services/recipesService.ts)
 * **المسارات**:
   * `GET /api/products/costs-report` -> تقرير تكاليف المنتجات الفعلي والهوامش الربحية التقديرية.
   * `POST /api/recipes` -> إنشاء تركيب/وصفة لمنتج.

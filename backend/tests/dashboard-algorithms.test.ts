@@ -3,9 +3,9 @@ import {
   getDashboardStats,
   invalidateDashboardCache,
   resolveCogs,
-} from '../src/services/dashboardService';
-import { query } from '../src/database/pool';
-import pool from '../src/database/pool.js';
+} from '../src/services/dashboardService.ts';
+import { query } from '../src/database/pool.ts';
+import pool from '../src/database/pool.ts';
 
 /**
  * اختبارات الخوارزميات الجديدة في لوحة التحكم:

@@ -426,7 +426,7 @@ export class WorkflowGraphService {
     const executionId = options.executionId || crypto.randomUUID();
     const triggerSource = options.triggerSource || 'manual';
     const startedAt = new Date();
-    let automationId: number | null = null;
+    let automationId: number;
     let logId: number | null = null;
 
     let notificationText = '';

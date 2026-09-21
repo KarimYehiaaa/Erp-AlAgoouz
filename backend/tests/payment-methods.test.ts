@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { getDashboardStats, invalidateDashboardCache } from '../src/services/dashboardService';
-import { query } from '../src/database/pool';
-import pool from '../src/database/pool.js';
+import { query } from '../src/database/pool.ts';
+import pool from '../src/database/pool.ts';
 
 /**
  * اختبار انتكاس لرسم "طرق الدفع" (paymentMethodSummary):

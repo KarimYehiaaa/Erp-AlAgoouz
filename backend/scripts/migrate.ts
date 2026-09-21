@@ -8,7 +8,7 @@
  *
  * يُستخدم من:
  *  - `src/index.ts` عند بدء التشغيل المحلي (استيراد ديناميكي)
- *  - `run-vitest-local.ts` و `run-tests.ts` (تهيئة قاعدة الاختبارات)
+ *  - `run-vitest-local.ts` (تهيئة قاعدة الاختبارات)
  *  - سطر الأوامر مباشرة: `node scripts/migrate.ts`
  */
 import pg from 'pg';

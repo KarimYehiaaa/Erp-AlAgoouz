@@ -1,11 +1,11 @@
 # Push & PR Instructions
 
-Run these commands locally to push the fixes and open a PR.
+Run these commands locally to validate and publish a change.
 
-1. Create a feature branch and commit your changes:
+1. Create a branch using the repository convention and commit your changes:
 
 ```bash
-git checkout -b fix/inventory-locks
+git checkout -b codex/<short-change-name>
 git add -A
 git commit -m "fix(inventory): ensure and lock inventory rows before updates; use inventoryService across services"
 ```
@@ -13,13 +13,13 @@ git commit -m "fix(inventory): ensure and lock inventory rows before updates; us
 2. Push the branch to origin:
 
 ```bash
-git push -u origin fix/inventory-locks
+git push -u origin codex/<short-change-name>
 ```
 
 3. Create a PR (optional, using GitHub CLI):
 
 ```bash
-gh pr create --fill --title "fix: ensure inventory rows + locking" --body "Adds inventoryService and uses row locking/creation to avoid missing inventory rows and race conditions. Runs backend tests on CI."
+gh pr create --fill
 ```
 
 4. CI will run automatically via GitHub Actions (`.github/workflows/ci.yml`).

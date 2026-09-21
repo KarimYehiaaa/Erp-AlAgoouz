@@ -44,7 +44,7 @@ export default [
 
   // Backend tests
   {
-    files: ['backend/test/**/*.{js,mjs,ts}'],
+    files: ['backend/tests/**/*.{js,mjs,ts}'],
     languageOptions: {
       ecmaVersion: 2024,
       sourceType: 'module',

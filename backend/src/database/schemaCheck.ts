@@ -22,7 +22,11 @@ export const checkSchemaVersion = async () => {
     const files = fs
       .readdirSync(migrationsDir)
       .filter((file) => file.endsWith('.sql'))
-      .sort((a, b) => a.localeCompare(b));
+      .sort((a, b) => {
+        const na = parseInt(a, 10);
+        const nb = parseInt(b, 10);
+        return na !== nb ? na - nb : a.localeCompare(b);
+      });
 
     if (files.length === 0) return;
 

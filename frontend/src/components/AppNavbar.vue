@@ -32,7 +32,7 @@
 
         <transition name="dropdown-fade">
           <div v-if="workspaceMenuOpen" class="workspace-dropdown card" role="menu">
-            <div class="dropdown-header">اختيار نطاق العمل / الفرع</div>
+            <div class="dropdown-header">اختيار موقع التشغيل</div>
             <button
               v-for="ws in availableWorkspaces"
               :key="ws.id"
@@ -318,9 +318,9 @@ const sidebarToggleLabel = computed(() => {
 });
 
 const availableWorkspaces = [
-  { id: 'main', name: 'المركز الرئيسي', icon: 'warehouse' },
-  { id: 'branch-1', name: 'فرع المبيعات 1', icon: 'shop' },
-  { id: 'warehouse-1', name: 'المستودع المركزي', icon: 'inventory' },
+  { id: 'store', name: 'المحل الرئيسي', icon: 'shop' },
+  { id: 'main-warehouse', name: 'المخزن الرئيسي', icon: 'warehouse' },
+  { id: 'all-warehouses', name: 'كل المخازن', icon: 'inventory' },
 ];
 
 function selectWorkspace(name: string) {

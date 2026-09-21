@@ -5,7 +5,7 @@
 
 /** تسمية نوع البيع (branch/wholesale/pos) بالعربية. */
 export const saleTypeLabel = (t: any) =>
-  (({ branch: 'فرع', wholesale: 'جملة', pos: 'POS' }) as Record<string, string>)[t] || t || '—';
+  (({ branch: 'المحل', wholesale: 'جملة', pos: 'POS' }) as Record<string, string>)[t] || t || '—';
 
 /** تسمية نوع العميل (retail/wholesale) بالعربية. */
 export const customerTypeLabel = (t: any) =>

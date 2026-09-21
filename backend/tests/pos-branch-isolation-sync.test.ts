@@ -58,12 +58,8 @@ describe('POS Branch Isolation & Batch Sync Security (Items 24, 25, 26)', () => 
     );
     cashierUserId = cashierRes.rows[0].id;
 
-    // 4. Assign explicit branches so the branch-to-warehouse path is exercised.
-    const allowedBranchId = 7001;
-    const forbiddenBranchId = 7002;
-    await query(`UPDATE warehouses SET branch_id = $1 WHERE id = $2`, [allowedBranchId, allowedWarehouseId]);
-    await query(`UPDATE warehouses SET branch_id = $1 WHERE id = $2`, [forbiddenBranchId, forbiddenWarehouseId]);
-    await query(`UPDATE users SET warehouse_id = NULL, branch_id = $1 WHERE id = $2`, [allowedBranchId, cashierUserId]);
+    // 4. In the single-branch model, access is assigned by warehouse only.
+    await query(`UPDATE users SET warehouse_id = $1, branch_id = 1 WHERE id = $2`, [allowedWarehouseId, cashierUserId]);
 
     // 5. Create or get test product with stock in both warehouses
     const pRes = await query(`SELECT id FROM products WHERE deleted_at IS NULL LIMIT 1`);

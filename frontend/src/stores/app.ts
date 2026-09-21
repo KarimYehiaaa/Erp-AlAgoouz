@@ -12,7 +12,12 @@ export interface Toast {
 export const useAppStore = defineStore('app', () => {
   const sidebarOpen = ref(false);
   const sidebarPinned = ref(localStorage.getItem('sidebarPinned') !== 'false');
-  const activeWorkspace = ref(localStorage.getItem('activeWorkspace') || 'المركز الرئيسي');
+  const savedWorkspace = localStorage.getItem('activeWorkspace');
+  const activeWorkspace = ref(
+    savedWorkspace && ['المحل الرئيسي', 'المخزن الرئيسي', 'كل المخازن'].includes(savedWorkspace)
+      ? savedWorkspace
+      : 'المحل الرئيسي',
+  );
   const notifications = ref<any[]>([]);
   const notificationDrawerOpen = ref(false);
   const isOnline = ref(navigator.onLine);

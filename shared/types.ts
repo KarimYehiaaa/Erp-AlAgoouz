@@ -17,6 +17,7 @@ export interface User {
   role_id?: number;
   role_name?: string;
   role_name_ar?: string;
+  /** @deprecated This deployment has one branch; warehouse_id is the access boundary. */
   branch_id?: number | null;
   warehouse_id?: number | null;
   [key: string]: any;
@@ -59,7 +60,7 @@ export interface Paginated<T> {
 
 // كيانات النظام الأساسية
 
-/** مخزن / فرع. */
+/** موقع تخزين داخل المحل (مثل المخزن الرئيسي أو مخزن البيع). */
 export interface Warehouse {
   id: number;
   name: string;

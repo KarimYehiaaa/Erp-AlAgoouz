@@ -1,8 +1,8 @@
 /**
- * middleware/branchIsolation.ts — عزل الفروع والمخازن
- * يتحقق من أن المستخدم لديه صلاحية الوصول للفرع/المخزن المطلوب.
+ * middleware/branchIsolation.ts — عزل مخازن الفرع الواحد
+ * يتحقق من أن المستخدم لديه صلاحية الوصول للمخزن المطلوب داخل المحل.
  * يمنع هجمات IDOR (Insecure Direct Object Reference) حيث يمكن
- * لمستخدم فرع الوصول لبيانات فرع آخر عبر تغيير warehouse_id.
+ * لمستخدم الوصول لمخزن غير المخصص له عبر تغيير warehouse_id.
  *
  * الأدوار الإدارية (admin) تمر دائماً بدون فحص.
  */
@@ -23,7 +23,7 @@ export async function getAllowedWarehouses(userId: number): Promise<number[]> {
   if (cached && cached.expiresAt > Date.now()) return cached.warehouses;
 
   const userRes = await query(
-    `SELECT u.branch_id, u.warehouse_id, r.name as role_name 
+    `SELECT u.warehouse_id, r.name as role_name
      FROM users u 
      LEFT JOIN roles r ON r.id = u.role_id 
      WHERE u.id = $1 AND u.deleted_at IS NULL`,
@@ -32,7 +32,7 @@ export async function getAllowedWarehouses(userId: number): Promise<number[]> {
   const user = userRes.rows[0];
   if (!user) return [];
 
-  // المديرون والمشرفون العامون يملكون صلاحية كاملة على كل المخازن
+  // المديرون والمشرفون العامون يملكون صلاحية كاملة على كل مخازن المحل.
   if (ADMIN_ROLES.includes(user.role_name)) {
     const result = await query('SELECT id FROM warehouses WHERE deleted_at IS NULL');
     const warehouses = result.rows.map((r: any) => r.id);
@@ -44,22 +44,14 @@ export async function getAllowedWarehouses(userId: number): Promise<number[]> {
   if (user.warehouse_id) {
     assignedWarehouses.push(Number(user.warehouse_id));
   }
-  if (user.branch_id) {
-    const whRes = await query(
-      `SELECT id FROM warehouses WHERE (branch_id = $1 OR id = $1) AND deleted_at IS NULL`,
-      [user.branch_id],
-    );
-    for (const row of whRes.rows) {
-      if (!assignedWarehouses.includes(row.id)) assignedWarehouses.push(row.id);
-    }
-  }
-
-  // إذا لم يكن معيناً لفرع محدد، نمنحه الوصول للمخزن الافتراضي فقط
+  // هذا النظام يعمل في فرع واحد. المستخدم المعيّن لمخزن يظل محصوراً فيه؛
+  // أما المستخدم غير المعيّن فيرى كل مخازن المحل، لأن المخازن هنا مواقع
+  // تشغيلية داخل نفس الفرع وليست فروعاً مستقلة.
   if (assignedWarehouses.length === 0) {
-    const defaultWh = await query(
-      `SELECT id FROM warehouses WHERE deleted_at IS NULL ORDER BY id ASC LIMIT 1`,
+    const allWarehouses = await query(
+      `SELECT id FROM warehouses WHERE deleted_at IS NULL ORDER BY id ASC`,
     );
-    if (defaultWh.rows[0]) assignedWarehouses.push(defaultWh.rows[0].id);
+    assignedWarehouses.push(...allWarehouses.rows.map((row: any) => Number(row.id)));
   }
 
   userWarehouseCache.set(userId, {
@@ -93,14 +85,17 @@ export const enforceWarehouseAccess = async (req: Request, res: Response, next: 
     const userId = (req as any).user?.id || (req as any).user?.userId;
     const allowed = await getAllowedWarehouses(userId);
 
-    // إذا لم يُحدد مخزن لمستخدم غير مدير، يتم حقن المخزن المسموح به تلقائياً لعزل بيانات الفروع (B-05)
+    // في الفرع الواحد: لا نحقن مخزناً عند وجود أكثر من مخزن في طلب قراءة؛
+    // أما العمليات الكتابية فتستخدم المخزن الافتراضي عند غياب التحديد.
     if (!warehouseId) {
-      if (allowed.length > 0) {
+      if (allowed.length === 1) {
         if (req.method === 'GET') {
           req.query.warehouse_id = String(allowed[0]);
         } else if (req.body) {
           req.body.warehouse_id = allowed[0];
         }
+      } else if (req.method !== 'GET' && allowed.length > 0 && req.body) {
+        req.body.warehouse_id = allowed[0];
       }
       return next();
     }

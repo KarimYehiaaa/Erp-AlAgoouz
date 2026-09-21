@@ -43,7 +43,14 @@ describe('E2E Complete Financial Lifecycle & General Ledger Reconciliation', () 
 
   beforeAll(async () => {
     // 1. Get or create test admin user
-    const userRes = await query(`SELECT id FROM users WHERE deleted_at IS NULL LIMIT 1`);
+    const userRes = await query(
+      `SELECT u.id
+       FROM users u
+       JOIN roles r ON r.id = u.role_id
+       WHERE u.deleted_at IS NULL AND r.name IN ('admin', 'sys_admin', 'owner')
+       ORDER BY u.id
+       LIMIT 1`,
+    );
     adminUserId = userRes.rows[0]?.id || 1;
 
     // 2. Create isolated test warehouse

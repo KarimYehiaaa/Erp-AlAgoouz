@@ -30,5 +30,6 @@ describe('Database/application schema contracts', () => {
     expect(migrationText).toContain('payments_amount_non_negative');
     expect(migrationText).toContain('idx_products_active_sku_unique');
     expect(migrationText).toContain('SET branch_id = 1');
+    expect(migrationText).toContain("r.name IN ('cashier', 'warehouse')");
   });
 });

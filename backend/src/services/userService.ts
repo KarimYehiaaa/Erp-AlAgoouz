@@ -9,7 +9,8 @@ const getUsers = async () =>
   (
     await query(
       `SELECT u.id, u.username, u.email, u.full_name, u.phone, u.is_active, u.last_login, u.created_at,
-      r.name_ar as role_name, r.id as role_id FROM users u JOIN roles r ON u.role_id = r.id WHERE u.deleted_at IS NULL`,
+      u.warehouse_id, r.name_ar as role_name, r.id as role_id
+      FROM users u JOIN roles r ON u.role_id = r.id WHERE u.deleted_at IS NULL`,
     )
   ).rows;
 const createUser = async (data) => {
@@ -27,7 +28,8 @@ const updateUser = async (id, data) => {
     email=COALESCE(NULLIF($3, ''), email),
     phone=COALESCE(NULLIF($4, ''), phone),
     role_id=COALESCE($5, role_id),
-    is_active=COALESCE($6, is_active)`;
+    is_active=COALESCE($6, is_active),
+    warehouse_id=COALESCE($7, warehouse_id)`;
   const params = [
     data.username,
     data.full_name,
@@ -35,10 +37,11 @@ const updateUser = async (id, data) => {
     data.phone,
     data.role_id,
     data.is_active,
+    data.warehouse_id ?? null,
   ];
   if (data.password) {
     const hash = await bcrypt.hash(data.password, 10);
-    sql += `, password_hash=$7, password_changed_at=NOW()`;
+    sql += `, password_hash=$8, password_changed_at=NOW()`;
     params.push(hash);
   }
   // تغيير كلمة المرور أو الدور يبطل توكنات الوصول الحالية فوراً (وليس refresh فقط)

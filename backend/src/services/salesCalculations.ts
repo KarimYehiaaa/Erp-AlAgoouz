@@ -130,7 +130,7 @@ const calculatePaymentTotal = (
 
 /** تسميات أنواع البيع بالعربية (للنشاط/السجلات). */
 const SALE_TYPES = {
-  branch: '\u0641\u0631\u0639',
+  branch: 'مبيعات المحل',
   wholesale: '\u062C\u0645\u0644\u0629',
   pos: 'POS',
 };

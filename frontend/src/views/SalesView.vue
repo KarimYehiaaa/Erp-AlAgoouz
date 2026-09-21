@@ -108,7 +108,7 @@
           <StatCard label="آجل/جزئي" :value="openCreditTotal" icon="warning" />
         </div>
 
-        <!-- 1. المبيعات اليومية (الفرع) -->
+        <!-- 1. مبيعات المحل اليومية -->
         <BranchSalesPanel
           v-if="activeTab === 'branch'"
           :editing-sale-id="editingSaleId"

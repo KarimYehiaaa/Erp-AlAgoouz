@@ -124,7 +124,7 @@
                 توزيع رصيد المخزون بالمنشأة
               </label>
               <small class="block mb-3 text-xs text-muted">
-                حدد الكميات المتاحة في المخزن الرئيسي وفي مخزن المحل / الفرع:
+                حدد الكميات المتاحة في المخزن الرئيسي ومخزن البيع:
               </small>
               <div class="grid grid-2 gap-3">
                 <div v-for="w in warehouses" :key="w.id" class="form-group m-0">
@@ -141,7 +141,7 @@
                       مخزن رئيسي</span
                     >
                     <span v-else class="badge badge-success text-xs px-1.5 py-0.5">
-                      مخزن المحل / الفرع</span
+                      مخزن البيع</span
                     >
                   </label>
                   <input
@@ -197,7 +197,7 @@
             style="border-color: color-mix(in srgb, var(--info) 30%, transparent)"
             @click="setTransferDirection('main', 'store')"
           >
-            من الرئيسي للفرع
+            من المخزن الرئيسي إلى مخزن البيع
           </button>
           <button
             type="button"
@@ -205,7 +205,7 @@
             style="border-color: color-mix(in srgb, var(--success) 30%, transparent)"
             @click="setTransferDirection('store', 'main')"
           >
-            من الفرع للرئيسي
+            من مخزن البيع إلى المخزن الرئيسي
           </button>
           <button
             type="button"

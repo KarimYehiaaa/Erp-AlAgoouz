@@ -191,7 +191,7 @@
           <div class="section-heading">
             <h3><AppIcon name="chart" :size="18" /> توزيع المبيعات حسب القناة</h3>
             <span class="channel-ratio">
-              {{ branchPercent }}% فرع / {{ wholesalePercent }}% جملة
+              {{ branchPercent }}% محل / {{ wholesalePercent }}% جملة
             </span>
           </div>
 
@@ -206,7 +206,7 @@
             <div class="channel-metric-card branch-theme">
               <div class="card-top-icon">
                 <span class="icon-wrap"><AppIcon name="shop" :size="20" /></span>
-                <span class="card-label">مبيعات الفرع (POS)</span>
+                <span class="card-label">مبيعات المحل (POS)</span>
               </div>
               <div class="channel-val">
                 {{ formatMoney(currentSummary.branch?.total || 0) }} <small>ج.م</small>

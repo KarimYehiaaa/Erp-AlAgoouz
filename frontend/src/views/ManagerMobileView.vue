@@ -259,7 +259,7 @@
               <div class="payment-symbol"><AppIcon name="cash" :size="18" /></div>
               <div class="payment-text-group">
                 <span class="p-name">نـقـداً (كـاش)</span>
-                <span class="p-sub">في درج الفرع والخزينة</span>
+                <span class="p-sub">في درج المحل والخزينة</span>
               </div>
               <div class="payment-val">
                 {{ formatMoney(currentSummary.paymentTotals?.cash || 0) }} <small>ج.م</small>
@@ -329,7 +329,7 @@
             <div class="title-with-pulse">
               <span :class="currentSummary.activeShift ? 'pulse-green' : 'pulse-amber'"></span>
               <h3 class="card-title">
-                <AppIcon name="shop" :size="18" /> الوردية الحالية في الفرع
+                <AppIcon name="shop" :size="18" /> الوردية الحالية في المحل
               </h3>
             </div>
             <span v-if="currentSummary.activeShift" class="status-badge-active">شفت نشط 🟢</span>
@@ -369,7 +369,7 @@
           </div>
 
           <div v-else class="empty-shift-notice">
-            <span>🔒 لا توجد وردية مفتوحة حالياً بالفرع. يتم تحديث الدرج فور بدء الشفت.</span>
+            <span>🔒 لا توجد وردية مفتوحة حالياً بالمحل. يتم تحديث الدرج فور بدء الشفت.</span>
           </div>
         </div>
 
@@ -646,7 +646,7 @@
         <div v-else class="clean-empty-approvals">
           <div class="empty-sparkle-icon"><AppIcon name="sparkles" :size="32" /></div>
           <h3>لا توجد طلبات معلقة</h3>
-          <p>كافة عمليات الكاشير والفرع تسير بالأسعار والخصومات المعتمدة تلقائياً.</p>
+          <p>كافة عمليات الكاشير والمحل تسير بالأسعار والخصومات المعتمدة تلقائياً.</p>
         </div>
       </section>
     </main>
@@ -706,7 +706,7 @@
         <div class="modal-body">
           <p class="modal-desc">
             اختر عنوان السيرفر الذي ترغب بربط التطبيق به لضمان مزامنة البيانات اللحظية والتحكم في
-            الفرع.
+            المحل.
           </p>
 
           <div class="form-group">
@@ -738,7 +738,7 @@
               @click="customServerUrl = 'http://192.168.1.14:3000'"
             >
               <AppIcon name="store" :size="13" />
-              <span>سيرفر الفرع (192.168.1.14:3000)</span>
+              <span>سيرفر المحل (192.168.1.14:3000)</span>
             </button>
             <button
               type="button"
@@ -1107,7 +1107,7 @@ const loadDemoData = () => {
       opening_cash: 500,
       opened_at: new Date().toISOString(),
       cashier_name: 'أحمد محمود',
-      warehouse_name: 'فرع الدقي الرئيسي',
+      warehouse_name: 'مخزن البيع',
       terminal_code: 'POS-01',
       current_expected_cash: 8900,
     },

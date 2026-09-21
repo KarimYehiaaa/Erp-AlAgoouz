@@ -85,7 +85,7 @@
             <div class="meta-row">
               <span>التاريخ:</span> <span>{{ new Date().toLocaleDateString('ar-EG') }}</span>
             </div>
-            <div class="meta-row"><span>الكاشير:</span> <span>كاشير الفرع</span></div>
+            <div class="meta-row"><span>الكاشير:</span> <span>كاشير المحل</span></div>
             <div class="divider-dotted"></div>
             <div class="items-list">
               <div class="item-row header">

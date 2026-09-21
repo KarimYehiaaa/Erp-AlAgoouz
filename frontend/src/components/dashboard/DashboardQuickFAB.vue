@@ -8,7 +8,7 @@
         title="شاشة الكاشير السريع (POS)"
         @click="isOpen = false"
       >
-        <span class="fab-label">كاشير الفرع</span>
+        <span class="fab-label">كاشير المحل</span>
         <div class="fab-icon-box primary">
           <AppIcon name="shop" :size="18" />
         </div>

@@ -1,6 +1,6 @@
 <!--
   ExcelGuide.vue — دليل شكل ملف Excel الصحيح لاستيراد المبيعات
-  جدول توضيحي ثابت + قواعد كتابة الأعمدة (فرع/جملة/delete_all).
+  جدول توضيحي ثابت + قواعد كتابة الأعمدة (المحل/جملة/delete_all).
   استُخرج من SalesView لتقليل حجم الملف المركزي (كان 2,463 سطرًا).
 -->
 <template>
@@ -29,7 +29,7 @@
             <td></td>
             <td>paid</td>
             <td>cash</td>
-            <td>مبيعات فرع</td>
+            <td>مبيعات المحل</td>
             <td></td>
           </tr>
           <tr class="ok-row">
@@ -53,15 +53,13 @@
             <td>delete_all</td>
           </tr>
           <tr class="bad-row">
-            <td colspan="8">
-              خطأ شائع: كتابة «مبيعات فرع» في نوع_البيع — الصحيح: branch أو wholesale فقط
-            </td>
+            <td colspan="8">خطأ شائع: كتابة نوع بيع غير مدعوم — الصحيح: branch أو wholesale فقط</td>
           </tr>
         </tbody>
       </table>
     </div>
     <ul class="guide-list">
-      <li><strong>فرع:</strong> نوع_البيع = <code>branch</code> — اترك كود_العميل فارغاً</li>
+      <li><strong>المحل:</strong> نوع_البيع = <code>branch</code> — اترك كود_العميل فارغاً</li>
       <li>
         <strong>جملة:</strong> نوع_البيع = <code>wholesale</code> — كود عميل مثل
         <code>C-002</code>

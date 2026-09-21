@@ -6,7 +6,7 @@
           <AppIcon name="gauge" style="margin-left: 6px; color: var(--accent)" />
           رادار التوازن والصحة التشغيلية
         </h2>
-        <p>تقييم تكاملي سداسي الأركان لأداء الفرع والعمليات</p>
+        <p>تقييم تكاملي سداسي الأركان لأداء المحل والعمليات</p>
       </div>
       <div class="score-badge" :class="scoreTone">
         <span class="score-num">{{ overallScore }}</span>

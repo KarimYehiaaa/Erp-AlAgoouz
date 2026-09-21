@@ -266,7 +266,7 @@
       </div>
       <p class="footer-address">
         <AppIcon name="building" :size="14" />
-        {{ menuData.address_ar || 'الفرع الرئيسي - جمهورية مصر العربية' }}
+        {{ menuData.address_ar || 'المحل الرئيسي - جمهورية مصر العربية' }}
       </p>
       <div class="footer-social-links">
         <a
@@ -315,7 +315,7 @@
               <span class="drawer-icon"><AppIcon name="shoppingBag" :size="20" /></span>
               <div>
                 <h3>صينية طلباتك</h3>
-                <p>مراجعة الأصناف قبل الإرسال للفرع أو الكاشير</p>
+                <p>مراجعة الأصناف قبل الإرسال للمحل أو الكاشير</p>
               </div>
             </div>
             <button type="button" class="btn-close-drawer" @click="showTrayDrawer = false">
@@ -479,7 +479,7 @@ const menuData = reactive({
   logo_url: '/logo-transparent.png',
   phone_primary: '01012345678',
   phone_secondary: '01234567890',
-  address_ar: 'الفرع الرئيسي - مصر',
+  address_ar: 'المحل الرئيسي - مصر',
   facebook_handle: 'BinAlAgoouz',
   instagram_handle: 'binalagoouz',
   show_qr_code: true,

@@ -20,7 +20,7 @@
       </h3>
     </div>
     <div class="card val-card val-branch">
-      <span class="val-label"> قيمة مخزون الفرع / المحل</span>
+      <span class="val-label"> قيمة مخزون البيع</span>
       <h3 class="val-amount">
         {{ formatMoney(branchWarehouseValue) }}
       </h3>

@@ -87,7 +87,7 @@ defineEmits(['close', 'print']);
 const formatDate = (d: any) => (d ? new Date(d).toLocaleString('ar-EG') : '—');
 
 const saleTypeLabel = (type: any) => {
-  const map = { branch: 'فرع/محل', wholesale: 'جملة', pos: 'POS' };
+  const map = { branch: 'المحل', wholesale: 'جملة', pos: 'POS' };
   return map[type as keyof typeof map] || type || 'عام';
 };
 

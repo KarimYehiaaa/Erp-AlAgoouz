@@ -15,10 +15,10 @@
         class="delete-type-btn branch"
         :disabled="saving"
         @click="$emit('deleteType', 'branch')"
-        title="حذف كل مبيعات الفرع نهائياً"
+        title="حذف كل مبيعات المحل نهائياً"
       >
         <span class="btn-icon"><AppIcon name="delete" :size="14" /></span>
-        <span class="btn-text">حذف مبيعات الفرع</span>
+        <span class="btn-text">حذف مبيعات المحل</span>
       </button>
       <button
         type="button"

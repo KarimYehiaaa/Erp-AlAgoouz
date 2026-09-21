@@ -29,7 +29,7 @@
         <div class="type-filter">
           <button :class="{ active: filter === '' }" @click="$emit('filter', '')">الكل</button>
           <button :class="{ active: filter === 'branch' }" @click="$emit('filter', 'branch')">
-            فرع
+            المحل
           </button>
           <button :class="{ active: filter === 'wholesale' }" @click="$emit('filter', 'wholesale')">
             جملة

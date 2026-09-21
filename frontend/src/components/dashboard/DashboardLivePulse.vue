@@ -116,7 +116,7 @@ const cashInRegister = computed(() => {
 });
 
 const currentBranchName = computed(() => {
-  return props.stats?.branchName || 'الفرع الرئيسي';
+  return props.stats?.branchName || 'المحل الرئيسي';
 });
 </script>
 

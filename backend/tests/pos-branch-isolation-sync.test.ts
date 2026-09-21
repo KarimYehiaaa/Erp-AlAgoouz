@@ -117,7 +117,7 @@ describe('POS Branch Isolation & Batch Sync Security (Items 24, 25, 26)', () => 
     };
 
     await expect(createDailySale(payload, cashierUserId)).rejects.toThrow(
-      'غير مصرح لك بإنشاء مبيعات على هذا المخزن/الفرع'
+      'غير مصرح لك بإنشاء مبيعات على هذا المخزن'
     );
   });
 

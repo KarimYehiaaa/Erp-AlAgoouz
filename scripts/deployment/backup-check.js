@@ -16,13 +16,13 @@ const client = axios.create({ baseURL: baseUrl, headers: { Authorization: token 
 (async () => {
     try {
         console.log('Creating backup...');
-        const createRes = await client.get('/backup/create');
+        const createRes = await client.post('/backup/create');
         console.log('Create response:', createRes.data);
 
         console.log('Listing backups...');
         const listRes = await client.get('/backup/list');
         console.log('Backups:', listRes.data);
-        const first = listRes.data?.[0]?.name;
+        const first = (listRes.data?.data || listRes.data)?.[0]?.name;
         if (!first) { console.warn('No backup files found, aborting download/restore checks.'); return; }
 
         console.log('Downloading', first);

@@ -344,7 +344,7 @@
                 </label>
                 <small class="block mb-3 text-xs text-muted">
                   حدد الرصيد المتاح في التخزين الخلفي (المخزن الرئيسي) والرصيد المعروض في صالة البيع
-                  (الفرع):
+                  (مخزن البيع):
                 </small>
                 <div class="grid grid-2 gap-3">
                   <div v-for="w in warehouses" :key="w.id" class="form-group m-0">
@@ -357,7 +357,7 @@
                         مخزن رئيسي</span
                       >
                       <span v-else class="badge badge-success px-1.5 py-0.5 text-xs">
-                        محل البيع / الفرع</span
+                        مخزن البيع</span
                       >
                     </label>
                     <input

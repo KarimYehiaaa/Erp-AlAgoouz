@@ -152,7 +152,7 @@ const rawItems = [
     id: 'nav_inventory',
     category: 'nav',
     title: 'المخزون والمستودعات',
-    desc: 'الأرصدة، التوزيع بين الفروع، والتسويات الجردية',
+    desc: 'الأرصدة، التوزيع بين المخازن، والتسويات الجردية',
     icon: 'inventory',
     perm: 'inventory.view',
     action: () => router.push('/inventory'),

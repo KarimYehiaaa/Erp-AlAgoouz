@@ -99,6 +99,19 @@ const isVercelRuntime = Boolean(
   process.env.VERCEL || process.env.VERCEL_ENV || process.env.VERCEL_URL,
 );
 const isProdEnv = process.env.NODE_ENV === 'production' || isVercelRuntime;
+const isDevelopmentProcess = optionalEnv('NODE_ENV', 'development') === 'development';
+const isRemoteDatabase = Boolean(
+  process.env.DATABASE_URL ||
+  (dbConfig.host && !['localhost', '127.0.0.1', '::1'].includes(dbConfig.host)),
+);
+if (isDevelopmentProcess && !isProdEnv && isRemoteDatabase) {
+  const explicitlyAllowed = process.env.ALLOW_REMOTE_DB_IN_DEVELOPMENT === 'true';
+  if (!explicitlyAllowed) {
+    throw new Error(
+      '[Safety Error] تم رفض تشغيل التطوير على قاعدة بيانات بعيدة. استخدم PostgreSQL محلياً أو اضبط ALLOW_REMOTE_DB_IN_DEVELOPMENT=true بشكل صريح.',
+    );
+  }
+}
 const envJwtSecret = process.env.JWT_SECRET?.trim();
 let finalJwtSecret: string;
 
@@ -132,7 +145,7 @@ const config = {
   httpsPort: parseInt(optionalEnv('HTTPS_PORT', '3443'), 10),
   nodeEnv: isProdEnv ? 'production' : optionalEnv('NODE_ENV', 'development'),
   isProduction: isProdEnv,
-  isDevelopment: !isProdEnv && optionalEnv('NODE_ENV', 'development') === 'development',
+  isDevelopment: !isProdEnv && isDevelopmentProcess,
 
   // ── Database ──
   db: dbConfig,

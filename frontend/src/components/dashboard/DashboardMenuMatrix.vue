@@ -7,7 +7,7 @@
             <AppIcon name="reports" style="margin-left: 8px; color: var(--primary)" />
             مصفوفة كفاءة وهندسة الأصناف (Menu Matrix)
           </h2>
-          <p>تصنيف ذكي لأصناف المشروبات بناءً على كفاءة المبيعات وهامش الربحية بالفروع</p>
+          <p>تصنيف ذكي لأصناف المشروبات بناءً على كفاءة المبيعات وهامش الربحية</p>
         </div>
         <span
           class="badge badge-warning"

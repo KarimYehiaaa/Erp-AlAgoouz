@@ -36,7 +36,7 @@ const invoices = {
     if (!WAREHOUSE_GLOBAL_ROLES.includes(userRole) && inv?.warehouse_id) {
       const allowed = await getAllowedWarehouses((req as any).user.id);
       if (!allowed.includes(Number(inv.warehouse_id))) {
-        throw new AppError('ليس لديك صلاحية للوصول إلى فواتير هذا الفرع', 403);
+        throw new AppError('ليس لديك صلاحية للوصول إلى فواتير هذا المخزن', 403);
       }
     }
     ok(res, inv);
@@ -66,7 +66,7 @@ const invoices = {
     if (!WAREHOUSE_GLOBAL_ROLES.includes(userRole) && inv?.warehouse_id) {
       const allowed = await getAllowedWarehouses((req as any).user.id);
       if (!allowed.includes(Number(inv.warehouse_id))) {
-        throw new AppError('ليس لديك صلاحية للوصول إلى فواتير هذا الفرع', 403);
+        throw new AppError('ليس لديك صلاحية للوصول إلى فواتير هذا المخزن', 403);
       }
     }
     const { buffer, invoiceNumber } = await invoicePdfService.generateInvoicePdf(req.params.id);

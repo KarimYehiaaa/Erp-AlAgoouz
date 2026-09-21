@@ -330,7 +330,7 @@
 
         <div class="modal-body">
           <p class="modal-desc">
-            حدد عنوان السيرفر الذي يعمل عليه النظام (مهم لتطبيقات الموبايل وشبكة الفرع المحلية).
+            حدد عنوان السيرفر الذي يعمل عليه النظام (مهم لتطبيقات الموبايل وشبكة المحل المحلية).
           </p>
 
           <div class="field-wrapper mb-3">
@@ -360,7 +360,7 @@
               @click="customServerUrl = 'http://192.168.1.14:3000'"
             >
               <AppIcon name="building" :size="16" />
-              <span>سيرفر الفرع (192.168.1.14:3000)</span>
+              <span>سيرفر المحل (192.168.1.14:3000)</span>
             </button>
             <button
               type="button"

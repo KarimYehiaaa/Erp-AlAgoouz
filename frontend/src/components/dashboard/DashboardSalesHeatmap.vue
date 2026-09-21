@@ -49,7 +49,7 @@
     </div>
 
     <div class="heatmap-footer flex items-center justify-between mt-3 text-xs text-muted">
-      <span>💡 يفضل تعزيز طاقم باريستا الفرع في الخلايا ذات التوهج الذهبي العالي</span>
+      <span>💡 يفضل تعزيز طاقم المحل في الخلايا ذات التوهج الذهبي العالي</span>
       <span
         >قمة النشاط الأسبوعي:
         <strong class="text-primary">الخميس والجمعة (7:00 م - 10:00 م)</strong></span

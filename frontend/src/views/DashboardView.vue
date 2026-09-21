@@ -480,7 +480,7 @@
               </label>
               <label class="toggle-control">
                 <input type="checkbox" v-model="widgetVisibility.branchLiquidity" />
-                <span class="control-label">مؤشر سيولة الفروع (Branch Liquidity)</span>
+                <span class="control-label">مؤشر سيولة المحل</span>
               </label>
             </div>
           </div>
@@ -669,7 +669,7 @@ const money = (value: any) => formatMoney(value, { compact: true });
 const number = (value: any) =>
   Number(value || 0).toLocaleString('en-GB', { maximumFractionDigits: 2 });
 const saleTypeLabel = (type: any) =>
-  (({ branch: 'فرع', wholesale: 'جملة', pos: 'نقطة بيع' }) as Record<string, string>)[type] ||
+  (({ branch: 'المحل', wholesale: 'جملة', pos: 'نقطة بيع' }) as Record<string, string>)[type] ||
   type ||
   'بيع';
 

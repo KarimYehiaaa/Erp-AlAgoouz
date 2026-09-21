@@ -91,7 +91,7 @@
         :items="sales"
         :columns="activeColumns"
         :loading="loadingSales"
-        empty-message="لا توجد مبيعات يومية للفرع في هذه الفترة"
+        empty-message="لا توجد مبيعات يومية للمحل في هذه الفترة"
       >
         <template #cell-sale_date="{ item }">
           <span class="history-date">{{ formatDate(item.sale_date || item.created_at) }}</span>

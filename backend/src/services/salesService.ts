@@ -116,7 +116,7 @@ const createDailySale = async (data: Record<string, any>, userId: number) => {
     if (userRole && !ADMIN_ROLES.includes(userRole)) {
       const allowedWarehouses = await getAllowedWarehouses(userId);
       if (!warehouseId || !allowedWarehouses.includes(Number(warehouseId))) {
-        throw new AppError('غير مصرح لك بإنشاء مبيعات على هذا المخزن/الفرع', 403);
+        throw new AppError('غير مصرح لك بإنشاء مبيعات على هذا المخزن', 403);
       }
     }
 
@@ -605,7 +605,7 @@ const returnSale = async (saleId: number, userId: number, notes?: string) => {
     if (userRole && !ADMIN_ROLES.includes(userRole)) {
       const allowedWarehouses = await getAllowedWarehouses(userId);
       if (sale.warehouse_id && !allowedWarehouses.includes(Number(sale.warehouse_id))) {
-        throw new AppError('غير مصرح لك بإجراء مرتجع لفاتورة تابعة لفرع/مخزن آخر', 403);
+        throw new AppError('غير مصرح لك بإجراء مرتجع لفاتورة تابعة لمخزن آخر', 403);
       }
     }
     const items = (await client.query(`SELECT * FROM sale_items WHERE sale_id = $1`, [saleId]))

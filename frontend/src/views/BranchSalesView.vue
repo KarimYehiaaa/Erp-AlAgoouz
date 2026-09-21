@@ -5,7 +5,7 @@
       <div class="header-title">
         <span class="header-icon"><AppIcon name="shop" :size="24" /></span>
         <div>
-          <h2>شاشة مبيعات الفرع</h2>
+          <h2>شاشة مبيعات المحل</h2>
           <p>إدخال مبيعات محل البيع مع خصم المخزون تلقائياً</p>
         </div>
       </div>
@@ -429,7 +429,7 @@
     <!-- Today's Sales History -->
     <div class="card sales-history">
       <div class="history-header">
-        <h3>سجل مبيعات الفرع</h3>
+        <h3>سجل مبيعات المحل</h3>
         <div class="history-filters">
           <input v-model="historyFilters.from_date" type="date" @change="loadHistory" />
           <span>إلى</span>

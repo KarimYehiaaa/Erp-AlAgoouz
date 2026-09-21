@@ -474,7 +474,7 @@
                 </div>
               </div>
               <div class="form-group">
-                <label class="form-label">العنوان وتفاصيل الفرع:</label>
+                <label class="form-label">العنوان وتفاصيل المحل:</label>
                 <input v-model="menuForm.address_ar" type="text" class="form-input" />
               </div>
             </div>
@@ -803,7 +803,7 @@ const menuForm = reactive({
   logo_url: '/logo-transparent.png',
   phone_primary: '01012345678',
   phone_secondary: '01234567890',
-  address_ar: 'الفرع الرئيسي - مصر',
+  address_ar: 'المحل الرئيسي - مصر',
   facebook_handle: 'BinAlAgoouz',
   instagram_handle: 'binalagoouz',
   show_qr_code: true,

@@ -309,7 +309,7 @@
               @change="loadDrawings"
             >
               <option :value="undefined">— كل الخزائن —</option>
-              <option value="cash_drawer">درج الكاشير / الفرع</option>
+              <option value="cash_drawer">درج الكاشير / المحل</option>
               <option value="main_treasury">الخزينة الرئيسية</option>
               <option value="bank_account">الحساب البنكي</option>
             </select>
@@ -367,7 +367,7 @@
                 <td class="amount-cell">{{ formatMoney(drw.amount) }}</td>
                 <td>
                   <span v-if="drw.source_type === 'cash_drawer'" class="badge badge-cash">
-                    درج الكاشير ({{ drw.warehouse_name || 'فرع' }})
+                    درج الكاشير ({{ drw.warehouse_name || 'المحل' }})
                   </span>
                   <span
                     v-else-if="drw.source_type === 'main_treasury'"
@@ -553,7 +553,7 @@
               <div class="form-group">
                 <label>الخزينة المصروف منها <span class="required">*</span></label>
                 <select v-model="drawingForm.source_type" class="input-control" required>
-                  <option value="cash_drawer">درج الكاشير / الفرع (يخصم من الوردية فوراً)</option>
+                  <option value="cash_drawer">درج الكاشير / المحل (يخصم من الوردية فوراً)</option>
                   <option value="main_treasury">الخزينة الرئيسية للإدارة</option>
                   <option value="bank_account">
                     الحساب البنكي / تحويل فودافون كاش أو إنستاباي
@@ -561,9 +561,9 @@
                 </select>
               </div>
               <div class="form-group">
-                <label>الفرع / المخزن</label>
+                <label>المخزن</label>
                 <select v-model="drawingForm.warehouse_id" class="input-control">
-                  <option :value="null">— بدون فرع محدد —</option>
+                  <option :value="null">— بدون مخزن محدد —</option>
                   <option v-for="w in warehousesList" :key="w.id" :value="w.id">
                     {{ w.name_ar }}
                   </option>

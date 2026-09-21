@@ -348,6 +348,15 @@ export const restoreBackup = async (name: string) => {
 
     // إعادة ضبط متسلسلات (Sequences) الجداول لقيمتها القصوى بعد الإدراج لمنع خطأ المفاتيح المكررة
     for (const table of validRestoreTables) {
+      const idColumn = await client.query(
+        `SELECT 1
+         FROM information_schema.columns
+         WHERE table_schema = 'public' AND table_name = $1 AND column_name = 'id'
+         LIMIT 1`,
+        [table],
+      );
+      // بعض جداول الربط (مثل role_permissions) لا تحتوي على id أو sequence.
+      if (!idColumn.rows[0]) continue;
       await client.query(`
         DO $$
         DECLARE

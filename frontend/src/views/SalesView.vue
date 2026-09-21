@@ -634,7 +634,7 @@ const deleteAllSales = async () => {
 };
 
 const deleteSalesByType = async (saleType: any) => {
-  const label = saleType === 'branch' ? 'مبيعات الفرع ' : 'مبيعات الجملة ';
+  const label = saleType === 'branch' ? 'مبيعات المحل ' : 'مبيعات الجملة ';
   const confirmed = window.confirm(`تأكيد نهائي: سيتم حذف كل ${label} بشكل دائم.\nهل أنت متأكد؟`);
   if (!confirmed) return;
   saving.value = true;

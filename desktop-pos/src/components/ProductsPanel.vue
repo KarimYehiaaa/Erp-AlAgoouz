@@ -1440,19 +1440,19 @@ defineExpose({
 }
 
 .pos-products-grid {
-  grid-template-columns: repeat(auto-fill, minmax(205px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
 }
 
 .pos-product-card {
-  min-height: 232px;
-  padding: 16px;
+  min-height: 210px;
+  padding: 12px;
   touch-action: manipulation;
   user-select: none;
 
   .card-customizer-btn {
-    width: 44px;
-    height: 44px;
+    width: 40px;
+    height: 40px;
     top: 10px;
     left: 10px;
     display: flex;

@@ -2,7 +2,7 @@ import * as invoiceService from '../services/invoiceService.ts';
 import * as invoicePdfService from '../services/invoicePdfService.ts';
 import { ok, wrap } from './helper.ts';
 import { getAllowedWarehouses } from '../middleware/branchIsolation.ts';
-import { ADMIN_ROLES } from '../../../shared/permissions.js';
+import { WAREHOUSE_GLOBAL_ROLES } from '../../../shared/permissions.js';
 import { AppError } from '../types/errors.ts';
 
 const invoices = {
@@ -33,7 +33,7 @@ const invoices = {
   get: wrap(async (req, res) => {
     const inv = await invoiceService.getInvoiceById(req.params.id);
     const userRole = (req as any).user?.role_name || (req as any).user?.role;
-    if (!ADMIN_ROLES.includes(userRole) && inv?.warehouse_id) {
+    if (!WAREHOUSE_GLOBAL_ROLES.includes(userRole) && inv?.warehouse_id) {
       const allowed = await getAllowedWarehouses((req as any).user.id);
       if (!allowed.includes(Number(inv.warehouse_id))) {
         throw new AppError('ليس لديك صلاحية للوصول إلى فواتير هذا الفرع', 403);
@@ -63,7 +63,7 @@ const invoices = {
   pdf: wrap(async (req, res) => {
     const inv = await invoiceService.getInvoiceById(req.params.id);
     const userRole = (req as any).user?.role_name || (req as any).user?.role;
-    if (!ADMIN_ROLES.includes(userRole) && inv?.warehouse_id) {
+    if (!WAREHOUSE_GLOBAL_ROLES.includes(userRole) && inv?.warehouse_id) {
       const allowed = await getAllowedWarehouses((req as any).user.id);
       if (!allowed.includes(Number(inv.warehouse_id))) {
         throw new AppError('ليس لديك صلاحية للوصول إلى فواتير هذا الفرع', 403);

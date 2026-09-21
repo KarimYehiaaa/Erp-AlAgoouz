@@ -8,10 +8,10 @@
  */
 import type { Request, Response, NextFunction } from 'express';
 import { query } from '../database/pool.ts';
-import { ADMIN_ROLES } from '../../../shared/permissions.js';
+import { WAREHOUSE_GLOBAL_ROLES } from '../../../shared/permissions.js';
 
 /** مدير المحل يتعامل مع كل مواقع التخزين، بينما الكاشير وأمين المخزن يحتاجان ربطاً صريحاً. */
-const FULL_WAREHOUSE_ROLES = new Set([...ADMIN_ROLES, 'manager']);
+const FULL_WAREHOUSE_ROLES = new Set(WAREHOUSE_GLOBAL_ROLES);
 
 /** كاش بسيط للمخازن المسموحة لكل مستخدم (TTL: 5 دقائق). */
 const userWarehouseCache = new Map<number, { warehouses: number[]; expiresAt: number }>();

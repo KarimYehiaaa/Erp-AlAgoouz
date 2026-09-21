@@ -16,6 +16,8 @@
  */
 
 export const ADMIN_ROLES = ['admin', 'sys_admin', 'owner'];
+/** أدوار يمكنها العمل على كل مواقع التخزين داخل المحل الواحد. */
+export const WAREHOUSE_GLOBAL_ROLES = [...ADMIN_ROLES, 'manager'];
 
 /** @type {Record<string, string[]>} */
 export const permissionEquivalents = {

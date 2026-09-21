@@ -65,6 +65,24 @@ export interface AutomationTask {
   last_status: 'success' | 'failed' | 'warning' | null;
 }
 
+export interface AutomationExecutionLog {
+  id: number;
+  execution_id: string | null;
+  key: string | null;
+  name_ar: string | null;
+  event_name: string;
+  status: 'running' | 'success' | 'failed' | 'warning';
+  title: string;
+  message: string;
+  trigger_source: string;
+  attempt: number;
+  started_at: string | null;
+  finished_at: string | null;
+  duration_ms: number | null;
+  error_message: string | null;
+  created_at: string;
+}
+
 export const automation = {
   // ─── الرسم البياني ──────────────────────────
   getGraph: () => get<GraphData>('/automation/graph'),
@@ -106,6 +124,10 @@ export const automation = {
 
   // ─── مهام الأتمتة الحية ──────────────────────
   getTasks: () => get<AutomationTask[]>('/automation/tasks'),
+  getExecutionLogs: (params?: { limit?: number; offset?: number }) =>
+    get<{ logs: AutomationExecutionLog[]; total: number }>('/automation/execution-logs', {
+      params,
+    }),
   toggleTask: (key: string, is_enabled: boolean) =>
     post(`/automation/tasks/${key}/toggle`, { is_enabled }),
   runTaskNow: (key: string) =>

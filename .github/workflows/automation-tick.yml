@@ -1,0 +1,21 @@
+name: Automation Scheduler Tick
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger due automations
+        env:
+          AUTOMATION_CRON_SECRET: ${{ secrets.AUTOMATION_CRON_SECRET }}
+        run: |
+          test -n "$AUTOMATION_CRON_SECRET"
+          curl --fail-with-body --silent --show-error --max-time 25 \
+            -X POST \
+            -H "x-automation-cron-secret: $AUTOMATION_CRON_SECRET" \
+            -H "content-type: application/json" \
+            https://agoouz.vercel.app/api/v1/automation/scheduler/tick

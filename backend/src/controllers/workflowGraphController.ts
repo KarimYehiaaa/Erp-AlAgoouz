@@ -4,8 +4,11 @@
  */
 
 import type { Request, Response } from 'express';
+import crypto from 'node:crypto';
 import WorkflowGraphService from '../services/workflowGraphService.ts';
 import TelegramBotService from '../services/telegramBotService.ts';
+import config from '../config/index.ts';
+import { tickDueAutomations } from '../services/automationSchedulerService.ts';
 import { wrap } from './helper.ts';
 
 /**
@@ -287,4 +290,37 @@ export const runAutomationTaskNow = wrap(async (req: Request, res: Response) => 
     return res.status(400).json({ success: false, message: result.message });
   }
   res.json(result);
+});
+
+/**
+ * GET /automation/execution-logs
+ * سجل تشغيل الأتمتة ونتائجها.
+ */
+export const getAutomationExecutionLogs = wrap(async (req: Request, res: Response) => {
+  const limit = Math.min(Math.max(Number(req.query.limit) || 50, 1), 200);
+  const offset = Math.max(Number(req.query.offset) || 0, 0);
+  const result = await WorkflowGraphService.getExecutionLogs(limit, offset);
+  res.json({ success: true, data: result });
+});
+
+/**
+ * POST /automation/scheduler/tick
+ * نقطة تشغيل آمنة للـ Cron الخارجي على Vercel أو أي مزود جدولة.
+ */
+export const runAutomationSchedulerTick = wrap(async (req: Request, res: Response) => {
+  const expected = config.automation.cronSecret;
+  const provided = String(req.get('x-automation-cron-secret') || '');
+  if (!expected || !provided) {
+    return res.status(503).json({ success: false, message: 'لم يتم إعداد سر جدولة الأتمتة.' });
+  }
+  const expectedBuffer = Buffer.from(expected);
+  const providedBuffer = Buffer.from(provided);
+  if (
+    expectedBuffer.length !== providedBuffer.length ||
+    !crypto.timingSafeEqual(expectedBuffer, providedBuffer)
+  ) {
+    return res.status(401).json({ success: false, message: 'بيانات اعتماد المجدول غير صحيحة.' });
+  }
+  const result = await tickDueAutomations();
+  res.json({ success: true, data: result });
 });

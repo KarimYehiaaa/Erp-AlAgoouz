@@ -17,6 +17,7 @@ import config from './config/index.ts';
 import { closePool } from './database/pool.ts';
 import { initAutoBackupScheduler } from './services/autoBackupService.ts';
 import { initWebSocket } from './services/websocketService.ts';
+import { initAutomationScheduler } from './services/automationSchedulerService.ts';
 
 // نظام الطوابير (BullMQ) يعتمد على Redis — يُحمَّل فقط عند توفر REDIS_URL.
 if (!process.env.VERCEL && process.env.REDIS_URL) {
@@ -54,6 +55,7 @@ if (!process.env.VERCEL) {
       console.log(`☕ بن العجوز ERP يعمل على البورت الموحد: http://localhost:${config.port}`);
       console.log(`📊 لوحة التحكم: http://localhost:${config.port}`);
       initWebSocket(server);
+      initAutomationScheduler();
       initAutoBackupScheduler();
       try {
         const { default: TelegramBotService } = await import('./services/telegramBotService.ts');

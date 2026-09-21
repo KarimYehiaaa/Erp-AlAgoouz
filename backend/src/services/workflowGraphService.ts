@@ -4,6 +4,7 @@
  * تدير إعدادات الفيزياء وحالة بوت تليجرام.
  */
 
+import crypto from 'node:crypto';
 import { query, withTransaction } from '../database/pool.ts';
 import logger from './loggerService.ts';
 
@@ -383,22 +384,98 @@ export class WorkflowGraphService {
     return res.rows[0] || null;
   }
 
+  static async getExecutionLogs(limit = 50, offset = 0) {
+    const logs = await query(
+      `SELECT l.id, l.execution_id, l.automation_id, a.key, a.name_ar,
+              l.event_name, l.status, l.title, l.message, l.payload,
+              l.trigger_source, l.attempt, l.started_at, l.finished_at,
+              l.duration_ms, l.error_message, l.created_at
+       FROM automation_logs l
+       LEFT JOIN automations a ON a.id = l.automation_id
+       ORDER BY l.created_at DESC
+       LIMIT $1 OFFSET $2`,
+      [limit, offset],
+    );
+    const count = await query(`SELECT COUNT(*)::int AS total FROM automation_logs`);
+    return { logs: logs.rows, total: count.rows[0]?.total || 0 };
+  }
+
   /**
    * تشغيل فوري لمهمة أتمتة مع إرسال إشعار تليجرام وتوثيق السجل
    */
   static async runAutomationNow(
     key: string,
+    options: { triggerSource?: string; executionId?: string } = {},
   ): Promise<{ success: boolean; message: string; payload?: any }> {
-    const { default: TelegramBotService } = await import('./telegramBotService.ts');
-    const { default: TelegramService } = await import('./telegramService.ts');
-    const creds = await TelegramBotService.getBotCredentials();
+    const aliases: Record<string, string> = {
+      daily_summary: 'daily_sales_report',
+      daily_summary_report: 'daily_sales_report',
+      branch_stock_balancing: 'branch_balancing',
+      branch_stock_rebalance: 'branch_balancing',
+    };
+    const canonicalKey = aliases[key] || key;
+    const supportedKeys = new Set([
+      'daily_sales_report',
+      'low_stock_alert',
+      'void_invoice_alert',
+      'anti_fraud_sentinel',
+      'branch_balancing',
+      'system_health',
+      'daily_backup_reminder',
+    ]);
+    const executionId = options.executionId || crypto.randomUUID();
+    const triggerSource = options.triggerSource || 'manual';
+    const startedAt = new Date();
+    let automationId: number | null = null;
+    let logId: number | null = null;
 
-    let notificationText: string;
+    let notificationText = '';
     let status: 'success' | 'failed' | 'warning' = 'success';
-    let title: string;
+    let title = `تشغيل الأتمتة: ${key}`;
 
     try {
-      if (key === 'daily_sales_report' || key === 'daily_summary') {
+      const automationRes = await query(
+        `SELECT id, is_enabled FROM automations WHERE key = $1 LIMIT 1`,
+        [key],
+      );
+      if (!automationRes.rows[0]) {
+        return { success: false, message: 'مهمة الأتمتة غير موجودة.' };
+      }
+      automationId = Number(automationRes.rows[0].id);
+      if (!automationRes.rows[0].is_enabled) {
+        return { success: false, message: 'مهمة الأتمتة معطلة حاليًا.' };
+      }
+      if (!supportedKeys.has(canonicalKey)) {
+        await query(
+          `UPDATE automations SET last_run_at = NOW(), last_status = 'warning', updated_at = NOW() WHERE key = $1`,
+          [key],
+        );
+        return { success: false, message: `لا يوجد معالج تنفيذ فعلي للمهمة: ${key}` };
+      }
+
+      const logRes = await query(
+        `INSERT INTO automation_logs
+          (automation_id, event_name, status, title, message, payload, execution_id, trigger_source, started_at)
+         VALUES ($1, $2, 'running', $3, $4, $5, $6, $7, $8)
+         RETURNING id`,
+        [
+          automationId,
+          canonicalKey,
+          `تشغيل الأتمتة: ${key}`,
+          'بدأ تنفيذ مهمة الأتمتة',
+          JSON.stringify({ requestedKey: key, canonicalKey }),
+          executionId,
+          triggerSource,
+          startedAt,
+        ],
+      );
+      logId = Number(logRes.rows[0]?.id || 0) || null;
+
+      const { default: TelegramBotService } = await import('./telegramBotService.ts');
+      const { default: TelegramService } = await import('./telegramService.ts');
+      const creds = await TelegramBotService.getBotCredentials();
+
+      if (canonicalKey === 'daily_sales_report') {
         title = 'تقرير الإغلاق المالي واليومي';
         const salesRes = await query(
           `SELECT 
@@ -440,13 +517,18 @@ export class WorkflowGraphService {
 ${topList}
 ⏱ <i>تم التشغيل فورياً: ${new Date().toLocaleTimeString('ar-EG', { timeZone: 'Africa/Cairo' })}</i>
         `.trim();
-      } else if (key === 'low_stock_alert') {
+      } else if (canonicalKey === 'low_stock_alert') {
         title = 'إنذار نواقص المخزون وخامات البن';
         const lowRes = await query(
-          `SELECT p.name_ar, p.sku, p.stock_quantity, p.min_stock_alert
+          `SELECT p.name_ar, p.sku,
+                  COALESCE(SUM(i.quantity), 0) AS current_stock,
+                  COALESCE(p.min_stock, 5) AS min_stock
            FROM products p
-           WHERE p.stock_quantity <= COALESCE(p.min_stock_alert, 5) AND p.is_active = true
-           ORDER BY p.stock_quantity ASC LIMIT 10`,
+           LEFT JOIN inventory i ON i.product_id = p.id
+           WHERE p.is_active = true AND p.deleted_at IS NULL
+           GROUP BY p.id, p.name_ar, p.sku, p.min_stock
+           HAVING COALESCE(SUM(i.quantity), 0) <= COALESCE(p.min_stock, 5)
+           ORDER BY current_stock ASC LIMIT 10`,
         );
 
         if (lowRes.rows.length === 0) {
@@ -461,7 +543,7 @@ ${topList}
           const itemsList = lowRes.rows
             .map(
               (r: any) =>
-                `  ⚠️ <b>${r.name_ar}</b>: رصيد حالي <code>${r.stock_quantity}</code> (الحد الأدنى: ${r.min_stock_alert || 5})`,
+                `  ⚠️ <b>${r.name_ar}</b>: رصيد حالي <code>${r.current_stock}</code> (الحد الأدنى: ${r.min_stock || 5})`,
             )
             .join('\n');
           notificationText = `
@@ -473,7 +555,7 @@ ${itemsList}
 ⏱ <i>تم الفحص: ${new Date().toLocaleTimeString('ar-EG', { timeZone: 'Africa/Cairo' })}</i>
           `.trim();
         }
-      } else if (key === 'void_invoice_alert' || key === 'anti_fraud_sentinel') {
+      } else if (canonicalKey === 'void_invoice_alert' || canonicalKey === 'anti_fraud_sentinel') {
         title = 'كشف ومراقبة التلاعب المالي (Anti-Fraud)';
         const discountRes = await query(
           `SELECT sale_number, subtotal, total_amount, discount_amount, discount_percent, status
@@ -511,12 +593,12 @@ ${fraudList}
 ⏱ <i>توقيت الرصد: ${new Date().toLocaleTimeString('ar-EG', { timeZone: 'Africa/Cairo' })}</i>
           `.trim();
         }
-      } else if (key === 'branch_balancing' || key === 'branch_stock_rebalance') {
+      } else if (canonicalKey === 'branch_balancing') {
         title = 'إعادة توازن مخزون الفروع';
         const { default: BranchBalancingService } = await import('./branchBalancingService.ts');
         const bal = await BranchBalancingService.generateBalancingRecommendations();
         notificationText = bal.htmlReport;
-      } else if (key === 'system_health' || key === 'daily_backup_reminder') {
+      } else if (canonicalKey === 'system_health' || canonicalKey === 'daily_backup_reminder') {
         title = 'فحص سلامة النظام والنسخ الاحتياطي';
         const { checkHealth } = await import('../database/pool.ts');
         const dbHealth = await checkHealth();
@@ -526,12 +608,6 @@ ${fraudList}
 🟢 <b>حالة السيرفر:</b> متصل ويعمل بشكل ممتاز
 🗄️ <b>قاعدة البيانات:</b> ${dbHealth.ok ? 'نشطة ومستقرة' : 'يوجد بطء'} (${dbHealth.latencyMs}ms)
 🔒 <b>النسخ الاحتياطي التلقائي:</b> مُجدول ونشط
-⏱ ${new Date().toLocaleString('ar-EG', { timeZone: 'Africa/Cairo' })}
-        `.trim();
-      } else {
-        title = `تشغيل الأتمتة: ${key}`;
-        notificationText = `
-⚙️ <b>تم تنفيذ الأتمتة "${key}" بنجاح</b>
 ⏱ ${new Date().toLocaleString('ar-EG', { timeZone: 'Africa/Cairo' })}
         `.trim();
       }
@@ -552,9 +628,31 @@ ${fraudList}
         [status, key],
       );
 
+      if (logId) {
+        const finishedAt = new Date();
+        await query(
+          `UPDATE automation_logs
+           SET status = $1, title = $2, message = $3, payload = $4,
+               finished_at = $5, duration_ms = $6
+           WHERE id = $7`,
+          [
+            status,
+            title,
+            `اكتمل تنفيذ ${title}`,
+            JSON.stringify({
+              status,
+              notificationSent: Boolean(creds.token && creds.defaultChatId),
+            }),
+            finishedAt,
+            finishedAt.getTime() - startedAt.getTime(),
+            logId,
+          ],
+        );
+      }
+
       // تسجيل في logs
       await this.logTelegramMessage({
-        chat_id: creds.defaultChatId || '1092703744',
+        chat_id: creds.defaultChatId || 'system',
         direction: 'out',
         message: notificationText,
         automation_key: key,
@@ -562,8 +660,8 @@ ${fraudList}
 
       return {
         success: true,
-        message: `تم تشغيل ${title} بنجاح وإرسال الإشعار لتليجرام!`,
-        payload: { notificationText, status },
+        message: `تم تشغيل ${title} بنجاح${creds.token && creds.defaultChatId ? ' وإرسال الإشعار لتليجرام' : ''}.`,
+        payload: { notificationText, status, executionId },
       };
     } catch (err: any) {
       logger.error(`فشل تشغيل الأتمتة ${key}:`, err.message);
@@ -573,6 +671,23 @@ ${fraudList}
          WHERE key = $1`,
         [key],
       );
+      if (logId) {
+        const finishedAt = new Date();
+        await query(
+          `UPDATE automation_logs
+           SET status = 'failed', title = $1, message = $2, error_message = $3,
+               finished_at = $4, duration_ms = $5
+           WHERE id = $6`,
+          [
+            `فشل تشغيل الأتمتة: ${key}`,
+            'فشل تنفيذ مهمة الأتمتة',
+            err.message || 'خطأ غير معروف',
+            finishedAt,
+            finishedAt.getTime() - startedAt.getTime(),
+            logId,
+          ],
+        );
+      }
       return {
         success: false,
         message: `فشل تشغيل الأتمتة: ${err.message}`,

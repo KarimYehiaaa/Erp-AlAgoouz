@@ -25,6 +25,8 @@ import {
   getAutomationsList,
   toggleAutomationTask,
   runAutomationTaskNow,
+  getAutomationExecutionLogs,
+  runAutomationSchedulerTick,
 } from '../controllers/workflowGraphController.ts';
 
 const router = Router();
@@ -62,7 +64,11 @@ router.post('/automation/ai/test', ...viewGuard, testAiPrompt);
 
 // ─── مهام الأتمتة الحية والمجدولة ───────────────────
 router.get('/automation/tasks', ...viewGuard, getAutomationsList);
+router.get('/automation/execution-logs', ...viewGuard, getAutomationExecutionLogs);
 router.post('/automation/tasks/:key/toggle', ...manageGuard, toggleAutomationTask);
 router.post('/automation/tasks/:key/run', ...manageGuard, runAutomationTaskNow);
+
+// هذا المسار لا يعتمد على جلسة مستخدم؛ يحميه سر مستقل يرسله Cron الخارجي.
+router.post('/automation/scheduler/tick', runAutomationSchedulerTick);
 
 export default router;

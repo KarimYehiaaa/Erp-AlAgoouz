@@ -191,6 +191,11 @@ const config = {
     skipCleanup: process.env.AUTO_BACKUP_SKIP_CLEANUP === '1',
     skipExternal: process.env.AUTO_BACKUP_SKIP_EXTERNAL === '1',
   },
+
+  // ── Automation ──
+  automation: {
+    cronSecret: optionalEnv('AUTOMATION_CRON_SECRET', ''),
+  },
 };
 
 // ─── Validation at Startup ─────────────────────────────────────────────────────

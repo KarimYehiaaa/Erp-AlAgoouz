@@ -36,6 +36,51 @@
       </div>
     </div>
 
+    <!-- Live command dashboard: every metric maps to an actual execution signal. -->
+    <section class="automation-command-dashboard" aria-label="مؤشرات تشغيل الأتمتة">
+      <div class="command-status-card" :class="commandHealthTone">
+        <span class="status-pulse" />
+        <div>
+          <small>حالة محرك الأتمتة</small>
+          <strong>{{ commandHealthLabel }}</strong>
+        </div>
+        <span class="status-caption">{{ enabledTaskCount }} مهمة مفعلة</span>
+      </div>
+      <div class="command-metric-card">
+        <small>نجاح آخر التشغيلات</small>
+        <strong>{{ successfulExecutionCount }}</strong>
+        <span>من آخر {{ executionLogs.length }} تشغيل</span>
+      </div>
+      <div class="command-metric-card danger">
+        <small>تحتاج مراجعة</small>
+        <strong>{{ failedExecutionCount }}</strong>
+        <span>تشغيل فاشل أو تحذير</span>
+      </div>
+      <div class="command-metric-card accent">
+        <small>متوسط التنفيذ</small>
+        <strong>{{ averageExecutionMs }}ms</strong>
+        <span>حسب السجل الحقيقي</span>
+      </div>
+      <div class="command-timeline-card">
+        <div class="timeline-heading">
+          <strong>آخر نشاط</strong>
+          <span>{{ latestExecutionLabel }}</span>
+        </div>
+        <div class="timeline-track">
+          <span
+            v-for="log in recentExecutionLogs"
+            :key="log.id"
+            class="timeline-dot"
+            :class="`status-${log.status}`"
+            :title="`${log.name_ar || log.key || 'مهمة'} — ${log.message}`"
+          />
+          <span v-if="!recentExecutionLogs.length" class="timeline-empty"
+            >لا يوجد تشغيل مسجل بعد</span
+          >
+        </div>
+      </div>
+    </section>
+
     <!-- Mobile Segmented View Switcher (Visible on screens < 1024px) -->
     <div class="mobile-view-switcher mobile-only-block" role="tablist">
       <button
@@ -340,8 +385,16 @@
                 }}</strong>
               </div>
               <div class="status-details">
-                <small>Chat ID: <code>1092703744</code></small>
-                <small>Bot Token: <code>8903108709:AA...F3LP_uI</code></small>
+                <small
+                  >Chat ID:
+                  <code>{{
+                    telegramConfigured.hasDefaultChatId ? 'مُضبط' : 'غير مُضبط'
+                  }}</code></small
+                >
+                <small
+                  >Bot Token:
+                  <code>{{ telegramConfigured.hasToken ? 'مُضبط' : 'غير مُضبط' }}</code></small
+                >
               </div>
             </div>
 
@@ -638,10 +691,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, onUnmounted, nextTick, watch } from 'vue';
+import { ref, reactive, computed, onMounted, onUnmounted, nextTick, watch } from 'vue';
 import AppIcon from '@/components/AppIcon.vue';
 import { automation } from '@/api';
-import type { GraphNode, GraphEdge, PhysicsSettings, AutomationTask } from '@/api/automation.api';
+import type {
+  GraphNode,
+  GraphEdge,
+  PhysicsSettings,
+  AutomationTask,
+  AutomationExecutionLog,
+} from '@/api/automation.api';
 
 // ─── أنواع وبيانات ───────────────────────────────────
 
@@ -937,6 +996,38 @@ const graphContainer = ref<HTMLElement | null>(null);
 const tasks = ref<AutomationTask[]>(JSON.parse(JSON.stringify(DEFAULT_TASKS)));
 const runningTaskKey = ref<string | null>(null);
 const taskFeedback = reactive<Record<string, string>>({});
+const executionLogs = ref<AutomationExecutionLog[]>([]);
+
+const enabledTaskCount = computed(() => tasks.value.filter((task) => task.is_enabled).length);
+const successfulExecutionCount = computed(
+  () => executionLogs.value.filter((log) => log.status === 'success').length,
+);
+const failedExecutionCount = computed(
+  () =>
+    executionLogs.value.filter((log) => log.status === 'failed' || log.status === 'warning').length,
+);
+const averageExecutionMs = computed(() => {
+  const durations = executionLogs.value
+    .map((log) => Number(log.duration_ms))
+    .filter((duration) => Number.isFinite(duration) && duration >= 0);
+  if (!durations.length) return 0;
+  return Math.round(durations.reduce((sum, duration) => sum + duration, 0) / durations.length);
+});
+const recentExecutionLogs = computed(() => executionLogs.value.slice(0, 12));
+const commandHealthTone = computed(() => {
+  if (failedExecutionCount.value > 0) return 'is-warning';
+  if (executionLogs.value.length > 0) return 'is-healthy';
+  return 'is-idle';
+});
+const commandHealthLabel = computed(() => {
+  if (failedExecutionCount.value > 0) return 'يحتاج مراجعة';
+  if (executionLogs.value.length > 0) return 'يعمل بصورة مستقرة';
+  return 'جاهز للتشغيل';
+});
+const latestExecutionLabel = computed(() => {
+  const latest = executionLogs.value[0];
+  return latest?.created_at ? formatTime(latest.created_at) : 'بانتظار أول تشغيل';
+});
 
 // بيانات الشبكة
 const nodes = ref<SimulationNode[]>(JSON.parse(JSON.stringify(DEFAULT_SEED_NODES)));
@@ -953,6 +1044,7 @@ const physics = reactive<PhysicsSettings>({
 
 // تليجرام
 const telegramActive = ref(true);
+const telegramConfigured = reactive({ hasToken: false, hasDefaultChatId: false });
 const togglingTelegram = ref(false);
 const customTelegramMsg = ref('');
 const sendingTelegramTest = ref(false);
@@ -1068,13 +1160,15 @@ watch(showSettings, () => {
 async function loadData() {
   loading.value = true;
   try {
-    const [graphRes, physicsRes, logsRes, statusRes, tasksRes] = await Promise.all([
-      automation.getGraph().catch(() => null),
-      automation.getPhysics().catch(() => null),
-      automation.getTelegramLogs({ limit: 10 }).catch(() => null),
-      automation.getTelegramBotStatus().catch(() => null),
-      automation.getTasks().catch(() => null),
-    ]);
+    const [graphRes, physicsRes, logsRes, statusRes, tasksRes, executionLogsRes] =
+      await Promise.all([
+        automation.getGraph().catch(() => null),
+        automation.getPhysics().catch(() => null),
+        automation.getTelegramLogs({ limit: 10 }).catch(() => null),
+        automation.getTelegramBotStatus().catch(() => null),
+        automation.getTasks().catch(() => null),
+        automation.getExecutionLogs({ limit: 24 }).catch(() => null),
+      ]);
 
     if (graphRes && (graphRes as any).data?.nodes?.length > 0) {
       nodes.value = (graphRes as any).data.nodes.map((n: GraphNode) => ({
@@ -1095,10 +1189,15 @@ async function loadData() {
 
     if (statusRes && (statusRes as any).data) {
       telegramActive.value = (statusRes as any).data.isPolling;
+      telegramConfigured.hasToken = Boolean((statusRes as any).data.hasToken);
+      telegramConfigured.hasDefaultChatId = Boolean((statusRes as any).data.hasDefaultChatId);
     }
 
     if (tasksRes && (tasksRes as any).data?.length > 0) {
       tasks.value = (tasksRes as any).data;
+    }
+    if (executionLogsRes && (executionLogsRes as any).data?.logs) {
+      executionLogs.value = (executionLogsRes as any).data.logs;
     }
   } catch (err) {
     console.warn('تعذر جلب البيانات من الخادم، تم تطبيق البيانات الافتراضية:', err);
@@ -1113,6 +1212,7 @@ async function loadAutomations() {
     if ((res as any)?.data?.length > 0) {
       tasks.value = (res as any).data;
     }
+    await refreshExecutionLogs();
   } catch (err) {
     console.error('فشل تحديث قائمة الوكلاء:', err);
   }
@@ -1157,6 +1257,16 @@ async function refreshLogs() {
     }
   } catch (err) {
     console.error('فشل تحديث السجلات:', err);
+  }
+  await refreshExecutionLogs();
+}
+
+async function refreshExecutionLogs() {
+  try {
+    const res = await automation.getExecutionLogs({ limit: 24 });
+    if ((res as any).data?.logs) executionLogs.value = (res as any).data.logs;
+  } catch (err) {
+    console.error('فشل تحديث سجل تشغيل الأتمتة:', err);
   }
 }
 
@@ -2306,6 +2416,168 @@ function formatTime(ts: string) {
   }
 }
 
+/* ─── Live command dashboard ─── */
+.automation-command-dashboard {
+  display: grid;
+  grid-template-columns: minmax(230px, 1.25fr) repeat(3, minmax(130px, 0.7fr)) minmax(220px, 1.4fr);
+  gap: 10px;
+  direction: rtl;
+}
+
+.command-status-card,
+.command-metric-card,
+.command-timeline-card {
+  min-height: 82px;
+  padding: 12px 14px;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-lg);
+  background: var(--header-bg);
+  box-shadow: var(--shadow-sm);
+}
+
+.command-status-card {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+  border-color: color-mix(in srgb, var(--primary) 36%, var(--card-border));
+
+  .status-pulse {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--text-muted);
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--text-muted) 35%, transparent);
+  }
+
+  &.is-healthy .status-pulse {
+    background: var(--success, #16a34a);
+    box-shadow: 0 0 0 6px color-mix(in srgb, var(--success, #16a34a) 14%, transparent);
+    animation: automation-pulse 2.2s ease-in-out infinite;
+  }
+
+  &.is-warning .status-pulse {
+    background: var(--danger, #dc2626);
+    box-shadow: 0 0 0 6px color-mix(in srgb, var(--danger, #dc2626) 14%, transparent);
+  }
+
+  small,
+  strong {
+    display: block;
+  }
+
+  small {
+    color: var(--text-muted);
+    font-size: 0.72rem;
+  }
+  strong {
+    color: var(--text-strong);
+    font-size: 0.92rem;
+    margin-top: 4px;
+  }
+  .status-caption {
+    color: var(--text-muted);
+    font-size: 0.7rem;
+    white-space: nowrap;
+  }
+}
+
+.command-metric-card {
+  small {
+    display: block;
+    color: var(--text-muted);
+    font-size: 0.72rem;
+  }
+  strong {
+    display: block;
+    color: var(--text-strong);
+    font-size: 1.35rem;
+    line-height: 1.1;
+    margin: 7px 0 3px;
+  }
+  span {
+    color: var(--text-muted);
+    font-size: 0.68rem;
+  }
+
+  &.danger strong {
+    color: var(--danger, #dc2626);
+  }
+  &.accent strong {
+    color: var(--accent, #b45309);
+  }
+}
+
+.command-timeline-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+
+  .timeline-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .timeline-heading strong {
+    color: var(--text-strong);
+    font-size: 0.78rem;
+  }
+  .timeline-heading span {
+    color: var(--text-muted);
+    font-size: 0.68rem;
+  }
+  .timeline-track {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 16px;
+  }
+  .timeline-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--text-muted);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--text-muted) 12%, transparent);
+  }
+  .timeline-dot.status-success {
+    background: var(--success, #16a34a);
+  }
+  .timeline-dot.status-failed {
+    background: var(--danger, #dc2626);
+  }
+  .timeline-dot.status-warning {
+    background: var(--warning, #d97706);
+  }
+  .timeline-dot.status-running {
+    background: var(--primary);
+    animation: automation-pulse 1.3s ease-in-out infinite;
+  }
+  .timeline-empty {
+    color: var(--text-muted);
+    font-size: 0.7rem;
+  }
+}
+
+@keyframes automation-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.9;
+  }
+  50% {
+    transform: scale(1.18);
+    opacity: 0.55;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .automation-command-dashboard * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
 /* ─── Mobile View Switcher (Segmented Tab Bar) ─── */
 .mobile-view-switcher {
   display: none;
@@ -3256,6 +3528,15 @@ function formatTime(ts: string) {
     min-height: calc(100dvh - var(--navbar-height) - 24px);
   }
 
+  .automation-command-dashboard {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .command-status-card,
+  .command-timeline-card {
+    grid-column: span 2;
+  }
+
   .desktop-only-btn {
     display: none !important;
   }
@@ -3363,6 +3644,17 @@ function formatTime(ts: string) {
     &.mobile-open {
       display: flex;
     }
+  }
+}
+
+@media (max-width: 560px) {
+  .automation-command-dashboard {
+    grid-template-columns: 1fr;
+  }
+
+  .command-status-card,
+  .command-timeline-card {
+    grid-column: span 1;
   }
 }
 

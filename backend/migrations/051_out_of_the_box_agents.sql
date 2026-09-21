@@ -1,5 +1,5 @@
 -- Migration: 051_out_of_the_box_agents.sql
--- Description: تسجيل كافة الوكلاء القياسيين (Error Tracker, Daily Summary, Webhook Listener, Cron Agent, Telegram Notifier, AI Copilot) وضبط بيانات تليجرام
+-- Description: تسجيل الوكلاء القياسيين. بيانات الاعتماد تُقرأ وقت التشغيل من متغيرات البيئة فقط.
 
 INSERT INTO automations (key, name_ar, description_ar, category, trigger_type, cron_expression, is_enabled, channels, config)
 VALUES
@@ -12,7 +12,7 @@ VALUES
   NULL,
   true,
   '{"telegram": true, "in_app": true, "whatsapp": false}'::jsonb,
-  '{"bot_token": "8903108709:AAGkPHf9zHkwdrzUR9d6uz-n4k4_F3LP_uI", "chat_id": "1092703744", "severity_threshold": "MEDIUM"}'::jsonb
+  '{"severity_threshold": "MEDIUM"}'::jsonb
 ),
 (
   'daily_summary_report',
@@ -23,7 +23,7 @@ VALUES
   '30 23 * * *',
   true,
   '{"telegram": true, "in_app": true, "whatsapp": false}'::jsonb,
-  '{"bot_token": "8903108709:AAGkPHf9zHkwdrzUR9d6uz-n4k4_F3LP_uI", "chat_id": "1092703744", "include_top_items": true}'::jsonb
+  '{"include_top_items": true}'::jsonb
 ),
 (
   'webhook_listener',
@@ -34,7 +34,7 @@ VALUES
   NULL,
   true,
   '{"telegram": true, "in_app": true, "whatsapp": false}'::jsonb,
-  '{"bot_token": "8903108709:AAGkPHf9zHkwdrzUR9d6uz-n4k4_F3LP_uI", "chat_id": "1092703744", "secret_token": "alagoouz_wh_secret_2026"}'::jsonb
+  '{"secret_token_from_env": true}'::jsonb
 ),
 (
   'scheduled_cron_task',
@@ -45,7 +45,7 @@ VALUES
   '0 8 * * *',
   true,
   '{"telegram": true, "in_app": true, "whatsapp": false}'::jsonb,
-  '{"bot_token": "8903108709:AAGkPHf9zHkwdrzUR9d6uz-n4k4_F3LP_uI", "chat_id": "1092703744"}'::jsonb
+  '{}'::jsonb
 ),
 (
   'telegram_notifier',
@@ -56,7 +56,7 @@ VALUES
   NULL,
   true,
   '{"telegram": true, "in_app": true, "whatsapp": false}'::jsonb,
-  '{"bot_token": "8903108709:AAGkPHf9zHkwdrzUR9d6uz-n4k4_F3LP_uI", "chat_id": "1092703744"}'::jsonb
+  '{}'::jsonb
 ),
 (
   'ai_copilot_assistant',
@@ -67,7 +67,7 @@ VALUES
   NULL,
   true,
   '{"telegram": true, "in_app": true, "whatsapp": false}'::jsonb,
-  '{"bot_token": "8903108709:AAGkPHf9zHkwdrzUR9d6uz-n4k4_F3LP_uI", "chat_id": "1092703744", "model": "gemini-flash"}'::jsonb
+  '{"model": "gemini-flash"}'::jsonb
 )
 ON CONFLICT (key) DO UPDATE SET
   config = EXCLUDED.config,
@@ -76,11 +76,4 @@ ON CONFLICT (key) DO UPDATE SET
   description_ar = EXCLUDED.description_ar,
   updated_at = NOW();
 
--- تحديث الـ Bot Token والـ Chat ID لكافة الأتمتة المسجلة لضمان الجاهزية التامة
-UPDATE automations
-SET config = jsonb_set(
-  jsonb_set(COALESCE(config, '{}'::jsonb), '{bot_token}', '"8903108709:AAGkPHf9zHkwdrzUR9d6uz-n4k4_F3LP_uI"'::jsonb),
-  '{chat_id}',
-  '"1092703744"'::jsonb
-)
-WHERE config->>'bot_token' IS NULL OR config->>'bot_token' = '';
+-- Telegram credentials are intentionally not persisted in automation configs.

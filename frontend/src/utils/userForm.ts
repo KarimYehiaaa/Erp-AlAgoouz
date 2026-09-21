@@ -13,6 +13,7 @@ export interface UserFormShape {
   email: string;
   phone: string;
   role_id: number | null;
+  warehouse_id: number | null;
   is_active: boolean;
   password: string;
 }
@@ -29,6 +30,7 @@ export function emptyUserForm(defaultRoleId: number | null = null): UserFormShap
     email: '',
     phone: '',
     role_id: defaultRoleId,
+    warehouse_id: null,
     is_active: true,
     password: '',
   };
@@ -58,6 +60,7 @@ export function buildUserPayload(form: UserFormShape): Record<string, any> {
     email: form.email?.trim() || null,
     phone: form.phone?.trim() || null,
     role_id: form.role_id,
+    warehouse_id: form.warehouse_id ?? null,
     is_active: form.is_active,
   };
   if (form.password?.trim()) {
@@ -105,6 +108,7 @@ export function userToForm(user: any, defaultRoleId: number | null = null): User
     email: user.email || '',
     phone: user.phone || '',
     role_id: user.role_id || defaultRoleId,
+    warehouse_id: user.warehouse_id ?? null,
     is_active: !!user.is_active,
     password: '',
   };

@@ -23,6 +23,7 @@ describe('userForm utils (pure user form logic)', () => {
         email: '',
         phone: '',
         role_id: 3,
+        warehouse_id: null,
         is_active: true,
         password: '',
       });
@@ -62,6 +63,7 @@ describe('userForm utils (pure user form logic)', () => {
         email: ' karim@x.com ',
         phone: ' 0100 ',
         role_id: 2,
+        warehouse_id: null,
         is_active: true,
         password: '',
       };
@@ -71,6 +73,7 @@ describe('userForm utils (pure user form logic)', () => {
         email: 'karim@x.com',
         phone: '0100',
         role_id: 2,
+        warehouse_id: null,
         is_active: true,
       });
     });
@@ -137,6 +140,7 @@ describe('userForm utils (pure user form logic)', () => {
         email: 'ali@x.com',
         phone: '0123',
         role_id: 4,
+        warehouse_id: null,
         is_active: 1,
       };
       expect(userToForm(user)).toEqual({
@@ -146,6 +150,7 @@ describe('userForm utils (pure user form logic)', () => {
         email: 'ali@x.com',
         phone: '0123',
         role_id: 4,
+        warehouse_id: null,
         is_active: true,
         password: '',
       });

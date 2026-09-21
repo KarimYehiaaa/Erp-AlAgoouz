@@ -44,6 +44,7 @@
         <UsersTable
           :filtered-users="filteredUsers"
           :roles="roles"
+          :warehouses="warehouses"
           :search-query="searchQuery"
           :selected-user-id="selectedUser?.id"
           :current-user-id="currentUserId"
@@ -57,6 +58,7 @@
           :form="form"
           :is-create-mode="isCreateMode"
           :roles="roles"
+          :warehouses="warehouses"
           :validations="validations"
           :show-advanced-options="showAdvancedOptions"
           :show-password="showPassword"
@@ -147,6 +149,7 @@ const rolesMgr = useRolesManagement({
 const {
   users,
   roles,
+  warehouses,
   loading,
   saving,
   selectedUser,

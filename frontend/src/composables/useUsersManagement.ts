@@ -1,5 +1,5 @@
 import { computed, ref } from 'vue';
-import { users as api } from '@/api';
+import { users as api, warehouses as warehousesApi } from '@/api';
 import {
   buildUserPayload,
   emptyUserForm,
@@ -34,6 +34,7 @@ export function useUsersManagement(deps: UsersManagementDeps) {
 
   const users = ref<any[]>([]);
   const roles = ref<any[]>([]);
+  const warehouses = ref<any[]>([]);
   const permissions = ref<any[]>([]);
   const loading = ref(false);
   const saving = ref(false);
@@ -54,6 +55,14 @@ export function useUsersManagement(deps: UsersManagementDeps) {
 
   const filteredUsers = computed(() => filterUsersByQuery(users.value, searchQuery.value));
 
+  const canUseAllWarehouses = (roleId: number | null) => {
+    const role = roles.value.find((item: any) => Number(item.id) === Number(roleId));
+    return ['admin', 'sys_admin', 'owner', 'manager'].includes(role?.name);
+  };
+
+  const defaultWarehouseForRole = (roleId: number | null) =>
+    canUseAllWarehouses(roleId) ? null : warehouses.value[0]?.id || null;
+
   const handleRolePermissionChange = async () => {
     if (!selectedPermissionRole.value) return;
     const role = roles.value.find((r: any) => r.id === selectedPermissionRole.value);
@@ -73,14 +82,16 @@ export function useUsersManagement(deps: UsersManagementDeps) {
   const refreshUsers = async () => {
     loading.value = true;
     try {
-      const [usersRes, rolesRes, permsRes] = await Promise.all([
+      const [usersRes, rolesRes, permsRes, warehousesRes] = await Promise.all([
         api.list(),
         api.roles(),
         api.permissions(),
+        warehousesApi(),
       ]);
       users.value = usersRes.data || [];
       roles.value = rolesRes.data || [];
       permissions.value = permsRes.data || [];
+      warehouses.value = warehousesRes.data || [];
 
       if (!selectedPermissionRole.value && roles.value.length) {
         const firstNonAdmin = roles.value.find((r: any) => r.name !== 'admin') || roles.value[0];
@@ -97,7 +108,9 @@ export function useUsersManagement(deps: UsersManagementDeps) {
   const startCreate = () => {
     isCreateMode.value = true;
     selectedUser.value = null;
-    form.value = emptyUserForm(pickDefaultRoleId(roles.value));
+    const roleId = pickDefaultRoleId(roles.value);
+    form.value = emptyUserForm(roleId);
+    form.value.warehouse_id = defaultWarehouseForRole(roleId);
     message.value = '';
     error.value = false;
   };
@@ -106,6 +119,9 @@ export function useUsersManagement(deps: UsersManagementDeps) {
     isCreateMode.value = false;
     selectedUser.value = user;
     form.value = userToForm(user, pickDefaultRoleId(roles.value));
+    if (form.value.warehouse_id == null) {
+      form.value.warehouse_id = defaultWarehouseForRole(form.value.role_id);
+    }
     message.value = '';
     error.value = false;
   };
@@ -113,7 +129,9 @@ export function useUsersManagement(deps: UsersManagementDeps) {
   const resetForm = () => {
     selectedUser.value = null;
     isCreateMode.value = false;
-    form.value = emptyUserForm(pickDefaultRoleId(roles.value));
+    const roleId = pickDefaultRoleId(roles.value);
+    form.value = emptyUserForm(roleId);
+    form.value.warehouse_id = defaultWarehouseForRole(roleId);
     message.value = '';
     error.value = false;
   };
@@ -198,6 +216,7 @@ export function useUsersManagement(deps: UsersManagementDeps) {
   return {
     users,
     roles,
+    warehouses,
     permissions,
     loading,
     saving,
@@ -207,6 +226,7 @@ export function useUsersManagement(deps: UsersManagementDeps) {
     message,
     error,
     form,
+    canUseAllWarehouses,
     selectedPermissionRole,
     selectedPermissionIds,
     currentUserId,

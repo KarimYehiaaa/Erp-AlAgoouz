@@ -17,6 +17,11 @@ const optionalPositiveId = z.preprocess(
   (value) => (value === '' || value === null ? void 0 : value),
   positiveId.optional(),
 );
+/** معرف اختياري يسمح بقيمة null الصريحة لمسح الربط. */
+const nullablePositiveId = z.preprocess(
+  (value) => (value === '' ? null : value),
+  positiveId.nullable().optional(),
+);
 /** رقم غير سالب اختياري (النص الفارغ/null = غير محدد). */
 const optionalNonNegativeNumber = z.preprocess(
   (value) => (value === '' || value === null ? void 0 : value),
@@ -386,6 +391,7 @@ const userCreateSchema = z
     full_name: shortText(255),
     phone: nullableText(50),
     role_id: positiveId,
+    warehouse_id: nullablePositiveId,
   })
   .strip();
 const userUpdateSchema = userCreateSchema
@@ -393,6 +399,7 @@ const userUpdateSchema = userCreateSchema
   .extend({
     password: z.string().min(8).max(200).optional(),
     is_active: optionalBool,
+    warehouse_id: nullablePositiveId,
   })
   .strip();
 const settingUpdateSchema = z

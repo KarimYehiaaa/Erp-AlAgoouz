@@ -10,6 +10,9 @@ import type { Request, Response, NextFunction } from 'express';
 import { query } from '../database/pool.ts';
 import { ADMIN_ROLES } from '../../../shared/permissions.js';
 
+/** مدير المحل يتعامل مع كل مواقع التخزين، بينما الكاشير وأمين المخزن يحتاجان ربطاً صريحاً. */
+const FULL_WAREHOUSE_ROLES = new Set([...ADMIN_ROLES, 'manager']);
+
 /** كاش بسيط للمخازن المسموحة لكل مستخدم (TTL: 5 دقائق). */
 const userWarehouseCache = new Map<number, { warehouses: number[]; expiresAt: number }>();
 const CACHE_TTL_MS = 5 * 60 * 1000;
@@ -33,7 +36,7 @@ export async function getAllowedWarehouses(userId: number): Promise<number[]> {
   if (!user) return [];
 
   // المديرون والمشرفون العامون يملكون صلاحية كاملة على كل مخازن المحل.
-  if (ADMIN_ROLES.includes(user.role_name)) {
+  if (FULL_WAREHOUSE_ROLES.has(user.role_name)) {
     const result = await query('SELECT id FROM warehouses WHERE deleted_at IS NULL');
     const warehouses = result.rows.map((r: any) => r.id);
     userWarehouseCache.set(userId, { warehouses, expiresAt: Date.now() + CACHE_TTL_MS });
@@ -44,14 +47,17 @@ export async function getAllowedWarehouses(userId: number): Promise<number[]> {
   if (user.warehouse_id) {
     assignedWarehouses.push(Number(user.warehouse_id));
   }
-  // هذا النظام يعمل في فرع واحد. المستخدم المعيّن لمخزن يظل محصوراً فيه؛
-  // أما المستخدم غير المعيّن فيرى كل مخازن المحل، لأن المخازن هنا مواقع
-  // تشغيلية داخل نفس الفرع وليست فروعاً مستقلة.
+  // هذا النظام يعمل في محل واحد. المستخدم المعيّن لمخزن يظل محصوراً فيه؛
+  // أما المستخدم التشغيلي غير المعيّن فيُحصر في المخزن الافتراضي الأقل خطراً.
+  // المدير فقط هو الذي يحصل على كل المخازن دون ربط صريح.
   if (assignedWarehouses.length === 0) {
-    const allWarehouses = await query(
-      `SELECT id FROM warehouses WHERE deleted_at IS NULL ORDER BY id ASC`,
+    const defaultWarehouse = await query(
+      `SELECT id FROM warehouses
+       WHERE deleted_at IS NULL
+       ORDER BY CASE WHEN type = 'store' THEN 0 ELSE 1 END, id ASC
+       LIMIT 1`,
     );
-    assignedWarehouses.push(...allWarehouses.rows.map((row: any) => Number(row.id)));
+    if (defaultWarehouse.rows[0]) assignedWarehouses.push(Number(defaultWarehouse.rows[0].id));
   }
 
   userWarehouseCache.set(userId, {
@@ -73,7 +79,7 @@ export const enforceWarehouseAccess = async (req: Request, res: Response, next: 
     const userRole = (req as any).user?.role_name || (req as any).user?.role;
 
     // الأدوار الإدارية تمر بدون فحص
-    if (ADMIN_ROLES.includes(userRole)) return next();
+    if (FULL_WAREHOUSE_ROLES.has(userRole)) return next();
 
     const warehouseId =
       req.body?.warehouse_id ||

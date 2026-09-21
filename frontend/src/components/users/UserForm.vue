@@ -141,6 +141,17 @@
             </label>
           </div>
         </div>
+
+        <div class="form-group">
+          <label>موقع التشغيل / المخزن</label>
+          <select v-model="form.warehouse_id">
+            <option :value="null">كل مخازن المحل (إدارة)</option>
+            <option v-for="warehouse in warehouses" :key="warehouse.id" :value="warehouse.id">
+              {{ warehouse.name_ar || warehouse.name }}
+            </option>
+          </select>
+          <small class="field-help">اربط الكاشير أو الموظف بمخزن محدد لتقييد عملياته عليه.</small>
+        </div>
       </div>
 
       <div class="form-group">
@@ -255,6 +266,7 @@ defineProps<{
   form: any;
   isCreateMode: boolean;
   roles: any[];
+  warehouses: any[];
   validations: {
     username: { valid: boolean | null; msg: string };
     email: { valid: boolean | null; msg: string };

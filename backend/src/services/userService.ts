@@ -15,21 +15,44 @@ const getUsers = async () =>
   ).rows;
 const createUser = async (data) => {
   const hash = await bcrypt.hash(data.password, 10);
+  if (data.warehouse_id != null) {
+    const warehouse = await query(
+      `SELECT id FROM warehouses WHERE id = $1 AND deleted_at IS NULL`,
+      [data.warehouse_id],
+    );
+    if (!warehouse.rows[0]) throw new AppError('المخزن المحدد غير موجود أو غير نشط', 400);
+  }
   const result = await query(
-    `INSERT INTO users (username, email, password_hash, full_name, phone, role_id) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id, username, email, full_name, role_id`,
-    [data.username, data.email, hash, data.full_name, data.phone, data.role_id],
+    `INSERT INTO users (username, email, password_hash, full_name, phone, role_id, warehouse_id)
+     VALUES ($1,$2,$3,$4,$5,$6,$7)
+     RETURNING id, username, email, full_name, role_id, warehouse_id`,
+    [
+      data.username,
+      data.email,
+      hash,
+      data.full_name,
+      data.phone,
+      data.role_id,
+      data.warehouse_id ?? null,
+    ],
   );
   return result.rows[0];
 };
 const updateUser = async (id, data) => {
+  if (data.warehouse_id != null) {
+    const warehouse = await query(
+      `SELECT id FROM warehouses WHERE id = $1 AND deleted_at IS NULL`,
+      [data.warehouse_id],
+    );
+    if (!warehouse.rows[0]) throw new AppError('المخزن المحدد غير موجود أو غير نشط', 400);
+  }
   let sql = `UPDATE users SET
     username=COALESCE(NULLIF($1, ''), username),
     full_name=COALESCE(NULLIF($2, ''), full_name),
     email=COALESCE(NULLIF($3, ''), email),
     phone=COALESCE(NULLIF($4, ''), phone),
     role_id=COALESCE($5, role_id),
-    is_active=COALESCE($6, is_active),
-    warehouse_id=COALESCE($7, warehouse_id)`;
+    is_active=COALESCE($6, is_active)`;
   const params = [
     data.username,
     data.full_name,
@@ -37,11 +60,14 @@ const updateUser = async (id, data) => {
     data.phone,
     data.role_id,
     data.is_active,
-    data.warehouse_id ?? null,
   ];
+  if (data.warehouse_id !== undefined) {
+    sql += `, warehouse_id=$7`;
+    params.push(data.warehouse_id);
+  }
   if (data.password) {
     const hash = await bcrypt.hash(data.password, 10);
-    sql += `, password_hash=$8, password_changed_at=NOW()`;
+    sql += `, password_hash=$${params.length + 1}, password_changed_at=NOW()`;
     params.push(hash);
   }
   // تغيير كلمة المرور أو الدور يبطل توكنات الوصول الحالية فوراً (وليس refresh فقط)

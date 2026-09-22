@@ -107,6 +107,12 @@ jobs:
       - name: Frontend Type Check
         run: npm run typecheck -w frontend
 
+      # The recovery drill replaces all application data, so it uses a separate database.
+      - name: Backup restore roundtrip (disposable database)
+        env:
+          DB_NAME: bin_al_ajouz_restore_test
+        run: npm run test:local -w backend -- tests/backup-roundtrip.test.ts
+
       - name: Frontend Tests
         run: npm run test:unit -w frontend
 

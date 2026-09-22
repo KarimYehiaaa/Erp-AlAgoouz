@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
+import { BACKUP_TABLES } from '../src/services/backupService.ts';
 
 describe('Database/application schema contracts', () => {
   it('defines the single-shop warehouse scope migration', () => {
@@ -32,5 +33,23 @@ describe('Database/application schema contracts', () => {
     expect(migrationText).toContain('idx_products_active_sku_unique');
     expect(migrationText).toContain('SET branch_id = 1');
     expect(migrationText).toContain("r.name IN ('cashier', 'warehouse')");
+  });
+
+  it('includes every application table in the encrypted backup contract', () => {
+    const migrationDir = path.resolve(process.cwd(), 'migrations');
+    const tableNames = fs
+      .readdirSync(migrationDir)
+      .filter((file) => file.endsWith('.sql'))
+      .flatMap((file) =>
+        Array.from(
+          fs
+            .readFileSync(path.join(migrationDir, file), 'utf8')
+            .matchAll(/CREATE TABLE(?: IF NOT EXISTS)?\s+([a-zA-Z0-9_]+)/gi),
+        ),
+      )
+      .map((match) => match[1].toLowerCase());
+    const missing = [...new Set(tableNames)].filter((table) => !BACKUP_TABLES.includes(table));
+
+    expect(missing).toEqual([]);
   });
 });

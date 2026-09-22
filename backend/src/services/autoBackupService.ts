@@ -1,6 +1,6 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { query } from '../database/pool.ts';
+import { readBackupSnapshot } from './backupService.ts';
 import { getCloudConfig, uploadBackupToCloud } from './cloudBackupService.ts';
 import { sendAlert } from './notificationService.ts';
 import { encrypt } from '../utils/crypto.ts';
@@ -112,46 +112,7 @@ const cleanupOldBackups = async () => {
 export const runAutoBackup = async () => {
   try {
     await ensureDir();
-    const tables = [
-      // Master data
-      'warehouses',
-      'roles',
-      'permissions',
-      'role_permissions',
-      'users',
-      'products',
-      'product_categories',
-      'customers',
-      'suppliers',
-      'expense_categories',
-      'product_recipes',
-      'product_recipe_items',
-      'employee_shifts',
-      'employees',
-      // Transactional data
-      'sales',
-      'sale_items',
-      'invoices',
-      'invoice_items',
-      'payments',
-      'inventory',
-      'stock_movements',
-      'expenses',
-      'purchase_invoices',
-      'purchase_invoice_items',
-      'employee_attendance',
-      'employee_advances',
-      'payroll_runs',
-      'payroll_items',
-      // System
-      'settings',
-      'activity_logs',
-    ];
-    const out = {};
-    for (const t of tables) {
-      const res = await query(`SELECT * FROM ${t}`);
-      out[t] = res.rows;
-    }
+    const out = await readBackupSnapshot();
 
     // صيغة التاريخ: auto-backup-YYYY-MM-DD_HH-mm-ss
     const now = new Date();

@@ -1,6 +1,6 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { query, getClient } from '../database/pool.ts';
+import { getClient } from '../database/pool.ts';
 import { AppError } from '../types/errors.ts';
 import { encrypt, decrypt } from '../utils/crypto.ts';
 import { logger } from './loggerService.ts';
@@ -38,49 +38,8 @@ export const CLEAR_DATA_TABLES = [
   'purchase_invoices',
 ];
 
-// BUG-03 FIX: قائمة بيضاء للجداول المسموح باستعادتها — يمنع SQL Injection
-const ALLOWED_RESTORE_TABLES = new Set([
-  'warehouses',
-  'roles',
-  'permissions',
-  'role_permissions',
-  'users',
-  'products',
-  'product_categories',
-  'customers',
-  'suppliers',
-  'expense_categories',
-  'product_recipes',
-  'product_recipe_items',
-  'sales',
-  'sale_items',
-  'invoices',
-  'invoice_items',
-  'payments',
-  'inventory',
-  'stock_movements',
-  'expenses',
-  'purchase_invoices',
-  'purchase_invoice_items',
-  'settings',
-  'activity_logs',
-  'stocktakes',
-  'stocktake_items',
-  'refresh_tokens',
-  'db_row_audits',
-  'product_units',
-  'inventory_cost_layers',
-  'inventory_cost_layer_consumptions',
-  'notifications',
-  'employee_shifts',
-  'employees',
-  'employee_attendance',
-  'employee_advances',
-  'payroll_runs',
-  'payroll_items',
-]);
-
-// Ordered list to respect foreign-key dependencies when restoring
+// Explicit application-table contract shared by manual backup, automatic backup and restore.
+// The restore transaction disables triggers before inserting this data.
 const RESTORE_ORDER = [
   // Master / lookup tables first
   'warehouses',
@@ -128,6 +87,34 @@ const RESTORE_ORDER = [
   'inventory_cost_layer_consumptions',
   'stocktakes',
   'stocktake_items',
+  'accounts',
+  'financial_periods',
+  'journal_entries',
+  'journal_entry_lines',
+  'bank_reconciliations',
+  'bank_statement_transactions',
+  'purchase_orders',
+  'purchase_order_items',
+  'purchase_returns',
+  'purchase_return_items',
+  'supplier_invoices',
+  'partners',
+  'partner_drawings',
+  'menus',
+  'menu_categories',
+  'menu_items',
+  'pos_terminals',
+  'pos_shifts',
+  'pos_cash_movements',
+  'pos_pin_lockouts',
+  'manager_approval_requests',
+  'idempotency_records',
+  'automations',
+  'automation_logs',
+  'workflows_nodes',
+  'workflows_edges',
+  'telegram_logs',
+  'audit_logs',
 ];
 
 const ensureDir = async () => {
@@ -138,61 +125,32 @@ const ensureDir = async () => {
   }
 };
 
-/**
- * إنشاء نسخة احتياطية كاملة لقاعدة البيانات.
- * @returns {Promise<{ path: string, size: number }>}
- */
+export const BACKUP_TABLES = Object.freeze([...RESTORE_ORDER]);
+const ALLOWED_RESTORE_TABLES = new Set(BACKUP_TABLES);
+
+/** Read all application tables from one consistent, read-only database snapshot. */
+export const readBackupSnapshot = async () => {
+  const out = {};
+  const client = await getClient();
+  try {
+    await client.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
+    for (const t of BACKUP_TABLES) {
+      const res = await client.query(`SELECT * FROM ${t}`);
+      out[t] = res.rows;
+    }
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+  return out;
+};
+
 export const createBackup = async () => {
   await ensureDir();
-  // BUG-18 FIX: شمل جميع الجداول الحيوية في النسخة الاحتياطية
-  const tables = [
-    // Master data
-    'warehouses',
-    'roles',
-    'permissions',
-    'role_permissions',
-    'users',
-    'products',
-    'product_categories',
-    'customers',
-    'suppliers',
-    'expense_categories',
-    'product_recipes',
-    'product_recipe_items',
-    'employee_shifts',
-    'employees',
-    // Transactional data
-    'sales',
-    'sale_items',
-    'invoices',
-    'invoice_items',
-    'payments',
-    'inventory',
-    'stock_movements',
-    'expenses',
-    'purchase_invoices',
-    'purchase_invoice_items',
-    'employee_attendance',
-    'employee_advances',
-    'payroll_runs',
-    'payroll_items',
-    // System
-    'settings',
-    'activity_logs',
-    'refresh_tokens',
-    'db_row_audits',
-    'notifications',
-    'product_units',
-    'inventory_cost_layers',
-    'inventory_cost_layer_consumptions',
-    'stocktakes',
-    'stocktake_items',
-  ];
-  const out = {};
-  for (const t of tables) {
-    const res = await query(`SELECT * FROM ${t}`);
-    out[t] = res.rows;
-  }
+  const out = await readBackupSnapshot();
   const rawPayload = JSON.stringify({ meta: { created_at: new Date().toISOString() }, data: out });
   const encryptedPayload = encrypt(rawPayload);
   const backupJson = JSON.stringify({ encrypted: true, payload: encryptedPayload });
@@ -290,7 +248,20 @@ export const restoreBackup = async (name: string) => {
       throw new AppError('فشل فك تشفير النسخة الاحتياطية. قد يكون مفتاح التشفير غير صحيح.', 400);
     }
   }
-  const data = parsed.data || {};
+  const data = parsed?.data;
+  if (!data || typeof data !== 'object' || Array.isArray(data)) {
+    throw new AppError('صيغة بيانات النسخة الاحتياطية غير صحيحة', 400);
+  }
+  const missingTables = BACKUP_TABLES.filter(
+    (table) => !Object.prototype.hasOwnProperty.call(data, table) || !Array.isArray(data[table]),
+  );
+  if (missingTables.length) {
+    throw new AppError(
+      'النسخة الاحتياطية ناقصة ولا يمكن استعادتها بأمان. الجداول الناقصة: ' +
+        missingTables.join(', '),
+      400,
+    );
+  }
   // Choose tables in a dependency-safe order (only those present in the backup)
   const restoreTables = RESTORE_ORDER.filter(
     (t) => ALLOWED_RESTORE_TABLES.has(t) && Object.prototype.hasOwnProperty.call(data, t),
@@ -322,12 +293,17 @@ export const restoreBackup = async (name: string) => {
       return true;
     });
 
-    for (const table of [...validRestoreTables].reverse()) {
-      await client.query(`TRUNCATE TABLE ${table} RESTART IDENTITY CASCADE`);
-    }
+    // RESTRICT fails safely if a new dependent table is missing from the backup contract.
+    await client.query(`TRUNCATE TABLE ${validRestoreTables.join(', ')} RESTART IDENTITY RESTRICT`);
     for (const table of validRestoreTables) {
       const rows = data[table];
       if (!Array.isArray(rows) || rows.length === 0) continue;
+      const columnTypes = await client.query(
+        `SELECT column_name FROM information_schema.columns
+         WHERE table_schema = 'public' AND table_name = $1 AND data_type IN ('json', 'jsonb')`,
+        [table],
+      );
+      const jsonColumns = new Set(columnTypes.rows.map((column) => column.column_name));
       // فقط الأعمدة التي تحتوي أسماء SQL آمنة (حروف وأرقام وشرطة سفلية)
       const cols = Object.keys(rows[0]).filter((c) => /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(c));
       const colList = cols.map((c) => `"${c}"`).join(',');
@@ -340,7 +316,9 @@ export const restoreBackup = async (name: string) => {
             row.to_warehouse_id = primaryWh;
           }
         }
-        const vals = cols.map((c) => row[c]);
+        const vals = cols.map((c) =>
+          jsonColumns.has(c) && row[c] !== null ? JSON.stringify(row[c]) : row[c],
+        );
         const params = vals.map((_, i) => `$${i + 1}`).join(',');
         await client.query(`INSERT INTO ${table} (${colList}) VALUES (${params})`, vals);
       }
@@ -372,22 +350,52 @@ export const restoreBackup = async (name: string) => {
 
     // إعادة ضبط المتسلسلات المخصصة
     const customSequences = [
-      { seq: 'seq_sales_number', table: 'sales', min: 10000 },
-      { seq: 'seq_invoices_number', table: 'invoices', min: 10000 },
-      { seq: 'seq_purchase_invoices_number', table: 'purchase_invoices', min: 1000 },
-      { seq: 'seq_expenses_number', table: 'expenses', min: 1000 },
-      { seq: 'seq_payments_number', table: 'payments', min: 1000 },
+      { seq: 'seq_sales_number', table: 'sales', column: 'sale_number', min: 10000 },
+      { seq: 'seq_invoices_number', table: 'invoices', column: 'invoice_number', min: 10000 },
+      {
+        seq: 'seq_purchase_invoices_number',
+        table: 'purchase_invoices',
+        column: 'invoice_number',
+        min: 1000,
+      },
+      { seq: 'seq_expenses_number', table: 'expenses', column: 'expense_number', min: 1000 },
+      { seq: 'seq_payments_number', table: 'payments', column: 'payment_number', min: 1000 },
+      {
+        seq: 'seq_journal_entries_number',
+        table: 'journal_entries',
+        column: 'entry_number',
+        min: 1000,
+      },
+      {
+        seq: 'seq_purchase_orders_number',
+        table: 'purchase_orders',
+        column: 'po_number',
+        min: 1000,
+      },
+      {
+        seq: 'seq_purchase_returns_number',
+        table: 'purchase_returns',
+        column: 'return_number',
+        min: 1000,
+      },
+      {
+        seq: 'seq_bank_reconciliations_number',
+        table: 'bank_reconciliations',
+        column: 'reconciliation_number',
+        min: 1000,
+      },
     ];
     for (const item of customSequences) {
       if (validRestoreTables.includes(item.table)) {
-        await client.query(`
-          DO $$
-          BEGIN
-            IF EXISTS (SELECT 1 FROM pg_sequences WHERE sequencename = '${item.seq}') THEN
-              EXECUTE format('SELECT setval(%L, GREATEST(COALESCE((SELECT MAX(id) FROM %I), 0), ${item.min}))', '${item.seq}', '${item.table}');
-            END IF;
-          END $$;
-        `);
+        // Identifiers come exclusively from the fixed map above. Use the suffix,
+        // not the year or row ID, and never move an existing counter backwards.
+        await client.query(
+          `SELECT setval($1::regclass, GREATEST(
+          (SELECT last_value FROM ${item.seq}),
+          COALESCE((SELECT MAX(substring(${item.column} from '([0-9]+)$')::bigint)
+            FROM ${item.table}), 0), $2::bigint), true)`,
+          [item.seq, item.min],
+        );
       }
     }
 

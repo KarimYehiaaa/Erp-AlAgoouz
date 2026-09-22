@@ -1,10 +1,33 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
+import { uploadBackupToCloud } from '../src/services/cloudBackupService.ts';
 import { recalculateSupplierBalance } from '../src/services/supplierService.ts';
 import { runAutoBackup } from '../src/services/autoBackupService.ts';
+import { BACKUP_TABLES, createBackup, restoreBackup } from '../src/services/backupService.ts';
+import { decrypt } from '../src/utils/crypto.ts';
+import { query } from '../src/database/pool.ts';
 
 describe('Reporting, Supplier Balance, and Backup Security Suite', () => {
+  it('encrypts automatic backup data before uploading it', async () => {
+    const snapshot = { data: { customers: [{ full_name: 'private-test-customer' }] } };
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+    vi.stubGlobal('fetch', fetchMock);
+    try {
+      await uploadBackupToCloud(snapshot, 'test.json', {
+        provider: 'webhook',
+        webhook_url: 'https://backup.example.invalid/upload',
+      });
+      const upload = fetchMock.mock.calls[0][1].body.get('file');
+      const content = await upload.text();
+      expect(content).not.toContain('private-test-customer');
+      const envelope = JSON.parse(content);
+      expect(envelope.encrypted).toBe(true);
+      expect(JSON.parse(decrypt(envelope.payload))).toEqual(snapshot);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
   it('supplier balance recalculation query structure is correct', async () => {
     const dbQueries: any[] = [];
     const mockDb = async (text: string, params: any[]) => {
@@ -84,11 +107,47 @@ describe('Reporting, Supplier Balance, and Backup Security Suite', () => {
         (f) => f.startsWith('auto-backup-') && f.endsWith('.json'),
       );
       expect(backupFiles.length).toBe(1);
+      const envelope = JSON.parse(await fs.readFile(path.join(backupDir, backupFiles[0]), 'utf8'));
+      expect(envelope.encrypted).toBe(true);
+      const snapshot = JSON.parse(decrypt(envelope.payload));
+      expect(Object.keys(snapshot.data).sort()).toEqual([...BACKUP_TABLES].sort());
     } finally {
       await fs.rm(backupDir, { recursive: true, force: true });
       delete process.env.AUTO_BACKUP_DIR;
       delete process.env.AUTO_BACKUP_SKIP_CLEANUP;
       delete process.env.AUTO_BACKUP_SKIP_EXTERNAL;
+    }
+  });
+
+  it('full encrypted database backup reads every current application table', async () => {
+    const backup = await createBackup();
+    try {
+      const payload = JSON.parse(await fs.readFile(backup.path, 'utf8'));
+      expect(payload.encrypted).toBe(true);
+      expect(typeof payload.payload).toBe('string');
+      const decoded = JSON.parse(decrypt(payload.payload));
+      expect(Object.keys(decoded.data).sort()).toEqual([...BACKUP_TABLES].sort());
+      const tables = await query(
+        "SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename <> 'schema_migrations'",
+      );
+      expect(tables.rows.map((row) => row.tablename).sort()).toEqual([...BACKUP_TABLES].sort());
+    } finally {
+      await fs.rm(backup.path, { force: true });
+    }
+  });
+
+  it('rejects an incomplete backup before changing existing data', async () => {
+    const fileName = `test-incomplete-${Date.now()}.json`;
+    const filePath = path.join(process.cwd(), 'backups', fileName);
+    const before = await query('SELECT id, code FROM accounts ORDER BY id');
+    await fs.mkdir(path.dirname(filePath), { recursive: true });
+    try {
+      await fs.writeFile(filePath, JSON.stringify({ data: { accounts: [] } }));
+      await expect(restoreBackup(fileName)).rejects.toThrow('النسخة الاحتياطية ناقصة');
+      const after = await query('SELECT id, code FROM accounts ORDER BY id');
+      expect(after.rows).toEqual(before.rows);
+    } finally {
+      await fs.unlink(filePath);
     }
   });
 });

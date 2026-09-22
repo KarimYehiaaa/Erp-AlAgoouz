@@ -2,7 +2,7 @@ import crypto from 'crypto';
 import { query } from '../database/pool.ts';
 import * as backupService from './backupService.ts';
 import { AppError } from '../types/errors.ts';
-import { decrypt } from '../utils/crypto.ts';
+import { decrypt, encrypt } from '../utils/crypto.ts';
 
 /**
  * @param {string} str
@@ -162,7 +162,11 @@ export const uploadBackupToCloud = async (
   if (decryptedConfig.gdrive_refresh_token)
     decryptedConfig.gdrive_refresh_token = decrypt(decryptedConfig.gdrive_refresh_token);
 
-  const content = JSON.stringify(backupData, null, 2);
+  const encryptedBackup =
+    backupData.encrypted === true && typeof backupData.payload === 'string'
+      ? backupData
+      : { encrypted: true, payload: encrypt(JSON.stringify(backupData)) };
+  const content = JSON.stringify(encryptedBackup);
   const blob = new Blob([content], { type: 'application/json' });
 
   if (provider === 'gdrive') {

@@ -541,8 +541,7 @@ const handleLogin = async () => {
 
     const requestedRoute = typeof route.query.redirect === 'string' ? route.query.redirect : '';
     const safeRedirect = requestedRoute.startsWith('/') ? requestedRoute : '';
-    const targetRoute =
-      safeRedirect || (isNative ? '/mobile' : auth.isCashier ? '/branch-sales' : '/');
+    const targetRoute = safeRedirect || (isNative ? '/mobile' : auth.isCashier ? '/pos' : '/');
     router.push(targetRoute);
   } catch (e: any) {
     error.value = e.message || 'اسم المستخدم أو كلمة المرور غير صحيحة';

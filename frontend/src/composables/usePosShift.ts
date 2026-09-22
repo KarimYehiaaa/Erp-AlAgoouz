@@ -4,7 +4,7 @@ import { posApi } from '@/api/pos.api';
 import type { PosShift, CashMovement } from '@/api/pos.api';
 import { useAppStore } from '@/stores/app';
 
-// Singleton Module-level Reactive State (Shared across CashierHeader, BranchSalesView, and ShiftModals)
+// Singleton Module-level Reactive State (Shared across CashierHeader, PosView, and ShiftModals)
 const currentShift: Ref<PosShift | null> = ref(null);
 const isShiftOpen: ComputedRef<boolean> = computed(() => !!currentShift.value);
 const shiftLoading: Ref<boolean> = ref(false);

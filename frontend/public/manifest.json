@@ -13,7 +13,7 @@
       "name": "شاشة الكاشير السريعة",
       "short_name": "كاشير",
       "description": "فتح شاشة البيع الفوري ونقطة الكاشير",
-      "url": "/branch-sales",
+      "url": "/pos",
       "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     }
   ],

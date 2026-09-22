@@ -58,7 +58,7 @@
             <span class="cash-title">نقدية الدرج الحية</span>
             <strong class="cash-value text-success">{{ formatMoney(cashInRegister) }}</strong>
           </div>
-          <RouterLink to="/branch-sales" class="btn-pos-shortcut" title="الانتقال إلى شاشة الكاشير">
+          <RouterLink to="/pos" class="btn-pos-shortcut" title="الانتقال إلى شاشة الكاشير">
             <AppIcon name="shop" :size="13" />
             <span>POS</span>
           </RouterLink>

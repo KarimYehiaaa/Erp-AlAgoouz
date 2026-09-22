@@ -53,6 +53,12 @@ jobs:
       - name: Install dependencies (workspaces)
         run: npm ci
 
+      - name: Production monitor regression tests (no external requests)
+        run: node --test scripts/deployment/check-production-health.test.mjs
+
+      - name: Source assets contain no stale build bundles
+        run: node --test scripts/maintenance/source-assets.test.mjs
+
       # الفحص الأمني الصارم للاعتماديات التشغيلية (npm audit --omit=dev)
       # يمنع أي ثغرات High/Critical في بيئة الإنتاج بدون أي continue-on-error.
       - name: Security Audit — Production Runtime (Central ERP)

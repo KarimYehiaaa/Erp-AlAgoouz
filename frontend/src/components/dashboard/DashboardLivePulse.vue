@@ -59,7 +59,7 @@
         </div>
       </div>
 
-      <RouterLink to="/branch-sales" class="btn btn-primary btn-sm flex items-center gap-2">
+      <RouterLink to="/pos" class="btn btn-primary btn-sm flex items-center gap-2">
         <AppIcon name="shop" :size="16" />
         <span>الكاشير (POS)</span>
       </RouterLink>

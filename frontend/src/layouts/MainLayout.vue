@@ -347,7 +347,7 @@ const handleGlobalShortcuts = (e: any) => {
     const key = e.key.toLowerCase();
     if (key === 'p') {
       e.preventDefault();
-      router.push('/branch-sales');
+      router.push('/pos');
     } else if (key === 'd') {
       e.preventDefault();
       router.push('/');

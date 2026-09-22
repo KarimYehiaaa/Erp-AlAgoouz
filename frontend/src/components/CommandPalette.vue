@@ -129,7 +129,7 @@ const rawItems = [
     desc: 'البيع المباشر والفوترة اللحظية في نقطة البيع',
     icon: 'shop',
     perm: 'pos.view',
-    action: () => router.push('/branch-sales'),
+    action: () => router.push('/pos'),
   },
   {
     id: 'nav_sales',

@@ -1,5 +1,5 @@
 <template>
-  <div class="branch-sales-page">
+  <div class="pos-page">
     <!-- Header (Admin/Manager only) -->
     <div v-if="!authStore.isCashier" class="page-header card">
       <div class="header-title">
@@ -530,7 +530,7 @@ import ExcelMode from '@/components/branch/ExcelMode.vue';
 import ShiftModals from '@/components/branch/ShiftModals.vue';
 import ManagerPinModal from '@/components/branch/ManagerPinModal.vue';
 import { formatMoney } from '@/utils/currency';
-import { useBranchSales } from '@/composables/useBranchSales';
+import { usePosSales } from '@/composables/usePosSales';
 import { usePosShift } from '@/composables/usePosShift';
 
 const {
@@ -626,7 +626,7 @@ const {
   pinLoading,
   pinErrorMessage,
   handlePinSubmit,
-} = useBranchSales();
+} = usePosSales();
 
 onMounted(async () => {
   if (authStore.isCashier) {
@@ -636,5 +636,5 @@ onMounted(async () => {
 </script>
 
 <style lang="scss" scoped>
-@use '../styles/views/BranchSalesView';
+@use '../styles/views/PosView';
 </style>

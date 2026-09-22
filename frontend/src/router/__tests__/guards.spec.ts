@@ -47,7 +47,7 @@ describe('navigation guard', () => {
     expect(next).toHaveBeenCalledExactlyOnceWith();
   });
 
-  it('locks cashiers to /branch-sales', async () => {
+  it('locks cashiers to /pos', async () => {
     authApiMock.profile.mockResolvedValue({
       data: { user: { id: 2, role_name: 'cashier' }, permissions: [{ code: 'pos.view' }] },
     });
@@ -55,18 +55,33 @@ describe('navigation guard', () => {
     await auth.fetchProfile();
 
     const { next } = await runGuard({ path: '/settings', meta: { requiresAuth: true } });
-    expect(next).toHaveBeenCalledWith('/branch-sales');
+    expect(next).toHaveBeenCalledWith('/pos');
   });
 
-  it('lets cashiers stay on /branch-sales', async () => {
+  it('lets authorized cashiers stay on /pos', async () => {
     authApiMock.profile.mockResolvedValue({
-      data: { user: { id: 2, role_name: 'cashier' }, permissions: [] },
+      data: { user: { id: 2, role_name: 'cashier' }, permissions: [{ code: 'pos.view' }] },
     });
     const auth = useAuthStore();
     await auth.fetchProfile();
 
-    const { next } = await runGuard({ path: '/branch-sales', meta: { requiresAuth: true } });
+    const { next } = await runGuard({
+      path: '/pos',
+      meta: { requiresAuth: true, permission: 'pos.view' },
+    });
     expect(next).toHaveBeenCalledExactlyOnceWith();
+  });
+
+  it('denies POS without a redirect loop when cashier permission is revoked', async () => {
+    authApiMock.profile.mockResolvedValue({
+      data: { user: { id: 2, role_name: 'cashier' }, permissions: [] },
+    });
+    await useAuthStore().fetchProfile();
+    const { next } = await runGuard({
+      path: '/pos',
+      meta: { requiresAuth: true, permission: 'pos.view' },
+    });
+    expect(next).toHaveBeenCalledExactlyOnceWith(false);
   });
 
   it('blocks routes whose permission the user lacks', async () => {

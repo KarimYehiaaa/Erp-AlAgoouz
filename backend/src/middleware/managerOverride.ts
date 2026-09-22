@@ -23,7 +23,7 @@ import type { Request, Response, NextFunction } from 'express';
 export const OVERRIDE_TTL_SECONDS = 10 * 60;
 const OVERRIDE_HEADER = 'x-manager-override';
 
-/** حد الخصم الحر للكاشير (يجب أن يطابق قاعدة الواجهة في useBranchSales.ts) */
+/** حد الخصم الحر للكاشير (يجب أن يطابق قاعدة الواجهة في usePosSales.ts) */
 const CASHIER_MAX_FLAT_DISCOUNT = 50;
 const CASHIER_MAX_DISCOUNT_RATIO = 0.15;
 

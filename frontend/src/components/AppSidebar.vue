@@ -178,7 +178,7 @@ const rawMenuGroups = [
     label: 'نظرة عامة',
     items: [
       { to: '/', label: 'لوحة التحكم', icon: 'dashboard', perm: null },
-      { to: '/branch-sales', label: 'نقطة البيع (POS)', icon: 'shop', perm: 'pos.view' },
+      { to: '/pos', label: 'نقطة البيع (POS)', icon: 'shop', perm: 'pos.view' },
     ],
   },
   {

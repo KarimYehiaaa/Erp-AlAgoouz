@@ -235,7 +235,7 @@ const handleAction = (alert: any) => {
   } else if (alert.title?.includes('مخزون')) {
     router.push('/inventory');
   } else if (alert.title?.includes('نقد') || alert.title?.includes('عجز')) {
-    router.push('/branch-sales');
+    router.push('/pos');
   } else {
     router.push('/reports');
   }

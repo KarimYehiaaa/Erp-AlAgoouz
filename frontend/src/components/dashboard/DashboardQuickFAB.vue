@@ -3,7 +3,7 @@
     <!-- قائمة الإجراءات السريعة المتفرعة -->
     <div class="fab-menu" v-if="isOpen">
       <RouterLink
-        to="/branch-sales"
+        to="/pos"
         class="fab-action-btn"
         title="شاشة الكاشير السريع (POS)"
         @click="isOpen = false"

@@ -3,10 +3,14 @@ node_modules/
 # Freebuff desktop runtime (session DBs and preview logs).
 .freebuff/
 
-# Build artifacts — untracked; files stay on disk (Glitch serves frontend/dist from the working copy).
+# Build artifacts are regenerated from source for the target deployment.
 dist/
 frontend/dist/
 backend/api/
+/assets/*-????????.js
+/assets/*-????????.css
+/assets/*-????????.js.map
+/assets/*-????????.css.map
 
 .env
 backend/.env

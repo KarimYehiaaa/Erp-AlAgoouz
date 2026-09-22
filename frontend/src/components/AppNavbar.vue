@@ -103,7 +103,7 @@
               v-if="authStore.hasPermission('pos.view')"
               type="button"
               class="dropdown-item"
-              @click="navigateAndClose('/branch-sales')"
+              @click="navigateAndClose('/pos')"
               role="menuitem"
             >
               <AppIcon name="shop" :size="16" />
@@ -344,7 +344,7 @@ const triggerShortcutsHUD = () => {
 
 const titles = {
   Dashboard: ['لوحة التحكم', 'مؤشرات التشغيل والتحصيل والمخزون'],
-  BranchSales: ['شاشة المبيعات', 'نقطة البيع المباشرة والفوترة السريعة'],
+  POS: ['شاشة المبيعات', 'نقطة البيع المباشرة والفوترة السريعة'],
   Sales: ['المبيعات والعملاء', 'سجل المبيعات والحسابات والديون'],
   Products: ['المنتجات والإنتاج', 'دليل المنتجات والأسعار وحساب التكاليف'],
   Purchases: ['المشتريات والمالية', 'فواتير الموردين وحركة المصروفات'],

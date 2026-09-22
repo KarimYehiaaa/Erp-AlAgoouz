@@ -17,10 +17,10 @@ import { directPrinter } from '@/services/directPrinter';
 import { usePosShift } from '@/composables/usePosShift';
 
 /**
- * useBranchSales — منطق نقطة البيع للفرع كاملاً: حالة السلة، الدفع، الطباعة،
+ * usePosSales — منطق نقطة البيع للمحل كاملاً: حالة السلة، الدفع، الطباعة،
  * المزامنة دون اتصال، وسجل المبيعات.
  */
-export function useBranchSales() {
+export function usePosSales() {
   const authStore = useAuthStore();
 
   // ─── helpers ───────────────────────────────────────────────────────────────
@@ -954,7 +954,7 @@ export function useBranchSales() {
     }
     if (!confirm(`تأكيد استرداد البيع ${sale.sale_number}؟ سيتم إرجاع المخزون.`)) return;
     try {
-      await salesApi.return(sale.id, { notes: 'استرداد من شاشة مبيعات الفرع' });
+      await salesApi.return(sale.id, { notes: 'استرداد من شاشة مبيعات المحل' });
       appStore.addToast('تم استرداد الفاتورة بنجاح وإرجاع المخزون', 'success');
       await Promise.all([loadHistory(), loadProducts()]);
     } catch (e: any) {
@@ -990,7 +990,7 @@ export function useBranchSales() {
       const url = URL.createObjectURL(new Blob([blob]));
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'branch-sales-template.xlsx';
+      a.download = 'pos-template.xlsx';
       a.click();
       URL.revokeObjectURL(url);
     } catch (e: any) {

@@ -1,5 +1,5 @@
 <!--
-  BranchSalesPanel.vue — تبويب "يومي": نموذج تسجيل/تعديل + سجل مبيعات الفرع
+  RetailSalesPanel.vue — تبويب "يومي": نموذج تسجيل/تعديل + سجل مبيعات المحل
   النموذج يُعرض داخل مودال عند التعديل (Teleport إلى body) وكرت عادي عند
   التسجيل. الجدول يعرض سجل المبيعات اليومية مع خيار التعديل.
   استُخرج من SalesView لتقليل حجم الملف المركزي (كان 2,463 سطرًا).
@@ -80,7 +80,7 @@
           <p>{{ sales.length }} عملية</p>
         </div>
         <div class="history-actions">
-          <router-link to="/branch-sales" class="btn btn-outline btn-sm">
+          <router-link to="/pos" class="btn btn-outline btn-sm">
             <AppIcon name="pos" :size="15" />
             <span>شاشة الكاشير والمبيعات السريعة</span>
           </router-link>

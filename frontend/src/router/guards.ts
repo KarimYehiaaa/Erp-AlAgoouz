@@ -26,7 +26,7 @@ export const navigationGuard: NavigationGuard = async (to, _from, next) => {
   }
   if (to.meta.guest && auth.isAuthenticated) {
     if (isNative) return next('/mobile');
-    return next(auth.isCashier ? '/branch-sales' : '/');
+    return next(auth.isCashier ? '/pos' : '/');
   }
 
   // في تطبيق الموبايل الأصلي، نوجه الصفحة الرئيسية مباشرة إلى شاشة الموبايل
@@ -37,11 +37,11 @@ export const navigationGuard: NavigationGuard = async (to, _from, next) => {
   // حماية وتوجيه الكاشير التلقائي
   if (auth.isAuthenticated && auth.isCashier) {
     if (to.path === '/' || to.name === 'Dashboard') {
-      return next('/branch-sales');
+      return next('/pos');
     }
-    // السماح فقط لشاشة مبيعات الفرع
-    if (to.path !== '/branch-sales') {
-      return next('/branch-sales');
+    // السماح فقط لشاشة مبيعات المحل
+    if (to.path !== '/pos') {
+      return next('/pos');
     }
   }
 
@@ -49,7 +49,9 @@ export const navigationGuard: NavigationGuard = async (to, _from, next) => {
     const required = Array.isArray(to.meta.permission) ? to.meta.permission : [to.meta.permission];
     const hasPerm = required.some((p: string) => auth.hasPermission(p));
     if (!hasPerm) {
-      return next(auth.isCashier ? '/branch-sales' : '/');
+      // A cashier without POS permission must not redirect to the denied route itself.
+      if (auth.isCashier && to.path === '/pos') return next(false);
+      return next(auth.isCashier ? '/pos' : '/');
     }
   }
 

@@ -32,12 +32,12 @@ const routes: RouteRecordRaw[] = [
       // 0. Dashboard & POS
       { path: '', name: 'Dashboard', component: () => import('@/views/DashboardView.vue') },
       {
-        path: 'branch-sales',
-        name: 'BranchSales',
-        component: () => import('@/views/BranchSalesView.vue'),
+        path: 'pos',
+        name: 'POS',
+        component: () => import('@/views/PosView.vue'),
         meta: { permission: 'pos.view' },
       },
-      { path: 'pos', redirect: '/branch-sales' },
+      { path: 'branch-sales', redirect: '/pos' },
 
       // 1. Sales & Customers Hub
       {

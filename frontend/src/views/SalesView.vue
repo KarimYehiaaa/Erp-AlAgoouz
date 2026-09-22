@@ -42,10 +42,7 @@
       >
         <AppIcon name="customers" :size="16" /> العملاء والمديونيات
       </button>
-      <router-link
-        to="/branch-sales"
-        class="btn btn-outline btn-sm ms-auto inline-flex items-center gap-2"
-      >
+      <router-link to="/pos" class="btn btn-outline btn-sm ms-auto inline-flex items-center gap-2">
         <AppIcon name="shop" :size="16" />
         <span>فتح الكاشير المباشر (POS)</span>
       </router-link>
@@ -109,7 +106,7 @@
         </div>
 
         <!-- 1. مبيعات المحل اليومية -->
-        <BranchSalesPanel
+        <RetailSalesPanel
           v-if="activeTab === 'branch'"
           :editing-sale-id="editingSaleId"
           :editing-sale-number="editingSaleNumber"
@@ -202,7 +199,7 @@ import StatCard from '@/components/StatCard.vue';
 import SalesSummaryCard from '@/components/sales/SalesSummaryCard.vue';
 import SalesToolbar from '@/components/sales/SalesToolbar.vue';
 import OpeningBalanceLedger from '@/components/sales/OpeningBalanceLedger.vue';
-import BranchSalesPanel from '@/components/sales/BranchSalesPanel.vue';
+import RetailSalesPanel from '@/components/sales/RetailSalesPanel.vue';
 import WholesaleSalesPanel from '@/components/sales/WholesaleSalesPanel.vue';
 import MonthlyImportPanel from '@/components/sales/MonthlyImportPanel.vue';
 import ExcelGuide from '@/components/sales/ExcelGuide.vue';

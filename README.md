@@ -1,15 +1,15 @@
 # بن العجوز ERP (Bin Al-Agoouz ERP)
 
-نظام متكامل لتخطيط موارد المؤسسات (ERP) ونقاط البيع (POS) مصمم للمطاعم والمقاهي والمحامص.
+نظام لإدارة محل واحد ونقطة البيع والمبيعات والمخزون والحسابات، مع إمكانية وجود مخازن متعددة داخل نفس النشاط. راجع [سياق النشاط](CONTEXT.md).
 
 ---
 
 ## 🚀 التقنيات المستخدمة (Tech Stack)
 
-- **Backend:** Node.js (v22+), Express.js, TypeScript (Strict Mode), PostgreSQL, Redis / BullMQ, Socket.io.
-- **Frontend:** Vue 3 (Composition API), Vite, Pinia, Tailwind CSS, TypeScript, Chart.js.
+- **Backend:** Node.js (إصدار التطوير في `.nvmrc`)، Express.js، TypeScript، PostgreSQL، Redis / BullMQ، WebSocket عبر `ws`.
+- **Frontend:** Vue 3 (Composition API)، Vite، Pinia، TypeScript، SCSS، Chart.js.
 - **Mobile / Desktop:** Capacitor (Android/iOS) + Electron / Desktop POS.
-- **Testing & Quality:** Vitest (68 tests), TypeScript strict, Migrations verification.
+- **Testing & Quality:** Vitest، فحص TypeScript، اختبارات قاعدة بيانات محلية معزولة. عدد الاختبارات ونتائجها يُستخرجان من التشغيل الحالي.
 
 ---
 

@@ -159,7 +159,7 @@ const sales = {
       'Content-Type',
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     );
-    res.setHeader('Content-Disposition', 'attachment; filename="branch-sales-template.xlsx"');
+    res.setHeader('Content-Disposition', 'attachment; filename="pos-template.xlsx"');
     res.send(buf);
   }),
   /**

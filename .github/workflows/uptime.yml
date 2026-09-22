@@ -9,10 +9,11 @@ jobs:
   health:
     name: Check production API and web app
     runs-on: ubuntu-latest
+    timeout-minutes: 3
     steps:
-      - name: Check API health
-        run: curl --fail --silent --show-error --max-time 20 https://agoouz.vercel.app/health
-
-      - name: Check web app
-        run: |
-          curl --fail --silent --show-error --max-time 20 https://agoouz.vercel.app/ | grep -qi '<!doctype html>'
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.x'
+      - name: Check API, database, frontend proxy and web document
+        run: node scripts/deployment/check-production-health.mjs

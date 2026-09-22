@@ -31,7 +31,7 @@ const authenticate = async (req, res, next) => {
 
     if (!user) {
       const result = await query(
-        `SELECT u.id, u.uuid, u.username, u.full_name, u.email, u.role_id, u.branch_id, u.warehouse_id, u.password_changed_at, u.token_version, r.name as role_name, r.name_ar as role_name_ar
+        `SELECT u.id, u.uuid, u.username, u.full_name, u.email, u.role_id, u.warehouse_id, u.password_changed_at, u.token_version, r.name as role_name, r.name_ar as role_name_ar
          FROM users u
          JOIN roles r ON u.role_id = r.id
          WHERE u.id = $1 AND u.is_active = TRUE AND u.deleted_at IS NULL`,
@@ -69,7 +69,6 @@ const authenticate = async (req, res, next) => {
       ...user,
       userId: user.id,
       role: user.role_name || '',
-      branch_id: user.branch_id ?? null,
       warehouse_id: user.warehouse_id ?? null,
       jti: decoded.jti,
     };

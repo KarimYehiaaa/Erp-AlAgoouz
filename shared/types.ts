@@ -17,8 +17,6 @@ export interface User {
   role_id?: number;
   role_name?: string;
   role_name_ar?: string;
-  /** @deprecated This deployment has one branch; warehouse_id is the access boundary. */
-  branch_id?: number | null;
   warehouse_id?: number | null;
   [key: string]: any;
 }

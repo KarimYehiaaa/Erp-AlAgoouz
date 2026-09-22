@@ -3,8 +3,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 describe('Database/application schema contracts', () => {
-  it('defines warehouses.branch_id before branch isolation queries it', () => {
+  it('defines the single-shop warehouse scope migration', () => {
     const migrationDir = path.resolve(process.cwd(), 'migrations');
+    expect(fs.readdirSync(migrationDir)).toContain('069_single_shop_user_scope.sql');
     const migrationText = fs
       .readdirSync(migrationDir)
       .filter((file) => file.endsWith('.sql'))
@@ -12,7 +13,7 @@ describe('Database/application schema contracts', () => {
       .map((file) => fs.readFileSync(path.join(migrationDir, file), 'utf8'))
       .join('\n');
 
-    expect(migrationText).toMatch(/ALTER TABLE warehouses[\s\S]*ADD COLUMN IF NOT EXISTS branch_id INT/);
+    expect(migrationText).toContain('warehouse_id');
   });
 
   it('defines database guardrails for non-negative stock and financial values', () => {

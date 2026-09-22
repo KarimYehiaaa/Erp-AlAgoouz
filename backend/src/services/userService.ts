@@ -92,12 +92,11 @@ const updateUser = async (id, data) => {
     // إبطال كاش المستخدمين لضمان عدم حدوث تضارب في التوكنات (SESSION_REVOKED)
     appCache.delete(`auth_user:${id}`);
     appCache.invalidateByTag('auth_users');
-    // تغيير الدور/التفعيل/المخزن/الفرع يؤثر على المخازن المسموحة — مسح كاش العزل فوراً
+    // تغيير الدور/التفعيل/المخزن يؤثر على المخازن المسموحة — مسح الكاش فوراً
     if (
       data.role_id !== undefined ||
       data.is_active !== undefined ||
-      data.warehouse_id !== undefined ||
-      data.branch_id !== undefined
+      data.warehouse_id !== undefined
     ) {
       clearWarehouseCache(id);
     }

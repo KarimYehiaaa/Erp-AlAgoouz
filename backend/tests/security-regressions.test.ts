@@ -37,4 +37,86 @@ describe('Security regressions', () => {
   it('keeps decimal payment totals exact to cents', () => {
     expect(calculatePaymentTotal([{ amount: 0.1 }, { amount: 0.2 }], 0.3)).toBe(0.3);
   });
+
+  it('rejects manager override token when used by a different cashier (H-02)', async () => {
+    const { issueManagerOverrideToken, requireManagerOverride } = await import(
+      '../src/middleware/managerOverride.ts'
+    );
+    const { token } = issueManagerOverrideToken(1, 100); // Issued for cashier 100
+
+    const req: any = {
+      headers: { 'x-manager-override': token },
+      user: { id: 200, role_name: 'cashier' }, // Attempted by cashier 200
+    };
+    const next = vi.fn();
+
+    await requireManagerOverride(req, {} as any, next);
+
+    expect(next).toHaveBeenCalledOnce();
+    const err = next.mock.calls[0][0];
+    expect(err).toBeDefined();
+    expect(err.statusCode).toBe(403);
+    expect(err.code).toBe('MANAGER_OVERRIDE_FORBIDDEN');
+  });
+
+  it('rejects batch sync sales when payload exceeds maximum batch size of 50 (H-09)', async () => {
+    const { posShiftController } = await import('../src/controllers/posShiftController.ts');
+
+    const fakeSales = Array.from({ length: 51 }, (_, i) => ({
+      sync_id: `sync-${i}`,
+      items: [{ product_id: 1, quantity: 1 }],
+    }));
+
+    const req: any = {
+      body: { sales: fakeSales },
+      user: { id: 1, role_name: 'cashier' },
+    };
+    let status = 0;
+    let jsonResult: any = null;
+    const res: any = {
+      status: (s: number) => {
+        status = s;
+        return res;
+      },
+      json: (j: any) => {
+        jsonResult = j;
+        return res;
+      },
+    };
+    const next = vi.fn();
+
+    await posShiftController.batchSyncSales(req, res, next);
+
+    expect(status).toBe(400);
+    expect(jsonResult?.success).toBe(false);
+    expect(jsonResult?.message).toContain('حجم الدفعة كبير جداً');
+  });
+
+  it('rejects batch sync sales when sales array is empty (H-09)', async () => {
+    const { posShiftController } = await import('../src/controllers/posShiftController.ts');
+
+    const req: any = {
+      body: { sales: [] },
+      user: { id: 1, role_name: 'cashier' },
+    };
+    let status = 0;
+    let jsonResult: any = null;
+    const res: any = {
+      status: (s: number) => {
+        status = s;
+        return res;
+      },
+      json: (j: any) => {
+        jsonResult = j;
+        return res;
+      },
+    };
+    const next = vi.fn();
+
+    await posShiftController.batchSyncSales(req, res, next);
+
+    expect(status).toBe(400);
+    expect(jsonResult?.success).toBe(false);
+    expect(jsonResult?.message).toContain('مطلوب مصفوفة فواتير صالحة');
+  });
 });

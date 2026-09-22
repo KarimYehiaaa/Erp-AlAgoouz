@@ -40,16 +40,23 @@ const executeFactoryReset = async () => {
       'purchase_invoices',
       'purchase_invoice_items',
       'purchase_items',
+      'supplier_payments',
       'inventory_cost_layers',
       'inventory_cost_layer_consumptions',
       'stocktakes',
       'stocktake_items',
+      'journal_entry_lines',
+      'journal_entries',
+      'financial_periods',
+      'db_row_audits',
+      'idempotency_records',
       'employee_attendance',
       'employee_advances',
       'payroll_runs',
       'payroll_items',
       'pos_shifts',
       'pos_cash_movements',
+      'pos_pin_lockouts',
       'partner_drawings',
       'manager_approval_requests',
       'workflow_execution_logs',
@@ -104,6 +111,10 @@ const executeFactoryReset = async () => {
   } catch (err: any) {
     await client.query('ROLLBACK');
     console.error(' حدث خطأ أثناء التنظيف:', err);
+    client.release();
+    await pool.end();
+    rl.close();
+    process.exit(1);
   } finally {
     client.release();
     await pool.end();

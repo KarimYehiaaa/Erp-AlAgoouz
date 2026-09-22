@@ -2,6 +2,7 @@ import type { Request, Response, NextFunction } from 'express';
 import bcrypt from 'bcryptjs';
 import { posShiftService } from '../services/posShiftService.ts';
 import { createDailySale } from '../services/salesService.ts';
+import { resolveSaleWarehouseId } from '../services/saleInventoryOps.ts';
 import { query } from '../database/pool.ts';
 import { issueManagerOverrideToken } from '../middleware/managerOverride.ts';
 import { getAllowedWarehouses } from '../middleware/warehouseAccess.ts';
@@ -114,16 +115,60 @@ export const posShiftController = {
       const isAdmin = ADMIN_ROLES.includes(userRole);
       const allowedWarehouses = isAdmin ? [] : await getAllowedWarehouses(userId);
 
-      const salesBatch = Array.isArray(req.body.sales) ? req.body.sales : [];
+      const MAX_BATCH_SIZE = 50;
+      if (!Array.isArray(req.body.sales) || req.body.sales.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'مطلوب مصفوفة فواتير صالحة (sales)',
+        });
+      }
+
+      if (req.body.sales.length > MAX_BATCH_SIZE) {
+        return res.status(400).json({
+          success: false,
+          message: `حجم الدفعة كبير جداً (الحد الأقصى ${MAX_BATCH_SIZE} فاتورة لكل دفعة)`,
+        });
+      }
+
+      const salesBatch = req.body.sales;
       const results: any[] = [];
 
       for (const salePayload of salesBatch) {
-        // التحقق من عزل الفروع لكل فاتورة في الدفعة
-        if (
-          !isAdmin &&
-          salePayload.warehouse_id &&
-          !allowedWarehouses.includes(Number(salePayload.warehouse_id))
-        ) {
+        if (!salePayload || typeof salePayload !== 'object') {
+          results.push({
+            sync_id: salePayload?.sync_id,
+            status: 'FAILED',
+            error: 'بيانات الفاتورة غير صالحة',
+          });
+          continue;
+        }
+
+        const items = Array.isArray(salePayload.items) ? salePayload.items : [];
+        if (items.length === 0) {
+          results.push({
+            sync_id: salePayload.sync_id,
+            status: 'FAILED',
+            error: 'الفاتورة لا تحتوي على أصناف صالحة',
+          });
+          continue;
+        }
+
+        // التحقق من صلاحيات المخزن سواء تم تمريره صراحة أو سيتم اشتقاقه
+        let targetWarehouseId = salePayload.warehouse_id ? Number(salePayload.warehouse_id) : null;
+        if (!targetWarehouseId) {
+          try {
+            targetWarehouseId = await resolveSaleWarehouseId(items, null);
+          } catch (e: any) {
+            results.push({
+              sync_id: salePayload.sync_id,
+              status: 'FAILED',
+              error: e.message || 'تعذر تحديد مخزن الفاتورة',
+            });
+            continue;
+          }
+        }
+
+        if (!isAdmin && (!targetWarehouseId || !allowedWarehouses.includes(targetWarehouseId))) {
           results.push({
             sync_id: salePayload.sync_id,
             status: 'FAILED',
@@ -131,6 +176,8 @@ export const posShiftController = {
           });
           continue;
         }
+
+        salePayload.warehouse_id = targetWarehouseId;
 
         try {
           const result = await createDailySale(salePayload, userId);

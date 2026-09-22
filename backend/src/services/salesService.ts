@@ -548,8 +548,8 @@ const getSalesSummary = async (filters: Record<string, any> = {}) => {
   sql += ` GROUP BY sale_type, sale_date ORDER BY sale_date DESC`;
   return (await query(sql, params)).rows;
 };
-/** جلب بيع واحد كاملاً مع الأصناف. */
-const getSaleById = async (id: number) => {
+/** جلب بيع واحد كاملاً مع الأصناف مع التحقق من عزل المخازن للمستخدم. */
+const getSaleById = async (id: number, allowedWarehouseIds?: number[]) => {
   const result = await query(
     `SELECT s.*, c.name_ar as customer_name, c.code as customer_code, u.full_name as user_name,
       (SELECT json_agg(json_build_object(
@@ -566,12 +566,16 @@ const getSaleById = async (id: number) => {
      WHERE s.id = $1 AND s.deleted_at IS NULL`,
     [id],
   );
-  if (!result.rows[0])
-    throw new AppError(
-      '\u0639\u0645\u0644\u064A\u0629 \u0627\u0644\u0628\u064A\u0639 \u063A\u064A\u0631 \u0645\u0648\u062C\u0648\u062F\u0629',
-      404,
-    );
-  return result.rows[0];
+  if (!result.rows[0]) throw new AppError('عملية البيع غير موجودة', 404);
+
+  const sale = result.rows[0];
+  if (allowedWarehouseIds && allowedWarehouseIds.length > 0) {
+    if (!allowedWarehouseIds.includes(Number(sale.warehouse_id))) {
+      throw new AppError('غير مصرح لك بالاطلاع على مبيعات هذا المخزن', 403);
+    }
+  }
+
+  return sale;
 };
 /**
  * إرجاع بيع كامل مع إعادة الكميات للمخزون.

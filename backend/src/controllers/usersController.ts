@@ -95,7 +95,8 @@ const users = {
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
   markNotificationRead: wrap(async (req, res) => {
-    await userService.markNotificationRead(Number(req.params.id));
+    const userId = req.user?.id || req.user?.userId;
+    await userService.markNotificationRead(Number(req.params.id), userId);
     ok(res, { success: true });
   }),
   /**

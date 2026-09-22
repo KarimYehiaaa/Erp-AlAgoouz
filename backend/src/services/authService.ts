@@ -193,10 +193,8 @@ const login = async (username: string, password: string, meta: Record<string, an
  */
 const refreshAccessToken = async (refreshToken: string) => {
   if (!refreshToken) throw new AppError('Refresh token مطلوب', 401);
-  /** @type {any} */
-  let decoded;
   try {
-    decoded = jwt.verify(refreshToken, config.jwt.refreshSecret);
+    jwt.verify(refreshToken, config.jwt.refreshSecret);
   } catch {
     throw new AppError('Refresh token غير صالح أو منتهي', 401, 'INVALID_REFRESH');
   }
@@ -208,18 +206,16 @@ const refreshAccessToken = async (refreshToken: string) => {
        FROM refresh_tokens rt
        JOIN users u ON rt.user_id = u.id
        JOIN roles r ON u.role_id = r.id
-       WHERE rt.token_hash = $1 AND rt.revoked = FALSE AND rt.expires_at > NOW()
+       WHERE rt.token_hash = $1
        FOR UPDATE`,
       [tokenHash],
     );
     const row = result.rows[0];
     if (!row || !row.is_active || row.deleted_at) {
-      if (decoded.userId) {
-        await client.query('UPDATE refresh_tokens SET revoked = TRUE WHERE user_id = $1', [
-          decoded.userId,
-        ]);
-      }
       throw new AppError('الجلسة انتهت، يرجى تسجيل الدخول مرة أخرى', 401, 'INVALID_REFRESH');
+    }
+    if (row.revoked || new Date(row.expires_at) <= new Date()) {
+      throw new AppError('رمز التحديث غير صالح أو منتهي الصلاحية', 401, 'INVALID_REFRESH');
     }
     await client.query('UPDATE refresh_tokens SET revoked = TRUE WHERE id = $1', [row.id]);
     const { accessToken, refreshToken: newRefresh } = issueTokens(

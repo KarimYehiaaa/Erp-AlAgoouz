@@ -69,7 +69,9 @@ const normalizePurchasePayload = async (client, payload) => {
       );
     }
 
-    let warehouseId = Number(product.primary_warehouse_id || 0);
+    let warehouseId = Number(
+      item.warehouse_id || payload.warehouse_id || product.primary_warehouse_id || 0,
+    );
     if (!warehouseId) {
       warehouseId =
         (await getDefaultWarehouseId((text, params) => client.query(text, params))) ?? 0;
@@ -407,8 +409,9 @@ export const createPurchaseInvoice = async (
         );
       }
 
-      // كل منتج يروح لمخزنه الأساسي — إصلاح: لا يوجد تقييد بمخزن واحد للفاتورة
-      let warehouseId = Number(product.primary_warehouse_id || 0);
+      let warehouseId = Number(
+        item.warehouse_id || payload.warehouse_id || product.primary_warehouse_id || 0,
+      );
       if (!warehouseId) {
         warehouseId =
           (await getDefaultWarehouseId((text, params) => client.query(text, params))) ?? 0;

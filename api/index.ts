@@ -100,10 +100,11 @@ export default async function handler(req: any, res: any) {
   } catch (err: any) {
     console.error('❌ [Vercel Serverless Error]:', err);
     if (!res.headersSent) {
+      const isDev = process.env.NODE_ENV === 'development';
       res.status(500).json({
         success: false,
-        message: 'خطأ داخلي في الخادم السحابي',
-        error: err.message,
+        message: 'حدث خطأ داخلي غير متوقع في الخادم السحابي',
+        ...(isDev ? { error: err.message, stack: err.stack } : {}),
       });
     }
   }

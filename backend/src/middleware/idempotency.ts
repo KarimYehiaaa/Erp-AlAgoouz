@@ -14,6 +14,8 @@
  *  4. إذا انتهى الطلب بخطأ خادم (5xx) أو انقطع الاتصال: يُحذف حجز المفتاح للسماح بإعادة المحاولة فوراً
  */
 import type { Request, Response, NextFunction } from 'express';
+import jwt from 'jsonwebtoken';
+import config from '../config/index.ts';
 import { query } from '../database/pool.ts';
 import { logger } from '../services/loggerService.ts';
 
@@ -79,8 +81,27 @@ export const requireIdempotency = async (
 
   const cleanKey = idempotencyKey.trim();
   const basePath = (req.originalUrl || req.url || '').split('?')[0];
-  const userId = (req as any).user?.id || null;
-  const scopedKey = `${userId || 'anon'}:${basePath}:${cleanKey}`;
+
+  let userId: number | null = (req as any).user?.id || (req as any).user?.userId || null;
+  if (!userId) {
+    const authHeader = req.headers.authorization;
+    const token =
+      (req as any).cookies?.access_token ||
+      (authHeader?.startsWith('Bearer ') ? authHeader.split(' ')[1] : null);
+    if (token && typeof token === 'string') {
+      try {
+        const decoded = jwt.verify(token, config.jwt.secret, { algorithms: ['HS256'] }) as any;
+        if (decoded?.userId) {
+          userId = Number(decoded.userId);
+        }
+      } catch {
+        // Invalid/expired token - auth middleware will handle rejection
+      }
+    }
+  }
+
+  const userScope = userId ? `user:${userId}` : `anon:${req.ip || 'noip'}`;
+  const scopedKey = `${userScope}:${req.method}:${basePath}:${cleanKey}`;
 
   let dbAvailable = true;
 

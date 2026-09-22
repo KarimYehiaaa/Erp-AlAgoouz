@@ -5,6 +5,7 @@ import { roundMoney } from '../utils/money.ts';
 import { businessToday } from '../utils/localDate.ts';
 import { broadcast } from '../services/websocketService.ts';
 import { issueManagerOverrideToken } from '../middleware/managerOverride.ts';
+import { ADMIN_ROLES } from '../../../shared/permissions.js';
 
 export const managerMobileController = {
   /**
@@ -403,9 +404,27 @@ export const managerMobileController = {
         throw new AppError('طلب الموافقة غير موجود', 404);
       }
 
+      const row = reqRes.rows[0];
+      const currentUserId = (req as any).user?.id || (req as any).user?.userId;
+      const userRole = (req as any).user?.role_name || (req as any).user?.role;
+      const isPrivileged =
+        (ADMIN_ROLES as readonly string[]).includes(userRole) || userRole === 'manager';
+      const isOwner = currentUserId && Number(row.requester_user_id) === Number(currentUserId);
+
+      // يمنع أي مستخدم آخر غير صاحب الطلب أو المديرين من استطلاع الطلب
+      if (!isPrivileged && !isOwner) {
+        throw new AppError('غير مصرح لك بالاطلاع على هذا الطلب', 403);
+      }
+
+      // توكن التجاوز لا يُعاد إلا للكاشير صاحب الطلب حصراً لحمايته من السرقة
+      const responseData = { ...row };
+      if (!isOwner) {
+        delete responseData.override_token;
+      }
+
       res.json({
         success: true,
-        data: reqRes.rows[0],
+        data: responseData,
       });
     } catch (err) {
       next(err);

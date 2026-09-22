@@ -101,14 +101,6 @@ const applySaleItems = async (
   );
   const productNamesMap = new Map(productNamesRes.rows.map((row) => [Number(row.id), row.name_ar]));
   const nonRecipeProductIds = productIds.filter((id) => !recipeSet.has(id));
-  const globalStocksRes = await client.query(
-    `SELECT product_id, COALESCE(SUM(quantity), 0) AS total
-     FROM inventory WHERE product_id = ANY($1::int[]) GROUP BY product_id`,
-    [productIds],
-  );
-  const globalStockMap = new Map(
-    globalStocksRes.rows.map((r) => [Number(r.product_id), Number(r.total)]),
-  );
   if (nonRecipeProductIds.length > 0) {
     for (const pid of nonRecipeProductIds) {
       await inventoryService.ensureInventoryRow(client, pid, warehouseId);
@@ -123,11 +115,6 @@ const applySaleItems = async (
       [warehouseId, sortedIds],
     );
   }
-  const warehousesRes = await client.query(
-    `SELECT id FROM warehouses WHERE id <> $1 AND deleted_at IS NULL AND is_active = TRUE ORDER BY id`,
-    [warehouseId],
-  );
-  const candidateWarehouseIds = warehousesRes.rows.map((w) => Number(w.id));
   // ترتيب العناصر تصاعدياً بناءً على product_id لمنع Deadlock عند القفل المتزامن
   const sortedItems = [...items].sort((a, b) => Number(a.product_id) - Number(b.product_id));
   for (const it of sortedItems) {
@@ -135,8 +122,9 @@ const applySaleItems = async (
     const unitPrice = Number(it.unit_price || 0);
     const lineTotal = it.total_amount;
     const effectiveCost = costsMap.get(Number(it.product_id)) || { cost: 0 };
-    const costPrice = roundMoney(Number(effectiveCost.cost || 0) * qty);
-    costAmount = sumMoney(costAmount, costPrice);
+    const unitCost = roundMoney(Number(effectiveCost.cost || 0));
+    const lineCost = roundMoney(unitCost * qty);
+    costAmount = sumMoney(costAmount, lineCost);
     await client.query(
       `INSERT INTO sale_items (sale_id, product_id, quantity, unit_price, cost_price, discount_amount, tax_amount, total_amount)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
@@ -145,7 +133,7 @@ const applySaleItems = async (
         it.product_id,
         qty,
         unitPrice,
-        costPrice,
+        unitCost,
         it.discount_amount || 0,
         it.tax_amount || 0,
         lineTotal,
@@ -161,70 +149,30 @@ const applySaleItems = async (
         userId,
       });
     } else {
-      const globalTotal = Number(globalStockMap.get(Number(it.product_id))) || 0;
-      if (globalTotal < qty) {
-        const pName =
-          productNamesMap.get(Number(it.product_id)) || '\u0627\u0644\u0645\u0646\u062A\u062C';
-        throw new AppError(
-          `\u0644\u0627 \u064A\u0648\u062C\u062F \u0645\u062E\u0632\u0648\u0646 \u0643\u0627\u0641\u064D \u0643\u0644\u064A \u0644\u0644\u0645\u0646\u062A\u062C ${pName} \u0639\u0628\u0631 \u062C\u0645\u064A\u0639 \u0627\u0644\u0645\u062E\u0627\u0632\u0646. \u0627\u0644\u0645\u0637\u0644\u0648\u0628 ${qty} \u0648\u0627\u0644\u0645\u062A\u0627\u062D \u0643\u0644\u064A\u0627\u064B ${globalTotal}`,
-        );
-      }
-      let remainingNeeded = qty;
       const primaryLock = await client.query(
         `SELECT quantity FROM inventory WHERE product_id = $1 AND warehouse_id = $2 FOR UPDATE`,
         [it.product_id, warehouseId],
       );
       const primaryQty = Number(primaryLock.rows[0]?.quantity || 0);
-      if (primaryQty > 0) {
-        const deductQty = Math.min(primaryQty, remainingNeeded);
-        await client.query(
-          `UPDATE inventory SET quantity = quantity - $1, updated_at = NOW()
-           WHERE product_id = $2 AND warehouse_id = $3`,
-          [deductQty, it.product_id, warehouseId],
-        );
-        await client.query(
-          `INSERT INTO stock_movements (
-             product_id, from_warehouse_id, movement_type, quantity,
-             reference_type, reference_id, user_id, notes
-           ) VALUES ($1,$2,'sale',$3,'sale',$4,$5,'\u0635\u0631\u0641 \u0645\u0628\u064A\u0639\u0627\u062A \u0645\u0628\u0627\u0634\u0631 - \u0645\u062E\u0632\u0646 \u0631\u0626\u064A\u0633\u064A')`,
-          [it.product_id, warehouseId, deductQty, saleId, userId],
-        );
-        remainingNeeded -= deductQty;
-      }
-      if (remainingNeeded > 1e-4) {
-        for (const candidateWarehouseId of candidateWarehouseIds) {
-          if (remainingNeeded <= 0) break;
-          await inventoryService.ensureInventoryRow(client, it.product_id, candidateWarehouseId);
-          const otherLock = await client.query(
-            `SELECT quantity FROM inventory WHERE product_id = $1 AND warehouse_id = $2 FOR UPDATE`,
-            [it.product_id, candidateWarehouseId],
-          );
-          const otherQty = Number(otherLock.rows[0]?.quantity || 0);
-          if (otherQty > 0) {
-            const deductQty = Math.min(otherQty, remainingNeeded);
-            await client.query(
-              `UPDATE inventory SET quantity = quantity - $1, updated_at = NOW()
-               WHERE product_id = $2 AND warehouse_id = $3`,
-              [deductQty, it.product_id, candidateWarehouseId],
-            );
-            await client.query(
-              `INSERT INTO stock_movements (
-                 product_id, from_warehouse_id, movement_type, quantity,
-                 reference_type, reference_id, user_id, notes
-               ) VALUES ($1,$2,'sale',$3,'sale',$4,$5,'\u0635\u0631\u0641 \u0645\u0628\u064A\u0639\u0627\u062A \u0645\u0628\u0627\u0634\u0631 - \u0645\u062E\u0632\u0646 \u0645\u0633\u0627\u0639\u062F')`,
-              [it.product_id, candidateWarehouseId, deductQty, saleId, userId],
-            );
-            remainingNeeded -= deductQty;
-          }
-        }
-      }
-      if (remainingNeeded > 1e-4) {
-        const pName =
-          productNamesMap.get(Number(it.product_id)) || '\u0627\u0644\u0645\u0646\u062A\u062C';
+      if (primaryQty < qty) {
+        const pName = productNamesMap.get(Number(it.product_id)) || 'المنتج';
         throw new AppError(
-          `\u062A\u0639\u0630\u0631 \u0633\u062D\u0628 \u0627\u0644\u0643\u0645\u064A\u0629 \u0628\u0627\u0644\u0643\u0627\u0645\u0644 \u0644\u0644\u0645\u0646\u062A\u062C ${pName} \u0628\u0633\u0628\u0628 \u062A\u063A\u064A\u0631 \u0627\u0644\u0645\u062E\u0632\u0648\u0646 \u0641\u064A \u0647\u0630\u0647 \u0627\u0644\u0644\u062D\u0638\u0629`,
+          `لا يوجد مخزون كافٍ للمنتج "${pName}" في المخزن المحدد. المطلوب: ${qty}، المتاح: ${primaryQty}`,
+          400,
         );
       }
+      await client.query(
+        `UPDATE inventory SET quantity = quantity - $1, updated_at = NOW()
+         WHERE product_id = $2 AND warehouse_id = $3`,
+        [qty, it.product_id, warehouseId],
+      );
+      await client.query(
+        `INSERT INTO stock_movements (
+           product_id, from_warehouse_id, movement_type, quantity,
+           reference_type, reference_id, user_id, notes
+         ) VALUES ($1,$2,'sale',$3,'sale',$4,$5,'صرف مبيعات مباشر')`,
+        [it.product_id, warehouseId, qty, saleId, userId],
+      );
     }
   }
   return roundMoney(costAmount);

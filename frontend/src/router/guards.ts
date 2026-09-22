@@ -1,5 +1,6 @@
 import type { NavigationGuard } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
+import { ADMIN_ROLES } from '../../../shared/permissions.js';
 
 /**
  * حارس التنقل المركزي: المصادقة، توجيه الكاشير، والصلاحيات.
@@ -54,7 +55,8 @@ export const navigationGuard: NavigationGuard = async (to, _from, next) => {
 
   // صفحات المدير فقط
   if (to.meta.requireAdmin && auth.isAuthenticated) {
-    if (auth.user?.role_name !== 'admin') {
+    const role = auth.user?.role_name || (auth.user as any)?.role;
+    if (!role || !(ADMIN_ROLES as readonly string[]).includes(role)) {
       return next('/');
     }
   }

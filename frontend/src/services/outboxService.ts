@@ -90,28 +90,66 @@ export class OutboxService {
           failedCount++;
           const status = err?.status || err?.response?.status;
           const currentRetries = (item.retry_count || 0) + 1;
+          const errorMessage = err?.response?.data?.message || err?.message || 'خطأ غير معروف';
 
-          // إذا كان الخطأ Validation أو بيانات تالفة (400 Bad Request)
-          if (status >= 400 && status < 500 && status !== 408 && status !== 429) {
-            console.error(
-              `[Outbox] Quarantining corrupted sale ${offline_id} (Status ${status}):`,
-              err.message,
-            );
-            await localDb.updateOfflineSale(offline_id, {
-              sync_status: 'QUARANTINED',
-              retry_count: currentRetries,
-              last_error: err.message || 'خطأ في بنية الفاتورة',
-            });
-          } else {
-            // خطأ شبكة أو سحابة مؤقت
+          // أخطاء التوثيق (401 Unauthorized) — الجلسة منتهية، لا نحجر الفاتورة بل نوقف المزامنة حتى تجديد الدخول
+          if (status === 401) {
             console.warn(
-              `[Outbox] Transient network failure for ${offline_id}, pausing sync cycle:`,
-              err.message,
+              `[Outbox] Session expired (401) while syncing ${offline_id}. Pausing sync.`,
             );
             await localDb.updateOfflineSale(offline_id, {
               sync_status: 'FAILED',
               retry_count: currentRetries,
-              last_error: err.message || 'تعذر الاتصال بالخادم السحابي',
+              last_error: 'انتهت صلاحية الجلسة (يرجى تسجيل الدخول مجدداً)',
+            });
+            break;
+          }
+
+          // أخطاء الصلاحيات (403 Forbidden) أو المعدل (429) أو مهلة الطلب (408) — إيقاف مؤقت دون حجر
+          if (status === 403 || status === 408 || status === 429) {
+            console.warn(
+              `[Outbox] Temporary or permission error (${status}) for ${offline_id}. Pausing sync.`,
+            );
+            await localDb.updateOfflineSale(offline_id, {
+              sync_status: 'FAILED',
+              retry_count: currentRetries,
+              last_error: errorMessage,
+            });
+            break;
+          }
+
+          // أخطاء التضارب (409 Conflict) — مثل عملية مكررة أو تضارب تزامن
+          if (status === 409) {
+            console.warn(`[Outbox] Conflict (409) for ${offline_id}:`, errorMessage);
+            await localDb.updateOfflineSale(offline_id, {
+              sync_status: 'FAILED',
+              retry_count: currentRetries,
+              last_error: errorMessage,
+            });
+            break;
+          }
+
+          // إذا كان الخطأ Validation حقيقي أو بنية بيانات تالفة (400 Bad Request أو 422 Unprocessable)
+          if (status === 400 || status === 422) {
+            console.error(
+              `[Outbox] Quarantining corrupted sale ${offline_id} (Status ${status}):`,
+              errorMessage,
+            );
+            await localDb.updateOfflineSale(offline_id, {
+              sync_status: 'QUARANTINED',
+              retry_count: currentRetries,
+              last_error: errorMessage || 'خطأ في بنية الفاتورة',
+            });
+          } else {
+            // خطأ شبكة أو خادم سحابي مؤقت (5xx أو انقطاع اتصال)
+            console.warn(
+              `[Outbox] Transient network/server failure for ${offline_id}, pausing sync cycle:`,
+              errorMessage,
+            );
+            await localDb.updateOfflineSale(offline_id, {
+              sync_status: 'FAILED',
+              retry_count: currentRetries,
+              last_error: errorMessage || 'تعذر الاتصال بالخادم',
             });
             break; // التوقف حتى الدورة القادمة عند استقرار الشبكة
           }

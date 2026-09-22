@@ -2,6 +2,8 @@ import * as salesService from '../services/salesService.ts';
 import * as openingBalanceService from '../services/openingBalanceService.ts';
 import * as salesExcelService from '../services/salesExcelService.ts';
 import * as branchSalesExcelService from '../services/branchSalesExcelService.ts';
+import { getAllowedWarehouses } from '../middleware/warehouseAccess.ts';
+import { ADMIN_ROLES } from '../../../shared/permissions.js';
 import { AppError } from '../types/errors.ts';
 import { ok, wrap } from './helper.ts';
 const sales = {
@@ -53,7 +55,11 @@ const sales = {
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
   get: wrap(async (req, res) => {
-    ok(res, await salesService.getSaleById(req.params.id));
+    const userRole = (req as any).user?.role_name || (req as any).user?.role;
+    const userId = (req as any).user?.id || (req as any).user?.userId;
+    const isAdmin = userRole && (ADMIN_ROLES as readonly string[]).includes(userRole);
+    const allowedWarehouses = isAdmin ? undefined : await getAllowedWarehouses(userId);
+    ok(res, await salesService.getSaleById(Number(req.params.id), allowedWarehouses));
   }),
   /**
    * إنشاء فاتورة مبيعة جديدة.

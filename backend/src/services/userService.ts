@@ -178,8 +178,16 @@ const getNotifications = async (userId) =>
       [userId],
     )
   ).rows;
-const markNotificationRead = async (id) => {
-  await query(`UPDATE notifications SET is_read = TRUE WHERE id = $1`, [id]);
+const markNotificationRead = async (id, userId) => {
+  if (userId) {
+    const res = await query(
+      `UPDATE notifications SET is_read = TRUE WHERE id = $1 AND (user_id = $2 OR user_id IS NULL)`,
+      [id, userId],
+    );
+    return { updated: res.rowCount || 0 };
+  }
+  const res = await query(`UPDATE notifications SET is_read = TRUE WHERE id = $1`, [id]);
+  return { updated: res.rowCount || 0 };
 };
 const markAllNotificationsRead = async (userId) => {
   const res = await query(
@@ -323,12 +331,12 @@ const getProfitReport = async (filters: Record<string, any> = {}) => {
               COUNT(DISTINCT p.id) as products_count,
               COALESCE(SUM(si.quantity), 0) as total_qty,
               COALESCE(SUM(si.total_amount), 0) as total_revenue,
-              COALESCE(SUM(si.quantity * p.purchase_price), 0) as total_cost,
-              COALESCE(SUM(si.total_amount) - SUM(si.quantity * p.purchase_price), 0) as net_profit
+              COALESCE(SUM(si.quantity * COALESCE(si.cost_price, p.purchase_price, 0)), 0) as total_cost,
+              COALESCE(SUM(si.total_amount) - SUM(si.quantity * COALESCE(si.cost_price, p.purchase_price, 0)), 0) as net_profit
        FROM products p
        LEFT JOIN product_categories pc ON pc.id = p.category_id
        LEFT JOIN (
-         SELECT si_inner.product_id, si_inner.quantity, si_inner.total_amount
+         SELECT si_inner.product_id, si_inner.quantity, si_inner.total_amount, si_inner.cost_price
          FROM sale_items si_inner
          JOIN sales s ON s.id = si_inner.sale_id
          WHERE s.deleted_at IS NULL

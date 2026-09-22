@@ -379,7 +379,7 @@ const _computeDashboardStats = async (filters: Record<string, any> = {}) => {
       `SELECT p.id, p.name_ar, p.sku,
               COALESCE(SUM(si.quantity),0) AS qty,
               COALESCE(SUM(si.total_amount),0) AS revenue,
-              COALESCE(SUM(si.total_amount - si.cost_price),0) AS profit
+              COALESCE(SUM(si.total_amount - (si.cost_price * si.quantity)),0) AS profit
        FROM sale_items si
        JOIN sales s ON si.sale_id = s.id
        JOIN products p ON si.product_id = p.id
@@ -592,7 +592,7 @@ const _computeDashboardStats = async (filters: Record<string, any> = {}) => {
     query(
       `SELECT COALESCE(pc.name_ar, 'غير مصنف') AS name_ar,
               COALESCE(SUM(si.total_amount), 0)::numeric AS total,
-              COALESCE(SUM(si.total_amount - si.cost_price), 0)::numeric AS profit,
+              COALESCE(SUM(si.total_amount - (si.cost_price * si.quantity)), 0)::numeric AS profit,
               COUNT(DISTINCT si.product_id)::int AS count
        FROM sale_items si
        JOIN sales s ON si.sale_id = s.id

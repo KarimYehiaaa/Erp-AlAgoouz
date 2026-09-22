@@ -15,10 +15,20 @@ export const setSessionAccessToken = (token: string | null) => {
   inMemoryAccessToken = token;
 };
 
+export const isValidServerUrl = (urlStr: string): boolean => {
+  if (!urlStr || typeof urlStr !== 'string') return false;
+  try {
+    const parsed = new URL(urlStr);
+    return (parsed.protocol === 'http:' || parsed.protocol === 'https:') && !!parsed.hostname;
+  } catch {
+    return false;
+  }
+};
+
 export const getBaseServerUrl = (): string => {
   if (typeof window === 'undefined') return '';
   const saved = localStorage.getItem('binalagoouz_server_url');
-  if (saved && (saved.startsWith('http://') || saved.startsWith('https://'))) {
+  if (saved && isValidServerUrl(saved)) {
     return saved.replace(/\/+$/, '');
   }
 
@@ -34,7 +44,7 @@ export const getBaseServerUrl = (): string => {
 };
 
 export const setBaseServerUrl = (url: string) => {
-  if (!url || (!url.startsWith('http://') && !url.startsWith('https://'))) {
+  if (!url || !isValidServerUrl(url)) {
     localStorage.removeItem('binalagoouz_server_url');
   } else {
     localStorage.setItem('binalagoouz_server_url', url.replace(/\/+$/, ''));
@@ -135,7 +145,7 @@ api.interceptors.response.use(
         if (refreshedToken) setSessionAccessToken(refreshedToken);
         // Refresh rotates the HttpOnly cookie. The response token remains
         // available to native clients, but is never copied into web storage.
-        processQueue(null, null);
+        processQueue(null, refreshedToken);
         return api.request(originalRequest);
       } catch (refreshErr: any) {
         processQueue(refreshErr, null);

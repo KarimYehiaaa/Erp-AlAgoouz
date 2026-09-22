@@ -11,6 +11,7 @@
  *  - enforceCashierDiscountOverride : يفرضه فقط عندما يتجاوز خصم الفاتورة الحد المسموح للكاشير
  *    (نفس قاعدة الواجهة: أكثر من 50 ج.م أو 15% من الإجمالي).
  */
+import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import config from '../config/index.ts';
 import { query } from '../database/pool.ts';
@@ -30,7 +31,25 @@ interface OverridePayload {
   typ: 'pos_override';
   mgr: number;
   csr: number;
+  jti?: string;
 }
+
+// تتبع التوكنات المستخدمة لضمان استخدام التوكن لمرة واحدة فقط ومنع Replay attacks
+const consumedOverrideTokens = new Map<string, number>();
+
+export const clearConsumedOverrideTokens = () => {
+  consumedOverrideTokens.clear();
+};
+
+setInterval(
+  () => {
+    const now = Date.now();
+    for (const [id, expiresAt] of consumedOverrideTokens.entries()) {
+      if (now > expiresAt) consumedOverrideTokens.delete(id);
+    }
+  },
+  10 * 60 * 1000,
+).unref?.();
 
 /**
  * إصدار توكن تجاوز قصير الأجل بعد نجاح التحقق من PIN المدير.
@@ -39,8 +58,9 @@ interface OverridePayload {
  * @returns {{ token: string, expires_in: number }}
  */
 export const issueManagerOverrideToken = (managerId: number, cashierUserId: number) => {
+  const jti = crypto.randomUUID();
   const token = jwt.sign(
-    { typ: 'pos_override', mgr: managerId, csr: cashierUserId } satisfies OverridePayload,
+    { typ: 'pos_override', mgr: managerId, csr: cashierUserId, jti } satisfies OverridePayload,
     config.jwt.secret,
     { algorithm: 'HS256', expiresIn: OVERRIDE_TTL_SECONDS },
   );
@@ -80,6 +100,26 @@ const readOverride = async (req: Request): Promise<{ id: number; name: string } 
     );
   }
 
+  // 1. التحقق الصارم من ربط التوكن بنفس الكاشير الطالب
+  const currentUserId = (req as any).user?.id || (req as any).user?.userId;
+  if (payload.csr && currentUserId && Number(payload.csr) !== Number(currentUserId)) {
+    throw new AppError(
+      'توكن مصادقة المدير غير مصرح به لهذا الكاشير — تم إصداره لكاشير آخر',
+      403,
+      'MANAGER_OVERRIDE_FORBIDDEN',
+    );
+  }
+
+  // 2. التحقق من الاستخدام لمرة واحدة (One-Time Use)
+  const tokenKey = payload.jti || crypto.createHash('sha256').update(token).digest('hex');
+  if (consumedOverrideTokens.has(tokenKey)) {
+    throw new AppError(
+      'تم استخدام توكن مصادقة المدير مسبقاً — يلزم الحصول على مصادقة جديدة لكل عملية',
+      403,
+      'MANAGER_OVERRIDE_ALREADY_USED',
+    );
+  }
+
   // المدير يجب أن يبقى نشطًا وقت الاستخدام (إبطال فوري عند تعطيل الحساب)
   const mgrRes = await query(
     `SELECT u.id, u.full_name FROM users u
@@ -95,6 +135,10 @@ const readOverride = async (req: Request): Promise<{ id: number; name: string } 
       'MANAGER_OVERRIDE_INVALID',
     );
   }
+
+  // تسجيل التوكن كمستهلك بنجاح
+  consumedOverrideTokens.set(tokenKey, Date.now() + OVERRIDE_TTL_SECONDS * 1000);
+
   return { id: manager.id, name: manager.full_name || String(manager.id) };
 };
 

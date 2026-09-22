@@ -88,9 +88,8 @@ export const createStocktake = async (warehouseId: number, userId: number, notes
  * جلب قائمة الجرد.
  * @returns {Promise<any[]>}
  */
-export const getStocktakeList = async () => {
-  const res = await query(
-    `SELECT
+export const getStocktakeList = async (allowedWarehouseIds?: number[]) => {
+  let sql = `SELECT
        s.id,
        s.warehouse_id,
        s.status,
@@ -105,9 +104,14 @@ export const getStocktakeList = async () => {
        (SELECT COUNT(*) FROM stocktake_items WHERE stocktake_id = s.id) AS items_count
      FROM stocktakes s
      JOIN warehouses w ON s.warehouse_id = w.id
-     JOIN users u ON s.created_by = u.id
-     ORDER BY s.created_at DESC`,
-  );
+     JOIN users u ON s.created_by = u.id`;
+  const params: any[] = [];
+  if (allowedWarehouseIds && allowedWarehouseIds.length > 0) {
+    sql += ` WHERE s.warehouse_id = ANY($1::int[])`;
+    params.push(allowedWarehouseIds);
+  }
+  sql += ` ORDER BY s.created_at DESC`;
+  const res = await query(sql, params);
   return res.rows;
 };
 
@@ -115,7 +119,10 @@ export const getStocktakeList = async () => {
  * جلب تفاصيل عملية جرد محددة مع بنودها
  */
 /** جلب تفاصيل جرد (الأصناف والكميات الفعلية). */
-export const getStocktakeDetails = async (stocktakeId: number | string) => {
+export const getStocktakeDetails = async (
+  stocktakeId: number | string,
+  allowedWarehouseIds?: number[],
+) => {
   const stocktakeRes = await query(
     `SELECT
        s.id,
@@ -138,6 +145,12 @@ export const getStocktakeDetails = async (stocktakeId: number | string) => {
 
   if (!stocktakeRes.rows[0]) {
     throw new AppError('عملية الجرد المطلوبة غير موجودة', 404);
+  }
+
+  if (allowedWarehouseIds && allowedWarehouseIds.length > 0) {
+    if (!allowedWarehouseIds.includes(Number(stocktakeRes.rows[0].warehouse_id))) {
+      throw new AppError('غير مصرح لك بالوصول لبيانات جرد هذا المخزن', 403);
+    }
   }
 
   const itemsRes = await query(
@@ -177,6 +190,7 @@ export const getStocktakeDetails = async (stocktakeId: number | string) => {
 export const updateStocktakeItems = async (
   stocktakeId: number | string,
   data: Record<string, any>,
+  allowedWarehouseIds?: number[],
 ) => {
   const { items = [], notes } = data;
   const client = await getClient();
@@ -186,10 +200,17 @@ export const updateStocktakeItems = async (
 
     // التحقق من حالة الجرد
     const stocktakeRes = await client.query(
-      `SELECT status FROM stocktakes WHERE id = $1 FOR UPDATE`,
+      `SELECT id, warehouse_id, status FROM stocktakes WHERE id = $1 FOR UPDATE`,
       [stocktakeId],
     );
     if (!stocktakeRes.rows[0]) throw new AppError('عملية الجرد غير موجودة', 404);
+
+    if (allowedWarehouseIds && allowedWarehouseIds.length > 0) {
+      if (!allowedWarehouseIds.includes(Number(stocktakeRes.rows[0].warehouse_id))) {
+        throw new AppError('غير مصرح لك بتعديل جرد هذا المخزن', 403);
+      }
+    }
+
     if (stocktakeRes.rows[0].status !== 'draft') {
       throw new AppError('لا يمكن تعديل بنود عملية جرد تم اعتمادها وتسويتها', 400);
     }
@@ -252,7 +273,11 @@ export const updateStocktakeItems = async (
  * @param {number} userId معرف المستخدم المنفّذ
  * @returns {Promise<any>}
  */
-export const completeStocktake = async (stocktakeId: number | string, userId: number) => {
+export const completeStocktake = async (
+  stocktakeId: number | string,
+  userId: number,
+  allowedWarehouseIds?: number[],
+) => {
   const client = await getClient();
   try {
     await client.query('BEGIN');
@@ -264,6 +289,12 @@ export const completeStocktake = async (stocktakeId: number | string, userId: nu
     if (!stocktakeRes.rows[0]) throw new AppError('عملية الجرد غير موجودة', 404);
 
     const stocktake = stocktakeRes.rows[0];
+
+    if (allowedWarehouseIds && allowedWarehouseIds.length > 0) {
+      if (!allowedWarehouseIds.includes(Number(stocktake.warehouse_id))) {
+        throw new AppError('غير مصرح لك باعتماد جرد هذا المخزن', 403);
+      }
+    }
     if (stocktake.status !== 'draft') {
       throw new AppError('عملية الجرد معتمدة ومسواة بالفعل', 400);
     }
@@ -424,17 +455,26 @@ export const completeStocktake = async (stocktakeId: number | string, userId: nu
 };
 
 /** حذف جرد (المسودة فقط) — داخل معاملة مع قفل لمنع سباق الاعتماد المتزامن. */
-export const deleteStocktake = async (stocktakeId: number | string) => {
+export const deleteStocktake = async (
+  stocktakeId: number | string,
+  allowedWarehouseIds?: number[],
+) => {
   const client = await getClient();
   try {
     await client.query('BEGIN');
     const stocktakeRes = await client.query(
-      `SELECT status FROM stocktakes WHERE id = $1 FOR UPDATE`,
+      `SELECT id, warehouse_id, status FROM stocktakes WHERE id = $1 FOR UPDATE`,
       [stocktakeId],
     );
 
     if (!stocktakeRes.rows[0]) {
       throw new AppError('عملية الجرد غير موجودة', 404);
+    }
+
+    if (allowedWarehouseIds && allowedWarehouseIds.length > 0) {
+      if (!allowedWarehouseIds.includes(Number(stocktakeRes.rows[0].warehouse_id))) {
+        throw new AppError('غير مصرح لك بحذف جرد هذا المخزن', 403);
+      }
     }
 
     if (stocktakeRes.rows[0].status !== 'draft') {

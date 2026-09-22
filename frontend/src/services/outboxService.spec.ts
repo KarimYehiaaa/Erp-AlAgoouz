@@ -91,4 +91,46 @@ describe('OutboxService offline/online synchronization', () => {
       last_error: 'invalid sale',
     });
   });
+
+  it('does NOT quarantine on 401 Unauthorized and pauses sync for re-auth', async () => {
+    const authError = Object.assign(new Error('Session expired'), { status: 401 });
+    mocks.localDb.getOfflineSales
+      .mockResolvedValueOnce([sale])
+      .mockResolvedValueOnce([sale])
+      .mockResolvedValueOnce([{ ...sale, sync_status: 'FAILED' }]);
+    mocks.createSale.mockRejectedValue(authError);
+
+    await expect(OutboxService.processOutbox()).resolves.toEqual({
+      syncedCount: 0,
+      failedCount: 1,
+      remainingCount: 1,
+      quarantinedCount: 0,
+    });
+    expect(mocks.localDb.updateOfflineSale).toHaveBeenLastCalledWith(sale.offline_id, {
+      sync_status: 'FAILED',
+      retry_count: 1,
+      last_error: 'انتهت صلاحية الجلسة (يرجى تسجيل الدخول مجدداً)',
+    });
+  });
+
+  it('does NOT quarantine on 409 Conflict', async () => {
+    const conflictError = Object.assign(new Error('Duplicate transaction'), { status: 409 });
+    mocks.localDb.getOfflineSales
+      .mockResolvedValueOnce([sale])
+      .mockResolvedValueOnce([sale])
+      .mockResolvedValueOnce([{ ...sale, sync_status: 'FAILED' }]);
+    mocks.createSale.mockRejectedValue(conflictError);
+
+    await expect(OutboxService.processOutbox()).resolves.toEqual({
+      syncedCount: 0,
+      failedCount: 1,
+      remainingCount: 1,
+      quarantinedCount: 0,
+    });
+    expect(mocks.localDb.updateOfflineSale).toHaveBeenLastCalledWith(sale.offline_id, {
+      sync_status: 'FAILED',
+      retry_count: 1,
+      last_error: 'Duplicate transaction',
+    });
+  });
 });

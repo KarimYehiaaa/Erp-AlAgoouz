@@ -80,7 +80,13 @@ router.delete(
 );
 
 // ─── Stocktake & Reconciliation ───────────────────────────────────────────────
-router.get('/stocktakes', authenticate, authorize('inventory.view'), api.stocktake.list);
+router.get(
+  '/stocktakes',
+  authenticate,
+  authorize('inventory.view'),
+  enforceWarehouseAccess,
+  api.stocktake.list,
+);
 router.post(
   '/stocktakes',
   authenticate,
@@ -90,11 +96,18 @@ router.post(
   auditLog('stocktake_create', 'inventory'),
   api.stocktake.create,
 );
-router.get('/stocktakes/:id', authenticate, authorize('inventory.view'), api.stocktake.get);
+router.get(
+  '/stocktakes/:id',
+  authenticate,
+  authorize('inventory.view'),
+  enforceWarehouseAccess,
+  api.stocktake.get,
+);
 router.put(
   '/stocktakes/:id/items',
   authenticate,
   authorize('inventory.edit'),
+  enforceWarehouseAccess,
   validateBody(stocktakeUpdateSchema),
   api.stocktake.updateItems,
 );
@@ -102,6 +115,7 @@ router.post(
   '/stocktakes/:id/complete',
   authenticate,
   authorize('inventory.add'),
+  enforceWarehouseAccess,
   auditLog('stocktake_complete', 'inventory'),
   api.stocktake.complete,
 );
@@ -109,6 +123,7 @@ router.delete(
   '/stocktakes/:id',
   authenticate,
   authorize('inventory.delete'),
+  enforceWarehouseAccess,
   auditLog('stocktake_delete', 'inventory'),
   api.stocktake.delete,
 );

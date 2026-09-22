@@ -258,7 +258,7 @@ export class WorkflowGraphService {
           (9, 'trigger', 'Cashier Report Import',  'استيراد تقرير الكاشير',   'sales',     '{"icon": "upload", "color": "#6b7280", "rule": "RULE_3_CASHIER"}'::jsonb,  -420, 220),
           (10, 'action', 'Direct Stock Deduction',  'خصم مخزون مباشر',         'inventory', '{"icon": "minus-circle", "color": "#14b8a6"}'::jsonb, 0,  -220),
           (11, 'action', 'Recipe Calculation',      'حساب الوصفات والتفكيك',   'production','{"icon": "calculator", "color": "#f97316"}'::jsonb,   0,    0),
-          (12, 'action', 'Branch Stock Update',     'تحديث مخزون الفرع',       'inventory', '{"icon": "refresh-cw", "color": "#0ea5e9"}'::jsonb,  220,  220)
+          (12, 'action', 'Warehouse Stock Update',  'تحديث مخزون المخزن',      'inventory', '{"icon": "refresh-cw", "color": "#0ea5e9"}'::jsonb,  220,  220)
         ON CONFLICT DO NOTHING;
 
         SELECT setval('workflows_nodes_id_seq', (SELECT MAX(id) FROM workflows_nodes));
@@ -269,7 +269,7 @@ export class WorkflowGraphService {
           (8, 10, 'sale_type = wholesale', 'جملة → خصم مباشر'),
           (9, 11, 'sale_type = cashier_import', 'يمر عبر محرك الوصفات إلزامياً'),
           (11, 3, NULL, 'تفكيك وصفات ثم خصم'),
-          (3, 12, NULL, 'تحديث رصيد الفرع'),
+          (3, 12, NULL, 'تحديث رصيد المخزن'),
           (2, 6, 'on_low_stock', 'تنبيه نقص'),
           (6, 4, 'always', 'إشعار تليجرام'),
           (4, 5, 'command = /ai', 'استعلام ذكي'),
@@ -410,8 +410,11 @@ export class WorkflowGraphService {
     const aliases: Record<string, string> = {
       daily_summary: 'daily_sales_report',
       daily_summary_report: 'daily_sales_report',
-      branch_stock_balancing: 'branch_balancing',
-      branch_stock_rebalance: 'branch_balancing',
+      warehouse_stock_balancing: 'warehouse_balancing',
+      warehouse_stock_rebalance: 'warehouse_balancing',
+      // توافق رجعي مع قواعد الأتمتة المحفوظة قبل توحيد نموذج المحل الواحد.
+      branch_stock_balancing: 'warehouse_balancing',
+      branch_stock_rebalance: 'warehouse_balancing',
     };
     const canonicalKey = aliases[key] || key;
     const supportedKeys = new Set([
@@ -419,7 +422,7 @@ export class WorkflowGraphService {
       'low_stock_alert',
       'void_invoice_alert',
       'anti_fraud_sentinel',
-      'branch_balancing',
+      'warehouse_balancing',
       'system_health',
       'daily_backup_reminder',
     ]);
@@ -593,10 +596,11 @@ ${fraudList}
 ⏱ <i>توقيت الرصد: ${new Date().toLocaleTimeString('ar-EG', { timeZone: 'Africa/Cairo' })}</i>
           `.trim();
         }
-      } else if (canonicalKey === 'branch_balancing') {
-        title = 'إعادة توازن مخزون الفروع';
-        const { default: BranchBalancingService } = await import('./branchBalancingService.ts');
-        const bal = await BranchBalancingService.generateBalancingRecommendations();
+      } else if (canonicalKey === 'warehouse_balancing') {
+        title = 'إعادة توازن مخزون المخازن';
+        const { default: WarehouseBalancingService } =
+          await import('./warehouseBalancingService.ts');
+        const bal = await WarehouseBalancingService.generateBalancingRecommendations();
         notificationText = bal.htmlReport;
       } else if (canonicalKey === 'system_health' || canonicalKey === 'daily_backup_reminder') {
         title = 'فحص سلامة النظام والنسخ الاحتياطي';

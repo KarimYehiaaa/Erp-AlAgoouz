@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { query, getClient } from '../src/database/pool.ts';
 import { createDailySale } from '../src/services/salesService.ts';
-import { getAllowedWarehouses } from '../src/middleware/branchIsolation.ts';
+import { getAllowedWarehouses } from '../src/middleware/warehouseAccess.ts';
 import { randomUUID } from 'node:crypto';
 
-describe('POS Branch Isolation & Batch Sync Security (Items 24, 25, 26)', () => {
+describe('POS Warehouse Access & Batch Sync Security (Items 24, 25, 26)', () => {
   let adminUserId: number;
   let cashierUserId: number;
   let allowedWarehouseId: number;
@@ -23,7 +23,7 @@ describe('POS Branch Isolation & Batch Sync Security (Items 24, 25, 26)', () => 
 
     const w2 = await query(`SELECT id FROM warehouses WHERE id <> $1 AND deleted_at IS NULL LIMIT 1`, [allowedWarehouseId]);
     if (w2.rows.length === 0) {
-      const insW2 = await query(`INSERT INTO warehouses (name, name_ar, code) VALUES ('Branch 2', 'فرع 2', 'WH-BR2') RETURNING id`);
+      const insW2 = await query(`INSERT INTO warehouses (name, name_ar, code) VALUES ('Storage 2', 'مخزن 2', 'WH-ST2') RETURNING id`);
       forbiddenWarehouseId = insW2.rows[0].id;
     } else {
       forbiddenWarehouseId = w2.rows[0].id;
@@ -58,8 +58,8 @@ describe('POS Branch Isolation & Batch Sync Security (Items 24, 25, 26)', () => 
     );
     cashierUserId = cashierRes.rows[0].id;
 
-    // 4. In the single-branch model, access is assigned by warehouse only.
-    await query(`UPDATE users SET warehouse_id = $1, branch_id = 1 WHERE id = $2`, [allowedWarehouseId, cashierUserId]);
+    // 4. In the single-shop model, access is assigned by warehouse only.
+    await query(`UPDATE users SET warehouse_id = $1 WHERE id = $2`, [allowedWarehouseId, cashierUserId]);
 
     // 5. Create or get test product with stock in both warehouses
     const pRes = await query(`SELECT id FROM products WHERE deleted_at IS NULL LIMIT 1`);
@@ -82,7 +82,7 @@ describe('POS Branch Isolation & Batch Sync Security (Items 24, 25, 26)', () => 
     );
   });
 
-  it('resolves only warehouses assigned to the cashier branch', async () => {
+  it('resolves only warehouses assigned to the cashier', async () => {
     const allowed = await getAllowedWarehouses(cashierUserId);
     expect(allowed).toContain(allowedWarehouseId);
     expect(allowed).not.toContain(forbiddenWarehouseId);

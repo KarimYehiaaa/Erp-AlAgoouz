@@ -3,7 +3,7 @@ import { query, getClient } from '../database/pool.ts';
 import { AppError } from '../types/errors.ts';
 import { getOpeningBalance } from './openingBalanceService.ts';
 import { encrypt } from '../utils/crypto.ts';
-import { clearWarehouseCache } from '../middleware/branchIsolation.ts';
+import { clearWarehouseCache } from '../middleware/warehouseAccess.ts';
 import { appCache } from '../utils/cache.ts';
 const getUsers = async () =>
   (

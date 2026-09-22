@@ -1,5 +1,5 @@
 /**
- * middleware/branchIsolation.ts — عزل مخازن الفرع الواحد
+ * middleware/warehouseAccess.ts — عزل المخازن داخل المحل الواحد
  * يتحقق من أن المستخدم لديه صلاحية الوصول للمخزن المطلوب داخل المحل.
  * يمنع هجمات IDOR (Insecure Direct Object Reference) حيث يمكن
  * لمستخدم الوصول لمخزن غير المخصص له عبر تغيير warehouse_id.
@@ -68,7 +68,7 @@ export async function getAllowedWarehouses(userId: number): Promise<number[]> {
 }
 
 /**
- * Middleware للتحقق من صلاحية الوصول للمخزن/الفرع.
+ * Middleware للتحقق من صلاحية الوصول للمخزن داخل المحل.
  * يُستخدم في مسارات المخزون والمبيعات والجرد.
  *
  * @example
@@ -91,7 +91,7 @@ export const enforceWarehouseAccess = async (req: Request, res: Response, next: 
     const userId = (req as any).user?.id || (req as any).user?.userId;
     const allowed = await getAllowedWarehouses(userId);
 
-    // في الفرع الواحد: لا نحقن مخزناً عند وجود أكثر من مخزن في طلب قراءة؛
+    // في المحل الواحد: لا نحقن مخزناً عند وجود أكثر من مخزن في طلب قراءة؛
     // أما العمليات الكتابية فتستخدم المخزن الافتراضي عند غياب التحديد.
     if (!warehouseId) {
       if (allowed.length === 1) {

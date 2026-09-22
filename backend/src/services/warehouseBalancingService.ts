@@ -1,6 +1,6 @@
 /**
- * services/branchBalancingService.ts — خوارزمية المناقلات الذكية وتوازن مخزون الفروع
- * تحلل معدل سحب ومبيعات المنتجات في كل فرع وتقترح مناقلات فورية لمنع الركود ونفاد المخزون.
+ * services/warehouseBalancingService.ts — خوارزمية المناقلات الذكية بين مخازن المحل
+ * تحلل معدل السحب ومبيعات المنتجات في كل مخزن وتقترح مناقلات لمنع الركود ونفاد المخزون.
  */
 
 import { query } from '../database/pool.ts';
@@ -17,15 +17,15 @@ export interface TransferRecommendation {
   reason: string;
 }
 
-export class BranchBalancingService {
+export class WarehouseBalancingService {
   /**
-   * توليد تقرير وتحليل مقترحات المناقلات بين الفروع
+   * توليد تقرير وتحليل مقترحات المناقلات بين المخازن
    */
   static async generateBalancingRecommendations(): Promise<{
     recommendations: TransferRecommendation[];
     htmlReport: string;
   }> {
-    // 1. جلب الفروع والمستودعات النشطة
+    // 1. جلب مواقع التخزين النشطة داخل المحل
     const whRes = await query(
       `SELECT id, name_ar, type FROM warehouses WHERE deleted_at IS NULL AND is_active = TRUE ORDER BY id ASC`,
     );
@@ -41,7 +41,7 @@ export class BranchBalancingService {
       };
     }
 
-    // 2. حساب مبيعات آخر 14 يوماً لكل منتج في كل فرع
+    // 2. حساب مبيعات آخر 14 يوماً لكل منتج في كل مخزن
     const salesVelocityRes = await query(`
       SELECT
         s.warehouse_id,
@@ -57,7 +57,7 @@ export class BranchBalancingService {
       GROUP BY s.warehouse_id, si.product_id, p.name_ar, p.unit
     `);
 
-    // 3. جلب المخزون الفعلي الحالي لكل منتج في كل فرع
+    // 3. جلب المخزون الفعلي الحالي لكل منتج في كل مخزن
     const stockRes = await query(`
       SELECT
         p.id as product_id,
@@ -99,11 +99,11 @@ export class BranchBalancingService {
 
     const recommendations: TransferRecommendation[] = [];
 
-    // مطابقة الفروع ذات الفائض مع الفروع ذات العجز
+    // مطابقة المخازن ذات الفائض مع المخازن ذات العجز
     for (const [prodId, whList] of productStockByWh.entries()) {
-      // فروع العجز: المخزون يكفي أقل من 3 أيام مع وجود سحب نشط
+      // مخازن العجز: المخزون يكفي أقل من 3 أيام مع وجود سحب نشط
       const deficits = whList.filter((w) => w.velocity > 0.3 && w.daysSupply < 3);
-      // فروع الفائض: المخزون يكفي أكثر من 15 يوم ولديه رصيد كافي للنقل
+      // مخازن الفائض: المخزون يكفي أكثر من 15 يوم ولديه رصيد كافٍ للنقل
       const surpluses = whList.filter((w) => w.daysSupply > 15 && w.stock > 5);
 
       for (const def of deficits) {
@@ -169,4 +169,4 @@ ${listText}
   }
 }
 
-export default BranchBalancingService;
+export default WarehouseBalancingService;

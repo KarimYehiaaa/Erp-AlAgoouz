@@ -25,7 +25,7 @@ import {
   resolveSaleWarehouseId,
   restoreInventoryForSale,
 } from './saleInventoryOps.ts';
-import { getAllowedWarehouses } from '../middleware/branchIsolation.ts';
+import { getAllowedWarehouses } from '../middleware/warehouseAccess.ts';
 import { ADMIN_ROLES } from '../../../shared/permissions.js';
 
 const generateNumber = async (client, prefix, settingKey) => {

@@ -1,7 +1,7 @@
 import * as invoiceService from '../services/invoiceService.ts';
 import * as invoicePdfService from '../services/invoicePdfService.ts';
 import { ok, wrap } from './helper.ts';
-import { getAllowedWarehouses } from '../middleware/branchIsolation.ts';
+import { getAllowedWarehouses } from '../middleware/warehouseAccess.ts';
 import { WAREHOUSE_GLOBAL_ROLES } from '../../../shared/permissions.js';
 import { AppError } from '../types/errors.ts';
 

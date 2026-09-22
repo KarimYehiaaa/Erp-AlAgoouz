@@ -8,7 +8,7 @@ import { Router } from 'express';
 import { authenticate, authorize, auditLog } from '../middleware/auth.ts';
 import { requireConfirmation } from '../middleware/confirmAction.ts';
 import { validateBody, validateQuery } from '../middleware/validate.ts';
-import { enforceWarehouseAccess } from '../middleware/branchIsolation.ts';
+import { enforceWarehouseAccess } from '../middleware/warehouseAccess.ts';
 import { upload } from './helpers.ts';
 import {
   commonQuerySchema,

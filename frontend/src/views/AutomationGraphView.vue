@@ -487,7 +487,7 @@
               </div>
               <div class="rule-card">
                 <strong>3. استيراد الكاشير:</strong> يمر إلزامياً عبر محرك الوصفات قبل تعديل رصيد
-                الفرع.
+                المخزن.
               </div>
             </div>
 
@@ -769,7 +769,7 @@ const DEFAULT_TASKS: AutomationTask[] = [
   },
   {
     id: 4,
-    key: 'branch_balancing',
+    key: 'warehouse_balancing',
     name_ar: 'إعادة توازن مخزون المحل ونقل البضاعة',
     description_ar: 'تحليل معدل السحب في المخازن واقتراح تحويلات ذكية قبل نفاد الرصيد.',
     category: 'inventory',
@@ -951,7 +951,7 @@ const DEFAULT_SEED_NODES: SimulationNode[] = [
   {
     id: 12,
     type: 'action',
-    label: 'Branch Stock Update',
+    label: 'Warehouse Stock Update',
     label_ar: 'تحديث مخزون المحل',
     group: 'inventory',
     settings: { icon: 'refresh-cw', color: '#0ea5e9' },

@@ -4,7 +4,7 @@ import { posShiftService } from '../services/posShiftService.ts';
 import { createDailySale } from '../services/salesService.ts';
 import { query } from '../database/pool.ts';
 import { issueManagerOverrideToken } from '../middleware/managerOverride.ts';
-import { getAllowedWarehouses } from '../middleware/branchIsolation.ts';
+import { getAllowedWarehouses } from '../middleware/warehouseAccess.ts';
 import { ADMIN_ROLES } from '../../../shared/permissions.js';
 
 const PIN_LOCKOUT_MINUTES = 15;

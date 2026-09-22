@@ -4,7 +4,7 @@
  */
 
 import TelegramService from './telegramService.ts';
-import BranchBalancingService from './branchBalancingService.ts';
+import WarehouseBalancingService from './warehouseBalancingService.ts';
 import { askCopilot } from './aiCopilotService.ts';
 import WorkflowGraphService from './workflowGraphService.ts';
 import db from '../database/pool.ts';
@@ -166,7 +166,7 @@ export class TelegramBotService {
 📊 <b>/مبيعات</b> — إجمالي مبيعات وأرباح اليوم الحية
 💵 <b>/خزينة</b> — النقدية المحصلة والمصروفات وصافي الدرج
 📦 <b>/نواقص</b> — قائمة الأصناف وخامات البن التي أوشكت على النفاد
-🔄 <b>/مناقلات</b> — اقتراحات إعادة توازن المخزون بين الفروع
+🔄 <b>/مناقلات</b> — اقتراحات إعادة توازن المخزون بين المخازن
 🖥️ <b>/سيرفر</b> — فحص حالة الخادم وقاعدة البيانات
 🤖 <b>/ai سؤالك</b> — استشر الذكاء الاصطناعي (Gemini) عن أي شيء
         `.trim();
@@ -295,15 +295,15 @@ export class TelegramBotService {
         return;
       }
 
-      // 5. أمر مناقلات الفروع الذكية
+      // 5. أمر مناقلات المخازن الذكية
       if (['balance', 'مناقلات', 'المناقلات', 'فروع', 'الفروع', 'توازن'].includes(normalized)) {
-        const bal = await BranchBalancingService.generateBalancingRecommendations();
+        const bal = await WarehouseBalancingService.generateBalancingRecommendations();
         await reply(bal.htmlReport);
         await WorkflowGraphService.logTelegramMessage({
           chat_id: String(chatId),
           direction: 'in',
           message: rawText,
-          automation_key: 'branch_balancing',
+          automation_key: 'warehouse_balancing',
         });
         return;
       }

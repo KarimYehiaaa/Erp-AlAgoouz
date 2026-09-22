@@ -59,6 +59,9 @@ jobs:
       - name: Source assets contain no stale build bundles
         run: node --test scripts/maintenance/source-assets.test.mjs
 
+      - name: Test database safety before any database setup
+        run: node --test backend/scripts/testDatabaseSafety.test.ts
+
       # الفحص الأمني الصارم للاعتماديات التشغيلية (npm audit --omit=dev)
       # يمنع أي ثغرات High/Critical في بيئة الإنتاج بدون أي continue-on-error.
       - name: Security Audit — Production Runtime (Central ERP)

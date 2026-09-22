@@ -14,6 +14,7 @@ import { execSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { assertSafeTestDatabase } from './testDatabaseSafety.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const backendRoot = path.join(__dirname, '..');
@@ -47,6 +48,7 @@ const testEnv: NodeJS.ProcessEnv = {
 };
 
 try {
+  assertSafeTestDatabase({ host: testEnv.DB_HOST, database: testEnv.DB_NAME });
   console.log('⏳ تهيئة قاعدة الاختبارات المحلية المعزولة (bin_al_ajouz_test)...');
   execSync('node src/database/setup.ts', { cwd: backendRoot, stdio: 'inherit', env: testEnv });
   execSync('node scripts/migrate.ts', { cwd: backendRoot, stdio: 'inherit', env: testEnv });

@@ -18,6 +18,22 @@ it.skipIf(process.env.DB_NAME !== 'bin_al_ajouz_restore_test')(
       `UPDATE workflows_nodes SET settings = '[{"label":"اختبار"},1,true]'::jsonb WHERE id = (SELECT MIN(id) FROM workflows_nodes)`,
     );
     const marker = randomUUID();
+    // Historical movements stay in their original warehouse after routing changes.
+    const warehouses = await query('SELECT id FROM warehouses ORDER BY id LIMIT 2');
+    expect(warehouses.rows).toHaveLength(2);
+    const product = await query(
+      `INSERT INTO products (sku, name_ar, purchase_price, sale_price, primary_warehouse_id)
+       VALUES ($1, $2, 10, 15, $3) RETURNING id`,
+      [`restore-${marker}`, `اختبار حفظ حركة تاريخية ${marker}`, warehouses.rows[0].id],
+    );
+    await query(
+      `INSERT INTO stock_movements (product_id, to_warehouse_id, movement_type, quantity)
+       VALUES ($1, $2, 'production', 0.25)`,
+      [product.rows[0].id, warehouses.rows[0].id],
+    );
+    await query('UPDATE products SET primary_warehouse_id = $1 WHERE id = $2', [
+      warehouses.rows[1].id, product.rows[0].id,
+    ]);
     const documentCounter = Date.now();
     const entry = await query(
       `INSERT INTO journal_entries (entry_number, description, status)

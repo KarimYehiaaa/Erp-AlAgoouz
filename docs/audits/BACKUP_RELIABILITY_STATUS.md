@@ -26,6 +26,9 @@ Verified locally:
   The journal-counter regression passes after the fix.
 - Cloud uploads encrypt raw snapshots at the upload boundary, while preserving already
   encrypted backup envelopes. Upload payload verification uses a mocked transport.
+- A production movement followed by a product primary-warehouse change is included in
+  the restore drill. Restore preserves the historical destination rather than rewriting it
+  to the current warehouse. The previous restore code failed this exact-record comparison.
 
 Still required before declaring disaster recovery ready:
 

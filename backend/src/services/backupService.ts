@@ -266,14 +266,6 @@ export const restoreBackup = async (name: string) => {
   const restoreTables = RESTORE_ORDER.filter(
     (t) => ALLOWED_RESTORE_TABLES.has(t) && Object.prototype.hasOwnProperty.call(data, t),
   );
-  // build helper maps from backup data to fix business-rule-sensitive rows during restore
-  const productPrimaryMap = new Map();
-  if (Array.isArray(data.products)) {
-    for (const p of data.products) {
-      if (p && typeof p.id !== 'undefined')
-        productPrimaryMap.set(p.id, p.primary_warehouse_id || null);
-    }
-  }
   const client = await getClient();
   try {
     await client.query('BEGIN');
@@ -308,14 +300,7 @@ export const restoreBackup = async (name: string) => {
       const cols = Object.keys(rows[0]).filter((c) => /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(c));
       const colList = cols.map((c) => `"${c}"`).join(',');
       for (const row of rows) {
-        // Fix production output movements to use product primary warehouse if present
-        if (table === 'stock_movements' && row && row.movement_type === 'production') {
-          const prodId = row.product_id;
-          const primaryWh = productPrimaryMap.get(prodId);
-          if (primaryWh && row.to_warehouse_id !== primaryWh) {
-            row.to_warehouse_id = primaryWh;
-          }
-        }
+        // Restore history exactly: current product routing must not rewrite past movements.
         const vals = cols.map((c) =>
           jsonColumns.has(c) && row[c] !== null ? JSON.stringify(row[c]) : row[c],
         );

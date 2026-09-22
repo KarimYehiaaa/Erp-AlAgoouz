@@ -96,7 +96,7 @@ export default async function handler(req: any, res: any) {
   console.log('[Vercel Route] Final req.url:', req.url);
 
   try {
-    return app(req, res);
+    return await app(req, res);
   } catch (err: any) {
     console.error('❌ [Vercel Serverless Error]:', err);
     if (!res.headersSent) {

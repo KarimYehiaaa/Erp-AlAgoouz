@@ -34,21 +34,21 @@ const salesCreateAuth = authorize('pos.add', 'sales.add', 'invoices.add');
 const salesEditAuth = authorize('pos.edit', 'sales.edit', 'invoices.edit');
 const salesDeleteAuth = authorize('pos.delete', 'sales.delete');
 
-// ─── Branch Sales Excel ───────────────────────────────────────────────────────
-router.get('/sales/branch/template', authenticate, authorize('pos.view'), api.sales.branchTemplate);
+// Existing POS Excel URLs remain stable for already-installed clients.
+router.get('/sales/branch/template', authenticate, authorize('pos.view'), api.sales.posTemplate);
 router.post(
   '/sales/branch/validate',
   authenticate,
   authorize('pos.add'),
   upload.single('file'),
-  api.sales.branchValidateExcel,
+  api.sales.posValidateExcel,
 );
 router.post(
   '/sales/branch/import',
   authenticate,
   authorize('pos.add'),
   upload.single('file'),
-  api.sales.branchImportExcel,
+  api.sales.posImportExcel,
 );
 
 // ─── Sales — مبيعات يومية (فرع / جملة) ──────────────────────────────────────

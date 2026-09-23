@@ -246,7 +246,7 @@
       :excel-details="excelDetails"
       :today-str="todayStr"
       :format-money="formatMoney"
-      @download="downloadBranchTemplate"
+      @download="downloadPosTemplate"
       @validate="onValidateExcel"
       @import="onImportExcel"
     />
@@ -524,11 +524,11 @@ import { onMounted } from 'vue';
 import StatCard from '@/components/StatCard.vue';
 import AppIcon from '@/components/AppIcon.vue';
 import SkeletonLoader from '@/components/SkeletonLoader.vue';
-import ProductsPanel from '@/components/branch/ProductsPanel.vue';
-import CartPanel from '@/components/branch/CartPanel.vue';
-import ExcelMode from '@/components/branch/ExcelMode.vue';
-import ShiftModals from '@/components/branch/ShiftModals.vue';
-import ManagerPinModal from '@/components/branch/ManagerPinModal.vue';
+import ProductsPanel from '@/components/pos/ProductsPanel.vue';
+import CartPanel from '@/components/pos/CartPanel.vue';
+import ExcelMode from '@/components/pos/ExcelMode.vue';
+import ShiftModals from '@/components/pos/ShiftModals.vue';
+import ManagerPinModal from '@/components/pos/ManagerPinModal.vue';
 import { formatMoney } from '@/utils/currency';
 import { usePosSales } from '@/composables/usePosSales';
 import { usePosShift } from '@/composables/usePosShift';
@@ -613,7 +613,7 @@ const {
   statusBadge,
   paymentLabel,
   paymentBadge,
-  downloadBranchTemplate,
+  downloadPosTemplate,
   onValidateExcel,
   onImportExcel,
   openCountsModal,

@@ -317,14 +317,6 @@
           </div>
         </section>
 
-        <!-- Branch Liquidity Battery Indicators -->
-        <BranchLiquidity
-          v-if="stats && widgetVisibility.branchLiquidity"
-          :branches="branchLiquidityList"
-          :format-money="formatMoney"
-          class="mt-4"
-        />
-
         <!-- الرسوم البيانية الإضافية المتقدمة لـ (أعلى المنتجات، أعلى العملاء، وساعات الذروة) -->
         <section v-if="widgetVisibility.indicatorCharts" class="analytics-grid mt-4">
           <article class="panel chart-panel">
@@ -478,10 +470,6 @@
                 <input type="checkbox" v-model="widgetVisibility.forecastingChart" />
                 <span class="control-label">مخطط التنبؤ الذكي بالطلب (AI Forecast)</span>
               </label>
-              <label class="toggle-control">
-                <input type="checkbox" v-model="widgetVisibility.branchLiquidity" />
-                <span class="control-label">مؤشر سيولة المحل</span>
-              </label>
             </div>
           </div>
         </div>
@@ -505,7 +493,6 @@ import DashboardPriorityAlerts from '@/components/dashboard/DashboardPriorityAle
 import DashboardAIInsights from '@/components/dashboard/DashboardAIInsights.vue';
 import DashboardMenuMatrix from '@/components/dashboard/DashboardMenuMatrix.vue';
 import DashboardHealthPulse from '@/components/dashboard/DashboardHealthPulse.vue';
-import BranchLiquidity from '@/components/dashboard/BranchLiquidity.vue';
 import DashboardSalesHeatmap from '@/components/dashboard/DashboardSalesHeatmap.vue';
 import DashboardOperationalRadar from '@/components/dashboard/DashboardOperationalRadar.vue';
 import DashboardTopItemsRace from '@/components/dashboard/DashboardTopItemsRace.vue';
@@ -527,8 +514,6 @@ const loadChartLib = async () => {
 };
 
 const stats = ref<any>(null);
-// بيانات مؤشر السيولة للفروع — تُملأ من stats عند توفرها (القسم يعرض فارغًا حاليًا)
-const branchLiquidityList = ref<any[]>([]);
 const loading = ref(true);
 const error = ref('');
 const selectedRange = ref('month');
@@ -595,13 +580,19 @@ const widgetVisibility = ref({
   indicatorCharts: true,
   alertsTables: true,
   forecastingChart: true,
-  branchLiquidity: true,
 });
 
 const savedWidgets = localStorage.getItem('dashboard_widgets');
 if (savedWidgets) {
   try {
-    Object.assign(widgetVisibility.value, JSON.parse(savedWidgets));
+    const parsed = JSON.parse(savedWidgets);
+    if (parsed && typeof parsed === 'object') {
+      for (const key of Object.keys(widgetVisibility.value) as Array<
+        keyof typeof widgetVisibility.value
+      >) {
+        if (typeof parsed[key] === 'boolean') widgetVisibility.value[key] = parsed[key];
+      }
+    }
   } catch {
     // تجاهل: JSON غير صالح من localStorage
   }

@@ -983,10 +983,10 @@ export function usePosSales() {
   ];
 
   // ─── Excel ──────────────────────────────────────────────────────────────────
-  const downloadBranchTemplate = async () => {
+  const downloadPosTemplate = async () => {
     downloadingTemplate.value = true;
     try {
-      const blob = (await salesApi.downloadBranchTemplate()) as unknown as Blob;
+      const blob = (await salesApi.downloadPosTemplate()) as unknown as Blob;
       const url = URL.createObjectURL(new Blob([blob]));
       const a = document.createElement('a');
       a.href = url;
@@ -1005,7 +1005,7 @@ export function usePosSales() {
     excelErr.value = false;
     excelDetails.value = [];
     try {
-      const res = await salesApi.branchValidateExcel(file);
+      const res = await salesApi.posValidateExcel(file);
       const d = res.data;
       excelMsg.value = d.ok
         ? ` الملف سليم: ${d.itemCount} منتج في ${d.groupCount} فاتورة جاهزة للاستيراد`
@@ -1028,7 +1028,7 @@ export function usePosSales() {
     excelErr.value = false;
     excelDetails.value = [];
     try {
-      const res = await salesApi.branchImportExcel(file);
+      const res = await salesApi.posImportExcel(file);
       const d = res.data;
       excelMsg.value =
         ` تم استيراد ${d.success} فاتورة (${d.itemsImported || 0} منتج)` +
@@ -1216,7 +1216,7 @@ export function usePosSales() {
     statusBadge,
     paymentLabel,
     paymentBadge,
-    downloadBranchTemplate,
+    downloadPosTemplate,
     onValidateExcel,
     onImportExcel,
     onInventoryUpdated,

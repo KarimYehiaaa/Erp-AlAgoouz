@@ -18,7 +18,7 @@ export const sales = {
     const res = await api.get('/sales/template', { responseType: 'blob' });
     return res instanceof Blob ? res : res.data;
   },
-  downloadBranchTemplate: async () => {
+  downloadPosTemplate: async () => {
     const res = await api.get('/sales/branch/template', { responseType: 'blob' });
     return res instanceof Blob ? res : res.data;
   },
@@ -35,14 +35,14 @@ export const sales = {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
   },
-  branchImportExcel: (file: File) => {
+  posImportExcel: (file: File) => {
     const form = new FormData();
     form.append('file', file);
     return api.post('/sales/branch/import', form, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
   },
-  branchValidateExcel: (file: File) => {
+  posValidateExcel: (file: File) => {
     const form = new FormData();
     form.append('file', file);
     return api.post('/sales/branch/validate', form, {

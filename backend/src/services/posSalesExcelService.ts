@@ -1,5 +1,5 @@
 /**
- * Branch sales Excel service.
+ * Point-of-sale Excel import service for the single shop.
  * Cleaned version with explicit headers and strict parsing.
  */
 import XLSX from 'xlsx';
@@ -136,7 +136,7 @@ const getStoreWarehouseId = async () => {
   return await getDefaultWarehouseId();
 };
 
-const fetchBranchProducts = async (warehouseId) => {
+const fetchPosProducts = async (warehouseId) => {
   const resolvedWarehouseId = Number(warehouseId) || (await getStoreWarehouseId());
   const res = await query(
     `SELECT p.id, p.sku, p.name_ar, p.sale_price, p.unit,
@@ -178,12 +178,12 @@ const buildHeaders = () => [
 ];
 
 /**
- * توليد قالب Excel لمبيعات الفرع.
+ * توليد قالب Excel لمبيعات نقطة البيع.
  * @param {number} warehouseId معرف المخزن
  * @returns {Promise<Buffer>}
  */
-export const buildBranchTemplate = async (warehouseId?: number) => {
-  const products = await fetchBranchProducts(warehouseId);
+export const buildPosTemplate = async (warehouseId?: number) => {
+  const products = await fetchPosProducts(warehouseId);
   const today = new Date();
   const todayStr = formatYmd(today.getFullYear(), today.getMonth() + 1, today.getDate());
 
@@ -207,7 +207,7 @@ export const buildBranchTemplate = async (warehouseId?: number) => {
 
   const ws = XLSX.utils.aoa_to_sheet(rows);
   ws['!cols'] = headers.map(() => ({ wch: 20 }));
-  XLSX.utils.book_append_sheet(wb, ws, 'branch_sales');
+  XLSX.utils.book_append_sheet(wb, ws, 'pos_sales');
 
   const wsHelp = XLSX.utils.aoa_to_sheet([
     ['تعليمات'],
@@ -250,16 +250,16 @@ const parseRow = (row, indices) => {
 };
 
 /**
- * تحليل ملف مبيعات الفرع وتحويله إلى صفوف بيانات.
+ * تحليل ملف مبيعات نقطة البيع وتحويله إلى صفوف بيانات.
  * @param {Buffer} buffer محتوى الملف
  * @param {number} warehouseId معرف المخزن
  * @returns {Promise<any[]>}
  */
-export const parseBranchSalesExcel = async (buffer: Buffer, warehouseId?: number) => {
+export const parsePosSalesExcel = async (buffer: Buffer, warehouseId?: number) => {
   const wb = readSafeWorkbook(buffer, { cellDates: true });
   const sheet = wb.Sheets[wb.SheetNames[0]];
   const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' }) as any[][];
-  if (rows.length < 2) throw new AppError('ملف مبيعات الفرع فارغ', 400);
+  if (rows.length < 2) throw new AppError('ملف مبيعات نقطة البيع فارغ', 400);
 
   const headerRowIdx = resolveHeaderRow(rows);
   if (headerRowIdx === -1) throw new AppError('لم يتم العثور على صف العناوين', 400);
@@ -285,7 +285,7 @@ export const parseBranchSalesExcel = async (buffer: Buffer, warehouseId?: number
     throw new AppError('الأعمدة الأساسية غير مكتملة', 400);
   }
 
-  const products = await fetchBranchProducts(warehouseId);
+  const products = await fetchPosProducts(warehouseId);
   const productMap = new Map(products.map((p) => [String(p.sku).trim().toLowerCase(), p]));
 
   const groups = new Map();
@@ -299,7 +299,7 @@ export const parseBranchSalesExcel = async (buffer: Buffer, warehouseId?: number
       const parsed = parseRow(row, indices);
       const product = productMap.get(parsed.sku.toLowerCase());
       if (!product) {
-        errors.push({ row: i + 1, message: `المنتج ${parsed.sku} غير موجود في مخزون الفرع` });
+        errors.push({ row: i + 1, message: `المنتج ${parsed.sku} غير موجود في مخزون المحل` });
         continue;
       }
 
@@ -329,13 +329,13 @@ export const parseBranchSalesExcel = async (buffer: Buffer, warehouseId?: number
 };
 
 /**
- * التحقق من صحة بنية ملف مبيعات الفرع.
+ * التحقق من صحة بنية ملف مبيعات نقطة البيع.
  * @param {Buffer} buffer محتوى الملف
  * @returns {Promise<{ valid: boolean, errors: string[] }>}
  */
-export const validateBranchExcel = async (buffer: Buffer) => {
+export const validatePosExcel = async (buffer: Buffer) => {
   const resolvedWarehouseId = (await getStoreWarehouseId()) ?? undefined;
-  const { groups, errors } = await parseBranchSalesExcel(buffer, resolvedWarehouseId);
+  const { groups, errors } = await parsePosSalesExcel(buffer, resolvedWarehouseId);
   const totalItems = groups.reduce((sum, group) => sum + group.items.length, 0);
   return {
     ok: totalItems > 0,
@@ -355,15 +355,15 @@ export const validateBranchExcel = async (buffer: Buffer) => {
 };
 
 /**
- * استيراد مبيعات الفرع من ملف Excel (تحليل + إنشاء المبيعات).
+ * استيراد مبيعات نقطة البيع من ملف Excel (تحليل + إنشاء المبيعات).
  * @param {Buffer} buffer محتوى الملف
  * @param {number} userId معرف المستخدم المنفّذ
  * @param {number} warehouseId معرف المخزن
  * @returns {Promise<{ created: number }>}
  */
-export const importBranchExcel = async (buffer: Buffer, userId: number, warehouseId?: number) => {
+export const importPosExcel = async (buffer: Buffer, userId: number, warehouseId?: number) => {
   const resolvedWarehouseId = Number(warehouseId) || ((await getStoreWarehouseId()) ?? 0);
-  const { groups, errors } = await parseBranchSalesExcel(buffer, resolvedWarehouseId);
+  const { groups, errors } = await parsePosSalesExcel(buffer, resolvedWarehouseId);
   const targetWarehouseId = resolvedWarehouseId;
   let success = 0;
   const failed: any[] = [];

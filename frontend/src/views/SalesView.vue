@@ -745,7 +745,7 @@ const showMonthlyImportResult = (d: any, isValidate = false) => {
 
 const downloadMonthlyTemplate = async () => {
   try {
-    const blob = await salesApi.downloadBranchTemplate();
+    const blob = await salesApi.downloadPosTemplate();
     const url = URL.createObjectURL(new Blob([blob]));
     const a = document.createElement('a');
     a.href = url;
@@ -765,7 +765,7 @@ const onValidateMonthly = async (file: File) => {
   monthlyImportErr.value = false;
   monthlyImportDetails.value = [];
   try {
-    const res = await salesApi.branchValidateExcel(file);
+    const res = await salesApi.posValidateExcel(file);
     showMonthlyImportResult(res.data, true);
   } catch (err: any) {
     monthlyImportErr.value = true;
@@ -786,12 +786,12 @@ const onImportMonthly = async (file: File) => {
   monthlyImportErr.value = false;
   monthlyImportDetails.value = [];
   try {
-    const validation = await salesApi.branchValidateExcel(file);
+    const validation = await salesApi.posValidateExcel(file);
     if (!validation?.data?.ok) {
       showMonthlyImportResult(validation.data, true);
       return;
     }
-    const res = await salesApi.branchImportExcel(file);
+    const res = await salesApi.posImportExcel(file);
     showMonthlyImportResult(res.data, false);
     await load();
   } catch (err: any) {

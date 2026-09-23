@@ -1,7 +1,7 @@
 import * as salesService from '../services/salesService.ts';
 import * as openingBalanceService from '../services/openingBalanceService.ts';
 import * as salesExcelService from '../services/salesExcelService.ts';
-import * as branchSalesExcelService from '../services/branchSalesExcelService.ts';
+import * as posSalesExcelService from '../services/posSalesExcelService.ts';
 import { getAllowedWarehouses } from '../middleware/warehouseAccess.ts';
 import { ADMIN_ROLES } from '../../../shared/permissions.js';
 import { AppError } from '../types/errors.ts';
@@ -148,13 +148,13 @@ const sales = {
     res.send(buf);
   }),
   /**
-   * تنزيل قالب استيراد مبيعات الفرع (Excel).
+   * تنزيل قالب استيراد مبيعات نقطة البيع (Excel).
    * @param {import('express').Request} req طلب HTTP
    * @param {import('express').Response} res استجابة HTTP
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
-  branchTemplate: wrap(async (_req, res) => {
-    const buf = await branchSalesExcelService.buildBranchTemplate();
+  posTemplate: wrap(async (_req, res) => {
+    const buf = await posSalesExcelService.buildPosTemplate();
     res.setHeader(
       'Content-Type',
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -163,26 +163,26 @@ const sales = {
     res.send(buf);
   }),
   /**
-   * التحقق من صحة ملف مبيعات الفرع المرفوع.
+   * التحقق من صحة ملف مبيعات نقطة البيع المرفوع.
    * @param {import('express').Request} req طلب HTTP
    * @param {import('express').Response} res استجابة HTTP
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
-  branchValidateExcel: wrap(async (req, res) => {
+  posValidateExcel: wrap(async (req, res) => {
     if (!req.file?.buffer) throw new AppError('يجب رفع ملف Excel', 400);
-    ok(res, await branchSalesExcelService.validateBranchExcel(req.file.buffer), 'تم فحص الملف');
+    ok(res, await posSalesExcelService.validatePosExcel(req.file.buffer), 'تم فحص الملف');
   }),
   /**
-   * استيراد مبيعات الفرع من ملف Excel.
+   * استيراد مبيعات نقطة البيع من ملف Excel.
    * @param {import('express').Request} req طلب HTTP
    * @param {import('express').Response} res استجابة HTTP
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
-  branchImportExcel: wrap(async (req, res) => {
+  posImportExcel: wrap(async (req, res) => {
     if (!req.file?.buffer) throw new AppError('يجب رفع ملف Excel', 400);
     ok(
       res,
-      await branchSalesExcelService.importBranchExcel(req.file.buffer, req.user.id),
+      await posSalesExcelService.importPosExcel(req.file.buffer, req.user.id),
       'تم الاستيراد',
     );
   }),

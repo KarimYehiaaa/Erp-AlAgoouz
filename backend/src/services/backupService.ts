@@ -321,6 +321,53 @@ export const restoreBackup = async (name: string) => {
       }
     }
 
+    // Replica mode bypasses FK triggers. Re-enabling them does not validate
+    // imported history, so check every declared FK before committing or resetting counters.
+    const foreignKeys = await client.query(
+      `SELECT c.conname, c.confmatchtype, child.relname AS child_table,
+              parent.relname AS parent_table, pn.nspname AS parent_schema,
+              array_agg(ca.attname::text ORDER BY k.ord) AS child_columns,
+              array_agg(pa.attname::text ORDER BY k.ord) AS parent_columns
+       FROM pg_constraint c
+       JOIN pg_class child ON child.oid = c.conrelid
+       JOIN pg_namespace cn ON cn.oid = child.relnamespace
+       JOIN pg_class parent ON parent.oid = c.confrelid
+       JOIN pg_namespace pn ON pn.oid = parent.relnamespace
+       CROSS JOIN LATERAL unnest(c.conkey, c.confkey) WITH ORDINALITY AS k(child_num, parent_num, ord)
+       JOIN pg_attribute ca ON ca.attrelid = child.oid AND ca.attnum = k.child_num
+       JOIN pg_attribute pa ON pa.attrelid = parent.oid AND pa.attnum = k.parent_num
+       WHERE c.contype = 'f' AND cn.nspname = 'public' AND child.relname = ANY($1::text[])
+       GROUP BY c.oid, c.conname, c.confmatchtype, child.relname, parent.relname, pn.nspname`,
+      [validRestoreTables],
+    );
+    const quoteIdentifier = (name: string) => `"${name.replace(/"/g, '""')}"`;
+    for (const fk of foreignKeys.rows) {
+      const columns: string[] = fk.child_columns;
+      const parentColumns: string[] = fk.parent_columns;
+      const nonNull = columns.map((col) => `child.${quoteIdentifier(col)} IS NOT NULL`);
+      // MATCH SIMPLE skips any null key; MATCH FULL permits only all-null keys.
+      const applies = nonNull.join(fk.confmatchtype === 'f' ? ' OR ' : ' AND ');
+      const equality = columns
+        .map(
+          (col, index) =>
+            `parent.${quoteIdentifier(parentColumns[index]!)} = child.${quoteIdentifier(col)}`,
+        )
+        .join(' AND ');
+      const invalid = await client.query(
+        `SELECT 1 FROM public.${quoteIdentifier(fk.child_table)} child
+         WHERE (${applies}) AND NOT EXISTS (
+           SELECT 1 FROM ${quoteIdentifier(fk.parent_schema)}.${quoteIdentifier(fk.parent_table)} parent
+           WHERE ${equality}
+         ) LIMIT 1`,
+      );
+      if (invalid.rows.length) {
+        throw new AppError(
+          `علاقة غير صالحة في النسخة الاحتياطية: ${fk.child_table} (${fk.conname})`,
+          400,
+        );
+      }
+    }
+
     // إعادة ضبط متسلسلات (Sequences) الجداول لقيمتها القصوى بعد الإدراج لمنع خطأ المفاتيح المكررة
     for (const table of validRestoreTables) {
       const idColumn = await client.query(

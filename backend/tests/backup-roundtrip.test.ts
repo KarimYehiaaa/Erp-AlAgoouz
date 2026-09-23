@@ -2,6 +2,7 @@ import { expect, it } from 'vitest';
 import fs from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import { query } from '../src/database/pool.ts';
+import { encrypt, decrypt } from '../src/utils/crypto.ts';
 import {
   BACKUP_TABLES,
   createBackup,
@@ -73,6 +74,22 @@ it.skipIf(process.env.DB_NAME !== 'bin_al_ajouz_restore_test')(
       }
       const next = await query("SELECT nextval('seq_journal_entries_number') AS n");
       expect(Number(next.rows[0].n)).toBeGreaterThan(documentCounter);
+      const originalFile = await fs.readFile(backup.path, 'utf8');
+      try {
+        const envelope = JSON.parse(originalFile);
+        const damaged = JSON.parse(decrypt(envelope.payload));
+        damaged.data.stock_movements[0].product_id = 2147483647;
+        await fs.writeFile(backup.path, JSON.stringify({ encrypted: true, payload: encrypt(JSON.stringify(damaged)) }));
+        await expect(restoreBackup(backup.file)).rejects.toMatchObject({ statusCode: 400 });
+        const preserved = await readBackupSnapshot();
+        for (const table of BACKUP_TABLES) {
+          expect(normalized(preserved[table]), `rejected restore: ${table}`).toEqual(normalized(after[table]));
+        }
+      } finally {
+        // Even a failing regression must leave the disposable database valid.
+        await fs.writeFile(backup.path, originalFile);
+        await restoreBackup(backup.file);
+      }
     } finally {
       await fs.unlink(backup.path);
     }

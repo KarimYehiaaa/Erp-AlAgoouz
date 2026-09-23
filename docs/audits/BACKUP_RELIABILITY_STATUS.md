@@ -35,7 +35,9 @@ Still required before declaring disaster recovery ready:
 - Verify closed accounting periods and all document families with richer financial fixtures.
 - Verify production backup storage, retention and off-site retrieval; a successful HTTP health
   response does not establish any of these guarantees.
-- Verify relational integrity for imported rows while replication-mode triggers are disabled.
+- Extend relational-integrity fixtures to composite foreign keys and MATCH FULL null cases;
+  the implemented validator reads those definitions, but the restore drill currently proves
+  a missing product reference and preservation of the valid snapshot.
 
 Restore input hardening verified locally:
 
@@ -44,6 +46,10 @@ Restore input hardening verified locally:
 - Replication-role permission failure immediately rolls back restore/reset; neither proceeds
   to truncate tables after the failed statement. Ten regression cases passed.
 - The full restore drill on the disposable database still passes after this validation.
+- Restore checks declared foreign keys using PostgreSQL catalog definitions before resetting
+  counters or committing. An encrypted snapshot containing an orphan stock movement is rejected
+  with HTTP 400; every table matches its pre-attempt data after rollback. The valid snapshot
+  remains restorable. Combined restore/validation tests: 11 passed locally.
 
 Historical migrations are retained because they reconstruct the schema. They are not
 duplicate runtime implementations and must not be deleted as obsolete code.

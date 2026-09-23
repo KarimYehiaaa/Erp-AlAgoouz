@@ -431,6 +431,7 @@ export class WorkflowGraphService {
     const triggerSource = options.triggerSource || 'manual';
     const startedAt = new Date();
     let automationId: number;
+    let persistedKey = key;
     let logId: number | null = null;
 
     let notificationText = '';
@@ -439,20 +440,23 @@ export class WorkflowGraphService {
 
     try {
       const automationRes = await query(
-        `SELECT id, is_enabled FROM automations WHERE key = $1 LIMIT 1`,
-        [key],
+        `SELECT id, key, is_enabled FROM automations
+         WHERE key IN ($1, $2)
+         ORDER BY CASE WHEN key = $1 THEN 0 ELSE 1 END LIMIT 1`,
+        [canonicalKey, key],
       );
       if (!automationRes.rows[0]) {
         return { success: false, message: 'مهمة الأتمتة غير موجودة.' };
       }
       automationId = Number(automationRes.rows[0].id);
+      persistedKey = automationRes.rows[0].key;
       if (!automationRes.rows[0].is_enabled) {
         return { success: false, message: 'مهمة الأتمتة معطلة حاليًا.' };
       }
       if (!supportedKeys.has(canonicalKey)) {
         await query(
           `UPDATE automations SET last_run_at = NOW(), last_status = 'warning', updated_at = NOW() WHERE key = $1`,
-          [key],
+          [persistedKey],
         );
         return { success: false, message: `لا يوجد معالج تنفيذ فعلي للمهمة: ${key}` };
       }
@@ -630,7 +634,7 @@ ${fraudList}
         `UPDATE automations
          SET last_run_at = NOW(), last_status = $1, updated_at = NOW()
          WHERE key = $2`,
-        [status, key],
+        [status, persistedKey],
       );
 
       if (logId) {
@@ -660,7 +664,7 @@ ${fraudList}
         chat_id: creds.defaultChatId || 'system',
         direction: 'out',
         message: notificationText,
-        automation_key: key,
+        automation_key: persistedKey,
       });
 
       return {
@@ -674,7 +678,7 @@ ${fraudList}
         `UPDATE automations
          SET last_run_at = NOW(), last_status = 'failed', updated_at = NOW()
          WHERE key = $1`,
-        [key],
+        [persistedKey],
       );
       if (logId) {
         const finishedAt = new Date();

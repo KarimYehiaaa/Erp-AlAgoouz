@@ -56,6 +56,7 @@ router.get(
   '/sales/summary',
   authenticate,
   salesViewAuth,
+  enforceWarehouseAccess,
   validateQuery(commonQuerySchema),
   api.sales.summary,
 );
@@ -82,7 +83,14 @@ router.post(
   upload.single('file'),
   api.sales.importExcel,
 );
-router.get('/sales', authenticate, salesViewAuth, validateQuery(commonQuerySchema), api.sales.list);
+router.get(
+  '/sales',
+  authenticate,
+  salesViewAuth,
+  enforceWarehouseAccess,
+  validateQuery(commonQuerySchema),
+  api.sales.list,
+);
 router.get('/sales/:id', authenticate, salesViewAuth, api.sales.get);
 router.post(
   '/sales',

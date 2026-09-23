@@ -13,19 +13,15 @@ describe('opening balance recursion على قاعدة فارغة', () => {
     await query(`DELETE FROM settings WHERE key LIKE 'sales_opening_balance%'`);
   });
 
-  it(
-    'يتوقف خلال مهلة قصيرة ويعيد 0 على قاعدة بلا أرصدة',
-    async () => {
-      // تاريخ قديم (2005) يجعل نافذة الـ 60 شهرًا (2000–2005) خالية تمامًا
-      // من أي بيانات — النتيجة الصحيحة حتمًا هي صفر.
-      const start = Date.now();
-      const result = await calculateDynamicOpeningBalance(new Date(2005, 0, 1));
-      const elapsed = Date.now() - start;
+  it('يتوقف خلال مهلة قصيرة ويعيد 0 على قاعدة بلا أرصدة', async () => {
+    // تاريخ قديم (1900) يجعل نافذة الـ 60 شهرًا (1895–1900) مستقلة عن
+    // بيانات التشغيل والاختبارات الحديثة الموجودة في قاعدة الاختبار المشتركة.
+    const start = Date.now();
+    const result = await calculateDynamicOpeningBalance(new Date(1900, 0, 1));
+    const elapsed = Date.now() - start;
 
-      // قبل الإصلاح كان يستغرق 30+ ثانية (تكرار بلا حدّ) — الإصلاح ~0.5 ثانية.
-      expect(elapsed).toBeLessThan(5000);
-      expect(result).toBe(0);
-    },
-    10000, // مهلة صريحة: لو عاد التكرار اللانهائي يفشل الاختبار بالتأكيد
-  );
+    // قبل الإصلاح كان يستغرق 30+ ثانية (تكرار بلا حدّ) — الإصلاح ~0.5 ثانية.
+    expect(elapsed).toBeLessThan(5000);
+    expect(result).toBe(0);
+  }, 10000); // مهلة صريحة: لو عاد التكرار اللانهائي يفشل الاختبار بالتأكيد
 });

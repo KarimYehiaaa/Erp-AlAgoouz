@@ -45,6 +45,14 @@ class SalesRepository extends BaseRepository {
       sql += ` AND s.status = $${params.length + 1}`;
       params.push(filters.status);
     }
+    if (filters.warehouse_id) {
+      sql += ` AND s.warehouse_id = $${params.length + 1}`;
+      params.push(Number(filters.warehouse_id));
+    }
+    if (Array.isArray(filters.warehouse_ids)) {
+      sql += ` AND s.warehouse_id = ANY($${params.length + 1}::int[])`;
+      params.push(filters.warehouse_ids.map(Number));
+    }
     sql += ` ORDER BY s.sale_date DESC, s.created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
     params.push(limit, offset);
     const rows = (await query(sql, params)).rows;

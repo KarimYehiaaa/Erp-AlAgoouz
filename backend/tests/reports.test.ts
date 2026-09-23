@@ -29,10 +29,13 @@ describe('Financial Reports (P&L)', () => {
     saleId = invRes.rows[0].id;
 
     // 3. Add sale items
-    await query(`
+    await query(
+      `
       INSERT INTO sale_items (sale_id, product_id, quantity, unit_price, total_amount, cost_price)
       VALUES ($1, $2, $3, $4, $5, $6)
-    `, [saleId, productId, 2, 200, 400, 100]); // Revenue 400, COGS 200 (2 * 100)
+    `,
+      [saleId, productId, 2, 200, 400, 100],
+    ); // Revenue 400, COGS 200 (2 * 100)
 
     // 4. Add an expense
     await query(`
@@ -45,11 +48,11 @@ describe('Financial Reports (P&L)', () => {
     // Cleanup
     await query(`DELETE FROM expenses WHERE expense_number = 'EXP-TEST-VITEST-001'`);
     if (saleId) {
-       await query(`DELETE FROM sale_items WHERE sale_id = $1`, [saleId]);
-       await query(`DELETE FROM sales WHERE id = $1`, [saleId]);
+      await query(`DELETE FROM sale_items WHERE sale_id = $1`, [saleId]);
+      await query(`DELETE FROM sales WHERE id = $1`, [saleId]);
     }
     if (productId) {
-        await query(`DELETE FROM products WHERE id = $1`, [productId]);
+      await query(`DELETE FROM products WHERE id = $1`, [productId]);
     }
   });
 
@@ -74,26 +77,22 @@ describe('Financial Reports (P&L)', () => {
 });
 
 describe('P&L كاملًا على قاعدة فارغة', () => {
-  it(
-    'ينجز التقرير كاملًا خلال مهلة قصيرة ويعيد أصفارًا على نافذة قديمة بلا بيانات',
-    async () => {
-      // نافذة 2005 فارغة تمامًا من أي بيانات (كل الاختبارات تستخدم تواريخ اليوم)
-      // — تختبر المسار الكامل: الاستعلامات المتوازية + تكرار رصيد الافتتاح.
-      const start = Date.now();
-      const pl = await getProfitAndLoss('2005-01-01', '2005-01-31');
-      const elapsed = Date.now() - start;
+  it('ينجز التقرير كاملًا خلال مهلة قصيرة ويعيد أصفارًا على نافذة قديمة بلا بيانات', async () => {
+    // نافذة 1900 معزولة عن بيانات التشغيل والاختبارات الحديثة الموجودة
+    // في قاعدة الاختبار المشتركة — تختبر المسار الكامل وتكرار رصيد الافتتاح.
+    const start = Date.now();
+    const pl = await getProfitAndLoss('1900-01-01', '1900-01-31');
+    const elapsed = Date.now() - start;
 
-      // قبل إصلاح تكرار رصيد الافتتاح كان التقرير يعلّق 30+ ثانية على قاعدة فارغة
-      expect(elapsed).toBeLessThan(5000);
-      expect(pl).toBeDefined();
-      expect(pl.period).toEqual({ from: '2005-01-01', to: '2005-01-31' });
-      expect(pl.revenue?.net ?? 0).toBe(0);
-      expect(pl.operating_expenses?.total ?? 0).toBe(0);
-      expect(pl.cogs?.total ?? 0).toBe(0);
-      expect(pl.purchases?.total ?? 0).toBe(0);
-      expect(pl.opening_balance ?? 0).toBe(0);
-      expect(pl.net_profit?.amount ?? 0).toBe(0);
-    },
-    10000, // مهلة صريحة: لو عاد التكرار اللانهائي يفشل الاختبار بالتأكيد
-  );
+    // قبل إصلاح تكرار رصيد الافتتاح كان التقرير يعلّق 30+ ثانية على قاعدة فارغة
+    expect(elapsed).toBeLessThan(5000);
+    expect(pl).toBeDefined();
+    expect(pl.period).toEqual({ from: '1900-01-01', to: '1900-01-31' });
+    expect(pl.revenue?.net ?? 0).toBe(0);
+    expect(pl.operating_expenses?.total ?? 0).toBe(0);
+    expect(pl.cogs?.total ?? 0).toBe(0);
+    expect(pl.purchases?.total ?? 0).toBe(0);
+    expect(pl.opening_balance ?? 0).toBe(0);
+    expect(pl.net_profit?.amount ?? 0).toBe(0);
+  }, 10000); // مهلة صريحة: لو عاد التكرار اللانهائي يفشل الاختبار بالتأكيد
 });

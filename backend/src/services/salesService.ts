@@ -26,7 +26,21 @@ import {
   restoreInventoryForSale,
 } from './saleInventoryOps.ts';
 import { getAllowedWarehouses } from '../middleware/warehouseAccess.ts';
-import { ADMIN_ROLES } from '../../../shared/permissions.js';
+import { WAREHOUSE_GLOBAL_ROLES } from '../../../shared/permissions.js';
+
+const assertSaleWarehouseAccess = async (client, userId: number, warehouseId: number | null) => {
+  const userRes = await client.query(
+    `SELECT r.name AS role_name FROM users u JOIN roles r ON u.role_id = r.id WHERE u.id = $1`,
+    [userId],
+  );
+  const role = userRes.rows[0]?.role_name;
+  if (role && WAREHOUSE_GLOBAL_ROLES.includes(role)) return;
+
+  const allowedWarehouses = await getAllowedWarehouses(userId);
+  if (!warehouseId || !allowedWarehouses.includes(Number(warehouseId))) {
+    throw new AppError('غير مصرح لك بالوصول لهذا المخزن', 403);
+  }
+};
 
 const generateNumber = async (client, prefix, settingKey) => {
   const sequenceMap = {
@@ -97,28 +111,19 @@ const createDailySale = async (data: Record<string, any>, userId: number) => {
     const rawSyncId = typeof data.sync_id === 'string' && data.sync_id ? data.sync_id.trim() : null;
     const syncId = rawSyncId && isUuid(rawSyncId) ? rawSyncId : null;
     if (syncId) {
-      const dup = await client.query(`SELECT id FROM sales WHERE sync_id = $1::uuid LIMIT 1`, [
-        syncId,
-      ]);
+      const dup = await client.query(
+        `SELECT id, warehouse_id FROM sales WHERE sync_id = $1::uuid LIMIT 1`,
+        [syncId],
+      );
       if (dup.rows[0]) {
         const existingId = dup.rows[0].id;
+        await assertSaleWarehouseAccess(client, userId, dup.rows[0].warehouse_id);
         await client.query('COMMIT');
         return { ...(await getSaleById(existingId)), _duplicateSync: true };
       }
     }
 
-    // التحقق الصارم من عزل الفروع: التأكد من أن المستخدم مصرح له بالمخزن المستنتج فعلياً
-    const userRes = await client.query(
-      `SELECT u.role_id, r.name as role_name FROM users u JOIN roles r ON u.role_id = r.id WHERE u.id = $1`,
-      [userId],
-    );
-    const userRole = userRes.rows[0]?.role_name;
-    if (userRole && !ADMIN_ROLES.includes(userRole)) {
-      const allowedWarehouses = await getAllowedWarehouses(userId);
-      if (!warehouseId || !allowedWarehouses.includes(Number(warehouseId))) {
-        throw new AppError('غير مصرح لك بإنشاء مبيعات على هذا المخزن', 403);
-      }
-    }
+    await assertSaleWarehouseAccess(client, userId, warehouseId);
 
     const saleNumber = await generateNumber(client, 'SL', 'sale');
     const entryMode = items.length ? 'pos' : 'daily';
@@ -305,6 +310,7 @@ const updateSale = async (saleId: number, data: Record<string, any>, userId: num
         '\u0639\u0645\u0644\u064A\u0629 \u0627\u0644\u0628\u064A\u0639 \u063A\u064A\u0631 \u0645\u0648\u062C\u0648\u062F\u0629',
         404,
       );
+    await assertSaleWarehouseAccess(client, userId, existingSale.warehouse_id);
     if (existingSale.status !== 'completed')
       throw new AppError(
         '\u0644\u0627 \u064A\u0645\u0643\u0646 \u062A\u0639\u062F\u064A\u0644 \u0639\u0645\u0644\u064A\u0629 \u063A\u064A\u0631 \u0645\u0643\u062A\u0645\u0644\u0629',
@@ -346,6 +352,7 @@ const updateSale = async (saleId: number, data: Record<string, any>, userId: num
         : data.warehouse_id
           ? Number(data.warehouse_id)
           : existingSale.warehouse_id;
+    await assertSaleWarehouseAccess(client, userId, warehouseId);
     let subtotal = shouldReplaceItems && items.length ? totals.subtotal : totalAmount;
     let costAmount = shouldReplaceItems
       ? 0
@@ -517,15 +524,21 @@ const updateSale = async (saleId: number, data: Record<string, any>, userId: num
  * @param {Record<string, any>} [filters] خيارات الفلترة (sale_type, from_date, to_date, limit...)
  * @returns {Promise<{ rows: any[], total: number }>}
  */
-const getSales = async (filters: Record<string, any> = {}) => {
-  return await salesRepository.getSalesList(filters);
+const getSales = async (filters: Record<string, any> = {}, allowedWarehouseIds?: number[]) => {
+  return await salesRepository.getSalesList({
+    ...filters,
+    ...(allowedWarehouseIds ? { warehouse_ids: allowedWarehouseIds } : {}),
+  });
 };
 /**
  * ملخص المبيعات حسب النوع والتاريخ.
  * @param {Record<string, any>} [filters] خيارات الفلترة (sale_type, from_date, to_date)
  * @returns {Promise<any[]>}
  */
-const getSalesSummary = async (filters: Record<string, any> = {}) => {
+const getSalesSummary = async (
+  filters: Record<string, any> = {},
+  allowedWarehouseIds?: number[],
+) => {
   let sql = `SELECT sale_type, sale_date,
     COUNT(*) FILTER (WHERE status = 'completed') as count,
     COALESCE(SUM(total_amount) FILTER (WHERE status = 'completed'), 0) as total,
@@ -537,13 +550,21 @@ const getSalesSummary = async (filters: Record<string, any> = {}) => {
     sql += ` AND sale_type = $${idx++}`;
     params.push(filters.sale_type);
   }
+  if (filters.warehouse_id) {
+    sql += ` AND warehouse_id = $${idx++}`;
+    params.push(Number(filters.warehouse_id));
+  }
   if (filters.from_date) {
     sql += ` AND sale_date >= $${idx++}`;
     params.push(filters.from_date);
   }
   if (filters.to_date) {
-    sql += ` AND sale_date <= $${idx}`;
+    sql += ` AND sale_date <= $${idx++}`;
     params.push(filters.to_date);
+  }
+  if (allowedWarehouseIds) {
+    sql += ` AND warehouse_id = ANY($${idx++}::int[])`;
+    params.push(allowedWarehouseIds.map(Number));
   }
   sql += ` GROUP BY sale_type, sale_date ORDER BY sale_date DESC`;
   return (await query(sql, params)).rows;
@@ -569,10 +590,8 @@ const getSaleById = async (id: number, allowedWarehouseIds?: number[]) => {
   if (!result.rows[0]) throw new AppError('عملية البيع غير موجودة', 404);
 
   const sale = result.rows[0];
-  if (allowedWarehouseIds && allowedWarehouseIds.length > 0) {
-    if (!allowedWarehouseIds.includes(Number(sale.warehouse_id))) {
-      throw new AppError('غير مصرح لك بالاطلاع على مبيعات هذا المخزن', 403);
-    }
+  if (allowedWarehouseIds && !allowedWarehouseIds.includes(Number(sale.warehouse_id))) {
+    throw new AppError('غير مصرح لك بالاطلاع على مبيعات هذا المخزن', 403);
   }
 
   return sale;
@@ -600,18 +619,7 @@ const returnSale = async (saleId: number, userId: number, notes?: string) => {
         '\u0647\u0630\u0647 \u0627\u0644\u0639\u0645\u0644\u064A\u0629 \u062A\u0645 \u0625\u0631\u062C\u0627\u0639\u0647\u0627 \u0645\u0633\u0628\u0642\u0627\u064B',
       );
 
-    // التحقق من عزل الفروع: التأكد من أن مخزن الفاتورة مصرح به للمستخدم
-    const userRes = await client.query(
-      `SELECT u.role_id, r.name as role_name FROM users u JOIN roles r ON u.role_id = r.id WHERE u.id = $1`,
-      [userId],
-    );
-    const userRole = userRes.rows[0]?.role_name;
-    if (userRole && !ADMIN_ROLES.includes(userRole)) {
-      const allowedWarehouses = await getAllowedWarehouses(userId);
-      if (sale.warehouse_id && !allowedWarehouses.includes(Number(sale.warehouse_id))) {
-        throw new AppError('غير مصرح لك بإجراء مرتجع لفاتورة تابعة لمخزن آخر', 403);
-      }
-    }
+    await assertSaleWarehouseAccess(client, userId, sale.warehouse_id);
     const items = (await client.query(`SELECT * FROM sale_items WHERE sale_id = $1`, [saleId]))
       .rows;
     if (items.length > 0) {
@@ -681,41 +689,45 @@ const returnSale = async (saleId: number, userId: number, notes?: string) => {
     client.release();
   }
 };
-/** مسح كل المبيعات (إعادة ضبط) — للمدير فقط. */
-const deleteAllSales = async (userId: number) => {
+/** حذف مبيعات المخازن المسموح بها فقط. */
+const deleteAllSales = async (userId: number, allowedWarehouseIds?: number[]) => {
   const client = await getClient();
   try {
     await client.query('BEGIN');
-    const countResult = await client.query(
-      `SELECT COUNT(*)::int as count FROM sales WHERE deleted_at IS NULL`,
+    const scope = allowedWarehouseIds ? 'AND warehouse_id = ANY($1::int[])' : '';
+    const params = allowedWarehouseIds ? [allowedWarehouseIds.map(Number)] : [];
+    const salesToDelete = await client.query(
+      `SELECT id, status, customer_id FROM sales WHERE deleted_at IS NULL ${scope} FOR UPDATE`,
+      params,
     );
-    const deletedCount = countResult.rows[0]?.count || 0;
+    const saleIds = salesToDelete.rows.map((sale) => sale.id);
+    const deletedCount = saleIds.length;
     if (deletedCount > 0) {
-      const customersRes = await client.query(
-        `SELECT DISTINCT customer_id FROM sales WHERE deleted_at IS NULL AND customer_id IS NOT NULL`,
-      );
-      const posSales = await client.query(
-        `SELECT id FROM sales WHERE deleted_at IS NULL AND status <> 'returned'`,
-      );
-      for (const row of posSales.rows) {
-        await restoreInventoryForSale(client, row.id, userId);
+      const customerIds = [
+        ...new Set(salesToDelete.rows.map((sale) => sale.customer_id).filter(Boolean)),
+      ];
+      for (const sale of salesToDelete.rows) {
+        if (sale.status === 'returned') continue;
+        await restoreInventoryForSale(client, sale.id, userId);
         const { accountingService } = await import('./accountingService.ts');
-        await accountingService.deleteJournalEntryByReference(client, 'sale', row.id);
+        await accountingService.deleteJournalEntryByReference(client, 'sale', sale.id);
       }
       await client.query(
         `UPDATE sales
          SET deleted_at = NOW(), status = 'cancelled', updated_at = NOW()
-         WHERE deleted_at IS NULL`,
+         WHERE id = ANY($1::int[])`,
+        [saleIds],
       );
       await client.query(
         `UPDATE invoices
          SET deleted_at = NOW()
-         WHERE sale_id IN (SELECT id FROM sales WHERE deleted_at IS NOT NULL) AND deleted_at IS NULL`,
+         WHERE sale_id = ANY($1::int[]) AND deleted_at IS NULL`,
+        [saleIds],
       );
-      for (const row of customersRes.rows) {
+      for (const customerId of customerIds) {
         await recalculateCustomerBalance(
-          (text, params) => client.query(text, params),
-          row.customer_id,
+          (text, queryParams) => client.query(text, queryParams),
+          customerId,
         );
       }
     }
@@ -740,7 +752,11 @@ const deleteAllSales = async (userId: number) => {
   }
 };
 /** حذف مبيعات يوم محدد. */
-const deleteSalesByDate = async (saleDate: string, userId: number) => {
+const deleteSalesByDate = async (
+  saleDate: string,
+  userId: number,
+  allowedWarehouseIds?: number[],
+) => {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(saleDate || ''))) {
     throw new AppError(
       '\u062A\u0627\u0631\u064A\u062E \u0627\u0644\u0628\u064A\u0639 \u063A\u064A\u0631 \u0635\u062D\u064A\u062D. \u0627\u0644\u0635\u064A\u063A\u0629 \u0627\u0644\u0645\u0637\u0644\u0648\u0628\u0629 YYYY-MM-DD',
@@ -750,49 +766,43 @@ const deleteSalesByDate = async (saleDate: string, userId: number) => {
   const client = await getClient();
   try {
     await client.query('BEGIN');
-    const countResult = await client.query(
-      `SELECT COUNT(*)::int as count
+    const scope = allowedWarehouseIds ? 'AND warehouse_id = ANY($2::int[])' : '';
+    const params = allowedWarehouseIds ? [saleDate, allowedWarehouseIds.map(Number)] : [saleDate];
+    const salesToDelete = await client.query(
+      `SELECT id, status, customer_id
        FROM sales
-       WHERE deleted_at IS NULL AND sale_date = $1::date`,
-      [saleDate],
+       WHERE deleted_at IS NULL AND sale_date = $1::date ${scope}
+       FOR UPDATE`,
+      params,
     );
-    const deletedCount = countResult.rows[0]?.count || 0;
+    const saleIds = salesToDelete.rows.map((sale) => sale.id);
+    const deletedCount = saleIds.length;
     if (deletedCount > 0) {
-      const customersRes = await client.query(
-        `SELECT DISTINCT customer_id FROM sales WHERE deleted_at IS NULL AND sale_date = $1::date AND customer_id IS NOT NULL`,
-        [saleDate],
-      );
-      const posSales = await client.query(
-        `SELECT id FROM sales WHERE deleted_at IS NULL AND sale_date = $1::date AND status <> 'returned'`,
-        [saleDate],
-      );
-      for (const row of posSales.rows) {
-        await restoreInventoryForSale(client, row.id, userId);
+      const customerIds = [
+        ...new Set(salesToDelete.rows.map((sale) => sale.customer_id).filter(Boolean)),
+      ];
+      for (const sale of salesToDelete.rows) {
+        if (sale.status === 'returned') continue;
+        await restoreInventoryForSale(client, sale.id, userId);
         const { accountingService } = await import('./accountingService.ts');
-        await accountingService.deleteJournalEntryByReference(client, 'sale', row.id);
+        await accountingService.deleteJournalEntryByReference(client, 'sale', sale.id);
       }
       await client.query(
         `UPDATE sales
          SET deleted_at = NOW(), status = 'cancelled', updated_at = NOW()
-         WHERE deleted_at IS NULL AND sale_date = $1::date`,
-        [saleDate],
+         WHERE id = ANY($1::int[])`,
+        [saleIds],
       );
       await client.query(
         `UPDATE invoices i
          SET deleted_at = NOW()
-         WHERE i.deleted_at IS NULL
-           AND EXISTS (
-             SELECT 1 FROM sales s
-             WHERE s.id = i.sale_id
-               AND s.sale_date = $1::date
-               AND s.deleted_at IS NOT NULL
-           )`,
-        [saleDate],
+         WHERE i.deleted_at IS NULL AND i.sale_id = ANY($1::int[])`,
+        [saleIds],
       );
-      for (const row of customersRes.rows) {
+      for (const customerId of customerIds) {
         await recalculateCustomerBalance(
-          (text, params) => client.query(text, params),
-          row.customer_id,
+          (text, queryParams) => client.query(text, queryParams),
+          customerId,
         );
       }
     }
@@ -817,52 +827,56 @@ const deleteSalesByDate = async (saleDate: string, userId: number) => {
   }
 };
 /** حذف المبيعات حسب النوع (branch/wholesale/pos). */
-const deleteSalesByType = async (saleType: string, userId: number) => {
+const deleteSalesByType = async (
+  saleType: string,
+  userId: number,
+  allowedWarehouseIds?: number[],
+) => {
   if (!['branch', 'wholesale'].includes(saleType)) {
     throw new AppError('نوع البيع غير صالح', 400);
   }
   const client = await getClient();
   try {
     await client.query('BEGIN');
-    const countResult = await client.query(
-      `SELECT COUNT(*)::int as count FROM sales WHERE deleted_at IS NULL AND sale_type = $1`,
-      [saleType],
+    const scope = allowedWarehouseIds ? 'AND warehouse_id = ANY($2::int[])' : '';
+    const params = allowedWarehouseIds ? [saleType, allowedWarehouseIds.map(Number)] : [saleType];
+    const salesToDelete = await client.query(
+      `SELECT id, status, customer_id FROM sales
+       WHERE deleted_at IS NULL AND sale_type = $1 ${scope}
+       FOR UPDATE`,
+      params,
     );
-    const deletedCount = countResult.rows[0]?.count || 0;
+    const saleIds = salesToDelete.rows.map((sale) => sale.id);
+    const deletedCount = saleIds.length;
     if (deletedCount > 0) {
-      const customersRes = await client.query(
-        `SELECT DISTINCT customer_id FROM sales WHERE deleted_at IS NULL AND sale_type = $1 AND customer_id IS NOT NULL`,
-        [saleType],
-      );
-      const posSales = await client.query(
-        `SELECT id FROM sales WHERE deleted_at IS NULL AND sale_type = $1 AND status <> 'returned'`,
-        [saleType],
-      );
-      for (const row of posSales.rows) {
-        await restoreInventoryForSale(client, row.id, userId);
+      const customerIds = [
+        ...new Set(salesToDelete.rows.map((sale) => sale.customer_id).filter(Boolean)),
+      ];
+      for (const sale of salesToDelete.rows) {
+        if (sale.status === 'returned') continue;
+        await restoreInventoryForSale(client, sale.id, userId);
         const { accountingService } = await import('./accountingService.ts');
-        await accountingService.deleteJournalEntryByReference(client, 'sale', row.id);
+        await accountingService.deleteJournalEntryByReference(client, 'sale', sale.id);
       }
       await client.query(
         `UPDATE sales SET deleted_at = NOW(), status = 'cancelled', updated_at = NOW()
-         WHERE deleted_at IS NULL AND sale_type = $1`,
-        [saleType],
+         WHERE id = ANY($1::int[])`,
+        [saleIds],
       );
       await client.query(
         `UPDATE invoices SET deleted_at = NOW()
-         WHERE deleted_at IS NULL AND sale_id IN (
-           SELECT id FROM sales WHERE sale_type = $1 AND deleted_at IS NOT NULL
-         )`,
-        [saleType],
+         WHERE deleted_at IS NULL AND sale_id = ANY($1::int[])`,
+        [saleIds],
       );
-      for (const row of customersRes.rows) {
+      for (const customerId of customerIds) {
         await recalculateCustomerBalance(
-          (text, params) => client.query(text, params),
-          row.customer_id,
+          (text, queryParams) => client.query(text, queryParams),
+          customerId,
         );
       }
     }
-    const typeLabel = saleType === 'branch' ? '\u0641\u0631\u0639' : '\u062C\u0645\u0644\u0629';
+    const typeLabel =
+      saleType === 'branch' ? '\u0627\u0644\u0645\u062D\u0644' : '\u062C\u0645\u0644\u0629';
     await client.query(
       `INSERT INTO activity_logs (user_id, module, action_ar, details) VALUES ($1,'sales',$2,$3)`,
       [

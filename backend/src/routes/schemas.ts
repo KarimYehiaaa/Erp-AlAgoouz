@@ -62,6 +62,7 @@ const commonQuerySchema = z
     sale_type: z.string().optional(),
     entry_mode: z.string().optional(),
     status: z.string().optional(),
+    warehouse_id: optionalPositiveId,
   })
   .strip();
 const loginSchema = z.object({

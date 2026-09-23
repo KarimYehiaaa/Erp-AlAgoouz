@@ -14,7 +14,9 @@ const sales = {
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
   list: wrap(async (req, res) => {
-    const result = await salesService.getSales(req.query);
+    const userId = (req as any).user?.id || (req as any).user?.userId;
+    const allowedWarehouses = await getAllowedWarehouses(userId);
+    const result = await salesService.getSales(req.query, allowedWarehouses);
     ok(res, result.data, void 0, result.meta);
   }),
   /**
@@ -24,7 +26,9 @@ const sales = {
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
   summary: wrap(async (req, res) => {
-    ok(res, await salesService.getSalesSummary(req.query));
+    const userId = (req as any).user?.id || (req as any).user?.userId;
+    const allowedWarehouses = await getAllowedWarehouses(userId);
+    ok(res, await salesService.getSalesSummary(req.query, allowedWarehouses));
   }),
   /**
    * جلب الرصيد الافتتاحي لمخزن في تاريخ محدد.
@@ -107,7 +111,9 @@ const sales = {
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
   deleteAll: wrap(async (req, res) => {
-    const data = await salesService.deleteAllSales(req.user.id);
+    const userId = req.user?.id || req.user?.userId;
+    const allowedWarehouses = await getAllowedWarehouses(userId);
+    const data = await salesService.deleteAllSales(userId, allowedWarehouses);
     ok(res, data, `تم حذف ${data.deletedCount} سجلات بنجاح`);
   }),
   /**
@@ -118,7 +124,9 @@ const sales = {
    */
   deleteByDate: wrap(async (req, res) => {
     const saleDate = req.params.saleDate;
-    const data = await salesService.deleteSalesByDate(saleDate, req.user.id);
+    const userId = req.user?.id || req.user?.userId;
+    const allowedWarehouses = await getAllowedWarehouses(userId);
+    const data = await salesService.deleteSalesByDate(saleDate, userId, allowedWarehouses);
     ok(res, data, `تم حذف ${data.deletedCount} سجلات من تاريخ ${saleDate} بنجاح`);
   }),
   /**
@@ -128,8 +136,14 @@ const sales = {
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
   deleteByType: wrap(async (req, res) => {
-    const data = await salesService.deleteSalesByType(req.params.saleType, req.user.id);
-    const label = data.saleType === 'branch' ? 'الفرع' : 'الجملة';
+    const userId = req.user?.id || req.user?.userId;
+    const allowedWarehouses = await getAllowedWarehouses(userId);
+    const data = await salesService.deleteSalesByType(
+      req.params.saleType,
+      userId,
+      allowedWarehouses,
+    );
+    const label = data.saleType === 'branch' ? 'المحل' : 'الجملة';
     ok(res, data, `تم حذف ${data.deletedCount} سجل من مبيعات ${label} بنجاح`);
   }),
   /**

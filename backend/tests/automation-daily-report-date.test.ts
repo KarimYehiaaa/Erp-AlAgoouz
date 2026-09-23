@@ -14,7 +14,7 @@ import { WorkflowGraphService } from '../src/services/workflowGraphService.ts';
 beforeEach(() => {
   query.mockReset();
   query.mockImplementation(async (sql: string, params?: unknown[]) => {
-    if (sql.includes('SELECT id, key, is_enabled FROM automations')) {
+    if (sql.includes('SELECT id, key, is_enabled, config FROM automations')) {
       return { rows: [{ id: 1, key: 'daily_sales_report', is_enabled: true }] };
     }
     if (sql.includes('INSERT INTO automation_logs')) return { rows: [{ id: 1 }] };
@@ -37,7 +37,7 @@ it('reports the scheduled Cairo business day and recorded gross profit after a l
   const result = await WorkflowGraphService.runAutomationNow('daily_sales_report', {
     scheduledFor: new Date('2026-09-22T20:30:00.000Z'),
   });
-  expect(result.success).toBe(true);
+  expect(result.success, result.message).toBe(true);
   expect(result.payload?.notificationText).toContain('2026-09-22');
   expect(result.payload?.notificationText).toContain('١٠٠');
   expect(result.payload?.notificationText).toContain('٤٠');

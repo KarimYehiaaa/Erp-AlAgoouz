@@ -34,7 +34,7 @@ beforeEach(() => {
         })),
       };
     }
-    if (sql.includes('SELECT id, key, is_enabled FROM automations')) {
+    if (sql.includes('SELECT id, key, is_enabled, config FROM automations')) {
       return { rows: [{ id: 1, key: scheduledTasks[0].key, is_enabled: true }] };
     }
     if (sql.includes("last_status = 'running'")) {

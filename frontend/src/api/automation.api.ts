@@ -63,6 +63,8 @@ export interface AutomationTask {
   config: Record<string, any>;
   last_run_at: string | null;
   last_status: 'success' | 'failed' | 'warning' | null;
+  execution_supported: boolean;
+  trigger_supported: boolean;
 }
 
 export interface AutomationExecutionLog {

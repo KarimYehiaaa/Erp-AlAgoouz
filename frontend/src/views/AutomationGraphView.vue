@@ -265,6 +265,7 @@
                     class="toggle-btn-mini"
                     :class="{ active: task.is_enabled }"
                     @click="toggleTask(task)"
+                    :disabled="!task.is_enabled && !task.trigger_supported"
                     :title="task.is_enabled ? 'تعطيل الوكيل' : 'تفعيل الوكيل'"
                   >
                     <span class="toggle-track-mini">
@@ -274,18 +275,28 @@
                 </div>
 
                 <p class="task-desc-text">{{ task.description_ar }}</p>
+                <p v-if="!task.trigger_supported" class="task-support-note">
+                  {{
+                    task.execution_supported
+                      ? 'التشغيل اليدوي متاح؛ التفعيل الآلي غير موصول.'
+                      : 'لا يوجد معالج تنفيذ لهذه المهمة حاليًا.'
+                  }}
+                </p>
 
                 <div class="task-card-footer">
                   <div class="task-meta">
                     <small v-if="task.cron_expression">⏱ مُجدول: {{ task.cron_expression }}</small>
-                    <small v-else>⚡ يعمل فور وقوع الحدث</small>
+                    <small v-else-if="task.trigger_supported">⚡ يعمل فور وقوع الحدث</small>
+                    <small v-else>⏸ المشغل الآلي غير موصول</small>
                     <small v-if="task.last_run_at" class="last-run">
                       آخر تشغيل: {{ formatTime(task.last_run_at) }}
                     </small>
                   </div>
                   <button
                     class="btn btn-primary btn-xs run-now-btn"
-                    :disabled="runningTaskKey === task.key"
+                    :disabled="
+                      runningTaskKey === task.key || !task.execution_supported || !task.is_enabled
+                    "
                     @click="runTask(task)"
                   >
                     {{ runningTaskKey === task.key ? 'جاري التنفيذ...' : '▶️ تشغيل فوري' }}
@@ -296,6 +307,9 @@
                   {{ taskFeedback[task.key] }}
                 </div>
               </div>
+              <p v-if="!tasks.length" class="tasks-empty-state">
+                {{ tasksLoadError || 'لا توجد مهام أتمتة مسجلة.' }}
+              </p>
             </div>
           </div>
 
@@ -722,81 +736,6 @@ interface Particle {
 const mouseWorld = reactive({ x: 0, y: 0 });
 let resizeObserver: ResizeObserver | null = null;
 
-const DEFAULT_TASKS: AutomationTask[] = [
-  {
-    id: 1,
-    key: 'daily_sales_report',
-    name_ar: 'تقرير الإغلاق اليومي الذكي',
-    description_ar:
-      'تجميع إجمالي المبيعات، الأرباح، المصروفات، وأعلى الأصناف مبيعاً وإرسالها للمالك ليلاً.',
-    category: 'sales',
-    trigger_type: 'cron',
-    cron_expression: '30 23 * * *',
-    is_enabled: true,
-    channels: { telegram: true },
-    config: {},
-    last_run_at: new Date().toISOString(),
-    last_status: 'success',
-  },
-  {
-    id: 2,
-    key: 'low_stock_alert',
-    name_ar: 'إنذار نقص المخزون وخامات البن',
-    description_ar: 'رصد الأصناف وخامات التحميص التي وصلت لحد إعادة الطلب وإرسال تنبيه للمسؤولين.',
-    category: 'inventory',
-    trigger_type: 'cron',
-    cron_expression: '0 10,18 * * *',
-    is_enabled: true,
-    channels: { telegram: true },
-    config: {},
-    last_run_at: new Date().toISOString(),
-    last_status: 'success',
-  },
-  {
-    id: 3,
-    key: 'void_invoice_alert',
-    name_ar: 'كشف فوري لإلغاء الفواتير (Anti-Fraud)',
-    description_ar:
-      'تنبيه فوري لمدير المحل والمالك عند قيام أي كاشير بإلغاء فاتورة أو تطبيق خصم يتجاوز 15%.',
-    category: 'security',
-    trigger_type: 'event',
-    cron_expression: null,
-    is_enabled: true,
-    channels: { telegram: true },
-    config: {},
-    last_run_at: new Date().toISOString(),
-    last_status: 'success',
-  },
-  {
-    id: 4,
-    key: 'warehouse_balancing',
-    name_ar: 'إعادة توازن مخزون المحل ونقل البضاعة',
-    description_ar: 'تحليل معدل السحب في المخازن واقتراح تحويلات ذكية قبل نفاد الرصيد.',
-    category: 'inventory',
-    trigger_type: 'cron',
-    cron_expression: '0 9 * * *',
-    is_enabled: true,
-    channels: { telegram: true },
-    config: {},
-    last_run_at: new Date().toISOString(),
-    last_status: 'success',
-  },
-  {
-    id: 5,
-    key: 'system_health',
-    name_ar: 'فحص النسخ الاحتياطي وسلامة السيرفر',
-    description_ar: 'مراقبة دورية لسلامة قاعدة البيانات وحالة السيرفر والنسخ الاحتياطي اليومي.',
-    category: 'system',
-    trigger_type: 'cron',
-    cron_expression: '0 3 * * *',
-    is_enabled: true,
-    channels: { telegram: true },
-    config: {},
-    last_run_at: new Date().toISOString(),
-    last_status: 'success',
-  },
-];
-
 const categoryLabels: Record<string, string> = {
   sales: '💰 مبيعات وإغلاق',
   inventory: '📦 مخزون وتحميص',
@@ -993,7 +932,8 @@ const canvas = ref<HTMLCanvasElement | null>(null);
 const graphContainer = ref<HTMLElement | null>(null);
 
 // مهام الأتمتة الحية
-const tasks = ref<AutomationTask[]>(JSON.parse(JSON.stringify(DEFAULT_TASKS)));
+const tasks = ref<AutomationTask[]>([]);
+const tasksLoadError = ref('تعذر تحميل حالة مهام الأتمتة من الخادم.');
 const runningTaskKey = ref<string | null>(null);
 const taskFeedback = reactive<Record<string, string>>({});
 const executionLogs = ref<AutomationExecutionLog[]>([]);
@@ -1193,14 +1133,20 @@ async function loadData() {
       telegramConfigured.hasDefaultChatId = Boolean((statusRes as any).data.hasDefaultChatId);
     }
 
-    if (tasksRes && (tasksRes as any).data?.length > 0) {
+    if (tasksRes && Array.isArray((tasksRes as any).data)) {
       tasks.value = (tasksRes as any).data;
+      tasksLoadError.value = '';
+    } else {
+      tasks.value = [];
+      tasksLoadError.value = 'تعذر تحميل حالة مهام الأتمتة من الخادم.';
     }
     if (executionLogsRes && (executionLogsRes as any).data?.logs) {
       executionLogs.value = (executionLogsRes as any).data.logs;
     }
   } catch (err) {
-    console.warn('تعذر جلب البيانات من الخادم، تم تطبيق البيانات الافتراضية:', err);
+    tasks.value = [];
+    tasksLoadError.value = 'تعذر تحميل حالة مهام الأتمتة من الخادم.';
+    console.warn('تعذر جلب البيانات من الخادم:', err);
   } finally {
     loading.value = false;
   }
@@ -1209,11 +1155,17 @@ async function loadData() {
 async function loadAutomations() {
   try {
     const res = await automation.getTasks();
-    if ((res as any)?.data?.length > 0) {
+    if (Array.isArray((res as any)?.data)) {
       tasks.value = (res as any).data;
+      tasksLoadError.value = '';
+    } else {
+      tasks.value = [];
+      tasksLoadError.value = 'تعذر تحميل حالة مهام الأتمتة من الخادم.';
     }
     await refreshExecutionLogs();
   } catch (err) {
+    tasks.value = [];
+    tasksLoadError.value = 'تعذر تحميل حالة مهام الأتمتة من الخادم.';
     console.error('فشل تحديث قائمة الوكلاء:', err);
   }
 }
@@ -1236,7 +1188,7 @@ async function runTask(task: AutomationTask) {
     const res = await automation.runTaskNow(task.key);
     taskFeedback[task.key] = (res as any)?.message || 'تم تشغيل الوكيل بنجاح! ✅';
     task.last_run_at = new Date().toISOString();
-    task.last_status = 'success';
+    task.last_status = (res as any)?.payload?.status || 'success';
     await refreshLogs();
   } catch (err: any) {
     taskFeedback[task.key] = err.message || 'فشل تشغيل الوكيل';
@@ -2947,6 +2899,13 @@ function formatTime(ts: string) {
     margin: 0;
   }
 
+  .task-support-note {
+    margin: 0;
+    color: var(--warning-strong, #b45309);
+    font-size: 0.74rem;
+    font-weight: 700;
+  }
+
   .task-card-footer {
     display: flex;
     justify-content: space-between;
@@ -3028,6 +2987,18 @@ function formatTime(ts: string) {
       transform: translateX(-16px);
     }
   }
+}
+
+.toggle-btn-mini:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.tasks-empty-state {
+  margin: 0;
+  padding: 14px;
+  color: var(--text-muted);
+  text-align: center;
 }
 
 .setting-group {

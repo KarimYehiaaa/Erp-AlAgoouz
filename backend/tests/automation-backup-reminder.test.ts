@@ -17,7 +17,7 @@ import { WorkflowGraphService } from '../src/services/workflowGraphService.ts';
 beforeEach(() => {
   query.mockReset();
   query.mockImplementation(async (sql: string) => {
-    if (sql.includes('SELECT id, key, is_enabled FROM automations')) {
+    if (sql.includes('SELECT id, key, is_enabled, config FROM automations')) {
       return { rows: [{ id: 1, key: 'daily_backup_reminder', is_enabled: true }] };
     }
     if (sql.includes('INSERT INTO automation_logs')) return { rows: [{ id: 1 }] };

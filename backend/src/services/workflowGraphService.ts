@@ -51,6 +51,56 @@ const DEFAULT_PHYSICS: PhysicsSettings = {
   centerForceY: 0.05,
 };
 
+const AUTOMATION_ALIASES: Record<string, string> = {
+  daily_summary: 'daily_sales_report',
+  daily_summary_report: 'daily_sales_report',
+  warehouse_stock_balancing: 'warehouse_balancing',
+  warehouse_stock_rebalance: 'warehouse_balancing',
+  branch_balancing: 'warehouse_balancing',
+  branch_stock_balancing: 'warehouse_balancing',
+  branch_stock_rebalance: 'warehouse_balancing',
+};
+
+const EXECUTABLE_AUTOMATION_KEYS = new Set([
+  'daily_sales_report',
+  'low_stock_alert',
+  'void_invoice_alert',
+  'anti_fraud_sentinel',
+  'warehouse_balancing',
+  'system_health',
+  'daily_backup_reminder',
+  'supplier_payment_due_alert',
+  'daily_profit_margin_anomaly',
+]);
+
+const AUTOMATED_TRIGGER_KEYS = new Set([
+  'daily_sales_report',
+  'low_stock_alert',
+  'warehouse_balancing',
+  'system_health',
+  'daily_backup_reminder',
+  'supplier_payment_due_alert',
+  'daily_profit_margin_anomaly',
+]);
+
+const canonicalAutomationKey = (key: string) => AUTOMATION_ALIASES[key] || key;
+const canRunAutomation = (key: string) =>
+  EXECUTABLE_AUTOMATION_KEYS.has(canonicalAutomationKey(key));
+const hasAutomatedTrigger = (key: string, triggerType: string, cronExpression: string | null) =>
+  triggerType === 'cron' &&
+  Boolean(cronExpression) &&
+  AUTOMATED_TRIGGER_KEYS.has(canonicalAutomationKey(key));
+const getCairoBusinessDate = (date: Date) => {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Africa/Cairo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+  const part = (type: string) => parts.find((value) => value.type === type)?.value || '';
+  return `${part('year')}-${part('month')}-${part('day')}`;
+};
+
 // ─── خدمة الـ Graph ──────────────────────────────────────
 
 export class WorkflowGraphService {
@@ -367,13 +417,35 @@ export class WorkflowGraphService {
        FROM automations
        ORDER BY id ASC`,
     );
-    return res.rows;
+    return res.rows.map((automation: any) => ({
+      ...automation,
+      execution_supported: canRunAutomation(automation.key),
+      trigger_supported: hasAutomatedTrigger(
+        automation.key,
+        automation.trigger_type,
+        automation.cron_expression,
+      ),
+    }));
   }
 
   /**
    * تفعيل أو تعطيل مهمة أتمتة
    */
   static async toggleAutomation(key: string, isEnabled: boolean) {
+    if (isEnabled) {
+      const current = await query(
+        `SELECT trigger_type, cron_expression FROM automations WHERE key = $1`,
+        [key],
+      );
+      const automation = current.rows[0];
+      if (
+        !automation ||
+        !canRunAutomation(key) ||
+        !hasAutomatedTrigger(key, automation.trigger_type, automation.cron_expression)
+      ) {
+        return { unsupported: true };
+      }
+    }
     const res = await query(
       `UPDATE automations
        SET is_enabled = $1, updated_at = NOW()
@@ -407,26 +479,7 @@ export class WorkflowGraphService {
     key: string,
     options: { triggerSource?: string; executionId?: string; scheduledFor?: Date } = {},
   ): Promise<{ success: boolean; message: string; payload?: any }> {
-    const aliases: Record<string, string> = {
-      daily_summary: 'daily_sales_report',
-      daily_summary_report: 'daily_sales_report',
-      warehouse_stock_balancing: 'warehouse_balancing',
-      warehouse_stock_rebalance: 'warehouse_balancing',
-      // توافق رجعي مع قواعد الأتمتة المحفوظة قبل توحيد نموذج المحل الواحد.
-      branch_balancing: 'warehouse_balancing',
-      branch_stock_balancing: 'warehouse_balancing',
-      branch_stock_rebalance: 'warehouse_balancing',
-    };
-    const canonicalKey = aliases[key] || key;
-    const supportedKeys = new Set([
-      'daily_sales_report',
-      'low_stock_alert',
-      'void_invoice_alert',
-      'anti_fraud_sentinel',
-      'warehouse_balancing',
-      'system_health',
-      'daily_backup_reminder',
-    ]);
+    const canonicalKey = canonicalAutomationKey(key);
     const executionId = options.executionId || crypto.randomUUID();
     const triggerSource = options.triggerSource || 'manual';
     const startedAt = new Date();
@@ -440,7 +493,7 @@ export class WorkflowGraphService {
 
     try {
       const automationRes = await query(
-        `SELECT id, key, is_enabled FROM automations
+        `SELECT id, key, is_enabled, config FROM automations
          WHERE key IN ($1, $2)
          ORDER BY CASE WHEN key = $1 THEN 0 ELSE 1 END LIMIT 1`,
         [canonicalKey, key],
@@ -453,7 +506,7 @@ export class WorkflowGraphService {
       if (!automationRes.rows[0].is_enabled) {
         return { success: false, message: 'مهمة الأتمتة معطلة حاليًا.' };
       }
-      if (!supportedKeys.has(canonicalKey)) {
+      if (!canRunAutomation(canonicalKey)) {
         await query(
           `UPDATE automations SET last_run_at = NOW(), last_status = 'warning', updated_at = NOW() WHERE key = $1`,
           [persistedKey],
@@ -484,15 +537,7 @@ export class WorkflowGraphService {
       const creds = await TelegramBotService.getBotCredentials();
 
       if (canonicalKey === 'daily_sales_report') {
-        const businessDateParts = new Intl.DateTimeFormat('en-US', {
-          timeZone: 'Africa/Cairo',
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit',
-        }).formatToParts(options.scheduledFor || new Date());
-        const datePart = (type: string) =>
-          businessDateParts.find((part) => part.type === type)?.value || '';
-        const reportDate = `${datePart('year')}-${datePart('month')}-${datePart('day')}`;
+        const reportDate = getCairoBusinessDate(options.scheduledFor || new Date());
         title = `ملخص مبيعات المحل ليوم ${reportDate}`;
         const salesRes = await query(
           `SELECT
@@ -620,6 +665,86 @@ ${fraudList}
           await import('./warehouseBalancingService.ts');
         const bal = await WarehouseBalancingService.generateBalancingRecommendations();
         notificationText = bal.htmlReport;
+      } else if (canonicalKey === 'supplier_payment_due_alert') {
+        const businessDate = getCairoBusinessDate(options.scheduledFor || new Date());
+        const configuredDays = Number(automationRes.rows[0].config?.days_before_due);
+        const daysBeforeDue = Number.isFinite(configuredDays)
+          ? Math.min(Math.max(configuredDays, 0), 90)
+          : 3;
+        const dueRes = await query(
+          `SELECT si.invoice_number, s.name_ar AS supplier_name, si.due_date,
+                  ROUND((si.total_amount - COALESCE(si.paid_amount, 0))::numeric, 2) AS outstanding,
+                  (si.due_date - $1::date) AS days_until_due
+           FROM supplier_invoices si
+           JOIN suppliers s ON s.id = si.supplier_id
+           WHERE si.deleted_at IS NULL AND si.due_date IS NOT NULL
+             AND si.total_amount > COALESCE(si.paid_amount, 0)
+             AND si.due_date <= $1::date + $2::int
+           ORDER BY si.due_date ASC, si.id ASC
+           LIMIT 20`,
+          [businessDate, daysBeforeDue],
+        );
+        title = `مراجعة مستحقات الموردين حتى ${businessDate}`;
+        if (dueRes.rows.length) {
+          status = 'warning';
+          const invoices = dueRes.rows
+            .map((invoice: any) => {
+              const dayCount = Number(invoice.days_until_due);
+              const dueLabel =
+                dayCount < 0
+                  ? `متأخرة ${Math.abs(dayCount)} يوم`
+                  : dayCount === 0
+                    ? 'مستحقة اليوم'
+                    : `خلال ${dayCount} يوم`;
+              return `• ${invoice.invoice_number} — ${invoice.supplier_name} — متبقٍ ${Number(invoice.outstanding).toLocaleString('ar-EG')} ج.م — ${dueLabel}`;
+            })
+            .join('\n');
+          notificationText = `
+📥 <b>فواتير الموردين غير المسددة</b>
+━━━━━━━━━━━━━━━━━━━━
+${invoices}
+━━━━━━━━━━━━━━━━━━━━
+الفحص حتى ${businessDate}
+          `.trim();
+        } else {
+          notificationText = `لا توجد فواتير موردين غير مسددة تستحق حتى ${businessDate}.`;
+        }
+      } else if (canonicalKey === 'daily_profit_margin_anomaly') {
+        const businessDate = getCairoBusinessDate(options.scheduledFor || new Date());
+        const configuredTarget = Number(automationRes.rows[0].config?.min_target_margin_pct);
+        const targetMargin = Number.isFinite(configuredTarget)
+          ? Math.min(Math.max(configuredTarget, 0), 100)
+          : 28;
+        const marginRes = await query(
+          `SELECT COUNT(*)::int AS invoice_count,
+                  COALESCE(SUM(total_amount), 0) AS total_sales,
+                  COALESCE(SUM(profit_amount), 0) AS gross_profit,
+                  CASE WHEN COALESCE(SUM(total_amount), 0) > 0
+                    THEN COALESCE(SUM(profit_amount), 0) * 100.0 / SUM(total_amount)
+                    ELSE NULL END AS margin_pct
+           FROM sales
+           WHERE sale_date = $1::date AND deleted_at IS NULL AND status = 'completed'`,
+          [businessDate],
+        );
+        const margin =
+          marginRes.rows[0]?.margin_pct == null ? null : Number(marginRes.rows[0].margin_pct);
+        title = `فحص هامش الربح الإجمالي ليوم ${businessDate}`;
+        if (margin === null) {
+          status = 'warning';
+          notificationText = `لم تُسجل مبيعات مكتملة في ${businessDate}؛ لم يتوفر أساس لحساب هامش الربح.`;
+        } else {
+          if (margin < targetMargin) status = 'warning';
+          notificationText = `
+${margin < targetMargin ? '⚠️ <b>هامش الربح أقل من الحد المحدد</b>' : '✅ <b>هامش الربح ضمن الحد المحدد</b>'}
+━━━━━━━━━━━━━━━━━━━━
+اليوم: ${businessDate}
+المبيعات المكتملة: ${Number(marginRes.rows[0].total_sales).toLocaleString('ar-EG')} ج.م
+مجمل الربح المسجل: ${Number(marginRes.rows[0].gross_profit).toLocaleString('ar-EG')} ج.م
+هامش الربح الإجمالي: ${margin.toLocaleString('ar-EG', { minimumFractionDigits: 1, maximumFractionDigits: 2 })}%
+الحد المستهدف: ${targetMargin}%
+عدد الفواتير: ${Number(marginRes.rows[0].invoice_count)}
+          `.trim();
+        }
       } else if (canonicalKey === 'system_health') {
         title = 'فحص سلامة النظام';
         const { checkHealth } = await import('../database/pool.ts');

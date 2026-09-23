@@ -273,6 +273,12 @@ export const toggleAutomationTask = wrap(async (req: Request, res: Response) => 
   const key = String(req.params.key);
   const { is_enabled } = req.body;
   const updated = await WorkflowGraphService.toggleAutomation(key, Boolean(is_enabled));
+  if ((updated as any)?.unsupported) {
+    return res.status(409).json({
+      success: false,
+      message: 'لا يمكن تفعيل المهمة آلياً لعدم توفر معالج وجدولة مدعومين لها.',
+    });
+  }
   if (!updated) {
     return res.status(404).json({ success: false, message: 'مهمة الأتمتة غير موجودة' });
   }

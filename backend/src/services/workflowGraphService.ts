@@ -413,6 +413,7 @@ export class WorkflowGraphService {
       warehouse_stock_balancing: 'warehouse_balancing',
       warehouse_stock_rebalance: 'warehouse_balancing',
       // توافق رجعي مع قواعد الأتمتة المحفوظة قبل توحيد نموذج المحل الواحد.
+      branch_balancing: 'warehouse_balancing',
       branch_stock_balancing: 'warehouse_balancing',
       branch_stock_rebalance: 'warehouse_balancing',
     };

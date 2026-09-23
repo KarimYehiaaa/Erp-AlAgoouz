@@ -202,17 +202,8 @@ export const clearAllData = async () => {
   const client = await getClient();
   try {
     await client.query('BEGIN');
-    // Temporarily disable triggers/constraints that are enforced by triggers
-    // This helps importing data that may violate business-enforced triggers
-    // during a direct restore. Will be automatically reset when transaction ends.
-    try {
-      await client.query("SET LOCAL session_replication_role = 'replica'");
-    } catch {
-      // If we cannot change role, continue and rely on careful ordering
-      logger.warn(
-        '[Restore] could not set session_replication_role, continuing with triggers enabled',
-      );
-    }
+    // Permission failure aborts the transaction: let the outer handler roll it back.
+    await client.query("SET LOCAL session_replication_role = 'replica'");
     for (const t of CLEAR_DATA_TABLES) {
       await client.query(`TRUNCATE TABLE ${t} RESTART IDENTITY CASCADE`);
     }
@@ -239,7 +230,12 @@ export const restoreBackup = async (name: string) => {
   } catch {
     throw new AppError('النسخة غير موجودة', 404);
   }
-  let parsed = JSON.parse(content);
+  let parsed;
+  try {
+    parsed = JSON.parse(content);
+  } catch {
+    throw new AppError('صيغة ملف النسخة الاحتياطية غير صحيحة', 400);
+  }
   if (parsed && parsed.encrypted) {
     try {
       const decrypted = decrypt(parsed.payload);
@@ -262,6 +258,27 @@ export const restoreBackup = async (name: string) => {
       400,
     );
   }
+  // A snapshot has a uniform column set per table. Reject malformed data before
+  // opening a connection; silently dropping later-row columns would lose data.
+  for (const table of BACKUP_TABLES) {
+    let expectedColumns: Set<string> | undefined;
+    for (const row of data[table]) {
+      if (!row || typeof row !== 'object' || Array.isArray(row)) {
+        throw new AppError(`صف غير صالح في النسخة الاحتياطية: ${table}`, 400);
+      }
+      const columns = Object.keys(row);
+      if (
+        columns.length === 0 ||
+        columns.some((column) => !/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(column)) ||
+        (expectedColumns &&
+          (columns.length !== expectedColumns.size ||
+            columns.some((column) => !expectedColumns!.has(column))))
+      ) {
+        throw new AppError(`أعمدة غير متوافقة في النسخة الاحتياطية: ${table}`, 400);
+      }
+      expectedColumns ??= new Set(columns);
+    }
+  }
   // Choose tables in a dependency-safe order (only those present in the backup)
   const restoreTables = RESTORE_ORDER.filter(
     (t) => ALLOWED_RESTORE_TABLES.has(t) && Object.prototype.hasOwnProperty.call(data, t),
@@ -269,13 +286,8 @@ export const restoreBackup = async (name: string) => {
   const client = await getClient();
   try {
     await client.query('BEGIN');
-    try {
-      await client.query("SET LOCAL session_replication_role = 'replica'");
-    } catch {
-      logger.warn(
-        '[Restore] could not set session_replication_role, continuing with triggers enabled',
-      );
-    }
+    // Do not continue after permission errors or replay history with live triggers.
+    await client.query("SET LOCAL session_replication_role = 'replica'");
     // تصفية الجداول المسموح بها أولاً لمنع TRUNCATE على جداول غير مصرح بها (SQL Injection)
     const validRestoreTables = restoreTables.filter((table) => {
       if (!ALLOWED_RESTORE_TABLES.has(table)) {
@@ -296,8 +308,8 @@ export const restoreBackup = async (name: string) => {
         [table],
       );
       const jsonColumns = new Set(columnTypes.rows.map((column) => column.column_name));
-      // فقط الأعمدة التي تحتوي أسماء SQL آمنة (حروف وأرقام وشرطة سفلية)
-      const cols = Object.keys(rows[0]).filter((c) => /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(c));
+      // Column names and the complete row shape were validated before connecting.
+      const cols = Object.keys(rows[0]);
       const colList = cols.map((c) => `"${c}"`).join(',');
       for (const row of rows) {
         // Restore history exactly: current product routing must not rewrite past movements.

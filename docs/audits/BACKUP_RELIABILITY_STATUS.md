@@ -35,6 +35,15 @@ Still required before declaring disaster recovery ready:
 - Verify closed accounting periods and all document families with richer financial fixtures.
 - Verify production backup storage, retention and off-site retrieval; a successful HTTP health
   response does not establish any of these guarantees.
+- Verify relational integrity for imported rows while replication-mode triggers are disabled.
+
+Restore input hardening verified locally:
+
+- Malformed JSON, non-object/empty rows, invalid column identifiers and inconsistent row
+  column sets are rejected before acquiring a database connection (mocked boundary tests).
+- Replication-role permission failure immediately rolls back restore/reset; neither proceeds
+  to truncate tables after the failed statement. Ten regression cases passed.
+- The full restore drill on the disposable database still passes after this validation.
 
 Historical migrations are retained because they reconstruct the schema. They are not
 duplicate runtime implementations and must not be deleted as obsolete code.

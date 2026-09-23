@@ -405,7 +405,7 @@ export class WorkflowGraphService {
    */
   static async runAutomationNow(
     key: string,
-    options: { triggerSource?: string; executionId?: string } = {},
+    options: { triggerSource?: string; executionId?: string; scheduledFor?: Date } = {},
   ): Promise<{ success: boolean; message: string; payload?: any }> {
     const aliases: Record<string, string> = {
       daily_summary: 'daily_sales_report',
@@ -484,26 +484,39 @@ export class WorkflowGraphService {
       const creds = await TelegramBotService.getBotCredentials();
 
       if (canonicalKey === 'daily_sales_report') {
-        title = 'تقرير الإغلاق المالي واليومي';
+        const businessDateParts = new Intl.DateTimeFormat('en-US', {
+          timeZone: 'Africa/Cairo',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+        }).formatToParts(options.scheduledFor || new Date());
+        const datePart = (type: string) =>
+          businessDateParts.find((part) => part.type === type)?.value || '';
+        const reportDate = `${datePart('year')}-${datePart('month')}-${datePart('day')}`;
+        title = `ملخص مبيعات المحل ليوم ${reportDate}`;
         const salesRes = await query(
-          `SELECT 
+          `SELECT
              COUNT(*) as invoice_count,
-             COALESCE(SUM(subtotal), 0) as total_revenue,
              COALESCE(SUM(total_amount), 0) as net_revenue,
              COALESCE(SUM(profit_amount), 0) as total_profit
            FROM sales
-           WHERE created_at >= CURRENT_DATE AND (status IS NULL OR status != 'cancelled')`,
+           WHERE sale_date = $1::date AND deleted_at IS NULL AND status = 'completed'`,
+          [reportDate],
         );
         const expRes = await query(
-          `SELECT COALESCE(SUM(amount), 0) as total_expenses FROM expenses WHERE created_at >= CURRENT_DATE`,
+          `SELECT COALESCE(SUM(amount), 0) as total_expenses
+           FROM expenses WHERE expense_date = $1::date AND deleted_at IS NULL`,
+          [reportDate],
         );
         const topRes = await query(
           `SELECT p.name_ar, SUM(si.quantity) as qty
            FROM sale_items si
+           JOIN sales s ON s.id = si.sale_id
            JOIN products p ON p.id = si.product_id
-           WHERE si.created_at >= CURRENT_DATE
+           WHERE s.sale_date = $1::date AND s.deleted_at IS NULL AND s.status = 'completed'
            GROUP BY p.name_ar
            ORDER BY qty DESC LIMIT 3`,
+          [reportDate],
         );
 
         const s = salesRes.rows[0];
@@ -511,19 +524,19 @@ export class WorkflowGraphService {
         const topList =
           topRes.rows
             .map((r: any) => `  • ${r.name_ar}: ${Number(r.qty).toFixed(1)} كجم/قطعة`)
-            .join('\n') || '  • لا توجد مبيعات مسجلة اليوم بعد';
+            .join('\n') || '  • لا توجد مبيعات تفصيلية مسجلة لهذا اليوم';
 
         notificationText = `
-📊 <b>تقرير الإغلاق اليومي الذكي — بن العجوز ERP</b>
+📊 <b>ملخص مبيعات المحل — ${reportDate}</b>
 ━━━━━━━━━━━━━━━━━━━━
-💰 <b>إجمالي الإيرادات (الصافي):</b> ${Number(s.net_revenue).toLocaleString('ar-EG')} ج.م
+💰 <b>إجمالي المبيعات المسجلة:</b> ${Number(s.net_revenue).toLocaleString('ar-EG')} ج.م
 🧾 <b>عدد الفواتير:</b> ${s.invoice_count}
 💸 <b>إجمالي المصروفات:</b> ${Number(e.total_expenses).toLocaleString('ar-EG')} ج.م
-💵 <b>صافي الربح التقديري:</b> ${(Number(s.net_revenue) - Number(e.total_expenses)).toLocaleString('ar-EG')} ج.م
+💵 <b>مجمل الربح المسجل قبل المصروفات:</b> ${Number(s.total_profit).toLocaleString('ar-EG')} ج.م
 ━━━━━━━━━━━━━━━━━━━━
-🔥 <b>أعلى المنتجات مبيعاً اليوم:</b>
+🔥 <b>أعلى المنتجات مبيعاً في اليوم:</b>
 ${topList}
-⏱ <i>تم التشغيل فورياً: ${new Date().toLocaleTimeString('ar-EG', { timeZone: 'Africa/Cairo' })}</i>
+⏱ <i>وقت إرسال الملخص: ${new Date().toLocaleTimeString('ar-EG', { timeZone: 'Africa/Cairo' })}</i>
         `.trim();
       } else if (canonicalKey === 'low_stock_alert') {
         title = 'إنذار نواقص المخزون وخامات البن';
@@ -607,16 +620,26 @@ ${fraudList}
           await import('./warehouseBalancingService.ts');
         const bal = await WarehouseBalancingService.generateBalancingRecommendations();
         notificationText = bal.htmlReport;
-      } else if (canonicalKey === 'system_health' || canonicalKey === 'daily_backup_reminder') {
-        title = 'فحص سلامة النظام والنسخ الاحتياطي';
+      } else if (canonicalKey === 'system_health') {
+        title = 'فحص سلامة النظام';
         const { checkHealth } = await import('../database/pool.ts');
         const dbHealth = await checkHealth();
+        if (!dbHealth.ok) status = 'warning';
         notificationText = `
 🖥️ <b>تقرير فحص سلامة النظام والخادم</b>
 ━━━━━━━━━━━━━━━━━━━━
-🟢 <b>حالة السيرفر:</b> متصل ويعمل بشكل ممتاز
-🗄️ <b>قاعدة البيانات:</b> ${dbHealth.ok ? 'نشطة ومستقرة' : 'يوجد بطء'} (${dbHealth.latencyMs}ms)
-🔒 <b>النسخ الاحتياطي التلقائي:</b> مُجدول ونشط
+🟢 <b>حالة الخدمة:</b> تم تشغيل الفحص
+🗄️ <b>قاعدة البيانات:</b> ${dbHealth.ok ? 'اتصال ناجح' : 'تعذر الاتصال'} (${dbHealth.latencyMs}ms)
+⏱ ${new Date().toLocaleString('ar-EG', { timeZone: 'Africa/Cairo' })}
+        `.trim();
+      } else if (canonicalKey === 'daily_backup_reminder') {
+        title = 'تذكير بالتحقق من النسخ الاحتياطية';
+        status = 'warning';
+        notificationText = `
+🔒 <b>تذكير بفحص النسخ الاحتياطية</b>
+━━━━━━━━━━━━━━━━━━━━
+⚠️ لم يتم التحقق من وجود نسخة احتياطية حديثة قابلة للاستعادة في هذا الفحص.
+راجع آخر ملف محفوظ، وموقع التخزين الخارجي، ونتيجة تجربة الاستعادة قبل اعتبار النسخ سليمة.
 ⏱ ${new Date().toLocaleString('ar-EG', { timeZone: 'Africa/Cairo' })}
         `.trim();
       }

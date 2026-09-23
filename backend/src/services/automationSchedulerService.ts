@@ -68,10 +68,17 @@ export const matchesCronExpression = (expression: string, date = new Date()) => 
   );
 };
 
-const alreadyRanThisMinute = (lastRunAt: string | null, now: Date) => {
-  if (!lastRunAt) return false;
-  const previous = new Date(lastRunAt);
-  return Math.floor(previous.getTime() / 60_000) === Math.floor(now.getTime() / 60_000);
+const mostRecentScheduledMinute = (expression: string, now: Date): Date | null => {
+  const minuteField = expression.trim().split(/\s+/)[0];
+  const currentMinute = Math.floor(now.getTime() / 60_000) * 60_000;
+  // 35 days cover daily, weekly, and monthly schedules, including 31-day gaps.
+  for (let offset = 0; offset <= 35 * 24 * 60; offset += 1) {
+    const candidate = new Date(currentMinute - offset * 60_000);
+    // Cairo's UTC offset is in whole hours, so the minute can be rejected cheaply.
+    if (!matchesField(minuteField, candidate.getUTCMinutes(), 0, 59)) continue;
+    if (matchesCronExpression(expression, candidate)) return candidate;
+  }
+  return null;
 };
 
 export const tickDueAutomations = async (now = new Date()) => {
@@ -79,25 +86,49 @@ export const tickDueAutomations = async (now = new Date()) => {
   tickInProgress = true;
   try {
     const result = await query(
-      `SELECT key, cron_expression, last_run_at
+      `SELECT key, cron_expression, last_run_at, last_status
        FROM automations
        WHERE is_enabled = TRUE AND trigger_type = 'cron' AND cron_expression IS NOT NULL
        ORDER BY id`,
     );
-    const due = result.rows.filter(
-      (task: any) =>
-        matchesCronExpression(task.cron_expression, now) &&
-        !alreadyRanThisMinute(task.last_run_at, now),
-    );
+    const staleBefore = new Date(now.getTime() - 15 * 60_000);
+    const canonicalDailyReport = result.rows.find((task: any) => task.key === 'daily_sales_report');
+    const due = result.rows.flatMap((task: any) => {
+      if (
+        task.key === 'daily_summary_report' &&
+        canonicalDailyReport?.cron_expression === task.cron_expression
+      )
+        return [];
+      const scheduledAt = mostRecentScheduledMinute(task.cron_expression, now);
+      if (!scheduledAt) return [];
+      const lastRunAt = task.last_run_at ? new Date(task.last_run_at).getTime() : 0;
+      const staleClaim = task.last_status === 'running' && lastRunAt < staleBefore.getTime();
+      return lastRunAt < scheduledAt.getTime() || staleClaim ? [{ task, scheduledAt }] : [];
+    });
     let failed = 0;
-    for (const task of due) {
+    let executed = 0;
+    for (const { task, scheduledAt } of due) {
+      // Persist the claim before any outbound notification. A second serverless
+      // invocation will see no returned row and cannot send a duplicate alert.
+      const claim = await query(
+        `UPDATE automations
+         SET last_run_at = $1, last_status = 'running', updated_at = NOW()
+         WHERE key = $2 AND is_enabled = TRUE AND trigger_type = 'cron'
+           AND (last_run_at IS NULL OR last_run_at < $3
+                OR (last_status = 'running' AND last_run_at < $4))
+         RETURNING key`,
+        [now, task.key, scheduledAt, staleBefore],
+      );
+      if (!claim.rows.length) continue;
+      executed += 1;
       const execution = await WorkflowGraphService.runAutomationNow(task.key, {
         triggerSource: 'scheduler',
         executionId: crypto.randomUUID(),
+        scheduledFor: scheduledAt,
       });
       if (!execution.success) failed += 1;
     }
-    return { skipped: false, executed: due.length, failed };
+    return { skipped: false, executed, failed };
   } finally {
     tickInProgress = false;
   }

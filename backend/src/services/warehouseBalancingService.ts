@@ -84,16 +84,24 @@ export class WarehouseBalancingService {
         productStockByWh.set(r.product_id, []);
       }
       const vel = velocityMap.get(`${r.warehouse_id}_${r.product_id}`) || 0;
-      const daysSupply = vel > 0 ? Number(r.current_stock) / vel : 999;
-
-      productStockByWh.get(r.product_id)!.push({
+      const stockUnits = Math.round(Number(r.current_stock) * 1000);
+      const list = productStockByWh.get(r.product_id)!;
+      const existing = list.find((w) => w.warehouseId === r.warehouse_id);
+      if (existing) {
+        existing.stockUnits += stockUnits;
+        existing.stock = existing.stockUnits / 1000;
+        existing.daysSupply = vel > 0 ? existing.stock / vel : 999;
+        continue;
+      }
+      list.push({
         warehouseId: r.warehouse_id,
         warehouseName: r.warehouse_name,
         productName: r.product_name,
         unit: r.unit || 'وحدة',
-        stock: Number(r.current_stock),
+        stockUnits,
+        stock: stockUnits / 1000,
         velocity: vel,
-        daysSupply,
+        daysSupply: vel > 0 ? stockUnits / 1000 / vel : 999,
       });
     }
 
@@ -111,9 +119,18 @@ export class WarehouseBalancingService {
           if (def.warehouseId === sur.warehouseId) continue;
 
           // حساب الكمية المقترحة للنقل
-          const targetQty = Math.round(def.velocity * 7 - def.stock); // تغطية أسبوع
-          const availableToGive = Math.round(sur.stock - sur.velocity * 10);
-          const transferQty = Math.max(1, Math.min(targetQty, availableToGive));
+          // Allocate in thousandths (inventory precision), preserving ten days
+          // at each donor and accounting for every recommendation already made.
+          const targetUnits = Math.max(
+            0,
+            Math.ceil(def.velocity * 7 * 1000 - 1e-8) - def.stockUnits,
+          );
+          const availableUnits = Math.max(
+            0,
+            sur.stockUnits - Math.ceil(sur.velocity * 10 * 1000 - 1e-8),
+          );
+          const transferUnits = Math.min(targetUnits, availableUnits);
+          const transferQty = transferUnits / 1000;
 
           if (transferQty > 0) {
             recommendations.push({
@@ -127,7 +144,9 @@ export class WarehouseBalancingService {
               suggestedQty: transferQty,
               reason: `معدل سحب مرتفع في (${def.toWarehouseName || def.warehouseName}) مقابل فائض راكد في (${sur.warehouseName})`,
             });
-            break;
+            sur.stockUnits -= transferUnits;
+            def.stockUnits += transferUnits;
+            if (transferUnits === targetUnits) break;
           }
         }
       }

@@ -502,7 +502,7 @@ describe('6. Sales Return / Refund -> General Ledger Integration', () => {
     // 1. Create a completed sale: 2 units of testProductId @ 150 = 300 EGP (cost: 100 * 2 = 200)
     const sale = await createDailySale(
       {
-        sale_type: 'branch',
+        sale_type: 'retail',
         warehouse_id: testWarehouseId,
         payment_method: 'cash',
         total_amount: 300.0,

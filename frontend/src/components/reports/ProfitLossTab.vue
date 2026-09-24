@@ -90,7 +90,7 @@
           <div class="pl-section-title">الإيرادات</div>
           <div class="pl-row" v-for="(val, type) in plData.revenue?.by_type" :key="type">
             <span class="pl-indent">{{
-              { branch: 'مبيعات المحل', wholesale: 'مبيعات جملة', pos: 'POS' }[type] || type
+              { retail: 'مبيعات المحل', wholesale: 'مبيعات جملة', pos: 'POS' }[type] || type
             }}</span>
             <span class="pl-amount">{{ formatMoney(val.revenue) }}</span>
           </div>

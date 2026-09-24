@@ -15,13 +15,13 @@ export const products = {
     ok(res, await productService.getProducts(req.query));
   }),
   /**
-   * قائمة منتجات فرع/مخزن محدد.
+   * قائمة منتجات مخزن البيع بالمحل.
    * @param {import('express').Request} req طلب HTTP
    * @param {import('express').Response} res استجابة HTTP
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
-  branchProducts: wrap(async (req, res) => {
-    ok(res, await productService.getBranchProducts(req.query));
+  shopProducts: wrap(async (req, res) => {
+    ok(res, await productService.getShopProducts(req.query));
   }),
   /**
    * تقرير تكاليف المنتجات الفعلية.

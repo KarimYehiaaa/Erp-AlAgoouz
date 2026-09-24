@@ -5,8 +5,8 @@
       <button
         type="button"
         class="hub-tab"
-        :class="{ active: activeTab === 'branch' }"
-        @click="switchTab('branch')"
+        :class="{ active: activeTab === 'retail' }"
+        @click="switchTab('retail')"
       >
         <AppIcon name="shop" :size="16" /> تجزئة ويومي
       </button>
@@ -49,9 +49,9 @@
     </div>
 
     <Transition name="hub-fade" mode="out-in">
-      <!-- ===== SECTION 1: REGULAR SALES (Branch, Wholesale, Monthly) ===== -->
+      <!-- ===== SECTION 1: RETAIL, WHOLESALE, MONTHLY SALES ===== -->
       <div
-        v-if="['branch', 'wholesale', 'monthly'].includes(activeTab)"
+        v-if="['retail', 'wholesale', 'monthly'].includes(activeTab)"
         key="sales"
         class="sales-tab-content"
       >
@@ -107,7 +107,7 @@
 
         <!-- 1. مبيعات المحل اليومية -->
         <RetailSalesPanel
-          v-if="activeTab === 'branch'"
+          v-if="activeTab === 'retail'"
           :editing-sale-id="editingSaleId"
           :editing-sale-number="editingSaleNumber"
           :form="form"
@@ -221,7 +221,7 @@ const localTodayYmd = () => {
   return `${y}-${m}-${d}`;
 };
 const today = localTodayYmd();
-const activeTab = ref<string>((route.query.tab as string) || 'branch');
+const activeTab = ref<string>((route.query.tab as string) || 'retail');
 const sales = ref<any[]>([]);
 const loadingSales = ref(false);
 
@@ -354,8 +354,8 @@ const periodCashTotal = computed(
 );
 const salesListQuery = computed(() => ({
   sale_type:
-    activeTab.value === 'branch'
-      ? 'branch'
+    activeTab.value === 'retail'
+      ? 'retail'
       : activeTab.value === 'wholesale'
         ? 'wholesale'
         : undefined,
@@ -631,7 +631,7 @@ const deleteAllSales = async () => {
 };
 
 const deleteSalesByType = async (saleType: any) => {
-  const label = saleType === 'branch' ? 'مبيعات المحل ' : 'مبيعات الجملة ';
+  const label = saleType === 'retail' ? 'مبيعات المحل ' : 'مبيعات الجملة ';
   const confirmed = window.confirm(`تأكيد نهائي: سيتم حذف كل ${label} بشكل دائم.\nهل أنت متأكد؟`);
   if (!confirmed) return;
   saving.value = true;

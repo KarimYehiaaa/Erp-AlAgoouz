@@ -54,7 +54,7 @@
         <div class="shift-badge-wrap">
           <span class="shift-pill">
             <AppIcon name="shop" :size="14" />
-            {{ currentBranchName }}
+            {{ shopName }}
           </span>
         </div>
       </div>
@@ -110,14 +110,12 @@ const isPeakHour = computed(() => {
   return (currentHour >= 12 && currentHour <= 15) || (currentHour >= 18 && currentHour <= 22);
 });
 
-// النقدية بالدرج والفرع
+// النقدية في درج الكاشير بالمحل
 const cashInRegister = computed(() => {
   return Number(props.stats?.cashTotal || props.stats?.today?.cash || todaySales.value * 0.65);
 });
 
-const currentBranchName = computed(() => {
-  return props.stats?.branchName || 'المحل الرئيسي';
-});
+const shopName = computed(() => props.stats?.shopName || 'المحل الرئيسي');
 </script>
 
 <style scoped lang="scss">

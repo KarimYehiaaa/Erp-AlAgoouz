@@ -577,7 +577,7 @@ export function usePosSales() {
       if (saleForm.value.warehouse_id) params.warehouse_id = saleForm.value.warehouse_id;
 
       if (navigator.onLine) {
-        const prodRes = await productsApi.branchProducts(params);
+        const prodRes = await productsApi.shopProducts(params);
         allProducts.value = prodRes.data || [];
         try {
           await localDb.saveProducts(allProducts.value);
@@ -717,7 +717,7 @@ export function usePosSales() {
           earned: Math.max(0, Math.floor(Number(saleRecord.total_amount || 0) / 10)),
           redeemed: Number(saleForm.value.loyalty_points_redeemed) || 0,
         },
-        user_name: 'كاشير الفرع',
+        user_name: authStore.user?.full_name || 'كاشير المحل',
         company: companySettings.value,
         items: (saleRecord.items || []).map((item: any) => {
           const notesStr = item.notes || item.custom_notes;
@@ -746,7 +746,7 @@ export function usePosSales() {
     if (!cart.value.length) return;
     saleError.value = '';
 
-    // التحقق من فتح الشفت عند كاشير الفرع
+    // التحقق من فتح الشفت عند كاشير المحل
     if (authStore.isCashier && !isShiftOpen.value) {
       playBeep('warning');
       appStore.addToast('يرجى فتح شفت أولاً لبدء تسجيل المبيعات ومطابقة العهدة', 'warning');
@@ -809,7 +809,7 @@ export function usePosSales() {
 
     const payload = {
       sync_id: syncId,
-      sale_type: 'branch',
+      sale_type: 'retail',
       sale_date: saleForm.value.sale_date,
       warehouse_id: saleForm.value.warehouse_id || currentShift.value?.warehouse_id || null,
       customer_id: saleForm.value.customer_id || null,
@@ -922,7 +922,7 @@ export function usePosSales() {
       let historyData = [];
       if (navigator.onLine) {
         const res = await salesApi.list({
-          sale_type: 'branch',
+          sale_type: 'retail',
           entry_mode: 'pos',
           from_date: historyFilters.value.from_date,
           to_date: historyFilters.value.to_date,
@@ -1117,7 +1117,7 @@ export function usePosSales() {
     try {
       saving.value = true;
       await salesApi.create({
-        sale_type: 'branch',
+        sale_type: 'retail',
         sale_date: saleForm.value.sale_date,
         warehouse_id: saleForm.value.warehouse_id || null,
         payment_method: saleForm.value.payment_method || 'cash',

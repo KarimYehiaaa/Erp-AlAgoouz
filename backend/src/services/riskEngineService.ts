@@ -10,7 +10,7 @@
  *  - ورديات الكاشير المفتوحة لفترات غير منطقية (Unusual Long Shifts)
  *
  * كل تنبيه يلتزم بالنموذج الصارم:
- * { id, severity, user, branch, timestamp, event, reference, explanation, fingerprint }
+ * { id, severity, user, warehouse, timestamp, event, reference, explanation, fingerprint }
  */
 import { query } from '../database/pool.ts';
 import { logger } from './loggerService.ts';
@@ -24,7 +24,6 @@ import type {
 
 export interface RiskScanOptions {
   warehouseId?: number | null;
-  branchId?: number | null; // مرادف لـ warehouseId لسهولة الاستخدام
   startDate?: Date | string | null;
   endDate?: Date | string | null;
   minSeverity?: 'low' | 'medium' | 'high' | 'critical';
@@ -69,7 +68,7 @@ export async function detectExcessiveDiscounts(
   const alerts: RiskAlert[] = [];
   const res = await query(
     `SELECT s.id, s.sale_number, s.total_amount, s.subtotal, s.discount_amount, s.discount_percent,
-            s.created_at, s.user_id, u.full_name as user_name, s.warehouse_id, w.name_ar as branch_name
+            s.created_at, s.user_id, u.full_name as user_name, s.warehouse_id, w.name_ar as warehouse_name
      FROM sales s
      LEFT JOIN users u ON u.id = s.user_id
      LEFT JOIN warehouses w ON w.id = s.warehouse_id
@@ -95,7 +94,7 @@ export async function detectExcessiveDiscounts(
       id: `risk-disc-${r.id}`,
       severity,
       user: { id: r.user_id, name: r.user_name || 'غير معروف' },
-      branch: { id: r.warehouse_id, name: r.branch_name || 'الفرع الرئيسي' },
+      warehouse: { id: r.warehouse_id, name: r.warehouse_name || 'المخزن الرئيسي' },
       timestamp: r.created_at ? new Date(r.created_at).toISOString() : new Date().toISOString(),
       event: 'excessive_discount',
       reference: { type: 'sale', id: r.id },
@@ -119,7 +118,7 @@ export async function detectRepeatedVoids(
 ): Promise<RiskAlert[]> {
   const alerts: RiskAlert[] = [];
   const res = await query(
-    `SELECT s.user_id, u.full_name as user_name, s.warehouse_id, w.name_ar as branch_name,
+    `SELECT s.user_id, u.full_name as user_name, s.warehouse_id, w.name_ar as warehouse_name,
             COUNT(*) as void_count, MAX(COALESCE(s.deleted_at, s.created_at)) as latest_time
      FROM sales s
      LEFT JOIN users u ON u.id = s.user_id
@@ -142,7 +141,7 @@ export async function detectRepeatedVoids(
       id: `risk-void-user-${r.user_id}`,
       severity,
       user: { id: r.user_id, name: r.user_name || 'كاشير' },
-      branch: { id: r.warehouse_id, name: r.branch_name || 'الفرع' },
+      warehouse: { id: r.warehouse_id, name: r.warehouse_name || 'المخزن' },
       timestamp: r.latest_time ? new Date(r.latest_time).toISOString() : new Date().toISOString(),
       event: 'repeated_voids',
       reference: { type: 'user', id: r.user_id },
@@ -165,7 +164,7 @@ export async function detectCashDifferences(
   const alerts: RiskAlert[] = [];
   const res = await query(
     `SELECT ps.id, ps.shift_number, ps.cashier_user_id as user_id, u.full_name as user_name,
-            ps.warehouse_id, w.name_ar as branch_name, ps.opening_cash, ps.expected_cash,
+            ps.warehouse_id, w.name_ar as warehouse_name, ps.opening_cash, ps.expected_cash,
             ps.actual_cash, ps.cash_difference, ps.closed_at, ps.opened_at
      FROM pos_shifts ps
      LEFT JOIN users u ON u.id = ps.cashier_user_id
@@ -189,7 +188,7 @@ export async function detectCashDifferences(
       id: `risk-shift-${r.id}`,
       severity,
       user: { id: r.user_id, name: r.user_name || 'كاشير' },
-      branch: { id: r.warehouse_id, name: r.branch_name || 'الفرع' },
+      warehouse: { id: r.warehouse_id, name: r.warehouse_name || 'المخزن' },
       timestamp: r.closed_at ? new Date(r.closed_at).toISOString() : new Date().toISOString(),
       event: 'cash_difference',
       reference: { type: 'pos_shift', id: r.id },
@@ -214,7 +213,7 @@ export async function detectStockAdjustments(
     `SELECT sm.id, sm.product_id, p.name_ar as product_name, sm.quantity, sm.movement_type,
             sm.notes, sm.created_at, sm.user_id, u.full_name as user_name,
             COALESCE(sm.to_warehouse_id, sm.from_warehouse_id) as warehouse_id,
-            w.name_ar as branch_name
+            w.name_ar as warehouse_name
      FROM stock_movements sm
      LEFT JOIN products p ON p.id = sm.product_id
      LEFT JOIN users u ON u.id = sm.user_id
@@ -237,7 +236,7 @@ export async function detectStockAdjustments(
       id: `risk-adj-${r.id}`,
       severity,
       user: { id: r.user_id, name: r.user_name || 'مستخدم' },
-      branch: { id: r.warehouse_id, name: r.branch_name || 'المخزن' },
+      warehouse: { id: r.warehouse_id, name: r.warehouse_name || 'المخزن' },
       timestamp: r.created_at ? new Date(r.created_at).toISOString() : new Date().toISOString(),
       event: 'stock_adjustment',
       reference: { type: 'stock_movement', id: r.id },
@@ -259,7 +258,7 @@ export async function detectUnusualLongShifts(
   const hoursInterval = `${Math.max(1, Math.floor(rules.longShiftHours))} hours`;
   const res = await query(
     `SELECT ps.id, ps.shift_number, ps.cashier_user_id as user_id, u.full_name as user_name,
-            ps.warehouse_id, w.name_ar as branch_name, ps.opened_at,
+            ps.warehouse_id, w.name_ar as warehouse_name, ps.opened_at,
             ROUND((EXTRACT(EPOCH FROM (NOW() - ps.opened_at))/3600)::numeric, 1) as hours_open
      FROM pos_shifts ps
      LEFT JOIN users u ON u.id = ps.cashier_user_id
@@ -276,7 +275,7 @@ export async function detectUnusualLongShifts(
       id: `risk-long-shift-${r.id}`,
       severity: 'high',
       user: { id: r.user_id, name: r.user_name || 'كاشير' },
-      branch: { id: r.warehouse_id, name: r.branch_name || 'الفرع' },
+      warehouse: { id: r.warehouse_id, name: r.warehouse_name || 'المخزن' },
       timestamp: r.opened_at ? new Date(r.opened_at).toISOString() : new Date().toISOString(),
       event: 'unusual_shift_duration',
       reference: { type: 'pos_shift', id: r.id },
@@ -299,7 +298,7 @@ export async function detectRepeatedPinOverrides(
   const alerts: RiskAlert[] = [];
   const res = await query(
     `SELECT mar.requester_user_id as user_id, u.full_name as user_name,
-            mar.terminal_id, pt.warehouse_id, w.name_ar as branch_name,
+            mar.terminal_id, pt.warehouse_id, w.name_ar as warehouse_name,
             COUNT(*) as request_count, MAX(mar.created_at) as latest_time
      FROM manager_approval_requests mar
      LEFT JOIN users u ON u.id = mar.requester_user_id
@@ -322,7 +321,7 @@ export async function detectRepeatedPinOverrides(
       id: `risk-override-user-${r.user_id}`,
       severity,
       user: { id: r.user_id, name: r.user_name || 'كاشير' },
-      branch: { id: r.warehouse_id, name: r.branch_name || 'الفرع' },
+      warehouse: { id: r.warehouse_id, name: r.warehouse_name || 'المخزن' },
       timestamp: r.latest_time ? new Date(r.latest_time).toISOString() : new Date().toISOString(),
       event: 'repeated_pin_overrides',
       reference: { type: 'user', id: r.user_id },
@@ -344,11 +343,11 @@ export function generateAlertFingerprint(alert: RiskAlert, dedupWindowMinutes: n
   const timeBucket = Math.floor(ts / windowMs);
 
   const userId = alert.user?.id ?? '0';
-  const branchId = alert.branch?.id ?? '0';
+  const warehouseId = alert.warehouse?.id ?? '0';
   const refType = alert.reference?.type ?? 'none';
   const refId = alert.reference?.id ?? '0';
 
-  return `${alert.event}:${userId}:${branchId}:${refType}:${refId}:${timeBucket}`;
+  return `${alert.event}:${userId}:${warehouseId}:${refType}:${refId}:${timeBucket}`;
 }
 
 // Main Orchestrator: scanRiskAlerts
@@ -358,7 +357,7 @@ export function generateAlertFingerprint(alert: RiskAlert, dedupWindowMinutes: n
  */
 export const scanRiskAlerts = async (options: RiskScanOptions = {}): Promise<RiskScanResult> => {
   const startTime = Date.now();
-  const effectiveWarehouseId = options.warehouseId ?? options.branchId ?? null;
+  const effectiveWarehouseId = options.warehouseId ?? null;
   const warehouseId = effectiveWarehouseId ? Number(effectiveWarehouseId) : null;
   const startDate = options.startDate ? new Date(options.startDate) : null;
   const endDate = options.endDate ? new Date(options.endDate) : null;

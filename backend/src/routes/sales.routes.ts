@@ -1,6 +1,6 @@
 /**
  * routes/sales.routes.ts — المبيعات والعملاء والمصروفات
- *  - مبيعات الفروع (استيراد Excel) والمبيعات اليومية (فرع/جملة)
+ *  - مبيعات المحل (استيراد Excel) والمبيعات اليومية (محل/جملة)
  *  - الأرصدة الافتتاحية والمرتجعات والحذف الجماعي
  *  - العملاء (بيانات/كشوف/مدفوعات) والمصروفات
  */
@@ -9,6 +9,7 @@ import { authenticate, authorize, auditLog } from '../middleware/auth.ts';
 import { requireConfirmation } from '../middleware/confirmAction.ts';
 import { validateBody, validateQuery } from '../middleware/validate.ts';
 import { enforceWarehouseAccess } from '../middleware/warehouseAccess.ts';
+import { requireIdempotency } from '../middleware/idempotency.ts';
 import {
   requireManagerOverride,
   enforceCashierDiscountOverride,
@@ -34,24 +35,23 @@ const salesCreateAuth = authorize('pos.add', 'sales.add', 'invoices.add');
 const salesEditAuth = authorize('pos.edit', 'sales.edit', 'invoices.edit');
 const salesDeleteAuth = authorize('pos.delete', 'sales.delete');
 
-// Existing POS Excel URLs remain stable for already-installed clients.
-router.get('/sales/branch/template', authenticate, authorize('pos.view'), api.sales.posTemplate);
+router.get('/sales/retail/template', authenticate, authorize('pos.view'), api.sales.posTemplate);
 router.post(
-  '/sales/branch/validate',
+  '/sales/retail/validate',
   authenticate,
   authorize('pos.add'),
   upload.single('file'),
   api.sales.posValidateExcel,
 );
 router.post(
-  '/sales/branch/import',
+  '/sales/retail/import',
   authenticate,
   authorize('pos.add'),
   upload.single('file'),
   api.sales.posImportExcel,
 );
 
-// ─── Sales — مبيعات يومية (فرع / جملة) ──────────────────────────────────────
+// ─── Sales — مبيعات المحل والجملة ───────────────────────────────────────────
 router.get(
   '/sales/summary',
   authenticate,
@@ -65,6 +65,7 @@ router.put(
   '/sales/opening-balance',
   authenticate,
   salesEditAuth,
+  requireIdempotency,
   validateBody(openingBalanceSchema),
   api.sales.saveOpeningBalance,
 );
@@ -97,6 +98,7 @@ router.post(
   authenticate,
   salesCreateAuth,
   enforceWarehouseAccess,
+  requireIdempotency,
   validateBody(saleSchema),
   // خصم الكاشير الكبير يتطلب توكن تجاوز مدير (يُصدر من /pos/verify-pin) — فرض على الخادم
   enforceCashierDiscountOverride,
@@ -108,6 +110,7 @@ router.put(
   authenticate,
   salesEditAuth,
   enforceWarehouseAccess,
+  requireIdempotency,
   validateBody(saleSchema),
   auditLog('sale_update', 'sales'),
   api.sales.update,
@@ -119,6 +122,7 @@ router.post(
   enforceWarehouseAccess,
   // إرجاع الفاتورة بواسطة كاشير يتطلب مصادقة مدير مفروضة على الخادم (X-Manager-Override)
   requireManagerOverride,
+  requireIdempotency,
   validateBody(saleReturnSchema),
   api.sales.return,
 );
@@ -166,6 +170,7 @@ router.post(
   '/customers/:id/payment',
   authenticate,
   authorize('customers.add'),
+  requireIdempotency,
   validateBody(paymentSchema),
   api.customers.recordPayment,
 );
@@ -173,6 +178,7 @@ router.post(
   '/customers/sales/:saleId/payment',
   authenticate,
   authorize('customers.add'),
+  requireIdempotency,
   validateBody(paymentSchema),
   api.customers.recordSalePayment,
 );
@@ -180,6 +186,7 @@ router.post(
   '/customers',
   authenticate,
   authorize('customers.add'),
+  requireIdempotency,
   validateBody(customerCreateSchema),
   api.customers.create,
 );
@@ -187,6 +194,7 @@ router.put(
   '/customers/:id',
   authenticate,
   authorize('customers.edit'),
+  requireIdempotency,
   validateBody(customerUpdateSchema),
   api.customers.update,
 );
@@ -211,6 +219,7 @@ router.post(
   '/expenses',
   authenticate,
   authorize('expenses.add'),
+  requireIdempotency,
   validateBody(expenseSchema),
   auditLog('expense_create', 'expenses'),
   api.expenses.create,
@@ -219,6 +228,7 @@ router.put(
   '/expenses/:id',
   authenticate,
   authorize('expenses.edit'),
+  requireIdempotency,
   validateBody(expenseUpdateSchema),
   auditLog('expense_update', 'expenses'),
   api.expenses.update,

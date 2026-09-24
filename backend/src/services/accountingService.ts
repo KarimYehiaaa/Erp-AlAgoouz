@@ -24,7 +24,7 @@ export function getLocalTodayDate(): string {
 export const STANDARD_ACCOUNTS = {
   // الأصول
   MAIN_TREASURY: '110101', // الخزينة الرئيسية
-  BRANCH_DRAWER: '110102', // نقدية الفرع والورديات
+  SHOP_CASH_DRAWER: '110102', // نقدية المحل والورديات
   BANK_ACCOUNTS: '110103', // الحسابات البنكية
   E_WALLETS: '110104', // المحافظ الإلكترونية وإنستاباي
   CUSTOMERS_RECEIVABLE: '110201', // عملاء الجملة والآجل
@@ -351,7 +351,7 @@ export const accountingService = {
     sale: {
       id: number;
       sale_number: string;
-      sale_type: 'pos' | 'branch' | 'wholesale';
+      sale_type: 'pos' | 'retail' | 'wholesale';
       total_amount: number;
       cost_amount?: number;
       tax_amount?: number;
@@ -370,7 +370,7 @@ export const accountingService = {
     const costAmount = roundMoney(Number(sale.cost_amount || 0));
 
     // تحديد حساب القبض المناسب بناءً على طريقة الدفع ونوع البيع
-    let debitAccountCode = STANDARD_ACCOUNTS.BRANCH_DRAWER;
+    let debitAccountCode = STANDARD_ACCOUNTS.SHOP_CASH_DRAWER;
     const method = (sale.payment_method || 'cash').toLowerCase();
 
     if (sale.sale_type === 'wholesale') {
@@ -1025,7 +1025,7 @@ export const accountingService = {
     if (method === 'card' || method === 'bank') {
       creditAccountCode = STANDARD_ACCOUNTS.BANK_ACCOUNTS;
     } else if (method === 'drawer') {
-      creditAccountCode = STANDARD_ACCOUNTS.BRANCH_DRAWER;
+      creditAccountCode = STANDARD_ACCOUNTS.SHOP_CASH_DRAWER;
     } else if (method === 'wallet' || method === 'instapay') {
       creditAccountCode = STANDARD_ACCOUNTS.E_WALLETS;
     }
@@ -1087,7 +1087,7 @@ export const accountingService = {
     } else if (method === 'wallet' || method === 'instapay') {
       debitAccountCode = STANDARD_ACCOUNTS.E_WALLETS;
     } else if (method === 'drawer') {
-      debitAccountCode = STANDARD_ACCOUNTS.BRANCH_DRAWER;
+      debitAccountCode = STANDARD_ACCOUNTS.SHOP_CASH_DRAWER;
     }
 
     const lines: JournalLineInput[] = [
@@ -1145,7 +1145,7 @@ export const accountingService = {
     } else if (method === 'wallet' || method === 'instapay') {
       creditAccountCode = STANDARD_ACCOUNTS.E_WALLETS;
     } else if (method === 'drawer') {
-      creditAccountCode = STANDARD_ACCOUNTS.BRANCH_DRAWER;
+      creditAccountCode = STANDARD_ACCOUNTS.SHOP_CASH_DRAWER;
     }
 
     const lines: JournalLineInput[] = [
@@ -1199,7 +1199,7 @@ export const accountingService = {
 
     let creditAccountCode = STANDARD_ACCOUNTS.MAIN_TREASURY;
     if (drawing.source_type === 'cash_drawer') {
-      creditAccountCode = STANDARD_ACCOUNTS.BRANCH_DRAWER;
+      creditAccountCode = STANDARD_ACCOUNTS.SHOP_CASH_DRAWER;
     } else if (drawing.payment_method === 'bank') {
       creditAccountCode = STANDARD_ACCOUNTS.BANK_ACCOUNTS;
     }
@@ -1263,7 +1263,7 @@ export const accountingService = {
     const netRevenue = roundMoney(totalAmount - taxAmount);
     const costAmount = roundMoney(Number(sale.cost_amount || 0));
 
-    let creditAccountCode = STANDARD_ACCOUNTS.BRANCH_DRAWER;
+    let creditAccountCode = STANDARD_ACCOUNTS.SHOP_CASH_DRAWER;
     const method = (sale.payment_method || 'cash').toLowerCase();
 
     if (sale.customer_id) {
@@ -1366,7 +1366,7 @@ export const accountingService = {
           description: `توريد نقدية من درج الكاشير إلى الخزينة الرئيسية (وردية #${movement.shift_id})`,
         },
         {
-          account_code: STANDARD_ACCOUNTS.BRANCH_DRAWER,
+          account_code: STANDARD_ACCOUNTS.SHOP_CASH_DRAWER,
           debit: 0,
           credit: amount,
           description: `سحب نقدية من درج الكاشير للتوريد (وردية #${movement.shift_id})`,
@@ -1375,7 +1375,7 @@ export const accountingService = {
     } else if (movement.movement_type === 'deposit') {
       lines = [
         {
-          account_code: STANDARD_ACCOUNTS.BRANCH_DRAWER,
+          account_code: STANDARD_ACCOUNTS.SHOP_CASH_DRAWER,
           debit: amount,
           credit: 0,
           description: `إيداع فكة/عهدة في درج الكاشير (وردية #${movement.shift_id})`,
@@ -1431,7 +1431,7 @@ export const accountingService = {
           description: `إثبات عجز نقدية نهاية الوردية ${shift.shift_number}`,
         },
         {
-          account_code: STANDARD_ACCOUNTS.BRANCH_DRAWER,
+          account_code: STANDARD_ACCOUNTS.SHOP_CASH_DRAWER,
           debit: 0,
           credit: absDiff,
           description: `تسوية عجز درج الكاشير وردية ${shift.shift_number}`,
@@ -1440,7 +1440,7 @@ export const accountingService = {
     } else {
       lines = [
         {
-          account_code: STANDARD_ACCOUNTS.BRANCH_DRAWER,
+          account_code: STANDARD_ACCOUNTS.SHOP_CASH_DRAWER,
           debit: diff,
           credit: 0,
           description: `إثبات زيادة نقدية فعلية في درج الكاشير وردية ${shift.shift_number}`,

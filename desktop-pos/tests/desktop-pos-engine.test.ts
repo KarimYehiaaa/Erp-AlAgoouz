@@ -56,7 +56,7 @@ describe('Desktop POS Production Engine & Durability Tests', () => {
   it('PosPrinterDriver: Thermal Text Receipt formatting', () => {
     const receiptData: ReceiptData = {
       company_name: 'بن العجوز للقهوة',
-      branch_name: 'فرع الدقي',
+      shop_name: 'محل الدقي',
       terminal_code: 'TRM-01',
       invoice_number: 'SL-2026-0001',
       cashier_name: 'أحمد محمود',

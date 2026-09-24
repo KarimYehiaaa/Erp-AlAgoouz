@@ -1,5 +1,5 @@
 const DB_NAME = 'BinAlAgoouzOfflineDB';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 let dbInstance: IDBDatabase | null = null;
 
@@ -15,6 +15,7 @@ const getDb = (): Promise<IDBDatabase> => {
 
     request.onupgradeneeded = (event: any) => {
       const db = (event.target as IDBOpenDBRequest).result;
+      const oldVersion = event.oldVersion as number;
       if (!db.objectStoreNames.contains('products')) {
         db.createObjectStore('products', { keyPath: 'id' });
       }
@@ -24,6 +25,20 @@ const getDb = (): Promise<IDBDatabase> => {
       if (!db.objectStoreNames.contains('offline_sales')) {
         const salesStore = db.createObjectStore('offline_sales', { keyPath: 'offline_id' });
         salesStore.createIndex('status', 'sync_status', { unique: false });
+      }
+
+      if (oldVersion < 3 && db.objectStoreNames.contains('offline_sales')) {
+        const transaction = (event.target as IDBOpenDBRequest).transaction!;
+        const cursorRequest = transaction.objectStore('offline_sales').openCursor();
+        cursorRequest.onsuccess = () => {
+          const cursor = cursorRequest.result;
+          if (!cursor) return;
+          const sale = cursor.value as LocalOfflineSale;
+          if (sale.sale_type === 'branch') {
+            cursor.update({ ...sale, sale_type: 'retail' });
+          }
+          cursor.continue();
+        };
       }
     };
 

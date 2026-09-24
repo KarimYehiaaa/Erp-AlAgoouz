@@ -14,7 +14,7 @@ beforeEach(() => {
   generate.mockReset().mockResolvedValue({ recommendations: [], htmlReport: 'warehouse report' });
   send.mockClear();
 });
-it.each(['branch_balancing', 'branch_stock_balancing', 'branch_stock_rebalance', 'warehouse_balancing'])(
+it.each(['warehouse_stock_balancing', 'warehouse_stock_rebalance', 'warehouse_balancing'])(
   'runs saved %s through the single warehouse implementation', async (key) => {
     query.mockResolvedValueOnce({ rows: [{ id: 91, key, is_enabled: true }] });
     const result = await WorkflowGraphService.runAutomationNow(key);
@@ -25,9 +25,9 @@ it.each(['branch_balancing', 'branch_stock_balancing', 'branch_stock_rebalance',
     expect(send).not.toHaveBeenCalled();
   },
 );
-it('routes an old request to the renamed saved automation', async () => {
+it('routes a saved warehouse alias to the canonical automation', async () => {
   query.mockResolvedValueOnce({ rows: [{ id: 91, key: 'warehouse_balancing', is_enabled: true }] });
-  const result = await WorkflowGraphService.runAutomationNow('branch_stock_balancing');
+  const result = await WorkflowGraphService.runAutomationNow('warehouse_stock_rebalance');
   expect(result.success).toBe(true);
   expect(generate).toHaveBeenCalledOnce();
   const statusUpdate = query.mock.calls.find(([sql]) => sql.includes('SET last_run_at = NOW(), last_status = $1'));

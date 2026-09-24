@@ -108,6 +108,7 @@ const RESTORE_ORDER = [
   'pos_cash_movements',
   'pos_pin_lockouts',
   'manager_approval_requests',
+  'manager_override_tokens',
   'idempotency_records',
   'automations',
   'automation_logs',

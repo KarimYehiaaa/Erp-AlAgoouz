@@ -19,7 +19,7 @@ export const sales = {
     return res instanceof Blob ? res : res.data;
   },
   downloadPosTemplate: async () => {
-    const res = await api.get('/sales/branch/template', { responseType: 'blob' });
+    const res = await api.get('/sales/retail/template', { responseType: 'blob' });
     return res instanceof Blob ? res : res.data;
   },
   importExcel: (file: File, options: any = {}) => {
@@ -38,14 +38,14 @@ export const sales = {
   posImportExcel: (file: File) => {
     const form = new FormData();
     form.append('file', file);
-    return api.post('/sales/branch/import', form, {
+    return api.post('/sales/retail/import', form, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
   },
   posValidateExcel: (file: File) => {
     const form = new FormData();
     form.append('file', file);
-    return api.post('/sales/branch/validate', form, {
+    return api.post('/sales/retail/validate', form, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
   },

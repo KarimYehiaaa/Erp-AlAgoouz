@@ -9,7 +9,7 @@ import { ADMIN_ROLES } from '../../../shared/permissions.js';
 
 export const managerMobileController = {
   /**
-   * ملخص مبيعات اليوم التنفيذي (فرع + جملة + إجمالي + خزينة)
+   * ملخص مبيعات اليوم التنفيذي (مبيعات المحل + جملة + إجمالي + خزينة)
    */
   async getSummary(req: Request, res: Response, next: NextFunction) {
     try {
@@ -42,8 +42,8 @@ export const managerMobileController = {
         };
       };
 
-      // 1. مبيعات الفرع (POS & Branch)
-      const branch = await getSalesSummaryByType(['branch', 'pos']);
+      // 1. مبيعات التجزئة داخل المحل
+      const retail = await getSalesSummaryByType(['retail', 'pos']);
 
       // 2. مبيعات الجملة (Wholesale)
       const wholesale = await getSalesSummaryByType(['wholesale']);
@@ -92,13 +92,13 @@ export const managerMobileController = {
         `SELECT COUNT(*)::int AS count FROM manager_approval_requests WHERE status = 'pending'`,
       );
 
-      const grandTotal = roundMoney(branch.total + wholesale.total);
-      const totalCount = branch.count + wholesale.count;
+      const grandTotal = roundMoney(retail.total + wholesale.total);
+      const totalCount = retail.count + wholesale.count;
       const yesterdayTotal = roundMoney(Number(yesterdayRes.rows[0].total_amount));
       const growthPercent =
         yesterdayTotal > 0 ? roundMoney(((grandTotal - yesterdayTotal) / yesterdayTotal) * 100) : 0;
       const totalExpenses = roundMoney(Number(expensesRes.rows[0].total_expenses));
-      const totalCashIn = roundMoney(branch.cash + wholesale.cash);
+      const totalCashIn = roundMoney(retail.cash + wholesale.cash);
       const netCashflow = roundMoney(totalCashIn - totalExpenses);
       const averageOrderValue = totalCount > 0 ? roundMoney(grandTotal / totalCount) : 0;
 
@@ -111,13 +111,13 @@ export const managerMobileController = {
           yesterdayTotal,
           growthPercent,
           averageOrderValue,
-          branch,
+          retail,
           wholesale,
           paymentTotals: {
             cash: totalCashIn,
-            instapay: roundMoney(branch.instapay + wholesale.instapay),
-            card: roundMoney(branch.card + wholesale.card),
-            other: roundMoney(branch.other + wholesale.other),
+            instapay: roundMoney(retail.instapay + wholesale.instapay),
+            card: roundMoney(retail.card + wholesale.card),
+            other: roundMoney(retail.other + wholesale.other),
           },
           expenses: {
             total: totalExpenses,
@@ -349,7 +349,7 @@ export const managerMobileController = {
       let overrideToken: string | null = null;
       if (decision === 'approved') {
         // توليد توكن التجاوز المعتمد
-        const tokenObj = issueManagerOverrideToken(
+        const tokenObj = await issueManagerOverrideToken(
           managerId,
           approvalReq.requester_user_id || managerId,
         );

@@ -298,7 +298,7 @@ const loadCatalogData = async () => {
   try {
     const [catsRes, prodsRes] = await Promise.all([
       api.get('/products/categories'),
-      api.get('/products/branch'),
+      api.get('/products/shop'),
     ]);
 
     categories.value = catsRes.data?.data || catsRes.data || [];
@@ -415,7 +415,7 @@ const handleCompleteSale = async (
   const syncId = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : undefined;
   const salePayload = {
     sync_id: syncId,
-    sale_type: 'branch',
+    sale_type: 'retail',
     sale_date: new Date().toISOString().slice(0, 10),
     payment_method: cartStore.paymentMethod,
     payment_status: 'paid',

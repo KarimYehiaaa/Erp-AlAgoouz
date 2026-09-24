@@ -136,8 +136,8 @@
             <div class="risk-card-footer">
               <div class="actor-info">
                 <span v-if="alert.user?.name" class="actor-tag"> 👤 {{ alert.user.name }} </span>
-                <span v-if="alert.branch?.name" class="branch-tag">
-                  🏢 {{ alert.branch.name }}
+                <span v-if="alert.warehouse?.name" class="warehouse-tag">
+                  🏢 {{ alert.warehouse.name }}
                 </span>
               </div>
 

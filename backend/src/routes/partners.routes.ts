@@ -3,6 +3,7 @@
  */
 import { Router } from 'express';
 import { authenticate, authorize } from '../middleware/auth.ts';
+import { requireIdempotency } from '../middleware/idempotency.ts';
 import { partnersController } from '../controllers/partnersController.ts';
 
 const router = Router();
@@ -26,6 +27,7 @@ router.post(
     'settings.view',
     'pos.view',
   ),
+  requireIdempotency,
   partnersController.createDrawing,
 );
 
@@ -63,6 +65,7 @@ router.post(
   '/partners',
   authenticate,
   authorize('reports.view', 'expenses.add', 'settings.edit', 'settings.add', 'settings.view'),
+  requireIdempotency,
   partnersController.createPartner,
 );
 
@@ -70,6 +73,7 @@ router.put(
   '/partners/:id',
   authenticate,
   authorize('reports.view', 'expenses.edit', 'settings.edit', 'settings.view'),
+  requireIdempotency,
   partnersController.updatePartner,
 );
 

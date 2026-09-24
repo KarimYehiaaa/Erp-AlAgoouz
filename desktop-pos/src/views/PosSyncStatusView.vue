@@ -101,7 +101,12 @@ const loadQueue = async () => {
   if ((window as any).electronAPI) {
     pendingQueue.value = await (window as any).electronAPI.getPendingTransactions();
   } else {
-    pendingQueue.value = JSON.parse(localStorage.getItem('pos_offline_sales') || '[]');
+    const savedQueue = JSON.parse(localStorage.getItem('pos_offline_sales') || '[]');
+    pendingQueue.value = savedQueue.map((sale: any) => ({
+      ...sale,
+      sale_type: sale.sale_type === 'branch' ? 'retail' : sale.sale_type,
+    }));
+    localStorage.setItem('pos_offline_sales', JSON.stringify(pendingQueue.value));
   }
 };
 

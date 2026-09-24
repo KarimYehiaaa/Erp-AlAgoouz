@@ -127,7 +127,7 @@
 
 <script setup lang="ts">
 /**
- * تبويب المبيعات اليومية (الفرع) — يستهلك من SalesView.
+ * تبويب المبيعات اليومية (المحل) — يستهلك من SalesView.
  *
  * @props editingSaleId        معرف الفاتورة قيد التعديل (null = تسجيل جديد)
  * @props editingSaleNumber    رقم الفاتورة قيد التعديل (للشريط العلوي)

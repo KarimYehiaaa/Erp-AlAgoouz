@@ -24,7 +24,6 @@ export interface OfflineSaleTransaction {
   sync_id: string;
   invoice_number: string;
   warehouse_id: number;
-  branch_id?: number;
   pos_shift_id?: number;
   customer_id?: number | null;
   items: OfflineSaleItem[];

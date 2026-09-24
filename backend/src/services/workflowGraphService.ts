@@ -56,9 +56,6 @@ const AUTOMATION_ALIASES: Record<string, string> = {
   daily_summary_report: 'daily_sales_report',
   warehouse_stock_balancing: 'warehouse_balancing',
   warehouse_stock_rebalance: 'warehouse_balancing',
-  branch_balancing: 'warehouse_balancing',
-  branch_stock_balancing: 'warehouse_balancing',
-  branch_stock_rebalance: 'warehouse_balancing',
 };
 
 const EXECUTABLE_AUTOMATION_KEYS = new Set([

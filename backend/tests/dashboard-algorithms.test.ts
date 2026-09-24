@@ -35,7 +35,7 @@ describe('خوارزميات لوحة التحكم (dashboardService)', () => {
       `INSERT INTO sales (sale_number, sale_type, sale_date, entry_mode, warehouse_id, user_id,
                           subtotal, discount_amount, tax_amount, total_amount, cost_amount, profit_amount,
                           payment_status, status)
-       VALUES ($1, 'branch', $2, 'pos', 1, 1,
+       VALUES ($1, 'retail', $2, 'pos', 1, 1,
                $3, 0, 0, $3, $4, $5, 'paid', 'completed')
        RETURNING id`,
       [saleNumber, date, opts.total ?? 0, opts.cost ?? 0, opts.profit ?? 0],

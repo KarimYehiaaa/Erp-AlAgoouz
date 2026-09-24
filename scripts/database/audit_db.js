@@ -26,13 +26,17 @@ async function main() {
   const backupData = parsed.data || {};
   
   // 2. Connect to Database
-  const pool = new pg.Pool({
-    host: process.env.DB_HOST || 'localhost',
-    port: parseInt(process.env.DB_PORT || '5432', 10),
-    database: process.env.DB_NAME || 'bin_al_ajouz',
-    user: process.env.DB_USER || 'erp_user',
-    password: process.env.DB_PASSWORD,
-  });
+  const pool = new pg.Pool(
+    process.env.DATABASE_URL
+      ? { connectionString: process.env.DATABASE_URL }
+      : {
+          host: process.env.DB_HOST || 'localhost',
+          port: parseInt(process.env.DB_PORT || '5432', 10),
+          database: process.env.DB_NAME || 'bin_al_ajouz',
+          user: process.env.DB_USER || 'erp_user',
+          password: process.env.DB_PASSWORD,
+        },
+  );
   
   // 3. Compare tables
   const tables = Object.keys(backupData);

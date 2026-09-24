@@ -1,6 +1,6 @@
 /**
  * useInventoryStock — منطق تبويب "المخزون" في شاشة المخزون
- * جدول المخزون + بطاقات تقييم القيمة (الإجمالي/الرئيسي/الفرع) +
+ * جدول المخزون + بطاقات تقييم القيمة (الإجمالي/الرئيسي/المخازن الأخرى) +
  * تعديل الكميات وتوزيع المخازن + تسجيل الهالك + استماع حدث inventory-updated.
  * استُخرج من InventoryView.vue (كان السكربت 1,564 سطرًا).
  */
@@ -27,9 +27,9 @@ export interface InventoryStockContext {
  *   getItemStockValue: (item: any) => number,
  *   totalInventoryValue: import('vue').ComputedRef<number>,
  *   mainWarehouseValue: import('vue').ComputedRef<number>,
- *   branchWarehouseValue: import('vue').ComputedRef<number>,
+ *   otherWarehousesValue: import('vue').ComputedRef<number>,
  *   getMainQty: (item: any) => any,
- *   getBranchQty: (item: any) => any,
+ *   getOtherWarehousesQty: (item: any) => any,
  *   isHighlighted: (row: any) => boolean,
  *   editForm: import('vue').Ref<any>,
  *   showEdit: import('vue').Ref<boolean>,
@@ -82,7 +82,7 @@ export function useInventoryStock(ctx: InventoryStockContext) {
     { key: 'total_quantity', label: 'إجمالي الكمية' },
     { key: 'stock_value', label: 'قيمة المخزون' },
     { key: 'main_quantity', label: 'المخزن الرئيسي' },
-    { key: 'branch_quantity', label: 'مخزن الفرع' },
+    { key: 'other_warehouses_quantity', label: 'المخازن الأخرى' },
     { key: 'min_stock', label: 'الحد الأدنى' },
     { key: 'status', label: 'الحالة' },
     { key: 'actions', label: '', align: 'right' },
@@ -110,16 +110,16 @@ export function useInventoryStock(ctx: InventoryStockContext) {
     return item.warehouse_name && item.warehouse_name.includes('رئيسي') ? item.quantity : 0;
   };
 
-  /** كمية الصنف في مخزن الفرع/المحل. */
-  const getBranchQty = (item: any) => {
-    if (item.branch_quantity !== undefined && item.branch_quantity !== null)
-      return item.branch_quantity;
+  /** كمية الصنف المجمعة في المخازن غير الرئيسية. */
+  const getOtherWarehousesQty = (item: any) => {
+    if (item.other_warehouses_quantity !== undefined && item.other_warehouses_quantity !== null)
+      return item.other_warehouses_quantity;
     if (item.warehouse_breakdown && Array.isArray(item.warehouse_breakdown)) {
-      const branchW = item.warehouse_breakdown.find(
+      const otherWarehouse = item.warehouse_breakdown.find(
         (w: any) =>
           w.warehouse_type !== 'main' && (!w.warehouse_name || !w.warehouse_name.includes('رئيسي')),
       );
-      if (branchW) return branchW.quantity;
+      if (otherWarehouse) return otherWarehouse.quantity;
     }
     return item.warehouse_name && !item.warehouse_name.includes('رئيسي') ? item.quantity : 0;
   };
@@ -138,10 +138,10 @@ export function useInventoryStock(ctx: InventoryStockContext) {
     }, 0);
   });
 
-  /** قيمة مخزون الفرع/المحل. */
-  const branchWarehouseValue = computed(() => {
+  /** قيمة المخزون المجمع في المخازن غير الرئيسية. */
+  const otherWarehousesValue = computed(() => {
     return items.value.reduce((sum: any, i: any) => {
-      const qty = Number(getBranchQty(i) || 0);
+      const qty = Number(getOtherWarehousesQty(i) || 0);
       const cost = Number(i.purchase_price || 0);
       return sum + qty * cost;
     }, 0);
@@ -321,9 +321,9 @@ export function useInventoryStock(ctx: InventoryStockContext) {
     getItemStockValue,
     totalInventoryValue,
     mainWarehouseValue,
-    branchWarehouseValue,
+    otherWarehousesValue,
     getMainQty,
-    getBranchQty,
+    getOtherWarehousesQty,
     isHighlighted,
     editForm,
     showEdit,

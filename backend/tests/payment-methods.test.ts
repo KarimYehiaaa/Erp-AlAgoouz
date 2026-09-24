@@ -28,7 +28,7 @@ describe('رسم طرق الدفع (paymentMethodSummary)', () => {
     // 1) بيع مكتمل مدفوع كاش
     const saleRes = await query(
       `INSERT INTO sales (sale_number, sale_type, sale_date, entry_mode, warehouse_id, user_id, subtotal, discount_amount, tax_amount, total_amount, cost_amount, profit_amount, payment_status, status)
-       VALUES ('SL-TEST-PMT-001', 'branch', $1::date, 'pos', 1, 1, 500, 0, 0, 500, 300, 200, 'paid', 'completed')
+       VALUES ('SL-TEST-PMT-001', 'retail', $1::date, 'pos', 1, 1, 500, 0, 0, 500, 300, 200, 'paid', 'completed')
        RETURNING id`,
       [today],
     );
@@ -56,7 +56,7 @@ describe('رسم طرق الدفع (paymentMethodSummary)', () => {
     // 3) بيع مرتجع كان مدفوعًا كاش — يجب ألا يظهر (المبلغ رجع للعميل)
     const retRes = await query(
       `INSERT INTO sales (sale_number, sale_type, sale_date, entry_mode, warehouse_id, user_id, subtotal, discount_amount, tax_amount, total_amount, cost_amount, profit_amount, payment_status, status)
-       VALUES ('SL-TEST-PMT-002', 'branch', $1::date, 'pos', 1, 1, 300, 0, 0, 300, 180, 120, 'refunded', 'returned')
+       VALUES ('SL-TEST-PMT-002', 'retail', $1::date, 'pos', 1, 1, 300, 0, 0, 300, 180, 120, 'refunded', 'returned')
        RETURNING id`,
       [today],
     );

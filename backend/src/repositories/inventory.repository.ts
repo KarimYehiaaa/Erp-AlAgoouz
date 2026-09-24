@@ -24,7 +24,7 @@ class InventoryRepository extends BaseRepository {
         COALESCE(i.quantity, 0) AS quantity,
         COALESCE(inv_summary.total_stock, 0) AS total_quantity,
         COALESCE(inv_summary.main_stock, 0) AS main_quantity,
-        COALESCE(inv_summary.branch_stock, 0) AS branch_quantity,
+        COALESCE(inv_summary.other_warehouses_stock, 0) AS other_warehouses_quantity,
         COALESCE(inv_summary.breakdown, '[]'::json) AS warehouse_breakdown,
         i.batch_number,
         i.updated_at,
@@ -54,7 +54,7 @@ class InventoryRepository extends BaseRepository {
         SELECT
           COALESCE(SUM(inv2.quantity), 0) AS total_stock,
           COALESCE(SUM(CASE WHEN wh2.type = 'main' OR wh2.code = 'MAIN' THEN inv2.quantity ELSE 0 END), 0) AS main_stock,
-          COALESCE(SUM(CASE WHEN wh2.type != 'main' AND wh2.code != 'MAIN' THEN inv2.quantity ELSE 0 END), 0) AS branch_stock,
+          COALESCE(SUM(CASE WHEN wh2.type != 'main' AND wh2.code != 'MAIN' THEN inv2.quantity ELSE 0 END), 0) AS other_warehouses_stock,
           json_agg(json_build_object(
             'warehouse_id', wh2.id,
             'warehouse_name', wh2.name_ar,

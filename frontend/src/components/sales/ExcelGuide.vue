@@ -24,7 +24,7 @@
         <tbody>
           <tr class="ok-row">
             <td>2026-05-21</td>
-            <td>branch</td>
+            <td>retail</td>
             <td>1500</td>
             <td></td>
             <td>paid</td>
@@ -53,13 +53,13 @@
             <td>delete_all</td>
           </tr>
           <tr class="bad-row">
-            <td colspan="8">خطأ شائع: كتابة نوع بيع غير مدعوم — الصحيح: branch أو wholesale فقط</td>
+            <td colspan="8">خطأ شائع: كتابة نوع بيع غير مدعوم — الصحيح: retail أو wholesale فقط</td>
           </tr>
         </tbody>
       </table>
     </div>
     <ul class="guide-list">
-      <li><strong>المحل:</strong> نوع_البيع = <code>branch</code> — اترك كود_العميل فارغاً</li>
+      <li><strong>المحل:</strong> نوع_البيع = <code>retail</code> — اترك كود_العميل فارغاً</li>
       <li>
         <strong>جملة:</strong> نوع_البيع = <code>wholesale</code> — كود عميل مثل
         <code>C-002</code>

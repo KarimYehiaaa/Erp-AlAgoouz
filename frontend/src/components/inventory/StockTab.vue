@@ -1,6 +1,6 @@
 <!--
   StockTab.vue — تبويب "المخزون": بطاقات التقييم + جدول المخزون
-  يعرض تقييم قيمة المخزون (الإجمالي/الرئيسي/الفرع) وجدول المنتجات مع
+  يعرض تقييم قيمة المخزون (الإجمالي/الرئيسي/مخزن المحل) وجدول المنتجات مع
   الخلايا المخصصة (الكود، الكميات، الحد الأدنى، الحالة) وأزرار الإجراءات
   (تحويل/تعديل/هالك). استُخرج من InventoryView.vue (كان 1,594 سطرًا).
 -->
@@ -19,10 +19,10 @@
         {{ formatMoney(mainWarehouseValue) }}
       </h3>
     </div>
-    <div class="card val-card val-branch">
+    <div class="card val-card val-other-warehouses">
       <span class="val-label"> قيمة مخزون البيع</span>
       <h3 class="val-amount">
-        {{ formatMoney(branchWarehouseValue) }}
+        {{ formatMoney(otherWarehousesValue) }}
       </h3>
     </div>
   </div>
@@ -65,8 +65,8 @@
     <template #cell-main_quantity="{ item }">
       <span class="pill pill-main"> {{ fmtQty(getMainQty(item)) }} </span>
     </template>
-    <template #cell-branch_quantity="{ item }">
-      <span class="pill pill-branch"> {{ fmtQty(getBranchQty(item)) }} </span>
+    <template #cell-other_warehouses_quantity="{ item }">
+      <span class="pill pill-other-warehouses"> {{ fmtQty(getOtherWarehousesQty(item)) }} </span>
     </template>
     <template #cell-min_stock="{ item }">
       <span class="min-stock-tag" title="الحد الأدنى محسوب ومطبق بناءً على إجمالي رصيد المنشأة">
@@ -114,10 +114,10 @@
  * @props stockColumns             أعمدة الجدول
  * @props totalInventoryValue      إجمالي تقييم المخزون
  * @props mainWarehouseValue       قيمة مخزون الرئيسي
- * @props branchWarehouseValue     قيمة مخزون الفرع/المحل
+ * @props otherWarehousesValue     قيمة المخزون في المخازن غير الرئيسية
  * @props getItemStockValue        دالة قيمة الصنف (كمية × سعر)
  * @props getMainQty               دالة كمية الصنف في الرئيسي
- * @props getBranchQty             دالة كمية الصنف في الفرع
+ * @props getOtherWarehousesQty    دالة كمية الصنف في المخازن غير الرئيسية
  * @props isHighlighted            دالة هل الصف مُبرَز
  * @props fmtQty                   دالة تنسيق الكميات
  * @props formatMoney              دالة تنسيق المبالغ
@@ -134,10 +134,10 @@ defineProps<{
   stockColumns: any[];
   totalInventoryValue: number;
   mainWarehouseValue: number;
-  branchWarehouseValue: number;
+  otherWarehousesValue: number;
   getItemStockValue: (_item: any) => number;
   getMainQty: (_item: any) => any;
-  getBranchQty: (_item: any) => any;
+  getOtherWarehousesQty: (_item: any) => any;
   isHighlighted: (_row: any) => boolean;
   fmtQty: (_v: any) => string;
   formatMoney: (_v: number | null | undefined) => string;
@@ -283,7 +283,7 @@ defineEmits<{
   border-color: rgba(59, 130, 246, 0.25);
   color: var(--info);
 }
-.pill-branch {
+.pill-other-warehouses {
   background: rgba(16, 185, 129, 0.1);
   border-color: rgba(16, 185, 129, 0.25);
   color: var(--success);
@@ -330,7 +330,7 @@ defineEmits<{
     }
   }
 
-  &.val-branch {
+  &.val-other-warehouses {
     border-color: color-mix(in srgb, var(--warning) 28%, var(--border));
     background: color-mix(in srgb, var(--warning) 6%, var(--bg-card));
     .val-amount {

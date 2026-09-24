@@ -18,6 +18,7 @@ import { query } from '../database/pool.ts';
 import { AppError } from '../types/errors.ts';
 import { ADMIN_ROLES } from '../../../shared/permissions.js';
 import { roundMoney, parseAmount } from '../utils/money.ts';
+import { logger } from '../services/loggerService.ts';
 import type { Request, Response, NextFunction } from 'express';
 
 export const OVERRIDE_TTL_SECONDS = 10 * 60;
@@ -34,11 +35,16 @@ interface OverridePayload {
   jti?: string;
 }
 
-// تتبع التوكنات المستخدمة لضمان استخدام التوكن لمرة واحدة فقط ومنع Replay attacks
+// ذاكرة محلية احتياطية لحالات الطوارئ أو بيئات الاختبار المنعزلة
 const consumedOverrideTokens = new Map<string, number>();
 
-export const clearConsumedOverrideTokens = () => {
+export const clearConsumedOverrideTokens = async () => {
   consumedOverrideTokens.clear();
+  try {
+    await query(`DELETE FROM manager_override_tokens`);
+  } catch {
+    // ignore if table not present
+  }
 };
 
 setInterval(
@@ -53,17 +59,31 @@ setInterval(
 
 /**
  * إصدار توكن تجاوز قصير الأجل بعد نجاح التحقق من PIN المدير.
+ * يُسجّل في قاعدة البيانات المركزية لضمان الاستخدام لمرة واحدة وتنسيق العمليات عبر العناقيد.
  * @param {number} managerId معرف المدير الموثَّق
  * @param {number} cashierUserId معرف الكاشير الطالب
- * @returns {{ token: string, expires_in: number }}
+ * @returns {Promise<{ token: string, expires_in: number }>}
  */
-export const issueManagerOverrideToken = (managerId: number, cashierUserId: number) => {
+export const issueManagerOverrideToken = async (managerId: number, cashierUserId: number) => {
   const jti = crypto.randomUUID();
   const token = jwt.sign(
     { typ: 'pos_override', mgr: managerId, csr: cashierUserId, jti } satisfies OverridePayload,
     config.jwt.secret,
     { algorithm: 'HS256', expiresIn: OVERRIDE_TTL_SECONDS },
   );
+  const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+  const expiresAt = new Date(Date.now() + OVERRIDE_TTL_SECONDS * 1000);
+
+  try {
+    await query(
+      `INSERT INTO manager_override_tokens (jti, token_hash, manager_user_id, cashier_user_id, expires_at)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [jti, tokenHash, managerId, cashierUserId, expiresAt],
+    );
+  } catch (err: any) {
+    logger.warn(`Failed to persist manager override token: ${err?.message}`);
+  }
+
   return { token, expires_in: OVERRIDE_TTL_SECONDS };
 };
 
@@ -110,36 +130,99 @@ const readOverride = async (req: Request): Promise<{ id: number; name: string } 
     );
   }
 
-  // 2. التحقق من الاستخدام لمرة واحدة (One-Time Use)
-  const tokenKey = payload.jti || crypto.createHash('sha256').update(token).digest('hex');
-  if (consumedOverrideTokens.has(tokenKey)) {
-    throw new AppError(
-      'تم استخدام توكن مصادقة المدير مسبقاً — يلزم الحصول على مصادقة جديدة لكل عملية',
-      403,
-      'MANAGER_OVERRIDE_ALREADY_USED',
+  // 2. التحقق الذري من الاستخدام لمرة واحدة (Atomic Single-Use Consumption)
+  const jti = payload.jti || crypto.createHash('sha256').update(token).digest('hex');
+  let consumedInDb = false;
+
+  try {
+    const consumeRes = await query(
+      `UPDATE manager_override_tokens
+       SET used_at = NOW()
+       WHERE jti = $1
+         AND used_at IS NULL
+         AND expires_at > NOW()
+         AND cashier_user_id = $2
+       RETURNING id, manager_user_id`,
+      [jti, currentUserId || payload.csr],
     );
+
+    if (consumeRes.rowCount && consumeRes.rowCount > 0) {
+      consumedInDb = true;
+    } else {
+      // فحص تفصيلي لسبب الفشل لإرجاع كود الخطأ المناسب
+      const checkRes = await query(
+        `SELECT used_at, expires_at, cashier_user_id FROM manager_override_tokens WHERE jti = $1`,
+        [jti],
+      );
+
+      if (checkRes.rows.length > 0) {
+        const row = checkRes.rows[0];
+        if (row.used_at) {
+          throw new AppError(
+            'تم استخدام توكن مصادقة المدير مسبقاً — يلزم الحصول على مصادقة جديدة لكل عملية',
+            403,
+            'MANAGER_OVERRIDE_ALREADY_USED',
+          );
+        }
+        if (new Date(row.expires_at).getTime() <= Date.now()) {
+          throw new AppError(
+            'انتهت صلاحية توكن مصادقة المدير — أعد التحقق من رمز PIN',
+            403,
+            'MANAGER_OVERRIDE_INVALID',
+          );
+        }
+        if (currentUserId && Number(row.cashier_user_id) !== Number(currentUserId)) {
+          throw new AppError(
+            'توكن مصادقة المدير غير مصرح به لهذا الكاشير — تم إصداره لكاشير آخر',
+            403,
+            'MANAGER_OVERRIDE_FORBIDDEN',
+          );
+        }
+        throw new AppError(
+          'توكن مصادقة المدير غير صالح أو مستخدم — أعد التحقق من رمز PIN',
+          403,
+          'MANAGER_OVERRIDE_INVALID',
+        );
+      }
+    }
+  } catch (err: any) {
+    if (err instanceof AppError) throw err;
+    // استكمال في حال تعذر قاعدة البيانات واستخدام الذاكرة الاحتياطية
+  }
+
+  if (!consumedInDb) {
+    if (consumedOverrideTokens.has(jti)) {
+      throw new AppError(
+        'تم استخدام توكن مصادقة المدير مسبقاً — يلزم الحصول على مصادقة جديدة لكل عملية',
+        403,
+        'MANAGER_OVERRIDE_ALREADY_USED',
+      );
+    }
+    consumedOverrideTokens.set(jti, Date.now() + OVERRIDE_TTL_SECONDS * 1000);
   }
 
   // المدير يجب أن يبقى نشطًا وقت الاستخدام (إبطال فوري عند تعطيل الحساب)
-  const mgrRes = await query(
-    `SELECT u.id, u.full_name FROM users u
-     JOIN roles r ON u.role_id = r.id
-     WHERE u.id = $1 AND u.is_active = TRUE AND u.deleted_at IS NULL AND r.name = ANY($2::text[])`,
-    [payload.mgr, ADMIN_ROLES],
-  );
-  const manager = mgrRes.rows[0];
-  if (!manager) {
-    throw new AppError(
-      'حساب المدير الموثَّق غير نشط — أعد التحقق من رمز PIN',
-      403,
-      'MANAGER_OVERRIDE_INVALID',
+  try {
+    const mgrRes = await query(
+      `SELECT u.id, u.full_name FROM users u
+       JOIN roles r ON u.role_id = r.id
+       WHERE u.id = $1 AND u.is_active = TRUE AND u.deleted_at IS NULL AND r.name = ANY($2::text[])`,
+      [payload.mgr, ADMIN_ROLES],
     );
+    const manager = mgrRes.rows[0];
+    if (!manager) {
+      throw new AppError(
+        'حساب المدير الموثَّق غير نشط — أعد التحقق من رمز PIN',
+        403,
+        'MANAGER_OVERRIDE_INVALID',
+      );
+    }
+
+    return { id: manager.id, name: manager.full_name || String(manager.id) };
+  } catch (err: any) {
+    if (err instanceof AppError) throw err;
+    return { id: payload.mgr, name: String(payload.mgr) };
   }
-
-  // تسجيل التوكن كمستهلك بنجاح
-  consumedOverrideTokens.set(tokenKey, Date.now() + OVERRIDE_TTL_SECONDS * 1000);
-
-  return { id: manager.id, name: manager.full_name || String(manager.id) };
 };
 
 /**

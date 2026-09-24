@@ -45,7 +45,16 @@ const findHeaderIndex = (headers, aliases) =>
 const codeAliases = ['sku', 'productsku', 'productcode', 'itemcode', 'كود', 'الكود'];
 const qtyAliases = ['quantity', 'qty', 'returnquantity', 'restockquantity', 'الكمية', 'المرتجع'];
 const notesAliases = ['notes', 'note', 'ملاحظات', 'ملاحظة'];
-const warehouseAliases = ['warehouse', 'warehouse name', 'location', 'store', 'المخزن', 'الفرع'];
+const warehouseAliases = [
+  'warehouse',
+  'warehouse name',
+  'location',
+  'store',
+  'المخزن',
+  'مخزن',
+  'المحل',
+  'الفرع',
+];
 
 const resolveHeaderRow = (allRows) => {
   for (let i = 0; i < allRows.length; i++) {

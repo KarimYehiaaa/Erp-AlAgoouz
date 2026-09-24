@@ -485,7 +485,7 @@ export const getCostsReport = async (filters: Record<string, any> = {}) => {
         SUM(si.total_amount) AS total_revenue
       FROM sale_items si
       JOIN sales s ON s.id = si.sale_id
-      WHERE s.deleted_at IS NULL AND s.status = 'completed' AND s.sale_type = 'branch'
+      WHERE s.deleted_at IS NULL AND s.status = 'completed' AND s.sale_type IN ('retail', 'pos')
       GROUP BY si.product_id
     ) sold ON sold.product_id = p.id
     WHERE p.deleted_at IS NULL
@@ -529,7 +529,7 @@ export const getCostsReport = async (filters: Record<string, any> = {}) => {
  * @param {Record<string, any>} [filters] Ø®ÙŠØ§Ø±Ø§Øª Ø§Ù„ÙÙ„ØªØ±Ø© (search, category_id...)
  * @returns {Promise<{ rows: any[], total: number }>}
  */
-export const getBranchProducts = async (filters: Record<string, any> = {}) => {
+export const getShopProducts = async (filters: Record<string, any> = {}) => {
   const warehouseId =
     Number(filters.warehouse_id) ||
     (await getWarehouseIdByCode('STORE')) ||

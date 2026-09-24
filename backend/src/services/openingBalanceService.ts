@@ -17,15 +17,6 @@ const monthSettingKey = (dateLike) => {
   if (Number.isNaN(date.getTime())) return null;
   return `sales_opening_balance:${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 };
-const legacyKeys = (fromDate, toDate) => [
-  `sales_opening_balance:${fromDate}:${toDate}`,
-  `sales-opening-balance:${fromDate}:${toDate}`,
-  `sales-opening-balance:branch:${fromDate}:${toDate}`,
-  `sales-opening-balance:wholesale:${fromDate}:${toDate}`,
-  `sales_opening_balance:${fromDate}:${toDate}`,
-  `sales-opening-balance:${fromDate}:${toDate}`,
-];
-
 /**
  * حساب رصيد الافتتاح الديناميكي (نقدية الخزنة) لتاريخ محدد.
  * @param {Date|string} date التاريخ
@@ -41,10 +32,7 @@ export const calculateDynamicOpeningBalance = async (date: Date, depth = 0) => {
   const mm = date.getMonth() + 1;
   const key = `sales_opening_balance:${yyyy}-${String(mm).padStart(2, '0')}`;
 
-  const result = await query(
-    `SELECT value FROM settings WHERE key = $1 OR key LIKE $2 ORDER BY updated_at DESC LIMIT 1`,
-    [key, `${key}%`],
-  );
+  const result = await query(`SELECT value FROM settings WHERE key = $1 LIMIT 1`, [key]);
   if (result.rows.length > 0 && result.rows[0].value) {
     return Number(result.rows[0].value.amount) || 0;
   }
@@ -99,10 +87,9 @@ export const getOpeningBalance = async (fromDate: string, toDate: string) => {
   const result = await query(
     `SELECT value
      FROM settings
-     WHERE key = ANY($1::text[]) OR key LIKE $2
-     ORDER BY CASE WHEN key = $3 THEN 0 ELSE 1 END, updated_at DESC
+     WHERE key = $1
      LIMIT 1`,
-    [[key, ...legacyKeys(from, to)], `${key}%`, key],
+    [key],
   );
 
   if (result.rows[0]) {
@@ -135,10 +122,9 @@ export const getOpeningBalanceForDate = async (dateLike: Date | string) => {
   const result = await query(
     `SELECT value
      FROM settings
-     WHERE key = $1 OR key LIKE $2
-     ORDER BY CASE WHEN key = $1 THEN 0 ELSE 1 END, updated_at DESC
+     WHERE key = $1
      LIMIT 1`,
-    [key, `${key}%`],
+    [key],
   );
   if (result.rows[0]) {
     const value = result.rows[0].value || {};

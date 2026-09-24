@@ -118,8 +118,7 @@ const parseDate = (value) => {
 const normalizeSaleType = (value) => {
   const text = normalizeText(value);
   if (!text) return null;
-  if (['branch', 'فرع', 'محل', 'قطاعي', 'تجزئة'].includes(text) || text.startsWith('branch'))
-    return 'branch';
+  if (['retail', 'محل', 'قطاعي', 'تجزئة'].includes(text)) return 'retail';
   if (['wholesale', 'جملة', 'شركات'].includes(text) || text.startsWith('wholesale'))
     return 'wholesale';
   return null;
@@ -171,7 +170,7 @@ export const buildImportTemplate = () => {
 
   const dataSheet = [
     TEMPLATE_HEADERS,
-    ['2026-05-21', 'branch', 1500, 'C-001', 'paid', 'cash', 200, 'مبيعات الصباح', ''],
+    ['2026-05-21', 'retail', 1500, 'C-001', 'paid', 'cash', 200, 'مبيعات الصباح', ''],
     ['2026-05-21', 'wholesale', 8500, 'C-002', 'partial', 'transfer', 1200, 'مبيعات الجملة', ''],
   ];
 
@@ -183,7 +182,7 @@ export const buildImportTemplate = () => {
     ['التعليمات'],
     ['يمكن تعبئة المبيعات اليومية في شيت sales أو الأول.'],
     ['العملية delete_all تحذف المبيعات السابقة إن طلبت ذلك صراحة.'],
-    ['أنواع المبيعات المقبولة: branch أو wholesale.'],
+    ['أنواع المبيعات المقبولة: retail أو wholesale.'],
     ['حالات السداد: paid أو unpaid أو partial.'],
     ['طرق الدفع: cash أو card أو transfer أو credit.'],
   ]);

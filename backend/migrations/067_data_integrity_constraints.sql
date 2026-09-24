@@ -1,11 +1,6 @@
 -- Data-integrity guardrails for the ERP's financial and stock ledgers.
 -- Existing production data was audited before applying these constraints.
 
-UPDATE warehouses
-SET branch_id = id
-WHERE branch_id IS NULL
-  AND deleted_at IS NULL;
-
 DO $$
 BEGIN
   ALTER TABLE inventory

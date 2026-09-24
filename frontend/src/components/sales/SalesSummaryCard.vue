@@ -1,5 +1,5 @@
 <!--
-  SalesSummaryCard.vue — بطاقة "ملخص الفترة" لمبيعات الفرع/الجملة
+  SalesSummaryCard.vue — بطاقة "ملخص الفترة" لمبيعات المحل/الجملة
   تعرض حالة الفترة (تلوين حسب الأداء) وأربع قيم رئيسية:
   بداية المدة / مبيعات محصلة / آجل أو ديون / رصيد متوقع.
   استُخرجت من SalesView لتقليل حجمه (كان الملف 2,648 سطرًا).
@@ -43,7 +43,7 @@
  * بطاقة ملخص الفترة — تستهلك من SalesView.
  *
  * @props salesHealth            حالة الفترة { tone, title, message }
- * @props activeTab              التبويب النشط (branch/wholesale/monthly)
+ * @props activeTab              التبويب النشط (retail/wholesale/monthly)
  * @props totalOpeningBalanceDebts  إجمالي الديون الافتتاحية (للجملة)
  * @props openingBalanceForm     نموذج الرصيد الافتتاحي { amount }
  * @props collectedTotal         المبيعات المحصلة

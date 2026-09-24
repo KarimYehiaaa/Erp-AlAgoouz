@@ -319,9 +319,9 @@
             <div class="footer-columns-grid">
               <!-- عمود العنوان والتوصيل -->
               <div class="footer-card-col">
-                <h4 class="col-heading">الفرع والتوصيل للمنازل</h4>
+                <h4 class="col-heading">المحل والتوصيل للمنازل</h4>
                 <p class="col-text">
-                  {{ menuData.address_ar || 'الفرع الرئيسي - جمهورية مصر العربية' }}
+                  {{ menuData.address_ar || 'المحل الرئيسي - جمهورية مصر العربية' }}
                 </p>
                 <div class="phone-pills-wrap">
                   <span class="phone-pill"> {{ menuData.phone_primary || '01012345678' }}</span>

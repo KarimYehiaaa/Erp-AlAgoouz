@@ -9,14 +9,9 @@ const config: CapacitorConfig = {
   server: {
     androidScheme: 'https',
     cleartext: isDev,
-    allowNavigation: [
-      'localhost',
-      '127.0.0.1',
-      '*.glitch.me',
-      '*.binalagoouz.com',
-      '*.render.com',
-      '*.railway.app'
-    ],
+    allowNavigation: isDev
+      ? ['localhost', '127.0.0.1', '192.168.*', '10.0.*']
+      : ['agoouz.vercel.app', 'agoouz-api.vercel.app'],
   },
   plugins: {
     StatusBar: {

@@ -7,6 +7,7 @@ import { Router } from 'express';
 import { authenticate, authorize, auditLog } from '../middleware/auth.ts';
 import { requireConfirmation } from '../middleware/confirmAction.ts';
 import { validateBody, validateQuery } from '../middleware/validate.ts';
+import { requireIdempotency } from '../middleware/idempotency.ts';
 import { upload } from './helpers.ts';
 import {
   commonQuerySchema,
@@ -29,7 +30,7 @@ import * as api from '../controllers/apiController.ts';
 const router = Router();
 
 // ─── Products ─────────────────────────────────────────────────────────────────
-router.get('/products/branch', authenticate, authorize('pos.view'), api.products.branchProducts);
+router.get('/products/shop', authenticate, authorize('pos.view'), api.products.shopProducts);
 router.get(
   '/products/costs-report',
   authenticate,
@@ -126,6 +127,7 @@ router.post(
   '/products',
   authenticate,
   authorize('products.add'),
+  requireIdempotency,
   validateBody(productCreateSchema),
   api.products.create,
 );
@@ -149,6 +151,7 @@ router.put(
   '/products/:id',
   authenticate,
   authorize('products.edit'),
+  requireIdempotency,
   validateBody(productUpdateSchema),
   api.products.update,
 );
@@ -166,6 +169,7 @@ router.post(
   '/purchases',
   authenticate,
   authorize('products.add'),
+  requireIdempotency,
   validateBody(purchaseInvoiceSchema),
   auditLog('purchase_create', 'purchases'),
   api.purchases.create,
@@ -174,6 +178,7 @@ router.put(
   '/purchases/:id',
   authenticate,
   authorize('products.edit'),
+  requireIdempotency,
   validateBody(purchaseInvoiceSchema),
   auditLog('purchase_update', 'purchases'),
   api.purchases.update,
@@ -193,6 +198,7 @@ router.post(
   '/suppliers',
   authenticate,
   authorize('suppliers.add'),
+  requireIdempotency,
   validateBody(supplierCreateSchema),
   api.suppliers.create,
 );
@@ -200,6 +206,7 @@ router.put(
   '/suppliers/:id',
   authenticate,
   authorize('suppliers.edit'),
+  requireIdempotency,
   validateBody(supplierUpdateSchema),
   api.suppliers.update,
 );
@@ -220,6 +227,7 @@ router.post(
   '/suppliers/:id/payments',
   authenticate,
   authorize('suppliers.add'),
+  requireIdempotency,
   validateBody(paymentSchema),
   api.suppliers.recordPayment,
 );

@@ -96,7 +96,7 @@
 
 <script setup lang="ts">
 /**
- * @props allProducts — كل منتجات الفرع (لمعاينة القالب)
+ * @props allProducts — كل منتجات المحل (لمعاينة القالب)
  * @props downloadingTemplate — حالة تحميل القالب
  * @props excelMsg — رسالة نتيجة الفحص/الاستيراد
  * @props excelErr — هل النتيجة خطأ

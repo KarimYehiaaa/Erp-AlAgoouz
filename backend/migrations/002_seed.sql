@@ -4,13 +4,12 @@
 INSERT INTO roles (name, name_ar, description) VALUES
 ('admin', 'مدير النظام', 'صلاحيات كاملة'),
 ('manager', 'مدير', 'إدارة وتقارير'),
-('cashier', 'كاشير', 'مبيعات الفرع'),
+('cashier', 'كاشير', 'مبيعات المحل'),
 ('warehouse', 'موظف مخزن', 'إدارة المخزون');
 
 -- Permissions
 INSERT INTO permissions (code, name_ar, module) VALUES
 ('dashboard.view', 'عرض لوحة التحكم', 'dashboard'),
-('sales.branch', 'مبيعات الفرع', 'sales'),
 ('sales.wholesale', 'مبيعات الجملة', 'sales'),
 ('sales.return', 'مرتجعات المبيعات', 'sales'),
 ('products.manage', 'إدارة المنتجات', 'products'),
@@ -33,7 +32,7 @@ SELECT 2, id FROM permissions WHERE code NOT IN ('users.manage', 'settings.manag
 
 -- Cashier permissions
 INSERT INTO role_permissions (role_id, permission_id)
-SELECT 3, id FROM permissions WHERE code IN ('dashboard.view', 'sales.branch', 'sales.wholesale', 'sales.return', 'customers.manage', 'invoices.manage');
+SELECT 3, id FROM permissions WHERE code IN ('dashboard.view', 'sales.wholesale', 'sales.return', 'customers.manage', 'invoices.manage');
 
 -- Warehouse permissions
 INSERT INTO role_permissions (role_id, permission_id)

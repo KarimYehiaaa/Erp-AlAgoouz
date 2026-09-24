@@ -253,7 +253,7 @@ export interface RiskAlert {
     id?: number | null;
     name?: string | null;
   };
-  branch?: {
+  warehouse?: {
     id?: number | null;
     name?: string | null;
   };

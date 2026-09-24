@@ -82,22 +82,18 @@ export const requireIdempotency = async (
   const cleanKey = idempotencyKey.trim();
   const basePath = (req.originalUrl || req.url || '').split('?')[0];
 
-  let userId: number | null = (req as any).user?.id || (req as any).user?.userId || null;
-  if (!userId) {
-    const authHeader = req.headers.authorization;
-    const token =
-      (req as any).cookies?.access_token ||
-      (authHeader?.startsWith('Bearer ') ? authHeader.split(' ')[1] : null);
-    if (token && typeof token === 'string') {
-      try {
-        const decoded = jwt.verify(token, config.jwt.secret, { algorithms: ['HS256'] }) as any;
-        if (decoded?.userId) {
-          userId = Number(decoded.userId);
-        }
-      } catch {
-        // Invalid/expired token - auth middleware will handle rejection
-      }
-    }
+  const userId: number | null = (req as any).user?.id || (req as any).user?.userId || null;
+  const hasAuthHeader = req.headers.authorization || (req as any).cookies?.access_token;
+
+  // إذا تم إرسال ترويسة مصادقة ولكن لم يتم توثيق المستخدم بعد (جلسة ملغية أو منتهية)،
+  // نرفض الطلب فوراً لمنع استرجاع الردود الحساسة المخزنة مسبقاً (Response Replay Attack)
+  if (hasAuthHeader && !userId) {
+    res.status(401).json({
+      success: false,
+      message: 'جلسة المستخدم غير صالحة أو منتهية — يلزم تسجيل الدخول مجدداً',
+      code: 'UNAUTHORIZED',
+    });
+    return;
   }
 
   const userScope = userId ? `user:${userId}` : `anon:${req.ip || 'noip'}`;
@@ -120,7 +116,7 @@ export const requireIdempotency = async (
     } else {
       // المفتاح موجود مسبقاً في قاعدة البيانات — فحص حالته
       const existingRes = await query(
-        `SELECT status, status_code, response_body, locked_at, expires_at
+        `SELECT status, status_code, response_body, user_id, locked_at, expires_at
          FROM idempotency_records
          WHERE key = $1 AND expires_at > NOW()`,
         [scopedKey],
@@ -130,6 +126,16 @@ export const requireIdempotency = async (
         const record = existingRes.rows[0];
 
         if (record.status === 'COMPLETED' && record.status_code) {
+          // عزل تام بين المستخدمين: إذا كان السجل يخص مستخدماً محدداً، يمنع مستخدم آخر من استرجاعه
+          if (record.user_id && userId && Number(record.user_id) !== Number(userId)) {
+            res.status(403).json({
+              success: false,
+              message: 'غير مصرح بالوصول إلى بيانات هذه العملية',
+              code: 'FORBIDDEN',
+            });
+            return;
+          }
+
           const parsedBody =
             typeof record.response_body === 'string'
               ? JSON.parse(record.response_body)

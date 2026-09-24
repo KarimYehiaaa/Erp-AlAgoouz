@@ -25,7 +25,6 @@ import routes from './routes/index.ts';
 import { authenticate } from './middleware/auth.ts';
 import { errorHandler, notFound } from './middleware/errorHandler.ts';
 import { requestId } from './middleware/requestId.ts';
-import { requireIdempotency } from './middleware/idempotency.ts';
 import { sanitizeInput } from './middleware/sanitize.ts';
 import cookieParser from 'cookie-parser';
 import { checkHealth } from './database/pool.ts';
@@ -115,7 +114,6 @@ app.use(morgan(config.nodeEnv === 'development' ? 'dev' : 'combined'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(sanitizeInput);
-app.use(requireIdempotency);
 app.use(
   rateLimit({
     windowMs: config.rateLimit.windowMs,

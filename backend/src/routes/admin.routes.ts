@@ -6,6 +6,7 @@
 import { Router } from 'express';
 import { authenticate, authorize, auditLog } from '../middleware/auth.ts';
 import { requireConfirmation } from '../middleware/confirmAction.ts';
+import { requireIdempotency } from '../middleware/idempotency.ts';
 import { upload, requireAdmin } from './helpers.ts';
 import * as api from '../controllers/apiController.ts';
 
@@ -18,6 +19,7 @@ router.post(
   authenticate,
   authorize('settings.view'),
   requireAdmin,
+  requireIdempotency,
   auditLog('backup_create', 'backup'),
   api.backup.create,
 );

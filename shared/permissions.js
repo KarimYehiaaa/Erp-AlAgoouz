@@ -10,8 +10,7 @@
  *
  * قاعدة الدمج (حتى لا تنحرف الخريطتان عن بعضهما):
  *  - القيم الأساسية مأخوذة من نسخة الباكند (الجهة المنفِّذة للصلاحية فعليًا).
- *  - المفاتيح التي كانت موجودة في الواجهة فقط (أكواد مجمّعة مثل `settings.manage`
- *    وأكواد قديمة مثل `sales.branch`) أُضيفت في الأسفل وهي محايدة للباكند —
+ *  - المفاتيح المجمعة للواجهة (مثل `settings.manage`) أُضيفت في الأسفل وهي محايدة للباكند —
  *    لا يطلبها أي route، وتستخدمها الواجهة لإخفاء/إظهار عناصر الـ UI.
  */
 
@@ -86,7 +85,6 @@ export const permissionEquivalents = {
   'automation.manage': ['automation.manage', 'settings.edit', 'settings.view'],
 
   // ── أكواد قديمة/مجمّعة — للواجهة فقط (لا تطلبها الـ routes) ──
-  'sales.branch': ['pos.view', 'sales.view'],
   'sales.wholesale': ['pos.view', 'sales.view'],
   'sales.pos': ['pos.view', 'sales.view'],
   'sales.return': ['pos.delete', 'sales.delete'],

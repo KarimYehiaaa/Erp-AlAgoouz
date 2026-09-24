@@ -3,9 +3,9 @@
  * تحويل الأكواد إلى تسميات عربية + تنسيق الكميات.
  */
 
-/** تسمية نوع البيع (branch/wholesale/pos) بالعربية. */
+/** تسمية نوع البيع (retail/wholesale/pos) بالعربية. */
 export const saleTypeLabel = (t: any) =>
-  (({ branch: 'فرع', wholesale: 'جملة', pos: 'POS' }) as Record<string, string>)[t] || t || '—';
+  (({ retail: 'المحل', wholesale: 'جملة', pos: 'POS' }) as Record<string, string>)[t] || t || '—';
 
 /** تسمية نوع العميل (retail/wholesale) بالعربية. */
 export const customerTypeLabel = (t: any) =>

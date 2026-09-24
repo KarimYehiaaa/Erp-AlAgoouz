@@ -53,10 +53,10 @@
         :stock-columns="stockColumns"
         :total-inventory-value="totalInventoryValue"
         :main-warehouse-value="mainWarehouseValue"
-        :branch-warehouse-value="branchWarehouseValue"
+        :other-warehouses-value="otherWarehousesValue"
         :get-item-stock-value="getItemStockValue"
         :get-main-qty="getMainQty"
-        :get-branch-qty="getBranchQty"
+        :get-other-warehouses-qty="getOtherWarehousesQty"
         :is-highlighted="isHighlighted"
         :fmt-qty="fmtQty"
         :format-money="formatMoney"
@@ -606,9 +606,9 @@ const {
   getItemStockValue,
   totalInventoryValue,
   mainWarehouseValue,
-  branchWarehouseValue,
+  otherWarehousesValue,
   getMainQty,
-  getBranchQty,
+  getOtherWarehousesQty,
   isHighlighted,
   editForm,
   showEdit,

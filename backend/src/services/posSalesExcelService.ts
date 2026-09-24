@@ -372,7 +372,7 @@ export const importPosExcel = async (buffer: Buffer, userId: number, warehouseId
     try {
       await createDailySale(
         {
-          sale_type: 'branch',
+          sale_type: 'retail',
           sale_date: group.sale_date,
           warehouse_id: targetWarehouseId,
           payment_method: group.payment_method,

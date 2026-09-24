@@ -59,11 +59,12 @@ describe('backup-system.ts (cross-platform tar with relative path)', () => {
     expect(tarCall!.cmd).toMatch(/tar .* -czf "full-backups[/\\][^"]+\.tar\.gz" \./);
     // ② لا يحتوي الأمر على مسار مطلق `D:` أو `C:` في معامل الأرشيف.
     expect(tarCall!.cmd).not.toMatch(/-czf "[A-Za-z]:/);
-    // ③ الاستبعادات موجودة (node_modules / .git / full-backups / .env).
+    // ③ الاستبعادات موجودة (node_modules / .git / full-backups / .env / pytest cache).
     expect(tarCall!.cmd).toContain('node_modules');
     expect(tarCall!.cmd).toContain('.git');
     expect(tarCall!.cmd).toContain('full-backups');
     expect(tarCall!.cmd).toContain('.env');
+    expect(tarCall!.cmd).toContain('.pytest_cache');
 
     // ④ cwd = جذر المشروع — هو ما يجعل المسار النسبي صالحًا على كل المنصات.
     expect(tarCall!.opts.cwd).toBe(rootDir);
@@ -129,6 +130,7 @@ describe('backup-system.ts (cross-platform tar with relative path)', () => {
       if (cmd.startsWith('tar ')) {
         throw new Error('tar crash 0xC0000005');
       }
+      if (cmd.startsWith('git status')) return '';
       origExec(cmd, opts);
     };
 

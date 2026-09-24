@@ -63,9 +63,9 @@ const generateNumber = async (client, prefix, settingKey) => {
  */
 const createDailySale = async (data: Record<string, any>, userId: number) => {
   const saleType = data.sale_type;
-  if (!['branch', 'wholesale', 'pos'].includes(saleType)) {
+  if (!['retail', 'wholesale', 'pos'].includes(saleType)) {
     throw new AppError(
-      '\u0646\u0648\u0639 \u0627\u0644\u0628\u064A\u0639 \u063A\u064A\u0631 \u0635\u062D\u064A\u062D. \u0627\u0644\u0623\u0646\u0648\u0627\u0639 \u0627\u0644\u0645\u062A\u0627\u062D\u0629: branch \u0623\u0648 wholesale \u0623\u0648 pos',
+      '\u0646\u0648\u0639 \u0627\u0644\u0628\u064A\u0639 \u063A\u064A\u0631 \u0635\u062D\u064A\u062D. \u0627\u0644\u0623\u0646\u0648\u0627\u0639 \u0627\u0644\u0645\u062A\u0627\u062D\u0629: retail \u0623\u0648 wholesale \u0623\u0648 pos',
     );
   }
   const rawItems = Array.isArray(data.items) ? data.items : [];
@@ -279,9 +279,9 @@ const createDailySale = async (data: Record<string, any>, userId: number) => {
  */
 const updateSale = async (saleId: number, data: Record<string, any>, userId: number) => {
   const saleType = data.sale_type;
-  if (!['branch', 'wholesale', 'pos'].includes(saleType)) {
+  if (!['retail', 'wholesale', 'pos'].includes(saleType)) {
     throw new AppError(
-      '\u0646\u0648\u0639 \u0627\u0644\u0628\u064A\u0639 \u063A\u064A\u0631 \u0635\u062D\u064A\u062D. \u0627\u0644\u0623\u0646\u0648\u0627\u0639 \u0627\u0644\u0645\u062A\u0627\u062D\u0629: branch \u0623\u0648 wholesale \u0623\u0648 pos',
+      '\u0646\u0648\u0639 \u0627\u0644\u0628\u064A\u0639 \u063A\u064A\u0631 \u0635\u062D\u064A\u062D. \u0627\u0644\u0623\u0646\u0648\u0627\u0639 \u0627\u0644\u0645\u062A\u0627\u062D\u0629: retail \u0623\u0648 wholesale \u0623\u0648 pos',
     );
   }
   let customerId = data.customer_id || null;
@@ -826,13 +826,13 @@ const deleteSalesByDate = async (
     client.release();
   }
 };
-/** حذف المبيعات حسب النوع (branch/wholesale/pos). */
+/** حذف المبيعات حسب النوع (retail/wholesale). */
 const deleteSalesByType = async (
   saleType: string,
   userId: number,
   allowedWarehouseIds?: number[],
 ) => {
-  if (!['branch', 'wholesale'].includes(saleType)) {
+  if (!['retail', 'wholesale'].includes(saleType)) {
     throw new AppError('نوع البيع غير صالح', 400);
   }
   const client = await getClient();
@@ -876,7 +876,7 @@ const deleteSalesByType = async (
       }
     }
     const typeLabel =
-      saleType === 'branch' ? '\u0627\u0644\u0645\u062D\u0644' : '\u062C\u0645\u0644\u0629';
+      saleType === 'retail' ? '\u0627\u0644\u0645\u062D\u0644' : '\u062C\u0645\u0644\u0629';
     await client.query(
       `INSERT INTO activity_logs (user_id, module, action_ar, details) VALUES ($1,'sales',$2,$3)`,
       [

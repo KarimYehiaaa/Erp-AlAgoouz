@@ -59,7 +59,7 @@ describe('Sale restore & sync_id idempotency integration tests', () => {
       userId = userRes.rows[0].id;
 
       const salePayload = {
-        sale_type: 'branch',
+        sale_type: 'retail',
         warehouse_id: whId,
         payment_status: 'paid',
         items: [{ product_id: pId, quantity: 5, unit_price: 10 }],

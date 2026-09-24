@@ -247,8 +247,8 @@ describe('2. RBAC & Granular Permissions Enforcement', () => {
     managerToken = mLog.data.data?.token || mLog.data.token;
   });
 
-  it('cashier CAN view branch sales / POS products', async () => {
-    const res = await apiReq('/products/branch', { token: cashierToken });
+  it('cashier CAN view shop retail products', async () => {
+    const res = await apiReq('/products/shop', { token: cashierToken });
     expect(res.status).toBe(200);
   });
 
@@ -287,7 +287,7 @@ describe('2. RBAC & Granular Permissions Enforcement', () => {
     const saleRes = await apiReq('/sales', {
       method: 'POST',
       token: warehouseToken,
-      body: { sale_type: 'branch', items: [{ product_id: 1, quantity: 1, unit_price: 10 }] },
+      body: { sale_type: 'retail', items: [{ product_id: 1, quantity: 1, unit_price: 10 }] },
     });
     expect(saleRes.status).toBe(403);
   });
@@ -405,7 +405,7 @@ describe('3. Products Lifecycle & Validation', () => {
 describe('4. Inventory Lifecycle & Golden Equation', () => {
   let productId: number;
   let mainWhId: number;
-  let branchWhId: number;
+  let secondaryWhId: number;
   let adminUserId: number;
 
   beforeAll(async () => {
@@ -422,12 +422,12 @@ describe('4. Inventory Lifecycle & Golden Equation', () => {
     mainWhId = wMain.rows[0].id;
     cleanup.warehouseIds.push(mainWhId);
 
-    const wBranch = await query(
-      `INSERT INTO warehouses (name_ar, code, type, is_active) VALUES ($1, $2, 'branch', TRUE) RETURNING id`,
-      [`مخزن فرع معادلة ${suffix}`, `WB${suffix}`],
+    const wSecondary = await query(
+      `INSERT INTO warehouses (name_ar, code, type, is_active) VALUES ($1, $2, 'secondary', TRUE) RETURNING id`,
+      [`مخزن إضافي معادلة ${suffix}`, `WS${suffix}`],
     );
-    branchWhId = wBranch.rows[0].id;
-    cleanup.warehouseIds.push(branchWhId);
+    secondaryWhId = wSecondary.rows[0].id;
+    cleanup.warehouseIds.push(secondaryWhId);
 
     // Create product
     const prod = await query(
@@ -457,12 +457,12 @@ describe('4. Inventory Lifecycle & Golden Equation', () => {
     await query(
       `INSERT INTO inventory (product_id, warehouse_id, quantity) VALUES ($1, $2, 20)
        ON CONFLICT (product_id, warehouse_id, COALESCE(batch_number, '')) DO UPDATE SET quantity = inventory.quantity + 20`,
-      [productId, branchWhId],
+      [productId, secondaryWhId],
     );
     await query(
       `INSERT INTO stock_movements (product_id, from_warehouse_id, to_warehouse_id, movement_type, quantity, user_id, notes)
        VALUES ($1, $2, $3, 'transfer', 20, $4, 'تحويل بين مخازن')`,
-      [productId, mainWhId, branchWhId, adminUserId],
+      [productId, mainWhId, secondaryWhId, adminUserId],
     );
 
     // 3. Manual Adjustment: +10 in Main, -5 in Branch
@@ -473,17 +473,17 @@ describe('4. Inventory Lifecycle & Golden Equation', () => {
       [productId, mainWhId, adminUserId],
     );
 
-    await query(`UPDATE inventory SET quantity = quantity - 5 WHERE product_id = $1 AND warehouse_id = $2`, [productId, branchWhId]);
+    await query(`UPDATE inventory SET quantity = quantity - 5 WHERE product_id = $1 AND warehouse_id = $2`, [productId, secondaryWhId]);
     await query(
       `INSERT INTO stock_movements (product_id, from_warehouse_id, movement_type, quantity, user_id, notes)
        VALUES ($1, $2, 'adjustment', 5, $3, 'تسوية بالعجز')`,
-      [productId, branchWhId, adminUserId],
+      [productId, secondaryWhId, adminUserId],
     );
 
     // 4. Sale from Main: 40 units
     const saleResult = await createDailySale(
       {
-        sale_type: 'branch',
+        sale_type: 'retail',
         warehouse_id: mainWhId,
         payment_status: 'paid',
         items: [{ product_id: productId, quantity: 40, unit_price: 100, total_amount: 4000 }],
@@ -504,9 +504,9 @@ describe('4. Inventory Lifecycle & Golden Equation', () => {
     const mainInv = await query(`SELECT quantity FROM inventory WHERE product_id = $1 AND warehouse_id = $2`, [productId, mainWhId]);
     expect(Number(mainInv.rows[0].quantity)).toBe(55);
 
-    // Verify Branch Warehouse: 0 (Open) + 20 (Trf In) - 5 (Adj Out) = 15
-    const branchInv = await query(`SELECT quantity FROM inventory WHERE product_id = $1 AND warehouse_id = $2`, [productId, branchWhId]);
-    expect(Number(branchInv.rows[0].quantity)).toBe(15);
+    // Verify secondary warehouse: 0 (Open) + 20 (Trf In) - 5 (Adj Out) = 15
+    const secondaryInv = await query(`SELECT quantity FROM inventory WHERE product_id = $1 AND warehouse_id = $2`, [productId, secondaryWhId]);
+    expect(Number(secondaryInv.rows[0].quantity)).toBe(15);
 
     // Verify Stock Movements count & types
     const mvtRes = await query(
@@ -561,7 +561,7 @@ describe('5. Inventory Concurrency & SELECT FOR UPDATE', () => {
   it('safely serializes concurrent sales: exactly 1 succeeds, 1 fails, remaining stock is 3 (never negative)', async () => {
     // Both sales request 7 units simultaneously. Total demanded = 14, Available = 10.
     const salePayload = {
-      sale_type: 'branch',
+      sale_type: 'retail',
       warehouse_id: warehouseId,
       payment_status: 'paid',
       items: [{ product_id: productId, quantity: 7, unit_price: 100, total_amount: 700 }],
@@ -673,7 +673,7 @@ describe('6. Composite Recipe Products (المنتجات المركبة وتفك
     // Should consume: 10 * 0.3 = 3 units of Raw 2 (30 - 3 = 27 remaining)
     const saleResult = await createDailySale(
       {
-        sale_type: 'branch',
+        sale_type: 'retail',
         warehouse_id: warehouseId,
         payment_status: 'paid',
         items: [{ product_id: compositeProductId, quantity: 10, unit_price: 200, total_amount: 2000 }],

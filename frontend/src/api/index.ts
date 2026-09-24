@@ -107,8 +107,8 @@ export { automation } from './automation.api';
 
 export const products = {
   list: (params: Record<string, unknown> = {}) => get<Product[]>('/products', { params }),
-  branchProducts: (params: Record<string, unknown> = {}) =>
-    get<Product[]>('/products/branch', { params }),
+  shopProducts: (params: Record<string, unknown> = {}) =>
+    get<Product[]>('/products/shop', { params }),
   costsReport: (params: Record<string, unknown> = {}) => get('/products/costs-report', { params }),
   get: (id: number | string) => get<Product>(`/products/${id}`),
   nextSku: () => get<{ sku: string }>('/products/next-sku'),

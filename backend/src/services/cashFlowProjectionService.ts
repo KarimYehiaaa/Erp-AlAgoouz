@@ -35,7 +35,7 @@ export const getCashFlowProjection = async (params: Record<string, any> = {}) =>
   const totalExpenses = Number(expensesSumRes.rows[0].val);
   const totalPurchases = Number(purchasesSumRes.rows[0].val);
 
-  // نوزع المصاريف العمومية بالتساوي على الفروع/المستودعات لتجنب تشويه الحسابات لفرع واحد
+  // نوزع المصاريف العمومية بالتساوي على المستودعات لتجنب تشويه الحسابات لمستودع واحد
   // الإصلاح: لم نعد نستبدل السيولة السالبة برقم وهمي — نعرضها كما هي حتى تظهر تحذيرات العجز فعلياً
   const currentCash = totalSales - totalExpenses / warehousesCount - totalPurchases;
   const startsInsolvent = currentCash <= 0;

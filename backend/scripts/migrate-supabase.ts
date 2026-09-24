@@ -56,22 +56,34 @@ function getMigrationFiles(): string[] {
 async function main(): Promise<void> {
   console.log('\n☕ بن العجوز — ترحيل قاعدة البيانات إلى Supabase\n');
 
-  if (!DB_PASSWORD || !DB_HOST) {
+  const connectionString = process.env.DATABASE_URL;
+  if (!connectionString && (!DB_PASSWORD || !DB_HOST)) {
     console.error('❌ خطأ: لم يتم العثور على إعدادات قاعدة البيانات في ملف backend/.env');
-    console.error('يرجى التحقق من توفر DB_HOST و DB_PASSWORD و DB_USER.');
+    console.error('يرجى التحقق من توفر DATABASE_URL أو (DB_HOST و DB_PASSWORD و DB_USER).');
     process.exit(1);
   }
 
-  console.log(`محاولة الاتصال بقاعدة البيانات على: ${DB_HOST}:${DB_PORT}/${DB_NAME}`);
+  if (connectionString) {
+    console.log('محاولة الاتصال بقاعدة البيانات عبر DATABASE_URL...');
+  } else {
+    console.log(`محاولة الاتصال بقاعدة البيانات على: ${DB_HOST}:${DB_PORT}/${DB_NAME}`);
+  }
 
-  const client = new Client({
-    host: DB_HOST,
-    port: DB_PORT,
-    database: DB_NAME,
-    user: DB_USER,
-    password: DB_PASSWORD,
-    ...(DB_SSL && { ssl: { rejectUnauthorized: false } }),
-  });
+  const client = new Client(
+    connectionString
+      ? {
+          connectionString,
+          ssl: { rejectUnauthorized: false },
+        }
+      : {
+          host: DB_HOST,
+          port: DB_PORT,
+          database: DB_NAME,
+          user: DB_USER,
+          password: DB_PASSWORD,
+          ...(DB_SSL && { ssl: { rejectUnauthorized: false } }),
+        },
+  );
 
   try {
     await client.connect();
@@ -93,8 +105,12 @@ async function main(): Promise<void> {
     console.log('\n🎉 تم ترحيل وتجهيز قاعدة البيانات بنجاح على Supabase!');
   } catch (err) {
     console.error('\n❌ فشل ترحيل قاعدة البيانات:', (err as Error).message);
+    process.exitCode = 1;
   } finally {
     await client.end();
+    if (process.exitCode && process.exitCode !== 0) {
+      process.exit(process.exitCode);
+    }
   }
 }
 

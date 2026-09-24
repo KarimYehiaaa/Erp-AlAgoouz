@@ -14,13 +14,17 @@ import path from 'path';
 dotenv.config({ path: path.join(process.cwd(), '.env') });
 
 (async () => {
-  const client = new Client({
-    host: process.env.DB_HOST || 'localhost',
-    port: Number(process.env.DB_PORT || 5432),
-    user: process.env.DB_USER || 'erp_user',
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME || 'bin_al_ajouz',
-  });
+  const client = new Client(
+    process.env.DATABASE_URL
+      ? { connectionString: process.env.DATABASE_URL }
+      : {
+          host: process.env.DB_HOST || 'localhost',
+          port: Number(process.env.DB_PORT || 5432),
+          user: process.env.DB_USER || 'erp_user',
+          password: process.env.DB_PASSWORD,
+          database: process.env.DB_NAME || 'bin_al_ajouz',
+        },
+  );
 
   try {
     await client.connect();

@@ -130,7 +130,7 @@ const sales = {
     ok(res, data, `تم حذف ${data.deletedCount} سجلات من تاريخ ${saleDate} بنجاح`);
   }),
   /**
-   * حذف مبيعات حسب النوع (فرع/جملة).
+   * حذف مبيعات حسب النوع (محل/جملة).
    * @param {import('express').Request} req طلب HTTP
    * @param {import('express').Response} res استجابة HTTP
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
@@ -143,7 +143,7 @@ const sales = {
       userId,
       allowedWarehouses,
     );
-    const label = data.saleType === 'branch' ? 'المحل' : 'الجملة';
+    const label = data.saleType === 'retail' ? 'المحل' : 'الجملة';
     ok(res, data, `تم حذف ${data.deletedCount} سجل من مبيعات ${label} بنجاح`);
   }),
   /**

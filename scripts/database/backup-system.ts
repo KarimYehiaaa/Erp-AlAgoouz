@@ -22,7 +22,10 @@ const destinationFolder = path.join(rootDir, 'full-backups');
 
 /** تبعيات قابلة للحقن — افتراضيًا التنفيذ الفعلي. */
 export interface BackupDeps {
-  execSync: (cmd: string, opts?: { cwd?: string; stdio?: unknown }) => void;
+  execSync: (
+    cmd: string,
+    opts?: { cwd?: string; stdio?: unknown; encoding?: BufferEncoding },
+  ) => unknown;
   fs: Pick<typeof fs, 'existsSync' | 'mkdirSync' | 'statSync'>;
 }
 
@@ -87,7 +90,21 @@ export function runBackup(deps: BackupDeps): { archivePath: string; archiveName:
   console.log('\x1b[33m2. Compressing files to tar.gz archive...\x1b[0m');
 
   // نستخدم أمر tar النظامي (متوفر على Windows 10/11 وmacOS وLinux) — عبر المنصات وبدون اعتماديات npm.
-  const excludes = ['node_modules', '.git', 'full-backups', '.kiro', 'backups', '*.log', '.env', '.postgres.local'];
+  const excludes = [
+    'node_modules',
+    '.git',
+    'full-backups',
+    '.kiro',
+    'backups',
+    '*.log',
+    '.env',
+    '.postgres.local',
+    '.pytest_cache',
+    '*/.pytest_cache',
+    '**/.pytest_cache',
+    './analytics-service/.pytest_cache',
+    'analytics-service/.pytest_cache',
+  ];
   const archiveNameRelative = path.join('full-backups', `${archiveName}.tar.gz`);
 
   try {
@@ -99,10 +116,18 @@ export function runBackup(deps: BackupDeps): { archivePath: string; archiveName:
       stdio: 'inherit',
     });
   } catch (error) {
-    // على Windows (خاصة bsdtar 3.8.8)، قد يفشل tar مع الملفات ذات التسميات غير اللاتينية أو المسارات الخاصة.
-    // يتم استخدام git archive كبديل موثوق عبر المنصات.
+    // git archive omits working-tree changes. Use it only when Git confirms the
+    // workspace is clean; otherwise a successful-looking backup would be incomplete.
     console.warn('\x1b[33mWarning: Standard tar failed. Falling back to git archive...\x1b[0m');
     try {
+      const gitStatus = run('git status --porcelain --untracked-files=all', {
+        cwd: rootDir,
+        stdio: 'pipe',
+        encoding: 'utf8',
+      });
+      if (typeof gitStatus !== 'string' || gitStatus.trim()) {
+        throw new Error('Refusing git archive fallback because working-tree changes would be omitted.');
+      }
       run(`git archive --format=tar.gz -o "${archiveNameRelative}" HEAD`, {
         cwd: rootDir,
         stdio: 'inherit',

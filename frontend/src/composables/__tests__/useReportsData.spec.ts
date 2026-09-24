@@ -16,8 +16,8 @@ const mockedPl = vi.mocked(plApi);
 
 /** بيانات مبيعات تجريبية مختلطة الأنواع. */
 const SAMPLE_SALES = [
-  { date: '2026-08-01', sale_type: 'branch', count: 3, total: 1000, cost: 600, profit: 400 },
-  { date: '2026-08-02', sale_type: 'branch', count: 2, total: 500, cost: 300, profit: 200 },
+  { date: '2026-08-01', sale_type: 'retail', count: 3, total: 1000, cost: 600, profit: 400 },
+  { date: '2026-08-02', sale_type: 'retail', count: 2, total: 500, cost: 300, profit: 200 },
   { date: '2026-08-03', sale_type: 'wholesale', count: 1, total: 2500, cost: 2000, profit: 500 },
 ];
 
@@ -57,9 +57,9 @@ describe('useReportsData', () => {
     expect(r.salesCount.value).toBe(6);
 
     // فلتر "فرع".
-    r.salesFilter.value = 'branch';
+    r.salesFilter.value = 'retail';
     expect(r.filteredSalesRows.value).toHaveLength(2);
-    expect(r.filteredSalesRows.value.every((row: any) => row.sale_type === 'branch')).toBe(true);
+    expect(r.filteredSalesRows.value.every((row: any) => row.sale_type === 'retail')).toBe(true);
     expect(r.salesTotal.value).toBe(1500);
     expect(r.salesProfit.value).toBe(600);
     expect(r.salesCount.value).toBe(5);

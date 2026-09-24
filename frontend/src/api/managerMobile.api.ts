@@ -7,7 +7,7 @@ export interface ExecutiveSummaryData {
   yesterdayTotal: number;
   growthPercent: number;
   averageOrderValue: number;
-  branch: {
+  retail: {
     total: number;
     discount: number;
     count: number;

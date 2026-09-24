@@ -233,7 +233,7 @@ const saleItemSchema = z
 const saleSchema = z
   .object({
     sync_id: z.string().uuid().optional(),
-    sale_type: z.enum(['branch', 'wholesale', 'pos']),
+    sale_type: z.enum(['retail', 'wholesale', 'pos']),
     sale_date: optionalDateText,
     customer_id: optionalPositiveId,
     customer_code: nullableText(100),

@@ -5,6 +5,7 @@
 import { Router } from 'express';
 import { authenticate, authorize } from '../middleware/auth.ts';
 import { validateBody } from '../middleware/validate.ts';
+import { requireIdempotency } from '../middleware/idempotency.ts';
 import { accountingController } from '../controllers/accountingController.ts';
 import { purchaseReturnController } from '../controllers/purchaseReturnController.ts';
 import { purchaseOrderController } from '../controllers/purchaseOrderController.ts';
@@ -32,6 +33,7 @@ router.post(
   '/accounting/accounts',
   authenticate,
   authorize('accounting.manage', 'settings.edit'),
+  requireIdempotency,
   validateBody(createAccountSchema),
   accountingController.createAccount,
 );
@@ -40,6 +42,7 @@ router.put(
   '/accounting/accounts/:id',
   authenticate,
   authorize('accounting.manage', 'settings.edit'),
+  requireIdempotency,
   validateBody(updateAccountSchema),
   accountingController.updateAccount,
 );
@@ -49,6 +52,7 @@ router.post(
   '/accounting/journal-entries',
   authenticate,
   authorize('accounting.manage'),
+  requireIdempotency,
   validateBody(createJournalEntrySchema),
   accountingController.createJournalEntry,
 );
@@ -57,6 +61,7 @@ router.post(
   '/accounting/journal-entries/:id/reverse',
   authenticate,
   authorize('accounting.manage'),
+  requireIdempotency,
   accountingController.reverseJournalEntry,
 );
 
@@ -268,6 +273,7 @@ router.post(
   '/accounting/periods',
   authenticate,
   authorize('accounting.period_close', 'accounting.manage', 'settings.edit'),
+  requireIdempotency,
   accountingController.createPeriod,
 );
 
@@ -289,6 +295,7 @@ router.post(
   '/accounting/periods/:id/close',
   authenticate,
   authorize('accounting.period_close', 'accounting.manage'),
+  requireIdempotency,
   accountingController.closePeriod,
 );
 
@@ -296,6 +303,7 @@ router.post(
   '/accounting/periods/:id/reopen',
   authenticate,
   authorize('accounting.period_reopen', 'accounting.manage'),
+  requireIdempotency,
   accountingController.reopenPeriod,
 );
 

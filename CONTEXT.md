@@ -13,8 +13,8 @@ warehouse and a point-of-sale/store warehouse.
 
 ## Retail sale
 
-The legacy persisted sale type "branch" means a retail/in-shop sale. It does
-not mean an organizational branch and remains for data compatibility.
+A retail sale is made to a walk-in customer at the shop. It is distinct from
+wholesale sales, and is not an organizational branch.
 
 ## Wholesale sale
 
@@ -24,8 +24,7 @@ and credit settlement.
 ## User access
 
 Administrators can access all warehouses. Other users are assigned to a
-warehouse when their role requires a narrow operational scope. The legacy
-branch_id field is compatibility data and is not a separate business entity.
+warehouse when their role requires a narrow operational scope.
 
 ## Canonical language
 

@@ -42,7 +42,6 @@ let changes = 0;
  * @type {Replacement[]}
  */
 const replacements: { module: string; legacy: string }[] = [
-  { module: 'pos', legacy: 'sales.branch' },
   { module: 'pos', legacy: 'sales.wholesale' },
   { module: 'pos', legacy: 'sales.pos' },
   { module: 'pos', legacy: 'sales.return' },

@@ -175,6 +175,7 @@ export class PosSyncWorker {
         const payload = {
           sales: pendingItems.map((item) => ({
             ...item,
+            sale_type: item.sale_type === 'branch' ? 'retail' : item.sale_type,
             pos_shift_id: item.pos_shift_id || undefined,
           })),
         };

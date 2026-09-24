@@ -10,9 +10,7 @@ describe('single-shop POS route', () => {
     expect(route.matched.at(-1)?.components?.default).toBeTypeOf('function');
   });
 
-  it('keeps old bookmarks as a redirect, not a second screen', () => {
-    const record = router.resolve('/branch-sales').matched.at(-1);
-    expect(record?.redirect).toBe('/pos');
-    expect(record?.components).toBeFalsy();
+  it('does not expose a retired branch-specific POS route', () => {
+    expect(router.getRoutes().some((record) => record.path === '/branch-sales')).toBe(false);
   });
 });

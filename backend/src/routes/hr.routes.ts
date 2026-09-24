@@ -7,6 +7,7 @@
 import { Router } from 'express';
 import { authenticate, authorize, auditLog } from '../middleware/auth.ts';
 import { validateBody } from '../middleware/validate.ts';
+import { requireIdempotency } from '../middleware/idempotency.ts';
 import {
   shiftSchema,
   employeeSchema,
@@ -33,6 +34,7 @@ router.post(
   '/hr/shifts',
   authenticate,
   authorize('hr.add'),
+  requireIdempotency,
   validateBody(shiftSchema),
   api.hr.createShift,
 );
@@ -41,6 +43,7 @@ router.post(
   '/hr/employees',
   authenticate,
   authorize('hr.add'),
+  requireIdempotency,
   validateBody(employeeSchema),
   api.hr.createEmployee,
 );
@@ -48,6 +51,7 @@ router.put(
   '/hr/employees/:id',
   authenticate,
   authorize('hr.edit'),
+  requireIdempotency,
   validateBody(employeeUpdateSchema),
   api.hr.updateEmployee,
 );
@@ -57,6 +61,7 @@ router.post(
   '/hr/attendance',
   authenticate,
   authorize('hr.add'),
+  requireIdempotency,
   validateBody(attendanceSchema),
   api.hr.saveAttendance,
 );
@@ -66,6 +71,7 @@ router.post(
   '/hr/advances',
   authenticate,
   authorize('hr.add'),
+  requireIdempotency,
   validateBody(advanceSchema),
   api.hr.createAdvance,
 );
@@ -76,6 +82,7 @@ router.post(
   '/hr/payroll',
   authenticate,
   authorize('hr.add'),
+  requireIdempotency,
   validateBody(payrollSchema),
   api.hr.createPayroll,
 );
@@ -84,12 +91,14 @@ router.post(
   '/hr/payroll/:id/approve',
   authenticate,
   authorize('hr.pay', 'hr.manage'),
+  requireIdempotency,
   api.hr.approvePayroll,
 );
 router.post(
   '/hr/payroll/:id/pay',
   authenticate,
   authorize('hr.pay'),
+  requireIdempotency,
   validateBody(payrollPaySchema),
   api.hr.payPayroll,
 );
@@ -100,6 +109,7 @@ router.post(
   '/users',
   authenticate,
   authorize('users.add'),
+  requireIdempotency,
   validateBody(userCreateSchema),
   auditLog('user_create', 'users'),
   api.users.create,
@@ -108,6 +118,7 @@ router.put(
   '/users/:id',
   authenticate,
   authorize('users.edit'),
+  requireIdempotency,
   validateBody(userUpdateSchema),
   auditLog('user_update', 'users'),
   api.users.update,

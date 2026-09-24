@@ -26,7 +26,7 @@
 
 ### 3. الأحداث
 
-ينشئ النظام Event Bus داخليًا ببيانات موحدة: `event_id`, `event_type`, `branch_id`, `user_id`, `entity_id`, `created_at`, و`payload`. يتم ربط الأحداث بإجراءات الأتمتة مع Idempotency.
+ينشئ النظام Event Bus داخليًا ببيانات موحدة: `event_id`, `event_type`, `warehouse_id` (عند ارتباط الحدث بالمخزون أو الوردية), `user_id`, `entity_id`, `created_at`, و`payload`. النظام يخدم محلًا واحدًا، ويستخدم المخزن لتحديد النطاق التشغيلي. يتم ربط الأحداث بإجراءات الأتمتة مع Idempotency.
 
 ### 4. البيانات والسجل
 

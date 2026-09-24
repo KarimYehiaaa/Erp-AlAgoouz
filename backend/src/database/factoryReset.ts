@@ -59,6 +59,7 @@ const executeFactoryReset = async () => {
       'pos_pin_lockouts',
       'partner_drawings',
       'manager_approval_requests',
+      'manager_override_tokens',
       'workflow_execution_logs',
     ];
 
@@ -108,18 +109,19 @@ const executeFactoryReset = async () => {
 
     await client.query('COMMIT');
     console.log(' تمت عملية التنظيف (Factory Reset) بنجاح!');
+    client.release();
+    await pool.end();
+    rl.close();
+    process.exit(0);
   } catch (err: any) {
-    await client.query('ROLLBACK');
+    try {
+      await client.query('ROLLBACK');
+    } catch {}
     console.error(' حدث خطأ أثناء التنظيف:', err);
     client.release();
     await pool.end();
     rl.close();
     process.exit(1);
-  } finally {
-    client.release();
-    await pool.end();
-    rl.close();
-    process.exit(0);
   }
 };
 

@@ -9,6 +9,7 @@ import { authenticate, authorize, auditLog } from '../middleware/auth.ts';
 import { requireConfirmation } from '../middleware/confirmAction.ts';
 import { validateBody, validateQuery } from '../middleware/validate.ts';
 import { enforceWarehouseAccess } from '../middleware/warehouseAccess.ts';
+import { requireIdempotency } from '../middleware/idempotency.ts';
 import { upload } from './helpers.ts';
 import {
   commonQuerySchema,
@@ -58,6 +59,7 @@ router.post(
   authenticate,
   authorize('inventory.add'),
   enforceWarehouseAccess,
+  requireIdempotency,
   validateBody(inventoryTransferSchema),
   api.inventory.transfer,
 );
@@ -66,6 +68,7 @@ router.post(
   authenticate,
   authorize('inventory.add'),
   enforceWarehouseAccess,
+  requireIdempotency,
   validateBody(inventoryAdjustSchema),
   auditLog('inventory_adjust', 'inventory'),
   api.inventory.adjust,
@@ -92,6 +95,7 @@ router.post(
   authenticate,
   authorize('inventory.add'),
   enforceWarehouseAccess,
+  requireIdempotency,
   validateBody(stocktakeCreateSchema),
   auditLog('stocktake_create', 'inventory'),
   api.stocktake.create,
@@ -108,6 +112,7 @@ router.put(
   authenticate,
   authorize('inventory.edit'),
   enforceWarehouseAccess,
+  requireIdempotency,
   validateBody(stocktakeUpdateSchema),
   api.stocktake.updateItems,
 );
@@ -116,6 +121,7 @@ router.post(
   authenticate,
   authorize('inventory.add'),
   enforceWarehouseAccess,
+  requireIdempotency,
   auditLog('stocktake_complete', 'inventory'),
   api.stocktake.complete,
 );
@@ -140,6 +146,7 @@ router.post(
   '/invoices',
   authenticate,
   authorize('invoices.add'),
+  requireIdempotency,
   validateBody(invoiceSchema),
   api.invoices.create,
 );
@@ -149,6 +156,7 @@ router.put(
   '/invoices/:id',
   authenticate,
   authorize('invoices.edit'),
+  requireIdempotency,
   validateBody(invoiceSchema),
   api.invoices.update,
 );

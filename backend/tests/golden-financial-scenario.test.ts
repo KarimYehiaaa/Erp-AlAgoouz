@@ -446,7 +446,7 @@ describe('Golden Financial Lifecycle Scenario', () => {
       paid_amount: 1000,
       payment_status: 'paid',
       payment_method: 'cash',
-      sale_type: 'branch',
+      sale_type: 'retail',
       warehouse_id: warehouseId,
       items: [{ product_id: productId, quantity: 5, unit_price: 200, subtotal: 1000 }],
     }, adminUserId);

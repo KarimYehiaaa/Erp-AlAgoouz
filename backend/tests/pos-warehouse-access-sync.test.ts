@@ -191,7 +191,7 @@ describe('POS Warehouse Access & Batch Sync Security (Items 24, 25, 26)', () => 
   it('5. Warehouse-scoped sales lists and summaries never expose another warehouse', async () => {
     await createDailySale(
       {
-        sale_type: 'branch',
+        sale_type: 'retail',
         warehouse_id: forbiddenWarehouseId,
         total_amount: 37,
         payment_status: 'paid',
@@ -231,7 +231,7 @@ describe('POS Warehouse Access & Batch Sync Security (Items 24, 25, 26)', () => 
   it('6. A user cannot move another warehouse sale into their own warehouse by editing it', async () => {
     const sale = await createDailySale(
       {
-        sale_type: 'branch',
+        sale_type: 'retail',
         warehouse_id: forbiddenWarehouseId,
         total_amount: 41,
         payment_status: 'paid',
@@ -243,7 +243,7 @@ describe('POS Warehouse Access & Batch Sync Security (Items 24, 25, 26)', () => 
       updateSale(
         sale.id,
         {
-          sale_type: 'branch',
+          sale_type: 'retail',
           warehouse_id: allowedWarehouseId,
           total_amount: 99,
           payment_status: 'paid',
@@ -262,7 +262,7 @@ describe('POS Warehouse Access & Batch Sync Security (Items 24, 25, 26)', () => 
   it('7. A user cannot return a sale from another warehouse', async () => {
     const sale = await createDailySale(
       {
-        sale_type: 'branch',
+        sale_type: 'retail',
         warehouse_id: forbiddenWarehouseId,
         total_amount: 43,
         payment_status: 'paid',
@@ -281,7 +281,7 @@ describe('POS Warehouse Access & Batch Sync Security (Items 24, 25, 26)', () => 
     const syncId = randomUUID();
     await createDailySale(
       {
-        sale_type: 'branch',
+        sale_type: 'retail',
         warehouse_id: forbiddenWarehouseId,
         sync_id: syncId,
         total_amount: 47,
@@ -293,7 +293,7 @@ describe('POS Warehouse Access & Batch Sync Security (Items 24, 25, 26)', () => 
     await expect(
       createDailySale(
         {
-          sale_type: 'branch',
+          sale_type: 'retail',
           warehouse_id: allowedWarehouseId,
           sync_id: syncId,
           total_amount: 47,
@@ -308,7 +308,7 @@ describe('POS Warehouse Access & Batch Sync Security (Items 24, 25, 26)', () => 
     const saleDate = '2099-01-01';
     const localSale = await createDailySale(
       {
-        sale_type: 'branch',
+        sale_type: 'retail',
         warehouse_id: allowedWarehouseId,
         sale_date: saleDate,
         total_amount: 53,
@@ -318,7 +318,7 @@ describe('POS Warehouse Access & Batch Sync Security (Items 24, 25, 26)', () => 
     );
     const otherSale = await createDailySale(
       {
-        sale_type: 'branch',
+        sale_type: 'retail',
         warehouse_id: forbiddenWarehouseId,
         sale_date: saleDate,
         total_amount: 59,
@@ -337,14 +337,14 @@ describe('POS Warehouse Access & Batch Sync Security (Items 24, 25, 26)', () => 
     expect(afterDateDelete.rows.find((sale) => sale.id === otherSale.id).deleted_at).toBeNull();
 
     const localTypeSale = await createDailySale(
-      { sale_type: 'branch', warehouse_id: allowedWarehouseId, total_amount: 61 },
+      { sale_type: 'retail', warehouse_id: allowedWarehouseId, total_amount: 61 },
       adminUserId,
     );
     const otherTypeSale = await createDailySale(
-      { sale_type: 'branch', warehouse_id: forbiddenWarehouseId, total_amount: 67 },
+      { sale_type: 'retail', warehouse_id: forbiddenWarehouseId, total_amount: 67 },
       adminUserId,
     );
-    await deleteSalesByType('branch', cashierUserId, allowedWarehouses);
+    await deleteSalesByType('retail', cashierUserId, allowedWarehouses);
     const afterTypeDelete = await query(
       'SELECT id, deleted_at FROM sales WHERE id = ANY($1::int[])',
       [[localTypeSale.id, otherTypeSale.id]],

@@ -26,7 +26,7 @@ describe('Anti-Fraud & Risk Engine Service', () => {
       expect(alert).toHaveProperty('severity');
       expect(['critical', 'high', 'medium', 'low']).toContain(alert.severity);
       expect(alert).toHaveProperty('user');
-      expect(alert).toHaveProperty('branch');
+      expect(alert).toHaveProperty('warehouse');
       expect(alert).toHaveProperty('timestamp');
       expect(alert).toHaveProperty('event');
       expect(alert).toHaveProperty('reference');
@@ -87,9 +87,9 @@ describe('Anti-Fraud & Risk Engine Service', () => {
     expect(new Date(result.scannedAt).getTime()).not.toBeNaN();
   });
 
-  it('يدعم ضبط القواعد المخصصة (RiskRuleConfig) واستخدام branchId كمرادف لـ warehouseId', async () => {
+  it('يدعم ضبط القواعد المخصصة مع نطاق مخزن محدد', async () => {
     const result = await scanRiskAlerts({
-      branchId: 999999,
+      warehouseId: 999999,
       rules: {
         discountPctThreshold: 5,
         discountAmtThreshold: 50,

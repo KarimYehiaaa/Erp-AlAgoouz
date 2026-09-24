@@ -59,7 +59,7 @@
 /**
  * شريط أدوات المبيعات — يستهلك من SalesView.
  *
- * @props activeTab  التبويب النشط (branch/wholesale/monthly)
+ * @props activeTab  التبويب النشط (retail/wholesale/monthly)
  * @props filters    فلاتر الفترة { from_date, to_date }
  *
  * @emits downloadTemplate  طلب تحميل قالب الاستيراد

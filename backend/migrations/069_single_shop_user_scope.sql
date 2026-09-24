@@ -1,9 +1,4 @@
--- Single-shop domain normalization.
--- branch_id remains only as compatibility data; operational access is warehouse-based.
-
-UPDATE users
-SET branch_id = 1
-WHERE deleted_at IS NULL;
+-- Single-shop user scope: operational assignment is warehouse-based.
 
 UPDATE users u
 SET warehouse_id = (

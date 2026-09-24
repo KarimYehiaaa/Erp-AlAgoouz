@@ -6,6 +6,7 @@
 import { Router } from 'express';
 import { authenticate, authorize } from '../middleware/auth.ts';
 import { validateBody } from '../middleware/validate.ts';
+import { requireIdempotency } from '../middleware/idempotency.ts';
 import { recipeSchema, recipeProductionSchema, reverseProductionSchema } from './schemas.ts';
 import * as api from '../controllers/apiController.ts';
 
@@ -18,6 +19,7 @@ router.post(
   '/costs/recipes',
   authenticate,
   authorize('products.add'),
+  requireIdempotency,
   validateBody(recipeSchema),
   api.costs.createRecipe,
 );
@@ -25,6 +27,7 @@ router.put(
   '/costs/recipes/:id',
   authenticate,
   authorize('products.edit'),
+  requireIdempotency,
   validateBody(recipeSchema),
   api.costs.updateRecipe,
 );
@@ -38,6 +41,7 @@ router.post(
   '/costs/recipes/:id/produce',
   authenticate,
   authorize('products.add'),
+  requireIdempotency,
   validateBody(recipeProductionSchema),
   api.costs.produceRecipe,
 );
@@ -51,6 +55,7 @@ router.post(
   '/costs/productions/:movementId/reverse',
   authenticate,
   authorize('products.add'),
+  requireIdempotency,
   validateBody(reverseProductionSchema),
   api.costs.reverseProduction,
 );

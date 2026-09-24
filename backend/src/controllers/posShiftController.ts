@@ -116,6 +116,9 @@ export const posShiftController = {
       const allowedWarehouses = isAdmin ? [] : await getAllowedWarehouses(userId);
 
       const MAX_BATCH_SIZE = 50;
+      const MAX_ITEMS_PER_INVOICE = 100;
+      const MAX_TOTAL_ITEMS = 500;
+
       if (!Array.isArray(req.body.sales) || req.body.sales.length === 0) {
         return res.status(400).json({
           success: false,
@@ -127,6 +130,26 @@ export const posShiftController = {
         return res.status(400).json({
           success: false,
           message: `حجم الدفعة كبير جداً (الحد الأقصى ${MAX_BATCH_SIZE} فاتورة لكل دفعة)`,
+        });
+      }
+
+      let totalItemsCount = 0;
+      for (const s of req.body.sales) {
+        if (s && Array.isArray(s.items)) {
+          if (s.items.length > MAX_ITEMS_PER_INVOICE) {
+            return res.status(400).json({
+              success: false,
+              message: `تتجاوز إحدى الفواتير الحد الأقصى للأصناف (${MAX_ITEMS_PER_INVOICE} صنف لكل فاتورة)`,
+            });
+          }
+          totalItemsCount += s.items.length;
+        }
+      }
+
+      if (totalItemsCount > MAX_TOTAL_ITEMS) {
+        return res.status(400).json({
+          success: false,
+          message: `يتجاوز إجمالي الأصناف في الدفعة الحد المسموح به (الحد الأقصى ${MAX_TOTAL_ITEMS} صنف)`,
         });
       }
 
@@ -172,7 +195,7 @@ export const posShiftController = {
           results.push({
             sync_id: salePayload.sync_id,
             status: 'FAILED',
-            error: 'غير مصرح لك بتسجيل مبيعات على هذا المخزن/الفرع',
+            error: 'غير مصرح لك بتسجيل مبيعات على هذا المخزن',
           });
           continue;
         }
@@ -333,7 +356,7 @@ export const posShiftController = {
           name: matchedManager.full_name || matchedManager.username,
           role: matchedManager.role_name,
         },
-        override_token: issueManagerOverrideToken(
+        override_token: await issueManagerOverrideToken(
           matchedManager.id,
           (req as any).user?.id || matchedManager.id,
         ),

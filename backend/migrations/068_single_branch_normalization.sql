@@ -1,5 +1,2 @@
--- This deployment operates one commercial branch with multiple warehouses.
--- Keep all active warehouses under the single canonical branch identifier.
-UPDATE warehouses
-SET branch_id = 1
-WHERE deleted_at IS NULL;
+-- Historical migration slot retained for deployed migration ledgers.
+-- A single shop uses warehouse identities directly and has no branch assignment.

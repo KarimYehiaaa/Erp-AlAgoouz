@@ -153,7 +153,7 @@ export const posShiftService = {
       return activeRes.rows[0];
     }
 
-    // 2. تحديد المخزن / الفرع الافتراضي إذا لم يتم تمريره
+    // 2. تحديد المخزن الافتراضي إذا لم يتم تمريره
     let warehouseId = data.warehouse_id;
     if (!warehouseId) {
       const wRes = await query(

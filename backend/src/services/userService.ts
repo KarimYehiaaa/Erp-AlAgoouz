@@ -179,17 +179,19 @@ const getNotifications = async (userId) =>
     )
   ).rows;
 const markNotificationRead = async (id, userId) => {
-  if (userId) {
-    const res = await query(
-      `UPDATE notifications SET is_read = TRUE WHERE id = $1 AND (user_id = $2 OR user_id IS NULL)`,
-      [id, userId],
-    );
-    return { updated: res.rowCount || 0 };
+  if (!userId) {
+    throw new AppError('معرف المستخدم مطلوب لتحديث حالة الإشعار', 400, 'USER_REQUIRED');
   }
-  const res = await query(`UPDATE notifications SET is_read = TRUE WHERE id = $1`, [id]);
+  const res = await query(
+    `UPDATE notifications SET is_read = TRUE WHERE id = $1 AND (user_id = $2 OR user_id IS NULL)`,
+    [id, userId],
+  );
   return { updated: res.rowCount || 0 };
 };
 const markAllNotificationsRead = async (userId) => {
+  if (!userId) {
+    throw new AppError('معرف المستخدم مطلوب لتحديث حالة الإشعارات', 400, 'USER_REQUIRED');
+  }
   const res = await query(
     `UPDATE notifications SET is_read = TRUE WHERE is_read = FALSE AND (user_id = $1 OR user_id IS NULL)`,
     [userId],

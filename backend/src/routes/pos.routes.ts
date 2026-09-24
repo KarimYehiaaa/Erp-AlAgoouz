@@ -2,7 +2,7 @@ import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import { authenticate, authorize } from '../middleware/auth.ts';
 import { posShiftController } from '../controllers/posShiftController.ts';
-
+import { requireIdempotency } from '../middleware/idempotency.ts';
 import { validateBody } from '../middleware/validate.ts';
 import { verifyPinSchema } from './schemas.ts';
 
@@ -20,14 +20,37 @@ const pinRateLimiter = rateLimit({
   message: { success: false, message: 'محاولات كثيرة جدًا — انتظر دقيقة ثم أعد المحاولة' },
 });
 
+// تحديد معدل مزامنة الدفعات دون اتصال لمنع الإغراق: 20 دفعة في الدقيقة لكل مستخدم
+const batchSyncLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req: any) => `batch-sync:${req.user?.id || req.ip}`,
+  message: { success: false, message: 'معدل مزامنة مرتفع — انتظر دقيقة ثم أعد المحاولة' },
+});
+
 // ─── Shift Lifecycle ─────────────────────────────────────────────────────────
-router.post('/pos/shifts/open', authenticate, posAuth, posShiftController.openShift);
+router.post(
+  '/pos/shifts/open',
+  authenticate,
+  posAuth,
+  requireIdempotency,
+  posShiftController.openShift,
+);
 router.get('/pos/shifts/current', authenticate, posAuth, posShiftController.getCurrentShift);
-router.post('/pos/shifts/:id/close', authenticate, posAuth, posShiftController.closeShift);
+router.post(
+  '/pos/shifts/:id/close',
+  authenticate,
+  posAuth,
+  requireIdempotency,
+  posShiftController.closeShift,
+);
 router.post(
   '/pos/shifts/cash-movement',
   authenticate,
   posAuth,
+  requireIdempotency,
   posShiftController.recordCashMovement,
 );
 router.get(
@@ -39,7 +62,14 @@ router.get(
 
 // ─── Terminal & Offline Sync ────────────────────────────────────────────────
 router.post('/pos/terminals/verify', authenticate, posAuth, posShiftController.verifyTerminal);
-router.post('/sales/batch-sync', authenticate, posAuth, posShiftController.batchSyncSales);
+router.post(
+  '/sales/batch-sync',
+  authenticate,
+  posAuth,
+  batchSyncLimiter,
+  requireIdempotency,
+  posShiftController.batchSyncSales,
+);
 
 // ─── Manager PIN Override ───────────────────────────────────────────────────
 router.post(

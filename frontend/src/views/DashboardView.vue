@@ -660,7 +660,7 @@ const money = (value: any) => formatMoney(value, { compact: true });
 const number = (value: any) =>
   Number(value || 0).toLocaleString('en-GB', { maximumFractionDigits: 2 });
 const saleTypeLabel = (type: any) =>
-  (({ branch: 'المحل', wholesale: 'جملة', pos: 'نقطة بيع' }) as Record<string, string>)[type] ||
+  (({ retail: 'المحل', wholesale: 'جملة', pos: 'نقطة بيع' }) as Record<string, string>)[type] ||
   type ||
   'بيع';
 

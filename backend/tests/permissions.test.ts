@@ -41,8 +41,7 @@ describe('shared permission equivalents', () => {
     expect(satisfiesPermission(['users.view'], 'users.manage')).toBe(true);
   });
 
-  it('preserves legacy frontend-only codes', () => {
-    expect(satisfiesPermission(['pos.view'], 'sales.branch')).toBe(true);
+  it('preserves supported aggregate frontend-only codes', () => {
     expect(satisfiesPermission(['pos.view'], 'sales.pos')).toBe(true);
     expect(satisfiesPermission(['sales.delete'], 'sales.return')).toBe(true);
     expect(satisfiesPermission(['products.view'], 'recipes.view')).toBe(true);

@@ -589,7 +589,7 @@ describe('Financial Audit Invariants Suite (Real PostgreSQL Invariants)', () => 
       const saleDate = new Date().toISOString().slice(0, 10);
       const createdSale = await createDailySale(
         {
-          sale_type: 'branch',
+          sale_type: 'retail',
           total_amount: 1200,
           payment_method: 'cash',
           payment_status: 'paid',
@@ -613,7 +613,7 @@ describe('Financial Audit Invariants Suite (Real PostgreSQL Invariants)', () => 
       await updateSale(
         createdSale.id,
         {
-          sale_type: 'branch',
+          sale_type: 'retail',
           total_amount: 1800,
           payment_method: 'cash',
           payment_status: 'paid',
@@ -761,7 +761,7 @@ describe('Financial Audit Invariants Suite (Real PostgreSQL Invariants)', () => 
       // إنشاء عملية بيع في هذا التاريخ
       const saleRes = await query(
         `INSERT INTO sales (sale_number, sale_type, sale_date, total_amount, payment_status, user_id, warehouse_id)
-         VALUES ($1, 'branch', $2::date, 500, 'paid', 1, 1) RETURNING id`,
+         VALUES ($1, 'retail', $2::date, 500, 'paid', 1, 1) RETURNING id`,
         ['SALE-LOCK-' + Date.now(), pDate],
       );
       const saleId = saleRes.rows[0].id;
@@ -771,7 +771,7 @@ describe('Financial Audit Invariants Suite (Real PostgreSQL Invariants)', () => 
       await accountingService.postSaleJournalEntry(null, {
         id: saleId,
         sale_number: 'SALE-LOCK-' + saleId,
-        sale_type: 'branch',
+        sale_type: 'retail',
         total_amount: 500,
         user_id: 1,
         sale_date: pDate,

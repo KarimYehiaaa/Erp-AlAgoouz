@@ -14,7 +14,7 @@ export interface ReceiptItem {
 
 export interface ReceiptData {
   company_name?: string;
-  branch_name?: string;
+  shop_name?: string;
   terminal_code?: string;
   invoice_number: string;
   cashier_name?: string;
@@ -101,7 +101,7 @@ export class PosPrinterDriver {
 
     let receipt = '\n';
     receipt += `${data.company_name || 'بن العجوز للقهوة'}\n`;
-    receipt += `${data.branch_name || 'الفرع الرئيسي'} | ${data.terminal_code || 'TRM-01'}\n`;
+    receipt += `${data.shop_name || 'المحل الرئيسي'} | ${data.terminal_code || 'TRM-01'}\n`;
     receipt += `${doubleDivider}\n`;
     receipt += `رقم الفاتورة: ${data.invoice_number}\n`;
     receipt += `التاريخ: ${data.date_time}\n`;

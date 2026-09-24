@@ -186,38 +186,38 @@
           </div>
         </div>
 
-        <!-- 2. Dual Breakdown: Branch vs Wholesale -->
+        <!-- 2. Dual Breakdown: Retail vs Wholesale -->
         <div class="dual-distribution-section">
           <div class="section-heading">
             <h3><AppIcon name="chart" :size="18" /> توزيع المبيعات حسب القناة</h3>
             <span class="channel-ratio">
-              {{ branchPercent }}% محل / {{ wholesalePercent }}% جملة
+              {{ retailPercent }}% محل / {{ wholesalePercent }}% جملة
             </span>
           </div>
 
           <!-- Comparative Visual Bar -->
           <div class="comparative-ratio-bar">
-            <div class="bar-fill branch-fill" :style="{ width: branchPercent + '%' }"></div>
+            <div class="bar-fill retail-fill" :style="{ width: retailPercent + '%' }"></div>
             <div class="bar-fill wholesale-fill" :style="{ width: wholesalePercent + '%' }"></div>
           </div>
 
           <div class="channel-cards-grid">
-            <!-- Branch Card -->
-            <div class="channel-metric-card branch-theme">
+            <!-- Retail Card -->
+            <div class="channel-metric-card retail-theme">
               <div class="card-top-icon">
                 <span class="icon-wrap"><AppIcon name="shop" :size="20" /></span>
                 <span class="card-label">مبيعات المحل (POS)</span>
               </div>
               <div class="channel-val">
-                {{ formatMoney(currentSummary.branch?.total || 0) }} <small>ج.م</small>
+                {{ formatMoney(currentSummary.retail?.total || 0) }} <small>ج.م</small>
               </div>
               <div class="channel-foot">
                 <span
                   ><AppIcon name="receipt" :size="14" />
-                  {{ currentSummary.branch?.count || 0 }} فاتورة</span
+                  {{ currentSummary.retail?.count || 0 }} فاتورة</span
                 >
-                <span v-if="currentSummary.branch?.discount" class="discount-pill">
-                  خصم: {{ formatMoney(currentSummary.branch.discount) }}
+                <span v-if="currentSummary.retail?.discount" class="discount-pill">
+                  خصم: {{ formatMoney(currentSummary.retail.discount) }}
                 </span>
               </div>
             </div>
@@ -862,7 +862,7 @@ const fallbackSummary: ExecutiveSummaryData = {
   yesterdayTotal: 0,
   growthPercent: 0,
   averageOrderValue: 0,
-  branch: { total: 0, discount: 0, count: 0, cash: 0, instapay: 0, card: 0, other: 0 },
+  retail: { total: 0, discount: 0, count: 0, cash: 0, instapay: 0, card: 0, other: 0 },
   wholesale: { total: 0, discount: 0, count: 0, cash: 0, instapay: 0, card: 0, other: 0 },
   paymentTotals: { cash: 0, instapay: 0, card: 0, other: 0 },
   expenses: { total: 0, count: 0 },
@@ -912,15 +912,15 @@ const pendingApprovalsCount = computed(() => {
   );
 });
 
-const branchPercent = computed(() => {
+const retailPercent = computed(() => {
   const g = currentSummary.value.grandTotal || 0;
   if (g <= 0) return 50;
-  const b = currentSummary.value.branch?.total || 0;
-  return Math.min(100, Math.max(0, Math.round((b / g) * 100)));
+  const retail = currentSummary.value.retail?.total || 0;
+  return Math.min(100, Math.max(0, Math.round((retail / g) * 100)));
 });
 
 const wholesalePercent = computed(() => {
-  return Math.max(0, 100 - branchPercent.value);
+  return Math.max(0, 100 - retailPercent.value);
 });
 
 const getCategoryPercent = (val: number) => {
@@ -1079,7 +1079,7 @@ const loadDemoData = () => {
     yesterdayTotal: 15200,
     growthPercent: 21.4,
     averageOrderValue: 271.3,
-    branch: {
+    retail: {
       total: 11250,
       discount: 350,
       count: 52,
@@ -1929,7 +1929,7 @@ onUnmounted(() => {
   overflow: hidden;
 }
 
-.bar-fill.branch-fill {
+.bar-fill.retail-fill {
   background: linear-gradient(
     90deg,
     var(--color-gold, #b58a4a),
@@ -1960,7 +1960,7 @@ onUnmounted(() => {
   padding: 16px;
 }
 
-.channel-metric-card.branch-theme {
+.channel-metric-card.retail-theme {
   border-color: rgba(217, 168, 108, 0.35);
   background: linear-gradient(145deg, rgba(217, 168, 108, 0.1) 0%, rgba(20, 12, 6, 0.6) 100%);
 }
@@ -3191,7 +3191,7 @@ onUnmounted(() => {
 .comparative-ratio-bar {
   background: #e5dcd2;
 }
-.bar-fill.branch-fill {
+.bar-fill.retail-fill {
   background: var(--ledger-coffee);
 }
 .bar-fill.wholesale-fill {
@@ -3202,7 +3202,7 @@ onUnmounted(() => {
   color: var(--ledger-ink);
   box-shadow: none;
 }
-.channel-metric-card.branch-theme {
+.channel-metric-card.retail-theme {
   border-top: 4px solid var(--ledger-coffee);
 }
 .channel-metric-card.wholesale-theme {
@@ -3413,12 +3413,12 @@ onUnmounted(() => {
   box-shadow: 0 8px 18px rgba(75, 55, 39, 0.05);
 }
 
-.channel-metric-card.branch-theme,
+.channel-metric-card.retail-theme,
 .channel-metric-card.wholesale-theme {
   background: #fffdfa;
 }
 
-.channel-metric-card.branch-theme {
+.channel-metric-card.retail-theme {
   border-top: 3px solid #a96b45;
 }
 
@@ -3498,7 +3498,7 @@ onUnmounted(() => {
   background: #e8ded3;
 }
 
-.branch-fill {
+.retail-fill {
   background: #a96b45;
 }
 .wholesale-fill {

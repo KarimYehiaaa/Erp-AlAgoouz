@@ -675,12 +675,14 @@ const _computeDashboardStats = async (filters: Record<string, any> = {}) => {
   // ملاحظة محاسبية: أرصدة العملاء الافتتاحية ديون مستحقة (أصول) وليست إيرادات،
   // لذلك لا تُضاف إلى المبيعات ولا تدخل في حساب الربح أو السيولة — تظهر كبند مستقل.
 
-  const currentMonthBranchSales = toNumber(currentMonthSaleRow('branch').total);
+  const currentMonthRetailSales =
+    toNumber(currentMonthSaleRow('retail').total) + toNumber(currentMonthSaleRow('pos').total);
   const currentMonthWholesaleSales = toNumber(currentMonthSaleRow('wholesale').total);
-  const currentMonthBranchCount = toNumber(currentMonthSaleRow('branch').count);
+  const currentMonthRetailCount =
+    toNumber(currentMonthSaleRow('retail').count) + toNumber(currentMonthSaleRow('pos').count);
   const currentMonthWholesaleCount = toNumber(currentMonthSaleRow('wholesale').count);
-  const currentMonthTotalSales = currentMonthBranchSales + currentMonthWholesaleSales;
-  const currentMonthSalesCount = currentMonthBranchCount + currentMonthWholesaleCount;
+  const currentMonthTotalSales = currentMonthRetailSales + currentMonthWholesaleSales;
+  const currentMonthSalesCount = currentMonthRetailCount + currentMonthWholesaleCount;
   const currentMonthExpensesTotal = toNumber(currentMonthExpensesRow.total);
   const currentMonthPurchasesTotal = toNumber(currentMonthPurchasesRow.total);
   const openingBalanceRow = await getOpeningBalanceForDate(currentMonthDate);
@@ -810,8 +812,8 @@ const _computeDashboardStats = async (filters: Record<string, any> = {}) => {
     },
     monthCards: {
       period: currentMonth,
-      branchSales: roundMoney(currentMonthBranchSales),
-      branchSalesCount: currentMonthBranchCount,
+      retailSales: roundMoney(currentMonthRetailSales),
+      retailSalesCount: currentMonthRetailCount,
       wholesaleSales: roundMoney(currentMonthWholesaleSales),
       wholesaleSalesCount: currentMonthWholesaleCount,
       totalSales: roundMoney(currentMonthTotalSales),

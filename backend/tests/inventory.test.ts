@@ -90,7 +90,7 @@ describe('Inventory Calculations', () => {
 
     const w2Res = await query(`
       INSERT INTO warehouses (name_ar, code, type, is_active)
-      VALUES ('Test W2 BRANCH VITEST', 'TW2V', 'branch', true)
+      VALUES ('Test W2 SECONDARY VITEST', 'TW2V', 'secondary', true)
       RETURNING id
     `);
     warehouse2 = w2Res.rows[0].id;

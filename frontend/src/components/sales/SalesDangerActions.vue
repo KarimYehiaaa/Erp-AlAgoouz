@@ -1,6 +1,6 @@
 <!--
   SalesDangerActions.vue — إدارة الحذف: حسب النوع / يوم محدد / شامل
-  أزرار حذف مبيعات الفرع/الجملة أو يوم محدد أو كل المبيعات (للمدير).
+  أزرار حذف مبيعات المحل/الجملة أو يوم محدد أو كل المبيعات (للمدير).
   استُخرج من SalesView لتقليل حجم الملف المركزي (كان 2,463 سطرًا).
 -->
 <template>
@@ -12,9 +12,9 @@
       <span class="danger-label">حذف حسب النوع:</span>
       <button
         type="button"
-        class="delete-type-btn branch"
+        class="delete-type-btn retail"
         :disabled="saving"
-        @click="$emit('deleteType', 'branch')"
+        @click="$emit('deleteType', 'retail')"
         title="حذف كل مبيعات المحل نهائياً"
       >
         <span class="btn-icon"><AppIcon name="delete" :size="14" /></span>
@@ -76,7 +76,7 @@ import AppIcon from '@/components/AppIcon.vue';
  * @props deleteDate  التاريخ المحدد للحذف (v-model:deleteDate)
  *
  * @emits update:deleteDate  تغيير التاريخ المحدد
- * @emits deleteType         حذف حسب النوع (branch/wholesale)
+ * @emits deleteType         حذف حسب النوع (retail/wholesale)
  * @emits deleteDay          حذف اليوم المحدد
  * @emits deleteAll          حذف كل المبيعات
  */
@@ -167,7 +167,7 @@ const date = computed({
     cursor: not-allowed;
   }
 
-  &.branch {
+  &.retail {
     background: color-mix(in srgb, var(--primary) 10%, transparent);
     color: var(--primary-dark);
     border-color: color-mix(in srgb, var(--primary) 30%, transparent);

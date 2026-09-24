@@ -37,8 +37,6 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/PosView.vue'),
         meta: { permission: 'pos.view' },
       },
-      { path: 'branch-sales', redirect: '/pos' },
-
       // 1. Sales & Customers Hub
       {
         path: 'sales',

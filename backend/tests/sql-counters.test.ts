@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { getExpenses } from '../src/services/expenseService.ts';
 import { getSalesSummary } from '../src/services/salesService.ts';
 import { listProductionBatches } from '../src/services/recipesService.ts';
-import { getProducts, getBranchProducts } from '../src/services/productService.ts';
+import { getProducts, getShopProducts } from '../src/services/productService.ts';
 import { listPurchaseInvoices } from '../src/services/purchaseService.ts';
 import { inventoryRepository } from '../src/repositories/inventory.repository.ts';
 import { invoicesRepository } from '../src/repositories/invoices.repository.ts';
@@ -37,9 +37,9 @@ describe('SQL parameter numbering (regression)', () => {
       // salesRepository.getSalesList — كانت مكسورة: status فقط مع LIMIT $${idx}
       ...[
         {},
-        { sale_type: 'branch' },
+        { sale_type: 'retail' },
         { status: 'completed' },
-        { sale_type: 'branch', entry_mode: 'pos', from_date: '2026-01-01', to_date: '2026-08-15' },
+        { sale_type: 'retail', entry_mode: 'pos', from_date: '2026-01-01', to_date: '2026-08-15' },
         { status: 'completed', from_date: '2026-01-01', to_date: '2026-08-15' },
       ].map((f) => [`getSalesList ${JSON.stringify(f)}`, () => salesRepository.getSalesList({ ...f, page: 1, limit: 10 })] as [string, () => Promise<unknown>]),
 
@@ -72,12 +72,12 @@ describe('SQL parameter numbering (regression)', () => {
         { category_id: 1, search: 'قهوة', primary_warehouse_id: 2, warehouse_id: 1, is_active: true },
       ].map((f) => [`getProducts ${JSON.stringify(f)}`, () => getProducts(f)] as [string, () => Promise<unknown>]),
 
-      // getBranchProducts — معامل 1 ثابت (warehouseId) + فلاتر من 2
+      // getShopProducts — معامل 1 ثابت (warehouseId) + فلاتر من 2
       ...[
         {},
         { category_id: 1 },
         { category_id: 1, search: 'قهوة', has_recipe: true },
-      ].map((f) => [`getBranchProducts ${JSON.stringify(f)}`, () => getBranchProducts(f)] as [string, () => Promise<unknown>]),
+      ].map((f) => [`getShopProducts ${JSON.stringify(f)}`, () => getShopProducts(f)] as [string, () => Promise<unknown>]),
 
       // listPurchaseInvoices — idx + LIMIT $${idx}
       ...[

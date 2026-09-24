@@ -25,7 +25,7 @@
           <span class="workspace-icon"><AppIcon name="warehouse" :size="15" /></span>
           <div class="workspace-meta">
             <span class="workspace-tenant">{{ companyName }}</span>
-            <strong class="workspace-branch">{{ appStore.activeWorkspace }}</strong>
+            <strong class="workspace-location">{{ appStore.activeWorkspace }}</strong>
           </div>
           <span class="chevron-indicator"><AppIcon name="arrowDown" :size="12" /></span>
         </button>
@@ -550,7 +550,7 @@ onBeforeUnmount(() => {
   color: var(--color-text-muted);
 }
 
-.workspace-branch {
+.workspace-location {
   font-size: 0.82rem;
   font-weight: 700;
   color: var(--color-text-strong);

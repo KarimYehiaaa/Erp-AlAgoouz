@@ -74,6 +74,19 @@ function calculateSha256(content: Buffer): string {
 export function readPendingQueue(customDir?: string): any[] {
   const { primaryFile, backupFile, checksumFile, backupChecksumFile } = getStoragePaths(customDir);
 
+  const migrateQueue = (queue: any[]) => {
+    let changed = false;
+    const canonicalQueue = queue.map((transaction) => {
+      if (transaction?.sale_type !== 'branch') return transaction;
+      changed = true;
+      return { ...transaction, sale_type: 'retail' };
+    });
+    if (changed && !writePendingQueue(canonicalQueue, customDir)) {
+      console.error('[Storage] Could not persist the one-time sale-type queue migration.');
+    }
+    return canonicalQueue;
+  };
+
   if (fs.existsSync(primaryFile)) {
     try {
       const raw = fs.readFileSync(primaryFile);
@@ -91,7 +104,7 @@ export function readPendingQueue(customDir?: string): any[] {
 
         if (isChecksumValid) {
           const parsed = JSON.parse(decoded);
-          if (Array.isArray(parsed)) return parsed;
+          if (Array.isArray(parsed)) return migrateQueue(parsed);
         }
       }
     } catch (err) {
@@ -125,7 +138,7 @@ export function readPendingQueue(customDir?: string): any[] {
                 fs.copyFileSync(backupChecksumFile, checksumFile);
               }
             } catch {}
-            return parsed;
+            return migrateQueue(parsed);
           }
         }
       }

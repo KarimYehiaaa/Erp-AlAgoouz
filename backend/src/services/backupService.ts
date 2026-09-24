@@ -135,7 +135,18 @@ export const readBackupSnapshot = async () => {
   const client = await getClient();
   try {
     await client.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
+    const overrideTokensTable = await client.query(
+      "SELECT to_regclass('public.manager_override_tokens') IS NOT NULL AS exists",
+    );
+    const hasManagerOverrideTokens = overrideTokensTable.rows[0]?.exists === true;
     for (const t of BACKUP_TABLES) {
+      // This table was introduced after migration 071 had already been recorded
+      // on some installations. Until the reconciliation migration runs, its
+      // correct snapshot is empty; all other missing tables remain hard errors.
+      if (t === 'manager_override_tokens' && !hasManagerOverrideTokens) {
+        out[t] = [];
+        continue;
+      }
       const res = await client.query(`SELECT * FROM ${t}`);
       out[t] = res.rows;
     }

@@ -3,6 +3,7 @@ import * as cloudBackupService from '../services/cloudBackupService.ts';
 import { AppError } from '../types/errors.ts';
 import fs from 'fs/promises';
 import path from 'path';
+import { query } from '../database/pool.ts';
 import { ok, wrap } from './helper.ts';
 
 export const backup = {
@@ -14,6 +15,18 @@ export const backup = {
    */
   create: wrap(async (req, res) => {
     ok(res, await backupService.createBackup());
+  }),
+  /** Stream the encrypted snapshot directly; cloud instances need no writable disk. */
+  createAndDownload: wrap(async (req, res) => {
+    const backup = await backupService.buildBackupDownload();
+    await query(
+      `INSERT INTO audit_logs (user_id, action, entity_type, new_data, ip_address)
+       VALUES ($1, 'backup_create', 'backup', $2::jsonb, $3)`,
+      [req.user?.id, JSON.stringify({ file: backup.file }), req.ip],
+    );
+    res.attachment(backup.file);
+    res.type('json');
+    return res.send(backup.content);
   }),
   /**
    * قائمة النسخ الاحتياطية المتاحة.

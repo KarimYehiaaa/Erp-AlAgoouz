@@ -24,20 +24,6 @@ const resolveBackupFilePath = (name) => {
   return resolved;
 };
 
-/** قائمة الجداول التي تُمسح عند إعادة تعيين بيانات النظام (بالترتيب الصحيح للعلاقات). */
-export const CLEAR_DATA_TABLES = [
-  'sale_items',
-  'sales',
-  'invoices',
-  'invoice_items',
-  'payments',
-  'inventory',
-  'stock_movements',
-  'expenses',
-  'purchase_invoice_items',
-  'purchase_invoices',
-];
-
 // Explicit application-table contract shared by manual backup, automatic backup and restore.
 // The restore transaction disables triggers before inserting this data.
 const RESTORE_ORDER = [
@@ -118,6 +104,47 @@ const RESTORE_ORDER = [
   'audit_logs',
 ];
 
+// Keep the catalog, recipes, prices/costs and the minimum configuration needed
+// to log in and operate the shop. Everything else is historical business data.
+export const RESET_PRESERVED_TABLES = Object.freeze([
+  'schema_migrations',
+  'roles',
+  'permissions',
+  'role_permissions',
+  'users',
+  'settings',
+  'warehouses',
+  'product_categories',
+  'products',
+  'product_units',
+  'product_recipes',
+  'product_recipe_items',
+  'accounts',
+  'pos_terminals',
+]);
+
+const LEGACY_RESET_TABLES = [
+  'purchase_items',
+  'supplier_payments',
+];
+export const CLEAR_DATA_TABLES = Object.freeze(
+  [...RESTORE_ORDER, ...LEGACY_RESET_TABLES].filter(
+    (table) => !RESET_PRESERVED_TABLES.includes(table),
+  ),
+);
+
+const BUSINESS_SEQUENCES = Object.freeze({
+  seq_sales_number: 10000,
+  seq_invoices_number: 10000,
+  seq_purchase_invoices_number: 1000,
+  seq_expenses_number: 1000,
+  seq_payments_number: 1000,
+  seq_journal_entries_number: 1001,
+  seq_purchase_returns_number: 1001,
+  seq_bank_reconciliations_number: 1001,
+  seq_purchase_orders_number: 1001,
+});
+
 const ensureDir = async () => {
   try {
     await fs.mkdir(BACKUP_DIR, { recursive: true });
@@ -160,16 +187,21 @@ export const readBackupSnapshot = async () => {
   return out;
 };
 
-export const createBackup = async () => {
-  await ensureDir();
+export const buildBackupDownload = async () => {
   const out = await readBackupSnapshot();
   const rawPayload = JSON.stringify({ meta: { created_at: new Date().toISOString() }, data: out });
   const encryptedPayload = encrypt(rawPayload);
   const backupJson = JSON.stringify({ encrypted: true, payload: encryptedPayload });
-
   const fileName = `backup-${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
+  return { file: fileName, content: backupJson };
+};
+
+export const createBackup = async () => {
+  await ensureDir();
+  const backup = await buildBackupDownload();
+  const fileName = backup.file;
   const filePath = path.join(BACKUP_DIR, fileName);
-  await fs.writeFile(filePath, backupJson, 'utf8');
+  await fs.writeFile(filePath, backup.content, 'utf8');
   return { file: fileName, path: filePath };
 };
 
@@ -206,21 +238,47 @@ export const downloadBackupPath = async (name: string) => {
 };
 
 /**
- * مسح كل بيانات النظام (إعادة ضبط) — للمدير فقط.
- * @returns {Promise<{ cleared: string[] }>}
+ * Start a fresh operational period while preserving product catalog, recipes,
+ * prices/costs and the configuration required to keep the application usable.
+ * Unknown tables and foreign keys fail closed; no protected table is cascaded.
+ * @returns {Promise<{ cleared: number }>}
  */
 export const clearAllData = async () => {
-  // destructive: truncate operational data (keep settings, users, products, and recipes)
   const client = await getClient();
   try {
     await client.query('BEGIN');
-    // Permission failure aborts the transaction: let the outer handler roll it back.
-    await client.query("SET LOCAL session_replication_role = 'replica'");
-    for (const t of CLEAR_DATA_TABLES) {
-      await client.query(`TRUNCATE TABLE ${t} RESTART IDENTITY CASCADE`);
+    const tablesResult = await client.query(
+      "SELECT tablename FROM pg_tables WHERE schemaname = 'public'",
+    );
+    const presentTables = new Set(tablesResult.rows.map((row: any) => row.tablename));
+    const knownTables = new Set([...RESET_PRESERVED_TABLES, ...CLEAR_DATA_TABLES]);
+    const unknownTables = [...presentTables].filter((table) => !knownTables.has(table));
+    if (unknownTables.length) {
+      throw new AppError(`تعذر التصفير: جداول غير معروفة (${unknownTables.join(', ')})`, 409);
+    }
+    for (const table of ['products', 'product_categories', 'product_recipes', 'product_recipe_items']) {
+      if (!presentTables.has(table)) throw new AppError(`تعذر التصفير: جدول ${table} غير موجود`, 409);
+    }
+
+    const tablesToClear = CLEAR_DATA_TABLES.filter((table) => presentTables.has(table));
+    // One statement, RESTRICT: an unlisted dependent table aborts the entire reset.
+    await client.query(`TRUNCATE TABLE ${tablesToClear.join(', ')} RESTART IDENTITY RESTRICT`);
+    await client.query("DELETE FROM settings WHERE key LIKE 'sales_opening_balance:%'");
+    await client.query(
+      "UPDATE settings SET value = value - 'next_number', updated_at = NOW() WHERE key IN ('invoice', 'sale')",
+    );
+
+    const sequenceResult = await client.query(
+      "SELECT relname FROM pg_class WHERE relnamespace = 'public'::regnamespace AND relkind = 'S'",
+    );
+    const presentSequences = new Set(sequenceResult.rows.map((row: any) => row.relname));
+    for (const [sequence, start] of Object.entries(BUSINESS_SEQUENCES)) {
+      if (presentSequences.has(sequence)) {
+        await client.query(`ALTER SEQUENCE ${sequence} RESTART WITH ${start}`);
+      }
     }
     await client.query('COMMIT');
-    return { cleared: CLEAR_DATA_TABLES.length };
+    return { cleared: tablesToClear.length };
   } catch (e: any) {
     await client.query('ROLLBACK');
     throw e;

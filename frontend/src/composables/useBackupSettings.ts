@@ -137,12 +137,25 @@ export function useBackupSettings() {
   };
 
   const clearSystem = async () => {
-    const token = prompt('اكتب CONFIRM_CLEAR للتأكيد — هذا الإجراء لا يمكن التراجع عنه');
-    if (token !== 'CONFIRM_CLEAR') return;
+    if (!confirm('سيتم حذف كل الحركات والأرصدة والعملاء والموردين والبيانات المالية. ستبقى المنتجات والتصنيفات والوصفات وأسعار البيع والتكلفة وإعدادات التشغيل. أكمل لإنشاء نسخة احتياطية وتنزيلها أولاً.')) return;
     clearing.value = true;
     try {
+      const blob = await backupApi.createAndDownload();
+      if (!blob || blob.size === 0) throw new Error('تعذر تنزيل النسخة الاحتياطية قبل التصفير');
+      const name = `backup-before-reset-${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
+      const url = URL.createObjectURL(blob);
+      const link = Object.assign(document.createElement('a'), { href: url, download: name });
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      await refreshBackups();
+
+      const token = prompt('تأكد أن النسخة الاحتياطية نزلت على جهازك وأن أجهزة البيع انتهت من المزامنة. لمسح البيانات نهائياً اكتب CONFIRM_CLEAR');
+      if (token !== 'CONFIRM_CLEAR') return;
       await backupApi.clear({ confirm: 'CONFIRM_CLEAR' });
-      alert('تم تصفير النظام');
+      alert('تم تصفير بيانات التشغيل مع الحفاظ على المنتجات والتصنيفات والوصفات والأسعار');
+      window.location.reload();
     } catch (e: any) {
       alert(e.message || 'فشل التصفير');
     } finally {

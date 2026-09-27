@@ -46,7 +46,7 @@ describe('Reporting, Supplier Balance, and Backup Security Suite', () => {
     expect(dbQueries[0].params).toEqual([888]);
   });
 
-  it('dangerous backup operations keep confirmation and replication-role reset guards', async () => {
+  it('dangerous backup operations keep confirmation and transactional guards', async () => {
     const routesSource = await fs.readFile(
       new URL('../src/routes/admin.routes.ts', import.meta.url),
       'utf8',
@@ -62,13 +62,17 @@ describe('Reporting, Supplier Balance, and Backup Security Suite', () => {
       expect(start).not.toBe(-1);
       const nextExport = backupSource.indexOf('export const ', start + 1);
       const operation = backupSource.slice(start, nextExport === -1 ? undefined : nextExport);
-      expect(operation).toMatch(
-        /query\('BEGIN'\)[\s\S]*SET LOCAL session_replication_role = 'replica'/,
-      );
+      expect(operation).toMatch(/query\('BEGIN'\)/);
       expect(operation).not.toMatch(/SET session_replication_role/);
       expect(operation).toMatch(/query\('COMMIT'\)/);
       expect(operation).toMatch(/catch[\s\S]*query\('ROLLBACK'\)/);
       expect(operation).toMatch(/finally\s*\{\s*client\.release\(\)/);
+      if (name === 'clearAllData') {
+        expect(operation).toMatch(/RESTART IDENTITY RESTRICT/);
+        expect(operation).not.toMatch(/CASCADE/);
+      } else {
+        expect(operation).toMatch(/SET LOCAL session_replication_role = 'replica'/);
+      }
     }
   });
 

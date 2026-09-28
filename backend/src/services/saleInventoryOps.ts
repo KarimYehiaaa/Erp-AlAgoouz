@@ -9,7 +9,11 @@
 import { query } from '../database/pool.ts';
 import { AppError } from '../types/errors.ts';
 import * as recipesService from './recipesService.ts';
-import { getProductsEffectiveCosts } from './productCostService.ts';
+import {
+  getProductsEffectiveCosts,
+  depleteInventoryCostLayers,
+  restoreInventoryCostLayers,
+} from './productCostService.ts';
 import * as inventoryService from './inventoryService.ts';
 import { getDefaultWarehouseId } from './warehouseService.ts';
 import { roundMoney, sumMoney } from '../utils/money.ts';
@@ -166,6 +170,7 @@ const applySaleItems = async (
          WHERE product_id = $2 AND warehouse_id = $3`,
         [qty, it.product_id, warehouseId],
       );
+      await depleteInventoryCostLayers(client, Number(it.product_id), warehouseId, qty);
       await client.query(
         `INSERT INTO stock_movements (
            product_id, from_warehouse_id, movement_type, quantity,
@@ -260,6 +265,12 @@ const restoreInventoryForSale = async (
          ) VALUES ($1,$2,'return',$3,'sale',$4,$5,'\u0627\u0633\u062A\u0631\u062F\u0627\u062F \u0645\u062E\u0632\u0648\u0646 \u0639\u0645\u0644\u064A\u0629 \u0628\u064A\u0639')`,
         [mov.product_id, targetWh, mov.quantity, saleId, userId],
       );
+      await restoreInventoryCostLayers(
+        client,
+        Number(mov.product_id),
+        Number(targetWh),
+        Number(mov.quantity),
+      );
     }
   } else if (anySaleMovements) {
     // كل حركات البيع لهذه العملية ملغاة مسبقًا ← تم استرجاعها من قبل، لا شيء يُفعل
@@ -279,6 +290,12 @@ const restoreInventoryForSale = async (
              reference_type, reference_id, user_id, notes
            ) VALUES ($1,$2,'return',$3,'sale',$4,$5,'\u0627\u0633\u062A\u0631\u062F\u0627\u062D \u0645\u062E\u0632\u0648\u0646 \u0639\u0645\u0644\u064A\u0629 \u0628\u064A\u0639')`,
           [item.product_id, sale.warehouse_id, item.quantity, saleId, userId],
+        );
+        await restoreInventoryCostLayers(
+          client,
+          Number(item.product_id),
+          Number(sale.warehouse_id),
+          Number(item.quantity),
         );
         // شاهد (tombstone): يمنع تكرار الـ fallback لاحقًا لأن الحركة الأصلية غير موجودة
         await client.query(

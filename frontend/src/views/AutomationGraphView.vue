@@ -1,702 +1,1068 @@
 <template>
-  <div class="automation-container">
-    <!-- Header -->
-    <div class="page-header card glass-header">
-      <div class="header-title">
-        <span class="header-icon sparkles-anim"><AppIcon name="bot" :size="24" /></span>
-        <div class="title-text-wrap">
-          <h2>محرك الأتمتة والوكلاء الأذكياء</h2>
-          <p>لوحة التحكم التفاعلية للرسم البياني ومحاكاة سير العمليات وبوت تليجرام</p>
+  <div class="automation-command-center" dir="rtl">
+    <!-- ── 1. الهيدر والتحكم السريع ── -->
+    <header class="hub-header">
+      <div class="header-main">
+        <div class="header-icon-badge">
+          <AppIcon name="bot" :size="28" />
+        </div>
+        <div class="header-titles">
+          <div class="title-with-badge">
+            <h2>محرك الأتمتة والوكلاء الأذكياء</h2>
+            <span class="engine-status-pill" :class="engineHealthClass">
+              <span class="status-pulse" />
+              {{ engineHealthLabel }}
+            </span>
+          </div>
+          <p class="header-subtitle">
+            مركز القيادة والرقابة التشغيلية: إدارة الوكلاء، مكافحة الاحتيال، مطابقة الورديات،
+            وتنبيهات تليجرام لبن العجوز
+          </p>
         </div>
       </div>
-      <div class="header-actions">
-        <button class="btn btn-primary btn-sm" @click="openAddNodeModal">
-          <AppIcon name="add" :size="16" />
-          <span class="btn-text">إضافة عقدة</span>
-        </button>
-        <button class="btn btn-outline btn-sm" @click="openAddEdgeModal">
-          <AppIcon name="arrowRightLeft" :size="16" />
-          <span class="btn-text">ربط عقدتين</span>
-        </button>
-        <button
-          class="btn btn-sm action-simulate-btn"
-          :class="isSimulating ? 'btn-danger' : 'btn-success'"
-          @click="toggleSimulation"
-        >
-          <AppIcon :name="isSimulating ? 'close' : 'zap'" :size="16" />
-          <span class="btn-text">{{ isSimulating ? 'إيقاف المحاكاة' : 'محاكاة التدفق' }}</span>
-        </button>
-        <button
-          class="btn btn-outline btn-sm desktop-only-btn"
-          @click="showSettings = !showSettings"
-        >
-          <AppIcon name="settings" :size="16" />
-          <span>{{ showSettings ? 'إخفاء اللوحة' : 'لوحة التحكم' }}</span>
-        </button>
-      </div>
-    </div>
 
-    <!-- Live command dashboard: every metric maps to an actual execution signal. -->
-    <section class="automation-command-dashboard" aria-label="مؤشرات تشغيل الأتمتة">
-      <div class="command-status-card" :class="commandHealthTone">
-        <span class="status-pulse" />
-        <div>
-          <small>حالة محرك الأتمتة</small>
-          <strong>{{ commandHealthLabel }}</strong>
+      <div class="header-quick-actions">
+        <button
+          class="btn btn-outline-soft"
+          :class="{ 'btn-guide-active': showArchitectureGuide }"
+          @click="showArchitectureGuide = !showArchitectureGuide"
+          title="دليل الدورة التشغيلية الكاملة: إيه مربوط بإيه؟"
+        >
+          <AppIcon name="layers" :size="16" />
+          <span>{{ showArchitectureGuide ? 'إخفاء الدليل' : 'دليل الدورة التشغيلية' }}</span>
+        </button>
+        <button
+          class="btn btn-outline-soft"
+          :disabled="loading"
+          @click="loadAllData"
+          title="تحديث كافة البيانات والسجلات"
+        >
+          <AppIcon name="refresh" :size="16" :class="{ 'spin-anim': loading }" />
+          <span>تحديث شامل</span>
+        </button>
+        <button
+          class="btn btn-primary-soft"
+          @click="openTelegramModal"
+          title="فحص فوري لاتصال بوت تليجرام"
+        >
+          <AppIcon name="send" :size="16" />
+          <span>فحص تليجرام</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- ── 2. لوحة المؤشرات التشغيلية الحية (Live KPI Command Bar) ── -->
+    <section class="kpi-command-grid" aria-label="مؤشرات الأداء للأتمتة">
+      <div class="kpi-card" :class="engineHealthClass">
+        <div class="kpi-icon-wrap">
+          <AppIcon name="activity" :size="22" />
         </div>
-        <span class="status-caption">{{ enabledTaskCount }} مهمة مفعلة</span>
-      </div>
-      <div class="command-metric-card">
-        <small>نجاح آخر التشغيلات</small>
-        <strong>{{ successfulExecutionCount }}</strong>
-        <span>من آخر {{ executionLogs.length }} تشغيل</span>
-      </div>
-      <div class="command-metric-card danger">
-        <small>تحتاج مراجعة</small>
-        <strong>{{ failedExecutionCount }}</strong>
-        <span>تشغيل فاشل أو تحذير</span>
-      </div>
-      <div class="command-metric-card accent">
-        <small>متوسط التنفيذ</small>
-        <strong>{{ averageExecutionMs }}ms</strong>
-        <span>حسب السجل الحقيقي</span>
-      </div>
-      <div class="command-timeline-card">
-        <div class="timeline-heading">
-          <strong>آخر نشاط</strong>
-          <span>{{ latestExecutionLabel }}</span>
+        <div class="kpi-data">
+          <span class="kpi-label">حالة المحرك والمجدول</span>
+          <strong class="kpi-value">{{ enabledTaskCount }} / {{ tasks.length }}</strong>
+          <span class="kpi-subtext">وكيل نشط يعمل تلقائياً</span>
         </div>
-        <div class="timeline-track">
-          <span
-            v-for="log in recentExecutionLogs"
-            :key="log.id"
-            class="timeline-dot"
-            :class="`status-${log.status}`"
-            :title="`${log.name_ar || log.key || 'مهمة'} — ${log.message}`"
-          />
-          <span v-if="!recentExecutionLogs.length" class="timeline-empty"
-            >لا يوجد تشغيل مسجل بعد</span
+      </div>
+
+      <div class="kpi-card success">
+        <div class="kpi-icon-wrap">
+          <AppIcon name="check" :size="22" />
+        </div>
+        <div class="kpi-data">
+          <span class="kpi-label">معدل نجاح التشغيل</span>
+          <strong class="kpi-value">{{ successRatePct }}%</strong>
+          <span class="kpi-subtext"
+            >{{ successfulExecutionCount }} ناجح من آخر {{ executionLogs.length }}</span
           >
+        </div>
+      </div>
+
+      <div class="kpi-card" :class="failedExecutionCount > 0 ? 'danger' : 'neutral'">
+        <div class="kpi-icon-wrap">
+          <AppIcon name="alertTriangle" :size="22" />
+        </div>
+        <div class="kpi-data">
+          <span class="kpi-label">تنبيهات وملاحظات الرقابة</span>
+          <strong class="kpi-value">{{ failedExecutionCount }}</strong>
+          <span class="kpi-subtext">{{
+            failedExecutionCount === 0 ? 'كل الفحوصات آمنة ومطابقة' : 'عمليات تتطلب المراجعة'
+          }}</span>
+        </div>
+      </div>
+
+      <div class="kpi-card accent">
+        <div class="kpi-icon-wrap">
+          <AppIcon name="clock" :size="22" />
+        </div>
+        <div class="kpi-data">
+          <span class="kpi-label">متوسط سرعة الاستجابة</span>
+          <strong class="kpi-value">{{ averageExecutionMs }}ms</strong>
+          <span class="kpi-subtext">آخر نشاط: {{ latestExecutionLabel }}</span>
         </div>
       </div>
     </section>
 
-    <!-- Mobile Segmented View Switcher (Visible on screens < 1024px) -->
-    <div class="mobile-view-switcher mobile-only-block" role="tablist">
-      <button
-        type="button"
-        class="switcher-btn"
-        :class="{ active: mobileView === 'graph' }"
-        @click="mobileView = 'graph'"
-        role="tab"
-        :aria-selected="mobileView === 'graph'"
+    <!-- ── 2b. بطاقة الدورة التشغيلية الشاملة والترابط (إيه مربوط بإيه؟) ── -->
+    <transition name="slide-fade">
+      <section
+        v-if="showArchitectureGuide"
+        class="architecture-guide-card"
+        aria-label="دليل الدورة التشغيلية لمحرك الأتمتة"
       >
-        <span class="switcher-icon"><AppIcon name="activity" :size="16" /></span>
-        <span class="switcher-label">الشبكة التفاعلية</span>
-      </button>
-      <button
-        type="button"
-        class="switcher-btn"
-        :class="{ active: mobileView === 'panel' }"
-        @click="mobileView = 'panel'"
-        role="tab"
-        :aria-selected="mobileView === 'panel'"
-      >
-        <span class="switcher-icon"><AppIcon name="shield" :size="16" /></span>
-        <span class="switcher-label">لوحة التحكم والوكلاء ({{ tasks.length }})</span>
-      </button>
-    </div>
-
-    <!-- Main Content Area -->
-    <div class="graph-layout">
-      <!-- Force-Graph Canvas Area -->
-      <div
-        class="graph-panel card"
-        :class="{
-          'mobile-view-active': mobileView === 'graph',
-          'mobile-hidden': mobileView !== 'graph',
-        }"
-        ref="graphContainer"
-      >
-        <!-- Floating Canvas Controls -->
-        <div class="canvas-controls">
-          <button
-            class="desktop-only-btn"
-            @click="showSettings = !showSettings"
-            :title="showSettings ? 'وضع ملء الشاشة (إخفاء لوحة التحكم)' : 'إظهار لوحة التحكم'"
-            :class="{ active: !showSettings }"
-          >
-            <AppIcon name="settings" :size="14" />
-          </button>
-          <button @click="zoomIn" title="تكبير">+</button>
-          <button @click="zoomOut" title="تصغير">−</button>
-          <button @click="resetView" title="إعادة ضبط العرض">
-            <AppIcon name="monitor" :size="14" />
-          </button>
-          <button @click="applyTreeLayout" title="تخطيط شجري منظم">
-            <AppIcon name="layers" :size="14" />
-          </button>
-          <button @click="applyCircularLayout" title="تخطيط دائري">
-            <AppIcon name="refresh" :size="14" />
-          </button>
-          <button @click="resetToDefaultGraph" title="استعادة الشبكة الافتراضية">
-            <AppIcon name="history" :size="14" />
-          </button>
-          <button
-            class="mobile-only-btn legend-toggle-btn"
-            @click="showLegendMobile = !showLegendMobile"
-            :class="{ active: showLegendMobile }"
-            title="دليل ألوان العقد"
-          >
-            <AppIcon name="palette" :size="14" />
-          </button>
-        </div>
-
-        <!-- Canvas -->
-        <canvas
-          ref="canvas"
-          @mousedown="onMouseDown"
-          @mousemove="onMouseMove"
-          @mouseup="onMouseUp"
-          @mouseleave="onMouseUp"
-          @wheel.prevent="onWheel"
-          @dblclick="onDoubleClick"
-          @touchstart.passive="onTouchStart"
-          @touchmove.prevent="onTouchMove"
-          @touchend="onTouchEnd"
-          @touchcancel="onTouchEnd"
-        />
-
-        <!-- Legend -->
-        <div class="graph-legend" :class="{ 'mobile-open': showLegendMobile }">
-          <div class="legend-header-mobile mobile-only-flex">
-            <span>دليل مجموعات الأتمتة</span>
-            <button class="legend-close-btn" @click="showLegendMobile = false">
-              <AppIcon name="close" :size="14" />
-            </button>
-          </div>
-          <div class="legend-items-list">
-            <div class="legend-item" v-for="g in legendGroups" :key="g.label">
-              <span class="legend-dot" :style="{ background: g.color }" />
-              <span>{{ g.label }}</span>
+        <div class="guide-header">
+          <div class="guide-title-wrap">
+            <div class="guide-icon-badge">
+              <AppIcon name="layers" :size="22" />
             </div>
-          </div>
-        </div>
-
-        <!-- Node Quick Tooltip -->
-        <div
-          v-if="hoveredNode && !selectedNode"
-          class="node-tooltip"
-          :style="{ left: tooltipPos.x + 'px', top: tooltipPos.y + 'px' }"
-        >
-          <strong>{{ hoveredNode.label_ar || hoveredNode.label }}</strong>
-          <div class="tooltip-type">
-            {{ typeLabels[hoveredNode.type] }} · {{ hoveredNode.group }}
-          </div>
-          <div v-if="hoveredNode.settings?.rule" class="tooltip-rule">
-            📌 {{ ruleLabels[hoveredNode.settings.rule] || hoveredNode.settings.rule }}
-          </div>
-          <small class="tooltip-hint">انقر للتحديد والتعديل</small>
-        </div>
-
-        <!-- Loading Overlay -->
-        <div v-if="loading" class="graph-loading">
-          <div class="spinner" />
-          <span>جاري تحميل بيانات الأتمتة...</span>
-        </div>
-      </div>
-
-      <!-- Settings & Tools Side Panel -->
-      <transition name="slide">
-        <div
-          v-if="showSettings || mobileView === 'panel'"
-          class="settings-panel card"
-          :class="{
-            'mobile-view-active': mobileView === 'panel',
-            'mobile-hidden': mobileView !== 'panel',
-          }"
-        >
-          <!-- Panel Navigation Tabs -->
-          <div class="panel-tabs">
-            <button :class="{ active: activeTab === 'tasks' }" @click="activeTab = 'tasks'">
-              <AppIcon name="shield" :size="14" /> الوكلاء ({{ tasks.length }})
-            </button>
-            <button :class="{ active: activeTab === 'telegram' }" @click="activeTab = 'telegram'">
-              <AppIcon name="send" :size="14" /> تليجرام
-            </button>
-            <button :class="{ active: activeTab === 'ai' }" @click="activeTab = 'ai'">
-              <AppIcon name="brain" :size="14" /> الذكاء
-            </button>
-            <button :class="{ active: activeTab === 'physics' }" @click="activeTab = 'physics'">
-              <AppIcon name="sliders" :size="14" /> الفيزياء
-            </button>
-            <button :class="{ active: activeTab === 'nodes' }" @click="activeTab = 'nodes'">
-              <AppIcon name="boxes" :size="14" /> العقد
-            </button>
-          </div>
-
-          <!-- TAB 0: Active Automation Agents & Tasks -->
-          <div v-if="activeTab === 'tasks'" class="tab-content">
-            <div class="tasks-header">
-              <h3><AppIcon name="shield" :size="18" /> وكلاء الأتمتة والرقابة الذكية</h3>
-              <button class="btn btn-outline btn-xs" @click="loadAutomations">
-                <AppIcon name="refresh" :size="12" /> تحديث
-              </button>
-            </div>
-            <p class="tab-desc">
-              وكلاء استباقيون ينفذون مهام الرقابة والتوازن والإغلاق ويرسلون تنبيهات فورية لتليجرام.
-            </p>
-
-            <div class="tasks-cards-list">
-              <div
-                v-for="task in tasks"
-                :key="task.key"
-                class="task-card"
-                :class="[task.category, { disabled: !task.is_enabled }]"
-              >
-                <div class="task-card-top">
-                  <div class="task-title-group">
-                    <span class="task-category-badge">{{
-                      categoryLabels[task.category] || task.category
-                    }}</span>
-                    <strong>{{ task.name_ar }}</strong>
-                  </div>
-                  <button
-                    class="toggle-btn-mini"
-                    :class="{ active: task.is_enabled }"
-                    @click="toggleTask(task)"
-                    :disabled="!task.is_enabled && !task.trigger_supported"
-                    :title="task.is_enabled ? 'تعطيل الوكيل' : 'تفعيل الوكيل'"
-                  >
-                    <span class="toggle-track-mini">
-                      <span class="toggle-thumb-mini" />
-                    </span>
-                  </button>
-                </div>
-
-                <p class="task-desc-text">{{ task.description_ar }}</p>
-                <p v-if="!task.trigger_supported" class="task-support-note">
-                  {{
-                    task.execution_supported
-                      ? 'التشغيل اليدوي متاح؛ التفعيل الآلي غير موصول.'
-                      : 'لا يوجد معالج تنفيذ لهذه المهمة حاليًا.'
-                  }}
-                </p>
-
-                <div class="task-card-footer">
-                  <div class="task-meta">
-                    <small v-if="task.cron_expression">⏱ مُجدول: {{ task.cron_expression }}</small>
-                    <small v-else-if="task.trigger_supported">⚡ يعمل فور وقوع الحدث</small>
-                    <small v-else>⏸ المشغل الآلي غير موصول</small>
-                    <small v-if="task.last_run_at" class="last-run">
-                      آخر تشغيل: {{ formatTime(task.last_run_at) }}
-                    </small>
-                  </div>
-                  <button
-                    class="btn btn-primary btn-xs run-now-btn"
-                    :disabled="
-                      runningTaskKey === task.key || !task.execution_supported || !task.is_enabled
-                    "
-                    @click="runTask(task)"
-                  >
-                    {{ runningTaskKey === task.key ? 'جاري التنفيذ...' : '▶️ تشغيل فوري' }}
-                  </button>
-                </div>
-
-                <div v-if="taskFeedback[task.key]" class="task-feedback-toast">
-                  {{ taskFeedback[task.key] }}
-                </div>
-              </div>
-              <p v-if="!tasks.length" class="tasks-empty-state">
-                {{ tasksLoadError || 'لا توجد مهام أتمتة مسجلة.' }}
+            <div>
+              <h3>الدورة التشغيلية لمحرك الأتمتة: إيه مربوط بإيه؟</h3>
+              <p>
+                خريطة متكاملة توضح مسار تدفق البيانات، من لحظة البيع بالمحل حتى إرسال الإشعارات
+                وقرارات الرقابة
               </p>
             </div>
           </div>
+          <button
+            class="btn btn-ghost-sm"
+            @click="showArchitectureGuide = false"
+            title="إغلاق الدليل"
+          >
+            <AppIcon name="close" :size="16" />
+          </button>
+        </div>
 
-          <!-- TAB 1: Physics Settings -->
-          <div v-if="activeTab === 'physics'" class="tab-content">
-            <h3><AppIcon name="sliders" :size="18" /> معايير محاكاة الفيزياء</h3>
-            <p class="tab-desc">تحكم بحرية في قوة التنافر ومسافات الروابط وجاذبية المركز.</p>
+        <!-- خطوات الدورة التشغيلية -->
+        <div class="guide-flow-steps">
+          <div class="flow-step-box">
+            <div class="step-num">1</div>
+            <div class="step-content">
+              <strong>المدخلات والعمليات الحية</strong>
+              <span>مبيعات POS، فواتير جملة، إغلاق وردية، مشتريات، وحركات المخزن</span>
+            </div>
+          </div>
+          <div class="flow-arrow">➔</div>
+          <div class="flow-step-box">
+            <div class="step-num">2</div>
+            <div class="step-content">
+              <strong>محرك الرصد والمجدول</strong>
+              <span>مشغلات فورية (Event) ومشغلات زمنية دورية (Cron) بتوقيت القاهرة</span>
+            </div>
+          </div>
+          <div class="flow-arrow">➔</div>
+          <div class="flow-step-box">
+            <div class="step-num">3</div>
+            <div class="step-content">
+              <strong>معالجة القواعد والرقابة</strong>
+              <span>تفكيك الوصفات، تدقيق الخصم والعهدة، رصد النواقص، درع السيولة</span>
+            </div>
+          </div>
+          <div class="flow-arrow">➔</div>
+          <div class="flow-step-box highlight">
+            <div class="step-num">4</div>
+            <div class="step-content">
+              <strong>قنوات التنبيه والتوثيق</strong>
+              <span>بوت تليجرام للمالك + إشعارات النظام الداخلية + توثيق كامل بالسجلات</span>
+            </div>
+          </div>
+        </div>
 
-            <div class="setting-group">
-              <label>قوة التنافر بين العقد (Repel Force)</label>
-              <input
-                type="range"
-                min="-1000"
-                max="-50"
-                step="10"
-                v-model.number="physics.repelForce"
-                @input="onPhysicsChange"
-              />
-              <span class="setting-value">{{ physics.repelForce }}</span>
+        <!-- أعمدة الترابط الأربعة -->
+        <div class="guide-pillars-grid">
+          <div class="pillar-card sales">
+            <div class="pillar-header">
+              <span class="pillar-tag">💰 محور المبيعات والإغلاق</span>
+            </div>
+            <h4>ربط حركات البيع اليومية بالتقارير</h4>
+            <p>
+              كل عملية بيع تخصم فورياً من المخزن عبر الوصفات، وعند نهاية اليوم يجمع المجدول
+              الإحصائيات الشاملة.
+            </p>
+            <ul class="pillar-list">
+              <li>
+                <strong>تقرير الإغلاق اليومي:</strong> يرسل 11:30 ليلاً للمالك بأعلى الأصناف مبيعاً
+                وصافي الأرباح والمصروفات.
+              </li>
+              <li>
+                <strong>كاشف هوامش الأرباح:</strong> يراقب هامش الربح اليومي وينبه فوراً إذا انخفض
+                عن 28%.
+              </li>
+              <li>
+                <strong>استعادة العملاء المنقطعين:</strong> ينبه أسبوعياً بالعملاء الدائمين
+                المنقطعين لأكثر من 30 يوماً.
+              </li>
+            </ul>
+          </div>
+
+          <div class="pillar-card security">
+            <div class="pillar-header">
+              <span class="pillar-tag">🛡️ محور الرقابة ومكافحة الاحتيال</span>
+            </div>
+            <h4>كشف فوري للتلاعب المالي والخصومات</h4>
+            <p>
+              حماية لحظية غير قابلة للتجاوز — أي حركة غير طبيعية في الكاشير تنطلق فورياً دون انتظار
+              نهاية اليوم.
+            </p>
+            <ul class="pillar-list">
+              <li>
+                <strong>كشف إلغاء الفواتير:</strong> إنذار لحظي فوري عند إلغاء أي فاتورة بعد إصدارها
+                بالـ POS.
+              </li>
+              <li>
+                <strong>تنبيه الخصومات المرتفعة:</strong> رصد لحظي فوري لأي خصم يتجاوز 15% مع اسم
+                الكاشير.
+              </li>
+              <li>
+                <strong>مطابقة عهدة الوردية:</strong> فحص فوري عند إغلاق الشيفت لكشف أي عجز نقدية ≥
+                10 ج.م.
+              </li>
+              <li>
+                <strong>حارس الاحتيال اليومي:</strong> تدقيق ليلي مجمّع لكل العمليات المشبوهة لآخر
+                24 ساعة.
+              </li>
+            </ul>
+          </div>
+
+          <div class="pillar-card inventory">
+            <div class="pillar-header">
+              <span class="pillar-tag">📦 محور المخزون وخامات التحميص</span>
+            </div>
+            <h4>ضبط أرصدة البن وموازنة المخازن</h4>
+            <p>
+              ربط خامات حبوب البن الخضراء والمحمصة ومستلزمات البار بحدود الأمان ومحرك تفكيك الوصفات.
+            </p>
+            <ul class="pillar-list">
+              <li>
+                <strong>إنذار نقص المخزون:</strong> فحص مرتين يومياً (10 ص و 6 م) لتفادي نفاد خامات
+                القهوة.
+              </li>
+              <li>
+                <strong>المناقلات الذكية:</strong> اقتراح مناقلة بضاعة من المخزن الرئيسي إلى مخزن
+                الصالة بدلاً من الشراء.
+              </li>
+              <li>
+                <strong>حارس الهدر والفاقد:</strong> رصد حركات التالف والهدر ومقارنتها بالمعيار
+                لحماية تكلفة التشغيل.
+              </li>
+            </ul>
+          </div>
+
+          <div class="pillar-card system">
+            <div class="pillar-header">
+              <span class="pillar-tag">🖥️ محور السيولة واستقرار النظام</span>
+            </div>
+            <h4>تأمين السيولة وسلامة السيرفر والذكاء</h4>
+            <p>
+              مراقبة استباقية للالتزامات المالية والنسخ الاحتياطي وحالة السيرفر والذكاء الاصطناعي.
+            </p>
+            <ul class="pillar-list">
+              <li>
+                <strong>مستحقات الموردين:</strong> تذكير بالدفعات الآجلة قبل تاريخ استحقاقها بـ 3
+                أيام.
+              </li>
+              <li>
+                <strong>درع السيولة:</strong> توقع الرصيد النقدي والالتزامات لـ 30 يوماً والتنبيه
+                بالعجز مقدماً.
+              </li>
+              <li>
+                <strong>النسخ الاحتياطي:</strong> التحقق من عمر آخر نسخة احتياطية مشفرة خلال 24
+                ساعة.
+              </li>
+              <li>
+                <strong>Gemini AI Copilot:</strong> ملخص تحليلي يومي ذكي وتوصيات عملية لإدارة المحل.
+              </li>
+            </ul>
+          </div>
+        </div>
+      </section>
+    </transition>
+
+    <!-- ── 3. تبويبات التنظيم الكبرى (Hub Navigation Tabs) ── -->
+    <nav class="hub-tabs-nav" role="tablist">
+      <button
+        type="button"
+        class="tab-nav-btn"
+        :class="{ active: activeHubTab === 'agents' }"
+        @click="switchTab('agents')"
+        role="tab"
+        :aria-selected="activeHubTab === 'agents'"
+      >
+        <AppIcon name="shield" :size="18" />
+        <span>وكلاء الأتمتة والمهام</span>
+        <span class="tab-counter">{{ tasks.length }}</span>
+      </button>
+
+      <button
+        type="button"
+        class="tab-nav-btn"
+        :class="{ active: activeHubTab === 'workflow' }"
+        @click="switchTab('workflow')"
+        role="tab"
+        :aria-selected="activeHubTab === 'workflow'"
+      >
+        <AppIcon name="layers" :size="18" />
+        <span>خريطة سير العمليات التفاعلية</span>
+      </button>
+
+      <button
+        type="button"
+        class="tab-nav-btn"
+        :class="{ active: activeHubTab === 'logs' }"
+        @click="switchTab('logs')"
+        role="tab"
+        :aria-selected="activeHubTab === 'logs'"
+      >
+        <AppIcon name="clipboardList" :size="18" />
+        <span>سجل التشغيل والتدقيق</span>
+        <span class="tab-counter" v-if="executionLogs.length">{{ executionLogs.length }}</span>
+      </button>
+
+      <button
+        type="button"
+        class="tab-nav-btn"
+        :class="{ active: activeHubTab === 'telegram' }"
+        @click="switchTab('telegram')"
+        role="tab"
+        :aria-selected="activeHubTab === 'telegram'"
+      >
+        <AppIcon name="send" :size="18" />
+        <span>قنوات تليجرام والإشعارات</span>
+        <span
+          class="badge-dot-live"
+          :class="telegramConfigured.hasToken ? 'online' : 'offline'"
+          :title="telegramConfigured.hasToken ? 'البوت متصل' : 'البوت غير مضبوط'"
+        />
+      </button>
+
+      <button
+        type="button"
+        class="tab-nav-btn"
+        :class="{ active: activeHubTab === 'copilot' }"
+        @click="switchTab('copilot')"
+        role="tab"
+        :aria-selected="activeHubTab === 'copilot'"
+      >
+        <AppIcon name="brain" :size="18" />
+        <span>المساعد الذكي Gemini</span>
+      </button>
+    </nav>
+
+    <!-- ═════════════════════════════════════════════════════════
+         التبويب الأول: وكلاء الأتمتة والمهام (AGENTS & TASKS)
+         ═════════════════════════════════════════════════════════ -->
+    <div v-show="activeHubTab === 'agents'" class="hub-tab-body">
+      <!-- شريط التصفية والبحث -->
+      <div class="tasks-toolbar">
+        <div class="filter-pills-list" role="radiogroup" aria-label="تصفية الوكلاء حسب القسم">
+          <button
+            type="button"
+            class="filter-pill"
+            :class="{ active: selectedCategory === 'all' }"
+            @click="selectedCategory = 'all'"
+          >
+            الكل ({{ tasks.length }})
+          </button>
+          <button
+            type="button"
+            class="filter-pill"
+            :class="{ active: selectedCategory === 'sales' }"
+            @click="selectedCategory = 'sales'"
+          >
+            💰 مبيعات وإغلاق ({{ getCategoryCount('sales') }})
+          </button>
+          <button
+            type="button"
+            class="filter-pill"
+            :class="{ active: selectedCategory === 'inventory' }"
+            @click="selectedCategory = 'inventory'"
+          >
+            📦 مخزون وخامات البن ({{ getCategoryCount('inventory') }})
+          </button>
+          <button
+            type="button"
+            class="filter-pill"
+            :class="{ active: selectedCategory === 'security' }"
+            @click="selectedCategory = 'security'"
+          >
+            🛡️ رقابة ومكافحة الاحتيال ({{ getCategoryCount('security') }})
+          </button>
+          <button
+            type="button"
+            class="filter-pill"
+            :class="{ active: selectedCategory === 'system' }"
+            @click="selectedCategory = 'system'"
+          >
+            🖥️ نظام ونسخ احتياطي ({{ getCategoryCount('system') }})
+          </button>
+        </div>
+
+        <div class="search-box-wrap">
+          <AppIcon name="search" :size="16" class="search-icon" />
+          <input
+            v-model="tasksSearchQuery"
+            type="text"
+            class="search-input"
+            placeholder="بحث في أسماء ومهام الوكلاء..."
+          />
+          <button
+            v-if="tasksSearchQuery"
+            class="search-clear-btn"
+            @click="tasksSearchQuery = ''"
+            title="مسح"
+          >
+            <AppIcon name="close" :size="14" />
+          </button>
+        </div>
+      </div>
+
+      <!-- شبكة بطاقات الوكلاء -->
+      <div class="agent-cards-grid">
+        <div
+          v-for="task in filteredTasks"
+          :key="task.key"
+          class="agent-card"
+          :class="[task.category, { 'agent-disabled': !task.is_enabled }]"
+        >
+          <!-- رأس البطاقة -->
+          <div class="agent-card-header">
+            <div class="agent-badge-group">
+              <span class="category-tag" :class="task.category">
+                {{ categoryLabels[task.category] || task.category }}
+              </span>
+              <span v-if="task.trigger_type === 'cron'" class="trigger-type-tag scheduled">
+                <AppIcon name="clock" :size="12" />
+                مجدول آلياً
+              </span>
+              <span v-else class="trigger-type-tag event-driven">
+                <AppIcon name="zap" :size="12" />
+                فوري عند الحدث
+              </span>
             </div>
 
-            <div class="setting-group">
-              <label>طول الروابط (Link Distance)</label>
+            <!-- زر التبديل التفاعلي السلس -->
+            <label
+              class="custom-toggle"
+              :class="{ disabled: togglingKey === task.key }"
+              :title="task.is_enabled ? 'تعطيل الوكيل مؤقتاً' : 'تفعيل الوكيل'"
+            >
               <input
-                type="range"
-                min="60"
-                max="400"
-                step="10"
-                v-model.number="physics.linkDistance"
-                @input="onPhysicsChange"
+                type="checkbox"
+                :checked="task.is_enabled"
+                :disabled="togglingKey === task.key"
+                @change="handleToggleTask(task)"
               />
-              <span class="setting-value">{{ physics.linkDistance }}px</span>
+              <span class="toggle-slider" />
+              <span class="toggle-status-text">{{ task.is_enabled ? 'نشط' : 'معطل' }}</span>
+            </label>
+          </div>
+
+          <!-- تفاصيل الوكيل -->
+          <div class="agent-card-body">
+            <h3 class="agent-name">{{ task.name_ar }}</h3>
+            <p class="agent-desc">{{ task.description_ar }}</p>
+
+            <div class="agent-schedule-row">
+              <div class="schedule-pill">
+                <AppIcon name="calendar" :size="13" />
+                <span>{{ humanizeSchedule(task.cron_expression, task.trigger_type) }}</span>
+              </div>
             </div>
 
-            <div class="setting-group">
-              <label>نصف قطر التصادم (Collision Radius)</label>
-              <input
-                type="range"
-                min="20"
-                max="140"
-                step="5"
-                v-model.number="physics.collisionRadius"
-                @input="onPhysicsChange"
-              />
-              <span class="setting-value">{{ physics.collisionRadius }}px</span>
-            </div>
-
-            <div class="setting-group">
-              <label>قوة جذب المركز (Center Gravity)</label>
-              <input
-                type="range"
-                min="0.01"
-                max="0.2"
-                step="0.01"
-                v-model.number="physics.centerForceX"
-                @input="onGravityChange"
-              />
-              <span class="setting-value">{{ (physics.centerForceX * 100).toFixed(0) }}%</span>
-            </div>
-
-            <div class="layout-presets">
-              <h4>نماذج التخطيط الجاهزة</h4>
-              <div class="preset-buttons">
-                <button class="btn btn-outline btn-xs" @click="applyTreeLayout">
-                  <AppIcon name="layers" :size="12" /> شجري منظم
-                </button>
-                <button class="btn btn-outline btn-xs" @click="applyCircularLayout">
-                  <AppIcon name="refresh" :size="12" /> دائري متزن
-                </button>
-                <button class="btn btn-outline btn-xs" @click="applyForceLayout">
-                  <AppIcon name="zap" :size="12" /> تحرر حر
-                </button>
+            <!-- معلومات الترابط والدورة التشغيلية -->
+            <div class="agent-linkage-meta">
+              <div class="linkage-row">
+                <span class="linkage-title">المصدر والمشغل:</span>
+                <span class="linkage-detail"
+                  >{{ taskLinkageMap[task.key]?.source || 'حركات النظام' }} ({{
+                    taskLinkageMap[task.key]?.triggerDesc ||
+                    humanizeSchedule(task.cron_expression, task.trigger_type)
+                  }})</span
+                >
+              </div>
+              <div class="linkage-row">
+                <span class="linkage-title">الوجهة والقنوات:</span>
+                <span class="linkage-detail">{{
+                  taskLinkageMap[task.key]?.target || 'بوت تليجرام للمالك + إشعار داخلي'
+                }}</span>
               </div>
             </div>
           </div>
 
-          <!-- TAB 2: Telegram Bot Controls -->
-          <div v-if="activeTab === 'telegram'" class="tab-content">
-            <h3><AppIcon name="send" :size="18" /> إدارة بوت تليجرام التفاعلي</h3>
+          <!-- ذيل البطاقة: الحالة وزر التشغيل الفوري -->
+          <div class="agent-card-footer">
+            <div class="last-run-status">
+              <span v-if="task.last_run_at" class="last-run-time">
+                آخر تشغيل: {{ formatTime(task.last_run_at) }}
+              </span>
+              <span v-else class="last-run-time idle">بانتظار أول تشغيل</span>
 
-            <!-- Status Indicator -->
-            <div class="bot-status-card" :class="telegramActive ? 'online' : 'offline'">
-              <div class="status-top">
-                <span class="status-badge-dot" />
-                <strong>{{
-                  telegramActive ? 'البوت متصل ويستمع للأوامر الحية' : 'البوت متوقف عن الاستماع'
-                }}</strong>
-              </div>
-              <div class="status-details">
-                <small
-                  >Chat ID:
-                  <code>{{
-                    telegramConfigured.hasDefaultChatId ? 'مُضبط' : 'غير مُضبط'
-                  }}</code></small
-                >
-                <small
-                  >Bot Token:
-                  <code>{{ telegramConfigured.hasToken ? 'مُضبط' : 'غير مُضبط' }}</code></small
-                >
+              <span
+                v-if="task.last_status"
+                class="status-pill-mini"
+                :class="`status-${task.last_status}`"
+              >
+                {{ getStatusLabel(task.last_status) }}
+              </span>
+            </div>
+
+            <div class="agent-card-actions">
+              <button
+                class="btn btn-primary-action btn-sm"
+                :disabled="runningTaskKey === task.key"
+                @click="handleRunTaskNow(task)"
+                title="تشغيل الوكيل فوراً واستعراض التقرير الناتج"
+              >
+                <AppIcon
+                  v-if="runningTaskKey === task.key"
+                  name="refresh"
+                  :size="14"
+                  class="spin-anim"
+                />
+                <AppIcon v-else name="play" :size="14" />
+                <span>{{ runningTaskKey === task.key ? 'جاري الفحص...' : 'تشغيل فوري' }}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- حالة عدم وجود نتائج للبحث -->
+        <div v-if="filteredTasks.length === 0" class="empty-agents-state">
+          <AppIcon name="search" :size="48" class="empty-icon" />
+          <h4>لا توجد مهام تطابق البحث</h4>
+          <p>جرّب اختيار تصنيف آخر أو مسح كلمة البحث.</p>
+          <button class="btn btn-outline btn-sm" @click="resetFilters">إعادة ضبط التصفية</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═════════════════════════════════════════════════════════
+         التبويب الثاني: خريطة سير العمليات التفاعلية (WORKFLOW PIPELINE)
+         ═════════════════════════════════════════════════════════ -->
+    <div v-show="activeHubTab === 'workflow'" class="hub-tab-body workflow-tab">
+      <!-- محرك الفيزياء والحركة الحقيقي: الكانفس والتفاعل معزولان في مكوّن مستقل -->
+      <WorkflowCanvas :active="activeHubTab === 'workflow'" />
+    </div>
+
+    <!-- ═════════════════════════════════════════════════════════
+         التبويب الثالث: سجل التشغيل والتدقيق (EXECUTION AUDIT LOGS)
+         ═════════════════════════════════════════════════════════ -->
+    <div v-show="activeHubTab === 'logs'" class="hub-tab-body">
+      <div class="logs-card card">
+        <div class="logs-card-header">
+          <div class="logs-title-wrap">
+            <AppIcon name="clipboardList" :size="20" />
+            <div>
+              <h3>سجل التشغيل والتدقيق الحي للوكلاء</h3>
+              <p>سجل زمني موثق لكل عملية فحص أو تقرير مؤتمت تم تنفيذه مع زمن الاستجابة</p>
+            </div>
+          </div>
+
+          <div class="logs-actions">
+            <button class="btn btn-outline btn-xs" @click="refreshExecutionLogs">
+              <AppIcon name="refresh" :size="12" /> تحديث السجل
+            </button>
+          </div>
+        </div>
+
+        <div class="logs-table-container">
+          <table class="logs-table" v-if="executionLogs.length">
+            <thead>
+              <tr>
+                <th>المهمة / الوكيل</th>
+                <th>نوع المشغل</th>
+                <th>الحالة</th>
+                <th>زمن التنفيذ</th>
+                <th>التاريخ والوقت</th>
+                <th>الرسالة / النتيجة</th>
+                <th>الإجراء</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="log in executionLogs" :key="log.id">
+                <td class="log-task-name">
+                  <strong>{{ log.name_ar || log.key || log.title }}</strong>
+                </td>
+                <td>
+                  <span class="source-tag" :class="log.trigger_source">
+                    {{ log.trigger_source === 'scheduler' ? 'مجدول آلي' : 'تشغيل تجريبي' }}
+                  </span>
+                </td>
+                <td>
+                  <span class="status-pill-table" :class="`status-${log.status}`">
+                    {{ getStatusLabel(log.status) }}
+                  </span>
+                </td>
+                <td class="duration-cell">
+                  {{ log.duration_ms != null ? `${log.duration_ms}ms` : '—' }}
+                </td>
+                <td class="timestamp-cell">{{ formatTime(log.created_at) }}</td>
+                <td class="log-message-cell" :title="log.message">
+                  {{ log.message }}
+                </td>
+                <td>
+                  <button
+                    class="btn btn-ghost-sm"
+                    @click="openReportModalFromLog(log)"
+                    title="استعراض تفاصيل التقرير"
+                  >
+                    <AppIcon name="eye" :size="14" />
+                    عرض
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div v-else class="logs-empty-state">
+            <AppIcon name="clipboardList" :size="40" />
+            <p>
+              لا توجد سجلات تشغيل بعد. يمكنك تشغيل أي وكيل فوري من تبويب الوكلاء لتوثيق نتائجه هنا.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═════════════════════════════════════════════════════════
+          التبويب الرابع: قنوات تليجرام والإشعارات (TELEGRAM & CHANNELS)
+          ═════════════════════════════════════════════════════════ -->
+    <div v-show="activeHubTab === 'telegram'" class="hub-tab-body">
+      <!-- شريط الحالة المباشرة للاتصال -->
+      <div
+        class="telegram-live-banner"
+        :class="telegramStatus.connected ? 'is-connected' : 'is-disconnected'"
+      >
+        <div class="banner-status-icon">
+          <AppIcon :name="telegramStatus.connected ? 'check' : 'warning'" :size="24" />
+        </div>
+        <div class="banner-status-info">
+          <div class="banner-title-line">
+            <h4>
+              {{
+                telegramStatus.connected
+                  ? `متصل بالبوت: @${telegramStatus.botUsername} (${telegramStatus.botFirstName || ''})`
+                  : 'بوت تليجرام غير متصل حالياً'
+              }}
+            </h4>
+            <span
+              class="connection-tag"
+              :class="telegramStatus.connected ? 'tag-online' : 'tag-offline'"
+            >
+              {{ telegramStatus.connected ? '🟢 متصل ونشط' : '🔴 غير متصل' }}
+            </span>
+          </div>
+          <p v-if="telegramStatus.connected">
+            الاستماع التفاعلي للأوامر نشط. يمكنك مراسلة البوت مباشرة من تليجرام بالأوامر:
+            <code>/مبيعات</code>، <code>/خزينة</code>، <code>/نواقص</code>، <code>/مناقلات</code>،
+            <code>/سيرفر</code>
+          </p>
+          <p v-else class="banner-error-desc">
+            {{
+              telegramStatus.error ||
+              'يرجى إدخال رمز بوت صالح (Bot Token) من @BotFather وحفظ الإعدادات بالأسفل لتفعيل الإشعارات والأوامر.'
+            }}
+          </p>
+        </div>
+        <div class="banner-actions" v-if="telegramStatus.connected && telegramStatus.botUsername">
+          <a
+            :href="`https://t.me/${telegramStatus.botUsername}`"
+            target="_blank"
+            class="btn btn-outline btn-sm"
+          >
+            <AppIcon name="external-link" :size="14" />
+            <span>فتح شات البوت</span>
+          </a>
+        </div>
+      </div>
+
+      <div class="telegram-grid">
+        <!-- العمود الأول: إعدادات وربط البوت + دليل الاستخدام -->
+        <div class="telegram-col">
+          <!-- كارت إعداد بيانات البوت -->
+          <div class="card telegram-config-card">
+            <div class="card-head">
+              <div class="head-with-icon">
+                <AppIcon name="settings" :size="20" class="telegram-brand-icon" />
+                <div>
+                  <h3>إعداد وتحديث بيانات بوت تليجرام</h3>
+                  <p>ربط توكن البوت وتحديد معرفات الشات المصرح لها بالوصول</p>
+                </div>
               </div>
             </div>
 
-            <!-- Toggle Switch -->
-            <div class="toggle-box">
-              <span>تفعيل الاستماع التفاعلي (Long Polling)</span>
-              <button
-                class="toggle-btn"
-                :class="{ active: telegramActive }"
-                @click="toggleTelegram"
-                :disabled="togglingTelegram"
+            <form class="telegram-settings-form" @submit.prevent="handleSaveTelegramSettings">
+              <!-- حقل رمز البوت -->
+              <div class="form-group">
+                <div class="form-label-row">
+                  <label for="tg-bot-token">رمز البوت (Bot Token)</label>
+                  <button type="button" class="btn-text-action" @click="showToken = !showToken">
+                    <AppIcon :name="showToken ? 'eye-off' : 'eye'" :size="13" />
+                    <span>{{ showToken ? 'إخفاء' : 'إظهار' }}</span>
+                  </button>
+                </div>
+                <div class="token-input-wrapper">
+                  <input
+                    id="tg-bot-token"
+                    v-model="telegramForm.bot_token"
+                    :type="showToken ? 'text' : 'password'"
+                    class="form-control ltr-input"
+                    placeholder="مثال: 1234567890:ABCdefGhIJKlmNoPQRsTUVwxyZ"
+                    dir="ltr"
+                    required
+                  />
+                  <button
+                    type="button"
+                    class="btn btn-outline btn-xs"
+                    :disabled="verifyingTelegramToken || !telegramForm.bot_token.trim()"
+                    @click="handleVerifyToken"
+                  >
+                    <AppIcon
+                      v-if="verifyingTelegramToken"
+                      name="refresh"
+                      :size="12"
+                      class="spin-anim"
+                    />
+                    <AppIcon v-else name="check" :size="12" />
+                    <span>{{ verifyingTelegramToken ? 'جاري الفحص...' : 'فحص الرمز' }}</span>
+                  </button>
+                </div>
+                <!-- نتيجة فحص الرمز -->
+                <div
+                  v-if="tokenVerificationResult"
+                  class="token-verify-result"
+                  :class="tokenVerificationResult.ok ? 'verify-ok' : 'verify-fail'"
+                >
+                  <span v-if="tokenVerificationResult.ok">
+                    ✅ رمز صالح ومتصل بالبوت:
+                    <strong>@{{ tokenVerificationResult.bot?.username }}</strong> ({{
+                      tokenVerificationResult.bot?.firstName
+                    }})
+                  </span>
+                  <span v-else> ❌ {{ tokenVerificationResult.error }} </span>
+                </div>
+              </div>
+
+              <!-- حقل معرف الشات -->
+              <div class="form-group">
+                <label for="tg-chat-id">معرف الشات الافتراضي (Default Chat ID)</label>
+                <input
+                  id="tg-chat-id"
+                  v-model="telegramForm.chat_id"
+                  type="text"
+                  class="form-control ltr-input"
+                  placeholder="مثال: 1092703744 أو -100123456789"
+                  dir="ltr"
+                  required
+                />
+                <small class="form-hint">
+                  💡 للحصول على معرفك فوراً: افتح تليجرام وابحث عن
+                  <strong>@userinfobot</strong> واضغط Start، أو راسل البوت الخاص بك وسيخبرك بمعرفك.
+                </small>
+              </div>
+
+              <!-- حقل الشاتات الإضافية المصرح لها -->
+              <div class="form-group">
+                <label for="tg-allowed-chats"
+                  >شاتات إضافية مصرح لها (اختياري - مفصولة بفاصلة)</label
+                >
+                <input
+                  id="tg-allowed-chats"
+                  v-model="telegramForm.allowed_chats"
+                  type="text"
+                  class="form-control ltr-input"
+                  placeholder="مثال: 1092703744, 987654321"
+                  dir="ltr"
+                />
+                <small class="form-hint">
+                  لحماية البيانات، البوت يرفض الرد على أي حساب غير موجود في هذه القائمة.
+                </small>
+              </div>
+
+              <!-- زر الحفظ والتفعيل -->
+              <div class="form-actions">
+                <button
+                  type="submit"
+                  class="btn btn-primary btn-save-bot"
+                  :disabled="
+                    savingTelegramSettings ||
+                    !telegramForm.bot_token.trim() ||
+                    !telegramForm.chat_id.trim()
+                  "
+                >
+                  <AppIcon
+                    v-if="savingTelegramSettings"
+                    name="refresh"
+                    :size="14"
+                    class="spin-anim"
+                  />
+                  <AppIcon v-else name="save" :size="14" />
+                  <span>{{
+                    savingTelegramSettings ? 'جاري الحفظ والتوصيل...' : 'حفظ وتفعيل البوت الآن'
+                  }}</span>
+                </button>
+              </div>
+
+              <!-- رسالة التغذية الراجعة بعد الحفظ -->
+              <div
+                v-if="telegramSaveFeedback"
+                class="feedback-banner"
+                :class="telegramSaveFeedback.type"
               >
-                <span class="toggle-track">
-                  <span class="toggle-thumb" />
-                </span>
-              </button>
+                {{ telegramSaveFeedback.text }}
+              </div>
+            </form>
+          </div>
+
+          <!-- بطاقة دليل الإنشاء السريع للبوت -->
+          <div class="card telegram-guide-card">
+            <h4>📖 كيف تنشئ بوت تليجرام في دقيقة واحدة؟</h4>
+            <ol class="setup-steps">
+              <li>
+                <strong>الخطوة 1:</strong> افتح تطبيق تليجرام وابحث عن <code>@BotFather</code>.
+              </li>
+              <li>
+                <strong>الخطوة 2:</strong> أرسل له الأمر <code>/newbot</code> ثم اختر اسماً للبوت
+                ومعرفاً ينتهي بكلمة <code>bot</code>.
+              </li>
+              <li>
+                <strong>الخطوة 3:</strong> سينشئ BotFather الـ <strong>HTTP API Token</strong>،
+                انسخه والصقه في خانة <em>رمز البوت</em> أعلاه.
+              </li>
+              <li>
+                <strong>الخطوة 4:</strong> افتح شات البوت الجديد على تليجرام واضغط
+                <strong>Start</strong> لفتح المحادثة، ثم اضغط <em>حفظ وتفعيل</em>.
+              </li>
+            </ol>
+          </div>
+        </div>
+
+        <!-- العمود الثاني: الإرسال التجريبي + سجل الرسائل الصادرة والواردة -->
+        <div class="telegram-col">
+          <!-- نموذج إرسال رسالة اختبارية -->
+          <div class="card telegram-status-card">
+            <div class="card-head">
+              <div class="head-with-icon">
+                <AppIcon name="send" :size="20" class="telegram-brand-icon" />
+                <div>
+                  <h3>إرسال رسالة تجريبية فورية</h3>
+                  <p>التحقق من وصول التنبيهات لشات المالك بنجاح</p>
+                </div>
+              </div>
             </div>
 
-            <!-- Test Message Sender -->
-            <div class="telegram-test-box">
-              <h4>إرسال رسالة تجريبية مباشرة</h4>
-              <textarea
-                v-model="customTelegramMsg"
-                placeholder="اكتب نص الرسالة أو اتركها فارغة للإرسال القياسي..."
-                rows="2"
-              ></textarea>
-              <button
-                class="btn btn-primary btn-sm btn-block"
-                :disabled="sendingTelegramTest"
-                @click="sendTestTelegram"
-              >
-                <AppIcon name="send" :size="14" />
-                {{ sendingTelegramTest ? 'جاري الإرسال...' : 'إرسال الآن لتليجرام' }}
-              </button>
-              <small
+            <div class="telegram-tester-box">
+              <div class="quick-templates-bar">
+                <button
+                  class="template-chip"
+                  @click="
+                    customTelegramMsg = 'اختبار تجريبي: محرك الأتمتة لبن العجوز يعمل بكفاءة! ☕'
+                  "
+                >
+                  رسالة ترحيبية
+                </button>
+                <button
+                  class="template-chip"
+                  @click="
+                    customTelegramMsg =
+                      '📊 اختبار ملخص المبيعات:\nتم استلام حركة اليوم بنجاح وجميع الحسابات متوازنة. ✅'
+                  "
+                >
+                  نموذج إغلاق
+                </button>
+              </div>
+              <div class="send-input-group">
+                <input
+                  v-model="customTelegramMsg"
+                  type="text"
+                  class="telegram-input"
+                  placeholder="اكتب رسالة تجريبية لتصل إلى تليجرام..."
+                />
+                <button
+                  class="btn btn-primary"
+                  :disabled="sendingTelegramTest || !telegramConfigured.hasToken"
+                  @click="handleSendTelegramTest"
+                >
+                  <AppIcon v-if="sendingTelegramTest" name="refresh" :size="14" class="spin-anim" />
+                  <AppIcon v-else name="send" :size="14" />
+                  <span>{{ sendingTelegramTest ? 'جاري الإرسال...' : 'إرسال الآن' }}</span>
+                </button>
+              </div>
+
+              <div
                 v-if="telegramSendFeedback"
-                class="send-feedback"
+                class="feedback-banner"
                 :class="telegramSendFeedback.type"
               >
                 {{ telegramSendFeedback.text }}
-              </small>
-            </div>
-
-            <hr />
-            <!-- Recent Logs Stream -->
-            <div class="logs-section">
-              <div class="logs-header">
-                <h4>آخر الرسائل والسجلات</h4>
-                <button class="btn btn-outline btn-xs" @click="refreshLogs">
-                  <AppIcon name="refresh" :size="12" /> تحديث
-                </button>
-              </div>
-              <div class="telegram-logs-list">
-                <div
-                  v-for="log in telegramLogs"
-                  :key="log.id"
-                  class="log-item"
-                  :class="log.direction"
-                >
-                  <div class="log-top">
-                    <span class="log-badge">{{
-                      log.direction === 'in' ? 'وارد 📥' : 'صادر 📤'
-                    }}</span>
-                    <span class="log-time">{{ formatTime(log.created_at) }}</span>
-                  </div>
-                  <p class="log-text">{{ log.message }}</p>
-                  <p v-if="log.ai_response" class="log-ai">
-                    <strong>رد الذكاء:</strong> {{ truncate(log.ai_response, 100) }}
-                  </p>
-                </div>
-                <div v-if="telegramLogs.length === 0" class="empty-logs">
-                  لا توجد رسائل مسجلة حتى الآن
-                </div>
               </div>
             </div>
           </div>
 
-          <!-- TAB 3: Gemini AI Agent -->
-          <div v-if="activeTab === 'ai'" class="tab-content">
-            <h3><AppIcon name="brain" :size="18" /> وكيل الذكاء الاصطناعي (Gemini)</h3>
-            <p class="tab-desc">اختبر استجابة المساعد الذكي لقواعد النظام واستفساراتك.</p>
-
-            <div class="rules-summary-cards">
-              <h4>القواعد المحاسبية الصارمة المحقونة:</h4>
-              <div class="rule-card">
-                <strong>1. إدخال يدوي:</strong> تسجيل وخصم مباشر من المخزن.
+          <!-- سجل الرسائل الصادرة لتليجرام -->
+          <div class="card telegram-logs-card">
+            <div class="card-head">
+              <div class="head-with-icon">
+                <AppIcon name="clipboardList" :size="20" />
+                <div>
+                  <h3>آخر الرسائل والتنبيهات المرسلة</h3>
+                  <p>سجل الشات التلقائي الصادر من النظام إلى تليجرام</p>
+                </div>
               </div>
-              <div class="rule-card">
-                <strong>2. فواتير الجملة:</strong> خصم مباشر وفوري من المخزن الرئيسي دون وصفات.
-              </div>
-              <div class="rule-card">
-                <strong>3. استيراد الكاشير:</strong> يمر إلزامياً عبر محرك الوصفات قبل تعديل رصيد
-                المخزن.
-              </div>
-            </div>
-
-            <div class="ai-test-box">
-              <h4>اختبار استفسار حي مع Gemini:</h4>
-              <textarea
-                v-model="aiTestPrompt"
-                placeholder="اسأل الذكاء الاصطناعي عن المبيعات أو القواعد... مثال: كيف يتم خصم فواتير الجملة؟"
-                rows="2"
-              ></textarea>
-              <button
-                class="btn btn-primary btn-sm btn-block"
-                :disabled="testingAi || !aiTestPrompt.trim()"
-                @click="runAiTest"
-              >
-                <AppIcon name="bot" :size="14" />
-                {{ testingAi ? 'جاري التفكير...' : 'اسأل Gemini' }}
-              </button>
-              <div v-if="aiTestReply" class="ai-reply-box">
-                <strong>إجابة الوكيل:</strong>
-                <p>{{ aiTestReply }}</p>
-              </div>
-            </div>
-          </div>
-
-          <!-- TAB 4: Nodes List -->
-          <div v-if="activeTab === 'nodes'" class="tab-content">
-            <div class="nodes-list-header">
-              <h3>قائمة العقد المسجلة ({{ nodes.length }})</h3>
-              <button class="btn btn-primary btn-xs" @click="openAddNodeModal">
-                <AppIcon name="add" :size="12" /> إضافة
+              <button class="btn btn-outline btn-xs" @click="refreshTelegramLogs">
+                <AppIcon name="refresh" :size="12" /> تحديث
               </button>
             </div>
-            <div class="nodes-scroll-list">
+
+            <div class="telegram-messages-feed" v-if="telegramLogs.length">
               <div
-                v-for="node in nodes"
-                :key="node.id"
-                class="node-list-item"
-                @click="selectNode(node)"
+                v-for="msg in telegramLogs"
+                :key="msg.id"
+                class="telegram-msg-bubble"
+                :class="msg.direction"
               >
-                <span
-                  class="node-badge-dot"
-                  :style="{ background: node.settings?.color || '#94a3b8' }"
-                />
-                <div class="node-info">
-                  <strong>{{ node.label_ar || node.label }}</strong>
-                  <small>{{ typeLabels[node.type] }} · {{ node.group }}</small>
+                <div class="bubble-header">
+                  <span class="bubble-sender">{{
+                    msg.direction === 'out' ? 'النظام 🤖' : 'المالك 👤'
+                  }}</span>
+                  <span class="bubble-time">{{ formatTime(msg.created_at) }}</span>
                 </div>
-                <button class="btn btn-outline btn-xs delete-btn" @click.stop="deleteNode(node.id)">
-                  <AppIcon name="trash" :size="12" />
-                </button>
+                <div class="bubble-body" v-html="formatHtmlMessage(msg.message)" />
+                <div v-if="msg.ai_response" class="bubble-ai-reply">
+                  <strong>رد Gemini:</strong>
+                  <span>{{ msg.ai_response }}</span>
+                </div>
               </div>
+            </div>
+            <div v-else class="feed-empty-state">
+              <AppIcon name="send" :size="32" />
+              <p>لا توجد رسائل مرسلة مسجلة في قاعدة البيانات بعد.</p>
             </div>
           </div>
         </div>
-      </transition>
-    </div>
-
-    <!-- Node Detail / Inspector Modal -->
-    <div v-if="selectedNode" class="modal-overlay" @click.self="selectedNode = null">
-      <div class="modal-card card">
-        <div class="modal-header">
-          <h3>تفاصيل العقدة: {{ selectedNode.label_ar || selectedNode.label }}</h3>
-          <button class="btn-close" @click="selectedNode = null">
-            <AppIcon name="close" :size="16" />
-          </button>
-        </div>
-        <div class="modal-body">
-          <div class="form-row">
-            <label>المسمى بالعربية</label>
-            <input v-model="selectedNode.label_ar" />
-          </div>
-          <div class="form-row">
-            <label>المسمى بالإنجليزية</label>
-            <input v-model="selectedNode.label" />
-          </div>
-          <div class="form-row">
-            <label>المجموعة (Group)</label>
-            <select v-model="selectedNode.group">
-              <option value="operations">عمليات وتوزيع (Operations)</option>
-              <option value="inventory">مخزون ومستودعات (Inventory)</option>
-              <option value="production">تصنيع ووصفات (Production)</option>
-              <option value="notifications">إشعارات وتنبيهات (Notifications)</option>
-              <option value="ai">ذكاء اصطناعي (AI)</option>
-              <option value="sales">مبيعات وفواتير (Sales)</option>
-            </select>
-          </div>
-          <div class="form-row">
-            <label>اللون</label>
-            <input type="color" v-model="selectedNode.settings.color" />
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button class="btn btn-danger btn-sm" @click="deleteNode(selectedNode.id)">
-            حذف العقدة
-          </button>
-          <button class="btn btn-primary btn-sm" @click="saveSelectedNode">حفظ التعديلات</button>
-        </div>
       </div>
     </div>
 
-    <!-- Add Node Modal -->
-    <div v-if="showAddNodeModal" class="modal-overlay" @click.self="showAddNodeModal = false">
-      <div class="modal-card card">
-        <div class="modal-header">
-          <h3><AppIcon name="add" :size="18" /> إضافة عقدة أتمتة جديدة</h3>
-          <button class="btn-close" @click="showAddNodeModal = false">
-            <AppIcon name="close" :size="16" />
-          </button>
-        </div>
-        <div class="modal-body">
-          <div class="form-row">
-            <label>نوع العقدة</label>
-            <select v-model="newNode.type">
-              <option value="agent">🤖 وكيل ذكي (Agent)</option>
-              <option value="trigger">⚡ مشغل / حدث (Trigger)</option>
-              <option value="action">⚙️ عملية / إجراء (Action)</option>
-            </select>
-          </div>
-          <div class="form-row">
-            <label>المسمى بالعربية</label>
-            <input v-model="newNode.label_ar" placeholder="مثال: مراقب المبيعات الفورية" />
-          </div>
-          <div class="form-row">
-            <label>المسمى بالإنجليزية</label>
-            <input v-model="newNode.label" placeholder="مثال: Live Sales Monitor" />
-          </div>
-          <div class="form-row">
-            <label>المجموعة</label>
-            <select v-model="newNode.group_name">
-              <option value="operations">عمليات (Operations)</option>
-              <option value="inventory">مخزون (Inventory)</option>
-              <option value="production">إنتاج ووصفات (Production)</option>
-              <option value="notifications">إشعارات (Notifications)</option>
-              <option value="ai">ذكاء اصطناعي (AI)</option>
-              <option value="sales">مبيعات (Sales)</option>
-            </select>
+    <!-- ═════════════════════════════════════════════════════════
+         التبويب الخامس: المساعد الذكي Gemini (AI COPILOT)
+         ═════════════════════════════════════════════════════════ -->
+    <div v-show="activeHubTab === 'copilot'" class="hub-tab-body">
+      <div class="copilot-container card">
+        <div class="copilot-header">
+          <div class="copilot-title-group">
+            <span class="gemini-sparkle-icon">
+              <AppIcon name="brain" :size="24" />
+            </span>
+            <div>
+              <h3>المساعد التحليلي الذكي (Gemini AI Copilot)</h3>
+              <p>
+                استشارات فورية لتحليل هوامش الأرباح، توصيات خطة تحميص البن، وكشف بواقي النواقص
+                والسيولة
+              </p>
+            </div>
           </div>
         </div>
-        <div class="modal-footer">
-          <button class="btn btn-outline btn-sm" @click="showAddNodeModal = false">إلغاء</button>
-          <button
-            class="btn btn-primary btn-sm"
-            :disabled="!newNode.label || !newNode.label_ar"
-            @click="submitAddNode"
-          >
-            حفظ وإضافة
-          </button>
-        </div>
-      </div>
-    </div>
 
-    <!-- Add Edge Modal -->
-    <div v-if="showAddEdgeModal" class="modal-overlay" @click.self="showAddEdgeModal = false">
-      <div class="modal-card card">
-        <div class="modal-header">
-          <h3><AppIcon name="arrowRightLeft" :size="18" /> ربط عقدتين بمسار أتمتة</h3>
-          <button class="btn-close" @click="showAddEdgeModal = false">
-            <AppIcon name="close" :size="16" />
-          </button>
-        </div>
-        <div class="modal-body">
-          <div class="form-row">
-            <label>العقدة المصدر (من)</label>
-            <select v-model="newEdge.source_node_id">
-              <option v-for="n in nodes" :key="n.id" :value="n.id">
-                {{ n.label_ar || n.label }} ({{ typeLabels[n.type] }})
-              </option>
-            </select>
-          </div>
-          <div class="form-row">
-            <label>العقدة الهدف (إلى)</label>
-            <select v-model="newEdge.target_node_id">
-              <option v-for="n in nodes" :key="n.id" :value="n.id">
-                {{ n.label_ar || n.label }} ({{ typeLabels[n.type] }})
-              </option>
-            </select>
-          </div>
-          <div class="form-row">
-            <label>مسمى الرابط (اختياري)</label>
-            <input v-model="newEdge.label" placeholder="مثال: خصم فوري / تنبيه نقص" />
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button class="btn btn-outline btn-sm" @click="showAddEdgeModal = false">إلغاء</button>
+        <div class="copilot-quick-prompts">
+          <span class="prompts-label">أوامر سريعة مقترحة:</span>
           <button
-            class="btn btn-primary btn-sm"
-            :disabled="
-              !newEdge.source_node_id ||
-              !newEdge.target_node_id ||
-              newEdge.source_node_id === newEdge.target_node_id
+            class="prompt-chip"
+            @click="
+              aiTestPrompt = 'حلل لي مبيعات المحل لليوم وأعطني 3 توصيات لتحسين متوسط قيمة الفاتورة.'
             "
-            @click="submitAddEdge"
           >
-            إنشاء الرابط
+            💡 توصيات رفع مبيعات الفواتير
+          </button>
+          <button
+            class="prompt-chip"
+            @click="
+              aiTestPrompt =
+                'ما هي أولويات التحميص والشراء بناءً على الأرصدة الحالية وحد إعادة الطلب؟'
+            "
+          >
+            ☕ أولويات تحميص البن
+          </button>
+          <button
+            class="prompt-chip"
+            @click="aiTestPrompt = 'ما هو التقييم المالي لمخاطر السيولة ومستحقات الموردين القادمة؟'"
+          >
+            💰 تقييم مخاطر السيولة
+          </button>
+        </div>
+
+        <div class="copilot-input-area">
+          <textarea
+            v-model="aiTestPrompt"
+            class="copilot-textarea"
+            rows="3"
+            placeholder="اكتب سؤالك أو استفسارك الإداري للمساعد الذكي..."
+          />
+          <div class="copilot-controls">
+            <button
+              class="btn btn-primary"
+              :disabled="testingAi || !aiTestPrompt.trim()"
+              @click="handleTestAi"
+            >
+              <AppIcon v-if="testingAi" name="refresh" :size="14" class="spin-anim" />
+              <AppIcon v-else name="bot" :size="14" />
+              <span>{{ testingAi ? 'جاري التفكير والتحليل...' : 'اسأل المساعد الذكي' }}</span>
+            </button>
+          </div>
+        </div>
+
+        <div v-if="aiTestReply" class="copilot-response-box">
+          <div class="response-header">
+            <AppIcon name="bot" :size="18" />
+            <strong>إجابة وتحليل الوكيل الذكي:</strong>
+          </div>
+          <div class="response-body markdown-rendered" v-html="formatHtmlMessage(aiTestReply)" />
+        </div>
+      </div>
+    </div>
+
+    <!-- ═════════════════════════════════════════════════════════
+         نافذة استعراض التقارير والنتائج (REPORT INSPECTOR MODAL)
+         ═════════════════════════════════════════════════════════ -->
+    <div v-if="activeReportModal" class="modal-overlay" @click.self="activeReportModal = null">
+      <div class="report-modal-card card glass-card">
+        <div class="modal-header">
+          <div class="modal-title-wrap">
+            <span class="report-icon-badge" :class="activeReportModal.status">
+              <AppIcon
+                :name="
+                  activeReportModal.status === 'success'
+                    ? 'check'
+                    : activeReportModal.status === 'warning'
+                      ? 'alertTriangle'
+                      : 'close'
+                "
+                :size="20"
+              />
+            </span>
+            <div>
+              <h3>{{ activeReportModal.title }}</h3>
+              <p class="modal-subtitle">
+                {{ formatTime(activeReportModal.time) }} ·
+                <span class="status-text-badge" :class="activeReportModal.status">
+                  {{ getStatusLabel(activeReportModal.status) }}
+                </span>
+              </p>
+            </div>
+          </div>
+          <button class="modal-close-btn" @click="activeReportModal = null" title="إغلاق">
+            <AppIcon name="close" :size="18" />
+          </button>
+        </div>
+
+        <div class="modal-body report-modal-content">
+          <div class="report-text-view" v-html="formatHtmlMessage(activeReportModal.text)" />
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn btn-outline btn-sm" @click="copyReportText(activeReportModal.text)">
+            <AppIcon name="fileText" :size="14" />
+            <span>نسخ التقرير</span>
+          </button>
+          <button class="btn btn-primary btn-sm" @click="activeReportModal = null">
+            حسناً، فهمت
           </button>
         </div>
       </div>
@@ -705,2989 +1071,2403 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted, nextTick, watch } from 'vue';
+import { ref, reactive, computed, onMounted } from 'vue';
 import AppIcon from '@/components/AppIcon.vue';
+import WorkflowCanvas from '@/components/automation/WorkflowCanvas.vue';
 import { automation } from '@/api';
 import type {
-  GraphNode,
-  GraphEdge,
-  PhysicsSettings,
   AutomationTask,
   AutomationExecutionLog,
+  TelegramLogEntry,
+  TelegramBotStatus,
 } from '@/api/automation.api';
 
-// ─── أنواع وبيانات ───────────────────────────────────
+// ─── الحالة الرئيسية للتبويبات ───
+const activeHubTab = ref<'agents' | 'workflow' | 'logs' | 'telegram' | 'copilot'>('agents');
+const loading = ref(false);
 
-type SimulationNode = GraphNode & {
-  vx: number;
-  vy: number;
-  fx?: number;
-  fy?: number;
+// ─── بيانات المهام والوكلاء ───
+const tasks = ref<AutomationTask[]>([]);
+const executionLogs = ref<AutomationExecutionLog[]>([]);
+const selectedCategory = ref<string>('all');
+const tasksSearchQuery = ref('');
+const runningTaskKey = ref<string | null>(null);
+const togglingKey = ref<string | null>(null);
+const showArchitectureGuide = ref(false);
+
+// خريطة ترابط الوكلاء بالدورة التشغيلية (إيه مربوط بإيه؟)
+const taskLinkageMap: Record<string, { source: string; triggerDesc: string; target: string }> = {
+  daily_sales_report: {
+    source: 'فواتير الكاشير والمصروفات',
+    triggerDesc: 'مجدول يومياً 11:30 ليلاً',
+    target: 'تليجرام للمالك + إشعار داخلي',
+  },
+  low_stock_alert: {
+    source: 'أرصدة المخازن وخامات البن',
+    triggerDesc: 'مجدول يومياً (10:00 ص و 06:00 م)',
+    target: 'تليجرام + قائمة النواقص',
+  },
+  void_invoice_alert: {
+    source: 'إلغاء الفواتير في الـ POS',
+    triggerDesc: '⚡ فوري لحظياً عند قيام كاشير بإلغاء فاتورة',
+    target: 'إنذار أحمر عاجل للمالك على تليجرام',
+  },
+  anti_fraud_sentinel: {
+    source: 'حركات البيع والإلغاء والخصم (24 ساعة)',
+    triggerDesc: 'مجدول يومياً 11:00 ليلاً',
+    target: 'تقرير مكافحة التلاعب الشامل',
+  },
+  large_discount_alert: {
+    source: 'مبيعات الكاشير المطبقة لخصم > 15%',
+    triggerDesc: '⚡ فوري لحظياً عند تطبيق خصم استثنائي',
+    target: 'إنذار فوري للمالك والمدير',
+  },
+  warehouse_balancing: {
+    source: 'سحب المخزن الرئيسي ومخزن الصالة',
+    triggerDesc: 'مجدول يومياً 09:00 صباحاً',
+    target: 'توصيات مناقلة مخزنية ذكية',
+  },
+  system_health: {
+    source: 'خادم الـ ERP وقاعدة البيانات',
+    triggerDesc: 'مجدول دورياً كل 4 ساعات',
+    target: 'فحص سرعة الاستجابة والاتصال',
+  },
+  daily_backup_reminder: {
+    source: 'ملفات النسخ الاحتياطي المشفرة',
+    triggerDesc: 'مجدول يومياً 10:00 ليلاً',
+    target: 'تنبيه بصحة آخر ملف نسخة احتياطية',
+  },
+  supplier_payment_due_alert: {
+    source: 'فواتير المشتريات الآجلة للموردين',
+    triggerDesc: 'مجدول يومياً 11:00 صباحاً',
+    target: 'تذكير بالدفعات المستحقة قبلها بـ 3 أيام',
+  },
+  daily_profit_margin_anomaly: {
+    source: 'تكلفة المبيعات وهوامش ربح اليوم',
+    triggerDesc: 'مجدول يومياً 11:45 ليلاً',
+    target: 'إنذار عند انخفاض الهامش عن 28%',
+  },
+  cashflow_risk_shield: {
+    source: 'الرصيد النقدي والالتزامات لـ 30 يوماً',
+    triggerDesc: 'مجدول أسبوعياً (الإثنين 10:00 ص)',
+    target: 'درع حماية السيولة وكشف العجز المسبق',
+  },
+  shift_handover_reconciliation: {
+    source: 'إغلاق وردية الكاشير وجرد الدرج',
+    triggerDesc: '⚡ فوري لحظياً عند إغلاق وردية بفارق ≥ 10 ج.م',
+    target: 'إنذار عجز/زيادة عهدة للمدير والمالك',
+  },
+  roastery_recipe_waste_guard: {
+    source: 'توالف البار واستهلاك خامات التحميص',
+    triggerDesc: 'مجدول يومياً 09:00 مساءً',
+    target: 'كشف الهدر غير الطبيعي للخامات',
+  },
+  customer_loyalty_dormant_winback: {
+    source: 'سجل زيارات عملاء المحل الدائمين',
+    triggerDesc: 'مجدول أسبوعياً (الخميس 02:00 م)',
+    target: 'قائمة العملاء المنقطعين لـ 30 يوماً',
+  },
+  ai_copilot_assistant: {
+    source: 'مؤشرات أداء المحل والمخزون',
+    triggerDesc: 'مجدول يومياً 09:00 ص أو استعلام مباشر',
+    target: 'تقرير تحليلي تنفيذي ذكي من Gemini',
+  },
+  error_tracker_alert: {
+    source: 'استثناءات وأخطاء السيرفر وقاعدة البيانات',
+    triggerDesc: '⚡ فوري لحظياً عند حدوث خطأ 500 أو انقطاع',
+    target: 'تشخيص فوري وإشعار للمطور/الإدارة',
+  },
+  scheduled_cron_task: {
+    source: 'محرك الجدولة التلقائي الداخلي',
+    triggerDesc: 'مجدول يومياً 08:00 صباحاً',
+    target: 'فحص نبض واستيقاظ المهام المجدولة',
+  },
+  telegram_notifier: {
+    source: 'بوت تليجرام وقناة الاتصال المباشرة',
+    triggerDesc: 'مجدول يومياً 10:00 صباحاً',
+    target: 'فحص اتصال البوت واستقبال الأوامر',
+  },
+  webhook_listener: {
+    source: 'مسارات استقبال الطلبات الخارجية',
+    triggerDesc: 'مجدول يومياً 12:00 ظهراً',
+    target: 'تأكيد جاهزية نقاط الـ Webhook الآمنة',
+  },
 };
 
-interface Particle {
-  sourceId: number;
-  targetId: number;
-  progress: number;
-  speed: number;
-  color: string;
-}
+// ─── بيانات وإعدادات تليجرام ───
+const telegramActive = ref(true);
+const telegramConfigured = reactive({ hasToken: false, hasDefaultChatId: false });
+const telegramStatus = reactive<TelegramBotStatus>({
+  isPolling: false,
+  connected: false,
+  hasToken: false,
+  hasDefaultChatId: false,
+  botUsername: null,
+  botFirstName: null,
+  defaultChatId: null,
+  allowedChats: [],
+  error: null,
+});
+const telegramForm = reactive({
+  bot_token: '',
+  chat_id: '',
+  allowed_chats: '',
+});
+const showToken = ref(false);
+const savingTelegramSettings = ref(false);
+const verifyingTelegramToken = ref(false);
+const tokenVerificationResult = ref<{
+  ok: boolean;
+  bot?: { username: string; firstName: string };
+  error?: string;
+} | null>(null);
+const telegramSaveFeedback = ref<{ type: 'success' | 'error'; text: string } | null>(null);
+const customTelegramMsg = ref('');
+const sendingTelegramTest = ref(false);
+const telegramSendFeedback = ref<{ type: 'success' | 'error'; text: string } | null>(null);
+const telegramLogs = ref<TelegramLogEntry[]>([]);
 
-const mouseWorld = reactive({ x: 0, y: 0 });
-let resizeObserver: ResizeObserver | null = null;
+// ─── المساعد الذكي ───
+const aiTestPrompt = ref('');
+const testingAi = ref(false);
+const aiTestReply = ref('');
 
+// ─── نافذة التقرير ───
+const activeReportModal = ref<{
+  title: string;
+  text: string;
+  status: 'success' | 'warning' | 'failed';
+  time: string;
+} | null>(null);
+
+// ─── ثوابت وتسميات الأقسام ───
 const categoryLabels: Record<string, string> = {
   sales: '💰 مبيعات وإغلاق',
-  inventory: '📦 مخزون وتحميص',
-  security: '🛡️ رقابة وأمان',
+  inventory: '📦 مخزون وخامات البن',
+  security: '🛡️ رقابة ومكافحة الاحتيال',
   system: '🖥️ خادم ونظام',
 };
 
-const DEFAULT_SEED_NODES: SimulationNode[] = [
-  {
-    id: 1,
-    type: 'agent',
-    label: 'Cashier POS',
-    label_ar: 'كاشير نقطة البيع',
-    group: 'operations',
-    settings: { icon: 'monitor', color: '#10b981' },
-    x: -220,
-    y: -120,
-    vx: 0,
-    vy: 0,
-    is_active: true,
-  },
-  {
-    id: 2,
-    type: 'agent',
-    label: 'Main Warehouse',
-    label_ar: 'المخزن الرئيسي',
-    group: 'inventory',
-    settings: { icon: 'warehouse', color: '#3b82f6' },
-    x: 220,
-    y: -60,
-    vx: 0,
-    vy: 0,
-    is_active: true,
-  },
-  {
-    id: 3,
-    type: 'agent',
-    label: 'Recipe Engine',
-    label_ar: 'محرك الوصفات',
-    group: 'production',
-    settings: { icon: 'flask', color: '#f59e0b' },
-    x: 0,
-    y: 120,
-    vx: 0,
-    vy: 0,
-    is_active: true,
-  },
-  {
-    id: 4,
-    type: 'agent',
-    label: 'Telegram Bot',
-    label_ar: 'وكيل تليجرام',
-    group: 'notifications',
-    settings: { icon: 'send', color: '#8b5cf6' },
-    x: 320,
-    y: 160,
-    vx: 0,
-    vy: 0,
-    is_active: true,
-  },
-  {
-    id: 5,
-    type: 'agent',
-    label: 'AI Copilot (Gemini)',
-    label_ar: 'المساعد الذكي Gemini',
-    group: 'ai',
-    settings: { icon: 'brain', color: '#ec4899' },
-    x: -320,
-    y: 160,
-    vx: 0,
-    vy: 0,
-    is_active: true,
-  },
-  {
-    id: 6,
-    type: 'agent',
-    label: 'System Alerts',
-    label_ar: 'إشعارات النظام',
-    group: 'notifications',
-    settings: { icon: 'bell', color: '#ef4444' },
-    x: 320,
-    y: -160,
-    vx: 0,
-    vy: 0,
-    is_active: true,
-  },
-  {
-    id: 7,
-    type: 'trigger',
-    label: 'Manual Daily Entry',
-    label_ar: 'إدخال يومي يدوي',
-    group: 'sales',
-    settings: { icon: 'edit', color: '#6b7280', rule: 'RULE_1_MANUAL' },
-    x: -420,
-    y: -220,
-    vx: 0,
-    vy: 0,
-    is_active: true,
-  },
-  {
-    id: 8,
-    type: 'trigger',
-    label: 'Wholesale Invoice',
-    label_ar: 'فاتورة جملة',
-    group: 'sales',
-    settings: { icon: 'file-text', color: '#6b7280', rule: 'RULE_2_WHOLESALE' },
-    x: -420,
-    y: 0,
-    vx: 0,
-    vy: 0,
-    is_active: true,
-  },
-  {
-    id: 9,
-    type: 'trigger',
-    label: 'Cashier Report Import',
-    label_ar: 'استيراد تقرير الكاشير',
-    group: 'sales',
-    settings: { icon: 'upload', color: '#6b7280', rule: 'RULE_3_CASHIER' },
-    x: -420,
-    y: 220,
-    vx: 0,
-    vy: 0,
-    is_active: true,
-  },
-  {
-    id: 10,
-    type: 'action',
-    label: 'Direct Stock Deduction',
-    label_ar: 'خصم مخزون مباشر',
-    group: 'inventory',
-    settings: { icon: 'minus-circle', color: '#14b8a6' },
-    x: 0,
-    y: -220,
-    vx: 0,
-    vy: 0,
-    is_active: true,
-  },
-  {
-    id: 11,
-    type: 'action',
-    label: 'Recipe Calculation',
-    label_ar: 'حساب الوصفات والتفكيك',
-    group: 'production',
-    settings: { icon: 'calculator', color: '#f97316' },
-    x: 0,
-    y: 0,
-    vx: 0,
-    vy: 0,
-    is_active: true,
-  },
-  {
-    id: 12,
-    type: 'action',
-    label: 'Warehouse Stock Update',
-    label_ar: 'تحديث مخزون المحل',
-    group: 'inventory',
-    settings: { icon: 'refresh-cw', color: '#0ea5e9' },
-    x: 220,
-    y: 220,
-    vx: 0,
-    vy: 0,
-    is_active: true,
-  },
-];
+// ─── الحسابات المشتقة (Computed KPI) ───
+const enabledTaskCount = computed(() => tasks.value.filter((t) => t.is_enabled).length);
 
-const DEFAULT_SEED_EDGES: GraphEdge[] = [
-  { id: 1, source: 7, target: 10, condition: 'sale_type = manual', label: 'تسجيل عادي' },
-  { id: 2, source: 10, target: 2, condition: null, label: 'خصم من المخزن' },
-  { id: 3, source: 8, target: 10, condition: 'sale_type = wholesale', label: 'جملة → خصم مباشر' },
-  {
-    id: 4,
-    source: 9,
-    target: 11,
-    condition: 'sale_type = cashier_import',
-    label: 'يمر عبر محرك الوصفات إلزامياً',
-  },
-  { id: 5, source: 11, target: 3, condition: null, label: 'تفكيك وصفات ثم خصم' },
-  { id: 6, source: 3, target: 12, condition: null, label: 'تحديث رصيد المخزن' },
-  { id: 7, source: 2, target: 6, condition: 'on_low_stock', label: 'تنبيه نقص' },
-  { id: 8, source: 6, target: 4, condition: 'always', label: 'إشعار تليجرام' },
-  { id: 9, source: 4, target: 5, condition: 'command = /ai', label: 'استعلام ذكي' },
-  { id: 10, source: 5, target: 2, condition: 'read_only', label: 'قراءة بيانات المخزون' },
-];
-
-// ─── الحالة العامة ───────────────────────────────────
-
-const loading = ref(false);
-const showSettings = ref(true);
-const mobileView = ref<'graph' | 'panel'>('graph');
-const showLegendMobile = ref(false);
-const activeTab = ref<'tasks' | 'telegram' | 'ai' | 'physics' | 'nodes'>('tasks');
-const canvas = ref<HTMLCanvasElement | null>(null);
-const graphContainer = ref<HTMLElement | null>(null);
-
-// مهام الأتمتة الحية
-const tasks = ref<AutomationTask[]>([]);
-const tasksLoadError = ref('تعذر تحميل حالة مهام الأتمتة من الخادم.');
-const runningTaskKey = ref<string | null>(null);
-const taskFeedback = reactive<Record<string, string>>({});
-const executionLogs = ref<AutomationExecutionLog[]>([]);
-
-const enabledTaskCount = computed(() => tasks.value.filter((task) => task.is_enabled).length);
 const successfulExecutionCount = computed(
-  () => executionLogs.value.filter((log) => log.status === 'success').length,
+  () => executionLogs.value.filter((l) => l.status === 'success').length,
 );
+
 const failedExecutionCount = computed(
-  () =>
-    executionLogs.value.filter((log) => log.status === 'failed' || log.status === 'warning').length,
+  () => executionLogs.value.filter((l) => l.status === 'failed' || l.status === 'warning').length,
 );
+
+const successRatePct = computed(() => {
+  if (!executionLogs.value.length) return 100;
+  return Math.round((successfulExecutionCount.value / executionLogs.value.length) * 100);
+});
+
 const averageExecutionMs = computed(() => {
   const durations = executionLogs.value
-    .map((log) => Number(log.duration_ms))
-    .filter((duration) => Number.isFinite(duration) && duration >= 0);
+    .map((l) => Number(l.duration_ms))
+    .filter((d) => Number.isFinite(d) && d >= 0);
   if (!durations.length) return 0;
-  return Math.round(durations.reduce((sum, duration) => sum + duration, 0) / durations.length);
+  return Math.round(durations.reduce((sum, val) => sum + val, 0) / durations.length);
 });
-const recentExecutionLogs = computed(() => executionLogs.value.slice(0, 12));
-const commandHealthTone = computed(() => {
-  if (failedExecutionCount.value > 0) return 'is-warning';
-  if (executionLogs.value.length > 0) return 'is-healthy';
-  return 'is-idle';
-});
-const commandHealthLabel = computed(() => {
-  if (failedExecutionCount.value > 0) return 'يحتاج مراجعة';
-  if (executionLogs.value.length > 0) return 'يعمل بصورة مستقرة';
-  return 'جاهز للتشغيل';
-});
+
 const latestExecutionLabel = computed(() => {
   const latest = executionLogs.value[0];
   return latest?.created_at ? formatTime(latest.created_at) : 'بانتظار أول تشغيل';
 });
 
-// بيانات الشبكة
-const nodes = ref<SimulationNode[]>(JSON.parse(JSON.stringify(DEFAULT_SEED_NODES)));
-const edges = ref<GraphEdge[]>(JSON.parse(JSON.stringify(DEFAULT_SEED_EDGES)));
-
-// إعدادات الفيزياء
-const physics = reactive<PhysicsSettings>({
-  repelForce: -400,
-  linkDistance: 150,
-  collisionRadius: 60,
-  centerForceX: 0.05,
-  centerForceY: 0.05,
+const engineHealthClass = computed(() => {
+  if (failedExecutionCount.value > 0) return 'is-warning';
+  if (enabledTaskCount.value > 0) return 'is-healthy';
+  return 'is-idle';
 });
 
-// تليجرام
-const telegramActive = ref(true);
-const telegramConfigured = reactive({ hasToken: false, hasDefaultChatId: false });
-const togglingTelegram = ref(false);
-const customTelegramMsg = ref('');
-const sendingTelegramTest = ref(false);
-const telegramSendFeedback = ref<{ type: 'success' | 'error'; text: string } | null>(null);
-const telegramLogs = ref<any[]>([]);
-
-// اختبار الذكاء
-const aiTestPrompt = ref('');
-const testingAi = ref(false);
-const aiTestReply = ref('');
-
-// تفاعل الماوس والمحاكاة
-const dragging = ref<number | null>(null);
-const hoveredNode = ref<SimulationNode | null>(null);
-const selectedNode = ref<SimulationNode | null>(null);
-const tooltipPos = reactive({ x: 0, y: 0 });
-const pan = reactive({ x: 0, y: 0 });
-const zoom = ref(1);
-let lastMouse = { x: 0, y: 0 };
-let isPanning = false;
-
-// محاكاة الجسيمات
-const isSimulating = ref(false);
-const particles = ref<Particle[]>([]);
-
-// Modals
-const showAddNodeModal = ref(false);
-const showAddEdgeModal = ref(false);
-const newNode = reactive({
-  type: 'agent',
-  label: '',
-  label_ar: '',
-  group_name: 'operations',
-});
-const newEdge = reactive({
-  source_node_id: 0,
-  target_node_id: 0,
-  label: '',
+const engineHealthLabel = computed(() => {
+  if (failedExecutionCount.value > 0) return 'يحتاج مراجعة الملاحظات';
+  if (enabledTaskCount.value > 0) return 'المحرك نشط ومستقر';
+  return 'بانتظار تفعيل المهام';
 });
 
-// محرك الأنيميشن
-let animFrameId: number | null = null;
-let alpha = 1;
-const alphaMin = 0.001;
-const alphaDecay = 0.02;
-const velocityDecay = 0.4;
-
-// ─── ثوابت العرض ─────────────────────────────────────
-
-const GROUP_COLORS: Record<string, string> = {
-  operations: '#10b981',
-  inventory: '#3b82f6',
-  production: '#f59e0b',
-  notifications: '#8b5cf6',
-  ai: '#ec4899',
-  sales: '#6b7280',
-  general: '#94a3b8',
-};
-
-const typeLabels: Record<string, string> = {
-  agent: '🤖 وكيل ذكي',
-  trigger: '⚡ مشغل أحداث',
-  action: '⚙️ عملية / إجراء',
-};
-
-const ruleLabels: Record<string, string> = {
-  RULE_1_MANUAL: 'القاعدة 1: إدخال يومي يدوي — خصم مباشر',
-  RULE_2_WHOLESALE: 'القاعدة 2: فاتورة جملة — خصم مباشر من المخزن الرئيسي',
-  RULE_3_CASHIER: 'القاعدة 3: استيراد كاشير — يمر عبر محرك الوصفات إلزامياً',
-};
-
-const legendGroups = [
-  { label: 'وكيل (Agent)', color: '#10b981' },
-  { label: 'مشغل (Trigger)', color: '#6b7280' },
-  { label: 'عملية (Action)', color: '#14b8a6' },
-  { label: 'إشعارات وتليجرام', color: '#8b5cf6' },
-  { label: 'ذكاء اصطناعي (Gemini)', color: '#ec4899' },
-];
-
-// ─── دورة الحياة ─────────────────────────────────────
-
-onMounted(async () => {
-  await loadData();
-  resizeCanvas();
-  startSimulation();
-  window.addEventListener('resize', resizeCanvas);
-
-  if (graphContainer.value && window.ResizeObserver) {
-    resizeObserver = new ResizeObserver(() => {
-      resizeCanvas();
-    });
-    resizeObserver.observe(graphContainer.value);
-  }
-});
-
-onUnmounted(() => {
-  if (animFrameId) cancelAnimationFrame(animFrameId);
-  window.removeEventListener('resize', resizeCanvas);
-  if (resizeObserver) {
-    resizeObserver.disconnect();
-    resizeObserver = null;
-  }
-});
-
-watch(showSettings, () => {
-  nextTick(() => {
-    resizeCanvas();
+// تصفية وبحث الوكلاء
+const filteredTasks = computed(() => {
+  return tasks.value.filter((task) => {
+    const matchCategory =
+      selectedCategory.value === 'all' || task.category === selectedCategory.value;
+    const matchQuery =
+      !tasksSearchQuery.value ||
+      task.name_ar.toLowerCase().includes(tasksSearchQuery.value.toLowerCase()) ||
+      task.description_ar.toLowerCase().includes(tasksSearchQuery.value.toLowerCase());
+    return matchCategory && matchQuery;
   });
 });
 
-// ─── جلب وتحديث البيانات ──────────────────────────────
+function getCategoryCount(cat: string): number {
+  return tasks.value.filter((t) => t.category === cat).length;
+}
 
-async function loadData() {
+function resetFilters() {
+  selectedCategory.value = 'all';
+  tasksSearchQuery.value = '';
+}
+
+// ─── دورة حياة المكون ───
+onMounted(async () => {
+  await loadAllData();
+});
+
+// ─── جلب البيانات ───
+async function loadAllData() {
   loading.value = true;
   try {
-    const [graphRes, physicsRes, logsRes, statusRes, tasksRes, executionLogsRes] =
-      await Promise.all([
-        automation.getGraph().catch(() => null),
-        automation.getPhysics().catch(() => null),
-        automation.getTelegramLogs({ limit: 10 }).catch(() => null),
-        automation.getTelegramBotStatus().catch(() => null),
-        automation.getTasks().catch(() => null),
-        automation.getExecutionLogs({ limit: 24 }).catch(() => null),
-      ]);
-
-    if (graphRes && (graphRes as any).data?.nodes?.length > 0) {
-      nodes.value = (graphRes as any).data.nodes.map((n: GraphNode) => ({
-        ...n,
-        vx: 0,
-        vy: 0,
-      }));
-      edges.value = (graphRes as any).data.edges || [];
-    }
-
-    if (physicsRes && (physicsRes as any).data) {
-      Object.assign(physics, (physicsRes as any).data);
-    }
-
-    if (logsRes && (logsRes as any).data?.logs) {
-      telegramLogs.value = (logsRes as any).data.logs;
-    }
-
-    if (statusRes && (statusRes as any).data) {
-      telegramActive.value = (statusRes as any).data.isPolling;
-      telegramConfigured.hasToken = Boolean((statusRes as any).data.hasToken);
-      telegramConfigured.hasDefaultChatId = Boolean((statusRes as any).data.hasDefaultChatId);
-    }
+    const [tasksRes, logsRes, statusRes, telLogsRes] = await Promise.all([
+      automation.getTasks().catch(() => null),
+      automation.getExecutionLogs({ limit: 30 }).catch(() => null),
+      automation.getTelegramBotStatus().catch(() => null),
+      automation.getTelegramLogs({ limit: 15 }).catch(() => null),
+    ]);
 
     if (tasksRes && Array.isArray((tasksRes as any).data)) {
       tasks.value = (tasksRes as any).data;
-      tasksLoadError.value = '';
-    } else {
-      tasks.value = [];
-      tasksLoadError.value = 'تعذر تحميل حالة مهام الأتمتة من الخادم.';
     }
-    if (executionLogsRes && (executionLogsRes as any).data?.logs) {
-      executionLogs.value = (executionLogsRes as any).data.logs;
+
+    if (logsRes && (logsRes as any).data?.logs) {
+      executionLogs.value = (logsRes as any).data.logs;
     }
+
+    if (statusRes && (statusRes as any).data) {
+      Object.assign(telegramStatus, (statusRes as any).data);
+      telegramActive.value = Boolean(telegramStatus.isPolling);
+      telegramConfigured.hasToken = Boolean(telegramStatus.hasToken);
+      telegramConfigured.hasDefaultChatId = Boolean(telegramStatus.hasDefaultChatId);
+      if (telegramStatus.defaultChatId && !telegramForm.chat_id) {
+        telegramForm.chat_id = telegramStatus.defaultChatId;
+      }
+      if (
+        telegramStatus.allowedChats &&
+        telegramStatus.allowedChats.length &&
+        !telegramForm.allowed_chats
+      ) {
+        telegramForm.allowed_chats = telegramStatus.allowedChats.join(', ');
+      }
+    }
+
+    if (telLogsRes && (telLogsRes as any).data?.logs) {
+      telegramLogs.value = (telLogsRes as any).data.logs;
+    }
+
+    // بيانات خريطة سير العمليات يختص بها مكوّن WorkflowCanvas المعزول
   } catch (err) {
-    tasks.value = [];
-    tasksLoadError.value = 'تعذر تحميل حالة مهام الأتمتة من الخادم.';
-    console.warn('تعذر جلب البيانات من الخادم:', err);
+    console.error('فشل جلب بيانات الأتمتة:', err);
   } finally {
     loading.value = false;
   }
 }
 
-async function loadAutomations() {
+async function refreshExecutionLogs() {
   try {
-    const res = await automation.getTasks();
-    if (Array.isArray((res as any)?.data)) {
-      tasks.value = (res as any).data;
-      tasksLoadError.value = '';
-    } else {
-      tasks.value = [];
-      tasksLoadError.value = 'تعذر تحميل حالة مهام الأتمتة من الخادم.';
+    const res = await automation.getExecutionLogs({ limit: 30 });
+    if ((res as any).data?.logs) {
+      executionLogs.value = (res as any).data.logs;
     }
-    await refreshExecutionLogs();
   } catch (err) {
-    tasks.value = [];
-    tasksLoadError.value = 'تعذر تحميل حالة مهام الأتمتة من الخادم.';
-    console.error('فشل تحديث قائمة الوكلاء:', err);
+    console.error('فشل تحديث سجلات التشغيل:', err);
   }
 }
 
-async function toggleTask(task: AutomationTask) {
-  const newState = !task.is_enabled;
-  task.is_enabled = newState;
-  try {
-    await automation.toggleTask(task.key, newState);
-  } catch (err) {
-    task.is_enabled = !newState;
-    console.error('فشل تبديل حالة الوكيل:', err);
-  }
-}
-
-async function runTask(task: AutomationTask) {
-  runningTaskKey.value = task.key;
-  taskFeedback[task.key] = '';
-  try {
-    const res = await automation.runTaskNow(task.key);
-    taskFeedback[task.key] = (res as any)?.message || 'تم تشغيل الوكيل بنجاح! ✅';
-    task.last_run_at = new Date().toISOString();
-    task.last_status = (res as any)?.payload?.status || 'success';
-    await refreshLogs();
-  } catch (err: any) {
-    taskFeedback[task.key] = err.message || 'فشل تشغيل الوكيل';
-    task.last_status = 'failed';
-  } finally {
-    runningTaskKey.value = null;
-    setTimeout(() => {
-      taskFeedback[task.key] = '';
-    }, 5000);
-  }
-}
-
-async function refreshLogs() {
+async function refreshTelegramLogs() {
   try {
     const res = await automation.getTelegramLogs({ limit: 15 });
     if ((res as any).data?.logs) {
       telegramLogs.value = (res as any).data.logs;
     }
   } catch (err) {
-    console.error('فشل تحديث السجلات:', err);
+    console.error('فشل تحديث سجلات تليجرام:', err);
   }
-  await refreshExecutionLogs();
 }
 
-async function refreshExecutionLogs() {
+// ─── تبديل وتشغيل المهام ───
+async function handleToggleTask(task: AutomationTask) {
+  const previousState = task.is_enabled;
+  const targetState = !previousState;
+  togglingKey.value = task.key;
+  task.is_enabled = targetState;
+
   try {
-    const res = await automation.getExecutionLogs({ limit: 24 });
-    if ((res as any).data?.logs) executionLogs.value = (res as any).data.logs;
-  } catch (err) {
-    console.error('فشل تحديث سجل تشغيل الأتمتة:', err);
-  }
-}
-
-// ─── Canvas & Physics Simulation ──────────────────────
-
-function resizeCanvas() {
-  const c = canvas.value;
-  const container = graphContainer.value;
-  if (!c || !container) return;
-
-  const rect = container.getBoundingClientRect();
-  const dpr = window.devicePixelRatio || 1;
-  c.width = rect.width * dpr;
-  c.height = rect.height * dpr;
-  c.style.width = rect.width + 'px';
-  c.style.height = rect.height + 'px';
-
-  const ctx = c.getContext('2d');
-  if (ctx) ctx.scale(dpr, dpr);
-}
-
-function startSimulation() {
-  alpha = 1;
-  tick();
-}
-
-function tick() {
-  const n = nodes.value;
-  const e = edges.value;
-  const c = canvas.value;
-  if (!c) return;
-
-  const w = c.clientWidth;
-  const h = c.clientHeight;
-  const cx = w / 2;
-  const cy = h / 2;
-
-  if (alpha >= alphaMin) {
-    alpha += (alphaMin - alpha) * alphaDecay;
-
-    // Many-Body Force
-    for (let i = 0; i < n.length; i++) {
-      const ni = n[i]!;
-      for (let j = i + 1; j < n.length; j++) {
-        const nj = n[j]!;
-        const dx = nj.x - ni.x;
-        const dy = nj.y - ni.y;
-        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-        const force = (physics.repelForce * alpha) / (dist * dist);
-        const fx = (dx / dist) * force;
-        const fy = (dy / dist) * force;
-        ni.vx -= fx;
-        ni.vy -= fy;
-        nj.vx += fx;
-        nj.vy += fy;
-      }
+    const res = await automation.toggleTask(task.key, targetState);
+    if ((res as any)?.success === false) {
+      task.is_enabled = previousState;
+      alert((res as any)?.message || 'تعذر تبديل حالة الوكيل.');
     }
-
-    // Link Force
-    const nodeMap = new Map(n.map((node) => [node.id, node]));
-    for (const edge of e) {
-      const s = nodeMap.get(edge.source);
-      const t = nodeMap.get(edge.target);
-      if (!s || !t) continue;
-
-      const dx = t.x - s.x;
-      const dy = t.y - s.y;
-      const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-      const force = ((dist - physics.linkDistance) / dist) * alpha * 0.3;
-      const fx = dx * force;
-      const fy = dy * force;
-      s.vx += fx;
-      s.vy += fy;
-      t.vx -= fx;
-      t.vy -= fy;
-    }
-
-    // Center Gravity Force
-    for (const node of n) {
-      node.vx += (cx - node.x - pan.x) * physics.centerForceX * alpha;
-      node.vy += (cy - node.y - pan.y) * physics.centerForceY * alpha;
-    }
-
-    // Velocity update
-    for (const node of n) {
-      if (node.fx !== undefined) {
-        node.x = node.fx;
-        node.vx = 0;
-      } else {
-        node.vx *= velocityDecay;
-        node.x += node.vx;
-      }
-      if (node.fy !== undefined) {
-        node.y = node.fy;
-        node.vy = 0;
-      } else {
-        node.vy *= velocityDecay;
-        node.y += node.vy;
-      }
-    }
-
-    // Collision
-    for (let i = 0; i < n.length; i++) {
-      const ni = n[i]!;
-      for (let j = i + 1; j < n.length; j++) {
-        const nj = n[j]!;
-        const dx = nj.x - ni.x;
-        const dy = nj.y - ni.y;
-        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-        const minDist = physics.collisionRadius;
-        if (dist < minDist) {
-          const push = ((minDist - dist) / dist) * 0.5;
-          ni.x -= dx * push;
-          ni.y -= dy * push;
-          nj.x += dx * push;
-          nj.y += dy * push;
-        }
-      }
-    }
-  }
-
-  // Update Particles simulation
-  if (isSimulating.value) {
-    updateParticles();
-  }
-
-  draw();
-  animFrameId = requestAnimationFrame(tick);
-}
-
-function updateParticles() {
-  if (particles.value.length < 15 && edges.value.length > 0) {
-    const randomEdge = edges.value[Math.floor(Math.random() * edges.value.length)]!;
-    particles.value.push({
-      sourceId: randomEdge.source,
-      targetId: randomEdge.target,
-      progress: 0,
-      speed: 0.015 + Math.random() * 0.015,
-      color: '#38bdf8',
-    });
-  }
-
-  for (let i = particles.value.length - 1; i >= 0; i--) {
-    const p = particles.value[i]!;
-    p.progress += p.speed;
-    if (p.progress >= 1) {
-      particles.value.splice(i, 1);
-    }
-  }
-}
-
-// ─── دوال المحاكاة البصرية المجسمة (3D Cybernetic Engine) ─────
-
-function getVisualPos(node: SimulationNode, time: number) {
-  if (dragging.value === node.id || node.fx !== undefined) {
-    return { x: node.x, y: node.y };
-  }
-  const seed = node.id * 7.31;
-  const floatX = Math.sin(time * 0.0012 + seed) * 3.5;
-  const floatY = Math.cos(time * 0.001 + seed * 1.3) * 3.5;
-  return { x: node.x + floatX, y: node.y + floatY };
-}
-
-/**
- * 1. قاعدة ثلاثية الأبعاد أيزومترية تحت كل عقدة
- */
-function draw3DIsometricBase(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  r: number,
-  color: string,
-  time: number,
-  isHovered: boolean,
-) {
-  ctx.save();
-  ctx.beginPath();
-  ctx.arc(x, y, r * 1.3, 0, Math.PI * 2);
-  ctx.fillStyle = isHovered ? color + '25' : color + '15';
-  ctx.fill();
-  ctx.lineWidth = 1.5;
-  ctx.strokeStyle = isHovered ? color + 'AA' : color + '55';
-  ctx.stroke();
-
-  const rot = time * 0.001;
-  ctx.beginPath();
-  ctx.arc(x, y, r * 1.6, rot, rot + Math.PI * 1.5);
-  ctx.strokeStyle = color + '88';
-  ctx.lineWidth = 2;
-  ctx.lineCap = 'round';
-  ctx.stroke();
-  ctx.restore();
-}
-
-/**
- * 2. كرة هولوجرام زجاجية مجسمة ثلاثية الأبعاد (3D Volumetric Sphere for Agents)
- */
-function draw3DVolumetricSphere(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  r: number,
-  color: string,
-  time: number,
-  isHovered: boolean,
-  isSelected: boolean,
-  _mouse: { x: number; y: number },
-) {
-  ctx.save();
-  ctx.beginPath();
-  ctx.arc(x, y, r * 0.85, 0, Math.PI * 2);
-  ctx.fillStyle = '#0f172a';
-  ctx.fill();
-  ctx.lineWidth = isSelected ? 3 : 2;
-  ctx.strokeStyle = isSelected ? '#ffffff' : color;
-  ctx.shadowColor = color;
-  ctx.shadowBlur = isHovered ? 15 : 8;
-  ctx.stroke();
-
-  ctx.beginPath();
-  ctx.arc(x, y, r * 0.4, 0, Math.PI * 2);
-  ctx.fillStyle = color;
-  ctx.shadowColor = color;
-  ctx.shadowBlur = 20;
-  ctx.fill();
-
-  ctx.beginPath();
-  ctx.arc(x - r * 0.2, y - r * 0.2, r * 0.25, 0, Math.PI * 2);
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
-  ctx.fill();
-  ctx.restore();
-}
-
-/**
- * 3. بلورة ماسية ثلاثية الأبعاد للمشغلات (3D Faceted Crystal for Triggers)
- */
-function draw3DFacetedCrystal(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  r: number,
-  color: string,
-  time: number,
-  isHovered: boolean,
-  isSelected: boolean,
-) {
-  ctx.save();
-  ctx.beginPath();
-  for (let i = 0; i < 6; i++) {
-    const angle = (Math.PI / 3) * i - Math.PI / 2;
-    const px = x + r * 0.9 * Math.cos(angle);
-    const py = y + r * 0.9 * Math.sin(angle);
-    if (i === 0) ctx.moveTo(px, py);
-    else ctx.lineTo(px, py);
-  }
-  ctx.closePath();
-  ctx.fillStyle = '#0f172a';
-  ctx.fill();
-
-  ctx.lineWidth = isSelected ? 3 : 2;
-  ctx.strokeStyle = isSelected ? '#ffffff' : color;
-  ctx.shadowColor = color;
-  ctx.shadowBlur = isHovered ? 15 : 8;
-  ctx.stroke();
-
-  ctx.beginPath();
-  ctx.moveTo(x - r * 0.4, y);
-  ctx.lineTo(x + r * 0.4, y);
-  ctx.moveTo(x, y - r * 0.4);
-  ctx.lineTo(x, y + r * 0.4);
-  ctx.strokeStyle = color;
-  ctx.lineWidth = 1.5;
-  ctx.stroke();
-  ctx.restore();
-}
-
-/**
- * 4. مكعب تكنولوجي ثلاثي الأبعاد للعمليات (3D Isometric Cube for Actions)
- */
-function draw3DIsometricCube(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  r: number,
-  color: string,
-  _time: number,
-  isHovered: boolean,
-  isSelected: boolean,
-) {
-  ctx.save();
-  ctx.beginPath();
-  ctx.roundRect(x - r * 0.8, y - r * 0.8, r * 1.6, r * 1.6, 8);
-  ctx.fillStyle = '#0f172a';
-  ctx.fill();
-
-  ctx.lineWidth = isSelected ? 3 : 2;
-  ctx.strokeStyle = isSelected ? '#ffffff' : color;
-  ctx.shadowColor = color;
-  ctx.shadowBlur = isHovered ? 15 : 8;
-  ctx.stroke();
-
-  ctx.beginPath();
-  ctx.roundRect(x - r * 0.3, y - r * 0.3, r * 0.6, r * 0.6, 2);
-  ctx.fillStyle = color;
-  ctx.shadowColor = color;
-  ctx.shadowBlur = 12;
-  ctx.fill();
-  ctx.restore();
-}
-
-// ─── رسم Canvas المحترف ──────────────────────────────
-
-function draw() {
-  const c = canvas.value;
-  if (!c) return;
-  const ctx = c.getContext('2d');
-  if (!ctx) return;
-
-  const w = c.clientWidth;
-  const h = c.clientHeight;
-  const time = performance.now();
-
-  ctx.clearRect(0, 0, w, h);
-
-  // 1. شبكة خلفية متحركة مع الـ Pan والـ Zoom
-  const gridSize = 42;
-  const zoomVal = zoom.value;
-  const offsetX = pan.x % (gridSize * zoomVal);
-  const offsetY = pan.y % (gridSize * zoomVal);
-
-  ctx.beginPath();
-  for (let x = offsetX; x < w; x += gridSize * zoomVal) {
-    ctx.moveTo(x, 0);
-    ctx.lineTo(x, h);
-  }
-  for (let y = offsetY; y < h; y += gridSize * zoomVal) {
-    ctx.moveTo(0, y);
-    ctx.lineTo(w, y);
-  }
-  ctx.strokeStyle = 'rgba(148, 163, 184, 0.06)';
-  ctx.lineWidth = 1;
-  ctx.stroke();
-
-  ctx.save();
-  ctx.translate(pan.x, pan.y);
-  ctx.scale(zoomVal, zoomVal);
-
-  const nodeMap = new Map(nodes.value.map((n) => [n.id, n]));
-
-  // 2. رسم المسارات الليزرية متدفقة الطاقة (Multi-Layer Neon Laser Energy Paths)
-  for (const edge of edges.value) {
-    const s = nodeMap.get(edge.source);
-    const t = nodeMap.get(edge.target);
-    if (!s || !t) continue;
-
-    const sPos = getVisualPos(s, time);
-    const tPos = getVisualPos(t, time);
-
-    const dx = tPos.x - sPos.x;
-    const dy = tPos.y - sPos.y;
-    const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-    const nx = -dy / dist;
-    const ny = dx / dist;
-
-    // انحناء انسيابي متزن
-    const curvature = Math.min(32, dist * 0.12) * (edge.id % 2 === 0 ? 1 : -1);
-    const cpX = (sPos.x + tPos.x) / 2 + nx * curvature;
-    const cpY = (sPos.y + tPos.y) / 2 + ny * curvature;
-
-    const sColor = s.settings?.color || GROUP_COLORS[s.group] || '#94a3b8';
-    const tColor = t.settings?.color || GROUP_COLORS[t.group] || '#94a3b8';
-
-    // مسار ليزري متدرج
-    const strokeGrad = ctx.createLinearGradient(sPos.x, sPos.y, tPos.x, tPos.y);
-    strokeGrad.addColorStop(0, sColor + 'E6');
-    strokeGrad.addColorStop(1, tColor + 'E6');
-
-    // أ) هالة الإشعاع الليزري الواسعة (Wide Laser Glow)
-    ctx.save();
-    ctx.beginPath();
-    ctx.moveTo(sPos.x, sPos.y);
-    ctx.quadraticCurveTo(cpX, cpY, tPos.x, tPos.y);
-    ctx.strokeStyle = strokeGrad;
-    ctx.lineWidth = isSimulating.value ? 8 : 5;
-    ctx.shadowColor = sColor;
-    ctx.shadowBlur = 20;
-    ctx.globalAlpha = 0.55;
-    ctx.stroke();
-    ctx.restore();
-
-    // ب) قلب الشعاع النيوني (Focused Neon Core Beam)
-    ctx.save();
-    ctx.beginPath();
-    ctx.moveTo(sPos.x, sPos.y);
-    ctx.quadraticCurveTo(cpX, cpY, tPos.x, tPos.y);
-    ctx.strokeStyle = strokeGrad;
-    ctx.lineWidth = isSimulating.value ? 4 : 2.5;
-    ctx.stroke();
-    ctx.restore();
-
-    // ج) تدفق نبضات الفوتون المستمرة (Continuous Photon Pulse Stream)
-    const pulseSpeed = isSimulating.value ? 0.12 : 0.04;
-    const dashOffset = -((time * pulseSpeed) % 24);
-    ctx.save();
-    ctx.beginPath();
-    ctx.moveTo(sPos.x, sPos.y);
-    ctx.quadraticCurveTo(cpX, cpY, tPos.x, tPos.y);
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.75)';
-    ctx.lineWidth = 2.0;
-    ctx.setLineDash([5, 18]);
-    ctx.lineDashOffset = dashOffset;
-    ctx.stroke();
-    ctx.setLineDash([]);
-    ctx.restore();
-
-    // د) سهم الطاقة الموجه
-    const midT = 0.5;
-    const midX =
-      (1 - midT) * (1 - midT) * sPos.x + 2 * (1 - midT) * midT * cpX + midT * midT * tPos.x;
-    const midY =
-      (1 - midT) * (1 - midT) * sPos.y + 2 * (1 - midT) * midT * cpY + midT * midT * tPos.y;
-    const tangentX = 2 * (1 - midT) * (cpX - sPos.x) + 2 * midT * (tPos.x - cpX);
-    const tangentY = 2 * (1 - midT) * (cpY - sPos.y) + 2 * midT * (tPos.y - cpY);
-    const angle = Math.atan2(tangentY, tangentX);
-
-    const arrowLen = 9;
-    ctx.beginPath();
-    ctx.moveTo(midX, midY);
-    ctx.lineTo(midX - arrowLen * Math.cos(angle - 0.45), midY - arrowLen * Math.sin(angle - 0.45));
-    ctx.moveTo(midX, midY);
-    ctx.lineTo(midX - arrowLen * Math.cos(angle + 0.45), midY - arrowLen * Math.sin(angle + 0.45));
-    ctx.strokeStyle = 'rgba(203, 213, 225, 0.9)';
-    ctx.lineWidth = 2;
-    ctx.stroke();
-
-    // هـ) بطاقة تسمية المسار الزجاجية (Glass HUD Label)
-    if (edge.label) {
-      ctx.save();
-      ctx.font = 'bold 9.5px system-ui, sans-serif';
-      const textWidth = ctx.measureText(edge.label).width;
-      const pillW = textWidth + 12;
-      const pillH = 18;
-      const pillX = midX - pillW / 2;
-      const pillY = midY - 14 - pillH / 2;
-
-      ctx.fillStyle = 'rgba(15, 23, 42, 0.8)';
-      ctx.roundRect(pillX, pillY, pillW, pillH, 4);
-      ctx.fill();
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
-      ctx.lineWidth = 1;
-      ctx.stroke();
-
-      ctx.fillStyle = '#f1f5f9';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(edge.label, midX, pillY + pillH / 2);
-      ctx.restore();
-    }
-  }
-
-  // 3. رسم جسيمات المحاكاة فائقة التوهج (Hyper-Drive Particles)
-  if (isSimulating.value) {
-    for (const p of particles.value) {
-      const s = nodeMap.get(p.sourceId);
-      const t = nodeMap.get(p.targetId);
-      if (!s || !t) continue;
-
-      const sPos = getVisualPos(s, time);
-      const tPos = getVisualPos(t, time);
-
-      const dx = tPos.x - sPos.x;
-      const dy = tPos.y - sPos.y;
-      const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-      const nx = -dy / dist;
-      const ny = dx / dist;
-      const curvature = Math.min(32, dist * 0.12) * ((p.sourceId + p.targetId) % 2 === 0 ? 1 : -1);
-      const cpX = (sPos.x + tPos.x) / 2 + nx * curvature;
-      const cpY = (sPos.y + tPos.y) / 2 + ny * curvature;
-
-      const prog = p.progress;
-      const px =
-        (1 - prog) * (1 - prog) * sPos.x + 2 * (1 - prog) * prog * cpX + prog * prog * tPos.x;
-      const py =
-        (1 - prog) * (1 - prog) * sPos.y + 2 * (1 - prog) * prog * cpY + prog * prog * tPos.y;
-
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(px, py, 6.5, 0, Math.PI * 2);
-      ctx.fillStyle = '#ffffff';
-      ctx.shadowColor = p.color;
-      ctx.shadowBlur = 22;
-      ctx.fill();
-      ctx.restore();
-    }
-  }
-
-  // 4. رسم العقد المجسمة ثلاثية الأبعاد (3D Cyber Hologram Nodes)
-  for (const node of nodes.value) {
-    const vPos = getVisualPos(node, time);
-    const color = node.settings?.color || GROUP_COLORS[node.group] || '#94a3b8';
-    const r = node.type === 'agent' ? 26 : 21;
-    const isHovered = hoveredNode.value?.id === node.id;
-    const isSelected = selectedNode.value?.id === node.id;
-
-    // أ) القاعدة ثلاثية الأبعاد
-    draw3DIsometricBase(ctx, vPos.x, vPos.y, r, color, time, isHovered);
-
-    // ب) الجسم المجسم حسب نوع العقدة
-    if (node.type === 'agent') {
-      draw3DVolumetricSphere(
-        ctx,
-        vPos.x,
-        vPos.y,
-        r,
-        color,
-        time,
-        isHovered,
-        isSelected,
-        mouseWorld,
-      );
-    } else if (node.type === 'trigger') {
-      draw3DFacetedCrystal(ctx, vPos.x, vPos.y, r, color, time, isHovered, isSelected);
-    } else {
-      draw3DIsometricCube(ctx, vPos.x, vPos.y, r, color, time, isHovered, isSelected);
-    }
-
-    // ج) أيقونة العقدة في المركز
-    ctx.font = `${r * 0.62}px system-ui`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillStyle = '#ffffff';
-    const icons: Record<string, string> = {
-      monitor: '🖥',
-      warehouse: '📦',
-      flask: '🧪',
-      send: '📡',
-      brain: '🧠',
-      bell: '🔔',
-      edit: '✏️',
-      'file-text': '📄',
-      upload: '📤',
-      'minus-circle': '➖',
-      calculator: '🧮',
-      'refresh-cw': '🔄',
-    };
-    const icon = icons[node.settings?.icon] || '●';
-    ctx.fillText(icon, vPos.x, vPos.y);
-
-    // د) شارة التسمية الزجاجية أسفل العقدة
-    const labelText = node.label_ar || node.label;
-    ctx.save();
-    ctx.font = 'bold 10.5px system-ui, sans-serif';
-    const labelW = ctx.measureText(labelText).width + 14;
-    const labelH = 20;
-    const labelX = vPos.x - labelW / 2;
-    const labelY = vPos.y + r * 1.1 + 8;
-
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
-    ctx.roundRect(labelX, labelY, labelW, labelH, 5);
-    ctx.fill();
-    ctx.strokeStyle = isHovered ? color : 'rgba(255, 255, 255, 0.15)';
-    ctx.lineWidth = 1;
-    ctx.stroke();
-
-    ctx.fillStyle = '#f8fafc';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(labelText, vPos.x, labelY + labelH / 2);
-    ctx.restore();
-  }
-
-  ctx.restore();
-}
-
-// ─── تفاعل الماوس ────────────────────────────────────
-
-function screenToWorld(sx: number, sy: number) {
-  return {
-    x: (sx - pan.x) / zoom.value,
-    y: (sy - pan.y) / zoom.value,
-  };
-}
-
-function findNodeAt(sx: number, sy: number): SimulationNode | null {
-  const { x, y } = screenToWorld(sx, sy);
-  const time = performance.now();
-  for (let i = nodes.value.length - 1; i >= 0; i--) {
-    const n = nodes.value[i];
-    if (!n) continue;
-    const vPos = getVisualPos(n, time);
-    const r = n.type === 'agent' ? 26 : 21;
-    const dx = vPos.x - x;
-    const dy = vPos.y - y;
-    if (dx * dx + dy * dy < r * r * 1.5) return n;
-  }
-  return null;
-}
-
-function onMouseDown(e: MouseEvent) {
-  const rect = canvas.value?.getBoundingClientRect();
-  if (!rect) return;
-  const sx = e.clientX - rect.left;
-  const sy = e.clientY - rect.top;
-
-  const node = findNodeAt(sx, sy);
-  if (node) {
-    dragging.value = node.id;
-    node.fx = node.x;
-    node.fy = node.y;
-    alpha = 0.4;
-  } else {
-    isPanning = true;
-    lastMouse = { x: e.clientX, y: e.clientY };
-  }
-}
-
-function onMouseMove(e: MouseEvent) {
-  const rect = canvas.value?.getBoundingClientRect();
-  if (!rect) return;
-  const sx = e.clientX - rect.left;
-  const sy = e.clientY - rect.top;
-
-  const { x, y } = screenToWorld(sx, sy);
-  mouseWorld.x = x;
-  mouseWorld.y = y;
-
-  if (dragging.value !== null) {
-    const node = nodes.value.find((n) => n.id === dragging.value);
-    if (node) {
-      node.fx = x;
-      node.fy = y;
-      node.x = x;
-      node.y = y;
-    }
-  } else if (isPanning) {
-    pan.x += e.clientX - lastMouse.x;
-    pan.y += e.clientY - lastMouse.y;
-    lastMouse = { x: e.clientX, y: e.clientY };
-  } else {
-    const node = findNodeAt(sx, sy);
-    hoveredNode.value = node;
-    if (node) {
-      tooltipPos.x = sx + 15;
-      tooltipPos.y = sy - 10;
-      if (canvas.value) canvas.value.style.cursor = 'pointer';
-    } else {
-      if (canvas.value) canvas.value.style.cursor = 'default';
-    }
-  }
-}
-
-function onMouseUp(e: MouseEvent) {
-  if (dragging.value !== null) {
-    const node = nodes.value.find((n) => n.id === dragging.value);
-    if (node) {
-      delete node.fx;
-      delete node.fy;
-      automation
-        .updateNode(node.id, { position_x: node.x, position_y: node.y } as any)
-        .catch(() => {});
-    }
-    dragging.value = null;
-  } else if (!isPanning && e) {
-    const rect = canvas.value?.getBoundingClientRect();
-    if (rect) {
-      const sx = e.clientX - rect.left;
-      const sy = e.clientY - rect.top;
-      const node = findNodeAt(sx, sy);
-      if (node) {
-        selectNode(node);
-      }
-    }
-  }
-  isPanning = false;
-}
-
-function onWheel(e: WheelEvent) {
-  const factor = e.deltaY > 0 ? 0.92 : 1.08;
-  const newZoom = Math.max(0.25, Math.min(3.5, zoom.value * factor));
-  const rect = canvas.value?.getBoundingClientRect();
-  if (rect) {
-    const mx = e.clientX - rect.left;
-    const my = e.clientY - rect.top;
-    pan.x = mx - ((mx - pan.x) / zoom.value) * newZoom;
-    pan.y = my - ((my - pan.y) / zoom.value) * newZoom;
-  }
-  zoom.value = newZoom;
-}
-
-function onDoubleClick() {
-  resetView();
-}
-
-// ─── تفاعل اللمس على الكانفاس (Mobile Touch Interactions) ───
-
-let touchStartDistance = 0;
-let initialZoom = 1;
-let touchStartTime = 0;
-let lastTouchPos = { x: 0, y: 0 };
-let hasTouchMoved = false;
-
-function getTouchPos(touch: Touch) {
-  const rect = canvas.value?.getBoundingClientRect();
-  if (!rect) return { sx: 0, sy: 0 };
-  return {
-    sx: touch.clientX - rect.left,
-    sy: touch.clientY - rect.top,
-  };
-}
-
-function getTouchesDistance(t1: Touch, t2: Touch) {
-  const dx = t1.clientX - t2.clientX;
-  const dy = t1.clientY - t2.clientY;
-  return Math.hypot(dx, dy);
-}
-
-function onTouchStart(e: TouchEvent) {
-  if (e.touches.length === 1 && e.touches[0]) {
-    const touch = e.touches[0];
-    const { sx, sy } = getTouchPos(touch);
-    touchStartTime = performance.now();
-    hasTouchMoved = false;
-    lastTouchPos = { x: touch.clientX, y: touch.clientY };
-
-    const node = findNodeAt(sx, sy);
-    if (node) {
-      dragging.value = node.id;
-      node.fx = node.x;
-      node.fy = node.y;
-      alpha = 0.4;
-    } else {
-      isPanning = true;
-    }
-  } else if (e.touches.length === 2 && e.touches[0] && e.touches[1]) {
-    // بدء قرصة التكبير/التصغير (Pinch Zoom)
-    isPanning = false;
-    dragging.value = null;
-    touchStartDistance = getTouchesDistance(e.touches[0], e.touches[1]);
-    initialZoom = zoom.value;
-  }
-}
-
-function onTouchMove(e: TouchEvent) {
-  if (e.touches.length === 1 && e.touches[0]) {
-    const touch = e.touches[0];
-    const { sx, sy } = getTouchPos(touch);
-    const { x, y } = screenToWorld(sx, sy);
-    mouseWorld.x = x;
-    mouseWorld.y = y;
-
-    const dx = touch.clientX - lastTouchPos.x;
-    const dy = touch.clientY - lastTouchPos.y;
-    if (Math.hypot(dx, dy) > 3) {
-      hasTouchMoved = true;
-    }
-
-    if (dragging.value !== null) {
-      const node = nodes.value.find((n) => n.id === dragging.value);
-      if (node) {
-        node.fx = x;
-        node.fy = y;
-        node.x = x;
-        node.y = y;
-      }
-    } else if (isPanning) {
-      pan.x += dx;
-      pan.y += dy;
-    }
-    lastTouchPos = { x: touch.clientX, y: touch.clientY };
-  } else if (e.touches.length === 2 && e.touches[0] && e.touches[1]) {
-    // تحديث التكبير بالقرصة (Pinch to Zoom)
-    const currentDist = getTouchesDistance(e.touches[0], e.touches[1]);
-    if (touchStartDistance > 0) {
-      const scaleFactor = currentDist / touchStartDistance;
-      const targetZoom = Math.max(0.25, Math.min(3.5, initialZoom * scaleFactor));
-
-      const rect = canvas.value?.getBoundingClientRect();
-      if (rect) {
-        const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2 - rect.left;
-        const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2 - rect.top;
-        pan.x = midX - ((midX - pan.x) / zoom.value) * targetZoom;
-        pan.y = midY - ((midY - pan.y) / zoom.value) * targetZoom;
-      }
-      zoom.value = targetZoom;
-    }
-  }
-}
-
-function onTouchEnd(e: TouchEvent) {
-  const touchDuration = performance.now() - touchStartTime;
-
-  if (dragging.value !== null) {
-    const node = nodes.value.find((n) => n.id === dragging.value);
-    if (node) {
-      delete node.fx;
-      delete node.fy;
-      automation
-        .updateNode(node.id, { position_x: node.x, position_y: node.y } as any)
-        .catch(() => {});
-    }
-    dragging.value = null;
-  }
-
-  // إذا كانت نقرة لمس سريعة بدون سحب على عقدة، نفتح تفاصيل العقدة
-  if (
-    !hasTouchMoved &&
-    touchDuration < 350 &&
-    e.changedTouches.length === 1 &&
-    e.changedTouches[0]
-  ) {
-    const touch = e.changedTouches[0];
-    const { sx, sy } = getTouchPos(touch);
-    const node = findNodeAt(sx, sy);
-    if (node) {
-      selectNode(node);
-    }
-  }
-
-  isPanning = false;
-  touchStartDistance = 0;
-}
-
-// ─── التحكم في العرض والتخطيط ────────────────────────
-
-function zoomIn() {
-  zoom.value = Math.min(3.5, zoom.value * 1.2);
-}
-
-function zoomOut() {
-  zoom.value = Math.max(0.25, zoom.value * 0.8);
-}
-
-function resetView() {
-  pan.x = 0;
-  pan.y = 0;
-  zoom.value = 1;
-  alpha = 0.5;
-}
-
-function applyTreeLayout() {
-  const triggers = nodes.value.filter((n) => n.type === 'trigger');
-  const actions = nodes.value.filter((n) => n.type === 'action');
-  const agents = nodes.value.filter((n) => n.type === 'agent');
-
-  triggers.forEach((n, idx) => {
-    n.x = -400;
-    n.y = (idx - triggers.length / 2) * 160 + 80;
-  });
-  actions.forEach((n, idx) => {
-    n.x = 0;
-    n.y = (idx - actions.length / 2) * 160 + 80;
-  });
-  agents.forEach((n, idx) => {
-    n.x = 350;
-    n.y = (idx - agents.length / 2) * 140 + 70;
-  });
-
-  alpha = 0.3;
-}
-
-function applyCircularLayout() {
-  const count = nodes.value.length;
-  const radius = 280;
-  nodes.value.forEach((n, idx) => {
-    const theta = (idx / count) * Math.PI * 2;
-    n.x = Math.cos(theta) * radius;
-    n.y = Math.sin(theta) * radius;
-  });
-  alpha = 0.3;
-}
-
-function applyForceLayout() {
-  alpha = 1;
-}
-
-function toggleSimulation() {
-  isSimulating.value = !isSimulating.value;
-  if (isSimulating.value) {
-    alpha = 0.4;
-  }
-}
-
-// ─── الإعدادات والفيزياء ──────────────────────────────
-
-let physicsTimer: number | null = null;
-function onPhysicsChange() {
-  alpha = 0.4;
-  if (physicsTimer) clearTimeout(physicsTimer);
-  physicsTimer = window.setTimeout(() => {
-    automation.updatePhysics({ ...physics }).catch(() => {});
-  }, 600);
-}
-
-function onGravityChange() {
-  physics.centerForceY = physics.centerForceX;
-  onPhysicsChange();
-}
-
-// ─── تليجرام وإرسال الرسائل ──────────────────────────
-
-async function toggleTelegram() {
-  togglingTelegram.value = true;
-  try {
-    const newState = !telegramActive.value;
-    await automation.toggleTelegramBot(newState);
-    telegramActive.value = newState;
-  } catch (err) {
-    console.error('فشل تبديل حالة البوت:', err);
+  } catch (err: any) {
+    task.is_enabled = previousState;
+    alert(
+      err?.response?.data?.message || err?.message || 'فشل الاتصال بالخادم لتحديث حالة الوكيل.',
+    );
   } finally {
-    togglingTelegram.value = false;
+    togglingKey.value = null;
   }
 }
 
-async function sendTestTelegram() {
+async function handleRunTaskNow(task: AutomationTask) {
+  runningTaskKey.value = task.key;
+  try {
+    const res = await automation.runTaskNow(task.key);
+    task.last_run_at = new Date().toISOString();
+    task.last_status = (res as any)?.payload?.status || 'success';
+
+    // فتح نافذة استعراض التقرير المنسق فوراً للمدير
+    activeReportModal.value = {
+      title: task.name_ar,
+      text:
+        (res as any)?.payload?.notificationText || (res as any)?.message || 'اكتملت العملية بنجاح.',
+      status: (res as any)?.payload?.status || 'success',
+      time: new Date().toISOString(),
+    };
+
+    await refreshExecutionLogs();
+  } catch (err: any) {
+    task.last_status = 'failed';
+    activeReportModal.value = {
+      title: `خطأ في تشغيل: ${task.name_ar}`,
+      text: err?.response?.data?.message || err?.message || 'فشل تشغيل الوكيل.',
+      status: 'failed',
+      time: new Date().toISOString(),
+    };
+  } finally {
+    runningTaskKey.value = null;
+  }
+}
+
+// ─── تليجرام والمساعد الذكي ───
+function openTelegramModal() {
+  activeHubTab.value = 'telegram';
+}
+
+async function refreshTelegramStatus() {
+  try {
+    const statusRes = await automation.getTelegramBotStatus();
+    if (statusRes && (statusRes as any).data) {
+      Object.assign(telegramStatus, (statusRes as any).data);
+      telegramActive.value = Boolean(telegramStatus.isPolling);
+      telegramConfigured.hasToken = Boolean(telegramStatus.hasToken);
+      telegramConfigured.hasDefaultChatId = Boolean(telegramStatus.hasDefaultChatId);
+      if (telegramStatus.defaultChatId && !telegramForm.chat_id) {
+        telegramForm.chat_id = telegramStatus.defaultChatId;
+      }
+      if (
+        telegramStatus.allowedChats &&
+        telegramStatus.allowedChats.length &&
+        !telegramForm.allowed_chats
+      ) {
+        telegramForm.allowed_chats = telegramStatus.allowedChats.join(', ');
+      }
+    }
+  } catch {
+    // Ignore
+  }
+}
+
+async function handleVerifyToken() {
+  if (!telegramForm.bot_token.trim()) return;
+  verifyingTelegramToken.value = true;
+  tokenVerificationResult.value = null;
+  try {
+    const res = await automation.verifyTelegramToken(telegramForm.bot_token.trim());
+    tokenVerificationResult.value = {
+      ok: true,
+      bot: (res as any).data,
+    };
+  } catch (err: any) {
+    tokenVerificationResult.value = {
+      ok: false,
+      error:
+        err?.response?.data?.message ||
+        err?.message ||
+        'رمز البوت غير صالح أو لم يتم قبوله من تليجرام',
+    };
+  } finally {
+    verifyingTelegramToken.value = false;
+  }
+}
+
+async function handleSaveTelegramSettings() {
+  if (!telegramForm.bot_token.trim() || !telegramForm.chat_id.trim()) {
+    telegramSaveFeedback.value = {
+      type: 'error',
+      text: 'يرجى إدخال كل من رمز البوت ومعرف الشات.',
+    };
+    return;
+  }
+  savingTelegramSettings.value = true;
+  telegramSaveFeedback.value = null;
+  try {
+    const res = await automation.saveTelegramSettings({
+      bot_token: telegramForm.bot_token.trim(),
+      chat_id: telegramForm.chat_id.trim(),
+      allowed_chats: telegramForm.allowed_chats.trim(),
+    });
+    telegramSaveFeedback.value = {
+      type: 'success',
+      text: (res as any)?.message || 'تم حفظ وتفعيل بوت تليجرام بنجاح! ✅',
+    };
+    await refreshTelegramStatus();
+  } catch (err: any) {
+    telegramSaveFeedback.value = {
+      type: 'error',
+      text: err?.response?.data?.message || err?.message || 'فشل حفظ وتفعيل إعدادات تليجرام.',
+    };
+  } finally {
+    savingTelegramSettings.value = false;
+  }
+}
+
+async function handleSendTelegramTest() {
+  if (!customTelegramMsg.value.trim()) return;
   sendingTelegramTest.value = true;
   telegramSendFeedback.value = null;
   try {
-    const res = await automation.sendTestMessage(customTelegramMsg.value.trim() || undefined);
+    const res = await automation.sendTestMessage(customTelegramMsg.value.trim());
     telegramSendFeedback.value = {
       type: 'success',
-      text: (res as any)?.message || 'تم إرسال الرسالة إلى تليجرام بنجاح! ✅',
+      text: (res as any)?.message || 'تم إرسال الرسالة لتليجرام بنجاح! ✅',
     };
     customTelegramMsg.value = '';
-    await refreshLogs();
+    await refreshTelegramLogs();
+    await refreshTelegramStatus();
   } catch (err: any) {
     telegramSendFeedback.value = {
       type: 'error',
-      text: err.message || 'تعذر إرسال الرسالة، تأكد من الاتصال بالإنترنت وصحة التوكن.',
+      text: err?.response?.data?.message || err?.message || 'فشل إرسال الرسالة إلى تليجرام.',
     };
   } finally {
     sendingTelegramTest.value = false;
   }
 }
 
-// ─── اختبار الذكاء الاصطناعي ─────────────────────────
-
-async function runAiTest() {
-  if (!aiTestPrompt.value.trim() || testingAi.value) return;
+async function handleTestAi() {
+  if (!aiTestPrompt.value.trim()) return;
   testingAi.value = true;
   aiTestReply.value = '';
   try {
     const res = await automation.testAiPrompt(aiTestPrompt.value.trim());
-    aiTestReply.value = (res as any)?.data?.reply || 'تم استلام رد فارغ من النموذج.';
+    aiTestReply.value = (res as any)?.data?.reply || 'تم استلام رد المساعد الذكي بنجاح.';
   } catch (err: any) {
-    aiTestReply.value = `خطأ أثناء الاستعلام: ${err.message || 'يرجى التحقق من اتصال Gemini API'}`;
+    aiTestReply.value = err?.response?.data?.message || 'تعذر الحصول على رد من المساعد الذكي.';
   } finally {
     testingAi.value = false;
   }
 }
 
-// ─── إدارة العقد والروابط ────────────────────────────
-
-function selectNode(node: SimulationNode) {
-  selectedNode.value = JSON.parse(JSON.stringify(node));
+// ─── استعراض السجلات والتقارير ───
+function openReportModalFromLog(log: AutomationExecutionLog) {
+  activeReportModal.value = {
+    title: log.title || log.name_ar || 'تقرير فحص الأتمتة',
+    text: log.message,
+    status: (log.status as any) || 'success',
+    time: log.created_at,
+  };
 }
 
-async function saveSelectedNode() {
-  if (!selectedNode.value) return;
-  const id = selectedNode.value.id;
-  const idx = nodes.value.findIndex((n) => n.id === id);
-  if (idx !== -1) {
-    nodes.value[idx] = { ...nodes.value[idx], ...selectedNode.value };
-    await automation
-      .updateNode(id, {
-        label: selectedNode.value.label,
-        label_ar: selectedNode.value.label_ar || undefined,
-        group_name: selectedNode.value.group,
-        settings: selectedNode.value.settings,
-      })
-      .catch(() => {});
-  }
-  selectedNode.value = null;
-}
-
-async function deleteNode(id: number) {
-  if (confirm('هل أنت متأكد من حذف هذه العقدة وكافة روابطها؟')) {
-    nodes.value = nodes.value.filter((n) => n.id !== id);
-    edges.value = edges.value.filter((e) => e.source !== id && e.target !== id);
-    if (selectedNode.value?.id === id) selectedNode.value = null;
-    await automation.deleteNode(id).catch(() => {});
-  }
-}
-
-function openAddNodeModal() {
-  newNode.type = 'agent';
-  newNode.label = '';
-  newNode.label_ar = '';
-  newNode.group_name = 'operations';
-  showAddNodeModal.value = true;
-}
-
-async function submitAddNode() {
+async function copyReportText(text: string) {
   try {
-    const res = await automation.createNode({
-      type: newNode.type as any,
-      label: newNode.label,
-      label_ar: newNode.label_ar,
-      group_name: newNode.group_name,
-      position_x: (Math.random() - 0.5) * 200,
-      position_y: (Math.random() - 0.5) * 200,
-    });
-    if ((res as any)?.data) {
-      nodes.value.push({ ...(res as any).data, vx: 0, vy: 0 });
-    }
-    showAddNodeModal.value = false;
-    alpha = 0.5;
-  } catch (err) {
-    console.error('فشل إضافة العقدة:', err);
+    const stripped = text.replace(/<[^>]*>/g, '');
+    await navigator.clipboard.writeText(stripped);
+    alert('تم نسخ نص التقرير إلى الحافظة بنجاح!');
+  } catch {
+    // fallback
   }
 }
 
-function openAddEdgeModal() {
-  if (nodes.value.length < 2) return;
-  newEdge.source_node_id = nodes.value[0]?.id || 0;
-  newEdge.target_node_id = nodes.value[1]?.id || 0;
-  newEdge.label = '';
-  showAddEdgeModal.value = true;
+function switchTab(tab: 'agents' | 'workflow' | 'logs' | 'telegram' | 'copilot') {
+  activeHubTab.value = tab;
+  // إدارة تفعيل محرك الخريطة (حلقة الرسم والـ polling) تتم عبر خاصية active في WorkflowCanvas
 }
 
-async function submitAddEdge() {
+// ─── دوال التنسيق والمساعدة ───
+function humanizeSchedule(cron: string | null, triggerType: string): string {
+  if (triggerType === 'event' || !cron) {
+    return '⚡ فوري عند الحدث';
+  }
+  const clean = cron.trim();
+  const map: Record<string, string> = {
+    '30 23 * * *': '⏰ يومياً 11:30 م (إغلاق الوردية)',
+    '0 10,18 * * *': '⏰ يومياً 10:00 ص و 06:00 م',
+    '0 9 * * *': '⏰ يومياً 09:00 صباحاً',
+    '0 11 * * *': '⏰ يومياً 11:00 صباحاً',
+    '0 22 * * *': '⏰ يومياً 10:00 مساءً',
+    '0 3 * * *': '⏰ يومياً 03:00 فجراً (فحص دوري)',
+    '0 10 * * 1': '⏰ أسبوعياً كل إثنين 10:00 ص',
+    '0 12 * * 0': '⏰ أسبوعياً كل أحد 12:00 ظهراً',
+    '0 8 * * *': '⏰ يومياً 08:00 صباحاً',
+  };
+  return map[clean] || `⏱ جدول دوري (${clean})`;
+}
+
+function formatTime(isoStr: string | null): string {
+  if (!isoStr) return '—';
   try {
-    const res = await automation.createEdge({
-      source_node_id: newEdge.source_node_id,
-      target_node_id: newEdge.target_node_id,
-      label: newEdge.label || undefined,
+    const d = new Date(isoStr);
+    return d.toLocaleString('ar-EG', {
+      timeZone: 'Africa/Cairo',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
     });
-    if ((res as any)?.data) {
-      edges.value.push({
-        id: (res as any).data.id,
-        source: newEdge.source_node_id,
-        target: newEdge.target_node_id,
-        condition: null,
-        label: newEdge.label || null,
-      });
-    }
-    showAddEdgeModal.value = false;
-    alpha = 0.4;
-  } catch (err) {
-    console.error('فشل إنشاء الرابط:', err);
+  } catch {
+    return isoStr;
   }
 }
 
-async function resetToDefaultGraph() {
-  if (confirm('هل ترغب في إعادة ضبط كافة العقد والروابط إلى الهيكل القياسي المعتمد للنظام؟')) {
-    loading.value = true;
-    try {
-      const res = await automation.resetGraphDefaults();
-      if ((res as any)?.data) {
-        nodes.value = (res as any).data.nodes.map((n: GraphNode) => ({ ...n, vx: 0, vy: 0 }));
-        edges.value = (res as any).data.edges || [];
-      } else {
-        nodes.value = JSON.parse(JSON.stringify(DEFAULT_SEED_NODES));
-        edges.value = JSON.parse(JSON.stringify(DEFAULT_SEED_EDGES));
-      }
-      resetView();
-    } catch {
-      nodes.value = JSON.parse(JSON.stringify(DEFAULT_SEED_NODES));
-      edges.value = JSON.parse(JSON.stringify(DEFAULT_SEED_EDGES));
-      resetView();
-    } finally {
-      loading.value = false;
-    }
+function getStatusLabel(status: string | null): string {
+  switch (status) {
+    case 'success':
+      return 'ناجح ✅';
+    case 'warning':
+      return 'تنبيه ⚠️';
+    case 'failed':
+      return 'فشل ❌';
+    case 'running':
+      return 'قيد التشغيل...';
+    default:
+      return 'جاهز';
   }
 }
 
-// ─── أدوات مساعدة ────────────────────────────────────
+// قائمة بيضاء صارمة لوسوم التنسيق الآمنة فقط — يُستخدم الناتج بـ v-html في ثلاثة مواضع
+const SAFE_HTML_TAGS = new Set(['b', 'strong', 'i', 'em', 'code', 'br']);
 
-function truncate(str: string, max: number) {
-  if (!str) return '';
-  return str.length > max ? str.slice(0, max) + '...' : str;
-}
+/**
+ * تعقيم كامل ضد XSS (البند 3): هروب HTML للنص أولًا (فيُعطَّل أي وسم أو خاصية واردة
+ * مثل <img onerror> أو <script>)، ثم استعادة الوسوم المسموحة فقط من القائمة البيضاء —
+ * بلا أي سمات، فلا مجال لحقن onerror/href/javascript:.
+ */
+function formatHtmlMessage(raw: string): string {
+  if (!raw) return '';
+  // 1) هروب كامل لكل محارف HTML
+  let out = raw
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 
-function formatTime(ts: string) {
-  if (!ts) return '';
-  return new Date(ts).toLocaleTimeString('ar-EG', {
-    timeZone: 'Africa/Cairo',
-    hour: '2-digit',
-    minute: '2-digit',
+  // 2) فواصل الأسطر
+  out = out.replace(/\n/g, '<br/>');
+
+  // 3) استعادة الوسوم الآمنة فقط (بلا سمات إطلاقًا) من النص المهروب
+  out = out.replace(/&lt;(\/?)([a-zA-Z]+)\s*&gt;/g, (match, slash: string, tag: string) => {
+    const name = tag.toLowerCase();
+    if (!SAFE_HTML_TAGS.has(name)) return match;
+    if (name === 'br') return '<br/>';
+    if (name === 'code') {
+      return slash ? '</code>' : '<code class="inline-code">';
+    }
+    return `<${slash}${name}>`;
   });
+
+  return out;
 }
 </script>
 
-<style lang="scss" scoped>
-.automation-container {
+<style scoped>
+.automation-command-center {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - var(--navbar-height) - 36px);
-  gap: 12px;
-  direction: rtl;
-  position: relative;
+  gap: 1.25rem;
+  width: 100%;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 0.5rem 0.25rem 2rem;
+  font-family: inherit;
+  color: var(--text-primary, #0f172a);
 }
 
-/* ─── Header & Actions ─── */
-.glass-header {
-  background: var(--header-bg);
-  border: 1px solid var(--card-border);
+/* ── 1. الهيدر ── */
+.hub-header {
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 12px;
-  padding: 12px 18px;
-  border-radius: var(--radius-lg);
-
-  .header-title {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-
-    .header-icon {
-      font-size: 1.6rem;
-      flex-shrink: 0;
-    }
-
-    .title-text-wrap {
-      h2 {
-        font-size: 1.05rem;
-        font-weight: 900;
-        color: var(--text-strong);
-        margin: 0;
-        line-height: 1.25;
-      }
-
-      p {
-        font-size: 0.78rem;
-        color: var(--text-muted);
-        margin: 2px 0 0;
-        line-height: 1.35;
-      }
-    }
-  }
+  gap: 1.5rem;
+  padding: 1.25rem 1.5rem;
+  background: var(--bg-card, #ffffff);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
 }
 
-.header-actions {
+.header-main {
   display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
   align-items: center;
-
-  .btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    font-weight: 700;
-    white-space: nowrap;
-    border-radius: var(--radius-sm);
-  }
+  gap: 1rem;
 }
 
-/* ─── Live command dashboard ─── */
-.automation-command-dashboard {
-  display: grid;
-  grid-template-columns: minmax(230px, 1.25fr) repeat(3, minmax(130px, 0.7fr)) minmax(220px, 1.4fr);
-  gap: 10px;
-  direction: rtl;
-}
-
-.command-status-card,
-.command-metric-card,
-.command-timeline-card {
-  min-height: 82px;
-  padding: 12px 14px;
-  border: 1px solid var(--card-border);
-  border-radius: var(--radius-lg);
-  background: var(--header-bg);
-  box-shadow: var(--shadow-sm);
-}
-
-.command-status-card {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  align-items: center;
-  gap: 10px;
-  border-color: color-mix(in srgb, var(--primary) 36%, var(--card-border));
-
-  .status-pulse {
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    background: var(--text-muted);
-    box-shadow: 0 0 0 0 color-mix(in srgb, var(--text-muted) 35%, transparent);
-  }
-
-  &.is-healthy .status-pulse {
-    background: var(--success, #16a34a);
-    box-shadow: 0 0 0 6px color-mix(in srgb, var(--success, #16a34a) 14%, transparent);
-    animation: automation-pulse 2.2s ease-in-out infinite;
-  }
-
-  &.is-warning .status-pulse {
-    background: var(--danger, #dc2626);
-    box-shadow: 0 0 0 6px color-mix(in srgb, var(--danger, #dc2626) 14%, transparent);
-  }
-
-  small,
-  strong {
-    display: block;
-  }
-
-  small {
-    color: var(--text-muted);
-    font-size: 0.72rem;
-  }
-  strong {
-    color: var(--text-strong);
-    font-size: 0.92rem;
-    margin-top: 4px;
-  }
-  .status-caption {
-    color: var(--text-muted);
-    font-size: 0.7rem;
-    white-space: nowrap;
-  }
-}
-
-.command-metric-card {
-  small {
-    display: block;
-    color: var(--text-muted);
-    font-size: 0.72rem;
-  }
-  strong {
-    display: block;
-    color: var(--text-strong);
-    font-size: 1.35rem;
-    line-height: 1.1;
-    margin: 7px 0 3px;
-  }
-  span {
-    color: var(--text-muted);
-    font-size: 0.68rem;
-  }
-
-  &.danger strong {
-    color: var(--danger, #dc2626);
-  }
-  &.accent strong {
-    color: var(--accent, #b45309);
-  }
-}
-
-.command-timeline-card {
+.header-icon-badge {
   display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-
-  .timeline-heading {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-  }
-  .timeline-heading strong {
-    color: var(--text-strong);
-    font-size: 0.78rem;
-  }
-  .timeline-heading span {
-    color: var(--text-muted);
-    font-size: 0.68rem;
-  }
-  .timeline-track {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    min-height: 16px;
-  }
-  .timeline-dot {
-    width: 9px;
-    height: 9px;
-    border-radius: 50%;
-    background: var(--text-muted);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--text-muted) 12%, transparent);
-  }
-  .timeline-dot.status-success {
-    background: var(--success, #16a34a);
-  }
-  .timeline-dot.status-failed {
-    background: var(--danger, #dc2626);
-  }
-  .timeline-dot.status-warning {
-    background: var(--warning, #d97706);
-  }
-  .timeline-dot.status-running {
-    background: var(--primary);
-    animation: automation-pulse 1.3s ease-in-out infinite;
-  }
-  .timeline-empty {
-    color: var(--text-muted);
-    font-size: 0.7rem;
-  }
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.25);
 }
 
-@keyframes automation-pulse {
-  0%,
-  100% {
-    transform: scale(1);
-    opacity: 0.9;
+.title-with-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.title-with-badge h2 {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.engine-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.engine-status-pill.is-healthy {
+  background: #ecfdf5;
+  color: #059669;
+  border: 1px solid #a7f3d0;
+}
+
+.engine-status-pill.is-warning {
+  background: #fffbeb;
+  color: #d97706;
+  border: 1px solid #fde68a;
+}
+
+.engine-status-pill.is-idle {
+  background: #f1f5f9;
+  color: #64748b;
+  border: 1px solid #cbd5e1;
+}
+
+.status-pulse {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: pulse-ring 2s infinite ease-in-out;
+}
+
+@keyframes pulse-ring {
+  0% {
+    transform: scale(0.9);
+    opacity: 0.8;
   }
   50% {
-    transform: scale(1.18);
-    opacity: 0.55;
+    transform: scale(1.3);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.9);
+    opacity: 0.8;
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .automation-command-dashboard * {
-    animation: none !important;
-    transition: none !important;
-  }
-}
-
-/* ─── Mobile View Switcher (Segmented Tab Bar) ─── */
-.mobile-view-switcher {
-  display: none;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  padding: 4px;
-  gap: 6px;
-  margin-bottom: 2px;
-
-  .switcher-btn {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    padding: 10px 12px;
-    border: none;
-    background: transparent;
-    border-radius: var(--radius-sm);
-    font-size: 0.84rem;
-    font-weight: 800;
-    color: var(--text-muted);
-    cursor: pointer;
-    transition: all var(--transition);
-    min-height: 44px;
-
-    .switcher-icon {
-      font-size: 1rem;
-    }
-
-    &.active {
-      background: var(--bg-card);
-      color: var(--primary-strong);
-      box-shadow: var(--shadow-sm);
-      border: 1px solid var(--card-border);
-    }
-  }
-}
-
-/* ─── Main Graph Layout ─── */
-.graph-layout {
-  flex: 1;
-  display: flex;
-  gap: 14px;
-  min-height: 0;
-  width: 100%;
-  position: relative;
-}
-
-.graph-panel {
-  flex: 1;
-  min-width: 0;
-  position: relative;
-  overflow: hidden;
-  border: 1px solid var(--card-border);
-  background: var(--bg-card);
-  border-radius: var(--radius-lg);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  display: flex;
-  flex-direction: column;
-
-  canvas {
-    width: 100%;
-    height: 100%;
-    display: block;
-    touch-action: none;
-  }
-}
-
-/* ─── Canvas Floating Controls ─── */
-.canvas-controls {
-  position: absolute;
-  top: 12px;
-  left: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  z-index: 10;
-
-  button {
-    width: 36px;
-    height: 36px;
-    min-width: 36px;
-    min-height: 36px;
-    border-radius: var(--radius-md);
-    background: var(--bg-elevated, #fff);
-    border: 1px solid var(--border);
-    color: var(--text-strong);
-    font-weight: 800;
-    font-size: 0.95rem;
-    cursor: pointer;
-    box-shadow: var(--shadow-sm);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all var(--transition);
-    user-select: none;
-
-    &:hover {
-      background: var(--primary-soft);
-      color: var(--primary-strong);
-      transform: scale(1.05);
-    }
-
-    &:active {
-      transform: scale(0.95);
-    }
-
-    &.active {
-      background: var(--primary);
-      color: #ffffff;
-      border-color: var(--primary-strong);
-      box-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
-    }
-  }
-}
-
-/* ─── Graph Legend ─── */
-.graph-legend {
-  position: absolute;
-  bottom: 12px;
-  right: 12px;
-  background: var(--bg-elevated, rgba(255, 255, 255, 0.95));
-  backdrop-filter: blur(10px);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: 8px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  font-size: 0.76rem;
-  font-weight: 700;
-  z-index: 10;
-  box-shadow: var(--shadow-md);
-  max-width: 260px;
-
-  .legend-items-list {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px 12px;
-  }
-
-  .legend-item {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-
-  .legend-dot {
-    width: 9px;
-    height: 9px;
-    border-radius: 50%;
-    flex-shrink: 0;
-  }
-}
-
-.legend-header-mobile {
-  display: none;
-  justify-content: space-between;
-  align-items: center;
-  padding-bottom: 6px;
-  margin-bottom: 6px;
-  border-bottom: 1px solid var(--border);
-  font-weight: 900;
-  font-size: 0.82rem;
-  color: var(--text-strong);
-
-  .legend-close-btn {
-    background: none;
-    border: none;
-    font-size: 1rem;
-    cursor: pointer;
-    color: var(--text-muted);
-    padding: 2px 6px;
-  }
-}
-
-/* ─── Node Quick Tooltip ─── */
-.node-tooltip {
-  position: absolute;
-  background: var(--bg-elevated, #1e293b);
-  color: var(--text-strong, #fff);
-  padding: 9px 12px;
-  border-radius: var(--radius-md);
-  font-size: 0.82rem;
-  pointer-events: none;
-  z-index: 100;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
-  max-width: 260px;
-
-  .tooltip-type {
-    font-size: 0.72rem;
-    opacity: 0.75;
-    margin-top: 2px;
-  }
-
-  .tooltip-rule {
-    margin-top: 6px;
-    padding-top: 6px;
-    border-top: 1px solid rgba(255, 255, 255, 0.15);
-    font-size: 0.75rem;
-    color: var(--warning);
-  }
-
-  .tooltip-hint {
-    display: block;
-    margin-top: 4px;
-    font-size: 0.68rem;
-    color: var(--accent);
-  }
-}
-
-.graph-loading {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  background: rgba(255, 255, 255, 0.85);
-  z-index: 20;
-
-  .spinner {
-    width: 26px;
-    height: 26px;
-    border: 3px solid var(--border);
-    border-top-color: var(--primary);
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-  }
-}
-
-/* ─── Settings Side Panel ─── */
-.settings-panel {
-  width: 360px;
-  flex-shrink: 0;
-  overflow-y: auto;
-  padding: 14px;
-  border: 1px solid var(--card-border);
-  background: var(--bg-card);
-  border-radius: var(--radius-lg);
-  display: flex;
-  flex-direction: column;
-}
-
-.panel-tabs {
-  display: flex;
-  gap: 4px;
-  background: var(--surface-2);
-  padding: 4px;
-  border-radius: var(--radius-md);
-  margin-bottom: 14px;
-
-  button {
-    flex: 1;
-    border: none;
-    background: transparent;
-    padding: 8px 4px;
-    font-size: 0.78rem;
-    font-weight: 800;
-    color: var(--text-muted);
-    border-radius: var(--radius-xs);
-    cursor: pointer;
-    transition: all var(--transition);
-    white-space: nowrap;
-
-    &.active {
-      background: var(--bg-card);
-      color: var(--primary-strong);
-      box-shadow: var(--shadow-xs);
-    }
-  }
-}
-
-.tab-content {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-
-  h3 {
-    font-size: 0.95rem;
-    font-weight: 900;
-    color: var(--text-strong);
-    margin: 0;
-  }
-
-  .tab-desc {
-    font-size: 0.78rem;
-    color: var(--text-muted);
-    margin: 0;
-    line-height: 1.45;
-  }
-}
-
-/* Tasks Tab Styles */
-.tasks-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2px;
-}
-
-.tasks-cards-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.task-card {
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  padding: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  transition: all var(--transition);
-
-  &.disabled {
-    opacity: 0.65;
-    background: var(--surface-1, #f8fafc);
-  }
-
-  &.security {
-    border-right: 4px solid var(--danger);
-  }
-  &.sales {
-    border-right: 4px solid var(--success);
-  }
-  &.inventory {
-    border-right: 4px solid var(--info);
-  }
-  &.system {
-    border-right: 4px solid var(--accent);
-  }
-
-  .task-card-top {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 8px;
-  }
-
-  .task-title-group {
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-
-    strong {
-      font-size: 0.88rem;
-      color: var(--text-strong);
-      line-height: 1.3;
-    }
-  }
-
-  .task-category-badge {
-    font-size: 0.68rem;
-    font-weight: 800;
-    color: var(--text-muted);
-  }
-
-  .task-desc-text {
-    font-size: 0.78rem;
-    color: var(--text-muted);
-    line-height: 1.45;
-    margin: 0;
-  }
-
-  .task-support-note {
-    margin: 0;
-    color: var(--warning-strong, #b45309);
-    font-size: 0.74rem;
-    font-weight: 700;
-  }
-
-  .task-card-footer {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 8px;
-    margin-top: 4px;
-    padding-top: 8px;
-    border-top: 1px solid var(--border);
-    flex-wrap: wrap;
-  }
-
-  .task-meta {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    font-size: 0.72rem;
-    color: var(--text-muted);
-
-    .last-run {
-      color: var(--primary);
-      font-weight: 700;
-    }
-  }
-
-  .run-now-btn {
-    font-weight: 800;
-    white-space: nowrap;
-    min-height: 32px;
-  }
-
-  .task-feedback-toast {
-    margin-top: 4px;
-    padding: 4px 8px;
-    background: rgba(16, 185, 129, 0.15);
-    border: 1px solid rgba(16, 185, 129, 0.4);
-    color: #059669;
-    border-radius: var(--radius-xs);
-    font-size: 0.75rem;
-    font-weight: 700;
-  }
-}
-
-.toggle-btn-mini {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 4px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 44px;
-  min-height: 32px;
-
-  .toggle-track-mini {
-    display: block;
-    width: 36px;
-    height: 20px;
-    border-radius: 10px;
-    background: var(--border);
-    position: relative;
-    transition: background 0.3s;
-
-    .toggle-thumb-mini {
-      position: absolute;
-      top: 2px;
-      right: 2px;
-      width: 16px;
-      height: 16px;
-      border-radius: 50%;
-      background: #fff;
-      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-      transition: transform 0.3s;
-    }
-  }
-
-  &.active .toggle-track-mini {
-    background: var(--success, #10b981);
-    .toggle-thumb-mini {
-      transform: translateX(-16px);
-    }
-  }
-}
-
-.toggle-btn-mini:disabled {
-  cursor: not-allowed;
-  opacity: 0.4;
-}
-
-.tasks-empty-state {
-  margin: 0;
-  padding: 14px;
-  color: var(--text-muted);
-  text-align: center;
-}
-
-.setting-group {
-  label {
-    display: block;
-    font-size: 0.82rem;
-    font-weight: 700;
-    color: var(--text-muted);
-    margin-bottom: 6px;
-  }
-
-  input[type='range'] {
-    width: 100%;
-    accent-color: var(--primary);
-    min-height: 28px;
-  }
-
-  .setting-value {
-    display: block;
-    font-size: 0.82rem;
-    font-weight: 800;
-    color: var(--primary-strong);
-    margin-top: 2px;
-    text-align: center;
-  }
-}
-
-.layout-presets {
-  margin-top: 10px;
-
-  h4 {
-    font-size: 0.85rem;
-    font-weight: 800;
-    margin-bottom: 8px;
-  }
-
-  .preset-buttons {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
-    gap: 6px;
-
-    .btn {
-      min-height: 36px;
-      justify-content: center;
-    }
-  }
-}
-
-/* ─── Telegram Tab Styles ─── */
-.bot-status-card {
-  padding: 12px 14px;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border);
-
-  &.online {
-    background: rgba(16, 185, 129, 0.08);
-    border-color: rgba(16, 185, 129, 0.3);
-    color: #10b981;
-    .status-badge-dot {
-      background: #10b981;
-    }
-  }
-
-  &.offline {
-    background: rgba(239, 68, 68, 0.08);
-    border-color: rgba(239, 68, 68, 0.3);
-    color: #ef4444;
-    .status-badge-dot {
-      background: #ef4444;
-    }
-  }
-
-  .status-top {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 0.85rem;
-  }
-
-  .status-badge-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-  }
-
-  .status-details {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    margin-top: 8px;
-    color: var(--text-muted);
-    font-size: 0.75rem;
-
-    code {
-      background: var(--surface-2);
-      padding: 2px 6px;
-      border-radius: 4px;
-      overflow-wrap: anywhere;
-      word-break: break-all;
-      font-size: 0.72rem;
-    }
-  }
-}
-
-.toggle-box {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+.header-subtitle {
+  margin: 0.25rem 0 0;
   font-size: 0.85rem;
-  font-weight: 700;
-  gap: 10px;
+  color: var(--text-secondary, #64748b);
 }
 
-.toggle-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 6px;
-  min-width: 52px;
-  min-height: 36px;
+.header-quick-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.btn-outline-soft,
+.btn-primary-soft {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-
-  .toggle-track {
-    display: block;
-    width: 44px;
-    height: 24px;
-    border-radius: 12px;
-    background: var(--border);
-    position: relative;
-    transition: background 0.3s;
-
-    .toggle-thumb {
-      position: absolute;
-      top: 2px;
-      right: 2px;
-      width: 20px;
-      height: 20px;
-      border-radius: 50%;
-      background: #fff;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-      transition: transform 0.3s;
-    }
-  }
-
-  &.active .toggle-track {
-    background: var(--success, #10b981);
-    .toggle-thumb {
-      transform: translateX(-20px);
-    }
-  }
+  gap: 0.45rem;
+  padding: 0.55rem 0.95rem;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
 }
 
-.telegram-test-box,
-.ai-test-box {
-  background: var(--surface-2);
-  padding: 12px;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border);
-
-  h4 {
-    font-size: 0.82rem;
-    font-weight: 800;
-    margin-bottom: 8px;
-  }
-
-  textarea {
-    width: 100%;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    padding: 8px 10px;
-    font-family: inherit;
-    font-size: 0.82rem;
-    margin-bottom: 8px;
-    background: var(--bg-card);
-    color: var(--text);
-    resize: vertical;
-  }
-
-  .send-feedback {
-    display: block;
-    margin-top: 6px;
-    font-size: 0.78rem;
-    font-weight: 700;
-
-    &.success {
-      color: #10b981;
-    }
-    &.error {
-      color: #ef4444;
-    }
-  }
+.btn-outline-soft {
+  background: #f8fafc;
+  color: #334155;
+  border: 1px solid #cbd5e1;
 }
 
-.rules-summary-cards {
-  h4 {
-    font-size: 0.82rem;
-    font-weight: 800;
-    margin-bottom: 6px;
-  }
-
-  .rule-card {
-    background: rgba(245, 158, 11, 0.08);
-    border: 1px solid rgba(245, 158, 11, 0.25);
-    border-radius: var(--radius-sm);
-    padding: 8px 10px;
-    font-size: 0.78rem;
-    margin-bottom: 6px;
-    color: var(--text);
-  }
+.btn-outline-soft:hover:not(:disabled) {
+  background: #f1f5f9;
+  border-color: #94a3b8;
 }
 
-.ai-reply-box {
-  margin-top: 8px;
-  background: var(--bg-card);
-  border: 1px solid var(--primary-soft);
-  border-radius: var(--radius-sm);
-  padding: 10px;
-  font-size: 0.82rem;
-  line-height: 1.5;
-
-  strong {
-    color: var(--primary-strong);
-    display: block;
-    margin-bottom: 4px;
-  }
-
-  p {
-    margin: 0;
-  }
+.btn-primary-soft {
+  background: #0284c7;
+  color: #ffffff;
+  border: 1px solid #0284c7;
 }
 
-.logs-section {
-  .logs-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 8px;
-
-    h4 {
-      font-size: 0.85rem;
-      font-weight: 800;
-      margin: 0;
-    }
-  }
-
-  .telegram-logs-list {
-    max-height: 220px;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  .log-item {
-    background: var(--surface-2);
-    padding: 8px 10px;
-    border-radius: var(--radius-sm);
-    font-size: 0.78rem;
-
-    .log-top {
-      display: flex;
-      justify-content: space-between;
-      margin-bottom: 4px;
-    }
-
-    .log-badge {
-      font-weight: 800;
-      font-size: 0.7rem;
-    }
-
-    .log-time {
-      font-size: 0.7rem;
-      color: var(--text-muted);
-    }
-
-    .log-text {
-      margin: 0;
-      color: var(--text-strong);
-      word-break: break-word;
-    }
-
-    .log-ai {
-      margin: 4px 0 0;
-      font-size: 0.72rem;
-      color: var(--primary-strong);
-    }
-  }
+.btn-primary-soft:hover:not(:disabled) {
+  background: #0369a1;
+  border-color: #0369a1;
 }
 
-.nodes-scroll-list {
-  max-height: 380px;
-  overflow-y: auto;
+.btn-outline-soft.btn-guide-active {
+  background: #ecfdf5;
+  border-color: #10b981;
+  color: #059669;
+  font-weight: 700;
+}
+
+/* ── دليل الدورة التشغيلية (Architecture Guide) ── */
+.guide-fade-enter-active,
+.guide-fade-leave-active {
+  transition: all 0.25s ease;
+}
+.guide-fade-enter-from,
+.guide-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-8px);
+}
+
+.architecture-guide-card {
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border: 1px solid #cbd5e1;
+  border-right: 5px solid #0284c7;
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 1.25rem;
 }
 
-.node-list-item {
+.guide-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.guide-title-box {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.guide-badge {
+  align-self: flex-start;
+  display: inline-block;
+  background: #e0f2fe;
+  color: #0369a1;
+  padding: 0.2rem 0.6rem;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.guide-title-box h3 {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.guide-title-box p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #64748b;
+  line-height: 1.5;
+}
+
+.guide-close-btn {
+  background: #f1f5f9;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  padding: 0.4rem;
+  border-radius: 8px;
+  transition: all 0.15s ease;
+}
+
+.guide-close-btn:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.guide-flow-steps {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
-  background: var(--surface-2);
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  transition: all var(--transition);
-
-  &:hover {
-    background: var(--surface-3);
-    transform: translateX(-3px);
-  }
-
-  .node-badge-dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    flex-shrink: 0;
-  }
-
-  .node-info {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-
-    strong {
-      font-size: 0.82rem;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    small {
-      font-size: 0.72rem;
-      color: var(--text-muted);
-    }
-  }
-
-  .delete-btn {
-    padding: 2px 6px;
-  }
+  justify-content: space-between;
+  gap: 0.5rem;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1rem;
+  overflow-x: auto;
 }
 
-/* ─── Modals ─── */
+.flow-step-box {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: #f8fafc;
+  padding: 0.65rem 0.85rem;
+  border-radius: 8px;
+  border: 1px solid #f1f5f9;
+}
+
+.flow-step-box.highlight {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+
+.step-num {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #0284c7;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.82rem;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.flow-step-box.highlight .step-num {
+  background: #10b981;
+}
+
+.step-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.step-content strong {
+  font-size: 0.82rem;
+  color: #0f172a;
+}
+
+.step-content span {
+  font-size: 0.72rem;
+  color: #64748b;
+  line-height: 1.35;
+}
+
+.flow-arrow {
+  color: #94a3b8;
+  font-size: 1.1rem;
+  font-weight: 800;
+  padding: 0 0.2rem;
+}
+
+.guide-pillars-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+}
+
+.pillar-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.pillar-card.sales {
+  border-top: 3px solid #10b981;
+}
+
+.pillar-card.security {
+  border-top: 3px solid #ef4444;
+}
+
+.pillar-card.inventory {
+  border-top: 3px solid #0284c7;
+}
+
+.pillar-card.system {
+  border-top: 3px solid #8b5cf6;
+}
+
+.pillar-header {
+  display: flex;
+  align-items: center;
+}
+
+.pillar-tag {
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.pillar-card.sales .pillar-tag {
+  color: #059669;
+}
+.pillar-card.security .pillar-tag {
+  color: #dc2626;
+}
+.pillar-card.inventory .pillar-tag {
+  color: #0284c7;
+}
+.pillar-card.system .pillar-tag {
+  color: #7c3aed;
+}
+
+.pillar-card h4 {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.pillar-card p {
+  margin: 0;
+  font-size: 0.77rem;
+  color: #64748b;
+  line-height: 1.45;
+}
+
+.pillar-list {
+  margin: 0.25rem 0 0;
+  padding-right: 1.1rem;
+  font-size: 0.74rem;
+  color: #475569;
+  line-height: 1.5;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.pillar-list li strong {
+  color: #1e293b;
+}
+
+/* ── 2. لوحة المؤشرات (KPI Grid) ── */
+.kpi-command-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+}
+
+.kpi-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.2rem;
+  background: var(--bg-card, #ffffff);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 14px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.02);
+  transition: transform 0.15s ease;
+}
+
+.kpi-card:hover {
+  transform: translateY(-2px);
+}
+
+.kpi-icon-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.kpi-card.is-healthy .kpi-icon-wrap {
+  background: #ecfdf5;
+  color: #059669;
+}
+
+.kpi-card.success .kpi-icon-wrap {
+  background: #ecfdf5;
+  color: #059669;
+}
+
+.kpi-card.danger .kpi-icon-wrap {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.kpi-card.accent .kpi-icon-wrap {
+  background: #f0f9ff;
+  color: #0284c7;
+}
+
+.kpi-data {
+  display: flex;
+  flex-direction: column;
+}
+
+.kpi-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.kpi-value {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1.2;
+}
+
+.kpi-subtext {
+  font-size: 0.72rem;
+  color: #94a3b8;
+  margin-top: 0.15rem;
+}
+
+/* ── 3. أشرطة التبويبات الكبرى ── */
+.hub-tabs-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem;
+  background: var(--bg-card, #ffffff);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 12px;
+  overflow-x: auto;
+}
+
+.tab-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1.1rem;
+  border-radius: 9px;
+  border: none;
+  background: transparent;
+  color: #475569;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.tab-nav-btn:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.tab-nav-btn.active {
+  background: #0284c7;
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(2, 132, 199, 0.25);
+}
+
+.tab-counter {
+  display: inline-block;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.tab-nav-btn.active .tab-counter {
+  background: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+}
+
+.badge-dot-live {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.badge-dot-live.online {
+  background: #10b981;
+}
+
+.badge-dot-live.offline {
+  background: #94a3b8;
+}
+
+/* ── محتوى التبويب ── */
+.hub-tab-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* شريط التصفية والبحث في الوكلاء */
+.tasks-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.filter-pills-list {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.filter-pill {
+  padding: 0.45rem 0.85rem;
+  border-radius: 999px;
+  border: 1px solid var(--border-color, #e2e8f0);
+  background: var(--bg-card, #ffffff);
+  color: #475569;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.filter-pill:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+.filter-pill.active {
+  background: #0f172a;
+  color: #ffffff;
+  border-color: #0f172a;
+}
+
+.search-box-wrap {
+  position: relative;
+  min-width: 260px;
+}
+
+.search-icon {
+  position: absolute;
+  top: 50%;
+  right: 0.75rem;
+  transform: translateY(-50%);
+  color: #94a3b8;
+}
+
+.search-input {
+  width: 100%;
+  padding: 0.5rem 2.2rem 0.5rem 2rem;
+  border-radius: 10px;
+  border: 1px solid var(--border-color, #e2e8f0);
+  background: var(--bg-card, #ffffff);
+  font-size: 0.85rem;
+  outline: none;
+}
+
+.search-input:focus {
+  border-color: #0284c7;
+  box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.12);
+}
+
+.search-clear-btn {
+  position: absolute;
+  top: 50%;
+  left: 0.6rem;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+}
+
+/* شبكة بطاقات الوكلاء المتطورة */
+.agent-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 1.1rem;
+}
+
+.agent-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  background: var(--bg-card, #ffffff);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 14px;
+  padding: 1.15rem;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.02);
+  transition: all 0.2s ease;
+  border-right: 4px solid #0284c7;
+}
+
+.agent-card.sales {
+  border-right-color: #10b981;
+}
+
+.agent-card.inventory {
+  border-right-color: #0284c7;
+}
+
+.agent-card.security {
+  border-right-color: #ef4444;
+}
+
+.agent-card.system {
+  border-right-color: #8b5cf6;
+}
+
+.agent-card.agent-disabled {
+  opacity: 0.72;
+  background: #fafafa;
+}
+
+.agent-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.85rem;
+}
+
+.agent-badge-group {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.category-tag {
+  display: inline-block;
+  padding: 0.2rem 0.55rem;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.category-tag.sales {
+  background: #ecfdf5;
+  color: #059669;
+}
+
+.category-tag.inventory {
+  background: #f0f9ff;
+  color: #0284c7;
+}
+
+.category-tag.security {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.category-tag.system {
+  background: #f5f3ff;
+  color: #7c3aed;
+}
+
+.trigger-type-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.trigger-type-tag.scheduled {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.trigger-type-tag.event-driven {
+  background: #fefce8;
+  color: #a16207;
+}
+
+/* Custom Modern Toggle */
+.custom-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.custom-toggle.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.custom-toggle input {
+  display: none;
+}
+
+.toggle-slider {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  background: #cbd5e1;
+  border-radius: 999px;
+  transition: background 0.2s ease;
+}
+
+.toggle-slider::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 16px;
+  height: 16px;
+  background: #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  transition: transform 0.2s ease;
+}
+
+.custom-toggle input:checked + .toggle-slider {
+  background: #10b981;
+}
+
+.custom-toggle input:checked + .toggle-slider::after {
+  transform: translateX(-16px);
+}
+
+.toggle-status-text {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #64748b;
+}
+
+.custom-toggle input:checked ~ .toggle-status-text {
+  color: #059669;
+}
+
+.agent-name {
+  margin: 0 0 0.4rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.35;
+}
+
+.agent-desc {
+  margin: 0 0 0.8rem;
+  font-size: 0.82rem;
+  color: #475569;
+  line-height: 1.55;
+  min-height: 3.1rem;
+}
+
+.agent-schedule-row {
+  margin-bottom: 0.85rem;
+}
+
+.schedule-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.65rem;
+  border-radius: 6px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  font-size: 0.74rem;
+  color: #475569;
+  font-weight: 600;
+}
+
+.agent-linkage-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 0.5rem 0.65rem;
+  margin-bottom: 0.85rem;
+  font-size: 0.73rem;
+}
+
+.linkage-row {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.link-badge {
+  display: inline-block;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.link-badge.source {
+  background: #e0e7ff;
+  color: #3730a3;
+}
+
+.link-badge.dest {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.link-val {
+  color: #334155;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 0.85rem;
+  border-top: 1px solid #f1f5f9;
+  gap: 0.5rem;
+}
+
+.last-run-status {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.last-run-time {
+  font-size: 0.72rem;
+  color: #64748b;
+}
+
+.last-run-time.idle {
+  color: #94a3b8;
+}
+
+.status-pill-mini {
+  display: inline-block;
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+}
+
+.status-pill-mini.status-success {
+  background: #ecfdf5;
+  color: #059669;
+}
+
+.status-pill-mini.status-warning {
+  background: #fffbeb;
+  color: #d97706;
+}
+
+.status-pill-mini.status-failed {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.btn-primary-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.85rem;
+  border-radius: 8px;
+  border: none;
+  background: #0284c7;
+  color: #ffffff;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-primary-action:hover:not(:disabled) {
+  background: #0369a1;
+}
+
+.btn-primary-action:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ── التبويب الثالث: سجل التشغيل (Logs) ── */
+.logs-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 1.25rem;
+}
+
+.logs-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.logs-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.logs-title-wrap h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.logs-title-wrap p {
+  margin: 0.2rem 0 0;
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.logs-table-container {
+  overflow-x: auto;
+}
+
+.logs-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+  text-align: right;
+}
+
+.logs-table th {
+  padding: 0.75rem;
+  background: #f8fafc;
+  color: #475569;
+  font-weight: 700;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.logs-table td {
+  padding: 0.75rem;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.log-task-name {
+  color: #0f172a;
+}
+
+.source-tag {
+  display: inline-block;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.source-tag.scheduler {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.source-tag.manual {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.status-pill-table {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.status-pill-table.status-success {
+  background: #ecfdf5;
+  color: #059669;
+}
+
+.status-pill-table.status-warning {
+  background: #fffbeb;
+  color: #d97706;
+}
+
+.status-pill-table.status-failed {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.duration-cell {
+  font-family: monospace;
+  color: #64748b;
+}
+
+.timestamp-cell {
+  color: #64748b;
+  white-space: nowrap;
+}
+
+.log-message-cell {
+  max-width: 280px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #334155;
+}
+
+.btn-ghost-sm {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  background: transparent;
+  color: #0284c7;
+  font-weight: 600;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.btn-ghost-sm:hover {
+  background: #f0f9ff;
+}
+
+/* ── التبويب الرابع: تليجرام ── */
+.telegram-live-banner {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  border-radius: 12px;
+  margin-bottom: 1.25rem;
+  border: 1px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.telegram-live-banner.is-connected {
+  background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%);
+  border-color: #86efac;
+}
+
+.telegram-live-banner.is-disconnected {
+  background: linear-gradient(135deg, #fffbeb 0%, #fef2f2 100%);
+  border-color: #fca5a5;
+}
+
+.banner-status-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.is-connected .banner-status-icon {
+  background: #dcfce7;
+  color: #16a34a;
+}
+
+.is-disconnected .banner-status-icon {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.banner-status-info {
+  flex: 1;
+}
+
+.banner-title-line {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.25rem;
+}
+
+.banner-title-line h4 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.connection-tag {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+}
+
+.tag-online {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.tag-offline {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.banner-status-info p {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #475569;
+}
+
+.banner-status-info code {
+  background: rgba(0, 0, 0, 0.05);
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  color: #0284c7;
+}
+
+.banner-error-desc {
+  color: #dc2626 !important;
+  font-weight: 500;
+}
+
+.telegram-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+}
+
+.telegram-col {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.telegram-status-card,
+.telegram-logs-card,
+.telegram-config-card,
+.telegram-guide-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 1.25rem;
+}
+
+.telegram-settings-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.form-label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.form-label-row label,
+.form-group label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #334155;
+}
+
+.btn-text-action {
+  background: none;
+  border: none;
+  color: #0284c7;
+  font-size: 0.75rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0;
+}
+
+.btn-text-action:hover {
+  text-decoration: underline;
+}
+
+.token-input-wrapper {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.token-input-wrapper .form-control {
+  flex: 1;
+}
+
+.ltr-input {
+  direction: ltr !important;
+  text-align: left !important;
+  font-family: monospace, inherit;
+}
+
+.token-verify-result {
+  margin-top: 0.35rem;
+  padding: 0.4rem 0.65rem;
+  border-radius: 6px;
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+
+.token-verify-result.verify-ok {
+  background: #f0fdf4;
+  color: #16a34a;
+  border: 1px solid #bbf7d0;
+}
+
+.token-verify-result.verify-fail {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+.form-hint {
+  font-size: 0.74rem;
+  color: #64748b;
+  line-height: 1.4;
+}
+
+.btn-save-bot {
+  width: 100%;
+  padding: 0.65rem 1rem;
+  font-weight: 700;
+}
+
+.telegram-guide-card h4 {
+  margin: 0 0 0.75rem;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.setup-steps {
+  margin: 0;
+  padding-right: 1.2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  color: #475569;
+}
+
+.setup-steps li {
+  line-height: 1.5;
+}
+
+.setup-steps code {
+  background: #f1f5f9;
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+  color: #0284c7;
+  font-size: 0.78rem;
+}
+
+.card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 1.25rem;
+  gap: 0.75rem;
+}
+
+.head-with-icon {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.head-with-icon h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.head-with-icon p {
+  margin: 0.2rem 0 0;
+  font-size: 0.78rem;
+  color: #64748b;
+}
+
+.telegram-brand-icon {
+  color: #0284c7;
+}
+
+.bot-badge {
+  display: inline-block;
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.bot-badge.configured {
+  background: #ecfdf5;
+  color: #059669;
+}
+
+.bot-badge.not-configured {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.status-checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: #f8fafc;
+  border-radius: 10px;
+  margin-bottom: 1.25rem;
+}
+
+.checklist-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.checklist-item.ok {
+  color: #059669;
+}
+
+.checklist-item strong {
+  display: block;
+  color: #0f172a;
+}
+
+.checklist-item small {
+  display: block;
+  font-size: 0.74rem;
+  color: #64748b;
+}
+
+.telegram-tester-box h4 {
+  margin: 0 0 0.5rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.quick-templates-bar {
+  display: flex;
+  gap: 0.4rem;
+  margin-bottom: 0.6rem;
+}
+
+.template-chip {
+  padding: 0.25rem 0.6rem;
+  border-radius: 6px;
+  border: 1px dashed #cbd5e1;
+  background: #ffffff;
+  font-size: 0.74rem;
+  color: #475569;
+  cursor: pointer;
+}
+
+.template-chip:hover {
+  background: #f1f5f9;
+  border-color: #0284c7;
+}
+
+.send-input-group {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.telegram-input {
+  flex: 1;
+  padding: 0.55rem 0.85rem;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  font-size: 0.82rem;
+  outline: none;
+}
+
+.telegram-input:focus {
+  border-color: #0284c7;
+}
+
+.feedback-banner {
+  margin-top: 0.75rem;
+  padding: 0.55rem 0.85rem;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.feedback-banner.success {
+  background: #ecfdf5;
+  color: #059669;
+}
+
+.feedback-banner.error {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.telegram-messages-feed {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-height: 480px;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
+
+.telegram-msg-bubble {
+  padding: 0.75rem;
+  border-radius: 10px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  font-size: 0.8rem;
+}
+
+.telegram-msg-bubble.out {
+  border-right: 3px solid #0284c7;
+}
+
+.telegram-msg-bubble.in {
+  border-right: 3px solid #10b981;
+}
+
+.bubble-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.35rem;
+  font-size: 0.72rem;
+  color: #64748b;
+}
+
+.bubble-body {
+  color: #1e293b;
+  line-height: 1.5;
+}
+
+.bubble-ai-reply {
+  margin-top: 0.5rem;
+  padding: 0.4rem;
+  background: #f0fdf4;
+  border-radius: 6px;
+  font-size: 0.76rem;
+  color: #166534;
+}
+
+/* ── التبويب الخامس: Gemini Copilot ── */
+.copilot-container {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 1.5rem;
+}
+
+.copilot-header {
+  margin-bottom: 1.25rem;
+}
+
+.copilot-title-group {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.gemini-sparkle-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%);
+  color: #ffffff;
+}
+
+.copilot-title-group h3 {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.copilot-title-group p {
+  margin: 0.2rem 0 0;
+  font-size: 0.82rem;
+  color: #64748b;
+}
+
+.copilot-quick-prompts {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.prompts-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.prompt-chip {
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  color: #334155;
+  font-size: 0.76rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.prompt-chip:hover {
+  background: #fdf2f8;
+  border-color: #ec4899;
+  color: #be185d;
+}
+
+.copilot-input-area {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.copilot-textarea {
+  width: 100%;
+  padding: 0.85rem;
+  border-radius: 10px;
+  border: 1px solid #cbd5e1;
+  font-family: inherit;
+  font-size: 0.88rem;
+  outline: none;
+  resize: vertical;
+}
+
+.copilot-textarea:focus {
+  border-color: #ec4899;
+  box-shadow: 0 0 0 3px rgba(236, 72, 153, 0.12);
+}
+
+.copilot-controls {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.copilot-response-box {
+  padding: 1.25rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+}
+
+.response-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  color: #be185d;
+}
+
+.response-body {
+  font-size: 0.88rem;
+  line-height: 1.7;
+  color: #1e293b;
+}
+
+/* ── نافذة التقرير المنبثقة (Report Modal) ── */
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.6);
+  background: rgba(15, 23, 42, 0.5);
   backdrop-filter: blur(4px);
-  z-index: 1000;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 16px;
+  z-index: 1000;
+  padding: 1rem;
 }
 
-.modal-card {
-  width: min(460px, 94vw);
-  max-height: 90vh;
-  overflow-y: auto;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lg);
-  padding: 18px;
+.report-modal-card {
+  width: 100%;
+  max-width: 680px;
+  background: #ffffff;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+  animation: modal-enter 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes modal-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
 }
 
 .modal-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 14px;
-
-  h3 {
-    font-size: 1rem;
-    font-weight: 900;
-    margin: 0;
-  }
-
-  .btn-close {
-    background: none;
-    border: none;
-    font-size: 1.2rem;
-    cursor: pointer;
-    color: var(--text-muted);
-    padding: 4px 8px;
-    min-width: 36px;
-    min-height: 36px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
+  justify-content: space-between;
+  padding: 1.25rem 1.5rem;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
 }
 
-.modal-body {
+.modal-title-wrap {
   display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-bottom: 16px;
+  align-items: center;
+  gap: 0.85rem;
+}
 
-  .form-row {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
+.report-icon-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+}
 
-    label {
-      font-size: 0.82rem;
-      font-weight: 700;
-      color: var(--text-muted);
-    }
+.report-icon-badge.success {
+  background: #ecfdf5;
+  color: #059669;
+}
 
-    input,
-    select {
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      padding: 10px 12px;
-      background: var(--surface-2);
-      color: var(--text);
-      font-family: inherit;
-      font-size: 0.88rem;
-      min-height: 44px;
-    }
-  }
+.report-icon-badge.warning {
+  background: #fffbeb;
+  color: #d97706;
+}
+
+.report-icon-badge.failed {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.modal-title-wrap h3 {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.modal-subtitle {
+  margin: 0.2rem 0 0;
+  font-size: 0.78rem;
+  color: #64748b;
+}
+
+.status-text-badge {
+  font-weight: 700;
+}
+
+.status-text-badge.success {
+  color: #059669;
+}
+
+.status-text-badge.warning {
+  color: #d97706;
+}
+
+.status-text-badge.failed {
+  color: #dc2626;
+}
+
+.modal-close-btn {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 0.35rem;
+  border-radius: 6px;
+}
+
+.modal-close-btn:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.modal-body.report-modal-content {
+  padding: 1.5rem;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.report-text-view {
+  font-size: 0.9rem;
+  line-height: 1.8;
+  color: #1e293b;
+  white-space: normal;
 }
 
 .modal-footer {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
-  gap: 8px;
-  flex-wrap: wrap;
-
-  .btn {
-    min-height: 38px;
-  }
+  gap: 0.6rem;
+  padding: 1rem 1.5rem;
+  background: #f8fafc;
+  border-top: 1px solid #e2e8f0;
 }
 
-.btn-block {
-  width: 100%;
-}
-
-.btn-xs {
-  padding: 4px 8px;
-  font-size: 0.72rem;
-  border-radius: 4px;
-}
-
-/* ─── Animations ─── */
-.slide-enter-active,
-.slide-leave-active {
-  transition: all 0.3s ease;
-}
-.slide-enter-from,
-.slide-leave-to {
-  opacity: 0;
-  transform: translateX(20px);
-}
-
-.sparkles-anim {
-  display: inline-block;
-  animation: rotateSparkle 4s linear infinite;
-}
-
-@keyframes rotateSparkle {
-  0% {
-    transform: scale(1) rotate(0deg);
-  }
-  50% {
-    transform: scale(1.15) rotate(180deg);
-  }
-  100% {
-    transform: scale(1) rotate(360deg);
-  }
+.spin-anim {
+  animation: spin 1s linear infinite;
 }
 
 @keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
   to {
     transform: rotate(360deg);
   }
 }
 
-/* ══════════════════════════════════════════════════════════════
-   MEDIA QUERIES (Mobile & Tablet Responsiveness)
-   ══════════════════════════════════════════════════════════════ */
-
-@media (min-width: 1024px) {
-  .mobile-only-block,
-  .mobile-only-btn,
-  .mobile-only-flex {
-    display: none !important;
+/* ── تجاوب الشاشات (Responsive) ── */
+@media (max-width: 1024px) {
+  .kpi-command-grid {
+    grid-template-columns: repeat(2, 1fr);
   }
-}
-
-@media (max-width: 1023px) {
-  .automation-container {
-    height: auto;
-    min-height: calc(100dvh - var(--navbar-height) - 24px);
-  }
-
-  .automation-command-dashboard {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .command-status-card,
-  .command-timeline-card {
-    grid-column: span 2;
-  }
-
-  .desktop-only-btn {
-    display: none !important;
-  }
-
-  .mobile-only-block {
-    display: flex !important;
-  }
-
-  .mobile-only-btn {
-    display: flex !important;
-  }
-
-  .mobile-only-flex {
-    display: flex !important;
-  }
-
-  .graph-layout {
-    flex-direction: column;
-    min-height: calc(100dvh - var(--navbar-height) - 180px);
-  }
-
-  .graph-panel {
-    width: 100%;
-    height: 70vh;
-    min-height: 480px;
-
-    &.mobile-hidden {
-      display: none !important;
-    }
-
-    &.mobile-view-active {
-      display: flex !important;
-      flex: 1;
-      height: 72vh;
-    }
-  }
-
-  .settings-panel {
-    width: 100%;
-    max-height: none;
-
-    &.mobile-hidden {
-      display: none !important;
-    }
-
-    &.mobile-view-active {
-      display: flex !important;
-      width: 100%;
-    }
-  }
-
-  /* Horizontal Scrollable Tabs on Mobile */
-  .panel-tabs {
-    overflow-x: auto;
-    white-space: nowrap;
-    scrollbar-width: none;
-    -webkit-overflow-scrolling: touch;
-    padding: 6px;
-    gap: 6px;
-
-    &::-webkit-scrollbar {
-      display: none;
-    }
-
-    button {
-      flex: 0 0 auto;
-      padding: 8px 14px;
-      font-size: 0.82rem;
-      border-radius: var(--radius-sm);
-    }
-  }
-
-  /* Canvas Controls Position on Tablet/Mobile */
-  .canvas-controls {
-    top: 10px;
-    left: 10px;
-    flex-direction: row;
-    flex-wrap: wrap;
-    max-width: calc(100% - 20px);
-    background: rgba(255, 255, 255, 0.85);
-    backdrop-filter: blur(8px);
-    padding: 4px;
-    border-radius: var(--radius-md);
-    border: 1px solid var(--border);
-
-    button {
-      width: 38px;
-      height: 38px;
-      min-width: 38px;
-      min-height: 38px;
-    }
-  }
-
-  /* Collapsible Legend Drawer on Mobile */
-  .graph-legend {
-    display: none;
-    bottom: 10px;
-    right: 10px;
-    left: 10px;
-    max-width: none;
-    background: var(--bg-elevated, #fff);
-    border: 1px solid var(--border);
-    box-shadow: var(--shadow-lg);
-
-    &.mobile-open {
-      display: flex;
-    }
-  }
-}
-
-@media (max-width: 560px) {
-  .automation-command-dashboard {
+  .telegram-grid {
     grid-template-columns: 1fr;
   }
-
-  .command-status-card,
-  .command-timeline-card {
-    grid-column: span 1;
-  }
 }
 
-@media (max-width: 767px) {
-  .page-header {
-    padding: 10px 14px;
-
-    .header-title {
-      width: 100%;
-
-      .title-text-wrap h2 {
-        font-size: 0.96rem;
-      }
-    }
-  }
-
-  .header-actions {
-    width: 100%;
-    justify-content: stretch;
-
-    .btn {
-      flex: 1 1 calc(50% - 6px);
-      justify-content: center;
-      min-height: 38px;
-      font-size: 0.78rem;
-    }
-  }
-
-  .graph-panel {
-    height: 64vh;
-    min-height: 420px;
-
-    &.mobile-view-active {
-      height: 66vh;
-    }
-  }
-
-  .modal-card {
-    width: 95vw;
-    padding: 14px;
-  }
-}
-
-@media (max-width: 480px) {
-  .header-actions {
-    .btn {
-      flex: 1 1 100%;
-    }
-  }
-
-  .mobile-view-switcher .switcher-btn {
-    font-size: 0.78rem;
-    padding: 8px 6px;
-  }
-
-  .task-card .task-card-footer {
+@media (max-width: 640px) {
+  .hub-header {
     flex-direction: column;
     align-items: stretch;
-
-    .run-now-btn {
-      width: 100%;
-    }
+  }
+  .kpi-command-grid {
+    grid-template-columns: 1fr;
+  }
+  .tasks-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .search-box-wrap {
+    min-width: 100%;
+  }
+  .agent-cards-grid {
+    grid-template-columns: 1fr;
   }
 }
 </style>

@@ -78,7 +78,9 @@ export async function runMigrations(): Promise<void> {
 
     // إذا كانت القاعدة مهيأة لكن جدول التتبع فارغ — كشف الهجرات المطبقة فعليًا
     if (dbIsSetup && applied.size === 0) {
-      logger.info('[بن العجوز ERP] قاعدة البيانات مهيأة مسبقاً. جاري فحص الهجرات المطبقة بالفعل...');
+      logger.info(
+        '[بن العجوز ERP] قاعدة البيانات مهيأة مسبقاً. جاري فحص الهجرات المطبقة بالفعل...',
+      );
 
       const checkTable = async (tableName: string): Promise<boolean> => {
         const res = await client.query(

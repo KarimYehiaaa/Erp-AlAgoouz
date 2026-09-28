@@ -18,8 +18,18 @@
           <AppIcon :name="isOnline ? 'checkCircle' : 'alertTriangle'" :size="28" />
         </div>
         <div class="status-details">
-          <h4>{{ isOnline ? 'الاتصال بالخادم المركزي مستقر' : 'وضع غير متصل بالإنترنت (Offline Mode)' }}</h4>
-          <p>{{ isOnline ? 'يتم ترحيل الفواتير تلقائياً ومباشرة إلى قاعدة البيانات المركزية.' : 'تُحفظ الفواتير محلياً على جهاز الكاشير وسيتم ترحيلها فور عودة الاتصال.' }}</p>
+          <h4>
+            {{
+              isOnline ? 'الاتصال بالخادم المركزي مستقر' : 'وضع غير متصل بالإنترنت (Offline Mode)'
+            }}
+          </h4>
+          <p>
+            {{
+              isOnline
+                ? 'يتم ترحيل الفواتير تلقائياً ومباشرة إلى قاعدة البيانات المركزية.'
+                : 'تُحفظ الفواتير محلياً على جهاز الكاشير وسيتم ترحيلها فور عودة الاتصال.'
+            }}
+          </p>
         </div>
         <button
           v-if="isOnline && pendingQueue.length > 0"
@@ -67,7 +77,9 @@
               <tr v-for="item in pendingQueue" :key="item.sync_id">
                 <td class="code-cell">{{ item.sync_id }}</td>
                 <td>{{ item.sale_date || item.created_at }}</td>
-                <td><strong>{{ formatMoney(item.total_amount) }}</strong></td>
+                <td>
+                  <strong>{{ formatMoney(item.total_amount) }}</strong>
+                </td>
                 <td>{{ item.items?.length || 0 }} قطع</td>
                 <td>
                   <span class="status-tag" :class="item.status?.toLowerCase()">
@@ -95,7 +107,9 @@ const router = useRouter();
 const isOnline = ref(navigator.onLine);
 const pendingQueue = ref<any[]>([]);
 const syncing = ref(false);
-const failedCount = computed(() => pendingQueue.value.filter((item) => item.status === 'FAILED').length);
+const failedCount = computed(
+  () => pendingQueue.value.filter((item) => item.status === 'FAILED').length,
+);
 
 const loadQueue = async () => {
   if ((window as any).electronAPI) {
@@ -116,7 +130,8 @@ const triggerBatchSync = async () => {
   try {
     if ((window as any).electronAPI) {
       const res = await (window as any).electronAPI.triggerManualSync();
-      if (!res?.success && res?.synced === 0) throw new Error(res?.message || 'تعذر مزامنة الفواتير');
+      if (!res?.success && res?.synced === 0)
+        throw new Error(res?.message || 'تعذر مزامنة الفواتير');
     } else {
       const res = await api.post('/sales/batch-sync', { sales: pendingQueue.value });
       if (!res.data.success) throw new Error(res.data.message || 'تعذر مزامنة الفواتير');
@@ -316,7 +331,8 @@ onMounted(async () => {
     border-radius: 10px;
     overflow: hidden;
 
-    th, td {
+    th,
+    td {
       padding: 12px 14px;
       text-align: right;
       font-size: 0.88rem;

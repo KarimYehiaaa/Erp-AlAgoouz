@@ -39,12 +39,12 @@ export const STANDARD_ACCOUNTS = {
   RETAINED_EARNINGS: '3102', // الأرباح المبقاة
   PARTNER_DRAWINGS: '3103', // جاري الشركاء والمسحوبات
   // الإيرادات
-  POS_SALES_REVENUE: '4101', // إيرادات مبيعات الفروع والكاشير
+  POS_SALES_REVENUE: '4101', // إيرادات مبيعات المحل والكاشير
   WHOLESALE_SALES_REVENUE: '4102', // إيرادات مبيعات الجملة
   SALES_RETURNS_ALLOWANCE: '4103', // مردودات ومسموحات المبيعات
   OTHER_INCOME: '4201', // فروقات وزيادات دائنة
   // المصروفات وتكلفة البضاعة
-  COGS_POS: '5101', // تكلفة البضاعة المباعة - فروع
+  COGS_POS: '5101', // تكلفة البضاعة المباعة - مبيعات المحل
   COGS_WHOLESALE: '5102', // تكلفة البضاعة المباعة - جملة
   WASTE_EXPENSE: '5103', // هدر وفواقد التشغيل
   SALARIES_EXPENSE: '5201', // الرواتب والأجور
@@ -76,7 +76,8 @@ export interface CreateJournalEntryInput {
     | 'manual'
     | 'opening'
     | 'transfer'
-    | 'reversal';
+    | 'reversal'
+    | 'partner_drawing';
   reference_id?: number | string;
   description: string;
   lines: JournalLineInput[];
@@ -356,6 +357,9 @@ export const accountingService = {
       cost_amount?: number;
       tax_amount?: number;
       payment_method?: string;
+      payment_status?: string;
+      paid_amount?: number;
+      payments?: Array<{ payment_method?: string; amount?: number }>;
       customer_id?: number;
       warehouse_id?: number;
       user_id?: number;
@@ -369,20 +373,6 @@ export const accountingService = {
     const netRevenue = roundMoney(totalAmount - taxAmount);
     const costAmount = roundMoney(Number(sale.cost_amount || 0));
 
-    // تحديد حساب القبض المناسب بناءً على طريقة الدفع ونوع البيع
-    let debitAccountCode = STANDARD_ACCOUNTS.SHOP_CASH_DRAWER;
-    const method = (sale.payment_method || 'cash').toLowerCase();
-
-    if (sale.sale_type === 'wholesale') {
-      debitAccountCode = sale.customer_id
-        ? STANDARD_ACCOUNTS.CUSTOMERS_RECEIVABLE
-        : STANDARD_ACCOUNTS.MAIN_TREASURY;
-    } else if (method === 'card' || method === 'visa') {
-      debitAccountCode = STANDARD_ACCOUNTS.BANK_ACCOUNTS;
-    } else if (method === 'transfer' || method === 'instapay' || method === 'wallet') {
-      debitAccountCode = STANDARD_ACCOUNTS.E_WALLETS;
-    }
-
     const revenueAccountCode =
       sale.sale_type === 'wholesale'
         ? STANDARD_ACCOUNTS.WHOLESALE_SALES_REVENUE
@@ -390,14 +380,81 @@ export const accountingService = {
 
     const lines: JournalLineInput[] = [];
 
-    // طرف المدين (النقدية / البنك / العميل)
-    lines.push({
-      account_code: debitAccountCode,
-      debit: totalAmount,
-      credit: 0,
-      description: `تحصيل/استحقاق مبيعات ${sale.sale_number}`,
-      warehouse_id: sale.warehouse_id,
-    });
+    const getAccountForMethod = (methodName?: string) => {
+      const m = (methodName || 'cash').toLowerCase();
+      if (m === 'card' || m === 'bank' || m === 'visa') {
+        return STANDARD_ACCOUNTS.BANK_ACCOUNTS;
+      }
+      if (m === 'transfer' || m === 'instapay' || m === 'wallet') {
+        return STANDARD_ACCOUNTS.E_WALLETS;
+      }
+      return sale.sale_type === 'wholesale'
+        ? STANDARD_ACCOUNTS.MAIN_TREASURY
+        : STANDARD_ACCOUNTS.SHOP_CASH_DRAWER;
+    };
+
+    if (Array.isArray(sale.payments) && sale.payments.length > 0) {
+      let allocatedDebit = 0;
+      for (const p of sale.payments) {
+        const pAmount = roundMoney(Number(p.amount || 0));
+        if (pAmount <= 0) continue;
+        allocatedDebit = roundMoney(allocatedDebit + pAmount);
+        const acct = getAccountForMethod(p.payment_method);
+        lines.push({
+          account_code: acct,
+          debit: pAmount,
+          credit: 0,
+          description: `تحصيل مبيعات ${sale.sale_number} (${p.payment_method || 'نقداً'})`,
+          warehouse_id: sale.warehouse_id,
+        });
+      }
+      const remainingUnpaid = roundMoney(totalAmount - allocatedDebit);
+      if (remainingUnpaid > 0) {
+        const receivableAcct = sale.customer_id
+          ? STANDARD_ACCOUNTS.CUSTOMERS_RECEIVABLE
+          : sale.sale_type === 'wholesale'
+            ? STANDARD_ACCOUNTS.MAIN_TREASURY
+            : STANDARD_ACCOUNTS.SHOP_CASH_DRAWER;
+        lines.push({
+          account_code: receivableAcct,
+          debit: remainingUnpaid,
+          credit: 0,
+          description: `استحقاق متبقي مبيعات آجل ${sale.sale_number}`,
+          warehouse_id: sale.warehouse_id,
+        });
+      }
+    } else {
+      const method = (sale.payment_method || 'cash').toLowerCase();
+      const isCredit = method === 'credit' || sale.payment_status === 'unpaid';
+      const effectivePaid = isCredit ? 0 : roundMoney(Number(sale.paid_amount ?? totalAmount));
+      const remainingUnpaid = roundMoney(totalAmount - effectivePaid);
+
+      if (effectivePaid > 0) {
+        const acct = getAccountForMethod(sale.payment_method);
+        lines.push({
+          account_code: acct,
+          debit: effectivePaid,
+          credit: 0,
+          description: `تحصيل مبيعات ${sale.sale_number} (${sale.payment_method || 'نقداً'})`,
+          warehouse_id: sale.warehouse_id,
+        });
+      }
+
+      if (remainingUnpaid > 0) {
+        const receivableAcct = sale.customer_id
+          ? STANDARD_ACCOUNTS.CUSTOMERS_RECEIVABLE
+          : sale.sale_type === 'wholesale'
+            ? STANDARD_ACCOUNTS.MAIN_TREASURY
+            : STANDARD_ACCOUNTS.SHOP_CASH_DRAWER;
+        lines.push({
+          account_code: receivableAcct,
+          debit: remainingUnpaid,
+          credit: 0,
+          description: `استحقاق مبيعات آجل ${sale.sale_number}`,
+          warehouse_id: sale.warehouse_id,
+        });
+      }
+    }
 
     // طرف الدائن (الإيراد الصافي)
     lines.push({
@@ -1250,6 +1307,7 @@ export const accountingService = {
       cost_amount?: number;
       sale_type?: string;
       payment_method?: string;
+      payments?: Array<{ payment_method?: string; amount?: number }>;
       customer_id?: number;
       warehouse_id?: number;
       user_id?: number;
@@ -1262,17 +1320,6 @@ export const accountingService = {
     const taxAmount = roundMoney(Number(sale.tax_amount || 0));
     const netRevenue = roundMoney(totalAmount - taxAmount);
     const costAmount = roundMoney(Number(sale.cost_amount || 0));
-
-    let creditAccountCode = STANDARD_ACCOUNTS.SHOP_CASH_DRAWER;
-    const method = (sale.payment_method || 'cash').toLowerCase();
-
-    if (sale.customer_id) {
-      creditAccountCode = STANDARD_ACCOUNTS.CUSTOMERS_RECEIVABLE;
-    } else if (method === 'card' || method === 'bank') {
-      creditAccountCode = STANDARD_ACCOUNTS.BANK_ACCOUNTS;
-    } else if (method === 'transfer' || method === 'instapay' || method === 'wallet') {
-      creditAccountCode = STANDARD_ACCOUNTS.E_WALLETS;
-    }
 
     const lines: JournalLineInput[] = [
       {
@@ -1294,13 +1341,65 @@ export const accountingService = {
       });
     }
 
-    lines.push({
-      account_code: creditAccountCode,
-      debit: 0,
-      credit: totalAmount,
-      description: `رد قيمة المبيعات للعميل (${sale.payment_method || 'نقداً'})`,
-      warehouse_id: sale.warehouse_id,
-    });
+    const getAccountForMethod = (methodName?: string) => {
+      const m = (methodName || 'cash').toLowerCase();
+      if (m === 'card' || m === 'bank' || m === 'visa') {
+        return STANDARD_ACCOUNTS.BANK_ACCOUNTS;
+      }
+      if (m === 'transfer' || m === 'instapay' || m === 'wallet') {
+        return STANDARD_ACCOUNTS.E_WALLETS;
+      }
+      return STANDARD_ACCOUNTS.SHOP_CASH_DRAWER;
+    };
+
+    if (Array.isArray(sale.payments) && sale.payments.length > 0) {
+      let allocatedCredit = 0;
+      for (const p of sale.payments) {
+        const pAmount = roundMoney(Number(p.amount || 0));
+        if (pAmount <= 0) continue;
+        allocatedCredit = roundMoney(allocatedCredit + pAmount);
+        const acct = getAccountForMethod(p.payment_method);
+        lines.push({
+          account_code: acct,
+          debit: 0,
+          credit: pAmount,
+          description: `رد مدفوعات مبيعات ${sale.sale_number} (${p.payment_method || 'نقداً'})`,
+          warehouse_id: sale.warehouse_id,
+        });
+      }
+      const remainingUnpaid = roundMoney(totalAmount - allocatedCredit);
+      if (remainingUnpaid > 0) {
+        const unpaidAcct = sale.customer_id
+          ? STANDARD_ACCOUNTS.CUSTOMERS_RECEIVABLE
+          : STANDARD_ACCOUNTS.SHOP_CASH_DRAWER;
+        lines.push({
+          account_code: unpaidAcct,
+          debit: 0,
+          credit: remainingUnpaid,
+          description: `إلغاء متبقي مبيعات آجل لمرتجع ${sale.sale_number}`,
+          warehouse_id: sale.warehouse_id,
+        });
+      }
+    } else {
+      let creditAccountCode = STANDARD_ACCOUNTS.SHOP_CASH_DRAWER;
+      const method = (sale.payment_method || 'cash').toLowerCase();
+
+      if (sale.customer_id) {
+        creditAccountCode = STANDARD_ACCOUNTS.CUSTOMERS_RECEIVABLE;
+      } else if (method === 'card' || method === 'bank') {
+        creditAccountCode = STANDARD_ACCOUNTS.BANK_ACCOUNTS;
+      } else if (method === 'transfer' || method === 'instapay' || method === 'wallet') {
+        creditAccountCode = STANDARD_ACCOUNTS.E_WALLETS;
+      }
+
+      lines.push({
+        account_code: creditAccountCode,
+        debit: 0,
+        credit: totalAmount,
+        description: `رد قيمة المبيعات للعميل (${sale.payment_method || 'نقداً'})`,
+        warehouse_id: sale.warehouse_id,
+      });
+    }
 
     if (costAmount > 0) {
       const cogsAccount =

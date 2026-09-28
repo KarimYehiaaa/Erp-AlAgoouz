@@ -20,10 +20,13 @@ import {
   toggleTelegramBot,
   getTelegramBotStatus,
   sendTelegramTestMessage,
+  saveTelegramSettings,
+  verifyTelegramCredentials,
   resetGraphDefaults,
   testAiPrompt,
   getAutomationsList,
   toggleAutomationTask,
+  updateAutomationTaskConfig,
   runAutomationTaskNow,
   getAutomationExecutionLogs,
   runAutomationSchedulerTick,
@@ -59,6 +62,8 @@ router.get('/automation/telegram-logs', ...viewGuard, getTelegramLogs);
 router.post('/automation/telegram/test-send', ...manageGuard, sendTelegramTestMessage);
 router.post('/automation/telegram/toggle', ...manageGuard, toggleTelegramBot);
 router.get('/automation/telegram/status', ...viewGuard, getTelegramBotStatus);
+router.post('/automation/telegram/settings', ...manageGuard, saveTelegramSettings);
+router.post('/automation/telegram/verify', ...manageGuard, verifyTelegramCredentials);
 router.post('/automation/graph/reset-defaults', ...manageGuard, resetGraphDefaults);
 router.post('/automation/ai/test', ...viewGuard, testAiPrompt);
 
@@ -66,9 +71,12 @@ router.post('/automation/ai/test', ...viewGuard, testAiPrompt);
 router.get('/automation/tasks', ...viewGuard, getAutomationsList);
 router.get('/automation/execution-logs', ...viewGuard, getAutomationExecutionLogs);
 router.post('/automation/tasks/:key/toggle', ...manageGuard, toggleAutomationTask);
+router.put('/automation/tasks/:key/config', ...manageGuard, updateAutomationTaskConfig);
 router.post('/automation/tasks/:key/run', ...manageGuard, runAutomationTaskNow);
 
 // هذا المسار لا يعتمد على جلسة مستخدم؛ يحميه سر مستقل يرسله Cron الخارجي.
+// GET مطلوب أيضًا لأن Vercel Cron يرسل GET فقط مع Authorization: Bearer.
 router.post('/automation/scheduler/tick', runAutomationSchedulerTick);
+router.get('/automation/scheduler/tick', runAutomationSchedulerTick);
 
 export default router;

@@ -248,3 +248,60 @@ export const getProductEffectiveCost = async (
   const costs = await getProductsEffectiveCosts(db, [productId]);
   return costs.get(Number(productId)) || { cost: 0, source: 'purchase_price' };
 };
+
+/**
+ * استهلاك طبقات تكلفة المخزون (FIFO) عند البيع أو استهلاك الوصفات
+ */
+export const depleteInventoryCostLayers = async (
+  client: import('pg').PoolClient,
+  productId: number,
+  warehouseId: number,
+  quantityToDeplete: number,
+) => {
+  let remainingToDeplete = Number(quantityToDeplete);
+  if (remainingToDeplete <= 0) return;
+
+  const layersRes = await client.query(
+    `SELECT id, remaining_quantity
+     FROM inventory_cost_layers
+     WHERE product_id = $1 AND warehouse_id = $2 AND remaining_quantity > 0
+     ORDER BY created_at ASC, id ASC
+     FOR UPDATE`,
+    [productId, warehouseId],
+  );
+
+  for (const layer of layersRes.rows) {
+    if (remainingToDeplete <= 0.0001) break;
+    const layerRemaining = Number(layer.remaining_quantity);
+    const take = Math.min(layerRemaining, remainingToDeplete);
+    await client.query(
+      `UPDATE inventory_cost_layers
+       SET remaining_quantity = remaining_quantity - $1
+       WHERE id = $2`,
+      [take, layer.id],
+    );
+    remainingToDeplete -= take;
+  }
+};
+
+/**
+ * استعادة طبقات تكلفة المخزون عند المرتجع
+ */
+export const restoreInventoryCostLayers = async (
+  client: import('pg').PoolClient,
+  productId: number,
+  warehouseId: number,
+  quantityToRestore: number,
+  unitCost: number = 0,
+  sourceType: string = 'sale_return',
+) => {
+  const qty = Number(quantityToRestore);
+  if (qty <= 0) return;
+
+  await client.query(
+    `INSERT INTO inventory_cost_layers (
+      product_id, warehouse_id, source_type, quantity, remaining_quantity, unit_cost, total_cost
+    ) VALUES ($1, $2, $3, $4, $4, $5, $6)`,
+    [productId, warehouseId, sourceType, qty, unitCost, roundMoney(qty * unitCost)],
+  );
+};

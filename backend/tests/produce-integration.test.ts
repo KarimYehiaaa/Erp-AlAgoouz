@@ -106,10 +106,10 @@ describe('Produce Recipe Batch Integration Tests', () => {
             [orig.quantity, orig.product_id, warehouseId],
           );
         } else {
-          await client.query(
-            `DELETE FROM inventory WHERE product_id = $1 AND warehouse_id = $2`,
-            [orig.product_id, warehouseId],
-          );
+          await client.query(`DELETE FROM inventory WHERE product_id = $1 AND warehouse_id = $2`, [
+            orig.product_id,
+            warehouseId,
+          ]);
         }
       }
       client.release();

@@ -2,11 +2,8 @@ import { app, BrowserWindow, ipcMain, shell } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import path from 'path';
 import os from 'os';
-import fs from 'fs';
-import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'url';
 import { PosSyncWorker } from './sync/syncWorker';
-import { PosPrinterDriver } from './hardware/printer';
 import { handleOpenCashDrawer, handlePrintReceipt } from './hardware/hardwareService';
 import { validateServerUrl } from '../src/services/serverUrlPolicy';
 import { SecureSessionStore } from './security/secureSessionStore';
@@ -76,7 +73,6 @@ function configureAutoUpdates() {
 
 import {
   readPendingQueue,
-  writePendingQueue,
   saveTransaction,
   updateQueueItemStatus,
   resetQueueItemRetry,
@@ -95,6 +91,7 @@ function createWindow() {
       nodeIntegration: false,
       contextIsolation: true,
       sandbox: true,
+      webSecurity: true,
     },
   });
 
@@ -168,7 +165,8 @@ ipcMain.handle('app:check-for-updates', async (event) => {
   if (!validateIpcSender(event, app.isPackaged, process.env.VITE_DEV_SERVER_URL)) {
     return { success: false, message: 'تم رفض الطلب: مرسل غير مصرح له' };
   }
-  if (!app.isPackaged) return { success: false, message: 'التحديث التلقائي يعمل في النسخة المثبتة فقط' };
+  if (!app.isPackaged)
+    return { success: false, message: 'التحديث التلقائي يعمل في النسخة المثبتة فقط' };
   await checkForUpdates();
   return { success: true };
 });
@@ -201,7 +199,12 @@ ipcMain.handle('hardware:get-printers', async (event) => {
 // 3. Hardware: Cash Drawer Kick
 ipcMain.handle('hardware:open-drawer', async (event, printerNameOrIp?: string) => {
   if (!validateIpcSender(event, app.isPackaged, process.env.VITE_DEV_SERVER_URL)) {
-    return { success: false, status: 'FAILED', simulated: false, error: 'تم رفض الطلب: مرسل غير مصرح له' };
+    return {
+      success: false,
+      status: 'FAILED',
+      simulated: false,
+      error: 'تم رفض الطلب: مرسل غير مصرح له',
+    };
   }
   if (!mainWindow) {
     return { success: false, status: 'FAILED', simulated: false, error: 'نافذة التطبيق غير متاحة' };
@@ -218,24 +221,37 @@ ipcMain.handle('hardware:open-drawer', async (event, printerNameOrIp?: string) =
 });
 
 // 4. Hardware: Print Receipt
-ipcMain.handle('hardware:print-receipt', async (event, invoiceData: any, printerNameOrIp?: string) => {
-  if (!validateIpcSender(event, app.isPackaged, process.env.VITE_DEV_SERVER_URL)) {
-    return { success: false, status: 'FAILED', simulated: false, error: 'تم رفض الطلب: مرسل غير مصرح له' };
-  }
-  if (!mainWindow) {
-    return { success: false, status: 'FAILED', simulated: false, error: 'نافذة التطبيق غير متاحة' };
-  }
+ipcMain.handle(
+  'hardware:print-receipt',
+  async (event, invoiceData: any, printerNameOrIp?: string) => {
+    if (!validateIpcSender(event, app.isPackaged, process.env.VITE_DEV_SERVER_URL)) {
+      return {
+        success: false,
+        status: 'FAILED',
+        simulated: false,
+        error: 'تم رفض الطلب: مرسل غير مصرح له',
+      };
+    }
+    if (!mainWindow) {
+      return {
+        success: false,
+        status: 'FAILED',
+        simulated: false,
+        error: 'نافذة التطبيق غير متاحة',
+      };
+    }
 
-  try {
-    return await handlePrintReceipt(invoiceData, printerNameOrIp, {
-      isDev: !!process.env.VITE_DEV_SERVER_URL,
-      getPrintersAsync: () => mainWindow!.webContents.getPrintersAsync(),
-      printFn: (options, callback) => mainWindow!.webContents.print(options, callback),
-    });
-  } catch (err: any) {
-    return { success: false, status: 'FAILED', simulated: false, error: sanitizeIpcError(err) };
-  }
-});
+    try {
+      return await handlePrintReceipt(invoiceData, printerNameOrIp, {
+        isDev: !!process.env.VITE_DEV_SERVER_URL,
+        getPrintersAsync: () => mainWindow!.webContents.getPrintersAsync(),
+        printFn: (options, callback) => mainWindow!.webContents.print(options, callback),
+      });
+    } catch (err: any) {
+      return { success: false, status: 'FAILED', simulated: false, error: sanitizeIpcError(err) };
+    }
+  },
+);
 
 // 5. Storage: Offline Transactions with Durability & Write Failure Protection
 ipcMain.handle('storage:save-transaction', (event, transaction) => {
@@ -266,7 +282,7 @@ ipcMain.handle(
       return false;
     }
     return updateQueueItemStatus(syncId, status, serverId, errorMessage);
-  }
+  },
 );
 
 ipcMain.handle('storage:reset-retry', (event, syncId: string) => {
@@ -280,7 +296,9 @@ ipcMain.handle('config:get-server-url', (event) => {
   if (!validateIpcSender(event, app.isPackaged, process.env.VITE_DEV_SERVER_URL)) {
     return 'http://localhost:3000/api/v1';
   }
-  return syncWorker ? syncWorker.getServerUrl() : (process.env.POS_SERVER_URL || 'http://localhost:3000/api/v1');
+  return syncWorker
+    ? syncWorker.getServerUrl()
+    : process.env.POS_SERVER_URL || 'http://localhost:3000/api/v1';
 });
 
 ipcMain.handle('config:set-server-url', (event, url: string) => {
@@ -416,7 +434,7 @@ app.whenReady().then(() => {
     readPendingQueue,
     updateQueueItemStatus,
     () => mainWindow,
-    app.isPackaged
+    app.isPackaged,
   );
   syncWorker.start(15000);
   configureAutoUpdates();

@@ -14,8 +14,6 @@
  *  4. إذا انتهى الطلب بخطأ خادم (5xx) أو انقطع الاتصال: يُحذف حجز المفتاح للسماح بإعادة المحاولة فوراً
  */
 import type { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
-import config from '../config/index.ts';
 import { query } from '../database/pool.ts';
 import { logger } from '../services/loggerService.ts';
 

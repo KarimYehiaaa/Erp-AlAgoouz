@@ -55,7 +55,9 @@
 
         <div v-else-if="productSearch" class="search-results-chip">
           <AppIcon name="search" :size="14" />
-          <span>نتائج البحث: <strong>{{ filteredProducts.length }} صنف</strong></span>
+          <span
+            >نتائج البحث: <strong>{{ filteredProducts.length }} صنف</strong></span
+          >
         </div>
 
         <div v-else class="catalog-summary-chip">
@@ -83,7 +85,10 @@
         :key="'quick-cat-' + cat.id"
         type="button"
         class="quick-cat-pill"
-        :class="[getCategoryVisual(cat.name_ar).cardClass, { active: String(selectedCategory) === String(cat.id) }]"
+        :class="[
+          getCategoryVisual(cat.name_ar).cardClass,
+          { active: String(selectedCategory) === String(cat.id) },
+        ]"
         @click="selectCategory(cat.id)"
       >
         <AppIcon :name="getCategoryVisual(cat.name_ar).icon" :size="14" />
@@ -187,7 +192,8 @@
                 getProductVisual(product).cardClass,
                 {
                   'is-in-cart': isInCart(product.id),
-                  'is-low-stock': hasLowIngredients(product) || getProductStockClass(product) === 'low',
+                  'is-low-stock':
+                    hasLowIngredients(product) || getProductStockClass(product) === 'low',
                   'is-out-of-stock': getProductStockClass(product) === 'out',
                 },
               ]"
@@ -202,10 +208,7 @@
               @keydown.space.prevent="handleCardClick(product)"
               role="button"
               tabindex="0"
-              :title="
-                product.name_ar +
-                ' (اضغط مطولاً أو اضغط على أيقونة التفاصيل للتخصيص)'
-              "
+              :title="product.name_ar + ' (اضغط مطولاً أو اضغط على أيقونة التفاصيل للتخصيص)'"
             >
               <!-- Stock Status Dot -->
               <span
@@ -239,7 +242,12 @@
                   class="card-3d-img"
                   loading="lazy"
                 />
-                <AppIcon v-else :name="getProductVisual(product).icon" :size="52" class="card-fallback-icon" />
+                <AppIcon
+                  v-else
+                  :name="getProductVisual(product).icon"
+                  :size="52"
+                  class="card-fallback-icon"
+                />
               </div>
 
               <!-- Product Feature Visual Badge -->
@@ -292,8 +300,17 @@
           <div class="product-detail-layout">
             <div class="product-detail-preview">
               <div class="detail-product-image" :class="activeProductVisual.iconBgClass">
-                <img v-if="activeProductVisual.isSpecificImage" :src="activeProductVisual.threeDImage" :alt="activeCustomProduct.name_ar" />
-                <AppIcon v-else :name="activeProductVisual.icon" :size="58" class="card-fallback-icon" />
+                <img
+                  v-if="activeProductVisual.isSpecificImage"
+                  :src="activeProductVisual.threeDImage"
+                  :alt="activeCustomProduct.name_ar"
+                />
+                <AppIcon
+                  v-else
+                  :name="activeProductVisual.icon"
+                  :size="58"
+                  class="card-fallback-icon"
+                />
               </div>
               <span class="detail-data-label">بيانات الصنف</span>
             </div>
@@ -302,8 +319,13 @@
               <span class="detail-kicker">إضافة سريعة للسلة</span>
               <h4>{{ activeCustomProduct.name_ar }}</h4>
               <div class="detail-facts">
-                <span v-if="activeProductCategory"><AppIcon name="layers" :size="14" /> {{ activeProductCategory }}</span>
-                <span><AppIcon name="tag" :size="14" /> {{ formatMoney(activeCustomProduct.sale_price) }}</span>
+                <span v-if="activeProductCategory"
+                  ><AppIcon name="layers" :size="14" /> {{ activeProductCategory }}</span
+                >
+                <span
+                  ><AppIcon name="tag" :size="14" />
+                  {{ formatMoney(activeCustomProduct.sale_price) }}</span
+                >
                 <span><AppIcon name="products" :size="14" /> {{ activeProductUnit }}</span>
               </div>
               <span class="detail-stock-status" :class="activeStockClass">
@@ -315,15 +337,29 @@
           <div class="custom-section detail-quantity-section">
             <label class="custom-sec-title">الكمية المطلوبة</label>
             <div class="detail-quantity-control">
-              <button type="button" class="detail-quantity-btn" @click="customQuantity = Math.max(1, customQuantity - 1)">−</button>
+              <button
+                type="button"
+                class="detail-quantity-btn"
+                @click="customQuantity = Math.max(1, customQuantity - 1)"
+              >
+                −
+              </button>
               <strong>{{ customQuantity }}</strong>
-              <button type="button" class="detail-quantity-btn" @click="customQuantity += 1">+</button>
+              <button type="button" class="detail-quantity-btn" @click="customQuantity += 1">
+                +
+              </button>
             </div>
           </div>
 
           <div class="custom-section">
             <label class="custom-sec-title" for="pos-product-note">ملاحظة اختيارية للطلب</label>
-            <textarea id="pos-product-note" v-model="customNotes" class="custom-notes-input" rows="2" placeholder="مثال: بدون سكر أو تجهيز خاص..."></textarea>
+            <textarea
+              id="pos-product-note"
+              v-model="customNotes"
+              class="custom-notes-input"
+              rows="2"
+              placeholder="مثال: بدون سكر أو تجهيز خاص..."
+            ></textarea>
           </div>
         </div>
 
@@ -405,7 +441,7 @@ const getCategoryProductCount = (catId: any) => {
   // Fallback calculate if products are loaded
   if (props.filteredProducts && props.filteredProducts.length) {
     const count = props.filteredProducts.filter(
-      (p: any) => String(p.category_id) === String(catId) || String(p.category) === String(catId)
+      (p: any) => String(p.category_id) === String(catId) || String(p.category) === String(catId),
     ).length;
     if (count > 0) return count;
   }
@@ -455,19 +491,19 @@ const customQuantity = ref(1);
 const customNotes = ref('');
 
 const activeProductVisual = computed(() =>
-  activeCustomProduct.value ? getProductVisual(activeCustomProduct.value) : getProductVisual({})
+  activeCustomProduct.value ? getProductVisual(activeCustomProduct.value) : getProductVisual({}),
 );
 
-const activeProductCategory = computed(() =>
-  activeCustomProduct.value?.category_name || activeCustomProduct.value?.category || ''
+const activeProductCategory = computed(
+  () => activeCustomProduct.value?.category_name || activeCustomProduct.value?.category || '',
 );
 
-const activeProductUnit = computed(() =>
-  activeCustomProduct.value?.unit || activeCustomProduct.value?.unit_name || 'وحدة'
+const activeProductUnit = computed(
+  () => activeCustomProduct.value?.unit || activeCustomProduct.value?.unit_name || 'وحدة',
 );
 
 const activeStockClass = computed(() =>
-  activeCustomProduct.value ? props.getProductStockClass(activeCustomProduct.value) : ''
+  activeCustomProduct.value ? props.getProductStockClass(activeCustomProduct.value) : '',
 );
 
 const activeStockLabel = computed(() => {
@@ -496,7 +532,7 @@ const confirmCustomization = () => {
       'addToCart',
       activeCustomProduct.value,
       customQuantity.value,
-      customNotes.value.trim() || undefined
+      customNotes.value.trim() || undefined,
     );
   }
   closeCustomizer();
@@ -742,7 +778,9 @@ defineExpose({
 
 .pos-view-transition-enter-active,
 .pos-view-transition-leave-active {
-  transition: opacity 0.18s cubic-bezier(0.16, 1, 0.3, 1), transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  transition:
+    opacity 0.18s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .pos-view-transition-enter-from {
@@ -817,7 +855,11 @@ defineExpose({
   .cat-card-glow {
     position: absolute;
     inset: 0;
-    background: radial-gradient(circle at 50% 0%, var(--theme-glow, rgba(138, 87, 42, 0.08)) 0%, transparent 70%);
+    background: radial-gradient(
+      circle at 50% 0%,
+      var(--theme-glow, rgba(138, 87, 42, 0.08)) 0%,
+      transparent 70%
+    );
     opacity: 0.6;
     pointer-events: none;
     transition: opacity 0.2s;
@@ -1102,9 +1144,17 @@ defineExpose({
 }
 
 @keyframes bounceIn {
-  0% { transform: scale(0.6); opacity: 0; }
-  70% { transform: scale(1.15); }
-  100% { transform: scale(1); opacity: 1; }
+  0% {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  70% {
+    transform: scale(1.15);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 /* ═══════════════════ EMPTY STATE & SKELETONS ═══════════════════ */
@@ -1162,62 +1212,192 @@ defineExpose({
 }
 
 /* ═══════════════════ LUXURY COLOR THEMES ═══════════════════ */
-.visual-espresso { --theme-glow: rgba(138, 87, 42, 0.25); border-color: rgba(138, 87, 42, 0.24); }
-.icon-bg-espresso { background: linear-gradient(135deg, rgba(138, 87, 42, 0.12) 0%, rgba(74, 43, 18, 0.04) 100%); color: #8a572a; }
-.badge-espresso { background: rgba(138, 87, 42, 0.14); color: #6e411b; border: 1px solid rgba(138, 87, 42, 0.2); }
+.visual-espresso {
+  --theme-glow: rgba(138, 87, 42, 0.25);
+  border-color: rgba(138, 87, 42, 0.24);
+}
+.icon-bg-espresso {
+  background: linear-gradient(135deg, rgba(138, 87, 42, 0.12) 0%, rgba(74, 43, 18, 0.04) 100%);
+  color: #8a572a;
+}
+.badge-espresso {
+  background: rgba(138, 87, 42, 0.14);
+  color: #6e411b;
+  border: 1px solid rgba(138, 87, 42, 0.2);
+}
 
-.visual-gold { --theme-glow: rgba(217, 119, 6, 0.25); border-color: rgba(217, 119, 6, 0.24); }
-.icon-bg-gold { background: linear-gradient(135deg, rgba(245, 158, 11, 0.14) 0%, rgba(217, 119, 6, 0.04) 100%); color: #b45309; }
-.badge-gold { background: rgba(217, 119, 6, 0.14); color: #92400e; border: 1px solid rgba(217, 119, 6, 0.2); }
+.visual-gold {
+  --theme-glow: rgba(217, 119, 6, 0.25);
+  border-color: rgba(217, 119, 6, 0.24);
+}
+.icon-bg-gold {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.14) 0%, rgba(217, 119, 6, 0.04) 100%);
+  color: #b45309;
+}
+.badge-gold {
+  background: rgba(217, 119, 6, 0.14);
+  color: #92400e;
+  border: 1px solid rgba(217, 119, 6, 0.2);
+}
 
-.visual-mocha { --theme-glow: rgba(120, 53, 15, 0.25); border-color: rgba(120, 53, 15, 0.24); }
-.icon-bg-mocha { background: linear-gradient(135deg, rgba(120, 53, 15, 0.12) 0%, rgba(180, 83, 9, 0.04) 100%); color: #78350f; }
-.badge-mocha { background: rgba(120, 53, 15, 0.14); color: #78350f; border: 1px solid rgba(120, 53, 15, 0.2); }
+.visual-mocha {
+  --theme-glow: rgba(120, 53, 15, 0.25);
+  border-color: rgba(120, 53, 15, 0.24);
+}
+.icon-bg-mocha {
+  background: linear-gradient(135deg, rgba(120, 53, 15, 0.12) 0%, rgba(180, 83, 9, 0.04) 100%);
+  color: #78350f;
+}
+.badge-mocha {
+  background: rgba(120, 53, 15, 0.14);
+  color: #78350f;
+  border: 1px solid rgba(120, 53, 15, 0.2);
+}
 
-.visual-ice { --theme-glow: rgba(2, 132, 199, 0.25); border-color: rgba(2, 132, 199, 0.24); }
-.icon-bg-ice { background: linear-gradient(135deg, rgba(14, 165, 233, 0.14) 0%, rgba(56, 189, 248, 0.04) 100%); color: #0284c7; }
-.badge-ice { background: rgba(2, 132, 199, 0.14); color: #0369a1; border: 1px solid rgba(2, 132, 199, 0.2); }
+.visual-ice {
+  --theme-glow: rgba(2, 132, 199, 0.25);
+  border-color: rgba(2, 132, 199, 0.24);
+}
+.icon-bg-ice {
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.14) 0%, rgba(56, 189, 248, 0.04) 100%);
+  color: #0284c7;
+}
+.badge-ice {
+  background: rgba(2, 132, 199, 0.14);
+  color: #0369a1;
+  border: 1px solid rgba(2, 132, 199, 0.2);
+}
 
-.visual-berry { --theme-glow: rgba(225, 29, 72, 0.25); border-color: rgba(225, 29, 72, 0.24); }
-.icon-bg-berry { background: linear-gradient(135deg, rgba(225, 29, 72, 0.12) 0%, rgba(244, 63, 94, 0.04) 100%); color: #e11d48; }
-.badge-berry { background: rgba(225, 29, 72, 0.14); color: #be123c; border: 1px solid rgba(225, 29, 72, 0.2); }
+.visual-berry {
+  --theme-glow: rgba(225, 29, 72, 0.25);
+  border-color: rgba(225, 29, 72, 0.24);
+}
+.icon-bg-berry {
+  background: linear-gradient(135deg, rgba(225, 29, 72, 0.12) 0%, rgba(244, 63, 94, 0.04) 100%);
+  color: #e11d48;
+}
+.badge-berry {
+  background: rgba(225, 29, 72, 0.14);
+  color: #be123c;
+  border: 1px solid rgba(225, 29, 72, 0.2);
+}
 
-.visual-emerald { --theme-glow: rgba(5, 150, 105, 0.25); border-color: rgba(5, 150, 105, 0.24); }
-.icon-bg-emerald { background: linear-gradient(135deg, rgba(16, 185, 129, 0.13) 0%, rgba(5, 150, 105, 0.04) 100%); color: #059669; }
-.badge-emerald { background: rgba(5, 150, 105, 0.14); color: #047857; border: 1px solid rgba(5, 150, 105, 0.2); }
+.visual-emerald {
+  --theme-glow: rgba(5, 150, 105, 0.25);
+  border-color: rgba(5, 150, 105, 0.24);
+}
+.icon-bg-emerald {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.13) 0%, rgba(5, 150, 105, 0.04) 100%);
+  color: #059669;
+}
+.badge-emerald {
+  background: rgba(5, 150, 105, 0.14);
+  color: #047857;
+  border: 1px solid rgba(5, 150, 105, 0.2);
+}
 
-.visual-amber { --theme-glow: rgba(234, 88, 12, 0.25); border-color: rgba(234, 88, 12, 0.24); }
-.icon-bg-amber { background: linear-gradient(135deg, rgba(234, 88, 12, 0.13) 0%, rgba(249, 115, 22, 0.04) 100%); color: #ea580c; }
-.badge-amber { background: rgba(234, 88, 12, 0.14); color: #c2410c; border: 1px solid rgba(234, 88, 12, 0.2); }
+.visual-amber {
+  --theme-glow: rgba(234, 88, 12, 0.25);
+  border-color: rgba(234, 88, 12, 0.24);
+}
+.icon-bg-amber {
+  background: linear-gradient(135deg, rgba(234, 88, 12, 0.13) 0%, rgba(249, 115, 22, 0.04) 100%);
+  color: #ea580c;
+}
+.badge-amber {
+  background: rgba(234, 88, 12, 0.14);
+  color: #c2410c;
+  border: 1px solid rgba(234, 88, 12, 0.2);
+}
 
-.visual-cream { --theme-glow: rgba(161, 98, 7, 0.2); border-color: rgba(161, 98, 7, 0.22); }
-.icon-bg-cream { background: linear-gradient(135deg, rgba(200, 149, 110, 0.14) 0%, rgba(254, 243, 199, 0.25) 100%); color: #92400e; }
-.badge-cream { background: rgba(161, 98, 7, 0.14); color: #854d0e; border: 1px solid rgba(161, 98, 7, 0.2); }
+.visual-cream {
+  --theme-glow: rgba(161, 98, 7, 0.2);
+  border-color: rgba(161, 98, 7, 0.22);
+}
+.icon-bg-cream {
+  background: linear-gradient(135deg, rgba(200, 149, 110, 0.14) 0%, rgba(254, 243, 199, 0.25) 100%);
+  color: #92400e;
+}
+.badge-cream {
+  background: rgba(161, 98, 7, 0.14);
+  color: #854d0e;
+  border: 1px solid rgba(161, 98, 7, 0.2);
+}
 
-.visual-sunset { --theme-glow: rgba(147, 51, 234, 0.25); border-color: rgba(147, 51, 234, 0.24); }
-.icon-bg-sunset { background: linear-gradient(135deg, rgba(147, 51, 234, 0.12) 0%, rgba(236, 72, 153, 0.04) 100%); color: #9333ea; }
-.badge-sunset { background: rgba(147, 51, 234, 0.14); color: #7e22ce; border: 1px solid rgba(147, 51, 234, 0.2); }
+.visual-sunset {
+  --theme-glow: rgba(147, 51, 234, 0.25);
+  border-color: rgba(147, 51, 234, 0.24);
+}
+.icon-bg-sunset {
+  background: linear-gradient(135deg, rgba(147, 51, 234, 0.12) 0%, rgba(236, 72, 153, 0.04) 100%);
+  color: #9333ea;
+}
+.badge-sunset {
+  background: rgba(147, 51, 234, 0.14);
+  color: #7e22ce;
+  border: 1px solid rgba(147, 51, 234, 0.2);
+}
 
-.visual-caramel { --theme-glow: rgba(180, 83, 9, 0.25); border-color: rgba(180, 83, 9, 0.24); }
-.icon-bg-caramel { background: linear-gradient(135deg, rgba(180, 83, 9, 0.13) 0%, rgba(245, 158, 11, 0.04) 100%); color: #b45309; }
-.badge-caramel { background: rgba(180, 83, 9, 0.14); color: #92400e; border: 1px solid rgba(180, 83, 9, 0.2); }
+.visual-caramel {
+  --theme-glow: rgba(180, 83, 9, 0.25);
+  border-color: rgba(180, 83, 9, 0.24);
+}
+.icon-bg-caramel {
+  background: linear-gradient(135deg, rgba(180, 83, 9, 0.13) 0%, rgba(245, 158, 11, 0.04) 100%);
+  color: #b45309;
+}
+.badge-caramel {
+  background: rgba(180, 83, 9, 0.14);
+  color: #92400e;
+  border: 1px solid rgba(180, 83, 9, 0.2);
+}
 
 /* Dark Theme Overrides */
 [data-theme='dark'] {
-  .icon-bg-espresso { color: #f0cb9e; background: linear-gradient(135deg, rgba(217, 168, 108, 0.2) 0%, rgba(37, 23, 15, 0.8) 100%); }
-  .badge-espresso { color: #f0cb9e; background: rgba(217, 168, 108, 0.16); }
+  .icon-bg-espresso {
+    color: #f0cb9e;
+    background: linear-gradient(135deg, rgba(217, 168, 108, 0.2) 0%, rgba(37, 23, 15, 0.8) 100%);
+  }
+  .badge-espresso {
+    color: #f0cb9e;
+    background: rgba(217, 168, 108, 0.16);
+  }
 
-  .icon-bg-gold { color: #fde68a; background: linear-gradient(135deg, rgba(251, 191, 36, 0.2) 0%, rgba(45, 29, 10, 0.8) 100%); }
-  .badge-gold { color: #fde68a; background: rgba(251, 191, 36, 0.16); }
+  .icon-bg-gold {
+    color: #fde68a;
+    background: linear-gradient(135deg, rgba(251, 191, 36, 0.2) 0%, rgba(45, 29, 10, 0.8) 100%);
+  }
+  .badge-gold {
+    color: #fde68a;
+    background: rgba(251, 191, 36, 0.16);
+  }
 
-  .icon-bg-ice { color: #7dd3fc; background: linear-gradient(135deg, rgba(56, 189, 248, 0.2) 0%, rgba(12, 35, 55, 0.8) 100%); }
-  .badge-ice { color: #7dd3fc; background: rgba(56, 189, 248, 0.16); }
+  .icon-bg-ice {
+    color: #7dd3fc;
+    background: linear-gradient(135deg, rgba(56, 189, 248, 0.2) 0%, rgba(12, 35, 55, 0.8) 100%);
+  }
+  .badge-ice {
+    color: #7dd3fc;
+    background: rgba(56, 189, 248, 0.16);
+  }
 
-  .icon-bg-berry { color: #fda4af; background: linear-gradient(135deg, rgba(251, 113, 133, 0.2) 0%, rgba(50, 15, 25, 0.8) 100%); }
-  .badge-berry { color: #fda4af; background: rgba(251, 113, 133, 0.16); }
+  .icon-bg-berry {
+    color: #fda4af;
+    background: linear-gradient(135deg, rgba(251, 113, 133, 0.2) 0%, rgba(50, 15, 25, 0.8) 100%);
+  }
+  .badge-berry {
+    color: #fda4af;
+    background: rgba(251, 113, 133, 0.16);
+  }
 
-  .icon-bg-emerald { color: #6ee7b7; background: linear-gradient(135deg, rgba(52, 211, 153, 0.2) 0%, rgba(10, 40, 25, 0.8) 100%); }
-  .badge-emerald { color: #6ee7b7; background: rgba(52, 211, 153, 0.16); }
+  .icon-bg-emerald {
+    color: #6ee7b7;
+    background: linear-gradient(135deg, rgba(52, 211, 153, 0.2) 0%, rgba(10, 40, 25, 0.8) 100%);
+  }
+  .badge-emerald {
+    color: #6ee7b7;
+    background: rgba(52, 211, 153, 0.16);
+  }
 
   .pos-category-card .cat-card-visual-box .cat-floating-icon {
     background: rgba(30, 30, 30, 0.85);
@@ -1250,8 +1430,14 @@ defineExpose({
 }
 
 @keyframes modalScale {
-  0% { transform: scale(0.94); opacity: 0; }
-  100% { transform: scale(1); opacity: 1; }
+  0% {
+    transform: scale(0.94);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 .customizer-header {

@@ -21,8 +21,13 @@ it('renames historical branch sales without changing other sale channels', async
       `INSERT INTO sales (sale_number, sale_type, warehouse_id, user_id)
        VALUES ($1, 'branch', $2, $3), ($4, 'wholesale', $2, $3), ($5, 'pos', $2, $3)
        RETURNING id, sale_type`,
-      [`MIG-RETAIL-${Date.now()}-A`, warehouse.rows[0].id, user.rows[0].id,
-       `MIG-RETAIL-${Date.now()}-B`, `MIG-RETAIL-${Date.now()}-C`],
+      [
+        `MIG-RETAIL-${Date.now()}-A`,
+        warehouse.rows[0].id,
+        user.rows[0].id,
+        `MIG-RETAIL-${Date.now()}-B`,
+        `MIG-RETAIL-${Date.now()}-C`,
+      ],
     );
     const ids = inserted.rows.map((row) => row.id);
 

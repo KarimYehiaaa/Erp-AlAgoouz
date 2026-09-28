@@ -229,16 +229,12 @@ export function useInventoryTransfers(ctx: InventoryTransfersContext) {
     const fromW = warehouses.value.find((w: any) =>
       fromType === 'main'
         ? w.type === 'main' || w.code === 'MAIN' || (w.name_ar && w.name_ar.includes('رئيسي'))
-        : w.type === 'store' ||
-          w.code === 'STORE' ||
-          (w.name_ar && (w.name_ar.includes('فرع') || w.name_ar.includes('محل'))),
+        : w.type === 'store' || w.code === 'STORE' || (w.name_ar && w.name_ar.includes('محل')),
     );
     const toW = warehouses.value.find((w: any) =>
       toType === 'main'
         ? w.type === 'main' || w.code === 'MAIN' || (w.name_ar && w.name_ar.includes('رئيسي'))
-        : w.type === 'store' ||
-          w.code === 'STORE' ||
-          (w.name_ar && (w.name_ar.includes('فرع') || w.name_ar.includes('محل'))),
+        : w.type === 'store' || w.code === 'STORE' || (w.name_ar && w.name_ar.includes('محل')),
     );
     if (fromW && toW) {
       transfer.value.from_warehouse_id = fromW.id;

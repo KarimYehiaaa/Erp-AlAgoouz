@@ -89,28 +89,53 @@ afterAll(async () => {
   // Teardown test artifacts
   try {
     if (cleanup.purchaseReturnIds.length) {
-      await query(`DELETE FROM purchase_return_items WHERE purchase_return_id = ANY($1::int[])`, [cleanup.purchaseReturnIds]);
-      await query(`DELETE FROM purchase_returns WHERE id = ANY($1::int[])`, [cleanup.purchaseReturnIds]);
+      await query(`DELETE FROM purchase_return_items WHERE purchase_return_id = ANY($1::int[])`, [
+        cleanup.purchaseReturnIds,
+      ]);
+      await query(`DELETE FROM purchase_returns WHERE id = ANY($1::int[])`, [
+        cleanup.purchaseReturnIds,
+      ]);
     }
     if (cleanup.journalEntryIds.length) {
-      await query(`DELETE FROM journal_entry_lines WHERE journal_entry_id = ANY($1::int[])`, [cleanup.journalEntryIds]);
-      await query(`DELETE FROM journal_entries WHERE id = ANY($1::int[])`, [cleanup.journalEntryIds]);
+      await query(`DELETE FROM journal_entry_lines WHERE journal_entry_id = ANY($1::int[])`, [
+        cleanup.journalEntryIds,
+      ]);
+      await query(`DELETE FROM journal_entries WHERE id = ANY($1::int[])`, [
+        cleanup.journalEntryIds,
+      ]);
     }
     if (cleanup.purchaseInvoiceIds.length) {
-      await query(`DELETE FROM purchase_invoice_items WHERE purchase_invoice_id = ANY($1::int[])`, [cleanup.purchaseInvoiceIds]);
-      await query(`DELETE FROM purchase_invoices WHERE id = ANY($1::int[])`, [cleanup.purchaseInvoiceIds]);
+      await query(`DELETE FROM purchase_invoice_items WHERE purchase_invoice_id = ANY($1::int[])`, [
+        cleanup.purchaseInvoiceIds,
+      ]);
+      await query(`DELETE FROM purchase_invoices WHERE id = ANY($1::int[])`, [
+        cleanup.purchaseInvoiceIds,
+      ]);
     }
     if (cleanup.saleIds.length) {
-      await query(`DELETE FROM payments WHERE reference_type = 'sale' AND reference_id = ANY($1::int[])`, [cleanup.saleIds]);
-      await query(`DELETE FROM invoice_items WHERE invoice_id IN (SELECT id FROM invoices WHERE sale_id = ANY($1::int[]))`, [cleanup.saleIds]);
+      await query(
+        `DELETE FROM payments WHERE reference_type = 'sale' AND reference_id = ANY($1::int[])`,
+        [cleanup.saleIds],
+      );
+      await query(
+        `DELETE FROM invoice_items WHERE invoice_id IN (SELECT id FROM invoices WHERE sale_id = ANY($1::int[]))`,
+        [cleanup.saleIds],
+      );
       await query(`DELETE FROM invoices WHERE sale_id = ANY($1::int[])`, [cleanup.saleIds]);
       await query(`DELETE FROM sale_items WHERE sale_id = ANY($1::int[])`, [cleanup.saleIds]);
-      await query(`DELETE FROM stock_movements WHERE reference_type = 'sale' AND reference_id = ANY($1::int[])`, [cleanup.saleIds]);
+      await query(
+        `DELETE FROM stock_movements WHERE reference_type = 'sale' AND reference_id = ANY($1::int[])`,
+        [cleanup.saleIds],
+      );
       await query(`DELETE FROM sales WHERE id = ANY($1::int[])`, [cleanup.saleIds]);
     }
     if (cleanup.productIds.length) {
-      await query(`DELETE FROM inventory_cost_layers WHERE product_id = ANY($1::int[])`, [cleanup.productIds]);
-      await query(`DELETE FROM stock_movements WHERE product_id = ANY($1::int[])`, [cleanup.productIds]);
+      await query(`DELETE FROM inventory_cost_layers WHERE product_id = ANY($1::int[])`, [
+        cleanup.productIds,
+      ]);
+      await query(`DELETE FROM stock_movements WHERE product_id = ANY($1::int[])`, [
+        cleanup.productIds,
+      ]);
       await query(`DELETE FROM inventory WHERE product_id = ANY($1::int[])`, [cleanup.productIds]);
       await query(`DELETE FROM products WHERE id = ANY($1::int[])`, [cleanup.productIds]);
     }
@@ -233,7 +258,9 @@ describe('2. Double-Entry Invariant & Journal Entries (قيود اليومية �
     expect(Number(entry.total_debit)).toBe(50000);
     expect(Number(entry.total_credit)).toBe(50000);
 
-    const linesRes = await query(`SELECT * FROM journal_entry_lines WHERE journal_entry_id = $1`, [entry.id]);
+    const linesRes = await query(`SELECT * FROM journal_entry_lines WHERE journal_entry_id = $1`, [
+      entry.id,
+    ]);
     expect(linesRes.rows.length).toBe(2);
 
     cleanup.journalEntryIds.push(entry.id);
@@ -611,6 +638,8 @@ describe('5. General Ledger, Trial Balance, and Balance Sheet Verification', () 
     expect(res.data.success).toBe(true);
     const bs = res.data.data;
     expect(bs.is_balanced).toBe(true);
-    expect(Math.abs(bs.assets.total - (bs.liabilities.total + bs.equity.total))).toBeLessThanOrEqual(0.01);
+    expect(
+      Math.abs(bs.assets.total - (bs.liabilities.total + bs.equity.total)),
+    ).toBeLessThanOrEqual(0.01);
   });
 });

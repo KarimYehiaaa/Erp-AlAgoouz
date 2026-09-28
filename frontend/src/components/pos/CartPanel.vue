@@ -155,10 +155,7 @@
         </div>
 
         <!-- خيار استبدال نقاط الولاء -->
-        <div
-          v-if="selectedCustomer && (selectedCustomer.loyalty_points || 0) >= 10"
-          class="loyalty-redeem-box"
-        >
+        <div v-if="selectedCustomer && maxRedeemablePoints >= 10" class="loyalty-redeem-box">
           <label class="redeem-toggle">
             <input type="checkbox" v-model="useLoyaltyRedeem" @change="onToggleLoyaltyRedeem" />
             <span>🎁 استبدال نقاط الولاء بخصم</span>
@@ -392,7 +389,11 @@
           class="btn-finalize-submit"
           :class="{ 'btn-loading': saving }"
           :disabled="
-            saving || !cart.length || (saleForm.payment_method === 'split' && splitRemaining !== 0)
+            saving ||
+            !cart.length ||
+            cartTotal <= 0 ||
+            !loyaltyRedemptionValid ||
+            (saleForm.payment_method === 'split' && splitRemaining !== 0)
           "
         >
           <span class="btn-icon"><AppIcon name="print" :size="20" /></span>
@@ -535,8 +536,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import AppIcon from '@/components/AppIcon.vue';
+import { maxRedeemableLoyaltyPoints } from '../../../../shared/loyalty';
 
 const props = defineProps<{
   cart: any[];
@@ -623,6 +625,7 @@ const syncSplitPayments = () => {
 
 const handleCheckoutSubmit = () => {
   if (props.saving || !props.cart.length) return;
+  if (props.cartTotal <= 0 || !loyaltyRedemptionValid.value) return;
   if (props.saleForm.payment_method === 'split' && splitRemaining.value !== 0) {
     return;
   }
@@ -634,17 +637,41 @@ const useLoyaltyRedeem = ref(false);
 
 const maxRedeemablePoints = computed(() => {
   if (!props.selectedCustomer) return 0;
-  const available = props.selectedCustomer.loyalty_points || 0;
-  const maxForTotal = Math.floor(props.cartTotal * 10);
-  return Math.min(available, maxForTotal);
+  return maxRedeemableLoyaltyPoints(
+    props.cartSubtotal,
+    props.saleForm.discount_amount,
+    props.selectedCustomer.loyalty_points || 0,
+  );
 });
+
+watch(maxRedeemablePoints, (maximum) => {
+  if (props.saleForm.loyalty_points_redeemed > maximum) {
+    props.saleForm.loyalty_points_redeemed = maximum;
+  }
+  if (maximum < 10) useLoyaltyRedeem.value = false;
+});
+
+const loyaltyRedemptionValid = computed(() => {
+  const points = Number(props.saleForm.loyalty_points_redeemed) || 0;
+  return (
+    Number.isInteger(points) &&
+    points >= 0 &&
+    points <= maxRedeemablePoints.value &&
+    points % 10 === 0
+  );
+});
+
+watch(
+  () => props.saleForm.customer_id,
+  () => {
+    props.saleForm.loyalty_points_redeemed = 0;
+    useLoyaltyRedeem.value = false;
+  },
+);
 
 const onToggleLoyaltyRedeem = () => {
   if (useLoyaltyRedeem.value) {
-    props.saleForm.loyalty_points_redeemed = Math.min(
-      props.selectedCustomer?.loyalty_points || 0,
-      Math.floor(props.cartTotal * 10),
-    );
+    props.saleForm.loyalty_points_redeemed = maxRedeemablePoints.value;
   } else {
     props.saleForm.loyalty_points_redeemed = 0;
   }

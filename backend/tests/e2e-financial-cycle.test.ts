@@ -5,7 +5,7 @@
  *  1. حقن رأس المال (قيد افتتاحي متوازن)
  *  2. دورة مشتريات بضاعة تامة بالآجل وتحديث الأستاذ العام
  *  3. سداد مستحقات المورد من الخزينة الرئيسية وتصفير المديونية
- *  4. عملية بيع نقدية بالفرع وإثبات الإيراد وتكلفة البضاعة المباعة (COGS)
+ *  4. عملية بيع نقدية بالمحل وإثبات الإيراد وتكلفة البضاعة المباعة (COGS)
  *  5. مرتجع مبيعات رباعي الأطراف ورد النقدية وإرجاع تكلفة ومخزون السلعة
  *  6. إثبات وسداد مصروف تشغيلي عبر postExpenseJournalEntry
  *  7. فحص ميزان المراجعة والميزانية العمومية والتأكد من توازن كل القيود (Variance = 0)
@@ -113,7 +113,9 @@ describe('E2E Complete Financial Lifecycle & General Ledger Reconciliation', () 
     // Cleanup generated data
     try {
       if (cleanupIds.journalEntries.length > 0) {
-        await query(`DELETE FROM journal_entry_lines WHERE journal_entry_id = ANY($1)`, [cleanupIds.journalEntries]);
+        await query(`DELETE FROM journal_entry_lines WHERE journal_entry_id = ANY($1)`, [
+          cleanupIds.journalEntries,
+        ]);
         await query(`DELETE FROM journal_entries WHERE id = ANY($1)`, [cleanupIds.journalEntries]);
       }
       if (cleanupIds.sales.length > 0) {
@@ -121,7 +123,9 @@ describe('E2E Complete Financial Lifecycle & General Ledger Reconciliation', () 
         await query(`DELETE FROM sales WHERE id = ANY($1)`, [cleanupIds.sales]);
       }
       if (cleanupIds.purchases.length > 0) {
-        await query(`DELETE FROM purchase_invoice_items WHERE purchase_invoice_id = ANY($1)`, [cleanupIds.purchases]);
+        await query(`DELETE FROM purchase_invoice_items WHERE purchase_invoice_id = ANY($1)`, [
+          cleanupIds.purchases,
+        ]);
         await query(`DELETE FROM purchase_invoices WHERE id = ANY($1)`, [cleanupIds.purchases]);
       }
       if (cleanupIds.expenses.length > 0) {
@@ -138,7 +142,9 @@ describe('E2E Complete Financial Lifecycle & General Ledger Reconciliation', () 
         await query(`DELETE FROM product_categories WHERE id = ANY($1)`, [cleanupIds.categories]);
       }
       if (cleanupIds.suppliers.length > 0) {
-        await query(`DELETE FROM supplier_payments WHERE supplier_id = ANY($1)`, [cleanupIds.suppliers]);
+        await query(`DELETE FROM supplier_payments WHERE supplier_id = ANY($1)`, [
+          cleanupIds.suppliers,
+        ]);
         await query(`DELETE FROM suppliers WHERE id = ANY($1)`, [cleanupIds.suppliers]);
       }
       if (cleanupIds.customers.length > 0) {

@@ -10,8 +10,12 @@ export const usePosAuthStore = defineStore('posAuth', () => {
   const terminal = ref<any>(sessionService.getTerminal());
   const sessionInitializing = ref(false);
 
-  const isAuthenticated = computed(() => !sessionInitializing.value && !!token.value && !!user.value);
-  const isCashier = computed(() => user.value?.role_name === 'cashier' || user.value?.role_name === 'admin');
+  const isAuthenticated = computed(
+    () => !sessionInitializing.value && !!token.value && !!user.value,
+  );
+  const isCashier = computed(
+    () => user.value?.role_name === 'cashier' || user.value?.role_name === 'admin',
+  );
 
   /**
    * استعادة جلسة العمل بأمان عند إقلاع التطبيق (Startup Session Restoration)
@@ -69,7 +73,36 @@ export const usePosAuthStore = defineStore('posAuth', () => {
    * إذا فشل أي جزء من حفظ الجلسة أو تهيئة المزامنة، يتم التراجع الفوري (Rollback)
    */
   const login = async (credentials: { username: string; password: string }) => {
-    const res = await api.post('/auth/login', credentials);
+    let res: any;
+    try {
+      res = await api.post('/auth/login', credentials);
+    } catch (err: any) {
+      const serverMsg = err.response?.data?.message;
+      if (serverMsg) {
+        throw new Error(serverMsg, { cause: err });
+      }
+      if (err.response?.status === 401) {
+        throw new Error('اسم المستخدم أو كلمة المرور غير صحيحة', { cause: err });
+      }
+      if (err.response?.status === 403) {
+        throw new Error('الحساب لا يملك صلاحية الدخول لنقطة البيع (مطلوب كاشير أو مدير)', {
+          cause: err,
+        });
+      }
+      if (err.response?.status === 404) {
+        throw new Error(`تعذر العثور على خدمة تسجيل الدخول على الخادم المحدد (${getServerUrl()})`, {
+          cause: err,
+        });
+      }
+      if (err.code === 'ERR_NETWORK' || !err.response) {
+        throw new Error(
+          `تعذر الاتصال بالخادم (${getServerUrl()}). يرجى التحقق من تشغيل السيرفر أو اختيار السيرفر السحابي.`,
+          { cause: err },
+        );
+      }
+      throw new Error(err.message || 'فشل تسجيل الدخول. تحقق من البيانات.', { cause: err });
+    }
+
     const payload = res.data?.data || res.data;
 
     if (res.data?.success && payload?.token) {

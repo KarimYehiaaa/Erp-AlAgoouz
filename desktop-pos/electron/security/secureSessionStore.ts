@@ -27,10 +27,7 @@ export class SecureSessionStore {
   private inMemorySession: PosSessionData | null = null;
   private encryptionEngine: EncryptionEngine;
 
-  constructor(
-    customStorageDir?: string,
-    customEngine?: EncryptionEngine
-  ) {
+  constructor(customStorageDir?: string, customEngine?: EncryptionEngine) {
     let baseDir: string;
     if (customStorageDir) {
       baseDir = customStorageDir;
@@ -79,7 +76,7 @@ export class SecureSessionStore {
     // فحص توفر التشفير على مستوى نظام التشغيل
     if (!this.encryptionEngine.isEncryptionAvailable()) {
       console.warn(
-        '[SecureSessionStore] safeStorage encryption unavailable on host OS. Maintaining in-memory session only (fail-closed persistence).'
+        '[SecureSessionStore] safeStorage encryption unavailable on host OS. Maintaining in-memory session only (fail-closed persistence).',
       );
       this.safeDeleteSessionFile();
       return { success: true };
@@ -134,7 +131,10 @@ export class SecureSessionStore {
       }
       return null;
     } catch (err) {
-      console.error('[SecureSessionStore] Failed to decrypt session or file corrupted. Purging corrupt session file:', err);
+      console.error(
+        '[SecureSessionStore] Failed to decrypt session or file corrupted. Purging corrupt session file:',
+        err,
+      );
       this.safeDeleteSessionFile();
       return null;
     }

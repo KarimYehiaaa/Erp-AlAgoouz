@@ -198,7 +198,10 @@ describe('Desktop POS Server Configuration & IPC Contract Tests', () => {
     it('Test A: Existing token + valid server URL + Electron success -> token & user preserved, authenticated = true', async () => {
       setActivePinia(createPinia());
       localStorage.setItem('pos_token', 'valid-saved-token-111');
-      localStorage.setItem('pos_user', JSON.stringify({ id: 1, name: 'أحمد كاشير', role_name: 'cashier' }));
+      localStorage.setItem(
+        'pos_user',
+        JSON.stringify({ id: 1, name: 'أحمد كاشير', role_name: 'cashier' }),
+      );
 
       const mockElectronAPI = {
         setAuthToken: vi.fn().mockResolvedValue({ success: true }),
@@ -209,7 +212,10 @@ describe('Desktop POS Server Configuration & IPC Contract Tests', () => {
       const restored = await authStore.restoreSession();
 
       expect(restored).toBe(true);
-      expect(mockElectronAPI.setAuthToken).toHaveBeenCalledWith('valid-saved-token-111', expect.any(String));
+      expect(mockElectronAPI.setAuthToken).toHaveBeenCalledWith(
+        'valid-saved-token-111',
+        expect.any(String),
+      );
       expect(authStore.token).toBe('valid-saved-token-111');
       expect(authStore.user?.name).toBe('أحمد كاشير');
       expect(authStore.isAuthenticated).toBe(true);
@@ -284,8 +290,12 @@ describe('Desktop POS Server Configuration & IPC Contract Tests', () => {
     it('Validates protocols, formats, and trailing slash removal', () => {
       expect(validateServerUrl('').valid).toBe(false);
       expect(validateServerUrl('ftp://example.com').valid).toBe(false);
-      expect(validateServerUrl('http://localhost:3000/api/v1/').normalizedUrl).toBe('http://localhost:3000/api/v1');
-      expect(validateServerUrl('https://api.alagoouz.com/api/v1///').normalizedUrl).toBe('https://api.alagoouz.com/api/v1');
+      expect(validateServerUrl('http://localhost:3000/api/v1/').normalizedUrl).toBe(
+        'http://localhost:3000/api/v1',
+      );
+      expect(validateServerUrl('https://api.alagoouz.com/api/v1///').normalizedUrl).toBe(
+        'https://api.alagoouz.com/api/v1',
+      );
     });
 
     it('Strictly rejects malicious schemes (javascript:, file:)', () => {
@@ -308,7 +318,9 @@ describe('Desktop POS Server Configuration & IPC Contract Tests', () => {
 
       expect(res.success).toBe(false);
       expect(res.error).toContain('HTTPS');
-      expect(mockElectronAPI.setServerUrl).toHaveBeenCalledWith('http://insecure-remote.com/api/v1');
+      expect(mockElectronAPI.setServerUrl).toHaveBeenCalledWith(
+        'http://insecure-remote.com/api/v1',
+      );
       expect(localStorage.getItem('pos_server_url')).toBe('http://localhost:3000/api/v1');
       expect(api.defaults.baseURL).toBe('http://localhost:3000/api/v1');
     });
@@ -326,8 +338,12 @@ describe('Desktop POS Server Configuration & IPC Contract Tests', () => {
       const res = await setServerUrl('https://central-api.alagoouz.com/api/v1');
 
       expect(res.success).toBe(true);
-      expect(mockElectronAPI.setServerUrl).toHaveBeenCalledWith('https://central-api.alagoouz.com/api/v1');
-      expect(localStorage.getItem('pos_server_url')).toBe('https://central-api.alagoouz.com/api/v1');
+      expect(mockElectronAPI.setServerUrl).toHaveBeenCalledWith(
+        'https://central-api.alagoouz.com/api/v1',
+      );
+      expect(localStorage.getItem('pos_server_url')).toBe(
+        'https://central-api.alagoouz.com/api/v1',
+      );
       expect(api.defaults.baseURL).toBe('https://central-api.alagoouz.com/api/v1');
     });
   });
@@ -337,21 +353,39 @@ describe('Desktop POS Server Configuration & IPC Contract Tests', () => {
   // ─────────────────────────────────────────────────────────────
   describe('PosSyncWorker Atomic Session Configuration', () => {
     it('Valid login sets token and serverUrl in worker atomically', () => {
-      const worker = new PosSyncWorker(() => [], () => true, () => null, true);
+      const worker = new PosSyncWorker(
+        () => [],
+        () => true,
+        () => null,
+        true,
+      );
       expect(worker.getAuthToken()).toBeNull();
       expect(worker.getServerUrl()).toBe('http://localhost:3000/api/v1');
 
-      const res = worker.setSession('valid-cashier-jwt-123', 'https://central-api.alagoouz.com/api/v1', true);
+      const res = worker.setSession(
+        'valid-cashier-jwt-123',
+        'https://central-api.alagoouz.com/api/v1',
+        true,
+      );
       expect(res.success).toBe(true);
       expect(worker.getAuthToken()).toBe('valid-cashier-jwt-123');
       expect(worker.getServerUrl()).toBe('https://central-api.alagoouz.com/api/v1');
     });
 
     it('Insecure serverUrl rejects session atomically (token remains null, serverUrl unchanged)', () => {
-      const worker = new PosSyncWorker(() => [], () => true, () => null, true);
+      const worker = new PosSyncWorker(
+        () => [],
+        () => true,
+        () => null,
+        true,
+      );
       const initialUrl = worker.getServerUrl();
 
-      const res = worker.setSession('attempted-token-456', 'http://unencrypted-remote.com/api/v1', true);
+      const res = worker.setSession(
+        'attempted-token-456',
+        'http://unencrypted-remote.com/api/v1',
+        true,
+      );
       expect(res.success).toBe(false);
       expect(res.error).toContain('HTTPS');
 
@@ -361,7 +395,12 @@ describe('Desktop POS Server Configuration & IPC Contract Tests', () => {
     });
 
     it('Logout (token = null) clears token in worker cleanly', () => {
-      const worker = new PosSyncWorker(() => [], () => true, () => null, true);
+      const worker = new PosSyncWorker(
+        () => [],
+        () => true,
+        () => null,
+        true,
+      );
       worker.setSession('active-jwt-token', 'https://central-api.alagoouz.com/api/v1', true);
       expect(worker.getAuthToken()).toBe('active-jwt-token');
 
@@ -384,11 +423,9 @@ describe('Desktop POS Server Configuration & IPC Contract Tests', () => {
       expect(res.normalizedUrl).toBe('https://api.alagoouz.com/api/v1');
 
       // Custom trusted list support
-      const customRes = validateServerUrl(
+      const customRes = validateServerUrl('https://partner-cloud.com/api/v1', true, [
         'https://partner-cloud.com/api/v1',
-        true,
-        ['https://partner-cloud.com/api/v1']
-      );
+      ]);
       expect(customRes.valid).toBe(true);
     });
 
@@ -461,7 +498,12 @@ describe('Desktop POS Server Configuration & IPC Contract Tests', () => {
     });
 
     it('11. Untrusted URL → cannot authenticate', () => {
-      const worker = new PosSyncWorker(() => [], () => true, () => null, true);
+      const worker = new PosSyncWorker(
+        () => [],
+        () => true,
+        () => null,
+        true,
+      );
       const res = worker.setSession('session-token-xyz', 'https://rogue-server.com/api/v1', true);
 
       expect(res.success).toBe(false);
@@ -471,13 +513,18 @@ describe('Desktop POS Server Configuration & IPC Contract Tests', () => {
 
     it('12. Untrusted URL → cannot start sync', async () => {
       const pendingItems = [
-        { sync_id: 'sync-untrusted-1', invoice_number: 'INV-UNTRUSTED', status: 'PENDING', retry_count: 0 },
+        {
+          sync_id: 'sync-untrusted-1',
+          invoice_number: 'INV-UNTRUSTED',
+          status: 'PENDING',
+          retry_count: 0,
+        },
       ];
       const worker = new PosSyncWorker(
         () => pendingItems,
         () => true,
         () => null,
-        true
+        true,
       );
 
       // Attempt to force an untrusted URL directly

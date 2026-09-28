@@ -7,6 +7,7 @@
 import crypto from 'node:crypto';
 import { query, withTransaction } from '../database/pool.ts';
 import logger from './loggerService.ts';
+import { AppError } from '../types/errors.ts';
 
 // ─── أنواع البيانات ──────────────────────────────────────
 
@@ -51,9 +52,8 @@ const DEFAULT_PHYSICS: PhysicsSettings = {
   centerForceY: 0.05,
 };
 
+// ملاحظة: مرادفا daily_summary و daily_summary_report حُذفا — ترحيل 083 يحذف الصف المكرر من قاعدة البيانات.
 const AUTOMATION_ALIASES: Record<string, string> = {
-  daily_summary: 'daily_sales_report',
-  daily_summary_report: 'daily_sales_report',
   warehouse_stock_balancing: 'warehouse_balancing',
   warehouse_stock_rebalance: 'warehouse_balancing',
 };
@@ -63,11 +63,21 @@ const EXECUTABLE_AUTOMATION_KEYS = new Set([
   'low_stock_alert',
   'void_invoice_alert',
   'anti_fraud_sentinel',
+  'large_discount_alert',
   'warehouse_balancing',
   'system_health',
   'daily_backup_reminder',
   'supplier_payment_due_alert',
   'daily_profit_margin_anomaly',
+  'cashflow_risk_shield',
+  'shift_handover_reconciliation',
+  'roastery_recipe_waste_guard',
+  'customer_loyalty_dormant_winback',
+  'ai_copilot_assistant',
+  'error_tracker_alert',
+  'webhook_listener',
+  'scheduled_cron_task',
+  'telegram_notifier',
 ]);
 
 const AUTOMATED_TRIGGER_KEYS = new Set([
@@ -78,26 +88,31 @@ const AUTOMATED_TRIGGER_KEYS = new Set([
   'daily_backup_reminder',
   'supplier_payment_due_alert',
   'daily_profit_margin_anomaly',
+  'cashflow_risk_shield',
+  'roastery_recipe_waste_guard',
+  'customer_loyalty_dormant_winback',
+  'scheduled_cron_task',
+  'error_tracker_alert',
+  'webhook_listener',
+  'telegram_notifier',
 ]);
 
 const canonicalAutomationKey = (key: string) => AUTOMATION_ALIASES[key] || key;
 const canRunAutomation = (key: string) =>
   EXECUTABLE_AUTOMATION_KEYS.has(canonicalAutomationKey(key));
-const hasAutomatedTrigger = (key: string, triggerType: string, cronExpression: string | null) =>
-  triggerType === 'cron' &&
-  Boolean(cronExpression) &&
-  AUTOMATED_TRIGGER_KEYS.has(canonicalAutomationKey(key));
-const getCairoBusinessDate = (date: Date) => {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'Africa/Cairo',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).formatToParts(date);
-  const part = (type: string) => parts.find((value) => value.type === type)?.value || '';
-  return `${part('year')}-${part('month')}-${part('day')}`;
+const hasAutomatedTrigger = (key: string, triggerType: string, cronExpression: string | null) => {
+  const canonical = canonicalAutomationKey(key);
+  if (!EXECUTABLE_AUTOMATION_KEYS.has(canonical)) {
+    return false;
+  }
+  if (triggerType === 'cron') {
+    return Boolean(cronExpression);
+  }
+  if (triggerType === 'event') {
+    return true;
+  }
+  return false;
 };
-
 // ─── خدمة الـ Graph ──────────────────────────────────────
 
 export class WorkflowGraphService {
@@ -105,7 +120,7 @@ export class WorkflowGraphService {
    * جلب كل العقد والروابط بتنسيق الرسم البياني
    */
   static async getGraphData(): Promise<GraphData> {
-    const [nodesRes, edgesRes] = await Promise.all([
+    let [nodesRes, edgesRes] = await Promise.all([
       query(
         `SELECT id, type, label, label_ar, group_name, settings, position_x, position_y, is_active
          FROM workflows_nodes
@@ -117,6 +132,26 @@ export class WorkflowGraphService {
          ORDER BY id`,
       ),
     ]);
+
+    // إذا كانت العقد فارغة (مثلاً بعد تصفير بيانات أو تهيئة أولى)، استعد الافتراضيات ذاتياً
+    if (nodesRes.rows.length === 0) {
+      logger.warn(
+        '[WorkflowGraphService] لم يتم العثور على عقد سير العمل — جاري استعادة العقد والروابط الافتراضية تلقائياً...',
+      );
+      await WorkflowGraphService.resetToDefaults();
+      [nodesRes, edgesRes] = await Promise.all([
+        query(
+          `SELECT id, type, label, label_ar, group_name, settings, position_x, position_y, is_active
+           FROM workflows_nodes
+           ORDER BY id`,
+        ),
+        query(
+          `SELECT id, source_node_id, target_node_id, condition, label
+           FROM workflows_edges
+           ORDER BY id`,
+        ),
+      ]);
+    }
 
     const nodes: GraphNode[] = nodesRes.rows.map((r: any) => ({
       id: r.id,
@@ -353,8 +388,9 @@ export class WorkflowGraphService {
         [val],
       );
     } catch (err: any) {
-      // إذا لم يكن جدول settings يدعم UPSERT، نحاول UPDATE ثم INSERT
-      logger.warn('⚠ إعدادات الفيزياء: محفوظة في الذاكرة فقط —', err.message);
+      // فشل الحفظ لا يُبتلع — يُرفع للمتحكم كي تعيد الواجهة رسالة خطأ صادقة بحالة HTTP مناسبة
+      logger.error('⚠ فشل حفظ إعدادات الفيزياء في جدول settings —', err.message);
+      throw new AppError(`فشل حفظ إعدادات الفيزياء: ${err.message || 'خطأ غير معروف'}`, 500);
     }
 
     return merged;
@@ -429,16 +465,17 @@ export class WorkflowGraphService {
    * تفعيل أو تعطيل مهمة أتمتة
    */
   static async toggleAutomation(key: string, isEnabled: boolean) {
+    const canonicalKey = canonicalAutomationKey(key);
     if (isEnabled) {
       const current = await query(
-        `SELECT trigger_type, cron_expression FROM automations WHERE key = $1`,
-        [key],
+        `SELECT trigger_type, cron_expression FROM automations WHERE key IN ($1, $2) LIMIT 1`,
+        [canonicalKey, key],
       );
       const automation = current.rows[0];
       if (
         !automation ||
-        !canRunAutomation(key) ||
-        !hasAutomatedTrigger(key, automation.trigger_type, automation.cron_expression)
+        !canRunAutomation(canonicalKey) ||
+        !hasAutomatedTrigger(canonicalKey, automation.trigger_type, automation.cron_expression)
       ) {
         return { unsupported: true };
       }
@@ -446,14 +483,16 @@ export class WorkflowGraphService {
     const res = await query(
       `UPDATE automations
        SET is_enabled = $1, updated_at = NOW()
-       WHERE key = $2
+       WHERE key IN ($2, $3)
        RETURNING *`,
-      [isEnabled, key],
+      [isEnabled, canonicalKey, key],
     );
     return res.rows[0] || null;
   }
 
-  static async getExecutionLogs(limit = 50, offset = 0) {
+  static async getExecutionLogs(limit = 50, offset = 0, key?: string) {
+    // تصفية اختيارية حسب المهمة (تُطبَّع عبر المرادفات المعروفة)
+    const canonicalKey = key && key.trim() ? canonicalAutomationKey(key.trim()) : null;
     const logs = await query(
       `SELECT l.id, l.execution_id, l.automation_id, a.key, a.name_ar,
               l.event_name, l.status, l.title, l.message, l.payload,
@@ -461,12 +500,36 @@ export class WorkflowGraphService {
               l.duration_ms, l.error_message, l.created_at
        FROM automation_logs l
        LEFT JOIN automations a ON a.id = l.automation_id
+       ${canonicalKey ? 'WHERE a.key = $3' : ''}
        ORDER BY l.created_at DESC
        LIMIT $1 OFFSET $2`,
-      [limit, offset],
+      canonicalKey ? [limit, offset, canonicalKey] : [limit, offset],
     );
-    const count = await query(`SELECT COUNT(*)::int AS total FROM automation_logs`);
+    const count = canonicalKey
+      ? await query(
+          `SELECT COUNT(*)::int AS total
+           FROM automation_logs l
+           LEFT JOIN automations a ON a.id = l.automation_id
+           WHERE a.key = $1`,
+          [canonicalKey],
+        )
+      : await query(`SELECT COUNT(*)::int AS total FROM automation_logs`);
     return { logs: logs.rows, total: count.rows[0]?.total || 0 };
+  }
+
+  /**
+   * تحديث إعدادات (config) مهمة أتمتة — التحقق من المدخلات يتم في المتحكم
+   */
+  static async updateAutomationConfig(key: string, taskConfig: Record<string, unknown>) {
+    const canonicalKey = canonicalAutomationKey(key);
+    const res = await query(
+      `UPDATE automations
+       SET config = $1::jsonb, updated_at = NOW()
+       WHERE key IN ($2, $3)
+       RETURNING id, key, name_ar, config, updated_at`,
+      [JSON.stringify(taskConfig), canonicalKey, key],
+    );
+    return res.rows[0] || null;
   }
 
   /**
@@ -500,7 +563,7 @@ export class WorkflowGraphService {
       }
       automationId = Number(automationRes.rows[0].id);
       persistedKey = automationRes.rows[0].key;
-      if (!automationRes.rows[0].is_enabled) {
+      if (triggerSource === 'scheduler' && !automationRes.rows[0].is_enabled) {
         return { success: false, message: 'مهمة الأتمتة معطلة حاليًا.' };
       }
       if (!canRunAutomation(canonicalKey)) {
@@ -533,251 +596,60 @@ export class WorkflowGraphService {
       const { default: TelegramService } = await import('./telegramService.ts');
       const creds = await TelegramBotService.getBotCredentials();
 
-      if (canonicalKey === 'daily_sales_report') {
-        const reportDate = getCairoBusinessDate(options.scheduledFor || new Date());
-        title = `ملخص مبيعات المحل ليوم ${reportDate}`;
-        const salesRes = await query(
-          `SELECT
-             COUNT(*) as invoice_count,
-             COALESCE(SUM(total_amount), 0) as net_revenue,
-             COALESCE(SUM(profit_amount), 0) as total_profit
-           FROM sales
-           WHERE sale_date = $1::date AND deleted_at IS NULL AND status = 'completed'`,
-          [reportDate],
-        );
-        const expRes = await query(
-          `SELECT COALESCE(SUM(amount), 0) as total_expenses
-           FROM expenses WHERE expense_date = $1::date AND deleted_at IS NULL`,
-          [reportDate],
-        );
-        const topRes = await query(
-          `SELECT p.name_ar, SUM(si.quantity) as qty
-           FROM sale_items si
-           JOIN sales s ON s.id = si.sale_id
-           JOIN products p ON p.id = si.product_id
-           WHERE s.sale_date = $1::date AND s.deleted_at IS NULL AND s.status = 'completed'
-           GROUP BY p.name_ar
-           ORDER BY qty DESC LIMIT 3`,
-          [reportDate],
-        );
-
-        const s = salesRes.rows[0];
-        const e = expRes.rows[0];
-        const topList =
-          topRes.rows
-            .map((r: any) => `  • ${r.name_ar}: ${Number(r.qty).toFixed(1)} كجم/قطعة`)
-            .join('\n') || '  • لا توجد مبيعات تفصيلية مسجلة لهذا اليوم';
-
-        notificationText = `
-📊 <b>ملخص مبيعات المحل — ${reportDate}</b>
-━━━━━━━━━━━━━━━━━━━━
-💰 <b>إجمالي المبيعات المسجلة:</b> ${Number(s.net_revenue).toLocaleString('ar-EG')} ج.م
-🧾 <b>عدد الفواتير:</b> ${s.invoice_count}
-💸 <b>إجمالي المصروفات:</b> ${Number(e.total_expenses).toLocaleString('ar-EG')} ج.م
-💵 <b>مجمل الربح المسجل قبل المصروفات:</b> ${Number(s.total_profit).toLocaleString('ar-EG')} ج.م
-━━━━━━━━━━━━━━━━━━━━
-🔥 <b>أعلى المنتجات مبيعاً في اليوم:</b>
-${topList}
-⏱ <i>وقت إرسال الملخص: ${new Date().toLocaleTimeString('ar-EG', { timeZone: 'Africa/Cairo' })}</i>
-        `.trim();
-      } else if (canonicalKey === 'low_stock_alert') {
-        title = 'إنذار نواقص المخزون وخامات البن';
-        const lowRes = await query(
-          `SELECT p.name_ar, p.sku,
-                  COALESCE(SUM(i.quantity), 0) AS current_stock,
-                  COALESCE(p.min_stock, 5) AS min_stock
-           FROM products p
-           LEFT JOIN inventory i ON i.product_id = p.id
-           WHERE p.is_active = true AND p.deleted_at IS NULL
-           GROUP BY p.id, p.name_ar, p.sku, p.min_stock
-           HAVING COALESCE(SUM(i.quantity), 0) <= COALESCE(p.min_stock, 5)
-           ORDER BY current_stock ASC LIMIT 10`,
-        );
-
-        if (lowRes.rows.length === 0) {
-          notificationText = `
-📦 <b>تقرير فحص المخزون وخامات التحميص</b>
-━━━━━━━━━━━━━━━━━━━━
-✅ <b>المخزون سليم تماماً!</b> لا توجد أي خامات أو أصناف وصلت لحد إعادة الطلب.
-⏱ ${new Date().toLocaleTimeString('ar-EG', { timeZone: 'Africa/Cairo' })}
-          `.trim();
-        } else {
-          status = 'warning';
-          const itemsList = lowRes.rows
-            .map(
-              (r: any) =>
-                `  ⚠️ <b>${r.name_ar}</b>: رصيد حالي <code>${r.current_stock}</code> (الحد الأدنى: ${r.min_stock || 5})`,
-            )
-            .join('\n');
-          notificationText = `
-🚨 <b>إنذار نواقص المخزون وخامات البن</b>
-━━━━━━━━━━━━━━━━━━━━
-الأصناف التالية أوشكت على النفاد وتحتاج طلب شراء/تحميص:
-${itemsList}
-━━━━━━━━━━━━━━━━━━━━
-⏱ <i>تم الفحص: ${new Date().toLocaleTimeString('ar-EG', { timeZone: 'Africa/Cairo' })}</i>
-          `.trim();
-        }
-      } else if (canonicalKey === 'void_invoice_alert' || canonicalKey === 'anti_fraud_sentinel') {
-        title = 'كشف ومراقبة التلاعب المالي (Anti-Fraud)';
-        const discountRes = await query(
-          `SELECT sale_number, subtotal, total_amount, discount_amount, discount_percent, status
-           FROM sales
-           WHERE created_at >= NOW() - INTERVAL '24 HOURS'
-             AND (status = 'cancelled' OR discount_percent >= 15 OR (subtotal > 0 AND (discount_amount / subtotal * 100) >= 15))
-           ORDER BY created_at DESC LIMIT 5`,
-        );
-
-        if (discountRes.rows.length === 0) {
-          notificationText = `
-🛡️ <b>تقرير الرقابة المالية ومكافحة التلاعب</b>
-━━━━━━━━━━━━━━━━━━━━
-✅ <b>العمليات آمنة:</b> لم يتم رصد أي فواتير ملغاة أو خصومات مريبة خلال آخر 24 ساعة.
-⏱ ${new Date().toLocaleTimeString('ar-EG', { timeZone: 'Africa/Cairo' })}
-          `.trim();
-        } else {
-          status = 'warning';
-          const fraudList = discountRes.rows
-            .map((r: any) => {
-              if (r.status === 'cancelled') {
-                return `  ❌ فاتورة ملغاة <b>#${r.sale_number}</b> بقيمة ${r.total_amount} ج.م`;
-              }
-              const pct =
-                r.discount_percent || (r.subtotal > 0 ? (r.discount_amount / r.subtotal) * 100 : 0);
-              return `  🏷️ فاتورة <b>#${r.sale_number}</b>: خصم ${Number(pct).toFixed(1)}% (${r.discount_amount} ج.م من أصل ${r.subtotal} ج.م)`;
-            })
-            .join('\n');
-          notificationText = `
-🚨 <b>إنذار الرقابة المالية — فواتير ملغاة أو خصومات مرتفعة</b>
-━━━━━━━━━━━━━━━━━━━━
-رصد النظام العمليات التالية خلال آخر 24 ساعة:
-${fraudList}
-━━━━━━━━━━━━━━━━━━━━
-⏱ <i>توقيت الرصد: ${new Date().toLocaleTimeString('ar-EG', { timeZone: 'Africa/Cairo' })}</i>
-          `.trim();
-        }
-      } else if (canonicalKey === 'warehouse_balancing') {
-        title = 'إعادة توازن مخزون المخازن';
-        const { default: WarehouseBalancingService } =
-          await import('./warehouseBalancingService.ts');
-        const bal = await WarehouseBalancingService.generateBalancingRecommendations();
-        notificationText = bal.htmlReport;
-      } else if (canonicalKey === 'supplier_payment_due_alert') {
-        const businessDate = getCairoBusinessDate(options.scheduledFor || new Date());
-        const configuredDays = Number(automationRes.rows[0].config?.days_before_due);
-        const daysBeforeDue = Number.isFinite(configuredDays)
-          ? Math.min(Math.max(configuredDays, 0), 90)
-          : 3;
-        const dueRes = await query(
-          `SELECT si.invoice_number, s.name_ar AS supplier_name, si.due_date,
-                  ROUND((si.total_amount - COALESCE(si.paid_amount, 0))::numeric, 2) AS outstanding,
-                  (si.due_date - $1::date) AS days_until_due
-           FROM supplier_invoices si
-           JOIN suppliers s ON s.id = si.supplier_id
-           WHERE si.deleted_at IS NULL AND si.due_date IS NOT NULL
-             AND si.total_amount > COALESCE(si.paid_amount, 0)
-             AND si.due_date <= $1::date + $2::int
-           ORDER BY si.due_date ASC, si.id ASC
-           LIMIT 20`,
-          [businessDate, daysBeforeDue],
-        );
-        title = `مراجعة مستحقات الموردين حتى ${businessDate}`;
-        if (dueRes.rows.length) {
-          status = 'warning';
-          const invoices = dueRes.rows
-            .map((invoice: any) => {
-              const dayCount = Number(invoice.days_until_due);
-              const dueLabel =
-                dayCount < 0
-                  ? `متأخرة ${Math.abs(dayCount)} يوم`
-                  : dayCount === 0
-                    ? 'مستحقة اليوم'
-                    : `خلال ${dayCount} يوم`;
-              return `• ${invoice.invoice_number} — ${invoice.supplier_name} — متبقٍ ${Number(invoice.outstanding).toLocaleString('ar-EG')} ج.م — ${dueLabel}`;
-            })
-            .join('\n');
-          notificationText = `
-📥 <b>فواتير الموردين غير المسددة</b>
-━━━━━━━━━━━━━━━━━━━━
-${invoices}
-━━━━━━━━━━━━━━━━━━━━
-الفحص حتى ${businessDate}
-          `.trim();
-        } else {
-          notificationText = `لا توجد فواتير موردين غير مسددة تستحق حتى ${businessDate}.`;
-        }
-      } else if (canonicalKey === 'daily_profit_margin_anomaly') {
-        const businessDate = getCairoBusinessDate(options.scheduledFor || new Date());
-        const configuredTarget = Number(automationRes.rows[0].config?.min_target_margin_pct);
-        const targetMargin = Number.isFinite(configuredTarget)
-          ? Math.min(Math.max(configuredTarget, 0), 100)
-          : 28;
-        const marginRes = await query(
-          `SELECT COUNT(*)::int AS invoice_count,
-                  COALESCE(SUM(total_amount), 0) AS total_sales,
-                  COALESCE(SUM(profit_amount), 0) AS gross_profit,
-                  CASE WHEN COALESCE(SUM(total_amount), 0) > 0
-                    THEN COALESCE(SUM(profit_amount), 0) * 100.0 / SUM(total_amount)
-                    ELSE NULL END AS margin_pct
-           FROM sales
-           WHERE sale_date = $1::date AND deleted_at IS NULL AND status = 'completed'`,
-          [businessDate],
-        );
-        const margin =
-          marginRes.rows[0]?.margin_pct == null ? null : Number(marginRes.rows[0].margin_pct);
-        title = `فحص هامش الربح الإجمالي ليوم ${businessDate}`;
-        if (margin === null) {
-          status = 'warning';
-          notificationText = `لم تُسجل مبيعات مكتملة في ${businessDate}؛ لم يتوفر أساس لحساب هامش الربح.`;
-        } else {
-          if (margin < targetMargin) status = 'warning';
-          notificationText = `
-${margin < targetMargin ? '⚠️ <b>هامش الربح أقل من الحد المحدد</b>' : '✅ <b>هامش الربح ضمن الحد المحدد</b>'}
-━━━━━━━━━━━━━━━━━━━━
-اليوم: ${businessDate}
-المبيعات المكتملة: ${Number(marginRes.rows[0].total_sales).toLocaleString('ar-EG')} ج.م
-مجمل الربح المسجل: ${Number(marginRes.rows[0].gross_profit).toLocaleString('ar-EG')} ج.م
-هامش الربح الإجمالي: ${margin.toLocaleString('ar-EG', { minimumFractionDigits: 1, maximumFractionDigits: 2 })}%
-الحد المستهدف: ${targetMargin}%
-عدد الفواتير: ${Number(marginRes.rows[0].invoice_count)}
-          `.trim();
-        }
-      } else if (canonicalKey === 'system_health') {
-        title = 'فحص سلامة النظام';
-        const { checkHealth } = await import('../database/pool.ts');
-        const dbHealth = await checkHealth();
-        if (!dbHealth.ok) status = 'warning';
-        notificationText = `
-🖥️ <b>تقرير فحص سلامة النظام والخادم</b>
-━━━━━━━━━━━━━━━━━━━━
-🟢 <b>حالة الخدمة:</b> تم تشغيل الفحص
-🗄️ <b>قاعدة البيانات:</b> ${dbHealth.ok ? 'اتصال ناجح' : 'تعذر الاتصال'} (${dbHealth.latencyMs}ms)
-⏱ ${new Date().toLocaleString('ar-EG', { timeZone: 'Africa/Cairo' })}
-        `.trim();
-      } else if (canonicalKey === 'daily_backup_reminder') {
-        title = 'تذكير بالتحقق من النسخ الاحتياطية';
-        status = 'warning';
-        notificationText = `
-🔒 <b>تذكير بفحص النسخ الاحتياطية</b>
-━━━━━━━━━━━━━━━━━━━━
-⚠️ لم يتم التحقق من وجود نسخة احتياطية حديثة قابلة للاستعادة في هذا الفحص.
-راجع آخر ملف محفوظ، وموقع التخزين الخارجي، ونتيجة تجربة الاستعادة قبل اعتبار النسخ سليمة.
-⏱ ${new Date().toLocaleString('ar-EG', { timeZone: 'Africa/Cairo' })}
-        `.trim();
+      // تنفيذ المعالج المناسب من السجل (key → handler) لجمع العنوان والنص والحالة
+      const { AUTOMATION_HANDLERS } = await import('./automationHandlers.ts');
+      const handler = AUTOMATION_HANDLERS[canonicalKey];
+      if (handler) {
+        const result = await handler({
+          key: canonicalKey,
+          config: automationRes.rows[0].config || {},
+          scheduledFor: options.scheduledFor || new Date(),
+        });
+        title = result.title;
+        notificationText = result.text;
+        status = result.status;
       }
 
-      // إرسال الإشعار لتليجرام
+      // قناة in_app: إنشاء إشعار داخلي عبر خدمة الإشعارات عند طلب المهمة ذلك
+      let inAppNotificationSent = false;
+      try {
+        const channelsRes = await query(`SELECT channels FROM automations WHERE key = $1 LIMIT 1`, [
+          persistedKey,
+        ]);
+        const channels = channelsRes.rows[0]?.channels || {};
+        if (channels.in_app) {
+          const { sendAlert } = await import('./notificationService.ts');
+          await sendAlert(
+            title,
+            notificationText.replace(/<[^>]*>/g, '').trim(),
+            status === 'warning' ? 'warning' : 'info',
+          );
+          inAppNotificationSent = true;
+        }
+      } catch (err: any) {
+        logger.warn(`فشل إنشاء الإشعار الداخلي للمهمة ${persistedKey}: ${err.message}`);
+      }
+
+      // إرسال الإشعار لتليجرام مع قراءة النتيجة الفعلية — الفشل لا يُبتلع كنجاح
+      let telegramSent = false;
+      let telegramError: string | null = null;
       if (creds.token && creds.defaultChatId) {
-        await TelegramService.sendMessage(notificationText, {
+        const sendResult = await TelegramService.sendMessage(notificationText, {
           botToken: creds.token,
           chatId: creds.defaultChatId,
         });
+        telegramSent = sendResult.success;
+        if (!sendResult.success) {
+          telegramError = sendResult.error || 'فشل إرسال الإشعار إلى تليجرام';
+          status = 'warning';
+        }
       }
 
-      // تحديث حالة الأتمتة
+      // تحديث حالة الأتمتة وتصفير عداد إعادة المحاولة عند النجاح
       await query(
         `UPDATE automations
-         SET last_run_at = NOW(), last_status = $1, updated_at = NOW()
+         SET last_run_at = NOW(), last_status = $1, updated_at = NOW(),
+             retry_count = 0, next_retry_at = NULL
          WHERE key = $2`,
         [status, persistedKey],
       );
@@ -787,16 +659,21 @@ ${margin < targetMargin ? '⚠️ <b>هامش الربح أقل من الحد ا
         await query(
           `UPDATE automation_logs
            SET status = $1, title = $2, message = $3, payload = $4,
-               finished_at = $5, duration_ms = $6
-           WHERE id = $7`,
+               error_message = $5, finished_at = $6, duration_ms = $7
+           WHERE id = $8`,
           [
             status,
             title,
-            `اكتمل تنفيذ ${title}`,
+            telegramError
+              ? `اكتمل تنفيذ ${title} لكن فشل إرسال الإشعار: ${telegramError}`
+              : `اكتمل تنفيذ ${title}`,
             JSON.stringify({
               status,
-              notificationSent: Boolean(creds.token && creds.defaultChatId),
+              notificationSent: telegramSent,
+              inAppNotificationSent,
+              notificationError: telegramError,
             }),
+            telegramError,
             finishedAt,
             finishedAt.getTime() - startedAt.getTime(),
             logId,
@@ -814,14 +691,30 @@ ${margin < targetMargin ? '⚠️ <b>هامش الربح أقل من الحد ا
 
       return {
         success: true,
-        message: `تم تشغيل ${title} بنجاح${creds.token && creds.defaultChatId ? ' وإرسال الإشعار لتليجرام' : ''}.`,
-        payload: { notificationText, status, executionId },
+        message: telegramError
+          ? `تم تنفيذ ${title} لكن فشل إرسال إشعار تليجرام: ${telegramError}`
+          : `تم تشغيل ${title} بنجاح${telegramSent ? ' وإرسال الإشعار لتليجرام' : ''}.`,
+        payload: {
+          notificationText,
+          status,
+          executionId,
+          notificationSent: telegramSent,
+          inAppNotificationSent,
+          notificationError: telegramError,
+        },
       };
     } catch (err: any) {
       logger.error(`فشل تشغيل الأتمتة ${key}:`, err.message);
+      // تسجيل الفشل وزيادة عداد المحاولات مع backoff متزايد: دقيقة ثم 5 ثم 15
+      // (العمودان retry_count و next_retry_at يضيفهما ترحيل 083 ويقرأهما المجدول)
       await query(
         `UPDATE automations
-         SET last_run_at = NOW(), last_status = 'failed', updated_at = NOW()
+         SET last_run_at = NOW(), last_status = 'failed', updated_at = NOW(),
+             retry_count = COALESCE(retry_count, 0) + 1,
+             next_retry_at = NOW() + (CASE COALESCE(retry_count, 0) + 1
+               WHEN 1 THEN interval '1 minute'
+               WHEN 2 THEN interval '5 minutes'
+               ELSE interval '15 minutes' END)
          WHERE key = $1`,
         [persistedKey],
       );

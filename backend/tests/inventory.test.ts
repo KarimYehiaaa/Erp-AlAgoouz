@@ -51,8 +51,14 @@ describe('Cross-product transfers', () => {
       );
       expect(movements.rows).toHaveLength(2);
       expect(movements.rows.map((row) => row.product_id)).toEqual(productIds);
-      expect(movements.rows.every((row) => Number(row.quantity) === 3 && row.reference_type === 'transfer_voucher')).toBe(true);
-      await expect(transferStock({ ...payload, quantity: 8 }, user.rows[0].id)).rejects.toMatchObject({ statusCode: 400 });
+      expect(
+        movements.rows.every(
+          (row) => Number(row.quantity) === 3 && row.reference_type === 'transfer_voucher',
+        ),
+      ).toBe(true);
+      await expect(
+        transferStock({ ...payload, quantity: 8 }, user.rows[0].id),
+      ).rejects.toMatchObject({ statusCode: 400 });
       const afterFailure = await query(
         'SELECT quantity FROM inventory WHERE product_id = ANY($1::int[]) ORDER BY product_id',
         [productIds],
@@ -96,21 +102,30 @@ describe('Inventory Calculations', () => {
     warehouse2 = w2Res.rows[0].id;
 
     // Insert inventory
-    await query(`
+    await query(
+      `
       INSERT INTO inventory (product_id, warehouse_id, quantity)
       VALUES ($1, $2, $3)
-    `, [productId, warehouse1, 0.1]);
+    `,
+      [productId, warehouse1, 0.1],
+    );
 
-    await query(`
+    await query(
+      `
       UPDATE inventory
       SET quantity = quantity + 0.2
       WHERE product_id = $1 AND warehouse_id = $2
-    `, [productId, warehouse1]);
+    `,
+      [productId, warehouse1],
+    );
 
-    await query(`
+    await query(
+      `
       INSERT INTO inventory (product_id, warehouse_id, quantity)
       VALUES ($1, $2, $3)
-    `, [productId, warehouse2, 0.5]);
+    `,
+      [productId, warehouse2, 0.5],
+    );
   });
 
   afterAll(async () => {
@@ -122,7 +137,7 @@ describe('Inventory Calculations', () => {
 
   it('should correctly sum and round fractional inventory quantities', async () => {
     const inventoryList = await inventoryRepository.getInventoryList();
-    const testItem = inventoryList.find(i => i.product_id === productId);
+    const testItem = inventoryList.find((i) => i.product_id === productId);
 
     expect(testItem).toBeDefined();
 

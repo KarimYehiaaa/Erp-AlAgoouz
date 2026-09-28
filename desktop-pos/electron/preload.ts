@@ -4,15 +4,18 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Hardware
   printReceipt: (invoiceData: any, printerName?: string) =>
     ipcRenderer.invoke('hardware:print-receipt', invoiceData, printerName),
-  openCashDrawer: (printerName?: string) =>
-    ipcRenderer.invoke('hardware:open-drawer', printerName),
+  openCashDrawer: (printerName?: string) => ipcRenderer.invoke('hardware:open-drawer', printerName),
   getPrinters: () => ipcRenderer.invoke('hardware:get-printers'),
 
   // Offline / Storage Bridge
   saveOfflineTransaction: (data: any) => ipcRenderer.invoke('storage:save-transaction', data),
   getPendingTransactions: () => ipcRenderer.invoke('storage:get-pending'),
-  updateTransactionStatus: (syncId: string, status: string, serverId?: any, errorMessage?: string) =>
-    ipcRenderer.invoke('storage:update-status', syncId, status, serverId, errorMessage),
+  updateTransactionStatus: (
+    syncId: string,
+    status: string,
+    serverId?: any,
+    errorMessage?: string,
+  ) => ipcRenderer.invoke('storage:update-status', syncId, status, serverId, errorMessage),
   resetTransactionRetry: (syncId: string) => ipcRenderer.invoke('storage:reset-retry', syncId),
 
   // Session, Config & Sync Bridge
@@ -33,7 +36,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getUpdateStatus: () => ipcRenderer.invoke('app:get-update-status'),
   checkForUpdates: () => ipcRenderer.invoke('app:check-for-updates'),
   installUpdate: () => ipcRenderer.invoke('app:install-update'),
-  onUpdateStatus: (callback: (status: { state: string; version?: string; message?: string }) => void) => {
+  onUpdateStatus: (
+    callback: (status: { state: string; version?: string; message?: string }) => void,
+  ) => {
     ipcRenderer.on('updater:status', (_event, status) => callback(status));
   },
   onBarcodeScan: (callback: (barcode: string) => void) => {

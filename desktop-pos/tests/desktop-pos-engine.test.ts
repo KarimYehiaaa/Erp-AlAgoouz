@@ -20,7 +20,9 @@ describe('Desktop POS Production Engine & Durability Tests', () => {
   it('Checkout reliability: distinguishes retryable network failures from server validation errors', () => {
     expect(isRetryableNetworkError({ code: 'ECONNABORTED' })).toBe(true);
     expect(isRetryableNetworkError({ message: 'Network Error' })).toBe(true);
-    expect(isRetryableNetworkError({ response: { status: 422 }, message: 'Invalid sale' })).toBe(false);
+    expect(isRetryableNetworkError({ response: { status: 422 }, message: 'Invalid sale' })).toBe(
+      false,
+    );
   });
 
   it('Checkout reliability: creates a stable key for print retry without reposting a sale', () => {
@@ -30,7 +32,9 @@ describe('Desktop POS Production Engine & Durability Tests', () => {
       payment_method: 'card',
       items: [{ product_id: 1, quantity: 2, unit_price: 50, notes: '' }],
     };
-    expect(checkoutPayloadKey(payload)).toBe(checkoutPayloadKey({ ...payload, items: [...payload.items] }));
+    expect(checkoutPayloadKey(payload)).toBe(
+      checkoutPayloadKey({ ...payload, items: [...payload.items] }),
+    );
     expect(checkoutPayloadKey(payload)).not.toBe(
       checkoutPayloadKey({ ...payload, payment_method: 'cash' }),
     );
@@ -90,8 +94,12 @@ describe('Desktop POS Production Engine & Durability Tests', () => {
       subtotal: 50,
       total_amount: 50,
     };
-    expect(PosPrinterDriver.generateTextReceipt({ ...base, payment_method: 'card' })).toContain('طريقة الدفع: بطاقة');
-    expect(PosPrinterDriver.generateTextReceipt({ ...base, payment_method: 'instapay' })).toContain('طريقة الدفع: إنستاباي');
+    expect(PosPrinterDriver.generateTextReceipt({ ...base, payment_method: 'card' })).toContain(
+      'طريقة الدفع: بطاقة',
+    );
+    expect(PosPrinterDriver.generateTextReceipt({ ...base, payment_method: 'instapay' })).toContain(
+      'طريقة الدفع: إنستاباي',
+    );
   });
 
   it('Production Hardware Service: Cash Drawer contracts across Dev, Prod without printer, and Windows Spooler', async () => {
@@ -192,7 +200,7 @@ describe('Desktop POS Production Engine & Durability Tests', () => {
     const successResult = await PosPrinterDriver.printNetworkRaw(
       '127.0.0.1',
       port,
-      PosPrinterDriver.getDrawerKickCommand()
+      PosPrinterDriver.getDrawerKickCommand(),
     );
     expect(successResult).toBe(true);
     server.close();
@@ -201,7 +209,7 @@ describe('Desktop POS Production Engine & Durability Tests', () => {
     const failResult = await PosPrinterDriver.printNetworkRaw(
       '127.0.0.1',
       65530,
-      PosPrinterDriver.getDrawerKickCommand()
+      PosPrinterDriver.getDrawerKickCommand(),
     );
     expect(failResult).toBe(false);
   });
@@ -246,19 +254,28 @@ describe('Desktop POS Production Engine & Durability Tests', () => {
 
   it('Production Queue Storage Engine: Scenario D (Atomic Write Failure Protection)', () => {
     // If a write cannot proceed (e.g. invalid path or file lock), saveTransaction returns explicit failure
-    const invalidDir = os.platform() === 'win32' ? 'Z:\\non_existent_drive_9999\\pos_test' : '/root/non_existent_9999';
+    const invalidDir =
+      os.platform() === 'win32'
+        ? 'Z:\\non_existent_drive_9999\\pos_test'
+        : '/root/non_existent_9999';
     const res = saveTransaction({ total_amount: 50 }, invalidDir);
     expect(res.success).toBe(false);
     expect(res.error).toBe('OFFLINE_STORAGE_WRITE_FAILED');
   });
 
   it('Production Queue Storage Engine: Scenario E (Server SYNCED + Local Persistence Failure Protection)', async () => {
-    const queue = [{ sync_id: 'persist-fail-1', status: 'PENDING', total_amount: 300, retry_count: 0 }];
+    const queue = [
+      { sync_id: 'persist-fail-1', status: 'PENDING', total_amount: 300, retry_count: 0 },
+    ];
 
     // Simulate disk failure in updateStatus
     const updateStatusFails = vi.fn().mockReturnValue(false);
 
-    const worker = new PosSyncWorker(() => queue, updateStatusFails, () => null);
+    const worker = new PosSyncWorker(
+      () => queue,
+      updateStatusFails,
+      () => null,
+    );
     worker.setAuthToken('token');
     (worker as any).pingServer = vi.fn().mockResolvedValue(true);
 
@@ -304,7 +321,13 @@ describe('Desktop POS Production Engine & Durability Tests', () => {
     expect(saveRes.success).toBe(true);
 
     // 2. Mark as FAILED with error message -> retry_count increments to 1
-    const failRes1 = updateQueueItemStatus('tx-status-1', 'FAILED', undefined, 'ECONNREFUSED 127.0.0.1', testDir);
+    const failRes1 = updateQueueItemStatus(
+      'tx-status-1',
+      'FAILED',
+      undefined,
+      'ECONNREFUSED 127.0.0.1',
+      testDir,
+    );
     expect(failRes1).toBe(true);
     let queue = readPendingQueue(testDir);
     expect(queue[0].status).toBe('FAILED');
@@ -330,7 +353,13 @@ describe('Desktop POS Production Engine & Durability Tests', () => {
   it('Production Queue Storage Engine: manual retry reopens a failed transaction', () => {
     const testDir = fs.mkdtempSync(path.join(os.tmpdir(), 'alagoouz-pos-manual-retry-'));
     saveTransaction({ sync_id: 'manual-retry-1', total_amount: 150 }, testDir);
-    updateQueueItemStatus('manual-retry-1', 'FAILED', undefined, 'temporary network error', testDir);
+    updateQueueItemStatus(
+      'manual-retry-1',
+      'FAILED',
+      undefined,
+      'temporary network error',
+      testDir,
+    );
 
     expect(resetQueueItemRetry('manual-retry-1', testDir)).toBe(true);
     const queue = readPendingQueue(testDir);
@@ -344,12 +373,18 @@ describe('Desktop POS Production Engine & Durability Tests', () => {
     const testDir = fs.mkdtempSync(path.join(os.tmpdir(), 'alagoouz-pos-idempotency-'));
 
     // 1. Save transaction first time
-    const res1 = saveTransaction({ sync_id: 'duplicate-check-1', total_amount: 500, note: 'Initial' }, testDir);
+    const res1 = saveTransaction(
+      { sync_id: 'duplicate-check-1', total_amount: 500, note: 'Initial' },
+      testDir,
+    );
     expect(res1.success).toBe(true);
     expect(readPendingQueue(testDir).length).toBe(1);
 
     // 2. Save same sync_id second time (e.g. retry from UI or re-submit)
-    const res2 = saveTransaction({ sync_id: 'duplicate-check-1', total_amount: 500, note: 'Updated note' }, testDir);
+    const res2 = saveTransaction(
+      { sync_id: 'duplicate-check-1', total_amount: 500, note: 'Updated note' },
+      testDir,
+    );
     expect(res2.success).toBe(true);
 
     // Verify queue length remains 1 (no duplicates!)
@@ -405,7 +440,11 @@ describe('Desktop POS Production Engine & Durability Tests', () => {
     });
 
     it('SyncWorker.setServerUrl defensively rejects invalid URLs and leaves serverUrl unchanged', () => {
-      const worker = new PosSyncWorker(() => [], () => true, () => null);
+      const worker = new PosSyncWorker(
+        () => [],
+        () => true,
+        () => null,
+      );
       const initialUrl = worker.getServerUrl();
 
       // Attempt to set invalid URL in production
@@ -425,17 +464,32 @@ describe('Desktop POS Production Engine & Durability Tests', () => {
         process.env.POS_SERVER_URL = 'http://external-insecure-api.com/api/v1';
 
         // When packaged = true, insecure external HTTP must be rejected at initialization
-        const packagedWorker = new PosSyncWorker(() => [], () => true, () => null, true);
+        const packagedWorker = new PosSyncWorker(
+          () => [],
+          () => true,
+          () => null,
+          true,
+        );
         expect(packagedWorker.getServerUrl()).toBe('http://localhost:3000/api/v1');
 
         // When packaged = false (dev mode), localhost is fine
         process.env.POS_SERVER_URL = 'http://localhost:4000/api/v1';
-        const devWorker = new PosSyncWorker(() => [], () => true, () => null, false);
+        const devWorker = new PosSyncWorker(
+          () => [],
+          () => true,
+          () => null,
+          false,
+        );
         expect(devWorker.getServerUrl()).toBe('http://localhost:4000/api/v1');
 
         // When packaged = true, valid HTTPS is accepted
         process.env.POS_SERVER_URL = 'https://cloud-api.alagoouz.com/api/v1';
-        const prodHttpsWorker = new PosSyncWorker(() => [], () => true, () => null, true);
+        const prodHttpsWorker = new PosSyncWorker(
+          () => [],
+          () => true,
+          () => null,
+          true,
+        );
         expect(prodHttpsWorker.getServerUrl()).toBe('https://cloud-api.alagoouz.com/api/v1');
       } finally {
         if (origEnv !== undefined) {
@@ -448,7 +502,12 @@ describe('Desktop POS Production Engine & Durability Tests', () => {
 
     it('SyncWorker runSyncCycle pre-flight aborts and blocks outbound sync if serverUrl is invalid in production', async () => {
       const queue = [{ sync_id: 'preflight-test-1', status: 'PENDING', total_amount: 100 }];
-      const worker = new PosSyncWorker(() => queue, () => true, () => null, true);
+      const worker = new PosSyncWorker(
+        () => queue,
+        () => true,
+        () => null,
+        true,
+      );
       worker.setAuthToken('mock-auth-token');
 
       // Force invalid URL on worker instance
@@ -486,7 +545,7 @@ describe('Desktop POS Production Engine & Durability Tests', () => {
         }
         return false;
       },
-      () => null
+      () => null,
     );
 
     (worker as any).pingServer = vi.fn().mockResolvedValue(true);
@@ -515,10 +574,21 @@ describe('Desktop POS Production Engine & Durability Tests', () => {
   });
 
   it('Sync Worker Retry Progression up to 10 and Halting Auto-Sync', async () => {
-    const testItem = { sync_id: 'retry-test-1', status: 'PENDING', total_amount: 100, retry_count: 0, last_error: '' };
+    const testItem = {
+      sync_id: 'retry-test-1',
+      status: 'PENDING',
+      total_amount: 100,
+      retry_count: 0,
+      last_error: '',
+    };
     const queue = [testItem];
 
-    const updateStatus = (syncId: string, status: string, serverId?: any, errorMessage?: string) => {
+    const updateStatus = (
+      syncId: string,
+      status: string,
+      serverId?: any,
+      errorMessage?: string,
+    ) => {
       const item = queue.find((t) => t.sync_id === syncId);
       if (item) {
         item.status = status;
@@ -531,7 +601,11 @@ describe('Desktop POS Production Engine & Durability Tests', () => {
       return false;
     };
 
-    const worker = new PosSyncWorker(() => queue, updateStatus, () => null);
+    const worker = new PosSyncWorker(
+      () => queue,
+      updateStatus,
+      () => null,
+    );
     worker.setAuthToken('mock-token');
     (worker as any).pingServer = vi.fn().mockResolvedValue(true);
 

@@ -6,7 +6,10 @@ function killPort(port: number) {
   console.log(`🔍 فحص العمليات التي تستخدم البورت ${port}...`);
   try {
     if (process.platform === 'win32') {
-      const output = execSync(`netstat -ano | findstr :${port}`, { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'ignore'] });
+      const output = execSync(`netstat -ano | findstr :${port}`, {
+        encoding: 'utf-8',
+        stdio: ['pipe', 'pipe', 'ignore'],
+      });
       const lines = output.trim().split('\n');
       const pids = new Set<string>();
 

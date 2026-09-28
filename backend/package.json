@@ -42,7 +42,7 @@
     "winston": "^3.19.0",
     "winston-daily-rotate-file": "^5.0.0",
     "ws": "^8.21.0",
-    "xlsx": "^0.18.5",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
     "zod": "^3.23.8"
   },
   "devDependencies": {
@@ -58,8 +58,8 @@
     "@types/pg": "^8.21.0",
     "@types/uuid": "^10.0.0",
     "@types/ws": "^8.18.1",
-    "@vitest/coverage-v8": "^4.1.10",
+    "@vitest/coverage-v8": "^4.1.11",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.11"
   }
 }

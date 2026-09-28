@@ -1,7 +1,9 @@
 **/node_modules/**
 **/dist/**
 **/dist-electron/**
+**/release/**
 **/build/**
+**/backend/api/**
 **/android/**
 **/backups/**
 **/full-backups/**
@@ -13,3 +15,9 @@
 **/docs/documentation_source.html
 **/tmp/**
 **/test-results/**
+analytics-service
+analytics-service/**
+**/analytics-service/**
+.pytest_cache
+.pytest_cache/**
+**/.pytest_cache/**

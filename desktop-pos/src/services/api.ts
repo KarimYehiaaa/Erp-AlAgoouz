@@ -32,10 +32,19 @@ function onRefreshed(newToken: string | null) {
 
 api.interceptors.request.use((config) => {
   const isProd =
-    forceProductionMode !== undefined ? forceProductionMode : ((import.meta as any).env?.PROD ?? false);
+    forceProductionMode !== undefined
+      ? forceProductionMode
+      : ((import.meta as any).env?.PROD ?? false);
   const currentBase = getServerUrl(isProd);
-  config.baseURL = currentBase;
+  config.baseURL =
+    (config as typeof config & { _ipRetry?: boolean })._ipRetry &&
+    new URL(currentBase).hostname === 'localhost'
+      ? currentBase.replace('localhost', '127.0.0.1')
+      : currentBase;
   config.withCredentials = true;
+  if (config.url?.includes('/auth/login')) {
+    config.headers['X-Client-Type'] = 'desktop-pos';
+  }
 
   // جلب التوكن من خدمة الجلسات الآمنة حصراً بدون لمس localStorage
   const token = sessionService.getAccessToken();
@@ -49,7 +58,8 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (res) => res,
   async (err: AxiosError) => {
-    const originalRequest = err.config as (AxiosRequestConfig & { _retry?: boolean }) | undefined;
+    const originalRequest = err.config as
+      (AxiosRequestConfig & { _retry?: boolean; _ipRetry?: boolean }) | undefined;
 
     // معالجة خطأ 401 فقط
     if (err.response?.status === 401 && originalRequest) {
@@ -86,7 +96,9 @@ api.interceptors.response.use(
 
       try {
         const isProd =
-          forceProductionMode !== undefined ? forceProductionMode : ((import.meta as any).env?.PROD ?? false);
+          forceProductionMode !== undefined
+            ? forceProductionMode
+            : ((import.meta as any).env?.PROD ?? false);
         const serverUrl = getServerUrl(isProd);
         const refreshToken = sessionService.getRefreshToken();
 
@@ -102,7 +114,7 @@ api.interceptors.response.use(
               'X-Client-Type': 'desktop-pos',
               ...(refreshToken ? { 'x-refresh-token': refreshToken } : {}),
             },
-          }
+          },
         );
 
         const payload = refreshResponse.data?.data;
@@ -139,6 +151,22 @@ api.interceptors.response.use(
       }
     }
 
+    // إعادة المحاولة التلقائية عند فشل الاتصال بـ localhost للتحويل إلى 127.0.0.1
+    if (
+      (err.code === 'ERR_NETWORK' || !err.response) &&
+      originalRequest &&
+      !originalRequest._ipRetry
+    ) {
+      const urlStr = originalRequest.baseURL || originalRequest.url || '';
+      if (urlStr.includes('localhost')) {
+        originalRequest._ipRetry = true;
+        if (originalRequest.url) {
+          originalRequest.url = originalRequest.url.replace('localhost', '127.0.0.1');
+        }
+        return api(originalRequest);
+      }
+    }
+
     return Promise.reject(err);
-  }
+  },
 );

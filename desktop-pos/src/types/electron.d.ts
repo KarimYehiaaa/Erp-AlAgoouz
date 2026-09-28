@@ -83,17 +83,27 @@ export interface ElectronAPI {
   printReceipt: (invoiceData: any, printerName?: string) => Promise<HardwareResult>;
   openCashDrawer: (printerName?: string) => Promise<HardwareResult>;
   getPrinters: () => Promise<PrinterDevice[]>;
-  saveOfflineTransaction: (
-    data: Partial<OfflineSaleTransaction>
-  ) => Promise<{ success: boolean; transaction?: OfflineSaleTransaction; error?: string; message?: string }>;
+  saveOfflineTransaction: (data: Partial<OfflineSaleTransaction>) => Promise<{
+    success: boolean;
+    transaction?: OfflineSaleTransaction;
+    error?: string;
+    message?: string;
+  }>;
   getPendingTransactions: () => Promise<OfflineSaleTransaction[]>;
-  updateTransactionStatus: (syncId: string, status: string, serverId?: any, errorMessage?: string) => Promise<boolean>;
+  updateTransactionStatus: (
+    syncId: string,
+    status: string,
+    serverId?: any,
+    errorMessage?: string,
+  ) => Promise<boolean>;
   resetTransactionRetry: (syncId: string) => Promise<boolean>;
   getServerUrl: () => Promise<string>;
   setServerUrl: (url: string) => Promise<ServerUrlResult>;
   setAuthToken: (token: string | null, serverUrl?: string) => Promise<SessionResult>;
   triggerManualSync: () => Promise<SyncCycleResult>;
-  saveSecureSession?: (sessionData: PosSessionData) => Promise<{ success: boolean; error?: string }>;
+  saveSecureSession?: (
+    sessionData: PosSessionData,
+  ) => Promise<{ success: boolean; error?: string }>;
   loadSecureSession?: () => Promise<PosSessionData | null>;
   clearSecureSession?: () => Promise<boolean>;
   hasSecureSession?: () => Promise<boolean>;
@@ -101,7 +111,9 @@ export interface ElectronAPI {
   getUpdateStatus?: () => Promise<{ state: string; version?: string; message?: string }>;
   checkForUpdates?: () => Promise<{ success: boolean; message?: string }>;
   installUpdate?: () => Promise<{ success: boolean; message?: string }>;
-  onUpdateStatus?: (callback: (status: { state: string; version?: string; message?: string }) => void) => void;
+  onUpdateStatus?: (
+    callback: (status: { state: string; version?: string; message?: string }) => void,
+  ) => void;
   onBarcodeScan: (callback: (barcode: string) => void) => void;
   onSyncUpdated: (callback: (info: { synced: number; remaining: number }) => void) => void;
 }

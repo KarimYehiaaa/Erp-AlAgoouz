@@ -398,6 +398,7 @@ export const deletePartnerDrawing = async (id: number) => {
     await client.query(`DELETE FROM partner_drawings WHERE id = $1`, [id]);
 
     const { accountingService } = await import('./accountingService.ts');
+    await accountingService.deleteJournalEntryByReference('partner_drawing', id, client);
     await accountingService.deleteJournalEntryByReference('manual', id, client);
 
     await client.query('COMMIT');

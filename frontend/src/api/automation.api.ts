@@ -85,6 +85,18 @@ export interface AutomationExecutionLog {
   created_at: string;
 }
 
+export interface TelegramBotStatus {
+  isPolling: boolean;
+  connected: boolean;
+  hasToken: boolean;
+  hasDefaultChatId: boolean;
+  botUsername: string | null;
+  botFirstName: string | null;
+  defaultChatId: string | null;
+  allowedChats: string[];
+  error: string | null;
+}
+
 export const automation = {
   // ─── الرسم البياني ──────────────────────────
   getGraph: () => get<GraphData>('/automation/graph'),
@@ -116,10 +128,11 @@ export const automation = {
     get<{ logs: TelegramLogEntry[]; total: number }>('/automation/telegram-logs', { params }),
   toggleTelegramBot: (enabled: boolean) =>
     post<{ active: boolean }>('/automation/telegram/toggle', { enabled }),
-  getTelegramBotStatus: () =>
-    get<{ isPolling: boolean; hasToken: boolean; hasDefaultChatId: boolean }>(
-      '/automation/telegram/status',
-    ),
+  getTelegramBotStatus: () => get<TelegramBotStatus>('/automation/telegram/status'),
+  saveTelegramSettings: (data: { bot_token: string; chat_id: string; allowed_chats?: string }) =>
+    post<{ success: boolean; message: string; data?: any }>('/automation/telegram/settings', data),
+  verifyTelegramToken: (bot_token: string) =>
+    post<{ username: string; firstName: string }>('/automation/telegram/verify', { bot_token }),
   sendTestMessage: (message?: string) => post('/automation/telegram/test-send', { message }),
   resetGraphDefaults: () => post<GraphData>('/automation/graph/reset-defaults'),
   testAiPrompt: (prompt: string) => post<{ reply: string }>('/automation/ai/test', { prompt }),

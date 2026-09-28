@@ -22,7 +22,7 @@ export interface IpcValidationResult {
 export function validateIpcSender(
   event: IpcMainInvokeEvent,
   isPackaged: boolean,
-  devServerUrl?: string
+  devServerUrl?: string,
 ): boolean {
   if (!event || !event.senderFrame) {
     console.warn('[IPC Security] Rejected: Missing senderFrame');
@@ -62,7 +62,10 @@ export function validateIpcSender(
     }
 
     // السماح أيضاً بملف dist/index.html في التطوير إذا تم تشغيله محلياً
-    if (senderUrl.startsWith('file://') && (senderUrl.includes('dist/index.html') || senderUrl.includes('dist\\index.html'))) {
+    if (
+      senderUrl.startsWith('file://') &&
+      (senderUrl.includes('dist/index.html') || senderUrl.includes('dist\\index.html'))
+    ) {
       return true;
     }
 
@@ -120,7 +123,10 @@ export function validateSessionPayload(data: any): IpcValidationResult {
     return { valid: false, error: 'رمز الجلسة يتجاوز الحد الأقصى المسموح به' };
   }
 
-  if (data.refreshToken && (typeof data.refreshToken !== 'string' || data.refreshToken.length > 8192)) {
+  if (
+    data.refreshToken &&
+    (typeof data.refreshToken !== 'string' || data.refreshToken.length > 8192)
+  ) {
     return { valid: false, error: 'رمز التحديث (refreshToken) غير صالح' };
   }
 

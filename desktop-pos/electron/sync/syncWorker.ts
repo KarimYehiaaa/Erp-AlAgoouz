@@ -5,7 +5,7 @@
 import http from 'http';
 import https from 'https';
 import { BrowserWindow } from 'electron';
-import { validateServerUrl, SAFE_LOCAL_URL } from '../../src/services/serverUrlPolicy';
+import { validateServerUrl } from '../../src/services/serverUrlPolicy';
 
 export interface SyncConfig {
   serverUrl: string;
@@ -14,7 +14,7 @@ export interface SyncConfig {
 
 export function validateWorkerServerUrl(
   url: string,
-  isPackaged = false
+  isPackaged = false,
 ): { valid: boolean; normalizedUrl?: string; error?: string } {
   return validateServerUrl(url, isPackaged);
 }
@@ -28,9 +28,14 @@ export class PosSyncWorker {
 
   constructor(
     private readQueue: () => any[],
-    private updateStatus: (syncId: string, status: string, serverId?: any, errorMessage?: string) => boolean,
+    private updateStatus: (
+      syncId: string,
+      status: string,
+      serverId?: any,
+      errorMessage?: string,
+    ) => boolean,
     private getMainWindow: () => BrowserWindow | null,
-    private isPackaged: boolean = false
+    private isPackaged: boolean = false,
   ) {
     const rawInitial = process.env.POS_SERVER_URL || 'http://localhost:3000/api/v1';
     const validation = validateWorkerServerUrl(rawInitial, this.isPackaged);
@@ -38,7 +43,7 @@ export class PosSyncWorker {
       this.serverUrl = validation.normalizedUrl;
     } else {
       console.warn(
-        `[SyncWorker Security] Initial server URL (${rawInitial}) rejected for production environment: ${validation.error}. Falling back to default secure localhost.`
+        `[SyncWorker Security] Initial server URL (${rawInitial}) rejected for production environment: ${validation.error}. Falling back to default secure localhost.`,
       );
       this.serverUrl = 'http://localhost:3000/api/v1';
     }
@@ -54,13 +59,16 @@ export class PosSyncWorker {
 
   public setAuthToken(token: string | null) {
     this.authToken = token;
-    console.log('[SyncWorker] Auth token updated in background sync engine:', token ? 'ACTIVE' : 'CLEARED');
+    console.log(
+      '[SyncWorker] Auth token updated in background sync engine:',
+      token ? 'ACTIVE' : 'CLEARED',
+    );
   }
 
   public setSession(
     token: string | null,
     serverUrl?: string,
-    isPackaged?: boolean
+    isPackaged?: boolean,
   ): { success: boolean; error?: string } {
     const packaged = isPackaged !== undefined ? isPackaged : this.isPackaged;
 
@@ -69,10 +77,16 @@ export class PosSyncWorker {
     if (serverUrl) {
       const res = validateWorkerServerUrl(serverUrl, packaged);
       if (!res.valid || !res.normalizedUrl) {
-        console.error('[SyncWorker Security] Session configuration rejected invalid URL:', serverUrl, res.error);
+        console.error(
+          '[SyncWorker Security] Session configuration rejected invalid URL:',
+          serverUrl,
+          res.error,
+        );
         return {
           success: false,
-          error: res.error || 'عنوان الخادم غير صالح أو غير مسموح به في بيئة الإنتاج (يجب استخدام HTTPS)',
+          error:
+            res.error ||
+            'عنوان الخادم غير صالح أو غير مسموح به في بيئة الإنتاج (يجب استخدام HTTPS)',
         };
       }
       validatedUrl = res.normalizedUrl;
@@ -85,7 +99,10 @@ export class PosSyncWorker {
     }
 
     this.authToken = token;
-    console.log('[SyncWorker] Auth session token atomically updated:', token ? 'ACTIVE' : 'CLEARED');
+    console.log(
+      '[SyncWorker] Auth session token atomically updated:',
+      token ? 'ACTIVE' : 'CLEARED',
+    );
 
     return { success: true };
   }
@@ -94,7 +111,12 @@ export class PosSyncWorker {
     const packaged = isPackaged !== undefined ? isPackaged : this.isPackaged;
     const res = validateWorkerServerUrl(url, packaged);
     if (!res.valid || !res.normalizedUrl) {
-      console.error('[SyncWorker Security] Rejected invalid or unencrypted server URL:', url, 'Error:', res.error);
+      console.error(
+        '[SyncWorker Security] Rejected invalid or unencrypted server URL:',
+        url,
+        'Error:',
+        res.error,
+      );
       return false;
     }
     this.serverUrl = res.normalizedUrl;
@@ -127,12 +149,18 @@ export class PosSyncWorker {
     console.log('[SyncWorker] Background sync worker stopped.');
   }
 
-  public async runSyncCycle(): Promise<{ success: boolean; synced: number; remaining: number; message?: string }> {
+  public async runSyncCycle(): Promise<{
+    success: boolean;
+    synced: number;
+    remaining: number;
+    message?: string;
+  }> {
     if (this.syncInFlight) {
       console.log('[SyncWorker] Sync cycle already in flight. Skipping overlapping run.');
       const queue = this.readQueue();
       const remaining = queue.filter(
-        (item) => (item.status === 'PENDING' || item.status === 'FAILED') && (item.retry_count || 0) < 10
+        (item) =>
+          (item.status === 'PENDING' || item.status === 'FAILED') && (item.retry_count || 0) < 10,
       ).length;
       return { success: false, synced: 0, remaining };
     }
@@ -141,7 +169,8 @@ export class PosSyncWorker {
     try {
       const queue = this.readQueue();
       const pendingItems = queue.filter(
-        (item) => (item.status === 'PENDING' || item.status === 'FAILED') && (item.retry_count || 0) < 10
+        (item) =>
+          (item.status === 'PENDING' || item.status === 'FAILED') && (item.retry_count || 0) < 10,
       );
 
       if (pendingItems.length === 0) {
@@ -149,7 +178,9 @@ export class PosSyncWorker {
       }
 
       if (!this.authToken) {
-        console.log('[SyncWorker] Pending items detected, but no active cashier session token. Waiting for login...');
+        console.log(
+          '[SyncWorker] Pending items detected, but no active cashier session token. Waiting for login...',
+        );
         return { success: false, synced: 0, remaining: pendingItems.length };
       }
 
@@ -159,9 +190,14 @@ export class PosSyncWorker {
       const urlCheck = validateWorkerServerUrl(this.serverUrl, this.isPackaged);
       if (!urlCheck.valid || !urlCheck.normalizedUrl) {
         console.error(
-          `[SyncWorker Security] Blocked outbound sync: unencrypted or invalid URL in production (${this.serverUrl}): ${urlCheck.error}`
+          `[SyncWorker Security] Blocked outbound sync: unencrypted or invalid URL in production (${this.serverUrl}): ${urlCheck.error}`,
         );
-        return { success: false, synced: 0, remaining: pendingItems.length, message: urlCheck.error };
+        return {
+          success: false,
+          synced: 0,
+          remaining: pendingItems.length,
+          message: urlCheck.error,
+        };
       }
 
       // Check server health
@@ -189,18 +225,27 @@ export class PosSyncWorker {
                 syncedCount++;
               } else {
                 console.error(
-                  `[SyncWorker] CRITICAL PERSISTENCE FAILURE: Server confirmed SYNCED for transaction ${res.sync_id}, but local queue update failed to persist to disk! Retaining for local reconciliation.`
+                  `[SyncWorker] CRITICAL PERSISTENCE FAILURE: Server confirmed SYNCED for transaction ${res.sync_id}, but local queue update failed to persist to disk! Retaining for local reconciliation.`,
                 );
               }
             } else if (res.status === 'FAILED') {
-              this.updateStatus(res.sync_id, 'FAILED', undefined, res.error || 'SERVER_SYNC_REJECTED');
+              this.updateStatus(
+                res.sync_id,
+                'FAILED',
+                undefined,
+                res.error || 'SERVER_SYNC_REJECTED',
+              );
             }
           }
-          console.log(`[SyncWorker] Batch sync completed. Locally persisted sync: ${syncedCount}/${pendingItems.length}`);
+          console.log(
+            `[SyncWorker] Batch sync completed. Locally persisted sync: ${syncedCount}/${pendingItems.length}`,
+          );
 
           const currentQueue = this.readQueue();
           const remaining = currentQueue.filter(
-            (item) => (item.status === 'PENDING' || item.status === 'FAILED') && (item.retry_count || 0) < 10
+            (item) =>
+              (item.status === 'PENDING' || item.status === 'FAILED') &&
+              (item.retry_count || 0) < 10,
           ).length;
 
           // Notify Vue renderer
@@ -211,26 +256,42 @@ export class PosSyncWorker {
               remaining,
             });
           }
-          return { success: syncedCount > 0 && syncedCount === pendingItems.length, synced: syncedCount, remaining };
+          return {
+            success: syncedCount > 0 && syncedCount === pendingItems.length,
+            synced: syncedCount,
+            remaining,
+          };
         }
 
         // Server returned failure or invalid result structure
         for (const item of pendingItems) {
-          this.updateStatus(item.sync_id, 'FAILED', undefined, result?.message || 'INVALID_BATCH_RESPONSE');
+          this.updateStatus(
+            item.sync_id,
+            'FAILED',
+            undefined,
+            result?.message || 'INVALID_BATCH_RESPONSE',
+          );
         }
         const currentQueue = this.readQueue();
         const remaining = currentQueue.filter(
-          (item) => (item.status === 'PENDING' || item.status === 'FAILED') && (item.retry_count || 0) < 10
+          (item) =>
+            (item.status === 'PENDING' || item.status === 'FAILED') && (item.retry_count || 0) < 10,
         ).length;
         return { success: false, synced: 0, remaining };
       } catch (err: any) {
         console.error('[SyncWorker] Error during batch sync:', err.message);
         for (const item of pendingItems) {
-          this.updateStatus(item.sync_id, 'FAILED', undefined, err.message || 'NETWORK_OR_SERVER_ERROR');
+          this.updateStatus(
+            item.sync_id,
+            'FAILED',
+            undefined,
+            err.message || 'NETWORK_OR_SERVER_ERROR',
+          );
         }
         const currentQueue = this.readQueue();
         const remaining = currentQueue.filter(
-          (item) => (item.status === 'PENDING' || item.status === 'FAILED') && (item.retry_count || 0) < 10
+          (item) =>
+            (item.status === 'PENDING' || item.status === 'FAILED') && (item.retry_count || 0) < 10,
         ).length;
         return { success: false, synced: 0, remaining };
       }
@@ -246,13 +307,9 @@ export class PosSyncWorker {
         const isHttps = parsedUrl.protocol === 'https:';
         const client = isHttps ? https : http;
 
-        const req = client.get(
-          parsedUrl.toString(),
-          { timeout: 3000 },
-          (res) => {
-            resolve(res.statusCode === 200);
-          }
-        );
+        const req = client.get(parsedUrl.toString(), { timeout: 3000 }, (res) => {
+          resolve(res.statusCode === 200);
+        });
         req.on('error', () => resolve(false));
         req.on('timeout', () => {
           req.destroy();
@@ -300,7 +357,7 @@ export class PosSyncWorker {
                 resolve({ success: false, statusCode: res.statusCode });
               }
             });
-          }
+          },
         );
 
         req.on('error', (err) => reject(err));

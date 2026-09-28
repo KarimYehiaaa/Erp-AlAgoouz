@@ -86,7 +86,9 @@ describe('Stocktake Lifecycle Integration Tests', () => {
       });
 
       const updatedDetails = await getStocktakeDetails(stocktake.id);
-      const updatedTestItem = updatedDetails.items.find((item: any) => item.product_id === productId);
+      const updatedTestItem = updatedDetails.items.find(
+        (item: any) => item.product_id === productId,
+      );
       expect(updatedTestItem).toBeDefined();
       expect(Number(updatedTestItem.actual_quantity)).toBe(15);
       expect(Number(updatedTestItem.difference)).toBe(5);
@@ -114,7 +116,9 @@ describe('Stocktake Lifecycle Integration Tests', () => {
       expect(Number(smRes.rows[0].quantity)).toBe(5);
 
       // 6. Test deleteStocktake fails for completed stocktakes
-      await expect(deleteStocktake(stocktake.id)).rejects.toThrow(/لا يمكن حذف عملية جرد تم اعتمادها/);
+      await expect(deleteStocktake(stocktake.id)).rejects.toThrow(
+        /لا يمكن حذف عملية جرد تم اعتمادها/,
+      );
     } finally {
       // 7. Cleanup database records in reverse order
       if (productId) {

@@ -25,7 +25,11 @@ import { purchaseOrderService } from '../src/services/purchaseOrderService.ts';
 import { recordSupplierPayment } from '../src/services/supplierService.ts';
 import { recordPayment } from '../src/services/customerService.ts';
 import { createDailySale, returnSale } from '../src/services/salesService.ts';
-import { createOrRecalculatePayroll, approvePayrollRun, payPayrollRun } from '../src/services/hrService.ts';
+import {
+  createOrRecalculatePayroll,
+  approvePayrollRun,
+  payPayrollRun,
+} from '../src/services/hrService.ts';
 import { bankReconciliationService } from '../src/services/bankReconciliationService.ts';
 import { financialPeriodService } from '../src/services/financialPeriodService.ts';
 import { businessToday } from '../src/utils/localDate.ts';
@@ -166,10 +170,10 @@ beforeAll(async () => {
   cleanup.productIds.push(productId);
 
   // Initial inventory: 0
-  await query(
-    `INSERT INTO inventory (product_id, warehouse_id, quantity) VALUES ($1, $2, 0)`,
-    [productId, warehouseId],
-  );
+  await query(`INSERT INTO inventory (product_id, warehouse_id, quantity) VALUES ($1, $2, 0)`, [
+    productId,
+    warehouseId,
+  ]);
 
   // 3. Supplier
   const supRes = await query(
@@ -192,7 +196,11 @@ beforeAll(async () => {
   const empRes = await query(
     `INSERT INTO employees (code, full_name, phone, base_salary, is_active)
      VALUES ($1, $2, $3, 6000.00, TRUE) RETURNING id`,
-    [`EMP-${Date.now() % 100000}`, `موظف محاسبة ذهبي ${Date.now()}`, `0122${Date.now().toString().slice(-7)}`],
+    [
+      `EMP-${Date.now() % 100000}`,
+      `موظف محاسبة ذهبي ${Date.now()}`,
+      `0122${Date.now().toString().slice(-7)}`,
+    ],
   );
   employeeId = empRes.rows[0].id;
   cleanup.employeeIds.push(employeeId);
@@ -208,16 +216,20 @@ beforeAll(async () => {
   }
 
   // Ensure reference_type allows reversal
-  await query(`ALTER TABLE journal_entries DROP CONSTRAINT IF EXISTS journal_entries_reference_type_check;`);
+  await query(
+    `ALTER TABLE journal_entries DROP CONSTRAINT IF EXISTS journal_entries_reference_type_check;`,
+  );
   await query(`ALTER TABLE journal_entries ADD CONSTRAINT journal_entries_reference_type_check 
-    CHECK (reference_type IN ('sale', 'purchase', 'payment', 'expense', 'payroll', 'stocktake', 'purchase_return', 'manual', 'opening', 'transfer', 'reversal'));`);
+    CHECK (reference_type IN ('sale', 'purchase', 'payment', 'expense', 'payroll', 'stocktake', 'purchase_return', 'manual', 'opening', 'transfer', 'reversal', 'partner_drawing'));`);
 });
 
 afterAll(async () => {
   if (server) await new Promise<void>((resolve) => server.close(resolve));
 
   if (cleanup.periodIds.length > 0) {
-    await query(`UPDATE financial_periods SET status = 'open' WHERE id = ANY($1::int[])`, [cleanup.periodIds]);
+    await query(`UPDATE financial_periods SET status = 'open' WHERE id = ANY($1::int[])`, [
+      cleanup.periodIds,
+    ]);
     await query(`DELETE FROM financial_periods WHERE id = ANY($1::int[])`, [cleanup.periodIds]);
   }
 
@@ -226,49 +238,82 @@ afterAll(async () => {
       `DELETE FROM bank_statement_transactions WHERE reconciliation_id = ANY($1::int[])`,
       [cleanup.reconciliationIds],
     );
-    await query(
-      `DELETE FROM bank_reconciliations WHERE id = ANY($1::int[])`,
-      [cleanup.reconciliationIds],
-    );
+    await query(`DELETE FROM bank_reconciliations WHERE id = ANY($1::int[])`, [
+      cleanup.reconciliationIds,
+    ]);
   }
   if (cleanup.payrollRunIds.length > 0) {
-    await query(`DELETE FROM payroll_items WHERE payroll_run_id = ANY($1::int[])`, [cleanup.payrollRunIds]);
+    await query(`DELETE FROM payroll_items WHERE payroll_run_id = ANY($1::int[])`, [
+      cleanup.payrollRunIds,
+    ]);
     await query(`DELETE FROM payroll_runs WHERE id = ANY($1::int[])`, [cleanup.payrollRunIds]);
   }
   if (cleanup.journalEntryIds.length > 0) {
-    await query(`DELETE FROM journal_entry_lines WHERE journal_entry_id = ANY($1::int[])`, [cleanup.journalEntryIds]);
+    await query(`DELETE FROM journal_entry_lines WHERE journal_entry_id = ANY($1::int[])`, [
+      cleanup.journalEntryIds,
+    ]);
     await query(`DELETE FROM journal_entries WHERE id = ANY($1::int[])`, [cleanup.journalEntryIds]);
   }
   if (cleanup.saleIds.length > 0) {
-    await query(`DELETE FROM invoice_items WHERE invoice_id IN (SELECT id FROM invoices WHERE sale_id = ANY($1::int[]))`, [cleanup.saleIds]);
+    await query(
+      `DELETE FROM invoice_items WHERE invoice_id IN (SELECT id FROM invoices WHERE sale_id = ANY($1::int[]))`,
+      [cleanup.saleIds],
+    );
     await query(`DELETE FROM invoices WHERE sale_id = ANY($1::int[])`, [cleanup.saleIds]);
-    await query(`DELETE FROM payments WHERE reference_type = 'sale' AND reference_id = ANY($1::int[])`, [cleanup.saleIds]);
-    await query(`DELETE FROM stock_movements WHERE reference_type IN ('sale', 'sale_return') AND reference_id = ANY($1::int[])`, [cleanup.saleIds]);
+    await query(
+      `DELETE FROM payments WHERE reference_type = 'sale' AND reference_id = ANY($1::int[])`,
+      [cleanup.saleIds],
+    );
+    await query(
+      `DELETE FROM stock_movements WHERE reference_type IN ('sale', 'sale_return') AND reference_id = ANY($1::int[])`,
+      [cleanup.saleIds],
+    );
     await query(`DELETE FROM sale_items WHERE sale_id = ANY($1::int[])`, [cleanup.saleIds]);
     await query(`DELETE FROM sales WHERE id = ANY($1::int[])`, [cleanup.saleIds]);
   }
   if (cleanup.purchaseOrderIds.length > 0) {
-    await query(`DELETE FROM purchase_order_items WHERE purchase_order_id = ANY($1::int[])`, [cleanup.purchaseOrderIds]);
-    await query(`DELETE FROM purchase_orders WHERE id = ANY($1::int[])`, [cleanup.purchaseOrderIds]);
+    await query(`DELETE FROM purchase_order_items WHERE purchase_order_id = ANY($1::int[])`, [
+      cleanup.purchaseOrderIds,
+    ]);
+    await query(`DELETE FROM purchase_orders WHERE id = ANY($1::int[])`, [
+      cleanup.purchaseOrderIds,
+    ]);
   }
   if (cleanup.purchaseInvoiceIds.length > 0) {
-    await query(`DELETE FROM purchase_invoice_items WHERE purchase_invoice_id = ANY($1::int[])`, [cleanup.purchaseInvoiceIds]);
-    await query(`DELETE FROM purchase_invoices WHERE id = ANY($1::int[])`, [cleanup.purchaseInvoiceIds]);
+    await query(`DELETE FROM purchase_invoice_items WHERE purchase_invoice_id = ANY($1::int[])`, [
+      cleanup.purchaseInvoiceIds,
+    ]);
+    await query(`DELETE FROM purchase_invoices WHERE id = ANY($1::int[])`, [
+      cleanup.purchaseInvoiceIds,
+    ]);
   }
   if (cleanup.employeeIds.length > 0) {
-    await query(`DELETE FROM employee_attendance WHERE employee_id = ANY($1::int[])`, [cleanup.employeeIds]);
+    await query(`DELETE FROM employee_attendance WHERE employee_id = ANY($1::int[])`, [
+      cleanup.employeeIds,
+    ]);
     await query(`DELETE FROM employees WHERE id = ANY($1::int[])`, [cleanup.employeeIds]);
   }
   if (cleanup.customerIds.length > 0) {
-    await query(`DELETE FROM payments WHERE (reference_type = 'customer_opening' OR reference_type = 'customer_advance') AND reference_id = ANY($1::int[])`, [cleanup.customerIds]);
+    await query(
+      `DELETE FROM payments WHERE (reference_type = 'customer_opening' OR reference_type = 'customer_advance') AND reference_id = ANY($1::int[])`,
+      [cleanup.customerIds],
+    );
     await query(`DELETE FROM customers WHERE id = ANY($1::int[])`, [cleanup.customerIds]);
   }
   if (cleanup.supplierIds.length > 0) {
-    await query(`DELETE FROM payments WHERE reference_type = 'supplier' AND reference_id = ANY($1::int[])`, [cleanup.supplierIds]);
+    await query(
+      `DELETE FROM payments WHERE reference_type = 'supplier' AND reference_id = ANY($1::int[])`,
+      [cleanup.supplierIds],
+    );
     await query(`DELETE FROM suppliers WHERE id = ANY($1::int[])`, [cleanup.supplierIds]);
   }
   if (cleanup.productIds.length > 0) {
-    await query(`DELETE FROM stock_movements WHERE product_id = ANY($1::int[])`, [cleanup.productIds]);
+    await query(`DELETE FROM stock_movements WHERE product_id = ANY($1::int[])`, [
+      cleanup.productIds,
+    ]);
+    await query(`DELETE FROM inventory_cost_layers WHERE product_id = ANY($1::int[])`, [
+      cleanup.productIds,
+    ]);
     await query(`DELETE FROM inventory WHERE product_id = ANY($1::int[])`, [cleanup.productIds]);
     await query(`DELETE FROM products WHERE id = ANY($1::int[])`, [cleanup.productIds]);
   }
@@ -365,10 +410,9 @@ describe('Golden Financial Lifecycle Scenario', () => {
     );
 
     // Check GL journal posted: Dr 210101 (5000), Cr 110103 (5000)
-    const jeRes = await query(
-      `SELECT id FROM journal_entries WHERE idempotency_key = $1`,
-      [`supplier_payment:${payRes.id}`],
-    );
+    const jeRes = await query(`SELECT id FROM journal_entries WHERE idempotency_key = $1`, [
+      `supplier_payment:${payRes.id}`,
+    ]);
     expect(jeRes.rows.length).toBe(1);
     cleanup.journalEntryIds.push(jeRes.rows[0].id);
 
@@ -378,27 +422,29 @@ describe('Golden Financial Lifecycle Scenario', () => {
   });
 
   it('Step 4: Wholesale sale with receivable (20 units @ 200 = 4,000 EGP)', async () => {
-    const sale = await createDailySale({
-      date: TEST_DATE,
-      sale_date: TEST_DATE,
-      total_amount: 4000,
-      paid_amount: 0, // on credit
-      remaining_amount: 4000,
-      payment_status: 'unpaid',
-      payment_method: 'credit',
-      sale_type: 'wholesale',
-      warehouse_id: warehouseId,
-      customer_id: customerId,
-      items: [{ product_id: productId, quantity: 20, unit_price: 200, subtotal: 4000 }],
-    }, adminUserId);
+    const sale = await createDailySale(
+      {
+        date: TEST_DATE,
+        sale_date: TEST_DATE,
+        total_amount: 4000,
+        paid_amount: 0, // on credit
+        remaining_amount: 4000,
+        payment_status: 'unpaid',
+        payment_method: 'credit',
+        sale_type: 'wholesale',
+        warehouse_id: warehouseId,
+        customer_id: customerId,
+        items: [{ product_id: productId, quantity: 20, unit_price: 200, subtotal: 4000 }],
+      },
+      adminUserId,
+    );
 
     saleId = sale.id;
     cleanup.saleIds.push(saleId);
 
-    const jeRes = await query(
-      `SELECT id FROM journal_entries WHERE idempotency_key = $1`,
-      [`sale:${saleId}`],
-    );
+    const jeRes = await query(`SELECT id FROM journal_entries WHERE idempotency_key = $1`, [
+      `sale:${saleId}`,
+    ]);
     if (jeRes.rows.length > 0) {
       cleanup.journalEntryIds.push(jeRes.rows[0].id);
     }
@@ -425,10 +471,9 @@ describe('Golden Financial Lifecycle Scenario', () => {
     });
 
     // Check GL entry: Dr 110103 (4000), Cr 1102 (4000)
-    const jeRes = await query(
-      `SELECT id FROM journal_entries WHERE idempotency_key = $1`,
-      [`customer_payment:${customerId}`],
-    );
+    const jeRes = await query(`SELECT id FROM journal_entries WHERE idempotency_key = $1`, [
+      `customer_payment:${customerId}`,
+    ]);
     expect(jeRes.rows.length).toBe(1);
     cleanup.journalEntryIds.push(jeRes.rows[0].id);
 
@@ -439,23 +484,25 @@ describe('Golden Financial Lifecycle Scenario', () => {
 
   it('Step 6: Customer return with 4-leg reversal', async () => {
     // إنشاء بيع فرعي نقدي (5 وحدات = 1000 ج.م) ثم إرجاعه
-    const sale2 = await createDailySale({
-      date: TEST_DATE,
-      sale_date: TEST_DATE,
-      total_amount: 1000,
-      paid_amount: 1000,
-      payment_status: 'paid',
-      payment_method: 'cash',
-      sale_type: 'retail',
-      warehouse_id: warehouseId,
-      items: [{ product_id: productId, quantity: 5, unit_price: 200, subtotal: 1000 }],
-    }, adminUserId);
+    const sale2 = await createDailySale(
+      {
+        date: TEST_DATE,
+        sale_date: TEST_DATE,
+        total_amount: 1000,
+        paid_amount: 1000,
+        payment_status: 'paid',
+        payment_method: 'cash',
+        sale_type: 'retail',
+        warehouse_id: warehouseId,
+        items: [{ product_id: productId, quantity: 5, unit_price: 200, subtotal: 1000 }],
+      },
+      adminUserId,
+    );
     cleanup.saleIds.push(sale2.id);
 
-    const jeRes = await query(
-      `SELECT id FROM journal_entries WHERE idempotency_key = $1`,
-      [`sale:${sale2.id}`],
-    );
+    const jeRes = await query(`SELECT id FROM journal_entries WHERE idempotency_key = $1`, [
+      `sale:${sale2.id}`,
+    ]);
     if (jeRes.rows.length > 0) {
       cleanup.journalEntryIds.push(jeRes.rows[0].id);
     }
@@ -472,10 +519,9 @@ describe('Golden Financial Lifecycle Scenario', () => {
     expect(returnResult.status).toBe('returned');
 
     // التحقق من قيد المرتجع الرباعي
-    const refundJE = await query(
-      `SELECT id FROM journal_entries WHERE idempotency_key = $1`,
-      [`sales_refund:${sale2.id}`],
-    );
+    const refundJE = await query(`SELECT id FROM journal_entries WHERE idempotency_key = $1`, [
+      `sales_refund:${sale2.id}`,
+    ]);
     expect(refundJE.rows.length).toBe(1);
     cleanup.journalEntryIds.push(refundJE.rows[0].id);
 
@@ -503,10 +549,9 @@ describe('Golden Financial Lifecycle Scenario', () => {
     const approved = await approvePayrollRun(payrollRunId, adminUserId);
     expect(approved.status).toBe('approved');
 
-    const accrualJE = await query(
-      `SELECT id FROM journal_entries WHERE idempotency_key = $1`,
-      [`payroll_accrual:${payrollRunId}`],
-    );
+    const accrualJE = await query(`SELECT id FROM journal_entries WHERE idempotency_key = $1`, [
+      `payroll_accrual:${payrollRunId}`,
+    ]);
     expect(accrualJE.rows.length).toBe(1);
     cleanup.journalEntryIds.push(accrualJE.rows[0].id);
 
@@ -514,10 +559,9 @@ describe('Golden Financial Lifecycle Scenario', () => {
     const paid = await payPayrollRun(payrollRunId, adminUserId, 'bank');
     expect(paid.status).toBe('paid');
 
-    const disbJE = await query(
-      `SELECT id FROM journal_entries WHERE idempotency_key = $1`,
-      [`payroll_disbursement:${payrollRunId}`],
-    );
+    const disbJE = await query(`SELECT id FROM journal_entries WHERE idempotency_key = $1`, [
+      `payroll_disbursement:${payrollRunId}`,
+    ]);
     expect(disbJE.rows.length).toBe(1);
     cleanup.journalEntryIds.push(disbJE.rows[0].id);
   });
@@ -624,6 +668,10 @@ describe('Golden Financial Lifecycle Scenario', () => {
     expect(triggerBlocked).toBe(true);
 
     // Reopen period so that cleanup operations and subsequent tests proceed normally
-    await financialPeriodService.reopenPeriod(periodId, adminUserId, 'إعادة فتح بعد انتهاء الاختبار بنجاح');
+    await financialPeriodService.reopenPeriod(
+      periodId,
+      adminUserId,
+      'إعادة فتح بعد انتهاء الاختبار بنجاح',
+    );
   });
 });

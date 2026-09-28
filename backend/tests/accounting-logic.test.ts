@@ -88,7 +88,12 @@ describe('Accounting & Sales Logic Unit Tests', () => {
     expect(
       calculateRecipeCost([
         { quantity: 250, unit_code: 'g', ingredient_unit: 'kg', ingredient_purchase_price: 120 },
-        { quantity: 2, unit_code: 'count', ingredient_unit: 'count', ingredient_purchase_price: 3.5 },
+        {
+          quantity: 2,
+          unit_code: 'count',
+          ingredient_unit: 'count',
+          ingredient_purchase_price: 3.5,
+        },
       ]),
     ).toBe(37);
   });
@@ -107,7 +112,10 @@ describe('Accounting & Sales Logic Unit Tests', () => {
           };
         }
 
-        if (text.includes('from product_recipes r') && text.includes('join product_recipe_items ri')) {
+        if (
+          text.includes('from product_recipes r') &&
+          text.includes('join product_recipe_items ri')
+        ) {
           return {
             rows: [
               {

@@ -116,7 +116,9 @@ const executeFactoryReset = async () => {
   } catch (err: any) {
     try {
       await client.query('ROLLBACK');
-    } catch {}
+    } catch {
+      // ignore rollback failure on disconnected client
+    }
     console.error(' حدث خطأ أثناء التنظيف:', err);
     client.release();
     await pool.end();

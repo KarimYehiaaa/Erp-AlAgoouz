@@ -21,42 +21,47 @@ class SalesRepository extends BaseRepository {
       FROM sales s
       LEFT JOIN customers c ON s.customer_id = c.id
       LEFT JOIN users u ON s.user_id = u.id
-      LEFT JOIN warehouses w ON s.warehouse_id = w.id
-      WHERE s.deleted_at IS NULL`;
+      LEFT JOIN warehouses w ON s.warehouse_id = w.id`;
+    let filterSql = ` WHERE s.deleted_at IS NULL`;
     const params: any[] = [];
-    let idx = 1;
     if (filters.sale_type) {
-      sql += ` AND s.sale_type = $${idx++}`;
       params.push(filters.sale_type);
+      filterSql += ` AND s.sale_type = $${params.length}`;
     }
     if (filters.entry_mode) {
-      sql += ` AND s.entry_mode = $${idx++}`;
       params.push(filters.entry_mode);
+      filterSql += ` AND s.entry_mode = $${params.length}`;
     }
     if (filters.from_date) {
-      sql += ` AND s.sale_date >= $${idx++}`;
       params.push(filters.from_date);
+      filterSql += ` AND s.sale_date >= $${params.length}`;
     }
     if (filters.to_date) {
-      sql += ` AND s.sale_date <= $${idx}`;
       params.push(filters.to_date);
+      filterSql += ` AND s.sale_date <= $${params.length}`;
     }
     if (filters.status) {
-      sql += ` AND s.status = $${params.length + 1}`;
       params.push(filters.status);
+      filterSql += ` AND s.status = $${params.length}`;
     }
     if (filters.warehouse_id) {
-      sql += ` AND s.warehouse_id = $${params.length + 1}`;
       params.push(Number(filters.warehouse_id));
+      filterSql += ` AND s.warehouse_id = $${params.length}`;
     }
     if (Array.isArray(filters.warehouse_ids)) {
-      sql += ` AND s.warehouse_id = ANY($${params.length + 1}::int[])`;
       params.push(filters.warehouse_ids.map(Number));
+      filterSql += ` AND s.warehouse_id = ANY($${params.length}::int[])`;
     }
-    sql += ` ORDER BY s.sale_date DESC, s.created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
+    sql += filterSql;
+    const countParams = [...params];
     params.push(limit, offset);
+    sql += ` ORDER BY s.sale_date DESC, s.created_at DESC LIMIT $${params.length - 1} OFFSET $${params.length}`;
     const rows = (await query(sql, params)).rows;
-    const total = rows.length > 0 ? rows[0].full_count : 0;
+    const total =
+      rows.length > 0
+        ? rows[0].full_count
+        : (await query(`SELECT COUNT(*)::int AS total FROM sales s${filterSql}`, countParams))
+            .rows[0].total;
     const cleanRows = rows.map((r) => {
       const { full_count, ...rest } = r;
       void full_count;

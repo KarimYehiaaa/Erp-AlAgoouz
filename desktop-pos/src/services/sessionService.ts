@@ -133,7 +133,11 @@ class SessionService {
     }
     this.cleanseLegacyTokens();
 
-    if (typeof window !== 'undefined' && window.electronAPI?.saveSecureSession && this.currentUser) {
+    if (
+      typeof window !== 'undefined' &&
+      window.electronAPI?.saveSecureSession &&
+      this.currentUser
+    ) {
       const res = await window.electronAPI.saveSecureSession({
         token: accessToken,
         refreshToken: this.currentRefreshToken || undefined,
@@ -194,7 +198,11 @@ class SessionService {
           this.currentTerminal = legacyTerminal;
 
           // إذا كان safeStorage متاحاً في Electron، قم بحفظه مشفراً فوراً
-          if (typeof window !== 'undefined' && window.electronAPI?.saveSecureSession && legacyUser) {
+          if (
+            typeof window !== 'undefined' &&
+            window.electronAPI?.saveSecureSession &&
+            legacyUser
+          ) {
             await window.electronAPI.saveSecureSession({
               token: legacyToken,
               user: legacyUser,

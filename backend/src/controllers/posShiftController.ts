@@ -105,7 +105,7 @@ export const posShiftController = {
   },
 
   /**
-   * مزامنة دفعة فواتير صادرة دون اتصال مع فرض عزل الفروع (Offline Batch Sync)
+   * مزامنة دفعة فواتير صادرة دون اتصال مع فرض نطاق المخزن المسموح (Offline Batch Sync)
    */
   async batchSyncSales(req: Request, res: Response, next: NextFunction) {
     try {

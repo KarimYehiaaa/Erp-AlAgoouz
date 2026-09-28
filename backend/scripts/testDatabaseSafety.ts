@@ -1,11 +1,20 @@
 // Pure validation: safe to import before configuration, pool creation or setup.
+export function createIsolatedTestDatabaseName(runId: string): string {
+  if (!/^[a-zA-Z0-9_]{1,40}$/.test(runId)) {
+    throw new Error('Invalid isolated test database run identifier.');
+  }
+  return `bin_al_ajouz_run_${runId}_test`;
+}
+
 export function assertSafeTestDatabase(target: {
   host?: string | null;
   database?: string | null;
   connectionString?: string | null;
 }): void {
   const reject = () => {
-    throw new Error('Unsafe test database target: use a loopback host and a database ending in _test.');
+    throw new Error(
+      'Unsafe test database target: use a loopback host and a database ending in _test.',
+    );
   };
   let host = target.host || '';
   let database = target.database || '';

@@ -5,6 +5,7 @@
     "moduleResolution": "NodeNext",
     "esModuleInterop": true,
     "allowImportingTsExtensions": true,
+    "rewriteRelativeImportExtensions": true,
     "strict": false,
     "skipLibCheck": true,
     "allowJs": true,
@@ -12,5 +13,5 @@
     "noEmit": true,
     "types": ["node"]
   },
-  "include": ["api/**/*", "backend/src/**/*"]
+  "include": ["api/**/*", "backend/src/**/*", "shared/**/*"]
 }

@@ -44,7 +44,9 @@ dotenv.config({ path: path.join(process.cwd(), '.env') });
     );
     console.log('RECIPES', q3.rows);
 
-    const q4 = await client.query(`SELECT COUNT(*) AS product_recipe_items FROM product_recipe_items;`);
+    const q4 = await client.query(
+      `SELECT COUNT(*) AS product_recipe_items FROM product_recipe_items;`,
+    );
     console.log('RECIPE_ITEMS', q4.rows);
   } catch (err) {
     console.error('DB check failed:', (err as Error).message || err);

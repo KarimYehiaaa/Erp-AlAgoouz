@@ -99,8 +99,15 @@ export const permissionEquivalents = {
   'users.manage': ['users.view', 'users.add', 'users.edit', 'users.delete'],
   'settings.manage': ['settings.view', 'settings.add', 'settings.edit', 'settings.delete'],
   'hr.manage': [
-    'shifts.view', 'shifts.add', 'shifts.edit', 'shifts.delete',
-    'hr.view', 'hr.add', 'hr.edit', 'hr.delete', 'hr.pay',
+    'shifts.view',
+    'shifts.add',
+    'shifts.edit',
+    'shifts.delete',
+    'hr.view',
+    'hr.add',
+    'hr.edit',
+    'hr.delete',
+    'hr.pay',
   ],
 
   // ── المحاسبة المالية والأستاذ العام ومرتجعات المشتريات ──
@@ -112,8 +119,13 @@ export const permissionEquivalents = {
   'purchase_returns.create': ['purchase_returns.create', 'purchases.edit', 'inventory.edit'],
   'purchase_returns.delete': ['purchase_returns.delete', 'purchases.delete', 'inventory.delete'],
   'purchases.manage': [
-    'purchases.view', 'purchases.add', 'purchases.edit', 'purchases.delete',
-    'purchase_returns.view', 'purchase_returns.create', 'purchase_returns.delete',
+    'purchases.view',
+    'purchases.add',
+    'purchases.edit',
+    'purchases.delete',
+    'purchase_returns.view',
+    'purchase_returns.create',
+    'purchase_returns.delete',
   ],
 };
 

@@ -9,9 +9,10 @@
   ],
   "scripts": {
     "dev": "npm run dev -w backend",
+    "system": "powershell -ExecutionPolicy Bypass -File ./system.ps1",
     "start": "npm run start -w backend",
     "start:prod": "npm run start -w backend",
-    "typecheck": "npm run typecheck -w backend && npm run typecheck -w frontend",
+    "typecheck": "npm run typecheck -w backend && npm run typecheck -w frontend && npm --prefix desktop-pos run typecheck && tsc --noEmit",
     "test": "npm run test:local -w backend && npm run test:unit -w frontend",
     "check:local": "npm run typecheck -w backend && npm run check:scripts -w backend && npm run test:local -w backend && node scripts/maintenance/check-build-path.ts",
     "build": "npm run build -w frontend",
@@ -23,10 +24,10 @@
     "pm2:start": "pm2 start config/pm2/ecosystem.config.cjs",
     "pm2:stop": "pm2 stop bin-al-ajouz-erp",
     "pm2:logs": "pm2 logs bin-al-ajouz-erp",
-    "lint": "eslint --config config/eslint/eslint.config.js backend/src frontend/src",
-    "lint:fix": "eslint --config config/eslint/eslint.config.js --fix backend/src frontend/src",
-    "format": "prettier --ignore-path config/prettier/.prettierignore --write .",
-    "format:check": "prettier --ignore-path config/prettier/.prettierignore --check .",
+    "lint": "eslint --config config/eslint/eslint.config.js backend/src frontend/src shared api desktop-pos/src desktop-pos/electron",
+    "lint:fix": "eslint --config config/eslint/eslint.config.js --fix backend/src frontend/src shared api desktop-pos/src desktop-pos/electron",
+    "format": "prettier --ignore-path config/prettier/.prettierignore --write backend frontend desktop-pos shared scripts config api .github package.json package-lock.json vercel.json tsconfig.json docker-compose.yml",
+    "format:check": "prettier --ignore-path config/prettier/.prettierignore --check backend frontend desktop-pos shared scripts config api .github package.json package-lock.json vercel.json tsconfig.json docker-compose.yml",
     "prepare": "husky"
   },
   "prettier": {
@@ -44,6 +45,10 @@
       "prettier --write"
     ],
     "frontend/src/**/*.{vue,js,ts}": [
+      "eslint --config config/eslint/eslint.config.js --fix",
+      "prettier --write"
+    ],
+    "{shared,api}/**/*.{js,ts,mjs}": [
       "eslint --config config/eslint/eslint.config.js --fix",
       "prettier --write"
     ],
@@ -74,7 +79,7 @@
     "winston": "^3.19.0",
     "winston-daily-rotate-file": "^5.0.0",
     "ws": "^8.21.0",
-    "xlsx": "^0.18.5",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
     "zod": "^3.23.8"
   },
   "engines": {

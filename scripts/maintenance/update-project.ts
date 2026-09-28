@@ -58,8 +58,7 @@ async function main(): Promise<void> {
       const output = execSync(
         'powershell -Command "(Get-NetTCPConnection -LocalPort 3000 -ErrorAction SilentlyContinue).OwningProcess"',
         { encoding: 'utf8' },
-      )
-        .trim();
+      ).trim();
       if (output && !isNaN(Number(output))) {
         backendPid = parseInt(output, 10);
       }

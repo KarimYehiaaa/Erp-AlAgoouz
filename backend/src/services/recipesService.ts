@@ -1,6 +1,11 @@
 import { AppError } from '../types/errors.ts';
 import { getClient, query } from '../database/pool.ts';
-import { normalizeUnit, convertQty } from './productCostService.ts';
+import {
+  normalizeUnit,
+  convertQty,
+  depleteInventoryCostLayers,
+  restoreInventoryCostLayers,
+} from './productCostService.ts';
 import * as inventoryService from './inventoryService.ts';
 import { getDefaultWarehouseId, getWarehouseIdByCode } from './warehouseService.ts';
 import { invalidateDashboardCache } from './dashboardService.ts';
@@ -144,6 +149,13 @@ export const consumeRecipeForSale = async (
         [deduction.quantity, item.ingredient_product_id, deduction.warehouse_id],
       );
 
+      await depleteInventoryCostLayers(
+        client,
+        Number(item.ingredient_product_id),
+        Number(deduction.warehouse_id),
+        Number(deduction.quantity),
+      );
+
       await client.query(
         `INSERT INTO stock_movements (
            product_id, from_warehouse_id, movement_type, quantity,
@@ -234,6 +246,13 @@ export const restoreRecipeForSale = async (
           userId,
           `استرجاع مكونات مرتجع من حركة المنتج ${productId}`,
         ],
+      );
+
+      await restoreInventoryCostLayers(
+        client,
+        Number(item.ingredient_product_id),
+        Number(restoreWarehouseId),
+        qtyToRestore,
       );
     }
     return;
@@ -415,6 +434,7 @@ export const restoreRecipeConsumptionForProduct = async (
        AND sm.reference_id = $1
        AND sm.movement_type = 'consumption'
        AND sm.voided_at IS NULL
+       AND (sm.notes = 'استهلاك وصفة المنتج ' || $2::text OR sm.notes LIKE 'استهلاك وصفة المنتج ' || $2::text || '%')
        AND EXISTS (
          SELECT 1 FROM product_recipe_items pri
          JOIN product_recipes pr ON pr.id = pri.recipe_id
@@ -434,6 +454,7 @@ export const restoreRecipeConsumptionForProduct = async (
         `SELECT 1 FROM stock_movements sm
          WHERE sm.reference_type = 'sale' AND sm.reference_id = $1
            AND sm.movement_type = 'consumption'
+           AND (sm.notes = 'استهلاك وصفة المنتج ' || $2::text OR sm.notes LIKE 'استهلاك وصفة المنتج ' || $2::text || '%')
            AND EXISTS (
              SELECT 1 FROM product_recipe_items pri
              JOIN product_recipes pr ON pr.id = pri.recipe_id
@@ -486,6 +507,12 @@ export const restoreRecipeConsumptionForProduct = async (
           userId,
           `استرداد مكونات وصفة المنتج ${productId} من بيع ${saleId}`,
         ],
+      );
+      await restoreInventoryCostLayers(
+        client,
+        Number(item.ingredient_product_id),
+        Number(restoreWarehouse),
+        qtyToRestore,
       );
     }
     return;
@@ -540,6 +567,12 @@ export const restoreRecipeConsumptionForProduct = async (
         userId,
         `استرداد مكونات وصفة (fallback) للمنتج ${productId}`,
       ],
+    );
+    await restoreInventoryCostLayers(
+      client,
+      Number(item.ingredient_product_id),
+      Number(warehouseId),
+      qtyToRestore,
     );
   }
 };

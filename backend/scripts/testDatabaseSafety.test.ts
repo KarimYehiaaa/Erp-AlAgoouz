@@ -2,7 +2,15 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { assertSafeTestDatabase } from './testDatabaseSafety.ts';
+import { assertSafeTestDatabase, createIsolatedTestDatabaseName } from './testDatabaseSafety.ts';
+
+test('creates per-run database names accepted by the local test safety guard', () => {
+  const database = createIsolatedTestDatabaseName('12345_a1b2c3');
+
+  assert.equal(database, 'bin_al_ajouz_run_12345_a1b2c3_test');
+  assert.doesNotThrow(() => assertSafeTestDatabase({ host: 'localhost', database }));
+  assert.throws(() => createIsolatedTestDatabaseName('123; DROP DATABASE postgres'), /invalid/i);
+});
 
 test('permits local isolated test and restore databases', () => {
   for (const host of ['localhost', '127.0.0.1', '::1']) {
@@ -10,9 +18,11 @@ test('permits local isolated test and restore databases', () => {
       assert.doesNotThrow(() => assertSafeTestDatabase({ host, database }));
     }
   }
-  assert.doesNotThrow(() => assertSafeTestDatabase({
-    connectionString: 'postgresql://user:password@[::1]:5432/erp_test',
-  }));
+  assert.doesNotThrow(() =>
+    assertSafeTestDatabase({
+      connectionString: 'postgresql://user:password@[::1]:5432/erp_test',
+    }),
+  );
 });
 
 test('rejects missing, remote and non-test targets', () => {
@@ -38,11 +48,15 @@ test('runner rejects unsafe environment before starting setup or migrations', ()
     { DB_HOST: 'unsafe.invalid', DB_NAME: 'erp_test' },
     { DB_HOST: 'localhost', DB_NAME: 'production' },
   ]) {
-    const result = spawnSync(process.execPath, [fileURLToPath(new URL('./run-vitest-local.ts', import.meta.url))], {
-      env: { ...process.env, ...env, DB_PASSWORD: 'test-only', POSTGRES_PASSWORD: 'test-only' },
-      encoding: 'utf8',
-      timeout: 15000,
-    });
+    const result = spawnSync(
+      process.execPath,
+      [fileURLToPath(new URL('./run-vitest-local.ts', import.meta.url))],
+      {
+        env: { ...process.env, ...env, DB_PASSWORD: 'test-only', POSTGRES_PASSWORD: 'test-only' },
+        encoding: 'utf8',
+        timeout: 15000,
+      },
+    );
     assert.equal(result.status, 1);
     assert.match(result.stderr, /Unsafe test database target/);
     assert.equal(result.stdout, '');

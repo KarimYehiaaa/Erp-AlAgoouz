@@ -11,6 +11,7 @@ import { AppError } from '../types/errors.ts';
 import { recalculateCustomerBalance } from './customerBalanceService.ts';
 import { invalidateDashboardCache } from './dashboardService.ts';
 import { broadcast } from './websocketService.ts';
+import { emitAutomationEvent } from './automationEventBus.ts';
 import { roundMoney, parseAmount } from '../utils/money.ts';
 import { businessToday } from '../utils/localDate.ts';
 import {
@@ -71,6 +72,11 @@ const createDailySale = async (data: Record<string, any>, userId: number) => {
   const rawItems = Array.isArray(data.items) ? data.items : [];
   const totals = calculateSaleTotals(rawItems, data);
   const items = totals.items;
+  const rawRedeemedPoints = Number(data.loyalty_points_redeemed || 0);
+  if (!Number.isSafeInteger(rawRedeemedPoints) || rawRedeemedPoints < 0) {
+    throw new AppError('عدد نقاط الولاء المستبدلة غير صالح', 400);
+  }
+  const redeemedPoints = rawRedeemedPoints;
   const warehouseId = await resolveSaleWarehouseId(items, data.warehouse_id || null);
   let customerId = data.customer_id || null;
   if (data.customer_code && !customerId) {
@@ -85,6 +91,14 @@ const createDailySale = async (data: Record<string, any>, userId: number) => {
       400,
     );
   }
+  if (redeemedPoints > 0) {
+    if (!customerId || !items.length) {
+      throw new AppError('استبدال نقاط الولاء يتطلب عميلاً وفاتورة أصناف', 400);
+    }
+    if (roundMoney(redeemedPoints / 10) > totals.discountAmount) {
+      throw new AppError('خصم الفاتورة أقل من قيمة نقاط الولاء المستبدلة', 400);
+    }
+  }
   let costAmount = 0;
   const subtotal = totals.subtotal;
   const totalAmount = totals.totalAmount;
@@ -92,12 +106,10 @@ const createDailySale = async (data: Record<string, any>, userId: number) => {
     throw new AppError(
       '\u0625\u062C\u0645\u0627\u0644\u064A \u0627\u0644\u0645\u0628\u064A\u0639\u0627\u062A \u064A\u062C\u0628 \u0623\u0646 \u064A\u0643\u0648\u0646 \u0623\u0643\u0628\u0631 \u0645\u0646 \u0635\u0641\u0631',
     );
-  const paymentStatus = data.payment_status || 'paid';
-  const effectivePaidAmount = calculatePaidAmount(
-    paymentStatus,
-    totalAmount,
-    data.paid_amount || 0,
-  );
+  const isCredit = data.payment_method === 'credit';
+  const paymentStatus = data.payment_status || (isCredit ? 'unpaid' : 'paid');
+  const rawPaidAmount = isCredit && data.paid_amount === undefined ? 0 : data.paid_amount || 0;
+  const effectivePaidAmount = calculatePaidAmount(paymentStatus, totalAmount, rawPaidAmount);
   const saleDate = data.sale_date || data.date || businessToday();
   // Itemized sales always derive profit from server-side cost layers. Manual
   // profit is retained only for historical/daily sales without line items.
@@ -124,6 +136,16 @@ const createDailySale = async (data: Record<string, any>, userId: number) => {
     }
 
     await assertSaleWarehouseAccess(client, userId, warehouseId);
+
+    if (redeemedPoints > 0) {
+      const loyaltyResult = await client.query(
+        `SELECT loyalty_points FROM customers WHERE id = $1 AND deleted_at IS NULL FOR UPDATE`,
+        [customerId],
+      );
+      if (!loyaltyResult.rows[0] || Number(loyaltyResult.rows[0].loyalty_points) < redeemedPoints) {
+        throw new AppError('رصيد نقاط الولاء غير كافٍ', 400);
+      }
+    }
 
     const saleNumber = await generateNumber(client, 'SL', 'sale');
     const entryMode = items.length ? 'pos' : 'daily';
@@ -209,7 +231,6 @@ const createDailySale = async (data: Record<string, any>, userId: number) => {
       await recalculateCustomerBalance((text, params) => client.query(text, params), customerId);
 
       // ─── محرك نقاط الولاء (Loyalty Points Engine) ───
-      const redeemedPoints = Math.max(0, Math.floor(Number(data.loyalty_points_redeemed) || 0));
       // كل 10 جنيه مدفوعة تمنح العميل 1 نقطة ولاء
       const earnedPoints = Math.max(0, Math.floor(effectivePaidAmount / 10));
 
@@ -219,8 +240,7 @@ const createDailySale = async (data: Record<string, any>, userId: number) => {
           [customerId],
         );
         const currentPoints = Number(custRes.rows[0]?.loyalty_points) || 0;
-        const safeRedeemed = Math.min(redeemedPoints, currentPoints);
-        const newPoints = Math.max(0, currentPoints - safeRedeemed + earnedPoints);
+        const newPoints = currentPoints - redeemedPoints + earnedPoints;
 
         await client.query(`UPDATE customers SET loyalty_points = $1 WHERE id = $2`, [
           newPoints,
@@ -251,6 +271,9 @@ const createDailySale = async (data: Record<string, any>, userId: number) => {
         data.payment_method ||
         (Array.isArray(data.payments) && data.payments[0]?.payment_method) ||
         'cash',
+      payment_status: paymentStatus,
+      paid_amount: effectivePaidAmount,
+      payments: data.payments,
       customer_id: customerId,
       warehouse_id: warehouseId,
       user_id: userId,
@@ -262,6 +285,14 @@ const createDailySale = async (data: Record<string, any>, userId: number) => {
     await client.query('COMMIT');
     invalidateDashboardCache();
     broadcast('sales_changed', { action: 'create', sale_id: sale.id });
+    // حدث أتمتة فوري غير حاجب: فحص الخصم الكبير (حد النسبة من config المهمة أو 15)
+    emitAutomationEvent('large_discount_alert', {
+      sale_id: sale.id,
+      sale_number: sale.sale_number,
+      subtotal: Number(subtotal || 0),
+      discount_amount: Number(totals.discountAmount || 0),
+      cashier_user_id: userId,
+    });
     return getSaleById(sale.id);
   } catch (err: any) {
     await client.query('ROLLBACK');
@@ -278,6 +309,9 @@ const createDailySale = async (data: Record<string, any>, userId: number) => {
  * @returns {Promise<any>}
  */
 const updateSale = async (saleId: number, data: Record<string, any>, userId: number) => {
+  if (Number(data.loyalty_points_redeemed || 0) !== 0) {
+    throw new AppError('لا يمكن استبدال نقاط الولاء عند تعديل فاتورة محفوظة', 400);
+  }
   const saleType = data.sale_type;
   if (!['retail', 'wholesale', 'pos'].includes(saleType)) {
     throw new AppError(
@@ -511,6 +545,14 @@ const updateSale = async (saleId: number, data: Record<string, any>, userId: num
     await client.query('COMMIT');
     invalidateDashboardCache();
     broadcast('sales_changed', { action: 'update', sale_id: saleId });
+    // حدث أتمتة فوري غير حاجب: فحص الخصم الكبير عند تعديل الفاتورة
+    emitAutomationEvent('large_discount_alert', {
+      sale_id: saleId,
+      sale_number: existingSale.sale_number,
+      subtotal: Number(totals.subtotal || existingSale.subtotal || 0),
+      discount_amount: Number(totals.discountAmount || existingSale.discount_amount || 0),
+      cashier_user_id: userId,
+    });
     return getSaleById(saleId);
   } catch (err: any) {
     await client.query('ROLLBACK');
@@ -563,7 +605,7 @@ const getSalesSummary = async (
     params.push(filters.to_date);
   }
   if (allowedWarehouseIds) {
-    sql += ` AND warehouse_id = ANY($${idx++}::int[])`;
+    sql += ` AND warehouse_id = ANY($${idx}::int[])`;
     params.push(allowedWarehouseIds.map(Number));
   }
   sql += ` GROUP BY sale_type, sale_date ORDER BY sale_date DESC`;
@@ -643,9 +685,20 @@ const returnSale = async (saleId: number, userId: number, notes?: string) => {
       [userId, `مرتجع بيع ${sale.sale_number}`, JSON.stringify({ sale_id: saleId })],
     );
 
-    // إذا كانت الفاتورة المرتجعة نقدية، وكان للمستخدم وردية POS مفتوحة، نسجل حركة سحب نقدي بالوردية الحالية
-    const isCashRefund = (sale.payment_method || 'cash').toLowerCase() === 'cash';
-    if (isCashRefund) {
+    // استعلام عن مدفوعات الفاتورة الفعلية لتحديد وسيلة الرد ومبلغ الكاش الفعلي
+    const paymentsRes = await client.query(
+      `SELECT payment_method, amount FROM payments WHERE reference_type = 'sale' AND reference_id = $1`,
+      [saleId],
+    );
+    const salePayments = paymentsRes.rows;
+    const cashPaidAmount = roundMoney(
+      salePayments
+        .filter((p: any) => (p.payment_method || 'cash').toLowerCase() === 'cash')
+        .reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0),
+    );
+
+    // إذا كانت الفاتورة المرتجعة سُدد منها نقداً، وكان للمستخدم وردية POS مفتوحة، نسجل حركة سحب نقدي بما سُدد نقداً فقط
+    if (cashPaidAmount > 0) {
       const activeShiftRes = await client.query(
         `SELECT id FROM pos_shifts WHERE cashier_user_id = $1 AND warehouse_id = $2 AND status = 'open' LIMIT 1`,
         [userId, sale.warehouse_id],
@@ -656,7 +709,7 @@ const returnSale = async (saleId: number, userId: number, notes?: string) => {
            VALUES ($1, 'expense', $2, $3, $4)`,
           [
             activeShiftRes.rows[0].id,
-            Number(sale.total_amount),
+            cashPaidAmount,
             `رد نقدية لمرتجع بيع ${sale.sale_number}`,
             userId,
           ],
@@ -672,7 +725,8 @@ const returnSale = async (saleId: number, userId: number, notes?: string) => {
       tax_amount: Number(sale.tax_amount || 0),
       cost_amount: Number(sale.cost_amount || 0),
       sale_type: sale.sale_type,
-      payment_method: sale.payment_method,
+      payment_method: salePayments[0]?.payment_method || 'cash',
+      payments: salePayments,
       customer_id: sale.customer_id,
       warehouse_id: sale.warehouse_id,
       user_id: userId,
@@ -681,6 +735,14 @@ const returnSale = async (saleId: number, userId: number, notes?: string) => {
     await client.query('COMMIT');
     invalidateDashboardCache();
     broadcast('sales_changed', { action: 'return', sale_id: saleId });
+    // حدث أتمتة فوري غير حاجب: كشف إلغاء/إرجاع الفواتير (رقم الفاتورة والمبلغ والكاشير)
+    emitAutomationEvent('void_invoice_alert', {
+      sale_id: saleId,
+      sale_number: sale.sale_number,
+      total_amount: Number(sale.total_amount),
+      cashier_user_id: sale.user_id,
+      returned_by: userId,
+    });
     return getSaleById(saleId);
   } catch (err: any) {
     await client.query('ROLLBACK');

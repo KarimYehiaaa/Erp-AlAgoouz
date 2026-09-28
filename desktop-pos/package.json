@@ -1,6 +1,6 @@
 {
   "name": "bin-al-ajouz-desktop-pos",
-  "version": "1.0.11",
+  "version": "1.0.14",
   "description": "نظام نقاط البيع والكاشير المكتبي المتكامل - بن العجوز ERP",
   "author": "بن العجوز ERP",
   "main": "dist-electron/main.js",
@@ -10,6 +10,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run tests",
+    "typecheck": "vue-tsc --noEmit",
     "electron:dev": "vite",
     "electron:build": "vite build && electron-builder --publish never"
   },

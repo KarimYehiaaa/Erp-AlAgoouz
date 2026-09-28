@@ -10,6 +10,7 @@ import {
   updateSale,
 } from '../src/services/salesService.ts';
 import { getAllowedWarehouses } from '../src/middleware/warehouseAccess.ts';
+import { businessToday } from '../src/utils/localDate.ts';
 import { randomUUID } from 'node:crypto';
 
 describe('POS Warehouse Access & Batch Sync Security (Items 24, 25, 26)', () => {
@@ -127,6 +128,70 @@ describe('POS Warehouse Access & Batch Sync Security (Items 24, 25, 26)', () => 
     expect(Number(sale.warehouse_id)).toBe(allowedWarehouseId);
   });
 
+  it('rejects loyalty redemption without a customer or enough points', async () => {
+    const payload = {
+      sale_type: 'pos',
+      warehouse_id: allowedWarehouseId,
+      items: [{ product_id: productId, quantity: 1, unit_price: 100 }],
+      discount_amount: 90,
+      loyalty_points_redeemed: 900,
+      payment_method: 'cash',
+    };
+    await expect(createDailySale(payload, cashierUserId)).rejects.toThrow(
+      'استبدال نقاط الولاء يتطلب عميلاً',
+    );
+
+    const customer = await query(
+      `INSERT INTO customers (name_ar, loyalty_points) VALUES ($1, 10) RETURNING id`,
+      [`عميل نقاط ${randomUUID()}`],
+    );
+    await expect(
+      createDailySale({ ...payload, customer_id: customer.rows[0].id }, cashierUserId),
+    ).rejects.toThrow('رصيد نقاط الولاء غير كافٍ');
+    const persisted = await query(
+      `SELECT COUNT(*)::int AS count FROM sales WHERE customer_id = $1`,
+      [customer.rows[0].id],
+    );
+    expect(persisted.rows[0].count).toBe(0);
+  });
+
+  it('requires the invoice discount to cover redeemed points and deducts valid points', async () => {
+    const customer = await query(
+      `INSERT INTO customers (name_ar, loyalty_points) VALUES ($1, 50) RETURNING id`,
+      [`عميل نقاط ${randomUUID()}`],
+    );
+    const payload = {
+      sale_type: 'pos',
+      warehouse_id: allowedWarehouseId,
+      customer_id: customer.rows[0].id,
+      items: [{ product_id: productId, quantity: 1, unit_price: 100 }],
+      loyalty_points_redeemed: 20,
+      discount_amount: 1,
+      payment_method: 'cash',
+    };
+    await expect(createDailySale(payload, cashierUserId)).rejects.toThrow(
+      'خصم الفاتورة أقل من قيمة نقاط الولاء',
+    );
+
+    const sale = await createDailySale({ ...payload, discount_amount: 2 }, cashierUserId);
+    expect(Number(sale.total_amount)).toBe(98);
+    const balance = await query(`SELECT loyalty_points FROM customers WHERE id = $1`, [
+      customer.rows[0].id,
+    ]);
+    expect(Number(balance.rows[0].loyalty_points)).toBe(39); // 50 - 20 + 9 earned
+  });
+
+  it('keeps the filtered total when a requested sales page is empty', async () => {
+    const expected = await query(
+      `SELECT COUNT(*)::int AS total FROM sales WHERE deleted_at IS NULL AND warehouse_id = $1`,
+      [allowedWarehouseId],
+    );
+    const page = await getSales({ warehouse_id: allowedWarehouseId, page: 999999, limit: 10 });
+    expect(page.data).toEqual([]);
+    expect(page.meta.total).toBe(expected.rows[0].total);
+    expect(page.meta.total).toBeGreaterThan(0);
+  });
+
   it('2. Cashier with forbidden warehouse is strictly rejected with 403 error', async () => {
     const syncId = randomUUID();
     const payload = {
@@ -200,7 +265,7 @@ describe('POS Warehouse Access & Batch Sync Security (Items 24, 25, 26)', () => 
     );
 
     const allowedWarehouses = await getAllowedWarehouses(cashierUserId);
-    const today = new Date().toISOString().slice(0, 10);
+    const today = businessToday();
     const list = await getSales(
       { from_date: today, to_date: today, warehouse_id: allowedWarehouseId },
       allowedWarehouses,

@@ -8,7 +8,8 @@ import { authenticate, authorize, auditLog } from '../middleware/auth.ts';
 import { requireConfirmation } from '../middleware/confirmAction.ts';
 import { validateBody, validateQuery } from '../middleware/validate.ts';
 import { requireIdempotency } from '../middleware/idempotency.ts';
-import { upload } from './helpers.ts';
+import { enforceWarehouseAccess } from '../middleware/warehouseAccess.ts';
+import { upload, requireAdmin } from './helpers.ts';
 import {
   commonQuerySchema,
   productCreateSchema,
@@ -97,7 +98,9 @@ router.post(
 router.post(
   '/products/return',
   authenticate,
-  authorize('pos.add'),
+  authorize('inventory.edit', 'products.edit', 'pos.add'),
+  enforceWarehouseAccess,
+  requireIdempotency,
   validateBody(productReturnSchema),
   api.products.returnStock,
 );
@@ -110,7 +113,8 @@ router.get(
 router.post(
   '/products/delete-all',
   authenticate,
-  authorize('products.add'),
+  authorize('products.delete'),
+  requireAdmin,
   requireConfirmation('CONFIRM_DELETE_ALL_PRODUCTS'),
   auditLog('products_delete_all', 'products'),
   api.products.deleteAll,

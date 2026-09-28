@@ -996,9 +996,14 @@ const testServerConnection = async () => {
   const target = (customServerUrl.value || getBaseServerUrl()).replace(/\/+$/, '');
   const startTime = Date.now();
   try {
-    const res = await axios.get(`${target}/api/v1/health`, { timeout: 6000 });
+    let res: any;
+    try {
+      res = await axios.get(`${target}/api/v1/health`, { timeout: 12000 });
+    } catch {
+      res = await axios.get(`${target}/health`, { timeout: 12000 });
+    }
     const latency = Date.now() - startTime;
-    if (res.data && res.data.success) {
+    if (res.data && (res.data.success || res.status === 200)) {
       testResultStatus.value = 'success';
       const isCloud = target.includes('agoouz') || target.includes('https');
       const isDbOk = res.data.db?.connected ? ' • قاعدة البيانات متصلة ✅' : '';

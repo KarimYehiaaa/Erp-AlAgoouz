@@ -1,1715 +1,1929 @@
 <template>
-  <div class="pos-receipt-container">
-    <!-- ═══════════════════ RECEIPT HEADER ═══════════════════ -->
-    <header class="receipt-header">
-      <div class="header-main-info">
-        <div class="receipt-brand-badge">
-          <AppIcon name="receipt" :size="20" />
-        </div>
-        <div class="header-text">
-          <div class="title-with-badge">
-            <h3>فاتورة الطلب</h3>
-            <span class="live-clock">{{ currentTime }}</span>
-          </div>
-          <span class="invoice-subtitle">نقطة بيع بن العجوز</span>
-        </div>
+  <div class="card checkout-cart-panel">
+    <!-- ═══════════════════ HEADER ═══════════════════ -->
+    <div class="cart-title-row">
+      <div class="title-with-badge">
+        <span class="cart-icon"><AppIcon name="shoppingBag" :size="20" /></span>
+        <h3>سلة ومحاسبة الفاتورة</h3>
       </div>
-
-      <div class="header-actions">
-        <span v-if="cartStore.items.length" class="items-count-tag">
-          {{ cartStore.itemsCount }} عنصر
+      <div class="cart-header-actions">
+        <span v-if="cartStore.items.length" class="cart-items-count">
+          {{ cartStore.items.length }} صنف
         </span>
         <button
-          v-if="cartStore.items.length"
           type="button"
-          class="btn-clear-all"
-          @click="confirmClearCart"
-          title="إفراغ السلة بالكامل"
+          class="btn-close-cart"
+          @click="emit('closeDrawer')"
+          title="إغلاق والعودة للكتالوج (Esc)"
         >
-          <AppIcon name="trash2" :size="15" />
-          <span>مسح</span>
+          <AppIcon name="close" :size="16" />
         </button>
       </div>
-    </header>
+    </div>
 
     <!-- ═══════════════════ ORDER TYPE TOGGLE ═══════════════════ -->
     <div class="order-type-tabs">
       <button
         type="button"
         class="type-tab"
-        :class="{ active: orderType === 'takeaway' }"
-        @click="orderType = 'takeaway'"
+        :class="{ active: cartStore.orderType === 'takeaway' }"
+        @click="cartStore.orderType = 'takeaway'"
       >
-        <AppIcon name="shoppingBag" :size="15" />
+        <AppIcon name="shoppingBag" :size="14" />
         <span>تيك أواي</span>
       </button>
 
       <button
         type="button"
         class="type-tab"
-        :class="{ active: orderType === 'dinein' }"
-        @click="orderType = 'dinein'"
+        :class="{ active: cartStore.orderType === 'dinein' }"
+        @click="cartStore.orderType = 'dinein'"
       >
-        <AppIcon name="coffee" :size="15" />
+        <AppIcon name="coffee" :size="14" />
         <span>صالة</span>
       </button>
 
       <button
         type="button"
         class="type-tab"
-        :class="{ active: orderType === 'delivery' }"
-        @click="orderType = 'delivery'"
+        :class="{ active: cartStore.orderType === 'delivery' }"
+        @click="cartStore.orderType = 'delivery'"
       >
-        <AppIcon name="truck" :size="15" />
+        <AppIcon name="truck" :size="14" />
         <span>توصيل</span>
       </button>
     </div>
 
-    <!-- ═══════════════════ RECEIPT ITEMS LIST ═══════════════════ -->
-    <div class="receipt-body">
-      <!-- Empty State -->
-      <div v-if="!cartStore.items.length" class="receipt-empty-view">
-        <div class="empty-receipt-graphic">
-          <AppIcon name="coffee" :size="38" />
+    <!-- ═══════════════════ EMPTY STATE ═══════════════════ -->
+    <div v-if="!cartStore.items.length" class="empty-cart">
+      <span class="empty-cart-icon"><AppIcon name="coffee" :size="40" /></span>
+      <p>السلة فارغة حالياً</p>
+      <span class="empty-hint">اختر أصنافاً من الكتالوج أو استخدم الباركود لإضافتها</span>
+    </div>
+
+    <!-- ═══════════════════ CART ITEMS LIST ═══════════════════ -->
+    <div v-else class="cart-items-scrollable">
+      <div v-for="(item, idx) in cartStore.items" :key="item.id || idx" class="checkout-item-row">
+        <div class="item-main-details">
+          <span class="item-name">{{ item.name_ar }}</span>
+          <span class="item-unit-price"
+            >{{ formatMoney(item.unit_price) }} / {{ item.unit || 'وحدة' }}</span
+          >
+          <span v-if="item.custom_notes" class="item-custom-notes">
+            {{ item.custom_notes }}
+          </span>
         </div>
-        <h4 class="empty-title">الفاتورة فارغة</h4>
-        <p class="empty-desc">اضغط على أي صنف من القائمة لإضافته للطلب</p>
-        <div class="empty-tip-pill">
-          <AppIcon name="zap" :size="13" />
-          <span>استخدم قارئ الباركود أو مفتاح F2 للبحث</span>
+
+        <div class="item-touch-controls">
+          <button
+            type="button"
+            class="touch-qty-btn decrease"
+            @click="cartStore.updateQty(idx, item.quantity - (item.quantity > 1 ? 1 : 0.125))"
+            title="تقليل الكمية"
+          >
+            −
+          </button>
+
+          <!-- زر تعديل الكمية والوزن بالنقر لفتح لوحة الأرقام -->
+          <button
+            type="button"
+            class="touch-qty-display"
+            @click="openNumpad(idx)"
+            title="انقر لتعديل الكمية أو الوزن بالجرامات"
+          >
+            <span class="qty-val">{{ item.quantity }}</span>
+            <span class="qty-unit-label">{{ getWeightLabel(item.quantity) }}</span>
+            <AppIcon name="edit" :size="12" class="qty-pencil" />
+          </button>
+
+          <button
+            type="button"
+            class="touch-qty-btn increase"
+            @click="cartStore.updateQty(idx, item.quantity + (item.quantity >= 1 ? 1 : 0.125))"
+            title="زيادة الكمية"
+          >
+            +
+          </button>
+
+          <button
+            type="button"
+            class="touch-delete-btn"
+            @click="cartStore.removeItem(idx)"
+            title="حذف من السلة"
+          >
+            <AppIcon name="close" :size="14" />
+          </button>
+        </div>
+
+        <div class="item-line-total">
+          {{ formatMoney(item.quantity * item.unit_price) }}
         </div>
       </div>
+    </div>
 
-      <!-- Items List -->
-      <div v-else class="receipt-items-scroll">
+    <!-- ═══════════════════ RECOMMENDATIONS ═══════════════════ -->
+    <div
+      v-if="cartStore.items.length && recommendedItems && recommendedItems.length"
+      class="cart-recommendations"
+    >
+      <div class="rec-title">مقترحات ذكية ترافق السلة:</div>
+      <div class="rec-list">
         <div
-          v-for="(item, idx) in cartStore.items"
-          :key="item.id"
-          class="receipt-item-card"
+          v-for="rec in recommendedItems"
+          :key="rec.product_id"
+          class="rec-item"
+          @click="emit('addRecommended', rec)"
+          title="اضغط لإضافة هذا الصنف المقترح"
         >
-          <!-- Item Top Line: Index + Name + Remove -->
-          <div class="item-card-top">
-            <div class="item-title-wrap">
-              <span class="item-index-badge">{{ idx + 1 }}</span>
-              <strong class="item-name">{{ item.name_ar }}</strong>
-            </div>
-
-            <button
-              type="button"
-              class="btn-delete-item"
-              @click="cartStore.removeItem(idx)"
-              title="حذف الصنف"
-            >
-              <AppIcon name="close" :size="13" />
-            </button>
+          <div class="rec-name">
+            <span class="rec-name-text">{{ rec.name_ar }}</span>
+            <span class="rec-category">{{ rec.category_name }}</span>
           </div>
-
-          <!-- Custom Specs Tag (if custom coffee) -->
-          <div v-if="item.custom_notes" class="item-custom-tags">
-            <span class="custom-note-chip">
-              <AppIcon name="sparkles" :size="12" />
-              <span>{{ item.custom_notes }}</span>
-            </span>
-          </div>
-
-          <!-- Item Bottom Line: Stepper + Price Breakdown -->
-          <div class="item-card-bottom">
-            <div class="unit-price-label">
-              <span>{{ formatMoney(item.unit_price) }}</span>
-              <small>/ {{ item.unit }}</small>
-            </div>
-
-            <!-- Touch Stepper -->
-            <div class="item-stepper">
-              <button
-                type="button"
-                class="step-btn minus"
-                @click="cartStore.updateQty(idx, item.quantity - 1)"
-                title="تقليل الكمية"
-              >
-                -
-              </button>
-              <span class="step-qty">{{ item.quantity }}</span>
-              <button
-                type="button"
-                class="step-btn plus"
-                @click="cartStore.updateQty(idx, item.quantity + 1)"
-                title="زيادة الكمية"
-              >
-                +
-              </button>
-            </div>
-
-            <!-- Total Price for row -->
-            <div class="item-total-price">
-              <span>{{ formatMoney(item.unit_price * item.quantity) }}</span>
-            </div>
+          <div class="rec-action">
+            <span class="rec-price">{{ formatMoney(rec.sale_price) }}</span>
+            <span class="rec-add-icon"><AppIcon name="plus" :size="14" /></span>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- ═══════════════════ RECEIPT FOOTER / BILLING ═══════════════════ -->
-    <footer class="receipt-footer">
-      <!-- Perforated Zigzag Divider -->
-      <div class="receipt-perforation"></div>
-
-      <div v-if="showCheckoutPanel" class="checkout-panel">
-      <div class="checkout-panel-header">
-        <div>
-          <strong>مراجعة الدفع</strong>
-          <span>راجع الإجمالي ثم اختر طريقة التحصيل</span>
-        </div>
-        <button type="button" class="btn-back-to-cart" @click="showCheckoutPanel = false">
-          <AppIcon name="arrowRight" :size="14" />
-          السلة
-        </button>
+    <!-- ═══════════════════ CART FINANCIAL SUMMARY ═══════════════════ -->
+    <div v-if="cartStore.items.length" class="cart-summary-box">
+      <div class="summary-row">
+        <span>المجموع الفرعي:</span>
+        <strong class="subtotal-val">{{ formatMoney(cartStore.subtotal) }}</strong>
       </div>
-      <!-- Financial Calculation Summary -->
-      <div class="billing-summary-box">
-        <div class="summary-line">
-          <span class="line-label">المجموع الفرعي:</span>
-          <span class="line-val subtotal">{{ formatMoney(cartStore.subtotal) }}</span>
+
+      <div class="summary-row discount-row">
+        <span>خصم الفاتورة (ج.م) [F4]:</span>
+        <div class="discount-inputs-group">
+          <input
+            ref="discountInputRef"
+            v-model.number="cartStore.discountAmount"
+            type="number"
+            min="0"
+            :max="cartStore.subtotal"
+            step="0.5"
+            class="discount-input"
+            placeholder="0.00"
+          />
+        </div>
+      </div>
+
+      <div v-if="cartStore.loyaltyDiscount > 0" class="summary-row loyalty-discount-row">
+        <span>خصم نقاط الولاء:</span>
+        <strong class="loyalty-val">- {{ formatMoney(cartStore.loyaltyDiscount) }}</strong>
+      </div>
+
+      <div class="summary-row total-highlight-row">
+        <span class="total-label">الإجمالي المستحق للدفع:</span>
+        <span class="total-amount-glow">{{ formatMoney(cartStore.total) }}</span>
+      </div>
+    </div>
+
+    <!-- ═══════════════════ CHECKOUT FORM ═══════════════════ -->
+    <form
+      v-if="cartStore.items.length"
+      @submit.prevent="handleCheckoutSubmit"
+      class="checkout-payment-form"
+    >
+      <!-- 👤 اختيار العميل (Customer Selection) -->
+      <div class="payment-section-box customer-section-box">
+        <label class="section-title">العميل (اختياري):</label>
+        <select v-model="cartStore.customerId" class="customer-select" @change="onCustomerChange">
+          <option :value="null">عميل نقدي (بدون تسجيل)</option>
+          <option v-for="c in customersList" :key="c.id" :value="c.id">
+            {{ c.name_ar || c.name }} — {{ c.code || c.phone || `#${c.id}` }}
+          </option>
+        </select>
+
+        <div v-if="cartStore.selectedCustomer" class="customer-info-badges">
+          <div class="customer-balance-badge">
+            <span>رصيد المديونية:</span>
+            <strong :class="{ 'has-debt': cartStore.selectedCustomer.balance > 0 }">
+              {{ formatMoney(cartStore.selectedCustomer.balance || 0) }}
+            </strong>
+          </div>
+
+          <div class="customer-loyalty-badge">
+            <span>⭐ نقاط الولاء:</span>
+            <strong>{{ cartStore.selectedCustomer.loyalty_points || 0 }} نقطة</strong>
+            <span class="points-val">
+              ({{ formatMoney((cartStore.selectedCustomer.loyalty_points || 0) / 10) }})
+            </span>
+          </div>
         </div>
 
-        <!-- Discount stays collapsed until the cashier needs it. -->
-        <div class="billing-actions-row">
+        <!-- خيار استبدال نقاط الولاء -->
+        <div
+          v-if="cartStore.selectedCustomer && maxRedeemablePoints >= 10"
+          class="loyalty-redeem-box"
+        >
+          <label class="redeem-toggle">
+            <input type="checkbox" v-model="useLoyaltyRedeem" @change="onToggleLoyaltyRedeem" />
+            <span>🎁 استبدال نقاط الولاء بخصم</span>
+          </label>
+          <div v-if="useLoyaltyRedeem" class="redeem-controls">
+            <input
+              type="number"
+              min="10"
+              step="10"
+              :max="maxRedeemablePoints"
+              v-model.number="cartStore.loyaltyPointsRedeemed"
+              class="redeem-points-input"
+              placeholder="عدد النقاط"
+            />
+            <span class="redeem-preview">
+              = خصم {{ formatMoney((cartStore.loyaltyPointsRedeemed || 0) / 10) }}
+            </span>
+          </div>
+        </div>
+
+        <div
+          v-if="cartStore.paymentMethod === 'credit' && !cartStore.customerId"
+          class="credit-warning"
+        >
+          ⚠️ يجب اختيار عميل عند البيع الآجل
+        </div>
+      </div>
+
+      <!-- 💳 شبكة أزرار طرق الدفع السريعة (Payment Methods Grid) -->
+      <div class="payment-section-box">
+        <label class="section-title">طريقة الدفع (اضغط للاختيار):</label>
+        <div class="payment-tiles-grid has-split">
           <button
             type="button"
-            class="billing-action-btn"
-            :class="{ active: showDiscountPanel || cartStore.discountAmount > 0 }"
-            @click="showDiscountPanel = !showDiscountPanel"
+            class="pay-tile"
+            :class="{ selected: cartStore.paymentMethod === 'cash' }"
+            @click="setSinglePayment('cash')"
           >
-            <AppIcon name="tag" :size="15" />
-            <span>الخصم</span>
-            <strong>{{ formatMoney(cartStore.discountAmount) }}</strong>
-            <AppIcon :name="showDiscountPanel ? 'minus' : 'plus'" :size="14" />
+            <span class="tile-icon"><AppIcon name="banknote" :size="18" /></span>
+            <span class="tile-title">نقدي (كاش)</span>
+          </button>
+
+          <button
+            type="button"
+            class="pay-tile"
+            :class="{ selected: cartStore.paymentMethod === 'card' }"
+            @click="setSinglePayment('card')"
+          >
+            <span class="tile-icon"><AppIcon name="creditCard" :size="18" /></span>
+            <span class="tile-title">فيزا / مدى</span>
+          </button>
+
+          <button
+            type="button"
+            class="pay-tile"
+            :class="{
+              selected:
+                cartStore.paymentMethod === 'transfer' || cartStore.paymentMethod === 'instapay',
+            }"
+            @click="setSinglePayment('transfer')"
+          >
+            <span class="tile-icon"><AppIcon name="arrowRightLeft" :size="18" /></span>
+            <span class="tile-title">إنستاباي / محفظة</span>
+          </button>
+
+          <button
+            type="button"
+            class="pay-tile"
+            :class="{ selected: cartStore.paymentMethod === 'credit' }"
+            @click="setSinglePayment('credit')"
+          >
+            <span class="tile-icon"><AppIcon name="clock" :size="18" /></span>
+            <span class="tile-title">آجل / ذمم</span>
+          </button>
+
+          <button
+            type="button"
+            class="pay-tile split-tile"
+            :class="{ selected: cartStore.paymentMethod === 'split' }"
+            @click="setSplitPayment"
+          >
+            <span class="tile-icon"><AppIcon name="layers" :size="18" /></span>
+            <span class="tile-title">دفع متعدد / مجزأ</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 🔢 صندوق الدفع المتعدد / المجزأ (Split Payment Box) -->
+      <div v-if="cartStore.paymentMethod === 'split'" class="split-payment-box">
+        <div class="split-header">
+          <span class="split-title">💳 توزيع مبالغ الدفع:</span>
+          <span class="split-target">
+            المطلوب: <strong>{{ formatMoney(cartStore.total) }}</strong>
+          </span>
+        </div>
+        <div class="split-methods-list">
+          <div v-for="m in splitMethodRows" :key="m.key" class="split-method-row">
+            <span class="split-label">{{ m.label }}</span>
+            <div class="split-input-wrap">
+              <input
+                type="number"
+                min="0"
+                step="0.5"
+                v-model.number="m.amount"
+                @input="syncSplitPayments"
+                class="split-amount-input"
+                placeholder="0.00"
+              />
+              <button
+                type="button"
+                class="btn-fill-remaining"
+                @click="fillRemaining(m)"
+                title="تعبئة المتبقي هنا"
+              >
+                المتبقي
+              </button>
+            </div>
+          </div>
+        </div>
+        <div
+          class="split-status-bar"
+          :class="{
+            'is-complete': splitRemaining === 0,
+            'is-short': splitRemaining > 0,
+            'is-over': splitRemaining < 0,
+          }"
+        >
+          <div class="status-col">
+            <span>المدفوع:</span>
+            <strong>{{ formatMoney(totalSplitAmount) }}</strong>
+          </div>
+          <div class="status-col">
+            <span v-if="splitRemaining > 0">المتبقي:</span>
+            <span v-else-if="splitRemaining < 0">زيادة:</span>
+            <span v-else>مطابقة:</span>
+            <strong
+              :class="
+                splitRemaining === 0 ? 'text-green' : splitRemaining > 0 ? 'text-red' : 'text-amber'
+              "
+            >
+              {{ splitRemaining === 0 ? 'مكتمل ✅' : formatMoney(Math.abs(splitRemaining)) }}
+            </strong>
+          </div>
+        </div>
+      </div>
+
+      <!-- 💵 حاسبة الباقي وفئات النقود السريعة عند الدفع كاش -->
+      <div v-if="cartStore.paymentMethod === 'cash'" class="cash-calc-box">
+        <div class="calc-header">
+          <span class="calc-title">أزرار النقدية السريعة:</span>
+        </div>
+
+        <div class="preset-bills-row">
+          <button
+            type="button"
+            class="bill-chip exact"
+            @click="receivedAmount = cartStore.total"
+            title="المبلغ بالضبط بدون باقي"
+          >
+            المبلغ بالضبط
+          </button>
+          <button
+            v-for="preset in [50, 100, 200, 500]"
+            :key="preset"
+            type="button"
+            class="bill-chip"
+            :class="{ active: receivedAmount === preset }"
+            @click="receivedAmount = preset"
+          >
+            {{ preset }} ج.م
           </button>
         </div>
 
-        <div v-if="showDiscountPanel" class="discount-panel">
-          <div class="discount-quick-pills">
-              <button
-                type="button"
-                class="disc-pill"
-                :class="{ active: cartStore.discountAmount === 0 }"
-                @click="applyPercentDiscount(0)"
-              >
-                0%
-              </button>
-              <button
-                type="button"
-                class="disc-pill"
-                @click="applyPercentDiscount(5)"
-              >
-                5%
-              </button>
-              <button
-                type="button"
-                class="disc-pill"
-                @click="applyPercentDiscount(10)"
-              >
-                10%
-              </button>
-              <button
-                type="button"
-                class="disc-pill"
-                @click="applyPercentDiscount(15)"
-              >
-                15%
-              </button>
-              <button
-                type="button"
-                class="disc-pill"
-                @click="applyPercentDiscount(20)"
-              >
-                20%
-              </button>
-              <button
-                type="button"
-                class="disc-pill"
-                @click="applyPercentDiscount(25)"
-              >
-                25%
-              </button>
-              <button
-                type="button"
-                class="disc-pill"
-                @click="applyPercentDiscount(30)"
-              >
-                30%
-              </button>
-          </div>
-          <div class="discount-input-wrap">
+        <div class="received-row">
+          <label>المبلغ المستلم نقدياً:</label>
+          <div class="received-input-wrap">
             <input
-              v-model.number="cartStore.discountAmount"
+              ref="receivedInputRef"
+              v-model.number="receivedAmount"
               type="number"
               min="0"
-              :max="cartStore.subtotal"
-              class="disc-input"
-              placeholder="0"
+              step="1"
+              placeholder="أدخل المبلغ..."
+              class="received-input"
             />
-            <span class="input-curr">ج.م</span>
+            <span class="curr-tag">ج.م</span>
           </div>
         </div>
 
-        <!-- Grand Total Highlight Card -->
-        <div class="grand-total-banner">
-          <div class="total-caption">
-            <span class="caption-title">الإجمالي النهائي</span>
-            <span class="caption-sub">شامل الضريبة والخصومات</span>
-          </div>
-          <div class="total-figure">
-            <span class="figure-digits">{{ formatMoney(cartStore.total) }}</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Payment Method Switcher: collapsed by default to preserve item space. -->
-      <div class="payment-method-selector">
-        <button type="button" class="payment-summary-toggle" @click="showPaymentPanel = !showPaymentPanel">
-          <span class="payment-summary-leading">
-            <AppIcon name="creditCard" :size="16" />
-            <span>طريقة الدفع</span>
+        <div
+          v-if="Boolean(receivedAmount && receivedAmount > 0)"
+          class="change-statement-row"
+          :class="{
+            'has-change': changeAmount >= 0,
+            'has-shortage': changeAmount < 0,
+          }"
+        >
+          <span class="change-label">
+            {{ changeAmount >= 0 ? 'الباقي المستحق للعميل:' : 'المبلغ المتبقي للدفع:' }}
           </span>
-          <strong>{{ paymentMethodLabel }}</strong>
-          <AppIcon :name="showPaymentPanel ? 'minus' : 'plus'" :size="14" />
-        </button>
-
-        <div v-if="showPaymentPanel" class="payment-options-grid">
-        <button
-          type="button"
-          class="pay-btn"
-          :class="{ active: cartStore.paymentMethod === 'cash' }"
-          @click="cartStore.paymentMethod = 'cash'"
-        >
-          <div class="btn-icon-wrap cash"><AppIcon name="banknote" :size="16" /></div>
-          <span>نقدي</span>
-        </button>
-
-        <button
-          type="button"
-          class="pay-btn"
-          :class="{ active: cartStore.paymentMethod === 'card' }"
-          @click="cartStore.paymentMethod = 'card'"
-        >
-          <div class="btn-icon-wrap card"><AppIcon name="creditCard" :size="16" /></div>
-          <span>بطاقة</span>
-        </button>
-
-        <button
-          type="button"
-          class="pay-btn"
-          :class="{ active: cartStore.paymentMethod === 'instapay' }"
-          @click="cartStore.paymentMethod = 'instapay'"
-        >
-          <div class="btn-icon-wrap instapay"><AppIcon name="zap" :size="16" /></div>
-          <span>إنستاباي</span>
-        </button>
-
-        <button
-          type="button"
-          class="pay-btn"
-          :class="{ active: cartStore.paymentMethod === 'credit' }"
-          @click="cartStore.paymentMethod = 'credit'"
-        >
-          <div class="btn-icon-wrap credit"><AppIcon name="receipt" :size="16" /></div>
-          <span>آجل</span>
-        </button>
+          <strong class="change-val">{{ formatMoney(Math.abs(changeAmount)) }}</strong>
         </div>
       </div>
 
-      <!-- Cash Change Calculator (When Cash is selected) -->
-      <div v-if="showPaymentPanel && cartStore.paymentMethod === 'cash' && cartStore.total > 0" class="cash-change-calculator">
-        <div class="cash-calc-row">
-          <div class="received-input-group">
-            <label>المبلغ المستلم من العميل:</label>
-            <input
-              v-model.number="cashGiven"
-              type="number"
-              class="cash-given-input"
-              :placeholder="String(cartStore.total)"
-            />
-          </div>
+      <!-- 🖨 إعدادات الطباعة الحرارية والمعدات المباشرة -->
+      <div class="printer-settings-bar">
+        <label class="auto-print-checkbox">
+          <input
+            type="checkbox"
+            :checked="autoPrint"
+            @change="emit('update:autoPrint', ($event.target as HTMLInputElement).checked)"
+          />
+          <span>طباعة إيصال فوري تلقائياً عند الحفظ</span>
+        </label>
 
-          <div class="change-due-group" :class="{ 'has-change': changeDue > 0 }">
-            <label>المتبقي للعميل (الباقي):</label>
-            <strong class="change-val">{{ formatMoney(changeDue) }}</strong>
-          </div>
-        </div>
+        <div class="printer-quick-tools">
+          <button
+            type="button"
+            class="btn-hardware-action"
+            @click="emit('openDrawer')"
+            title="فتح درج النقدية يدويًا (F9)"
+          >
+            <AppIcon name="key" :size="13" />
+            <span>فتح الدرج</span>
+          </button>
 
-        <!-- Quick Cash Presets -->
-        <div class="cash-presets-row">
-          <button type="button" class="preset-btn" @click="setCashGiven(cartStore.total)">بالضبط</button>
-          <button type="button" class="preset-btn" @click="setCashGiven(roundUpToNext(cartStore.total, 50))">
-            {{ roundUpToNext(cartStore.total, 50) }} ج.م
-          </button>
-          <button type="button" class="preset-btn" @click="setCashGiven(roundUpToNext(cartStore.total, 100))">
-            {{ roundUpToNext(cartStore.total, 100) }} ج.م
-          </button>
-          <button type="button" class="preset-btn" @click="setCashGiven(roundUpToNext(cartStore.total, 200))">
-            {{ roundUpToNext(cartStore.total, 200) }} ج.م
+          <button
+            v-if="lastSavedSale"
+            type="button"
+            class="btn-reprint-link"
+            @click="emit('printLast', lastSavedSale)"
+            title="إعادة طباعة آخر فاتورة تم حفظها (F8)"
+          >
+            <AppIcon name="printer" :size="13" />
+            <span>إعادة طباعة (F8)</span>
           </button>
         </div>
       </div>
 
-      <!-- Quick Hardware Action Buttons -->
-      <div class="hardware-actions-grid">
+      <div v-if="saleError" class="alert alert-danger">{{ saleError }}</div>
+
+      <!-- 🚀 Action Buttons -->
+      <div class="checkout-final-actions">
         <button
-          type="button"
-          class="btn-hardware drawer"
-          @click="emit('openDrawer')"
-          title="فتح درج النقدية يدويًا (F9)"
+          type="submit"
+          class="btn-finalize-submit"
+          :class="{ 'btn-loading': submitting }"
+          :disabled="
+            submitting ||
+            !cartStore.items.length ||
+            cartStore.total <= 0 ||
+            !loyaltyRedemptionValid ||
+            (cartStore.paymentMethod === 'split' && splitRemaining !== 0) ||
+            (cartStore.paymentMethod === 'credit' && !cartStore.customerId)
+          "
         >
-          <AppIcon name="key" :size="15" />
-          <span>فتح الدرج (F9)</span>
-        </button>
-
-        <button
-          type="button"
-          class="btn-hardware hold"
-          :disabled="!cartStore.items.length"
-          @click="emit('holdOrder')"
-          title="تعليق الفاتورة للرجوع إليها لاحقاً"
-        >
-          <AppIcon name="clock" :size="15" />
-          <span>تعليق الطلب</span>
-        </button>
-      </div>
-
-      <!-- BIG CHECKOUT & PRINT BUTTON -->
-      <button
-        type="button"
-        class="btn-checkout-master"
-        :disabled="!cartStore.items.length || submitting"
-        @click="emit('completeSale', { cashGiven, changeDue })"
-      >
-        <div class="checkout-content">
-          <span v-if="submitting" class="checkout-spinner"></span>
-          <AppIcon v-else name="check" :size="22" />
-          <div class="btn-labels">
-            <strong class="main-label">
-              {{ submitting ? 'جاري الحفظ وإرسال أمر الطباعة...' : 'إتمام الدفع وطباعة الفاتورة' }}
-            </strong>
-            <small class="sub-label">اضغط Enter أو F10 للإنهاء الفوري</small>
-          </div>
-        </div>
-        <div class="checkout-badge">
-          {{ formatMoney(cartStore.total) }}
-        </div>
-      </button>
-      </div>
-
-      <button
-        v-else
-        type="button"
-        class="btn-open-checkout"
-        :disabled="!cartStore.items.length"
-        @click="showCheckoutPanel = true"
-      >
-        <span class="checkout-content">
-          <AppIcon name="creditCard" :size="20" />
-          <span class="btn-labels">
-            <strong class="main-label">مراجعة الدفع وإتمام البيع</strong>
-            <small class="sub-label">الخصم، طريقة الدفع والطباعة</small>
+          <span class="btn-icon">
+            <AppIcon v-if="!submitting" name="printer" :size="20" />
+            <span v-else class="checkout-spinner"></span>
           </span>
-        </span>
-        <strong class="checkout-badge">{{ formatMoney(cartStore.total) }}</strong>
-      </button>
-    </footer>
+          <div class="btn-text-col">
+            <span class="btn-title">
+              {{ submitting ? 'جاري الحفظ وإرسال أمر الطباعة...' : 'حفظ وطباعة الفاتورة الفورية' }}
+            </span>
+            <span class="btn-sub">
+              {{
+                cartStore.paymentMethod === 'split' && splitRemaining !== 0
+                  ? splitRemaining > 0
+                    ? `متبقي توزيع ${formatMoney(splitRemaining)}`
+                    : `زيادة ${formatMoney(Math.abs(splitRemaining))}`
+                  : `اختصار Enter • ${formatMoney(cartStore.total)}`
+              }}
+            </span>
+          </div>
+        </button>
+
+        <div class="drawer-secondary-actions">
+          <button
+            type="button"
+            class="btn-drawer-hold"
+            @click="emit('holdOrder')"
+            title="تعليق الطلب في الانتظار (F4)"
+          >
+            <AppIcon name="timer" :size="14" />
+            <span>تعليق الطلب (F4)</span>
+          </button>
+
+          <button
+            type="button"
+            class="btn-drawer-clear"
+            @click="emit('clearCart')"
+            title="إفراغ السلة (F6)"
+          >
+            <AppIcon name="trash2" :size="14" />
+            <span>مسح السلة (F6)</span>
+          </button>
+        </div>
+      </div>
+    </form>
+
+    <!-- ═══════════════════ NUMERIC KEYPAD MODAL ═══════════════════ -->
+    <div v-if="numpadModal" class="modal numpad-modal-backdrop" @click.self="closeNumpad">
+      <div class="card modal-content numpad-modal-card">
+        <!-- Header -->
+        <div class="numpad-header">
+          <div class="numpad-title-wrap">
+            <span class="numpad-icon"><AppIcon name="keyboard" :size="20" /></span>
+            <div>
+              <h4>تعديل الكمية والوزن</h4>
+              <p v-if="activeNumpadItem" class="numpad-prod-name">
+                {{ activeNumpadItem.name_ar }}
+                <span class="unit-price-tag"
+                  >({{ formatMoney(activeNumpadItem.unit_price) }} / كجم)</span
+                >
+              </p>
+            </div>
+          </div>
+          <button type="button" class="close-numpad-btn" @click="closeNumpad">
+            <AppIcon name="close" :size="16" />
+          </button>
+        </div>
+
+        <!-- Live Display Screen -->
+        <div class="numpad-display-screen">
+          <div class="display-val-row">
+            <span class="display-qty">{{ numpadValue || '0' }}</span>
+            <span class="display-unit">كجم</span>
+          </div>
+          <div class="display-helper-row">
+            <span class="weight-meaning">{{ getDetailedWeightMeaning(Number(numpadValue)) }}</span>
+            <span class="live-calculated-total">
+              الإجمالي:
+              <strong>{{
+                formatMoney((Number(numpadValue) || 0) * (activeNumpadItem?.unit_price || 0))
+              }}</strong>
+            </span>
+          </div>
+        </div>
+
+        <!-- Quick Weight Presets -->
+        <div class="numpad-presets">
+          <button type="button" class="preset-btn" @click="setPresetWeight(0.125)">
+            1/8 كجم (125g)
+          </button>
+          <button type="button" class="preset-btn" @click="setPresetWeight(0.25)">
+            1/4 كجم (250g)
+          </button>
+          <button type="button" class="preset-btn" @click="setPresetWeight(0.5)">
+            1/2 كجم (500g)
+          </button>
+          <button type="button" class="preset-btn" @click="setPresetWeight(0.75)">
+            3/4 كجم (750g)
+          </button>
+          <button type="button" class="preset-btn highlight" @click="setPresetWeight(1)">
+            1 كجم (1000g)
+          </button>
+          <button type="button" class="preset-btn" @click="setPresetWeight(2)">2 كجم</button>
+        </div>
+
+        <!-- Numeric Keypad Grid (3x4) -->
+        <div class="numpad-grid">
+          <button type="button" class="num-key" @click="numpadPress('7')">7</button>
+          <button type="button" class="num-key" @click="numpadPress('8')">8</button>
+          <button type="button" class="num-key" @click="numpadPress('9')">9</button>
+
+          <button type="button" class="num-key" @click="numpadPress('4')">4</button>
+          <button type="button" class="num-key" @click="numpadPress('5')">5</button>
+          <button type="button" class="num-key" @click="numpadPress('6')">6</button>
+
+          <button type="button" class="num-key" @click="numpadPress('1')">1</button>
+          <button type="button" class="num-key" @click="numpadPress('2')">2</button>
+          <button type="button" class="num-key" @click="numpadPress('3')">3</button>
+
+          <button type="button" class="num-key clear-key" @click="numpadPress('C')" title="مسح">
+            C
+          </button>
+          <button type="button" class="num-key" @click="numpadPress('0')">0</button>
+          <button type="button" class="num-key dot-key" @click="numpadPress('.')">.</button>
+          <button
+            type="button"
+            class="num-key backspace-key"
+            @click="numpadPress('⌫')"
+            title="حذف رقم"
+          >
+            ⌫
+          </button>
+        </div>
+
+        <!-- Confirmation Actions -->
+        <div class="numpad-actions">
+          <button type="button" class="btn btn-outline" @click="closeNumpad">إلغاء (Esc)</button>
+          <button type="button" class="btn btn-primary confirm-btn" @click="confirmNumpad">
+            تأكيد الكمية (Enter)
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import AppIcon from './AppIcon.vue';
 import { usePosCartStore } from '../stores/posCart';
 import { formatMoney } from '../utils/currency';
+import { maxRedeemableLoyaltyPoints } from '../../../shared/loyalty';
 
-defineProps<{
-  submitting?: boolean;
-}>();
+const props = withDefaults(
+  defineProps<{
+    submitting?: boolean;
+    customersList?: any[];
+    recommendedItems?: any[];
+    autoPrint?: boolean;
+    lastSavedSale?: any;
+    saleError?: string;
+  }>(),
+  {
+    submitting: false,
+    customersList: () => [],
+    recommendedItems: () => [],
+    autoPrint: true,
+    lastSavedSale: null,
+    saleError: '',
+  },
+);
 
 const emit = defineEmits<{
-  completeSale: [payload: { cashGiven: number | null; changeDue: number }];
+  completeSale: [
+    payload: {
+      cashGiven: number | null;
+      changeDue: number;
+      customerId?: number | null;
+      payments?: any[] | null;
+    },
+  ];
   openDrawer: [];
   holdOrder: [];
+  clearCart: [];
+  closeDrawer: [];
+  addRecommended: [rec: any];
+  printLast: [sale: any];
+  'update:autoPrint': [val: boolean];
 }>();
 
 const cartStore = usePosCartStore();
 
-const orderType = ref<'takeaway' | 'dinein' | 'delivery'>('takeaway');
-const cashGiven = ref<number | null>(null);
-const currentTime = ref('');
-const showDiscountPanel = ref(false);
-const showPaymentPanel = ref(false);
-const showCheckoutPanel = ref(false);
+const discountInputRef = ref<HTMLInputElement | null>(null);
+const receivedInputRef = ref<HTMLInputElement | null>(null);
+const receivedAmount = ref<number | null>(null);
 
-watch(
-  () => cartStore.items.length,
-  (itemsLength) => {
-    if (itemsLength === 0) {
-      showCheckoutPanel.value = false;
-      showDiscountPanel.value = false;
-      showPaymentPanel.value = false;
-    }
+// ─── 💳 Split Payments State & Logic ───
+const splitMethodRows = ref([
+  { key: 'cash', label: 'نقدي (كاش)', amount: 0 },
+  { key: 'card', label: 'فيزا / مدى', amount: 0 },
+  { key: 'transfer', label: 'إنستاباي / محفظة', amount: 0 },
+  { key: 'credit', label: 'آجل / ذمم', amount: 0 },
+]);
+
+const totalSplitAmount = computed(() => {
+  return splitMethodRows.value.reduce((sum, m) => sum + (Number(m.amount) || 0), 0);
+});
+
+const splitRemaining = computed(() => {
+  return Math.round((cartStore.total - totalSplitAmount.value) * 100) / 100;
+});
+
+const setSinglePayment = (method: string) => {
+  cartStore.paymentMethod = method;
+  cartStore.payments = null;
+};
+
+const setSplitPayment = () => {
+  cartStore.paymentMethod = 'split';
+  if (totalSplitAmount.value === 0 && cartStore.total > 0 && splitMethodRows.value[0]) {
+    splitMethodRows.value[0].amount = cartStore.total;
   }
-);
+  syncSplitPayments();
+};
 
-let timerInterval: any = null;
+const fillRemaining = (targetRow: any) => {
+  const currentTotalExcludingTarget = splitMethodRows.value
+    .filter((m) => m.key !== targetRow.key)
+    .reduce((sum, m) => sum + (Number(m.amount) || 0), 0);
+  const remaining = Math.max(
+    0,
+    Math.round((cartStore.total - currentTotalExcludingTarget) * 100) / 100,
+  );
+  targetRow.amount = remaining;
+  syncSplitPayments();
+};
 
-const updateTime = () => {
-  currentTime.value = new Date().toLocaleTimeString('ar-EG', {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
+const syncSplitPayments = () => {
+  cartStore.payments = splitMethodRows.value
+    .filter((m) => Number(m.amount) > 0)
+    .map((m) => ({ payment_method: m.key, amount: Number(m.amount) }));
+};
+
+// ─── 🎁 Loyalty Points State & Logic ───
+const useLoyaltyRedeem = ref(false);
+
+const maxRedeemablePoints = computed(() => {
+  if (!cartStore.selectedCustomer) return 0;
+  return maxRedeemableLoyaltyPoints(
+    cartStore.subtotal,
+    cartStore.discountAmount,
+    cartStore.selectedCustomer.loyalty_points || 0,
+  );
+});
+
+watch(maxRedeemablePoints, (maximum) => {
+  if (cartStore.loyaltyPointsRedeemed > maximum) {
+    cartStore.loyaltyPointsRedeemed = maximum;
+  }
+  if (maximum < 10) useLoyaltyRedeem.value = false;
+});
+
+const loyaltyRedemptionValid = computed(() => {
+  const points = Number(cartStore.loyaltyPointsRedeemed) || 0;
+  return (
+    Number.isInteger(points) &&
+    points >= 0 &&
+    points <= maxRedeemablePoints.value &&
+    points % 10 === 0
+  );
+});
+
+const onCustomerChange = () => {
+  useLoyaltyRedeem.value = false;
+  cartStore.loyaltyPointsRedeemed = 0;
+  if (cartStore.customerId) {
+    const found = props.customersList.find((c) => c.id === cartStore.customerId);
+    cartStore.selectedCustomer = found || null;
+  } else {
+    cartStore.selectedCustomer = null;
+  }
+};
+
+const onToggleLoyaltyRedeem = () => {
+  if (useLoyaltyRedeem.value) {
+    cartStore.loyaltyPointsRedeemed = maxRedeemablePoints.value;
+  } else {
+    cartStore.loyaltyPointsRedeemed = 0;
+  }
+};
+
+// ─── Cash Change Calculator ───
+const changeAmount = computed(() => {
+  const received = Number(receivedAmount.value) || 0;
+  const total = Number(cartStore.total) || 0;
+  if (!received) return 0;
+  return received - total;
+});
+
+const handleCheckoutSubmit = () => {
+  if (props.submitting || !cartStore.items.length) return;
+  if (cartStore.total <= 0 || !loyaltyRedemptionValid.value) return;
+  if (cartStore.paymentMethod === 'split' && splitRemaining.value !== 0) return;
+  if (cartStore.paymentMethod === 'credit' && !cartStore.customerId) return;
+
+  emit('completeSale', {
+    cashGiven: receivedAmount.value,
+    changeDue: Math.max(0, changeAmount.value),
+    customerId: cartStore.customerId,
+    payments: cartStore.payments,
   });
 };
 
-onMounted(() => {
-  updateTime();
-  timerInterval = setInterval(updateTime, 1000);
+// ─── Numpad State & Logic ───
+const numpadModal = ref(false);
+const editingIndex = ref<number | null>(null);
+const numpadValue = ref('1');
+
+const activeNumpadItem = computed(() => {
+  if (editingIndex.value === null || !cartStore.items[editingIndex.value]) return null;
+  return cartStore.items[editingIndex.value];
 });
 
-onBeforeUnmount(() => {
-  if (timerInterval) clearInterval(timerInterval);
-});
-
-const changeDue = computed(() => {
-  if (!cashGiven.value || cashGiven.value <= cartStore.total) return 0;
-  return Math.round((cashGiven.value - cartStore.total) * 100) / 100;
-});
-
-const paymentMethodLabel = computed(() => {
-  const labels: Record<string, string> = {
-    cash: 'نقدي',
-    card: 'بطاقة',
-    instapay: 'إنستاباي',
-    credit: 'آجل',
-  };
-  return labels[cartStore.paymentMethod] || 'نقدي';
-});
-
-const setCashGiven = (val: number) => {
-  cashGiven.value = val;
+const openNumpad = (idx: number) => {
+  editingIndex.value = idx;
+  numpadValue.value = String(cartStore.items[idx]?.quantity || 1);
+  numpadModal.value = true;
 };
 
-const roundUpToNext = (amount: number, step: number) => {
-  if (amount <= 0) return step;
-  return Math.ceil(amount / step) * step;
+const closeNumpad = () => {
+  numpadModal.value = false;
+  editingIndex.value = null;
 };
 
-const applyPercentDiscount = (percent: number) => {
-  if (percent <= 0) {
-    cartStore.discountAmount = 0;
+const numpadPress = (char: string) => {
+  if (char === 'C') {
+    numpadValue.value = '0';
+    return;
+  }
+  if (char === '⌫') {
+    if (numpadValue.value.length <= 1) {
+      numpadValue.value = '0';
+    } else {
+      numpadValue.value = numpadValue.value.slice(0, -1);
+    }
+    return;
+  }
+  if (char === '.') {
+    if (!numpadValue.value.includes('.')) {
+      numpadValue.value += '.';
+    }
+    return;
+  }
+  if (numpadValue.value === '0') {
+    numpadValue.value = char;
   } else {
-    cartStore.discountAmount = Math.round(((cartStore.subtotal * percent) / 100) * 100) / 100;
+    if (numpadValue.value.length < 8) {
+      numpadValue.value += char;
+    }
   }
 };
 
-const confirmClearCart = () => {
-  if (confirm('هل أنت متأكد من إفراغ سلة الطلب الحالية؟')) {
-    cartStore.clearCart();
-    cashGiven.value = null;
+const setPresetWeight = (qty: number) => {
+  numpadValue.value = String(qty);
+};
+
+const confirmNumpad = () => {
+  if (editingIndex.value !== null && cartStore.items[editingIndex.value]) {
+    const val = Math.max(0.001, parseFloat(numpadValue.value) || 1);
+    const rounded = Math.round(val * 1000) / 1000;
+    cartStore.updateQty(editingIndex.value, rounded);
+  }
+  closeNumpad();
+};
+
+const getWeightLabel = (qty: number) => {
+  if (!qty) return 'وحدة';
+  if (qty < 1) {
+    const grams = Math.round(qty * 1000);
+    return `${grams} جم`;
+  }
+  return 'كجم/عدد';
+};
+
+const getDetailedWeightMeaning = (val: number) => {
+  if (!val || isNaN(val)) return '—';
+  if (val === 0.125) return '125 جرام (ثمن كيلو)';
+  if (val === 0.25) return '250 جرام (ربع كيلو)';
+  if (val === 0.5) return '500 جرام (نصف كيلو)';
+  if (val === 0.75) return '750 جرام (ثلاثة أرباع كيلو)';
+  if (val < 1) return `${Math.round(val * 1000)} جرام`;
+  return `${val} كجم`;
+};
+
+const handleNumpadKey = (e: KeyboardEvent) => {
+  if (!numpadModal.value) return;
+  if (e.key >= '0' && e.key <= '9') {
+    numpadPress(e.key);
+  } else if (e.key === '.' || e.key === ',') {
+    numpadPress('.');
+  } else if (e.key === 'Backspace') {
+    numpadPress('⌫');
+  } else if (e.key === 'Delete' || e.key === 'c' || e.key === 'C') {
+    numpadPress('C');
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    confirmNumpad();
+  } else if (e.key === 'Escape') {
+    closeNumpad();
   }
 };
+
+onMounted(() => {
+  window.addEventListener('keydown', handleNumpadKey);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleNumpadKey);
+});
+
+defineExpose({
+  focusDiscount: () => {
+    discountInputRef.value?.focus();
+    discountInputRef.value?.select();
+  },
+  focusReceived: () => {
+    receivedInputRef.value?.focus();
+    receivedInputRef.value?.select();
+  },
+  resetReceived: () => {
+    receivedAmount.value = null;
+  },
+});
 </script>
 
 <style lang="scss" scoped>
-.pos-receipt-container {
+.checkout-cart-panel {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: var(--bg-surface, #ffffff);
-  border: 1.5px solid var(--border, #e7e2d9);
-  border-radius: var(--radius-lg, 14px);
-  box-shadow: var(--shadow-md, 0 4px 12px rgba(41, 37, 36, 0.06));
-  overflow: hidden;
-  position: relative;
+  padding: 16px;
+  background: #1e130b;
+  border: none;
+  box-shadow: none;
+  overflow-y: auto;
+  color: #fffaf2;
 }
 
-/* ═══════════════════ HEADER ═══════════════════ */
-.receipt-header {
+.cart-title-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 14px 16px;
-  background: #ffffff;
-  border-bottom: 1.5px solid var(--border-soft, #f0ebe1);
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(212, 163, 115, 0.2);
 
-  .header-main-info {
+  .title-with-badge {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
 
-    .receipt-brand-badge {
-      width: 38px;
-      height: 38px;
-      border-radius: var(--radius-md, 10px);
-      background: var(--primary-soft, rgba(138, 87, 42, 0.08));
-      color: var(--primary, #8a572a);
+    .cart-icon {
+      color: #faedcd;
+    }
+
+    h3 {
+      margin: 0;
+      color: #faedcd;
+      font-size: 1.15rem;
+      font-weight: 850;
+    }
+  }
+
+  .cart-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    .cart-items-count {
+      background: rgba(212, 163, 115, 0.15);
+      color: #d4a373;
+      border: 1px solid rgba(212, 163, 115, 0.3);
+      padding: 2px 10px;
+      border-radius: 14px;
+      font-size: 0.8rem;
+      font-weight: 700;
+    }
+
+    .btn-close-cart {
+      background: rgba(255, 255, 255, 0.08);
+      border: none;
+      color: #f7ede2;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
-      border: 1px solid var(--primary-border, rgba(138, 87, 42, 0.2));
-    }
-
-    .header-text {
-      display: flex;
-      flex-direction: column;
-      gap: 1px;
-
-      .title-with-badge {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-
-        h3 {
-          font-size: 1.1rem;
-          font-weight: 900;
-          color: var(--text-strong, #0c0a09);
-          margin: 0;
-        }
-
-        .live-clock {
-          font-size: 0.72rem;
-          font-weight: 750;
-          color: var(--text-muted, #78716c);
-          background: var(--bg-soft, #fbf9f6);
-          padding: 1px 6px;
-          border-radius: 4px;
-          border: 1px solid var(--border-soft, #f0ebe1);
-        }
-      }
-
-      .invoice-subtitle {
-        font-size: 0.76rem;
-        color: var(--primary, #8a572a);
-        font-weight: 700;
-      }
-    }
-  }
-
-  .header-actions {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-
-    .items-count-tag {
-      font-size: 0.76rem;
-      font-weight: 800;
-      background: #f4efe6;
-      color: var(--primary, #8a572a);
-      padding: 3px 9px;
-      border-radius: 12px;
-      border: 1px solid var(--primary-border, rgba(138, 87, 42, 0.2));
-    }
-
-    .btn-clear-all {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      background: transparent;
-      border: 1px solid transparent;
-      color: var(--text-muted, #78716c);
-      padding: 4px 8px;
-      border-radius: var(--radius-sm, 6px);
-      font-size: 0.76rem;
-      font-weight: 750;
-      cursor: pointer;
-      transition: all 0.15s ease;
+      transition: all 0.2s ease;
 
       &:hover {
-        background: var(--danger-soft, rgba(220, 38, 38, 0.1));
-        color: var(--danger, #dc2626);
-        border-color: var(--danger-border, rgba(220, 38, 38, 0.25));
+        background: rgba(239, 68, 68, 0.25);
+        color: #f87171;
       }
     }
   }
 }
 
-/* ═══════════════════ ORDER TYPE TABS ═══════════════════ */
 .order-type-tabs {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 4px;
-  padding: 8px 12px;
-  background: var(--bg-soft, #fbf9f6);
-  border-bottom: 1px solid var(--border-soft, #f0ebe1);
+  display: flex;
+  gap: 6px;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 4px;
+  border-radius: 10px;
+  border: 1px solid rgba(212, 163, 115, 0.15);
+  margin-bottom: 12px;
 
   .type-tab {
+    flex: 1;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 6px;
-    height: 32px;
-    background: #ffffff;
-    border: 1px solid var(--border-soft, #e7e2d9);
-    border-radius: var(--radius-sm, 6px);
+    padding: 6px 4px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: #a89f91;
     font-size: 0.78rem;
     font-weight: 750;
-    color: var(--text-muted, #78716c);
     cursor: pointer;
     transition: all 0.15s ease;
 
-    &:hover {
-      color: var(--text-strong, #0c0a09);
-      border-color: var(--primary, #8a572a);
-    }
-
     &.active {
-      background: var(--primary, #8a572a);
-      color: #ffffff;
-      border-color: var(--primary, #8a572a);
-      box-shadow: 0 2px 6px rgba(138, 87, 42, 0.2);
+      background: #d4a373;
+      color: #140d08;
+      box-shadow: 0 2px 8px rgba(212, 163, 115, 0.3);
     }
   }
 }
 
-/* ═══════════════════ RECEIPT BODY & ITEMS ═══════════════════ */
-.receipt-body {
-  flex: 1;
-  overflow-y: auto;
-  min-height: 180px;
-  padding: 12px;
-  background: #fdfcfb;
-}
-
-.receipt-empty-view {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
+.empty-cart {
   text-align: center;
-  padding: 30px 16px;
+  padding: 40px 14px;
+  color: #a89f91;
 
-  .empty-receipt-graphic {
-    width: 68px;
-    height: 68px;
-    border-radius: 50%;
-    background: #f5f0e8;
-    color: var(--primary, #8a572a);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-bottom: 12px;
-    border: 1.5px dashed var(--primary-border, rgba(138, 87, 42, 0.3));
+  .empty-cart-icon {
+    display: inline-block;
+    margin-bottom: 8px;
+    opacity: 0.8;
+    color: #d4a373;
   }
 
-  .empty-title {
-    font-size: 1.05rem;
-    font-weight: 850;
-    color: var(--text-main, #292524);
-    margin: 0 0 4px;
-  }
-
-  .empty-desc {
-    font-size: 0.82rem;
-    color: var(--text-muted, #78716c);
-    margin: 0 0 16px;
-  }
-
-  .empty-tip-pill {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    background: #ffffff;
-    border: 1px solid var(--border, #e7e2d9);
-    padding: 6px 12px;
-    border-radius: 20px;
-    font-size: 0.75rem;
+  p {
+    margin: 0 0 4px 0;
     font-weight: 750;
-    color: var(--primary, #8a572a);
-    box-shadow: var(--shadow-sm, 0 1px 3px rgba(0,0,0,0.04));
+    font-size: 1rem;
+    color: #faedcd;
+  }
+
+  .empty-hint {
+    font-size: 0.8rem;
+    color: #d4a373;
   }
 }
 
-.receipt-items-scroll {
+.cart-items-scrollable {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  margin-bottom: 14px;
+  max-height: 250px;
+  overflow-y: auto;
+  padding-right: 2px;
 }
 
-.receipt-item-card {
+.checkout-item-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(212, 163, 115, 0.15);
+  border-radius: 10px;
+  gap: 8px;
+}
+
+.item-main-details {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 10px 12px;
-  background: #ffffff;
-  border: 1.5px solid var(--border-soft, #f0ebe1);
-  border-radius: var(--radius-md, 10px);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03);
-  transition: all 0.18s ease;
+  flex: 1;
+  min-width: 90px;
 
-  &:hover {
-    border-color: var(--primary-border, rgba(138, 87, 42, 0.4));
-    box-shadow: 0 3px 8px rgba(138, 87, 42, 0.07);
+  .item-name {
+    font-size: 0.86rem;
+    font-weight: 750;
+    color: #faedcd;
+  }
+  .item-unit-price {
+    font-size: 0.72rem;
+    color: #a89f91;
+  }
+  .item-custom-notes {
+    font-size: 0.7rem;
+    color: #faedcd;
+    background: rgba(212, 163, 115, 0.18);
+    border: 1px dashed rgba(212, 163, 115, 0.35);
+    padding: 2px 6px;
+    border-radius: 6px;
+    margin-top: 4px;
+    display: inline-block;
+  }
+}
+
+.item-touch-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+
+  .touch-qty-btn {
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+    background: rgba(212, 163, 115, 0.18);
+    border: 1px solid rgba(212, 163, 115, 0.35);
+    color: #faedcd;
+    font-size: 1rem;
+    font-weight: 800;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    &:hover {
+      background: #d4a373;
+      color: #140d08;
+    }
   }
 
-  .item-card-top {
+  .touch-qty-display {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    padding: 3px 6px;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px dashed rgba(212, 163, 115, 0.3);
+    border-radius: 6px;
+    cursor: pointer;
+
+    .qty-val {
+      font-size: 0.86rem;
+      font-weight: 800;
+      color: #fff;
+    }
+    .qty-unit-label {
+      font-size: 0.68rem;
+      color: #d4a373;
+    }
+    .qty-pencil {
+      color: #d4a373;
+      opacity: 0.7;
+    }
+  }
+
+  .touch-delete-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #94a3b8;
+    padding: 2px 4px;
+    display: flex;
+    align-items: center;
+
+    &:hover {
+      color: #ef4444;
+    }
+  }
+}
+
+.item-line-total {
+  font-size: 0.88rem;
+  font-weight: 850;
+  color: #faedcd;
+  min-width: 65px;
+  text-align: left;
+}
+
+.cart-recommendations {
+  background: rgba(212, 163, 115, 0.08);
+  border: 1px dashed rgba(212, 163, 115, 0.25);
+  border-radius: 10px;
+  padding: 8px 10px;
+  margin-bottom: 12px;
+
+  .rec-title {
+    font-size: 0.74rem;
+    font-weight: 750;
+    color: #d4a373;
+    margin-bottom: 6px;
+  }
+
+  .rec-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .rec-item {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    padding: 4px 8px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 6px;
+    cursor: pointer;
 
-    .item-title-wrap {
+    &:hover {
+      background: rgba(212, 163, 115, 0.2);
+    }
+
+    .rec-name {
+      display: flex;
+      flex-direction: column;
+      font-size: 0.75rem;
+
+      .rec-name-text {
+        color: #faedcd;
+        font-weight: 700;
+      }
+      .rec-category {
+        color: #a89f91;
+        font-size: 0.68rem;
+      }
+    }
+
+    .rec-action {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+
+      .rec-price {
+        font-size: 0.78rem;
+        font-weight: 800;
+        color: #86efac;
+      }
+      .rec-add-icon {
+        color: #d4a373;
+      }
+    }
+  }
+}
+
+.cart-summary-box {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(212, 163, 115, 0.2);
+  border-radius: 12px;
+  padding: 10px 12px;
+  margin-bottom: 14px;
+
+  .summary-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.82rem;
+    margin-bottom: 6px;
+    color: #cbd5e1;
+
+    .subtotal-val {
+      font-size: 0.95rem;
+      color: #fff;
+    }
+
+    &.discount-row {
+      .discount-input {
+        width: 90px;
+        padding: 4px 8px;
+        background: rgba(0, 0, 0, 0.4);
+        border: 1px solid rgba(212, 163, 115, 0.3);
+        border-radius: 6px;
+        color: #fff;
+        text-align: center;
+        font-size: 0.85rem;
+        font-weight: 800;
+
+        &:focus {
+          outline: none;
+          border-color: #d4a373;
+        }
+      }
+    }
+
+    &.loyalty-discount-row {
+      color: #86efac;
+    }
+
+    &.total-highlight-row {
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px dashed rgba(212, 163, 115, 0.3);
+      font-size: 0.95rem;
+
+      .total-label {
+        font-weight: 850;
+        color: #d4a373;
+      }
+
+      .total-amount-glow {
+        font-size: 1.35rem;
+        font-weight: 950;
+        color: #ffffff;
+        text-shadow: 0 0 10px rgba(212, 163, 115, 0.5);
+      }
+    }
+  }
+}
+
+.checkout-payment-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.payment-section-box {
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(212, 163, 115, 0.15);
+  border-radius: 10px;
+  padding: 10px;
+
+  .section-title {
+    display: block;
+    font-size: 0.78rem;
+    font-weight: 750;
+    color: #d4a373;
+    margin-bottom: 8px;
+  }
+
+  .customer-select {
+    width: 100%;
+    padding: 8px 10px;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(212, 163, 115, 0.25);
+    border-radius: 8px;
+    color: #fff;
+    font-size: 0.84rem;
+
+    &:focus {
+      outline: none;
+      border-color: #d4a373;
+    }
+  }
+
+  .customer-info-badges {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 8px;
+    font-size: 0.74rem;
+
+    .customer-balance-badge,
+    .customer-loyalty-badge {
+      display: flex;
+      gap: 4px;
+      background: rgba(255, 255, 255, 0.04);
+      padding: 3px 8px;
+      border-radius: 6px;
+    }
+
+    .has-debt {
+      color: #f87171;
+    }
+  }
+
+  .loyalty-redeem-box {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px dashed rgba(212, 163, 115, 0.2);
+
+    .redeem-toggle {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.78rem;
+      cursor: pointer;
+      color: #faedcd;
+    }
+
+    .redeem-controls {
       display: flex;
       align-items: center;
       gap: 8px;
+      margin-top: 6px;
 
-      .item-index-badge {
-        width: 20px;
-        height: 20px;
-        border-radius: 50%;
-        background: #f4efe6;
-        color: var(--primary, #8a572a);
-        font-size: 0.72rem;
-        font-weight: 850;
-        display: flex;
-        align-items: center;
-        justify-content: center;
+      .redeem-points-input {
+        width: 100px;
+        padding: 4px 8px;
+        background: rgba(0, 0, 0, 0.4);
+        border: 1px solid rgba(212, 163, 115, 0.3);
+        border-radius: 6px;
+        color: #fff;
+        font-size: 0.82rem;
       }
 
-      .item-name {
-        font-size: 0.95rem;
-        font-weight: 850;
-        color: var(--text-strong, #0c0a09);
-      }
-    }
-
-    .btn-delete-item {
-      background: transparent;
-      border: none;
-      color: var(--text-subtle, #a8a29e);
-      cursor: pointer;
-      padding: 4px;
-      border-radius: 4px;
-
-      &:hover {
-        background: var(--danger-soft, rgba(220, 38, 38, 0.1));
-        color: var(--danger, #dc2626);
+      .redeem-preview {
+        font-size: 0.76rem;
+        color: #86efac;
+        font-weight: 750;
       }
     }
   }
 
-  .item-custom-tags {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    padding-right: 28px;
+  .credit-warning {
+    margin-top: 6px;
+    font-size: 0.76rem;
+    color: #f87171;
+    font-weight: 750;
+  }
+}
 
-    .custom-note-chip {
+.payment-tiles-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+
+  &.has-split {
+    .split-tile {
+      grid-column: span 2;
+    }
+  }
+
+  .pay-tile {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(212, 163, 115, 0.2);
+    border-radius: 8px;
+    color: #faedcd;
+    font-size: 0.8rem;
+    font-weight: 750;
+    cursor: pointer;
+    transition: all 0.15s ease;
+
+    .tile-icon {
+      color: #d4a373;
+    }
+
+    &:hover {
+      background: rgba(212, 163, 115, 0.15);
+      border-color: #d4a373;
+    }
+
+    &.selected {
+      background: linear-gradient(135deg, #d4a373 0%, #a86f3d 100%);
+      border-color: #faedcd;
+      color: #140d08;
+
+      .tile-icon {
+        color: #140d08;
+      }
+    }
+  }
+}
+
+.split-payment-box {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(212, 163, 115, 0.25);
+  border-radius: 10px;
+  padding: 10px;
+
+  .split-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.78rem;
+    margin-bottom: 8px;
+    color: #d4a373;
+  }
+
+  .split-methods-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+
+  .split-method-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.78rem;
+
+    .split-label {
+      color: #cbd5e1;
+    }
+
+    .split-input-wrap {
+      display: flex;
+      gap: 4px;
+
+      .split-amount-input {
+        width: 85px;
+        padding: 4px 6px;
+        background: rgba(0, 0, 0, 0.4);
+        border: 1px solid rgba(212, 163, 115, 0.3);
+        border-radius: 6px;
+        color: #fff;
+        font-size: 0.8rem;
+        text-align: center;
+      }
+
+      .btn-fill-remaining {
+        padding: 4px 6px;
+        background: rgba(212, 163, 115, 0.15);
+        border: 1px solid rgba(212, 163, 115, 0.3);
+        border-radius: 6px;
+        color: #faedcd;
+        font-size: 0.7rem;
+        font-weight: 750;
+        cursor: pointer;
+
+        &:hover {
+          background: #d4a373;
+          color: #140d08;
+        }
+      }
+    }
+  }
+
+  .split-status-bar {
+    display: flex;
+    justify-content: space-between;
+    padding-top: 6px;
+    border-top: 1px dashed rgba(212, 163, 115, 0.2);
+    font-size: 0.76rem;
+
+    .text-green {
+      color: #86efac;
+    }
+    .text-red {
+      color: #f87171;
+    }
+    .text-amber {
+      color: #fde047;
+    }
+  }
+}
+
+.cash-calc-box {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(212, 163, 115, 0.2);
+  border-radius: 10px;
+  padding: 10px;
+
+  .calc-header {
+    font-size: 0.76rem;
+    font-weight: 750;
+    color: #d4a373;
+    margin-bottom: 6px;
+  }
+
+  .preset-bills-row {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+
+    .bill-chip {
+      padding: 4px 8px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(212, 163, 115, 0.25);
+      border-radius: 6px;
+      color: #faedcd;
+      font-size: 0.74rem;
+      font-weight: 750;
+      cursor: pointer;
+
+      &:hover,
+      &.active {
+        background: #d4a373;
+        color: #140d08;
+      }
+
+      &.exact {
+        background: rgba(212, 163, 115, 0.2);
+        border-color: #d4a373;
+      }
+    }
+  }
+
+  .received-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.78rem;
+
+    .received-input-wrap {
       display: flex;
       align-items: center;
       gap: 4px;
-      font-size: 0.74rem;
-      font-weight: 750;
-      color: var(--primary, #8a572a);
-      background: var(--primary-soft, rgba(138, 87, 42, 0.08));
-      padding: 2px 8px;
-      border-radius: 6px;
-      border: 1px solid var(--primary-border, rgba(138, 87, 42, 0.15));
-    }
-  }
 
-  .item-card-bottom {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding-top: 6px;
-    border-top: 1px dashed var(--border-soft, #f0ebe1);
-
-    .unit-price-label {
-      font-size: 0.78rem;
-      font-weight: 750;
-      color: var(--text-muted, #78716c);
-      min-width: 75px;
-
-      small {
-        font-size: 0.7rem;
-      }
-    }
-
-    .item-stepper {
-      display: flex;
-      align-items: center;
-      background: #fbf9f6;
-      border: 1.5px solid var(--border, #e7e2d9);
-      border-radius: var(--radius-sm, 6px);
-      overflow: hidden;
-
-      .step-btn {
-        width: 30px;
-        height: 28px;
-        background: #ffffff;
-        border: none;
-        font-size: 1rem;
-        font-weight: 850;
-        color: var(--text-main, #292524);
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: all 0.1s ease;
-
-        &:hover {
-          background: var(--primary, #8a572a);
-          color: #ffffff;
-        }
-
-        &.minus:hover {
-          background: var(--danger, #dc2626);
-        }
-      }
-
-      .step-qty {
-        min-width: 32px;
+      .received-input {
+        width: 100px;
+        padding: 5px 8px;
+        background: rgba(0, 0, 0, 0.4);
+        border: 1px solid rgba(212, 163, 115, 0.3);
+        border-radius: 6px;
+        color: #fff;
+        font-size: 0.86rem;
+        font-weight: 800;
         text-align: center;
-        font-size: 0.92rem;
-        font-weight: 900;
-        color: var(--text-strong, #0c0a09);
+      }
+
+      .curr-tag {
+        font-size: 0.72rem;
+        color: #d4a373;
       }
     }
+  }
 
-    .item-total-price {
-      font-size: 1rem;
+  .change-statement-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px dashed rgba(212, 163, 115, 0.2);
+    font-size: 0.84rem;
+
+    .change-label {
+      color: #d4a373;
+    }
+    .change-val {
+      font-size: 1.05rem;
       font-weight: 900;
-      color: var(--text-strong, #0c0a09);
-      text-align: left;
-      min-width: 80px;
+      color: #86efac;
+    }
+
+    &.has-shortage .change-val {
+      color: #fca5a5;
     }
   }
 }
 
-/* Collapsible checkout controls keep the receipt list as the primary workspace. */
-.billing-summary-box {
-  gap: 6px;
-  padding: 8px 10px;
-}
-
-.billing-actions-row {
+.printer-settings-bar {
   display: flex;
-}
-
-.billing-action-btn,
-.payment-summary-toggle {
-  width: 100%;
-  min-height: 42px;
-  display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 8px;
-  padding: 0 10px;
-  border: 1px solid var(--border, #e7e2d9);
-  border-radius: 9px;
-  background: #ffffff;
-  color: var(--text-muted, #78716c);
-  font: inherit;
-  font-size: 0.8rem;
-  font-weight: 800;
-  cursor: pointer;
-  touch-action: manipulation;
+  font-size: 0.74rem;
+  color: #a89f91;
 
-  strong {
-    margin-right: auto;
-    color: var(--text-strong, #0c0a09);
-  }
-
-  &:hover,
-  &.active {
-    border-color: var(--primary, #8a572a);
-    color: var(--primary, #8a572a);
-    background: var(--primary-soft, rgba(138, 87, 42, 0.07));
-  }
-}
-
-.discount-panel {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 7px 8px;
-  border: 1px dashed var(--border-strong, #d6cebf);
-  border-radius: 8px;
-  background: #ffffff;
-
-  .discount-quick-pills {
+  .auto-print-checkbox {
     display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    flex: 1;
-  }
-
-  .disc-pill {
-    min-width: 38px;
-    min-height: 32px;
-    padding: 0 7px;
-    border: 1px solid var(--border, #e7e2d9);
-    border-radius: 6px;
-    background: var(--bg-soft, #fbf9f6);
-    color: var(--text-muted, #78716c);
-    font-size: 0.72rem;
-    font-weight: 850;
+    align-items: center;
+    gap: 6px;
     cursor: pointer;
-
-    &.active,
-    &:hover {
-      background: var(--primary, #8a572a);
-      color: #ffffff;
-      border-color: var(--primary, #8a572a);
-    }
   }
 
-  .discount-input-wrap {
-    flex: 0 0 auto;
-  }
-}
-
-.payment-method-selector {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.payment-summary-toggle {
-  .payment-summary-leading {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-  }
-
-  strong {
-    margin-right: auto;
-    color: var(--primary, #8a572a);
-  }
-}
-
-.payment-options-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 6px;
-}
-
-.payment-options-grid .pay-btn {
-  min-height: 48px;
-  height: auto;
-  touch-action: manipulation;
-}
-
-/* ═══════════════════ RECEIPT FOOTER / TOTALS ═══════════════════ */
-.receipt-footer {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 12px 14px 14px;
-  background: #ffffff;
-  border-top: 1.5px solid var(--border-soft, #f0ebe1);
-  box-shadow: 0 -4px 14px rgba(0, 0, 0, 0.03);
-}
-
-.billing-summary-box {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  background: var(--bg-soft, #fbf9f6);
-  border: 1px solid var(--border, #e7e2d9);
-  border-radius: var(--radius-md, 10px);
-  padding: 10px 12px;
-
-  .summary-line {
+  .printer-quick-tools {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    font-size: 0.88rem;
-
-    .line-label {
-      color: var(--text-muted, #78716c);
-      font-weight: 750;
-    }
-
-    .line-val {
-      font-weight: 850;
-      color: var(--text-strong, #0c0a09);
-    }
-
-    &.discount-line {
-      .discount-label-group {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-
-        .discount-quick-pills {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 3px;
-
-          .disc-pill {
-            background: #ffffff;
-            border: 1px solid var(--border, #e7e2d9);
-            border-radius: 4px;
-            padding: 1px 6px;
-            font-size: 0.7rem;
-            font-weight: 800;
-            color: var(--text-muted, #78716c);
-            cursor: pointer;
-
-            &:hover,
-            &.active {
-              background: var(--primary, #8a572a);
-              color: #ffffff;
-              border-color: var(--primary, #8a572a);
-            }
-          }
-        }
-      }
-
-      .discount-input-wrap {
-        position: relative;
-        display: flex;
-        align-items: center;
-
-        .disc-input {
-          width: 76px;
-          height: 28px;
-          padding: 0 24px 0 6px;
-          border: 1px solid var(--border, #e7e2d9);
-          border-radius: 4px;
-          background: #ffffff;
-          text-align: right;
-          font-weight: 850;
-          font-size: 0.85rem;
-          color: var(--danger, #dc2626);
-
-          &:focus {
-            outline: none;
-            border-color: var(--primary, #8a572a);
-          }
-        }
-
-        .input-curr {
-          position: absolute;
-          left: 6px;
-          font-size: 0.68rem;
-          color: var(--text-subtle, #a8a29e);
-          pointer-events: none;
-        }
-      }
-    }
-  }
-
-  .grand-total-banner {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: linear-gradient(135deg, #f7f1e6 0%, #faebd7 100%);
-    border: 1.5px solid var(--primary-border, rgba(138, 87, 42, 0.3));
-    border-radius: var(--radius-sm, 8px);
-    padding: 8px 12px;
-    margin-top: 2px;
-
-    .total-caption {
-      display: flex;
-      flex-direction: column;
-
-      .caption-title {
-        font-size: 0.95rem;
-        font-weight: 900;
-        color: var(--primary, #8a572a);
-      }
-
-      .caption-sub {
-        font-size: 0.68rem;
-        font-weight: 700;
-        color: var(--text-muted, #78716c);
-      }
-    }
-
-    .total-figure {
-      .figure-digits {
-        font-size: 1.45rem;
-        font-weight: 950;
-        color: var(--primary, #8a572a);
-        letter-spacing: -0.5px;
-      }
-    }
-  }
-}
-
-/* ═══════════════════ PAYMENT SELECTOR ═══════════════════ */
-.payment-method-selector {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 6px;
-
-  .pay-btn {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 4px;
-    height: 46px;
-    background: #ffffff;
-    border: 1.5px solid var(--border, #e7e2d9);
-    border-radius: var(--radius-sm, 8px);
-    font-size: 0.78rem;
-    font-weight: 800;
-    color: var(--text-main, #292524);
-    cursor: pointer;
-    transition: all 0.15s ease;
-
-    .btn-icon-wrap {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: var(--text-muted, #78716c);
-    }
-
-    &:hover {
-      border-color: var(--primary, #8a572a);
-      background: var(--bg-soft, #fbf9f6);
-    }
-
-    &.active {
-      background: #fdfaf5;
-      border-color: var(--primary, #8a572a);
-      color: var(--primary, #8a572a);
-      box-shadow: 0 2px 8px rgba(138, 87, 42, 0.15);
-
-      .btn-icon-wrap {
-        color: var(--primary, #8a572a);
-      }
-    }
-  }
-}
-
-/* ═══════════════════ CASH CHANGE CALCULATOR ═══════════════════ */
-.cash-change-calculator {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  background: #fcfbf9;
-  border: 1px dashed var(--border-strong, #d6cebf);
-  border-radius: var(--radius-sm, 8px);
-  padding: 8px 10px;
-
-  .cash-calc-row {
-    display: grid;
-    grid-template-columns: 1.2fr 1fr;
     gap: 8px;
 
-    .received-input-group,
-    .change-due-group {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-
-      label {
-        font-size: 0.7rem;
-        font-weight: 750;
-        color: var(--text-muted, #78716c);
-      }
-    }
-
-    .cash-given-input {
-      height: 32px;
-      padding: 0 8px;
-      border: 1.5px solid var(--primary-border, rgba(138, 87, 42, 0.3));
+    .btn-hardware-action,
+    .btn-reprint-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: none;
+      border: 1px solid rgba(212, 163, 115, 0.25);
       border-radius: 6px;
-      background: #ffffff;
-      font-size: 0.95rem;
-      font-weight: 850;
-      color: var(--text-strong, #0c0a09);
-
-      &:focus {
-        outline: none;
-        border-color: var(--primary, #8a572a);
-      }
-    }
-
-    .change-due-group {
-      text-align: left;
-
-      .change-val {
-        font-size: 1.05rem;
-        font-weight: 900;
-        color: var(--text-muted, #78716c);
-        line-height: 32px;
-      }
-
-      &.has-change .change-val {
-        color: var(--success, #16a34a);
-      }
-    }
-  }
-
-  .cash-presets-row {
-    display: flex;
-    gap: 4px;
-
-    .preset-btn {
-      flex: 1;
-      height: 24px;
-      background: #ffffff;
-      border: 1px solid var(--border, #e7e2d9);
-      border-radius: 4px;
-      font-size: 0.7rem;
-      font-weight: 800;
-      color: var(--text-muted, #78716c);
+      padding: 3px 6px;
+      color: #d4a373;
       cursor: pointer;
+      font-size: 0.72rem;
+      font-weight: 700;
 
       &:hover {
-        background: #f4efe6;
-        color: var(--primary, #8a572a);
-        border-color: var(--primary-border, rgba(138, 87, 42, 0.3));
+        background: rgba(212, 163, 115, 0.15);
+        color: #faedcd;
       }
     }
   }
 }
 
-/* ═══════════════════ HARDWARE QUICK ACTIONS ═══════════════════ */
-.hardware-actions-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px;
+.checkout-final-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 
-  .btn-hardware {
+  .btn-finalize-submit {
+    width: 100%;
+    padding: 12px 16px;
+    background: linear-gradient(135deg, #d4a373 0%, #a86f3d 100%);
+    border: 1px solid #faedcd;
+    border-radius: 12px;
+    color: #140d08;
+    cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 6px;
-    height: 34px;
-    background: #ffffff;
-    border: 1px solid var(--border, #e7e2d9);
-    border-radius: var(--radius-sm, 6px);
-    font-size: 0.78rem;
-    font-weight: 750;
-    color: var(--text-muted, #78716c);
-    cursor: pointer;
-    transition: all 0.15s ease;
+    gap: 12px;
+    box-shadow: 0 4px 16px rgba(212, 163, 115, 0.35);
+    transition: all 0.2s ease;
 
-    &:hover:not(:disabled) {
-      background: var(--bg-soft, #fbf9f6);
-      color: var(--text-strong, #0c0a09);
-      border-color: var(--primary, #8a572a);
+    .btn-icon {
+      font-size: 1.3rem;
     }
 
-    &:disabled {
-      opacity: 0.45;
-      cursor: not-allowed;
-    }
-  }
-}
-
-/* ═══════════════════ BIG MASTER CHECKOUT BUTTON ═══════════════════ */
-.btn-checkout-master {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  height: 56px;
-  padding: 0 16px;
-  background: linear-gradient(135deg, #8a572a 0%, #6e411b 100%);
-  color: #ffffff;
-  border: none;
-  border-radius: var(--radius-md, 10px);
-  cursor: pointer;
-  box-shadow: 0 6px 18px rgba(138, 87, 42, 0.35);
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-
-  &:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(138, 87, 42, 0.45);
-    background: linear-gradient(135deg, #9b6330 0%, #7d4a20 100%);
-  }
-
-  &:active:not(:disabled) {
-    transform: scale(0.98);
-  }
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    box-shadow: none;
-  }
-
-  .checkout-content {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-
-    .btn-labels {
+    .btn-text-col {
       display: flex;
       flex-direction: column;
       text-align: right;
+    }
 
-      .main-label {
-        font-size: 1.05rem;
-        font-weight: 900;
-        line-height: 1.2;
-      }
+    .btn-title {
+      font-size: 0.94rem;
+      font-weight: 900;
+    }
+    .btn-sub {
+      font-size: 0.72rem;
+      opacity: 0.85;
+    }
 
-      .sub-label {
-        font-size: 0.7rem;
-        opacity: 0.85;
-        font-weight: 600;
-      }
+    &:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(212, 163, 115, 0.5);
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
     }
   }
 
-  .checkout-badge {
-    background: rgba(255, 255, 255, 0.22);
-    padding: 6px 12px;
-    border-radius: 8px;
-    font-size: 1.15rem;
-    font-weight: 950;
-    letter-spacing: -0.3px;
+  .drawer-secondary-actions {
+    display: flex;
+    gap: 6px;
+
+    .btn-drawer-hold,
+    .btn-drawer-clear {
+      flex: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 8px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 8px;
+      color: #d4a373;
+      font-size: 0.76rem;
+      font-weight: 750;
+      cursor: pointer;
+
+      &:hover {
+        background: rgba(255, 255, 255, 0.1);
+        color: #faedcd;
+      }
+    }
+
+    .btn-drawer-clear:hover {
+      background: rgba(239, 68, 68, 0.15);
+      color: #f87171;
+      border-color: rgba(239, 68, 68, 0.3);
+    }
   }
 }
 
-/* Touch-first receipt controls: the cashier should not need pixel-perfect taps. */
-.order-type-tabs {
-  gap: 8px;
-  padding: 10px 14px;
+.checkout-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(20, 13, 8, 0.3);
+  border-top-color: #140d08;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  display: inline-block;
+}
 
-  .type-tab {
-    min-height: 52px;
-    height: auto;
-    padding-inline: 8px;
-    font-size: 0.9rem;
-    touch-action: manipulation;
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
   }
 }
 
-.receipt-item-card {
-  padding: 14px 16px;
-  gap: 9px;
+/* ── Numpad Modal ── */
+.numpad-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(4px);
+  z-index: 250;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
 
-  .item-card-top .btn-delete-item {
-    width: 44px;
-    height: 44px;
-    padding: 0;
+.numpad-modal-card {
+  width: 100%;
+  max-width: 360px;
+  background: #1b120c;
+  border: 1px solid #d4a373;
+  border-radius: 16px;
+  padding: 16px;
+  color: #fffaf2;
+}
+
+.numpad-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+
+  .numpad-title-wrap {
     display: flex;
     align-items: center;
-    justify-content: center;
-    border-radius: 10px;
-    touch-action: manipulation;
-  }
+    gap: 8px;
 
-  .item-card-bottom .item-stepper {
-    border-radius: 10px;
-
-    .step-btn {
-      width: 48px;
-      height: 48px;
-      font-size: 1.35rem;
-      touch-action: manipulation;
+    h4 {
+      margin: 0;
+      color: #faedcd;
+      font-size: 1rem;
     }
-
-    .step-qty {
-      min-width: 44px;
-      font-size: 1.05rem;
-    }
-  }
-}
-
-.btn-checkout-master {
-  height: 64px;
-  touch-action: manipulation;
-}
-
-/* Compact receipt mode: show more line items without shrinking touch targets. */
-.receipt-header {
-  padding: 10px 12px;
-
-  .receipt-brand-badge {
-    width: 34px;
-    height: 34px;
-  }
-}
-
-.order-type-tabs {
-  padding: 7px 10px;
-  gap: 6px;
-
-  .type-tab {
-    min-height: 44px;
-    font-size: 0.82rem;
-  }
-}
-
-.receipt-body {
-  padding: 8px;
-}
-
-.receipt-items-scroll {
-  gap: 6px;
-}
-
-.receipt-item-card {
-  padding: 8px 10px;
-  gap: 5px;
-
-  .item-card-top {
-    min-height: 44px;
-
-    .item-title-wrap {
-      min-width: 0;
-      flex: 1;
-
-      .item-name {
-        min-width: 0;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        font-size: 0.88rem;
-      }
+    .numpad-prod-name {
+      margin: 0;
+      font-size: 0.75rem;
+      color: #d4a373;
     }
   }
 
-  .item-custom-tags {
-    max-height: 27px;
-    overflow: hidden;
-    padding-right: 0;
-    white-space: nowrap;
-
-    .custom-note-chip {
-      max-width: 100%;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      padding: 2px 6px;
-      font-size: 0.7rem;
-    }
-  }
-
-  .item-card-bottom {
-    gap: 6px;
-    padding-top: 4px;
-
-    .unit-price-label {
-      min-width: 0;
-      flex: 1;
-      font-size: 0.72rem;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .item-stepper {
-      flex: 0 0 auto;
-
-      .step-btn {
-        width: 44px;
-        height: 44px;
-      }
-
-      .step-qty {
-        min-width: 36px;
-      }
-    }
-
-    .item-total-price {
-      min-width: 68px;
-      font-size: 0.9rem;
-    }
+  .close-numpad-btn {
+    background: none;
+    border: none;
+    color: #fff;
+    cursor: pointer;
   }
 }
 
-/* Final compact checkout overrides (kept last so they win over legacy footer rules). */
-.billing-summary-box {
-  gap: 6px;
-  padding: 8px 10px;
-}
+.numpad-display-screen {
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(212, 163, 115, 0.3);
+  border-radius: 10px;
+  padding: 8px 12px;
+  margin-bottom: 10px;
 
-.billing-actions-row {
-  display: flex;
-}
-
-.billing-action-btn,
-.payment-summary-toggle {
-  width: 100%;
-  min-height: 42px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0 10px;
-  border: 1px solid var(--border, #e7e2d9);
-  border-radius: 9px;
-  background: #ffffff;
-  color: var(--text-muted, #78716c);
-  font: inherit;
-  font-size: 0.8rem;
-  font-weight: 800;
-  cursor: pointer;
-  touch-action: manipulation;
-
-  strong {
-    margin-right: auto;
-    color: var(--text-strong, #0c0a09);
-  }
-
-  &:hover,
-  &.active {
-    border-color: var(--primary, #8a572a);
-    color: var(--primary, #8a572a);
-    background: var(--primary-soft, rgba(138, 87, 42, 0.07));
-  }
-}
-
-.discount-panel {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 7px 8px;
-  border: 1px dashed var(--border-strong, #d6cebf);
-  border-radius: 8px;
-  background: #ffffff;
-
-  .discount-quick-pills {
+  .display-val-row {
     display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    flex: 1;
+    justify-content: space-between;
+    align-items: baseline;
+
+    .display-qty {
+      font-size: 1.5rem;
+      font-weight: 900;
+      color: #fff;
+    }
+    .display-unit {
+      color: #d4a373;
+      font-size: 0.85rem;
+    }
   }
 
-  .disc-pill {
-    min-width: 38px;
-    min-height: 32px;
-    padding: 0 7px;
-    border: 1px solid var(--border, #e7e2d9);
+  .display-helper-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.74rem;
+    color: #a89f91;
+    margin-top: 4px;
+    border-top: 1px dashed rgba(255, 255, 255, 0.1);
+    padding-top: 4px;
+  }
+}
+
+.numpad-presets {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  margin-bottom: 10px;
+
+  .preset-btn {
+    padding: 6px 2px;
+    background: rgba(212, 163, 115, 0.1);
+    border: 1px solid rgba(212, 163, 115, 0.25);
     border-radius: 6px;
-    background: var(--bg-soft, #fbf9f6);
-    color: var(--text-muted, #78716c);
+    color: #faedcd;
     font-size: 0.72rem;
-    font-weight: 850;
+    font-weight: 700;
     cursor: pointer;
 
-    &.active,
+    &.highlight {
+      background: rgba(212, 163, 115, 0.25);
+      border-color: #d4a373;
+    }
+
     &:hover {
-      background: var(--primary, #8a572a);
-      color: #ffffff;
-      border-color: var(--primary, #8a572a);
+      background: #d4a373;
+      color: #140d08;
     }
   }
 }
 
-.payment-method-selector {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.payment-summary-toggle {
-  .payment-summary-leading {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-  }
-
-  strong {
-    margin-right: auto;
-    color: var(--primary, #8a572a);
-  }
-}
-
-.payment-options-grid {
+.numpad-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 6px;
+  margin-bottom: 12px;
+
+  .num-key {
+    padding: 12px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(212, 163, 115, 0.2);
+    border-radius: 8px;
+    color: #faedcd;
+    font-size: 1.15rem;
+    font-weight: 800;
+    cursor: pointer;
+
+    &:hover {
+      background: rgba(212, 163, 115, 0.2);
+    }
+
+    &.clear-key {
+      color: #f87171;
+    }
+    &.backspace-key {
+      color: #fde047;
+    }
+  }
 }
 
-.payment-options-grid .pay-btn {
-  min-height: 48px;
-  height: auto;
-  touch-action: manipulation;
-}
-
-.checkout-panel {
+.numpad-actions {
   display: flex;
-  flex-direction: column;
   gap: 8px;
-  min-height: 0;
-  overflow-y: auto;
-}
 
-.checkout-panel-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 2px 2px 4px;
-
-  div {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
+  .btn {
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-weight: 800;
+    cursor: pointer;
   }
 
-  strong {
-    color: var(--text-strong, #0c0a09);
-    font-size: 0.95rem;
+  .btn-outline {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #fff;
   }
 
-  span {
-    color: var(--text-muted, #78716c);
-    font-size: 0.7rem;
-  }
-}
-
-.btn-back-to-cart {
-  min-height: 36px;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 0 10px;
-  border: 1px solid var(--border, #e7e2d9);
-  border-radius: 8px;
-  background: var(--bg-soft, #fbf9f6);
-  color: var(--primary, #8a572a);
-  font-size: 0.76rem;
-  font-weight: 800;
-  cursor: pointer;
-}
-
-.btn-open-checkout {
-  width: 100%;
-  min-height: 58px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 0 14px;
-  border: 0;
-  border-radius: 11px;
-  background: linear-gradient(135deg, #8a572a 0%, #6e411b 100%);
-  color: #ffffff;
-  box-shadow: 0 5px 14px rgba(138, 87, 42, 0.25);
-  cursor: pointer;
-
-  &:disabled {
-    opacity: 0.45;
-    cursor: not-allowed;
-    box-shadow: none;
-  }
-
-  .checkout-content {
-    display: flex;
-    align-items: center;
-    gap: 9px;
-  }
-
-  .btn-labels {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 2px;
-
-    .main-label { font-size: 0.9rem; }
-    .sub-label { font-size: 0.68rem; opacity: 0.82; }
-  }
-
-  .checkout-badge {
-    padding: 5px 9px;
-    border-radius: 7px;
-    background: rgba(255, 255, 255, 0.18);
-    font-size: 1rem;
+  .confirm-btn {
+    flex: 1;
+    background: #d4a373;
+    border: 1px solid #faedcd;
+    color: #140d08;
   }
 }
 </style>

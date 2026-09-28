@@ -276,11 +276,13 @@
     <div v-if="canEdit" class="settings-card danger-zone">
       <h4 class="group-label danger">منطقة الخطر</h4>
       <p class="section-desc">
-        هذه الإجراءات لا يمكن التراجع عنها. تأكد من وجود نسخة احتياطية أولاً.
+        تصفير شامل: حذف الحركات والأرصدة والعملاء والموردين والسجل المالي. تبقى المنتجات والتصنيفات
+        والوصفات وأسعار البيع والتكلفة وبيانات الدخول وإعدادات التشغيل. سيتم تنزيل نسخة احتياطية قبل
+        التأكيد النهائي. أوقف البيع وانتظر مزامنة كل أجهزة الكاشير أولاً.
       </p>
       <button class="btn btn-delete" @click="clearSystem" :disabled="clearing">
         <AppIcon name="delete" :size="16" />
-        {{ clearing ? 'جاري التصفير...' : 'تصفير بيانات النظام' }}
+        {{ clearing ? 'جاري تجهيز النسخة أو التصفير...' : 'تنزيل نسخة ثم تصفير بيانات التشغيل' }}
       </button>
     </div>
   </section>
@@ -294,7 +296,9 @@ import { useAuthStore } from '@/stores/auth';
 import { useBackupSettings } from '@/composables/useBackupSettings';
 
 const authStore = useAuthStore();
-const canEdit = computed(() => authStore.hasPermission('settings.manage'));
+const canEdit = computed(
+  () => authStore.user?.role_name === 'admin' && authStore.hasPermission('settings.manage'),
+);
 const {
   backups,
   backupView,

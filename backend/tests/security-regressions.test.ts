@@ -38,10 +38,16 @@ describe('Security regressions', () => {
     expect(calculatePaymentTotal([{ amount: 0.1 }, { amount: 0.2 }], 0.3)).toBe(0.3);
   });
 
-  it('rejects manager override token when used by a different cashier (H-02)', async () => {
-    const { issueManagerOverrideToken, requireManagerOverride } = await import(
-      '../src/middleware/managerOverride.ts'
+  it('does not accept new loyalty redemption on an existing sale', async () => {
+    const { updateSale } = await import('../src/services/salesService.ts');
+    await expect(updateSale(1, { loyalty_points_redeemed: 10 }, 1)).rejects.toThrow(
+      'لا يمكن استبدال نقاط الولاء عند تعديل فاتورة محفوظة',
     );
+  });
+
+  it('rejects manager override token when used by a different cashier (H-02)', async () => {
+    const { issueManagerOverrideToken, requireManagerOverride } =
+      await import('../src/middleware/managerOverride.ts');
     const { token } = await issueManagerOverrideToken(1, 100); // Issued for cashier 100
 
     const req: any = {
@@ -121,9 +127,8 @@ describe('Security regressions', () => {
   });
 
   it('rejects manager override token on reuse (replay attack prevention via DB atomic consumption)', async () => {
-    const { issueManagerOverrideToken, requireManagerOverride } = await import(
-      '../src/middleware/managerOverride.ts'
-    );
+    const { issueManagerOverrideToken, requireManagerOverride } =
+      await import('../src/middleware/managerOverride.ts');
     const { token } = await issueManagerOverrideToken(1, 100);
 
     const req: any = {
@@ -287,9 +292,8 @@ describe('Security regressions', () => {
   });
 
   it('enforces user ownership on notification read and rejects when userId is missing', async () => {
-    const { markNotificationRead, markAllNotificationsRead } = await import(
-      '../src/services/userService.ts'
-    );
+    const { markNotificationRead, markAllNotificationsRead } =
+      await import('../src/services/userService.ts');
 
     await expect(markNotificationRead(1, undefined as any)).rejects.toMatchObject({
       statusCode: 400,

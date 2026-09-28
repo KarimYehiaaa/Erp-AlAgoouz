@@ -68,7 +68,9 @@ async function main(): Promise<void> {
         console.log('Waiting 5 seconds for database to initialize...');
         await new Promise((resolve) => setTimeout(resolve, 5000));
       } catch {
-        console.error('\x1b[31mFailed to start Docker container. Please make sure Docker is running.\x1b[0m');
+        console.error(
+          '\x1b[31mFailed to start Docker container. Please make sure Docker is running.\x1b[0m',
+        );
       }
     } else {
       console.log('Skipping Docker. Please ensure your local PostgreSQL database is running.');
@@ -84,7 +86,9 @@ async function main(): Promise<void> {
 
     // 4. بناء الواجهة (اختياري)
     console.log('\n\x1b[36m[4/4] Building Frontend for Production...\x1b[0m');
-    const shouldBuild = await askQuestion('Do you want to build the frontend for production? (y/n): ');
+    const shouldBuild = await askQuestion(
+      'Do you want to build the frontend for production? (y/n): ',
+    );
     if (isYes(shouldBuild)) {
       runCommand('npm run build', path.join(rootDir, 'frontend'));
     }

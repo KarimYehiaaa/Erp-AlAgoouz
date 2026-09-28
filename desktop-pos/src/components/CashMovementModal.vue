@@ -69,19 +69,9 @@
         </div>
 
         <div class="modal-footer">
-          <button
-            type="button"
-            class="btn-cancel"
-            @click="emit('close')"
-          >
-            إلغاء
-          </button>
+          <button type="button" class="btn-cancel" @click="emit('close')">إلغاء</button>
 
-          <button
-            type="submit"
-            class="btn-submit"
-            :disabled="submitting || amount <= 0 || !reason"
-          >
+          <button type="submit" class="btn-submit" :disabled="submitting || amount <= 0 || !reason">
             <AppIcon name="check" :size="18" />
             <span>{{ submitting ? 'جاري التسجيل...' : 'تأكيد وحفظ الحركة النقدية' }}</span>
           </button>

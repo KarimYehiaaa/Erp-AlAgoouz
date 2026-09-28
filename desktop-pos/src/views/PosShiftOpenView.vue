@@ -6,7 +6,10 @@
           <AppIcon name="clock" :size="32" />
         </div>
         <h2>فتح وردية جديدة</h2>
-        <p>مرحباً بك يا <strong>{{ authStore.user?.full_name || 'الكاشير' }}</strong>، يرجى إدخال عهدة البداية (الفكة) لبدء العمليات.</p>
+        <p>
+          مرحباً بك يا <strong>{{ authStore.user?.full_name || 'الكاشير' }}</strong
+          >، يرجى إدخال عهدة البداية (الفكة) لبدء العمليات.
+        </p>
       </div>
 
       <form class="shift-form" @submit.prevent="handleOpenShift">
@@ -44,7 +47,7 @@
           </div>
           <div class="meta-pill">
             <AppIcon name="shop" :size="14" />
-            <span>الفرع: <strong>الفرع الرئيسي</strong></span>
+            <span>المحل: <strong>المحل الرئيسي</strong></span>
           </div>
         </div>
 

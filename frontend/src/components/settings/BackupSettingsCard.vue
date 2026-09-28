@@ -18,9 +18,10 @@
 
       <div class="action-item danger-zone">
         <div class="action-info">
-          <strong>تصفير بيانات حركات النظام (Factory Reset)</strong>
+          <strong>تصفير بيانات التشغيل</strong>
           <small class="text-danger"
-            >تصفير المبيعات والمخزون والمالية مع الحفاظ على المنتجات والمستخدمين</small
+            >حذف الحركات والأرصدة والعملاء والموردين، مع الحفاظ على المنتجات والتصنيفات والوصفات
+            وأسعارها وتكاليفها</small
           >
         </div>
         <button

@@ -20,7 +20,7 @@ export function getEnvVar(key: string): string | undefined {
   } catch {}
 
   try {
-    const meta = (import.meta as any);
+    const meta = import.meta as any;
     if (meta && meta.env && meta.env[key]) {
       return meta.env[key];
     }
@@ -38,7 +38,7 @@ export function getRawEnvUrl(): string | undefined {
  */
 export function getTrustedServerList(
   customTrustedConfig?: string[] | string,
-  envAnchorOverride?: string
+  envAnchorOverride?: string,
 ): string[] {
   const result: string[] = [];
 
@@ -100,7 +100,7 @@ export function isTrustedServerUrl(
   url: string,
   forceProduction?: boolean,
   customTrustedConfig?: string[] | string,
-  envAnchorOverride?: string
+  envAnchorOverride?: string,
 ): boolean {
   if (!url || typeof url !== 'string' || !url.trim()) {
     return false;
@@ -126,9 +126,9 @@ export function isTrustedServerUrl(
   const isProduction =
     forceProduction !== undefined
       ? forceProduction
-      : (getEnvVar('PROD') === 'true' ||
-         getEnvVar('NODE_ENV') === 'production' ||
-         ((import.meta as any).env?.PROD ?? false));
+      : getEnvVar('PROD') === 'true' ||
+        getEnvVar('NODE_ENV') === 'production' ||
+        ((import.meta as any).env?.PROD ?? false);
 
   // في غير بيئة الإنتاج، يُسمح بالاتصال الخارجي للتجارب إن كان بروتوكولاً صالحاً
   if (!isProduction) {
@@ -182,7 +182,7 @@ export function validateServerUrl(
   url: string,
   forceProduction?: boolean,
   customTrustedConfig?: string[] | string,
-  envAnchorOverride?: string
+  envAnchorOverride?: string,
 ): { valid: boolean; normalizedUrl?: string; error?: string } {
   if (!url || typeof url !== 'string' || !url.trim()) {
     return { valid: false, error: 'عنوان الخادم مطلوب ولا يمكن أن يكون فارغاً' };
@@ -192,7 +192,10 @@ export function validateServerUrl(
   try {
     parsed = new URL(url.trim());
   } catch {
-    return { valid: false, error: 'صيغة عنوان الخادم غير صالحة (مثال صحيح: https://api.alagoouz.com/api/v1)' };
+    return {
+      valid: false,
+      error: 'صيغة عنوان الخادم غير صالحة (مثال صحيح: https://api.alagoouz.com/api/v1)',
+    };
   }
 
   if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
@@ -207,19 +210,25 @@ export function validateServerUrl(
   const isProduction =
     forceProduction !== undefined
       ? forceProduction
-      : (getEnvVar('PROD') === 'true' ||
-         getEnvVar('NODE_ENV') === 'production' ||
-         ((import.meta as any).env?.PROD ?? false));
+      : getEnvVar('PROD') === 'true' ||
+        getEnvVar('NODE_ENV') === 'production' ||
+        ((import.meta as any).env?.PROD ?? false);
 
   // في بيئة الإنتاج: منع الاتصال الخارجي غير المشفر (HTTP)
   if (isProduction && parsed.protocol === 'http:' && !isLocal) {
     return {
       valid: false,
-      error: 'في بيئة الإنتاج، يجب استخدام بروتوكول مشفر وآمن (HTTPS) للاتصال بالخادم المركزي لحماية البيانات',
+      error:
+        'في بيئة الإنتاج، يجب استخدام بروتوكول مشفر وآمن (HTTPS) للاتصال بالخادم المركزي لحماية البيانات',
     };
   }
 
-  const cleanUrl = url.trim().replace(/\/+$/, '');
+  let cleanUrl = url.trim().replace(/\/+$/, '');
+
+  // إذا لم يحدد المستخدم مسار الـ API (مثل كتابة http://localhost:3000 أو https://agoouz.vercel.app فقط)، نلحق مسار /api/v1 تلقائياً
+  if (!parsed.pathname || parsed.pathname === '/' || parsed.pathname === '') {
+    cleanUrl = `${cleanUrl}/api/v1`;
+  }
 
   // في بيئة الإنتاج: فحص الثقة (Trusted Server Policy)
   if (isProduction && !isTrustedServerUrl(cleanUrl, true, customTrustedConfig, envAnchorOverride)) {
@@ -238,14 +247,14 @@ export function validateServerUrl(
 export function getServerUrl(
   forceProduction?: boolean,
   customEnvUrl?: string,
-  customTrustedConfig?: string[] | string
+  customTrustedConfig?: string[] | string,
 ): string {
   const isProd =
     forceProduction !== undefined
       ? forceProduction
-      : (getEnvVar('PROD') === 'true' ||
-         getEnvVar('NODE_ENV') === 'production' ||
-         ((import.meta as any).env?.PROD ?? false));
+      : getEnvVar('PROD') === 'true' ||
+        getEnvVar('NODE_ENV') === 'production' ||
+        ((import.meta as any).env?.PROD ?? false);
 
   // 1. فحص التخزين المحلي إن وُجد
   if (typeof localStorage !== 'undefined') {

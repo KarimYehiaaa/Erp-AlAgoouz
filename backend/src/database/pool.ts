@@ -50,7 +50,10 @@ const pool = new Pool({
 pool.on('error', (err, __client) => {
   logger.error('[DB Pool] خطأ غير متوقع في اتصال قاعدة البيانات:', err.message);
 });
-pool.on('connect', (_client) => {
+pool.on('connect', (client: any) => {
+  client.query("SET timezone = 'Africa/Cairo'").catch((err: any) => {
+    logger.warn('[DB Pool] تعذر ضبط المنطقة الزمنية Africa/Cairo:', err?.message || err);
+  });
   if (process.env.NODE_ENV === 'development') {
     logger.info(`[DB Pool] اتصال جديد — إجمالي: ${pool.totalCount} / ${maxConnections}`);
   }
@@ -82,7 +85,7 @@ const query = async (
   }
 };
 const getClient = () => pool.connect();
-const withTransaction = async (fn) => {
+const withTransaction = async <T>(fn: (client: any) => Promise<T>): Promise<T> => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');

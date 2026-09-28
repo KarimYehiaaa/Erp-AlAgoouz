@@ -3,7 +3,10 @@ import { expect, it } from 'vitest';
 import { getClient } from '../src/database/pool.ts';
 
 it('renames the saved balancing task without replacing its settings or logs', async () => {
-  const sql = await readFile(new URL('../migrations/071_normalize_saved_warehouse_automation.sql', import.meta.url), 'utf8');
+  const sql = await readFile(
+    new URL('../migrations/071_normalize_saved_warehouse_automation.sql', import.meta.url),
+    'utf8',
+  );
   const client = await getClient();
   await client.query('BEGIN');
   try {
@@ -25,8 +28,20 @@ it('renames the saved balancing task without replacing its settings or logs', as
        FROM automations WHERE key = 'warehouse_balancing' LIMIT 1`,
     );
     expect(after.rows[0]).toEqual(before.rows[0]);
-    expect((await client.query('SELECT automation_id FROM automation_logs WHERE id = $1', [log.rows[0].id])).rows[0].automation_id).toBe(id);
-    expect((await client.query(`SELECT COUNT(*)::int AS count FROM automations WHERE key = 'branch_stock_balancing'`)).rows[0].count).toBe(0);
+    expect(
+      (
+        await client.query('SELECT automation_id FROM automation_logs WHERE id = $1', [
+          log.rows[0].id,
+        ])
+      ).rows[0].automation_id,
+    ).toBe(id);
+    expect(
+      (
+        await client.query(
+          `SELECT COUNT(*)::int AS count FROM automations WHERE key = 'branch_stock_balancing'`,
+        )
+      ).rows[0].count,
+    ).toBe(0);
   } finally {
     await client.query('ROLLBACK');
     client.release();

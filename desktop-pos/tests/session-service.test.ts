@@ -68,7 +68,7 @@ describe('Desktop POS SessionService Tests', () => {
       expect.objectContaining({
         token: 'jwt-access-token-12345',
         refreshToken: 'refresh-token-67890',
-      })
+      }),
     );
 
     // CRITICAL: JWT access token must NOT exist in localStorage!

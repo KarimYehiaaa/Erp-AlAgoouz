@@ -402,7 +402,7 @@ const getPurchasesReport = async (filters: Record<string, any> = {}) => {
     query(
       `SELECT COUNT(*)::int as invoices_count,
               COALESCE(SUM(total_amount), 0) as total_amount,
-              COALESCE((SELECT SUM(amount) FROM payments WHERE reference_type = 'supplier' AND ($1::date IS NULL OR created_at::date >= $1) AND ($2::date IS NULL OR created_at::date <= $2)), 0) as paid_amount
+              COALESCE((SELECT SUM(amount) FROM payments WHERE reference_type IN ('supplier', 'purchase_invoice') AND ($1::date IS NULL OR created_at::date >= $1) AND ($2::date IS NULL OR created_at::date <= $2)), 0) as paid_amount
        FROM purchase_invoices
        WHERE deleted_at IS NULL
          AND ($1::date IS NULL OR invoice_date >= $1)
@@ -413,7 +413,13 @@ const getPurchasesReport = async (filters: Record<string, any> = {}) => {
       `SELECT s.name_ar as supplier_name,
               COUNT(pi.id)::int as invoices_count,
               COALESCE(SUM(pi.total_amount), 0) as total_amount,
-              COALESCE((SELECT SUM(amount) FROM payments WHERE reference_type = 'supplier' AND reference_id = s.id AND ($1::date IS NULL OR created_at::date >= $1) AND ($2::date IS NULL OR created_at::date <= $2)), 0) as paid_amount
+              COALESCE((
+                SELECT SUM(p.amount) FROM payments p
+                WHERE ((p.reference_type = 'supplier' AND p.reference_id = s.id)
+                   OR (p.reference_type = 'purchase_invoice' AND p.reference_id IN (SELECT id FROM purchase_invoices WHERE supplier_id = s.id)))
+                  AND ($1::date IS NULL OR p.created_at::date >= $1)
+                  AND ($2::date IS NULL OR p.created_at::date <= $2)
+              ), 0) as paid_amount
        FROM suppliers s
        LEFT JOIN purchase_invoices pi ON pi.supplier_id = s.id AND pi.deleted_at IS NULL
          AND ($1::date IS NULL OR pi.invoice_date >= $1)
@@ -427,8 +433,15 @@ const getPurchasesReport = async (filters: Record<string, any> = {}) => {
     query(
       `SELECT pi.invoice_number, pi.total_amount,
               CASE
+                WHEN COALESCE((
+                  SELECT SUM(p.amount) FROM payments p
+                  WHERE p.reference_type = 'purchase_invoice' AND p.reference_id = pi.id
+                ), 0) >= pi.total_amount - 0.01 THEN 'paid'
+                WHEN COALESCE((
+                  SELECT SUM(p.amount) FROM payments p
+                  WHERE p.reference_type = 'purchase_invoice' AND p.reference_id = pi.id
+                ), 0) > 0 THEN 'partial'
                 WHEN s.balance <= 0 THEN 'paid'
-                WHEN (SELECT COALESCE(SUM(amount), 0) FROM payments WHERE reference_type = 'supplier' AND reference_id = pi.supplier_id) > 0 THEN 'partial'
                 ELSE 'pending'
               END as status,
               pi.invoice_date as created_at, s.name_ar as supplier_name

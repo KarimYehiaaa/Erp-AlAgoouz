@@ -95,7 +95,7 @@ describe('Electron IPC Security Layer Tests', () => {
       expect(validateSessionPayload({ token: 12345, user: {} }).valid).toBe(false);
       expect(validateSessionPayload({ token: '', user: {} }).valid).toBe(false);
       expect(
-        validateSessionPayload(JSON.parse('{"token": "valid", "user": {}, "__proto__": {}}')).valid
+        validateSessionPayload(JSON.parse('{"token": "valid", "user": {}, "__proto__": {}}')).valid,
       ).toBe(false);
     });
   });
@@ -117,15 +117,17 @@ describe('Electron IPC Security Layer Tests', () => {
       expect(validateTransactionPayload({ items: [{}], total_amount: NaN }).valid).toBe(false);
       expect(
         validateTransactionPayload(
-          JSON.parse('{"items": [{}], "total_amount": 100, "__proto__": {}}')
-        ).valid
+          JSON.parse('{"items": [{}], "total_amount": 100, "__proto__": {}}'),
+        ).valid,
       ).toBe(false);
     });
   });
 
   describe('sanitizeIpcError', () => {
     it('11. Masks Windows and Unix file paths and strips stack traces', () => {
-      const internalErr = new Error('Failed writing to D:\\AlAgoouz System\\backend\\secret.key\n  at Object.write (C:\\node\\fs.js:12:3)');
+      const internalErr = new Error(
+        'Failed writing to D:\\AlAgoouz System\\backend\\secret.key\n  at Object.write (C:\\node\\fs.js:12:3)',
+      );
       const sanitized = sanitizeIpcError(internalErr);
 
       expect(sanitized).not.toContain('D:\\AlAgoouz System');

@@ -10,7 +10,7 @@ import { requireConfirmation } from '../middleware/confirmAction.ts';
 import { validateBody, validateQuery } from '../middleware/validate.ts';
 import { enforceWarehouseAccess } from '../middleware/warehouseAccess.ts';
 import { requireIdempotency } from '../middleware/idempotency.ts';
-import { upload } from './helpers.ts';
+import { upload, requireAdmin } from './helpers.ts';
 import {
   commonQuerySchema,
   inventoryTransferSchema,
@@ -77,6 +77,7 @@ router.delete(
   '/inventory',
   authenticate,
   authorize('inventory.delete'),
+  requireAdmin,
   requireConfirmation('CONFIRM_CLEAR_INVENTORY'),
   auditLog('inventory_clear_all', 'inventory'),
   api.inventory.clearAll,

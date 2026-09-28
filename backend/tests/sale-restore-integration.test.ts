@@ -120,6 +120,10 @@ describe('Sale restore & sync_id idempotency integration tests', () => {
         [SKU],
       );
       await query(
+        `DELETE FROM inventory_cost_layers WHERE product_id IN (SELECT id FROM products WHERE sku = $1)`,
+        [SKU],
+      );
+      await query(
         `DELETE FROM activity_logs WHERE module = 'sales' AND details::text LIKE '%TST-SLR%'`,
       );
       await query(`DELETE FROM products WHERE sku = $1`, [SKU]);

@@ -13,11 +13,7 @@ import {
   updatePurchaseInvoice,
   deletePurchaseInvoice,
 } from '../src/services/purchaseService.ts';
-import {
-  createDailySale,
-  updateSale,
-  deleteSalesByDate,
-} from '../src/services/salesService.ts';
+import { createDailySale, updateSale, deleteSalesByDate } from '../src/services/salesService.ts';
 
 describe('Financial Audit Invariants Suite (Real PostgreSQL Invariants)', () => {
   const cleanup = {
@@ -40,7 +36,9 @@ describe('Financial Audit Invariants Suite (Real PostgreSQL Invariants)', () => 
   afterAll(async () => {
     // Cleanup generated records - ensure periods opened first
     if (cleanup.periodIds.length > 0) {
-      await query("UPDATE financial_periods SET status = 'open' WHERE id = ANY($1)", [cleanup.periodIds]);
+      await query("UPDATE financial_periods SET status = 'open' WHERE id = ANY($1)", [
+        cleanup.periodIds,
+      ]);
     }
     if (cleanup.shiftIds.length > 0) {
       await query('DELETE FROM pos_cash_movements WHERE shift_id = ANY($1)', [cleanup.shiftIds]);
@@ -49,14 +47,18 @@ describe('Financial Audit Invariants Suite (Real PostgreSQL Invariants)', () => 
     if (cleanup.saleIds.length > 0) {
       await query('DELETE FROM sale_items WHERE sale_id = ANY($1)', [cleanup.saleIds]);
       await query('DELETE FROM invoices WHERE sale_id = ANY($1)', [cleanup.saleIds]);
-      await query("DELETE FROM payments WHERE reference_type = 'sale' AND reference_id = ANY($1)", [cleanup.saleIds]);
+      await query("DELETE FROM payments WHERE reference_type = 'sale' AND reference_id = ANY($1)", [
+        cleanup.saleIds,
+      ]);
       await query('DELETE FROM sales WHERE id = ANY($1)', [cleanup.saleIds]);
     }
     if (cleanup.customerIds.length > 0) {
       await query('DELETE FROM customers WHERE id = ANY($1)', [cleanup.customerIds]);
     }
     if (cleanup.journalEntryIds.length > 0) {
-      await query('DELETE FROM journal_entry_lines WHERE journal_entry_id = ANY($1)', [cleanup.journalEntryIds]);
+      await query('DELETE FROM journal_entry_lines WHERE journal_entry_id = ANY($1)', [
+        cleanup.journalEntryIds,
+      ]);
       await query('DELETE FROM journal_entries WHERE id = ANY($1)', [cleanup.journalEntryIds]);
     }
     if (cleanup.expenseIds.length > 0) {
@@ -66,22 +68,27 @@ describe('Financial Audit Invariants Suite (Real PostgreSQL Invariants)', () => 
       await query('DELETE FROM payments WHERE id = ANY($1)', [cleanup.paymentIds]);
     }
     if (cleanup.stocktakeIds.length > 0) {
-      await query('DELETE FROM stocktake_items WHERE stocktake_id = ANY($1)', [cleanup.stocktakeIds]);
+      await query('DELETE FROM stocktake_items WHERE stocktake_id = ANY($1)', [
+        cleanup.stocktakeIds,
+      ]);
       await query('DELETE FROM stocktakes WHERE id = ANY($1)', [cleanup.stocktakeIds]);
     }
     if (cleanup.purchaseReturnIds.length > 0) {
-      await query('DELETE FROM purchase_return_items WHERE purchase_return_id = ANY($1)', [cleanup.purchaseReturnIds]).catch(() => {});
+      await query('DELETE FROM purchase_return_items WHERE purchase_return_id = ANY($1)', [
+        cleanup.purchaseReturnIds,
+      ]).catch(() => {});
       await query('DELETE FROM purchase_returns WHERE id = ANY($1)', [cleanup.purchaseReturnIds]);
     }
     if (cleanup.invoiceIds.length > 0) {
-      await query('DELETE FROM purchase_invoice_items WHERE invoice_id = ANY($1)', [cleanup.invoiceIds]).catch(() => {});
+      await query('DELETE FROM purchase_invoice_items WHERE invoice_id = ANY($1)', [
+        cleanup.invoiceIds,
+      ]).catch(() => {});
       await query('DELETE FROM purchase_invoices WHERE id = ANY($1)', [cleanup.invoiceIds]);
     }
     if (cleanup.warehouseIds.length > 0) {
-      await query(
-        'DELETE FROM inventory_cost_layers WHERE warehouse_id = ANY($1)',
-        [cleanup.warehouseIds],
-      );
+      await query('DELETE FROM inventory_cost_layers WHERE warehouse_id = ANY($1)', [
+        cleanup.warehouseIds,
+      ]);
       await query('DELETE FROM inventory WHERE warehouse_id = ANY($1)', [cleanup.warehouseIds]);
       await query(
         'DELETE FROM stock_movements WHERE from_warehouse_id = ANY($1) OR to_warehouse_id = ANY($1)',
@@ -89,7 +96,9 @@ describe('Financial Audit Invariants Suite (Real PostgreSQL Invariants)', () => 
       );
     }
     if (cleanup.productIds.length > 0) {
-      await query('DELETE FROM inventory_cost_layers WHERE product_id = ANY($1)', [cleanup.productIds]);
+      await query('DELETE FROM inventory_cost_layers WHERE product_id = ANY($1)', [
+        cleanup.productIds,
+      ]);
       await query('DELETE FROM inventory WHERE product_id = ANY($1)', [cleanup.productIds]);
       await query('DELETE FROM stock_movements WHERE product_id = ANY($1)', [cleanup.productIds]);
       await query('DELETE FROM products WHERE id = ANY($1)', [cleanup.productIds]);
@@ -116,7 +125,7 @@ describe('Financial Audit Invariants Suite (Real PostgreSQL Invariants)', () => 
         lines: [
           {
             account_code: STANDARD_ACCOUNTS.MAIN_TREASURY,
-            debit: 100.00,
+            debit: 100.0,
             credit: 0,
             description: 'مدين 100.00',
           },
@@ -129,9 +138,9 @@ describe('Financial Audit Invariants Suite (Real PostgreSQL Invariants)', () => 
         ],
       };
 
-      await expect(
-        accountingService.createJournalEntry(imbalancedData),
-      ).rejects.toThrow(/قيد اليومية غير متوازن/);
+      await expect(accountingService.createJournalEntry(imbalancedData)).rejects.toThrow(
+        /قيد اليومية غير متوازن/,
+      );
     });
 
     it('يقبل القيد المتوازن بدقة صفرية (Perfect Zero Imbalance)', async () => {
@@ -142,14 +151,14 @@ describe('Financial Audit Invariants Suite (Real PostgreSQL Invariants)', () => 
         lines: [
           {
             account_code: STANDARD_ACCOUNTS.MAIN_TREASURY,
-            debit: 250.50,
+            debit: 250.5,
             credit: 0,
             description: 'مدين الخزينة',
           },
           {
             account_code: STANDARD_ACCOUNTS.POS_SALES_REVENUE,
             debit: 0,
-            credit: 250.50,
+            credit: 250.5,
             description: 'دائن الإيرادات',
           },
         ],
@@ -184,7 +193,8 @@ describe('Financial Audit Invariants Suite (Real PostgreSQL Invariants)', () => 
 
       // فحص رصيد المورد قبل المرتجع
       await recalculateSupplierBalance(query, supplierId);
-      const supBefore = (await query('SELECT balance FROM suppliers WHERE id = $1', [supplierId])).rows[0];
+      const supBefore = (await query('SELECT balance FROM suppliers WHERE id = $1', [supplierId]))
+        .rows[0];
       expect(Number(supBefore.balance)).toBe(10000);
 
       // 3. تسجيل مرتجع مشتريات بـ 3,000 ج.م
@@ -197,7 +207,8 @@ describe('Financial Audit Invariants Suite (Real PostgreSQL Invariants)', () => 
 
       // 4. إعادة حساب رصيد المورد
       await recalculateSupplierBalance(query, supplierId);
-      const supAfter = (await query('SELECT balance FROM suppliers WHERE id = $1', [supplierId])).rows[0];
+      const supAfter = (await query('SELECT balance FROM suppliers WHERE id = $1', [supplierId]))
+        .rows[0];
       // الرصيد يجب أن يكون 10000 - 3000 = 7000 ج.م تماماً
       expect(Number(supAfter.balance)).toBe(7000);
 
@@ -235,9 +246,9 @@ describe('Financial Audit Invariants Suite (Real PostgreSQL Invariants)', () => 
       await query('UPDATE financial_periods SET status = $1 WHERE id = $2', ['locked', periodId]);
 
       // 4. محاولة حذف المصروف => يجب أن يفشل بسبب تريجر حماية الفترة المقفلة
-      await expect(
-        query('DELETE FROM expenses WHERE id = $1', [expenseId]),
-      ).rejects.toThrow(/لا يمكن حذف سجل في فترة محاسبية مغلقة/);
+      await expect(query('DELETE FROM expenses WHERE id = $1', [expenseId])).rejects.toThrow(
+        /لا يمكن حذف سجل في فترة محاسبية مغلقة/,
+      );
 
       // 5. محاولة تعديل المصروف => يجب أن يفشل
       await expect(
@@ -298,9 +309,9 @@ describe('Financial Audit Invariants Suite (Real PostgreSQL Invariants)', () => 
       });
 
       // 4. محاكاة فشل في خدمة الأستاذ العام أثناء ترحيل القيد
-      const glSpy = vi.spyOn(accountingService, 'postStocktakeJournalEntry').mockRejectedValueOnce(
-        new Error('Simulated GL Posting Database Failure'),
-      );
+      const glSpy = vi
+        .spyOn(accountingService, 'postStocktakeJournalEntry')
+        .mockRejectedValueOnce(new Error('Simulated GL Posting Database Failure'));
 
       // 5. محاولة اعتماد الجرد مع تعطل GL => يجب أن تفشل المعاملة وترمي استثناء
       await expect(completeStocktake(stk.id, 1)).rejects.toThrow(
@@ -309,7 +320,8 @@ describe('Financial Audit Invariants Suite (Real PostgreSQL Invariants)', () => 
 
       // 6. التحقق الدقيق من سلامة قاعدة البيانات وتراجع كافة العمليات الوسيطة
       // أ) حالة الجرد يجب أن تظل 'draft' ولم تتحول إلى 'completed'
-      const stkCheck = (await query('SELECT status FROM stocktakes WHERE id = $1', [stk.id])).rows[0];
+      const stkCheck = (await query('SELECT status FROM stocktakes WHERE id = $1', [stk.id]))
+        .rows[0];
       expect(stkCheck.status).toBe('draft');
 
       // ب) رصيد المخزون يجب أن يظل 50 كما هو دون أي تغيير
@@ -382,9 +394,10 @@ describe('Financial Audit Invariants Suite (Real PostgreSQL Invariants)', () => 
 
       // 4. تم تسجيل مصروف العجز بطريقة دفع adjustment (دون المساس بالخزينة)
       const expSuccess = (
-        await query('SELECT id, amount, payment_method FROM expenses WHERE expense_number LIKE $1', [
-          `EXP-STK-${stk.id}-%`,
-        ])
+        await query(
+          'SELECT id, amount, payment_method FROM expenses WHERE expense_number LIKE $1',
+          [`EXP-STK-${stk.id}-%`],
+        )
       ).rows;
       expect(expSuccess.length).toBe(1);
       expect(Number(expSuccess[0].amount)).toBe(250);
@@ -689,7 +702,9 @@ describe('Financial Audit Invariants Suite (Real PostgreSQL Invariants)', () => 
       );
       expect(jeRes.rows.length).toBeGreaterThanOrEqual(2);
       cleanup.journalEntryIds.push(jeRes.rows[0].id);
-      const shortageLine = jeRes.rows.find((r: any) => r.code === STANDARD_ACCOUNTS.SHORTAGE_EXPENSE);
+      const shortageLine = jeRes.rows.find(
+        (r: any) => r.code === STANDARD_ACCOUNTS.SHORTAGE_EXPENSE,
+      );
       expect(shortageLine).toBeDefined();
       expect(Number(shortageLine.debit)).toBe(50);
     });
@@ -739,7 +754,9 @@ describe('Financial Audit Invariants Suite (Real PostgreSQL Invariants)', () => 
       );
 
       // التأكد أن الفاتورة لم تُحذف
-      const invCheck = await query(`SELECT deleted_at FROM purchase_invoices WHERE id = $1`, [invoiceId]);
+      const invCheck = await query(`SELECT deleted_at FROM purchase_invoices WHERE id = $1`, [
+        invoiceId,
+      ]);
       expect(invCheck.rows[0].deleted_at).toBeNull();
 
       // فتح الفترة للتنظيف

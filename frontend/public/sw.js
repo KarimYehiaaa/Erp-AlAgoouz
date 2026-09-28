@@ -57,11 +57,7 @@ self.addEventListener('fetch', (event) => {
           }
           return response;
         })
-        .catch(() =>
-          caches
-            .match('/index.html')
-            .then((cached) => cached || caches.match('/')),
-        ),
+        .catch(() => caches.match('/index.html').then((cached) => cached || caches.match('/'))),
     );
     return;
   }
@@ -69,27 +65,30 @@ self.addEventListener('fetch', (event) => {
   // ── الأصول المُهاشَمة (JS/CSS) → Cache-First صرف ──
   const isHashedAsset = /\.[0-9a-f]{8,}\.(js|css)$/i.test(url.pathname);
   event.respondWith(
-    caches.match(request).then((cached) => {
-      if (cached) return cached;
-      return fetch(request).then((networkResponse) => {
-        if (networkResponse && networkResponse.status === 200) {
-          const clone = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+    caches
+      .match(request)
+      .then((cached) => {
+        if (cached) return cached;
+        return fetch(request).then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const clone = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+          }
+          return networkResponse;
+        });
+      })
+      .then((response) => {
+        if (!isHashedAsset && response) {
+          // للصور وmanifest: تحديث خلفي لأن نفس الاسم قد يحمل محتوى جديدًا
+          fetch(request)
+            .then((networkResponse) => {
+              if (networkResponse && networkResponse.status === 200) {
+                caches.open(CACHE_NAME).then((cache) => cache.put(request, networkResponse));
+              }
+            })
+            .catch(() => {});
         }
-        return networkResponse;
-      });
-    }).then((response) => {
-      if (!isHashedAsset && response) {
-        // للصور وmanifest: تحديث خلفي لأن نفس الاسم قد يحمل محتوى جديدًا
-        fetch(request)
-          .then((networkResponse) => {
-            if (networkResponse && networkResponse.status === 200) {
-              caches.open(CACHE_NAME).then((cache) => cache.put(request, networkResponse));
-            }
-          })
-          .catch(() => {});
-      }
-      return response;
-    }),
+        return response;
+      }),
   );
 });

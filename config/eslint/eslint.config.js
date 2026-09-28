@@ -7,7 +7,16 @@ import globals from 'globals';
 
 export default [
   // Global ignores
-  { ignores: ['**/dist/', '**/node_modules/', 'logs/', 'backups/', '.gemini/', 'backend/scripts/archive/'] },
+  {
+    ignores: [
+      '**/dist/',
+      '**/node_modules/',
+      'logs/',
+      'backups/',
+      '.gemini/',
+      'backend/scripts/archive/',
+    ],
+  },
 
   // Base JS recommended rules
   js.configs.recommended,
@@ -109,15 +118,110 @@ export default [
     },
   },
 
+  // Desktop-POS: Vue files (.vue)
+  {
+    files: ['desktop-pos/src/**/*.vue'],
+    languageOptions: {
+      parser: vueParser,
+      parserOptions: {
+        ecmaVersion: 2024,
+        sourceType: 'module',
+        parser: tseslint.parser,
+        extraFileExtensions: ['.vue'],
+      },
+      globals: { ...globals.browser },
+    },
+    plugins: {
+      vue: pluginVue,
+    },
+    rules: {
+      'no-unused-vars': 'off',
+      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-non-null-assertion': 'off',
+      '@typescript-eslint/ban-ts-comment': 'off',
+      'no-console': ['warn', { allow: ['warn', 'error'] }],
+      'prefer-const': 'warn',
+      'no-empty': 'warn',
+      'no-useless-escape': 'warn',
+      'no-useless-assignment': 'warn',
+    },
+  },
+
+  // Desktop-POS: JS/TS files
+  {
+    files: [
+      'desktop-pos/src/**/*.{js,ts}',
+      'desktop-pos/electron/**/*.{js,ts}',
+      'desktop-pos/tests/**/*.{js,ts}',
+    ],
+    languageOptions: {
+      ecmaVersion: 2024,
+      sourceType: 'module',
+      globals: { ...globals.browser, ...globals.node },
+    },
+    rules: {
+      'no-unused-vars': 'off',
+      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-non-null-assertion': 'off',
+      '@typescript-eslint/ban-ts-comment': 'off',
+      'no-console': 'off',
+      'prefer-const': 'warn',
+      'no-empty': 'warn',
+      'no-useless-escape': 'warn',
+      'no-useless-assignment': 'warn',
+    },
+  },
+
   // Scripts (الجذر + backend — أدوات صيانة تعمل بـ Node مباشرة)
   {
-    files: ['scripts/**/*.{js,mjs,ts}', 'backend/*.{js,mjs,ts}', 'backend/scripts/**/*.{js,mjs,ts}'],
+    files: [
+      'scripts/**/*.{js,mjs,ts}',
+      'backend/*.{js,mjs,ts}',
+      'backend/scripts/**/*.{js,mjs,ts}',
+    ],
     languageOptions: {
       ecmaVersion: 2024,
       sourceType: 'module',
       globals: { ...globals.node },
     },
     rules: {
+      'no-console': 'off',
+    },
+  },
+
+  // Api & Serverless
+  {
+    files: ['api/**/*.{js,mjs,ts}'],
+    languageOptions: {
+      ecmaVersion: 2024,
+      sourceType: 'module',
+      globals: { ...globals.node },
+    },
+    rules: {
+      'no-unused-vars': 'off',
+      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-non-null-assertion': 'off',
+      'no-console': 'off',
+      'no-useless-assignment': 'warn',
+    },
+  },
+
+  // Shared utilities and types
+  {
+    files: ['shared/**/*.{js,mjs,ts}'],
+    languageOptions: {
+      ecmaVersion: 2024,
+      sourceType: 'module',
+      globals: { ...globals.node, ...globals.browser },
+    },
+    rules: {
+      'no-unused-vars': 'off',
+      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-non-null-assertion': 'off',
       'no-console': 'off',
     },
   },

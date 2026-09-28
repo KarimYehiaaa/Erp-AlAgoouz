@@ -39,9 +39,29 @@ describe('Desktop POS Axios & 401 Token Refresh Interceptor Tests', () => {
     expect(capturedConfig).not.toBeNull();
     const authHeader =
       capturedConfig.headers?.Authorization ||
-      (typeof capturedConfig.headers?.get === 'function' && capturedConfig.headers.get('Authorization'));
+      (typeof capturedConfig.headers?.get === 'function' &&
+        capturedConfig.headers.get('Authorization'));
     expect(authHeader).toBe('Bearer valid-test-access-token');
     expect(capturedConfig.withCredentials).toBe(true);
+  });
+
+  it('retries a failed localhost request against 127.0.0.1 once', async () => {
+    let attempts = 0;
+    const destinations: string[] = [];
+    api.defaults.adapter = async (config) => {
+      attempts++;
+      destinations.push(config.baseURL || '');
+      if (attempts === 1) {
+        const error: any = new Error('Network Error');
+        error.code = 'ERR_NETWORK';
+        error.config = config;
+        throw error;
+      }
+      return { data: { success: true }, status: 200, statusText: 'OK', headers: {}, config };
+    };
+
+    await expect(api.get('/products')).resolves.toMatchObject({ data: { success: true } });
+    expect(destinations).toEqual(['http://localhost:3000/api/v1', 'http://127.0.0.1:3000/api/v1']);
   });
 
   it('2. On 401 response: attempts refresh once, updates sessionService, and replays request', async () => {
@@ -85,7 +105,7 @@ describe('Desktop POS Axios & 401 Token Refresh Interceptor Tests', () => {
     expect(refreshSpy).toHaveBeenCalledWith(
       expect.stringContaining('/auth/refresh'),
       expect.objectContaining({ refreshToken: 'valid-refresh-token' }),
-      expect.any(Object)
+      expect.any(Object),
     );
 
     // Verified sessionService received new tokens
@@ -138,4 +158,3 @@ describe('Desktop POS Axios & 401 Token Refresh Interceptor Tests', () => {
     expect(refreshSpy).not.toHaveBeenCalled();
   });
 });
-

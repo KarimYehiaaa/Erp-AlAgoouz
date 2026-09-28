@@ -4,10 +4,10 @@ import { roundMoney, sumMoney } from '../src/utils/money.ts';
 describe('POS Shift Reconciliation & Cash Drawer Integrity', () => {
   it('يحسب نقدية الدرج المتوقعة بناءً على الكاش فقط دون خلط مدفوعات الفيزا', () => {
     const openingCash = 1000; // رصيد افتتاحي للدرج
-    const cashSales = 3500;   // مبيعات نقدية فعلية
-    const visaSales = 2200;   // مبيعات بطاقات بنكية (فيزا / ماستركارد)
-    const deposits = 500;     // إيداع وسلفة عهدة داخل الدرج
-    const withdrawals = 300;  // مصروف نثريات من الدرج
+    const cashSales = 3500; // مبيعات نقدية فعلية
+    const visaSales = 2200; // مبيعات بطاقات بنكية (فيزا / ماستركارد)
+    const deposits = 500; // إيداع وسلفة عهدة داخل الدرج
+    const withdrawals = 300; // مصروف نثريات من الدرج
 
     // المعادلة الصارمة:
     // Expected Cash = Opening Cash + Cash Sales + Deposits - Withdrawals

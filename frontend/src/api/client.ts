@@ -218,6 +218,9 @@ export const del = <T = any>(url: string, config?: AxiosRequestConfig): Api<T> =
 export const getBlob = (url: string, config?: AxiosRequestConfig): Promise<Blob> =>
   api.get(url, { ...config, responseType: 'blob' }) as unknown as Promise<Blob>;
 
+export const postBlob = (url: string, data?: unknown, config?: AxiosRequestConfig): Promise<Blob> =>
+  api.post(url, data, { ...config, responseType: 'blob' }) as unknown as Promise<Blob>;
+
 /** رفع ملف multipart. */
 export const uploadFile = <T = any>(url: string, file: File, fieldName = 'file'): Api<T> => {
   const form = new FormData();

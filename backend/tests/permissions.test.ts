@@ -10,7 +10,9 @@ describe('shared permission equivalents', () => {
   it('every code in the map is satisfied by itself (direct match wins)', () => {
     for (const code of Object.keys(permissionEquivalents)) {
       expect(satisfiesPermission([code], code), `${code} must satisfy itself`).toBe(true);
-      expect(expandPermissionCodes([code]), `${code} must be kept in its own expansion`).toContain(code);
+      expect(expandPermissionCodes([code]), `${code} must be kept in its own expansion`).toContain(
+        code,
+      );
     }
   });
 

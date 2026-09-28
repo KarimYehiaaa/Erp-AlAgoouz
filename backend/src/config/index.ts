@@ -3,16 +3,17 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-// تحميل .env من مجلد backend (حيث يعمل العملية)
 let __dirname = process.cwd();
 try {
   if (typeof import.meta !== 'undefined' && import.meta.url) {
     __dirname = path.dirname(fileURLToPath(import.meta.url));
   }
 } catch {
-  // تجاهل مقصود: الفشل في التحميل ليس حرجًا هنا
+  // تجاهل مقصود
 }
+// تحميل .env من مجلد backend والجذر لضمان قراءة أي متغيرات أينما وُضعت
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+dotenv.config({ path: path.resolve(__dirname, '../../../.env'), override: false });
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 /**

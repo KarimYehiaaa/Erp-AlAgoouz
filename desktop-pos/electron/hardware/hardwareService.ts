@@ -2,7 +2,7 @@
  * electron/hardware/hardwareService.ts — خدمة العتاد الإنتاجية الموحدة (طابعات ودرج النقدية)
  * تفصل منطق المعالجة عن Electron IPC لتمكين الاختبار الحقيقي الصارم
  */
-import { PosPrinterDriver, type ReceiptData } from './printer';
+import { PosPrinterDriver } from './printer';
 
 export interface PrinterDevice {
   name: string;
@@ -14,7 +14,7 @@ export interface HardwareContext {
   getPrintersAsync: () => Promise<PrinterDevice[]>;
   printFn?: (
     options: { silent: boolean; printBackground: boolean; deviceName: string },
-    callback: (success: boolean, failureReason: string) => void
+    callback: (success: boolean, failureReason: string) => void,
   ) => void;
 }
 
@@ -34,7 +34,7 @@ export interface HardwareOperationResult {
  */
 export async function handleOpenCashDrawer(
   printerNameOrIp: string | undefined,
-  context: HardwareContext
+  context: HardwareContext,
 ): Promise<HardwareOperationResult> {
   const isDev = context.isDev;
 
@@ -43,7 +43,11 @@ export async function handleOpenCashDrawer(
   if (isIpAddress) {
     try {
       const pulseBuffer = PosPrinterDriver.getDrawerKickCommand();
-      const networkSent = await PosPrinterDriver.printNetworkRaw(printerNameOrIp, 9100, pulseBuffer);
+      const networkSent = await PosPrinterDriver.printNetworkRaw(
+        printerNameOrIp,
+        9100,
+        pulseBuffer,
+      );
       if (networkSent) {
         return {
           success: true,
@@ -122,7 +126,7 @@ export async function handleOpenCashDrawer(
 export async function handlePrintReceipt(
   invoiceData: any,
   printerNameOrIp: string | undefined,
-  context: HardwareContext
+  context: HardwareContext,
 ): Promise<HardwareOperationResult> {
   const isDev = context.isDev;
 
@@ -171,7 +175,12 @@ export async function handlePrintReceipt(
           message: 'تمت محاكاة طباعة الإيصال بنجاح (وضع التطوير)',
         };
       }
-      return { success: false, status: 'FAILED', simulated: false, error: 'لا توجد طابعة متصلة بالنظام' };
+      return {
+        success: false,
+        status: 'FAILED',
+        simulated: false,
+        error: 'لا توجد طابعة متصلة بالنظام',
+      };
     }
 
     const selectedPrinter = printerNameOrIp
@@ -221,7 +230,7 @@ export async function handlePrintReceipt(
               error: failureReason || 'فشلت عملية الطباعة عبر Windows Spooler',
             });
           }
-        }
+        },
       );
     });
   } catch (err: any) {

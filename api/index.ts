@@ -83,7 +83,6 @@ export default async function handler(req: any, res: any) {
       if (fallback && !fallback.includes('/api/index')) {
         req.url = fallback;
         req.originalUrl = req.url;
-        resolved = true;
       }
     }
 

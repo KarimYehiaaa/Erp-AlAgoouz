@@ -75,15 +75,15 @@ app.use(csrfProtection);
 app.use(
   cors({
     origin: (origin, callback) => {
-      // السماح للطلبات بدون origin (مثل الأدوات المباشرة، Server-to-Server، وتطبيقات الموبايل)
-      if (!origin) return callback(null, true);
+      // السماح للطلبات بدون origin (مثل الأدوات المباشرة، Server-to-Server، وتطبيقات الموبايل والديسك توب)
+      if (!origin || origin === 'file://' || origin === 'null') return callback(null, true);
 
       // 1. النطاقات المحددة صراحة في الإعدادات
       if (config.corsOrigin.includes(origin)) {
         return callback(null, true);
       }
 
-      // 2. نطاقات Vercel — النطاق الرئيسي فقط افتراضياً؛ معاينات الفروع عبر CORS_ALLOW_VERCEL_PREVIEWS
+      // 2. نطاقات Vercel — النطاق الرئيسي فقط افتراضياً؛ معاينات النشر عبر CORS_ALLOW_VERCEL_PREVIEWS
       if (
         origin === 'https://agoouz.vercel.app' ||
         origin === 'https://agoouz-api.vercel.app' ||
@@ -92,7 +92,7 @@ app.use(
         return callback(null, true);
       }
 
-      // 3. بيئات وتطبيقات الموبايل و التطوير المحلية (Capacitor / Localhost / LAN)
+      // 3. بيئات وتطبيقات الموبايل والديسك توب والتطوير المحلية (Capacitor / Localhost / LAN)
       if (
         origin.startsWith('capacitor://') ||
         origin.startsWith('ionic://') ||

@@ -4,8 +4,7 @@
   </div>
 </template>
 
-<script setup lang="ts">
-</script>
+<script setup lang="ts"></script>
 
 <style lang="scss">
 @use './styles/pos-theme.scss';
@@ -14,11 +13,20 @@
   box-sizing: border-box;
   margin: 0;
   padding: 0;
-  font-family: 'Cairo', 'Tajawal', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family:
+    'Cairo',
+    'Tajawal',
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
   user-select: none;
 }
 
-body, html, #desktop-pos-root {
+body,
+html,
+#desktop-pos-root {
   width: 100%;
   height: 100%;
   overflow: hidden;

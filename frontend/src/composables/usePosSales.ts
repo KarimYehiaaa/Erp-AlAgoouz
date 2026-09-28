@@ -807,6 +807,26 @@ export function usePosSales() {
             return v.toString(16);
           });
 
+    const isCredit = saleForm.value.payment_method === 'credit';
+    const isSplit = saleForm.value.payment_method === 'split';
+    const splitPaid = isSplit
+      ? (saleForm.value.payments || []).reduce(
+          (sum: number, p: any) => sum + (Number(p.amount) || 0),
+          0,
+        )
+      : 0;
+    const totalVal = Number(cartTotal.value);
+    const paidAmount = isCredit ? 0 : isSplit ? splitPaid : totalVal;
+    const paymentStatus = isCredit
+      ? 'unpaid'
+      : isSplit
+        ? splitPaid >= totalVal
+          ? 'paid'
+          : splitPaid > 0
+            ? 'partial'
+            : 'unpaid'
+        : 'paid';
+
     const payload = {
       sync_id: syncId,
       sale_type: 'retail',
@@ -816,12 +836,13 @@ export function usePosSales() {
       pos_shift_id: currentShift.value?.id || saleForm.value.pos_shift_id || null,
       terminal_id: currentShift.value?.terminal_id || saleForm.value.terminal_id || null,
       payment_method: saleForm.value.payment_method,
-      payment_status: 'paid',
+      payment_status: paymentStatus,
+      paid_amount: paidAmount,
       discount_amount: effectiveDiscount.value,
       loyalty_points_redeemed: Number(saleForm.value.loyalty_points_redeemed) || 0,
-      payments: saleForm.value.payment_method === 'split' ? saleForm.value.payments : undefined,
+      payments: isSplit ? saleForm.value.payments : undefined,
       notes: saleForm.value.notes || null,
-      total_amount: Number(cartTotal.value),
+      total_amount: totalVal,
       items: cart.value
         .filter((i: any) => i.product_id && parseLocalizedNumber(i.quantity) > 0)
         .map((i: any) => ({

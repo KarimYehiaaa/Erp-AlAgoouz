@@ -23,7 +23,10 @@ describe('serverless entry point', () => {
 
   it.each(['sync', 'async'])('does not expose %s execution errors', async (mode) => {
     const secret = 'database-password-and-internal-host';
-    if (mode === 'sync') app.mockImplementation(() => { throw new Error(secret); });
+    if (mode === 'sync')
+      app.mockImplementation(() => {
+        throw new Error(secret);
+      });
     else app.mockRejectedValue(new Error(secret));
     const res = { headersSent: false, status: vi.fn().mockReturnThis(), json: vi.fn() };
     await healthHandler({ url: '/api/health', headers: {} }, res);
@@ -33,7 +36,9 @@ describe('serverless entry point', () => {
   });
 
   it('does not write a second response after headers were sent', async () => {
-    app.mockImplementation(() => { throw new Error('already sent'); });
+    app.mockImplementation(() => {
+      throw new Error('already sent');
+    });
     const res = { headersSent: true, status: vi.fn(), json: vi.fn() };
     await healthHandler({ url: '/api/health', headers: {} }, res);
     expect(res.status).not.toHaveBeenCalled();

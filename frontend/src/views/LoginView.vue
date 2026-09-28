@@ -348,7 +348,7 @@
               type="button"
               class="preset-chip"
               :class="{ active: customServerUrl === 'https://agoouz.vercel.app' }"
-              @click="customServerUrl = 'https://agoouz.vercel.app'"
+              @click="selectPreset('https://agoouz.vercel.app')"
             >
               <AppIcon name="database" :size="16" />
               <span>السيرفر السحابي (أونلاين)</span>
@@ -357,7 +357,7 @@
               type="button"
               class="preset-chip"
               :class="{ active: customServerUrl === 'http://192.168.1.14:3000' }"
-              @click="customServerUrl = 'http://192.168.1.14:3000'"
+              @click="selectPreset('http://192.168.1.14:3000')"
             >
               <AppIcon name="building" :size="16" />
               <span>سيرفر المحل (192.168.1.14:3000)</span>
@@ -366,7 +366,7 @@
               type="button"
               class="preset-chip"
               :class="{ active: customServerUrl === 'http://localhost:3000' }"
-              @click="customServerUrl = 'http://localhost:3000'"
+              @click="selectPreset('http://localhost:3000')"
             >
               <AppIcon name="monitor" :size="16" />
               <span>الكمبيوتر المباشر (Localhost:3000)</span>
@@ -487,6 +487,11 @@ const serverDisplayLabel = computed(() => {
   return 'سيرفر مخصص';
 });
 
+const selectPreset = (url: string) => {
+  customServerUrl.value = url;
+  testServerConnection();
+};
+
 const testServerConnection = async () => {
   testingConn.value = true;
   testResultMsg.value = '';
@@ -495,18 +500,29 @@ const testServerConnection = async () => {
   const target = (customServerUrl.value || getBaseServerUrl()).replace(/\/+$/, '');
   const startTime = Date.now();
   try {
-    const res = await axios.get(`${target}/api/v1/health`, { timeout: 6000 });
+    let res: any;
+    try {
+      res = await axios.get(`${target}/api/v1/health`, { timeout: 12000 });
+    } catch {
+      // تجربة المسار البديل /health
+      res = await axios.get(`${target}/health`, { timeout: 12000 });
+    }
+
     const latency = Date.now() - startTime;
-    if (res.data && res.data.success) {
+    if (res.data && (res.data.success || res.status === 200)) {
       testResultStatus.value = 'success';
       const isDbOk = res.data.db?.connected ? ' • قاعدة البيانات متصلة ✅' : '';
       testResultMsg.value = `✅ الاتصال ناجح! (استجابة: ${latency}ms${isDbOk})`;
     } else {
       throw new Error('استجابة غير متوقعة');
     }
-  } catch {
+  } catch (err: any) {
     testResultStatus.value = 'error';
-    testResultMsg.value = `❌ تعذر الاتصال بالسيرفر (${target}). تحقق من تشغيل السيرفر والإنترنت.`;
+    if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
+      testResultMsg.value = `⏳ استجابة السيرفر بطيئة (${target}) - يرجى الانتظار والمحاولة ثانية.`;
+    } else {
+      testResultMsg.value = `❌ تعذر الاتصال بالسيرفر (${target}). تحقق من تشغيل السيرفر والإنترنت.`;
+    }
   } finally {
     testingConn.value = false;
   }

@@ -1,4 +1,4 @@
-import api, { get, post, put, patch, del, getBlob, uploadFile } from './client';
+import api, { get, post, put, patch, del, getBlob, postBlob, uploadFile } from './client';
 import type { Api } from './client';
 import type {
   ApiEnvelope,
@@ -260,6 +260,7 @@ export const pl = {
 
 export const backup = {
   create: () => post('/backup/create'),
+  createAndDownload: () => postBlob('/backup/create-download', {}, { timeout: 120_000 }),
   list: () => get('/backup/list'),
   download: (name: string) => getBlob(`/backup/download/${name}`),
   restore: (name: string) => post('/backup/restore', { name, confirm: 'CONFIRM_RESTORE_BACKUP' }),
@@ -271,7 +272,7 @@ export const backup = {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
   },
-  clear: (body: Record<string, unknown>) => post('/backup/clear', body),
+  clear: (body: Record<string, unknown>) => post('/backup/clear', body, { timeout: 120_000 }),
   cloudTest: (config: Record<string, unknown>) => post('/backup/cloud-test', config),
 };
 

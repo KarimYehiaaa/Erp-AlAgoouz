@@ -93,6 +93,7 @@ export const getProfitAndLoss = async (fromDate: string, toDate: string) => {
     query(
       `SELECT
          COALESCE(SUM(e.amount), 0) AS expenses_total,
+         COALESCE(SUM(CASE WHEN COALESCE(e.payment_method, '') != 'adjustment' THEN e.amount ELSE 0 END), 0) AS cash_expenses_total,
          COALESCE(SUM(CASE WHEN COALESCE(e.is_fixed, ec.is_fixed, FALSE) = TRUE THEN e.amount ELSE 0 END), 0) AS fixed_expenses_total,
          COALESCE(SUM(CASE WHEN COALESCE(e.is_fixed, ec.is_fixed, FALSE) = FALSE THEN e.amount ELSE 0 END), 0) AS variable_expenses_total,
          COUNT(e.id)::int AS expenses_count
@@ -266,7 +267,8 @@ export const getProfitAndLoss = async (fromDate: string, toDate: string) => {
   const cashInElectronic = roundMoney(toNum(cashInData.rows[0]?.cash_in_electronic));
   const supplierPayments = roundMoney(toNum(supplierPaymentsData.rows[0]?.paid_to_suppliers));
   const partnerDrawings = roundMoney(toNum(partnerDrawingsData.rows[0]?.partner_drawings));
-  const cashOut = roundMoney(expensesTotal + supplierPayments + partnerDrawings);
+  const cashExpensesTotal = roundMoney(toNum(expensesData.rows[0]?.cash_expenses_total));
+  const cashOut = roundMoney(cashExpensesTotal + supplierPayments + partnerDrawings);
   const netCashFlow = roundMoney(cashIn - cashOut);
   const cashFlowBefore = openingBalance;
   const cashFlowClosing = roundMoney(openingBalance + netCashFlow);

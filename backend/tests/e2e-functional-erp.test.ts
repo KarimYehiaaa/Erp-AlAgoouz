@@ -70,19 +70,32 @@ afterAll(async () => {
   // Clean up test records
   try {
     if (cleanup.saleIds.length) {
-      await query(`DELETE FROM payments WHERE reference_type = 'sale' AND reference_id = ANY($1::int[])`, [cleanup.saleIds]);
-      await query(`DELETE FROM invoice_items WHERE invoice_id IN (SELECT id FROM invoices WHERE sale_id = ANY($1::int[]))`, [cleanup.saleIds]);
+      await query(
+        `DELETE FROM payments WHERE reference_type = 'sale' AND reference_id = ANY($1::int[])`,
+        [cleanup.saleIds],
+      );
+      await query(
+        `DELETE FROM invoice_items WHERE invoice_id IN (SELECT id FROM invoices WHERE sale_id = ANY($1::int[]))`,
+        [cleanup.saleIds],
+      );
       await query(`DELETE FROM invoices WHERE sale_id = ANY($1::int[])`, [cleanup.saleIds]);
       await query(`DELETE FROM sale_items WHERE sale_id = ANY($1::int[])`, [cleanup.saleIds]);
-      await query(`DELETE FROM stock_movements WHERE reference_type = 'sale' AND reference_id = ANY($1::int[])`, [cleanup.saleIds]);
+      await query(
+        `DELETE FROM stock_movements WHERE reference_type = 'sale' AND reference_id = ANY($1::int[])`,
+        [cleanup.saleIds],
+      );
       await query(`DELETE FROM sales WHERE id = ANY($1::int[])`, [cleanup.saleIds]);
     }
     if (cleanup.recipeIds.length) {
-      await query(`DELETE FROM product_recipe_items WHERE recipe_id = ANY($1::int[])`, [cleanup.recipeIds]);
+      await query(`DELETE FROM product_recipe_items WHERE recipe_id = ANY($1::int[])`, [
+        cleanup.recipeIds,
+      ]);
       await query(`DELETE FROM product_recipes WHERE id = ANY($1::int[])`, [cleanup.recipeIds]);
     }
     if (cleanup.productIds.length) {
-      await query(`DELETE FROM stock_movements WHERE product_id = ANY($1::int[])`, [cleanup.productIds]);
+      await query(`DELETE FROM stock_movements WHERE product_id = ANY($1::int[])`, [
+        cleanup.productIds,
+      ]);
       await query(`DELETE FROM inventory WHERE product_id = ANY($1::int[])`, [cleanup.productIds]);
       await query(`DELETE FROM products WHERE id = ANY($1::int[])`, [cleanup.productIds]);
     }
@@ -90,7 +103,10 @@ afterAll(async () => {
       await query(`DELETE FROM warehouses WHERE id = ANY($1::int[])`, [cleanup.warehouseIds]);
     }
     if (cleanup.customerIds.length) {
-      await query(`DELETE FROM payments WHERE reference_type IN ('customer', 'customer_opening', 'customer_advance') AND reference_id = ANY($1::int[])`, [cleanup.customerIds]);
+      await query(
+        `DELETE FROM payments WHERE reference_type IN ('customer', 'customer_opening', 'customer_advance') AND reference_id = ANY($1::int[])`,
+        [cleanup.customerIds],
+      );
       await query(`DELETE FROM customers WHERE id = ANY($1::int[])`, [cleanup.customerIds]);
     }
     if (cleanup.userIds.length) {
@@ -210,7 +226,9 @@ describe('2. RBAC & Granular Permissions Enforcement', () => {
     const hash = await bcrypt.hash(testPassword, salt);
 
     // Fetch role IDs
-    const rolesRes = await query(`SELECT id, name FROM roles WHERE name IN ('cashier', 'warehouse', 'manager')`);
+    const rolesRes = await query(
+      `SELECT id, name FROM roles WHERE name IN ('cashier', 'warehouse', 'manager')`,
+    );
     const roleMap = new Map(rolesRes.rows.map((r: any) => [r.name, r.id]));
 
     // Cashier user
@@ -237,13 +255,22 @@ describe('2. RBAC & Granular Permissions Enforcement', () => {
     );
     cleanup.userIds.push(mgrRes.rows[0].id);
 
-    const cLog = await apiReq('/auth/login', { method: 'POST', body: { username: cashierRes.rows[0].username, password: testPassword } });
+    const cLog = await apiReq('/auth/login', {
+      method: 'POST',
+      body: { username: cashierRes.rows[0].username, password: testPassword },
+    });
     cashierToken = cLog.data.data?.token || cLog.data.token;
 
-    const wLog = await apiReq('/auth/login', { method: 'POST', body: { username: whRes.rows[0].username, password: testPassword } });
+    const wLog = await apiReq('/auth/login', {
+      method: 'POST',
+      body: { username: whRes.rows[0].username, password: testPassword },
+    });
     warehouseToken = wLog.data.data?.token || wLog.data.token;
 
-    const mLog = await apiReq('/auth/login', { method: 'POST', body: { username: mgrRes.rows[0].username, password: testPassword } });
+    const mLog = await apiReq('/auth/login', {
+      method: 'POST',
+      body: { username: mgrRes.rows[0].username, password: testPassword },
+    });
     managerToken = mLog.data.data?.token || mLog.data.token;
   });
 
@@ -359,7 +386,7 @@ describe('3. Products Lifecycle & Validation', () => {
         sku: `SKU-E2E-${uniqueSuffix}`,
         barcode: `BAR-E2E-${uniqueSuffix}`,
         name_ar: `بن يمني محمص درجة أولى ${uniqueSuffix}`,
-        sale_price: 285.50,
+        sale_price: 285.5,
         purchase_price: 190.25,
         min_stock: 5,
         unit: 'كجم',
@@ -371,7 +398,7 @@ describe('3. Products Lifecycle & Validation', () => {
     createdProductId = res.data.data.id;
     cleanup.productIds.push(createdProductId);
 
-    expect(Number(res.data.data.sale_price)).toBe(285.50);
+    expect(Number(res.data.data.sale_price)).toBe(285.5);
     expect(Number(res.data.data.purchase_price)).toBe(190.25);
   });
 
@@ -379,7 +406,7 @@ describe('3. Products Lifecycle & Validation', () => {
     const res = await apiReq(`/products/${createdProductId}`, { token: adminToken });
     expect(res.status).toBe(200);
     expect(res.data.data.name_ar).toContain(`بن يمني محمص درجة أولى ${uniqueSuffix}`);
-    expect(Number(res.data.data.sale_price)).toBe(285.50);
+    expect(Number(res.data.data.sale_price)).toBe(285.5);
   });
 
   it('updates product price and deactivates product', async () => {
@@ -387,14 +414,14 @@ describe('3. Products Lifecycle & Validation', () => {
       method: 'PUT',
       token: adminToken,
       body: {
-        sale_price: 310.00,
+        sale_price: 310.0,
         is_active: false,
       },
     });
     expect(updateRes.status).toBe(200);
 
     const getRes = await apiReq(`/products/${createdProductId}`, { token: adminToken });
-    expect(Number(getRes.data.data.sale_price)).toBe(310.00);
+    expect(Number(getRes.data.data.sale_price)).toBe(310.0);
     expect(getRes.data.data.is_active).toBe(false);
   });
 });
@@ -453,7 +480,10 @@ describe('4. Inventory Lifecycle & Golden Equation', () => {
     );
 
     // 2. Transfer: 20 units from Main -> Branch
-    await query(`UPDATE inventory SET quantity = quantity - 20 WHERE product_id = $1 AND warehouse_id = $2`, [productId, mainWhId]);
+    await query(
+      `UPDATE inventory SET quantity = quantity - 20 WHERE product_id = $1 AND warehouse_id = $2`,
+      [productId, mainWhId],
+    );
     await query(
       `INSERT INTO inventory (product_id, warehouse_id, quantity) VALUES ($1, $2, 20)
        ON CONFLICT (product_id, warehouse_id, COALESCE(batch_number, '')) DO UPDATE SET quantity = inventory.quantity + 20`,
@@ -466,14 +496,20 @@ describe('4. Inventory Lifecycle & Golden Equation', () => {
     );
 
     // 3. Manual Adjustment: +10 in Main, -5 in Branch
-    await query(`UPDATE inventory SET quantity = quantity + 10 WHERE product_id = $1 AND warehouse_id = $2`, [productId, mainWhId]);
+    await query(
+      `UPDATE inventory SET quantity = quantity + 10 WHERE product_id = $1 AND warehouse_id = $2`,
+      [productId, mainWhId],
+    );
     await query(
       `INSERT INTO stock_movements (product_id, to_warehouse_id, movement_type, quantity, user_id, notes)
        VALUES ($1, $2, 'adjustment', 10, $3, 'تسوية بالزيادة')`,
       [productId, mainWhId, adminUserId],
     );
 
-    await query(`UPDATE inventory SET quantity = quantity - 5 WHERE product_id = $1 AND warehouse_id = $2`, [productId, secondaryWhId]);
+    await query(
+      `UPDATE inventory SET quantity = quantity - 5 WHERE product_id = $1 AND warehouse_id = $2`,
+      [productId, secondaryWhId],
+    );
     await query(
       `INSERT INTO stock_movements (product_id, from_warehouse_id, movement_type, quantity, user_id, notes)
        VALUES ($1, $2, 'adjustment', 5, $3, 'تسوية بالعجز')`,
@@ -493,7 +529,10 @@ describe('4. Inventory Lifecycle & Golden Equation', () => {
     cleanup.saleIds.push(saleResult.id);
 
     // 5. Sale Return to Main: 5 units
-    await query(`UPDATE inventory SET quantity = quantity + 5 WHERE product_id = $1 AND warehouse_id = $2`, [productId, mainWhId]);
+    await query(
+      `UPDATE inventory SET quantity = quantity + 5 WHERE product_id = $1 AND warehouse_id = $2`,
+      [productId, mainWhId],
+    );
     await query(
       `INSERT INTO stock_movements (product_id, to_warehouse_id, movement_type, quantity, user_id, notes)
        VALUES ($1, $2, 'return', 5, $3, 'مرتجع مبيعات')`,
@@ -501,11 +540,17 @@ describe('4. Inventory Lifecycle & Golden Equation', () => {
     );
 
     // Verify Main Warehouse: 100 (Open) - 20 (Trf Out) + 10 (Adj In) - 40 (Sale) + 5 (Return) = 55
-    const mainInv = await query(`SELECT quantity FROM inventory WHERE product_id = $1 AND warehouse_id = $2`, [productId, mainWhId]);
+    const mainInv = await query(
+      `SELECT quantity FROM inventory WHERE product_id = $1 AND warehouse_id = $2`,
+      [productId, mainWhId],
+    );
     expect(Number(mainInv.rows[0].quantity)).toBe(55);
 
     // Verify secondary warehouse: 0 (Open) + 20 (Trf In) - 5 (Adj Out) = 15
-    const secondaryInv = await query(`SELECT quantity FROM inventory WHERE product_id = $1 AND warehouse_id = $2`, [productId, secondaryWhId]);
+    const secondaryInv = await query(
+      `SELECT quantity FROM inventory WHERE product_id = $1 AND warehouse_id = $2`,
+      [productId, secondaryWhId],
+    );
     expect(Number(secondaryInv.rows[0].quantity)).toBe(15);
 
     // Verify Stock Movements count & types
@@ -676,17 +721,25 @@ describe('6. Composite Recipe Products (المنتجات المركبة وتفك
         sale_type: 'retail',
         warehouse_id: warehouseId,
         payment_status: 'paid',
-        items: [{ product_id: compositeProductId, quantity: 10, unit_price: 200, total_amount: 2000 }],
+        items: [
+          { product_id: compositeProductId, quantity: 10, unit_price: 200, total_amount: 2000 },
+        ],
       },
       adminUserId,
     );
     cleanup.saleIds.push(saleResult.id);
 
     // Check remaining raw materials
-    const raw1Stock = await query(`SELECT quantity FROM inventory WHERE product_id = $1 AND warehouse_id = $2`, [rawMaterial1Id, warehouseId]);
+    const raw1Stock = await query(
+      `SELECT quantity FROM inventory WHERE product_id = $1 AND warehouse_id = $2`,
+      [rawMaterial1Id, warehouseId],
+    );
     expect(Number(raw1Stock.rows[0].quantity)).toBe(63);
 
-    const raw2Stock = await query(`SELECT quantity FROM inventory WHERE product_id = $1 AND warehouse_id = $2`, [rawMaterial2Id, warehouseId]);
+    const raw2Stock = await query(
+      `SELECT quantity FROM inventory WHERE product_id = $1 AND warehouse_id = $2`,
+      [rawMaterial2Id, warehouseId],
+    );
     expect(Number(raw2Stock.rows[0].quantity)).toBe(27);
 
     // Check that consumption movements were logged

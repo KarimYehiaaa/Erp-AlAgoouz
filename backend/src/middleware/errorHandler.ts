@@ -1,6 +1,7 @@
 import { logger } from '../services/loggerService.ts';
 import { AppError } from '../types/errors.ts';
 import config from '../config/index.ts';
+import { emitAutomationEvent } from '../services/automationEventBus.ts';
 /**
  * تصنيف أخطاء PostgreSQL (رموز pg) إلى AppError عربي واضح.
  * @param {any} err الخطأ الخام
@@ -81,6 +82,17 @@ const errorHandler = (err, req, res, _next) => {
       path: req.path,
       method: req.method,
       userId,
+    });
+  }
+  // حدث أتمتة فوري غير حاجب: تتبع الأخطاء البرمجية غير المعالجة (5xx) — لا يرمي أبدًا
+  if (statusCode >= 500) {
+    emitAutomationEvent('error_tracker_alert', {
+      request_id: requestId,
+      path: req.path,
+      method: req.method,
+      user_id: userId,
+      message: finalErr.message || message,
+      code,
     });
   }
   res.status(statusCode).json({

@@ -29,7 +29,9 @@ it('keeps a complete backup contract when the not-yet-migrated override-token ta
 
   expect(snapshot.manager_override_tokens).toEqual([]);
   expect(snapshot.sales).toEqual([]);
-  expect(query).toHaveBeenCalledWith("SELECT to_regclass('public.manager_override_tokens') IS NOT NULL AS exists");
+  expect(query).toHaveBeenCalledWith(
+    "SELECT to_regclass('public.manager_override_tokens') IS NOT NULL AS exists",
+  );
   expect(query).not.toHaveBeenCalledWith('SELECT * FROM manager_override_tokens');
   expect(query).toHaveBeenLastCalledWith('COMMIT');
   expect(release).toHaveBeenCalledOnce();

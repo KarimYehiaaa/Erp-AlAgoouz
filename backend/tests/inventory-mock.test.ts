@@ -62,7 +62,10 @@ describe('Inventory & Recipe Consumption Mock Suite', () => {
     };
 
     await ensureInventoryRow(client, 1234, 1);
-    const res = await client.query('SELECT quantity FROM inventory WHERE product_id = $1 AND warehouse_id = $2', [1234, 1]);
+    const res = await client.query(
+      'SELECT quantity FROM inventory WHERE product_id = $1 AND warehouse_id = $2',
+      [1234, 1],
+    );
     expect(res.rows[0].quantity).toBe(0);
   });
 
@@ -92,7 +95,11 @@ describe('Inventory & Recipe Consumption Mock Suite', () => {
           return { rowCount: 1 };
         }
         if (s.startsWith('insert into stock_movements')) {
-          returns.push({ product_id: params[0], warehouse_id: params[1], quantity: Number(params[2]) });
+          returns.push({
+            product_id: params[0],
+            warehouse_id: params[1],
+            quantity: Number(params[2]),
+          });
           return { rowCount: 1 };
         }
         return { rows: [] };

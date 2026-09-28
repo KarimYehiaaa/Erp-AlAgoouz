@@ -1,5 +1,7 @@
 <template>
-  <span class="animated-number" :class="{ pulsing }"><slot>{{ display }}</slot></span>
+  <span class="animated-number" :class="{ pulsing }"
+    ><slot>{{ display }}</slot></span
+  >
 </template>
 
 <script setup lang="ts">

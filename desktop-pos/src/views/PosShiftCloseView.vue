@@ -6,7 +6,9 @@
           <AppIcon name="receipt" :size="32" />
         </div>
         <h2>إغلاق الوردية ومطابقة النقدية (Z-Report)</h2>
-        <p>الوردية رقم: <strong>{{ shiftStore.currentShift?.shift_number }}</strong></p>
+        <p>
+          الوردية رقم: <strong>{{ shiftStore.currentShift?.shift_number }}</strong>
+        </p>
       </div>
 
       <!-- Financial Reconciliation Summary -->
@@ -18,22 +20,30 @@
 
         <div class="summary-row">
           <span>إجمالي مبيعات الكاش النقدية:</span>
-          <strong class="positive">+ {{ formatMoney(shiftStore.currentShift?.total_cash_sales || 0) }}</strong>
+          <strong class="positive"
+            >+ {{ formatMoney(shiftStore.currentShift?.total_cash_sales || 0) }}</strong
+          >
         </div>
 
         <div class="summary-row">
           <span>إجمالي الإيداعات النقدية:</span>
-          <strong class="positive">+ {{ formatMoney(shiftStore.currentShift?.total_deposits || 0) }}</strong>
+          <strong class="positive"
+            >+ {{ formatMoney(shiftStore.currentShift?.total_deposits || 0) }}</strong
+          >
         </div>
 
         <div class="summary-row">
           <span>إجمالي المسحوبات / التوريد:</span>
-          <strong class="negative">- {{ formatMoney(shiftStore.currentShift?.total_withdrawals || 0) }}</strong>
+          <strong class="negative"
+            >- {{ formatMoney(shiftStore.currentShift?.total_withdrawals || 0) }}</strong
+          >
         </div>
 
         <div class="summary-row total-expected-row">
           <span>النقدية المتوقعة بالدرج (Expected Cash):</span>
-          <strong class="expected-val">{{ formatMoney(shiftStore.currentShift?.expected_cash || 0) }}</strong>
+          <strong class="expected-val">{{
+            formatMoney(shiftStore.currentShift?.expected_cash || 0)
+          }}</strong>
         </div>
       </div>
 
@@ -76,19 +86,11 @@
         </div>
 
         <div class="actions-grid">
-          <button
-            type="button"
-            class="btn-cancel"
-            @click="router.push('/sales')"
-          >
+          <button type="button" class="btn-cancel" @click="router.push('/sales')">
             الرجوع لشاشة البيع
           </button>
 
-          <button
-            type="submit"
-            class="btn-confirm-close"
-            :disabled="shiftStore.loading"
-          >
+          <button type="submit" class="btn-confirm-close" :disabled="shiftStore.loading">
             <span v-if="shiftStore.loading">جاري الإغلاق...</span>
             <span v-else>اعتماد الإغلاق وطباعة Z-Report</span>
           </button>
@@ -216,8 +218,14 @@ const handleCloseShift = async () => {
     font-size: 0.88rem;
     color: var(--text-main, #292524);
 
-    .positive { color: var(--success, #16a34a); font-weight: 800; }
-    .negative { color: var(--danger, #dc2626); font-weight: 800; }
+    .positive {
+      color: var(--success, #16a34a);
+      font-weight: 800;
+    }
+    .negative {
+      color: var(--danger, #dc2626);
+      font-weight: 800;
+    }
 
     &.total-expected-row {
       border-top: 1.5px solid var(--border, #e7e2d9);

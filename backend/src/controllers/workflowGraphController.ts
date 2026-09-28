@@ -183,18 +183,78 @@ export const toggleTelegramBot = wrap(async (req: Request, res: Response) => {
 
 /**
  * GET /automation/telegram/status
- * حالة البوت التفاعلي
+ * حالة البوت التفاعلي المفصلة والتحقق من الاتصال
  */
 export const getTelegramBotStatus = wrap(async (_req: Request, res: Response) => {
-  const creds = await TelegramBotService.getBotCredentials();
+  const status = await TelegramBotService.getBotStatus();
   res.json({
     success: true,
-    data: {
-      isPolling: TelegramBotService.isCurrentlyPolling(),
-      hasToken: Boolean(creds.token),
-      hasDefaultChatId: Boolean(creds.defaultChatId),
-    },
+    data: status,
   });
+});
+
+/**
+ * POST /automation/telegram/settings
+ * حفظ وتفعيل إعدادات بوت تليجرام في قاعدة البيانات
+ */
+export const saveTelegramSettings = wrap(async (req: Request, res: Response) => {
+  const { bot_token, chat_id, allowed_chats } = req.body;
+
+  if (!bot_token || typeof bot_token !== 'string' || !bot_token.trim()) {
+    return res.status(400).json({ success: false, message: 'رمز البوت (Bot Token) مطلوب' });
+  }
+
+  if (!chat_id || typeof chat_id !== 'string' || !chat_id.trim()) {
+    return res.status(400).json({ success: false, message: 'معرف الشات (Chat ID) مطلوب' });
+  }
+
+  const tokenTrimmed = bot_token.trim();
+  const chatIdTrimmed = chat_id.trim();
+
+  // فحص الاتصال بالرمز مع Telegram Bot API للتأكد من صحته
+  const check = await TelegramBotService.verifyCredentials(tokenTrimmed);
+  if (!check.ok) {
+    return res.status(400).json({
+      success: false,
+      message: check.error || 'رمز البوت غير صالح أو لم يتم قبوله من تليجرام',
+    });
+  }
+
+  const { upsertSetting } = await import('../services/userService.ts');
+  const userId = (req as any).user?.id || null;
+
+  await upsertSetting(
+    'telegram',
+    {
+      bot_token: tokenTrimmed,
+      chat_id: chatIdTrimmed,
+      allowed_chats: typeof allowed_chats === 'string' ? allowed_chats.trim() : '',
+    },
+    userId,
+    'إعدادات بوت تليجرام والإشعارات',
+  );
+
+  // إعادة تشغيل الاستماع التفاعلي بالرمز الجديد
+  await TelegramBotService.restartListening();
+
+  res.json({
+    success: true,
+    message: `تم حفظ الإعدادات وتوصيل البوت بنجاح! (@${check.bot?.username})`,
+    data: check.bot,
+  });
+});
+
+/**
+ * POST /automation/telegram/verify
+ * فحص صلاحية رمز البوت قبل الحفظ
+ */
+export const verifyTelegramCredentials = wrap(async (req: Request, res: Response) => {
+  const { bot_token } = req.body;
+  const result = await TelegramBotService.verifyCredentials(bot_token);
+  if (!result.ok) {
+    return res.status(400).json({ success: false, message: result.error });
+  }
+  res.json({ success: true, data: result.bot });
 });
 
 /**
@@ -300,22 +360,75 @@ export const runAutomationTaskNow = wrap(async (req: Request, res: Response) => 
 
 /**
  * GET /automation/execution-logs
- * سجل تشغيل الأتمتة ونتائجها.
+ * سجل تشغيل الأتمتة ونتائجها — يقبل ?key= اختياريًا للتصفية حسب المهمة.
  */
 export const getAutomationExecutionLogs = wrap(async (req: Request, res: Response) => {
   const limit = Math.min(Math.max(Number(req.query.limit) || 50, 1), 200);
   const offset = Math.max(Number(req.query.offset) || 0, 0);
-  const result = await WorkflowGraphService.getExecutionLogs(limit, offset);
+  const key =
+    typeof req.query.key === 'string' && req.query.key.trim() ? req.query.key.trim() : undefined;
+  const result = await WorkflowGraphService.getExecutionLogs(limit, offset, key);
   res.json({ success: true, data: result });
 });
 
 /**
- * POST /automation/scheduler/tick
+ * PUT /automation/tasks/:key/config
+ * تحديث إعدادات مهمة أتمتة (config) مع تحقق من المدخلات.
+ */
+export const updateAutomationTaskConfig = wrap(async (req: Request, res: Response) => {
+  const key = String(req.params.key || '').trim();
+  if (!key || !/^[a-z0-9_]+$/i.test(key)) {
+    return res.status(400).json({ success: false, message: 'مفتاح المهمة غير صالح' });
+  }
+  const { config: taskConfig } = req.body;
+  // كائن مسطح بمفاتيح ثعبانية وقيم أولية فقط — يمنع حقن مفاتيح شاذة أو كائنات متداخلة
+  if (!taskConfig || typeof taskConfig !== 'object' || Array.isArray(taskConfig)) {
+    return res.status(400).json({ success: false, message: 'يجب إرسال config ككائن JSON صالح' });
+  }
+  const MAX_CONFIG_BYTES = 8 * 1024;
+  const clean: Record<string, unknown> = {};
+  for (const [field, value] of Object.entries(taskConfig as Record<string, unknown>)) {
+    if (!/^[a-z0-9_]+$/i.test(field)) {
+      return res.status(400).json({ success: false, message: `مفتاح إعداد غير صالح: ${field}` });
+    }
+    const allowed =
+      typeof value === 'string' ||
+      typeof value === 'number' ||
+      typeof value === 'boolean' ||
+      value === null;
+    if (!allowed) {
+      return res.status(400).json({
+        success: false,
+        message: `قيمة غير مدعومة للمفتاح ${field} — مسموح فقط: نص/رقم/منطقي/null`,
+      });
+    }
+    clean[field] = value;
+  }
+  if (Buffer.byteLength(JSON.stringify(clean), 'utf8') > MAX_CONFIG_BYTES) {
+    return res.status(400).json({ success: false, message: 'حجم الإعدادات يتجاوز الحد المسموح' });
+  }
+
+  const updated = await WorkflowGraphService.updateAutomationConfig(key, clean);
+  if (!updated) {
+    return res.status(404).json({ success: false, message: 'مهمة الأتمتة غير موجودة' });
+  }
+  res.json({ success: true, message: 'تم تحديث إعدادات المهمة بنجاح', data: updated });
+});
+
+/**
+ * POST|GET /automation/scheduler/tick
  * نقطة تشغيل آمنة للـ Cron الخارجي على Vercel أو أي مزود جدولة.
+ * Vercel Cron يرسل GET مع Authorization: Bearer <secret> — ندعم الطريقتين مع مقارنة ثابتة الزمن.
  */
 export const runAutomationSchedulerTick = wrap(async (req: Request, res: Response) => {
-  const expected = config.automation.cronSecret;
-  const provided = String(req.get('x-automation-cron-secret') || '');
+  // السر من الإعداد المركزي (AUTOMATION_CRON_SECRET) مع احتياط CRON_SECRET
+  const expected = config.automation.cronSecret || (process.env.CRON_SECRET || '').trim();
+  const headerSecret = String(req.get('x-automation-cron-secret') || '');
+  const authHeader = String(req.get('authorization') || '');
+  const bearerSecret = authHeader.toLowerCase().startsWith('bearer ')
+    ? authHeader.slice(7).trim()
+    : '';
+  const provided = headerSecret || bearerSecret;
   if (!expected || !provided) {
     return res.status(503).json({ success: false, message: 'لم يتم إعداد سر جدولة الأتمتة.' });
   }

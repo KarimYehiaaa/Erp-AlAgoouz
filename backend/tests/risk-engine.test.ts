@@ -49,7 +49,7 @@ describe('Anti-Fraud & Risk Engine Service', () => {
     }
   });
 
-  it('يتعامل بمرونة وأمان مع الفلاتر الزمنية وتحديد الفرع', async () => {
+  it('يتعامل بمرونة وأمان مع الفلاتر الزمنية وتحديد المخزن', async () => {
     const filtered = await scanRiskAlerts({
       warehouseId: 999999, // مخزن غير موجود
       startDate: new Date('2020-01-01'),

@@ -17,7 +17,7 @@ async function testQuery() {
     to_date: '2026-06-30',
   });
   console.log(`June listPurchaseInvoices count: ${june.length}`);
-  
+
   // Test July
   const july = await listPurchaseInvoices({
     from_date: '2026-07-01',

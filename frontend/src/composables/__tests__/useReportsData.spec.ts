@@ -56,7 +56,7 @@ describe('useReportsData', () => {
     expect(r.salesProfit.value).toBe(1100);
     expect(r.salesCount.value).toBe(6);
 
-    // فلتر "فرع".
+    // فلتر مبيعات المحل.
     r.salesFilter.value = 'retail';
     expect(r.filteredSalesRows.value).toHaveLength(2);
     expect(r.filteredSalesRows.value.every((row: any) => row.sale_type === 'retail')).toBe(true);
@@ -100,7 +100,7 @@ describe('useReportsData', () => {
       ],
       warehouseValue: [
         { warehouse_name: 'رئيسي', total_value: 10000 },
-        { warehouse_name: 'فرع', total_value: 5000 },
+        { warehouse_name: 'مخزن المحل', total_value: 5000 },
       ],
     };
 

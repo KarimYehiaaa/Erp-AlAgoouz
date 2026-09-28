@@ -53,7 +53,6 @@ const warehouseAliases = [
   'المخزن',
   'مخزن',
   'المحل',
-  'الفرع',
 ];
 
 const resolveHeaderRow = (allRows) => {

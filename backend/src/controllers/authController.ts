@@ -18,20 +18,23 @@ const cookieDefaults = (maxAgeMs: number) => ({
 const login = async (req, res, next) => {
   try {
     const { username, password } = req.body;
+    const isDesktopClient = req.get('x-client-type') === 'desktop-pos';
     const { refreshToken, ...data } = await authService.login(username, password, {
       ip: req.ip,
       userAgent: req.get('user-agent'),
     });
     // HttpOnly cookies — حماية من سرقة التوكن عبر XSS
-    res.cookie('access_token', data.token, {
-      ...cookieDefaults(8 * 60 * 60 * 1e3), // 8 ساعات
-      path: '/',
-    });
-    res.cookie('refresh_token', refreshToken, {
-      ...cookieDefaults(7 * 24 * 60 * 60 * 1e3), // 7 أيام
-      path: '/api/v1/auth',
-    });
-    res.json({ success: true, data });
+    if (!isDesktopClient) {
+      res.cookie('access_token', data.token, {
+        ...cookieDefaults(8 * 60 * 60 * 1e3), // 8 ساعات
+        path: '/',
+      });
+      res.cookie('refresh_token', refreshToken, {
+        ...cookieDefaults(7 * 24 * 60 * 60 * 1e3), // 7 أيام
+        path: '/api/v1/auth',
+      });
+    }
+    res.json({ success: true, data: isDesktopClient ? { ...data, refreshToken } : data });
   } catch (err: any) {
     next(err);
   }
@@ -64,23 +67,25 @@ const refresh = async (req, res, next) => {
     // through the explicitly identified desktop channel.
     const isDesktopClient = req.get('x-client-type') === 'desktop-pos';
     const refreshToken =
-      req.cookies?.refresh_token ||
-      (isDesktopClient ? req.body?.refreshToken || req.get('x-refresh-token') : undefined);
+      (isDesktopClient ? req.body?.refreshToken || req.get('x-refresh-token') : undefined) ||
+      req.cookies?.refresh_token;
     if (!refreshToken)
       return res.status(401).json({ success: false, message: 'رمز التحديث (Refresh token) مطلوب' });
     const data = await authService.refreshAccessToken(refreshToken);
     // تحديث الـ cookies بالتوكنات الجديدة
-    res.cookie('access_token', data.token, {
-      ...cookieDefaults(8 * 60 * 60 * 1e3),
-      path: '/',
-    });
-    res.cookie('refresh_token', data.refreshToken, {
-      ...cookieDefaults(7 * 24 * 60 * 60 * 1e3),
-      path: '/api/v1/auth',
-    });
+    if (!isDesktopClient) {
+      res.cookie('access_token', data.token, {
+        ...cookieDefaults(8 * 60 * 60 * 1e3),
+        path: '/',
+      });
+      res.cookie('refresh_token', data.refreshToken, {
+        ...cookieDefaults(7 * 24 * 60 * 60 * 1e3),
+        path: '/api/v1/auth',
+      });
+    }
     const { refreshToken: _ignoredRefreshToken, ...responseData } = data;
     void _ignoredRefreshToken;
-    res.json({ success: true, data: responseData });
+    res.json({ success: true, data: isDesktopClient ? data : responseData });
   } catch (err: any) {
     next(err);
   }

@@ -27,7 +27,9 @@ it('removes redundant branch scope while preserving warehouse records and invent
     expect(warehouse.rows).toHaveLength(1);
 
     await client.query('UPDATE users SET branch_id = 7001 WHERE id = $1', [user.rows[0].id]);
-    await client.query('UPDATE warehouses SET branch_id = 7002, type = \'branch\' WHERE id = $1', [warehouse.rows[0].id]);
+    await client.query("UPDATE warehouses SET branch_id = 7002, type = 'branch' WHERE id = $1", [
+      warehouse.rows[0].id,
+    ]);
     await client.query(sql);
     await client.query(sql);
 
@@ -38,9 +40,13 @@ it('removes redundant branch scope while preserving warehouse records and invent
     );
     expect(remainingColumns.rows).toEqual([]);
 
-    const warehouseType = await client.query('SELECT type FROM warehouses WHERE id = $1', [warehouse.rows[0].id]);
+    const warehouseType = await client.query('SELECT type FROM warehouses WHERE id = $1', [
+      warehouse.rows[0].id,
+    ]);
     expect(warehouseType.rows[0].type).toBe('secondary');
-    const warehouseStillExists = await client.query('SELECT id FROM warehouses WHERE id = $1', [warehouse.rows[0].id]);
+    const warehouseStillExists = await client.query('SELECT id FROM warehouses WHERE id = $1', [
+      warehouse.rows[0].id,
+    ]);
     expect(warehouseStillExists.rows).toHaveLength(1);
   } finally {
     await client.query('ROLLBACK');

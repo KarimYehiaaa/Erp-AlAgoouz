@@ -43,7 +43,8 @@ router.beforeEach(async (to, _from, next) => {
     }
   }
 
-  const hasAuth = !!sessionService.getAccessToken() && (authStore.isAuthenticated || !!authStore.user);
+  const hasAuth =
+    !!sessionService.getAccessToken() && (authStore.isAuthenticated || !!authStore.user);
 
   if (to.path === '/login') {
     if (hasAuth) {

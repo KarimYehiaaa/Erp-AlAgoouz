@@ -28,7 +28,8 @@ const APPROVED_EXCEPTIONS = [
   {
     package: 'xlsx',
     advisories: ['GHSA-4r6h-8v6p-xvw6', 'GHSA-5pgg-2g8v-p4x9'],
-    mitigation: 'backend/src/services/excelSecurity.ts (MAX_EXCEL_BYTES, sheetRows=5000, cellFormula=false, cellHTML=false, cellStyles=false)',
+    mitigation:
+      'backend/src/services/excelSecurity.ts (MAX_EXCEL_BYTES, sheetRows=5000, cellFormula=false, cellHTML=false, cellStyles=false)',
   },
 ];
 
@@ -37,7 +38,10 @@ function runSecurityAudit() {
 
   let output = '';
   try {
-    output = execSync('npm audit --omit=dev --json', { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
+    output = execSync('npm audit --omit=dev --json', {
+      encoding: 'utf8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
   } catch (err: any) {
     output = err.stdout?.toString() || '';
   }
@@ -72,12 +76,12 @@ function runSecurityAudit() {
         const isApprovedException = APPROVED_EXCEPTIONS.some(
           (ex) =>
             ex.package === pkgName &&
-            ex.advisories.some((adv) => url.includes(adv) || title.includes(adv))
+            ex.advisories.some((adv) => url.includes(adv) || title.includes(adv)),
         );
 
         if (isApprovedException) {
           console.log(
-            `ℹ️  [Accepted Exception] ${pkgName} (${severity.toUpperCase()}): "${title}". Mitigation: ${APPROVED_EXCEPTIONS[0].mitigation}`
+            `ℹ️  [Accepted Exception] ${pkgName} (${severity.toUpperCase()}): "${title}". Mitigation: ${APPROVED_EXCEPTIONS[0].mitigation}`,
           );
         } else if (severity === 'high' || severity === 'critical') {
           unapprovedIssues.push({ pkg: pkgName, severity, title, url });
@@ -87,15 +91,23 @@ function runSecurityAudit() {
   }
 
   if (unapprovedIssues.length > 0) {
-    console.error(`\n🚨 CRITICAL SECURITY GATE FAILURE: ${unapprovedIssues.length} unapproved runtime vulnerabilities detected!`);
+    console.error(
+      `\n🚨 CRITICAL SECURITY GATE FAILURE: ${unapprovedIssues.length} unapproved runtime vulnerabilities detected!`,
+    );
     for (const issue of unapprovedIssues) {
-      console.error(`  - Package: ${issue.pkg} | Severity: ${issue.severity.toUpperCase()} | Title: ${issue.title} | Link: ${issue.url}`);
+      console.error(
+        `  - Package: ${issue.pkg} | Severity: ${issue.severity.toUpperCase()} | Title: ${issue.title} | Link: ${issue.url}`,
+      );
     }
-    console.error('\n❌ Production release gate blocked: Fix these vulnerabilities before release.\n');
+    console.error(
+      '\n❌ Production release gate blocked: Fix these vulnerabilities before release.\n',
+    );
     process.exit(1);
   }
 
-  console.log('✅ Production Runtime Security Audit Passed: 0 unapproved vulnerabilities detected.');
+  console.log(
+    '✅ Production Runtime Security Audit Passed: 0 unapproved vulnerabilities detected.',
+  );
 }
 
 runSecurityAudit();

@@ -83,7 +83,7 @@ describe('Upload Security & Middleware Verification', () => {
       expect(next).not.toHaveBeenCalled();
       expect(statusFn).toHaveBeenCalledWith(403);
       expect(jsonFn).toHaveBeenCalledWith(
-        expect.objectContaining({ success: false, message: 'هذه العملية متاحة للمدير فقط' })
+        expect.objectContaining({ success: false, message: 'هذه العملية متاحة للمدير فقط' }),
       );
     }
   });

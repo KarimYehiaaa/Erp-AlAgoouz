@@ -2,6 +2,7 @@ import { getClient, query } from '../database/pool.ts';
 import { AppError } from '../types/errors.ts';
 import { invalidateDashboardCache } from './dashboardService.ts';
 import { toNumber, sanitizeLimit } from '../utils/money.ts';
+import { restoreInventoryCostLayers } from './productCostService.ts';
 /**
  * قفل صف المخزون داخل معاملة (SELECT FOR UPDATE) لمنع التزامن.
  * @param {import('pg').PoolClient} client عميل المعاملة
@@ -377,6 +378,29 @@ const returnProductToStock = async (data: Record<string, any>, userId: number) =
       '\u0627\u0644\u0645\u062E\u0632\u0646 \u063A\u064A\u0631 \u0645\u0648\u062C\u0648\u062F',
       404,
     );
+
+  if (sale_id) {
+    const saleCheck = await query(
+      `SELECT s.id, si.quantity FROM sales s
+       JOIN sale_items si ON si.sale_id = s.id AND si.product_id = $1
+       WHERE s.id = $2 AND s.warehouse_id = $3 AND s.deleted_at IS NULL`,
+      [product_id, sale_id, warehouse_id],
+    );
+    if (!saleCheck.rows[0]) {
+      throw new AppError(
+        'عملية البيع المحددة غير موجودة أو لا تحتوي على هذا الصنف في هذا المخزن',
+        400,
+      );
+    }
+    const soldQty = Number(saleCheck.rows[0].quantity);
+    if (qty > soldQty) {
+      throw new AppError(
+        `الكمية المرتجعة (${qty}) تتجاوز الكمية المباعة بالفاتورة (${soldQty})`,
+        400,
+      );
+    }
+  }
+
   const client = await getClient();
   try {
     await client.query('BEGIN');
@@ -386,6 +410,14 @@ const returnProductToStock = async (data: Record<string, any>, userId: number) =
        ON CONFLICT (product_id, warehouse_id, COALESCE(batch_number, ''))
        DO UPDATE SET quantity = inventory.quantity + $3, updated_at = NOW()`,
       [product_id, warehouse_id, qty],
+    );
+    await restoreInventoryCostLayers(
+      client,
+      Number(product_id),
+      Number(warehouse_id),
+      qty,
+      0,
+      'product_return',
     );
     const refType = sale_id ? 'sale' : 'product_return';
     const refId = sale_id || product_id;
@@ -470,6 +502,7 @@ const clearAllInventoryData = async (userId: number) => {
     const movementCountRes = await client.query(
       `SELECT COUNT(*)::int AS count FROM stock_movements`,
     );
+    await client.query(`DELETE FROM inventory_cost_layers`);
     await client.query(`DELETE FROM stock_movements`);
     await client.query(`DELETE FROM inventory`);
     await client.query(

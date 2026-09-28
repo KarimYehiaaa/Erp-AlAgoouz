@@ -87,7 +87,12 @@ describe('Financial Math & Floating-Point Stability Suite', () => {
         // 100 مل حليب بسعر 40 ج.م للتر => 100 * 0.04 = 4 ج.م
         { quantity: 100, unit_code: 'ml', ingredient_unit: 'l', ingredient_purchase_price: 40 },
         // كوب ورقي واحد بسعر 1.50 ج.م
-        { quantity: 1, unit_code: 'count', ingredient_unit: 'count', ingredient_purchase_price: 1.5 },
+        {
+          quantity: 1,
+          unit_code: 'count',
+          ingredient_unit: 'count',
+          ingredient_purchase_price: 1.5,
+        },
       ];
 
       const totalCost = calculateRecipeCost(recipeIngredients);

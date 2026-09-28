@@ -15,14 +15,122 @@ export class TelegramBotService {
   private static lastUpdateId = 0;
   private static pollingInterval: ReturnType<typeof setTimeout> | null = null;
   private static cachedToken: string | null = null;
+  private static lastError: string | null = null;
+  private static botInfo: { username: string; firstName: string } | null = null;
 
   /**
-   * جلب بيانات اعتماد بوت تليجرام
+   * جلب بيانات اعتماد بوت تليجرام (من جدول settings مع fallback لمتغيرات البيئة)
    */
-  static async getBotCredentials(): Promise<{ token: string; defaultChatId: string }> {
+  static async getBotCredentials(): Promise<{
+    token: string;
+    defaultChatId: string;
+    allowedChats: string[];
+  }> {
+    try {
+      const res = await db.query(`SELECT value FROM settings WHERE key = 'telegram' LIMIT 1`);
+      const setting = res.rows[0]?.value;
+      if (setting && typeof setting === 'object') {
+        const token = (setting.bot_token || process.env.TELEGRAM_BOT_TOKEN || '').trim();
+        const defaultChatId = (setting.chat_id || process.env.TELEGRAM_CHAT_ID || '').trim();
+        const allowedChats = setting.allowed_chats
+          ? String(setting.allowed_chats)
+              .split(',')
+              .map((s: string) => s.trim())
+              .filter(Boolean)
+          : [];
+        return { token, defaultChatId, allowedChats };
+      }
+    } catch {
+      // تجاهل إذا كانت القاعدة في مرحلة التمهيد
+    }
+
     const token = (process.env.TELEGRAM_BOT_TOKEN || '').trim();
     const defaultChatId = (process.env.TELEGRAM_CHAT_ID || '').trim();
-    return { token, defaultChatId };
+    const allowedChats = (process.env.TELEGRAM_ALLOWED_CHATS || '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    return { token, defaultChatId, allowedChats };
+  }
+
+  /**
+   * فحص بيانات الاعتماد والاتصال بـ Telegram Bot API (getMe)
+   */
+  static async verifyCredentials(testToken?: string): Promise<{
+    ok: boolean;
+    bot?: { username: string; firstName: string };
+    error?: string;
+  }> {
+    let token = testToken ? testToken.trim() : '';
+    if (!token) {
+      const creds = await this.getBotCredentials();
+      token = creds.token;
+    }
+
+    if (!token) {
+      return { ok: false, error: 'لم يتم إدخال رمز البوت (TELEGRAM_BOT_TOKEN)' };
+    }
+
+    try {
+      const res = await fetch(`https://api.telegram.org/bot${token}/getMe`);
+      const data = await res.json();
+      if (!data.ok) {
+        let msg = data.description || 'فشل التحقق من رمز البوت';
+        if (data.error_code === 401 || data.description?.includes('Unauthorized')) {
+          msg = 'رمز البوت غير صالح أو تم إلغاؤه من BotFather (401 Unauthorized)';
+        }
+        return { ok: false, error: msg };
+      }
+
+      return {
+        ok: true,
+        bot: {
+          username: data.result?.username || '',
+          firstName: data.result?.first_name || '',
+        },
+      };
+    } catch (err: any) {
+      return { ok: false, error: err.message || 'فشل الاتصال بسيرفرات تليجرام' };
+    }
+  }
+
+  /**
+   * جلب الحالة الحية المفصلة لبوت تليجرام
+   */
+  static async getBotStatus() {
+    const creds = await this.getBotCredentials();
+    const hasToken = Boolean(creds.token);
+    const hasDefaultChatId = Boolean(creds.defaultChatId);
+
+    let connected = false;
+    let botInfo = this.botInfo;
+    let error = this.lastError;
+
+    if (hasToken) {
+      const check = await this.verifyCredentials(creds.token);
+      connected = check.ok;
+      if (check.ok) {
+        botInfo = check.bot || null;
+        this.botInfo = botInfo;
+        error = null;
+        this.lastError = null;
+      } else {
+        error = check.error || 'غير متصل';
+        this.lastError = error;
+      }
+    }
+
+    return {
+      isPolling: this.isPolling && connected,
+      connected,
+      hasToken,
+      hasDefaultChatId,
+      botUsername: botInfo?.username || null,
+      botFirstName: botInfo?.firstName || null,
+      defaultChatId: creds.defaultChatId || null,
+      allowedChats: creds.allowedChats,
+      error,
+    };
   }
 
   /**
@@ -31,18 +139,36 @@ export class TelegramBotService {
   static async startListening() {
     if (this.isPolling) return;
 
-    const { token } = await this.getBotCredentials();
-    if (!token) {
+    const creds = await this.getBotCredentials();
+    if (!creds.token) {
       logger.info('ℹ [Telegram Bot] لم يتم ضبط TELEGRAM_BOT_TOKEN — الاستماع التفاعلي معطل.');
+      this.isPolling = false;
+      this.botInfo = null;
       return;
     }
 
-    this.cachedToken = token;
+    // التحقق من صحة التوكن مع تليجرام قبل تشغيل الاستماع
+    const check = await this.verifyCredentials(creds.token);
+    if (!check.ok) {
+      this.isPolling = false;
+      this.lastError = check.error || 'رمز البوت غير صالح';
+      this.botInfo = null;
+      logger.warn(`⚠️ [Telegram Bot] تعذر بدء الاستماع: ${this.lastError}`);
+      return;
+    }
+
+    this.botInfo = check.bot || null;
+    this.lastError = null;
+    this.cachedToken = creds.token;
     this.isPolling = true;
-    logger.info(' [Telegram Bot] بدء الاستماع التفاعلي لأوامر تليجرام (2-Way Commands)...');
+    logger.info(
+      `🤖 [Telegram Bot] متصل بالبوت @${this.botInfo?.username} (${this.botInfo?.firstName})، بدء الاستماع التفاعلي...`,
+    );
 
     try {
-      await fetch(`https://api.telegram.org/bot${token}/deleteWebhook?drop_pending_updates=false`);
+      await fetch(
+        `https://api.telegram.org/bot${creds.token}/deleteWebhook?drop_pending_updates=false`,
+      );
     } catch {
       // Ignore network hiccups on webhook clear
     }
@@ -63,7 +189,9 @@ export class TelegramBotService {
       } catch {
         // Silent loop error; the next scheduled poll retries automatically.
       } finally {
-        this.schedulePoll(1000);
+        if (this.isPolling) {
+          this.schedulePoll(1000);
+        }
       }
     }, delayMs);
   }
@@ -103,16 +231,28 @@ export class TelegramBotService {
    * جلب التحديثات ومعالجة الرسائل الواردة
    */
   private static async pollUpdates() {
-    const { token } = await this.getBotCredentials();
-    if (!token) {
+    const creds = await this.getBotCredentials();
+    if (!creds.token) {
       this.isPolling = false;
       if (this.pollingInterval) clearTimeout(this.pollingInterval);
       return;
     }
 
-    const url = `https://api.telegram.org/bot${token}/getUpdates?offset=${this.lastUpdateId + 1}&timeout=25`;
+    const url = `https://api.telegram.org/bot${creds.token}/getUpdates?offset=${this.lastUpdateId + 1}&timeout=25`;
     const res = await fetch(url);
-    if (!res.ok) return;
+    if (!res.ok) {
+      if (res.status === 401) {
+        this.isPolling = false;
+        this.lastError = 'رمز البوت غير صالح أو ملغي (401 Unauthorized)';
+        if (this.pollingInterval) clearTimeout(this.pollingInterval);
+        logger.warn('⚠️ [Telegram Bot] رمز البوت غير صالح (401 Unauthorized) — تم إيقاف الاستماع.');
+        return;
+      }
+      if (res.status === 409) {
+        logger.warn('⚠️ [Telegram Bot] تضارب في الاستماع: يوجد خادم آخر يستمع لنفس البوت حالياً.');
+      }
+      return;
+    }
 
     const data = await res.json();
     if (!data.ok || !Array.isArray(data.result)) return;
@@ -136,20 +276,25 @@ export class TelegramBotService {
     const rawText = (msg.text || '').trim();
     if (!chatId || !rawText) return;
 
-    const { token, defaultChatId } = await this.getBotCredentials();
+    const creds = await this.getBotCredentials();
     const reply = async (html: string) => {
-      await TelegramService.sendMessage(html, { botToken: token, chatId: String(chatId) });
+      await TelegramService.sendMessage(html, { botToken: creds.token, chatId: String(chatId) });
     };
 
     // التحقق الأمني الصارم من هوية مرسل الأمر (Whitelisted Chat IDs — Fail Closed)
     const allowedChatIds = [
-      defaultChatId,
+      creds.defaultChatId,
+      ...(creds.allowedChats || []),
       ...(process.env.TELEGRAM_ALLOWED_CHATS || '').split(',').map((s) => s.trim()),
     ].filter(Boolean);
 
     if (allowedChatIds.length === 0 || !allowedChatIds.includes(String(chatId))) {
       logger.warn(`[Telegram Bot] محاولة وصول غير مصرح بها أو غير مهيأة من Chat ID: ${chatId}`);
-      await reply('⛔ <b>عذراً</b>، هذا الحساب غير مصرح له بالوصول إلى بيانات بن العجوز ERP.');
+      await reply(
+        `⛔ <b>عذراً</b>، هذا الحساب غير مصرح له بالوصول إلى بيانات بن العجوز ERP.\n\n` +
+          `🆔 <b>معرف الشات الخاص بك هو:</b> <code>${chatId}</code>\n` +
+          `💡 أضف هذا المعرف في إعدادات تليجرام بلوحة التحكم للوصول.`,
+      );
       return;
     }
 

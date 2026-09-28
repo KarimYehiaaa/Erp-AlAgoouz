@@ -1,0 +1,782 @@
+/**
+ * services/automationHandlers.ts — سجل معالجات مهام الأتمتة (مفتاح المهمة → معالج)
+ * كل معالج يجمع بياناته ويبني نص التقرير ويعيد (العنوان، النص، الحالة success/warning)
+ * دون إرسال أو تسجيل — ذلك مسؤولية runAutomationNow في workflowGraphService.
+ */
+
+import { query } from '../database/pool.ts';
+
+// ─── أنواع مشتركة ────────────────────────────────────────
+
+export interface AutomationHandlerContext {
+  /** المفتاح الكانوني للمهمة */
+  key: string;
+  /** إعدادات المهمة من automations.config */
+  config: Record<string, any>;
+  /** الموعد المجدول للتشغيل (الآن في التشغيل اليدوي/عند الحدث) */
+  scheduledFor: Date;
+}
+
+export interface AutomationHandlerResult {
+  title: string;
+  text: string;
+  status: 'success' | 'warning';
+}
+
+export type AutomationHandler = (ctx: AutomationHandlerContext) => Promise<AutomationHandlerResult>;
+
+/** التاريخ التجاري ليوم التشغيل بتوقيت القاهرة */
+export const getCairoBusinessDate = (date: Date) => {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Africa/Cairo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+  const part = (type: string) => parts.find((value) => value.type === type)?.value || '';
+  return `${part('year')}-${part('month')}-${part('day')}`;
+};
+
+// ─── المعالجات ───────────────────────────────────────────
+
+const dailySalesReportHandler: AutomationHandler = async (ctx) => {
+  const reportDate = getCairoBusinessDate(ctx.scheduledFor);
+  const title = `ملخص مبيعات المحل ليوم ${reportDate}`;
+  const salesRes = await query(
+    `SELECT
+       COUNT(*) as invoice_count,
+       COALESCE(SUM(total_amount), 0) as net_revenue,
+       COALESCE(SUM(profit_amount), 0) as total_profit
+     FROM sales
+     WHERE sale_date = $1::date AND deleted_at IS NULL AND status = 'completed'`,
+    [reportDate],
+  );
+  const expRes = await query(
+    `SELECT COALESCE(SUM(amount), 0) as total_expenses
+     FROM expenses WHERE expense_date = $1::date AND deleted_at IS NULL`,
+    [reportDate],
+  );
+  const topRes = await query(
+    `SELECT p.name_ar, SUM(si.quantity) as qty
+     FROM sale_items si
+     JOIN sales s ON s.id = si.sale_id
+     JOIN products p ON p.id = si.product_id
+     WHERE s.sale_date = $1::date AND s.deleted_at IS NULL AND s.status = 'completed'
+     GROUP BY p.name_ar
+     ORDER BY qty DESC LIMIT 3`,
+    [reportDate],
+  );
+
+  const s = salesRes.rows[0];
+  const e = expRes.rows[0];
+  const topList =
+    topRes.rows
+      .map((r: any) => `  • ${r.name_ar}: ${Number(r.qty).toFixed(1)} كجم/قطعة`)
+      .join('\n') || '  • لا توجد مبيعات تفصيلية مسجلة لهذا اليوم';
+
+  return {
+    title,
+    status: 'success',
+    text: `
+📊 <b>ملخص مبيعات المحل — ${reportDate}</b>
+━━━━━━━━━━━━━━━━━━━━
+💰 <b>إجمالي المبيعات المسجلة:</b> ${Number(s.net_revenue).toLocaleString('ar-EG')} ج.م
+🧾 <b>عدد الفواتير:</b> ${s.invoice_count}
+💸 <b>إجمالي المصروفات:</b> ${Number(e.total_expenses).toLocaleString('ar-EG')} ج.م
+💵 <b>مجمل الربح المسجل قبل المصروفات:</b> ${Number(s.total_profit).toLocaleString('ar-EG')} ج.م
+━━━━━━━━━━━━━━━━━━━━
+🔥 <b>أعلى المنتجات مبيعاً في اليوم:</b>
+${topList}
+⏱ <i>وقت إرسال الملخص: ${new Date().toLocaleTimeString('ar-EG', { timeZone: 'Africa/Cairo' })}</i>
+    `.trim(),
+  };
+};
+
+const lowStockAlertHandler: AutomationHandler = async () => {
+  const title = 'إنذار نواقص المخزون وخامات البن';
+  const lowRes = await query(
+    `SELECT p.name_ar, p.sku,
+            COALESCE(SUM(i.quantity), 0) AS current_stock,
+            COALESCE(p.min_stock, 5) AS min_stock
+     FROM products p
+     LEFT JOIN inventory i ON i.product_id = p.id
+     WHERE p.is_active = true AND p.deleted_at IS NULL
+     GROUP BY p.id, p.name_ar, p.sku, p.min_stock
+     HAVING COALESCE(SUM(i.quantity), 0) <= COALESCE(p.min_stock, 5)
+     ORDER BY current_stock ASC LIMIT 10`,
+  );
+
+  if (lowRes.rows.length === 0) {
+    return {
+      title,
+      status: 'success',
+      text: `
+📦 <b>تقرير فحص المخزون وخامات التحميص</b>
+━━━━━━━━━━━━━━━━━━━━
+✅ <b>المخزون سليم تماماً!</b> لا توجد أي خامات أو أصناف وصلت لحد إعادة الطلب.
+⏱ ${new Date().toLocaleTimeString('ar-EG', { timeZone: 'Africa/Cairo' })}
+      `.trim(),
+    };
+  }
+  const itemsList = lowRes.rows
+    .map(
+      (r: any) =>
+        `  ⚠️ <b>${r.name_ar}</b>: رصيد حالي <code>${r.current_stock}</code> (الحد الأدنى: ${r.min_stock || 5})`,
+    )
+    .join('\n');
+  return {
+    title,
+    status: 'warning',
+    text: `
+🚨 <b>إنذار نواقص المخزون وخامات البن</b>
+━━━━━━━━━━━━━━━━━━━━
+الأصناف التالية أوشكت على النفاد وتحتاج طلب شراء/تحميص:
+${itemsList}
+━━━━━━━━━━━━━━━━━━━━
+⏱ <i>تم الفحص: ${new Date().toLocaleTimeString('ar-EG', { timeZone: 'Africa/Cairo' })}</i>
+    `.trim(),
+  };
+};
+
+const antiFraudHandler: AutomationHandler = async () => {
+  const title = 'كشف ومراقبة التلاعب المالي (Anti-Fraud)';
+  const discountRes = await query(
+    `SELECT sale_number, subtotal, total_amount, discount_amount, discount_percent, status
+     FROM sales
+     WHERE created_at >= NOW() - INTERVAL '24 HOURS'
+       AND (status = 'cancelled' OR discount_percent >= 15 OR (subtotal > 0 AND (discount_amount / subtotal * 100) >= 15))
+     ORDER BY created_at DESC LIMIT 5`,
+  );
+
+  if (discountRes.rows.length === 0) {
+    return {
+      title,
+      status: 'success',
+      text: `
+🛡️ <b>تقرير الرقابة المالية ومكافحة التلاعب</b>
+━━━━━━━━━━━━━━━━━━━━
+✅ <b>العمليات آمنة:</b> لم يتم رصد أي فواتير ملغاة أو خصومات مريبة خلال آخر 24 ساعة.
+⏱ ${new Date().toLocaleTimeString('ar-EG', { timeZone: 'Africa/Cairo' })}
+      `.trim(),
+    };
+  }
+  const fraudList = discountRes.rows
+    .map((r: any) => {
+      if (r.status === 'cancelled') {
+        return `  ❌ فاتورة ملغاة <b>#${r.sale_number}</b> بقيمة ${r.total_amount} ج.م`;
+      }
+      const pct =
+        r.discount_percent || (r.subtotal > 0 ? (r.discount_amount / r.subtotal) * 100 : 0);
+      return `  🏷️ فاتورة <b>#${r.sale_number}</b>: خصم ${Number(pct).toFixed(1)}% (${r.discount_amount} ج.م من أصل ${r.subtotal} ج.م)`;
+    })
+    .join('\n');
+  return {
+    title,
+    status: 'warning',
+    text: `
+🚨 <b>إنذار الرقابة المالية — فواتير ملغاة أو خصومات مرتفعة</b>
+━━━━━━━━━━━━━━━━━━━━
+رصد النظام العمليات التالية خلال آخر 24 ساعة:
+${fraudList}
+━━━━━━━━━━━━━━━━━━━━
+⏱ <i>توقيت الرصد: ${new Date().toLocaleTimeString('ar-EG', { timeZone: 'Africa/Cairo' })}</i>
+    `.trim(),
+  };
+};
+
+const warehouseBalancingHandler: AutomationHandler = async () => {
+  const { default: WarehouseBalancingService } = await import('./warehouseBalancingService.ts');
+  const bal = await WarehouseBalancingService.generateBalancingRecommendations();
+  return {
+    title: 'إعادة توازن مخزون المخازن',
+    status: 'success',
+    text: bal.htmlReport,
+  };
+};
+
+const supplierPaymentDueHandler: AutomationHandler = async (ctx) => {
+  const businessDate = getCairoBusinessDate(ctx.scheduledFor);
+  const configuredDays = Number(ctx.config?.days_before_due);
+  const daysBeforeDue = Number.isFinite(configuredDays)
+    ? Math.min(Math.max(configuredDays, 0), 90)
+    : 3;
+  const dueRes = await query(
+    `SELECT si.invoice_number, s.name_ar AS supplier_name, si.due_date,
+            ROUND((si.total_amount - COALESCE(si.paid_amount, 0))::numeric, 2) AS outstanding,
+            (si.due_date - $1::date) AS days_until_due
+     FROM supplier_invoices si
+     JOIN suppliers s ON s.id = si.supplier_id
+     WHERE si.deleted_at IS NULL AND si.due_date IS NOT NULL
+       AND si.total_amount > COALESCE(si.paid_amount, 0)
+       AND si.due_date <= $1::date + $2::int
+     ORDER BY si.due_date ASC, si.id ASC
+     LIMIT 20`,
+    [businessDate, daysBeforeDue],
+  );
+  const title = `مراجعة مستحقات الموردين حتى ${businessDate}`;
+  if (dueRes.rows.length) {
+    const invoices = dueRes.rows
+      .map((invoice: any) => {
+        const dayCount = Number(invoice.days_until_due);
+        const dueLabel =
+          dayCount < 0
+            ? `متأخرة ${Math.abs(dayCount)} يوم`
+            : dayCount === 0
+              ? 'مستحقة اليوم'
+              : `خلال ${dayCount} يوم`;
+        return `• ${invoice.invoice_number} — ${invoice.supplier_name} — متبقٍ ${Number(invoice.outstanding).toLocaleString('ar-EG')} ج.م — ${dueLabel}`;
+      })
+      .join('\n');
+    return {
+      title,
+      status: 'warning',
+      text: `
+📥 <b>فواتير الموردين غير المسددة</b>
+━━━━━━━━━━━━━━━━━━━━
+${invoices}
+━━━━━━━━━━━━━━━━━━━━
+الفحص حتى ${businessDate}
+      `.trim(),
+    };
+  }
+  return {
+    title,
+    status: 'success',
+    text: `لا توجد فواتير موردين غير مسددة تستحق حتى ${businessDate}.`,
+  };
+};
+
+const profitMarginAnomalyHandler: AutomationHandler = async (ctx) => {
+  const businessDate = getCairoBusinessDate(ctx.scheduledFor);
+  const configuredTarget = Number(ctx.config?.min_target_margin_pct);
+  const targetMargin = Number.isFinite(configuredTarget)
+    ? Math.min(Math.max(configuredTarget, 0), 100)
+    : 28;
+  const marginRes = await query(
+    `SELECT COUNT(*)::int AS invoice_count,
+            COALESCE(SUM(total_amount), 0) AS total_sales,
+            COALESCE(SUM(profit_amount), 0) AS gross_profit,
+            CASE WHEN COALESCE(SUM(total_amount), 0) > 0
+              THEN COALESCE(SUM(profit_amount), 0) * 100.0 / SUM(total_amount)
+              ELSE NULL END AS margin_pct
+     FROM sales
+     WHERE sale_date = $1::date AND deleted_at IS NULL AND status = 'completed'`,
+    [businessDate],
+  );
+  const margin =
+    marginRes.rows[0]?.margin_pct == null ? null : Number(marginRes.rows[0].margin_pct);
+  const title = `فحص هامش الربح الإجمالي ليوم ${businessDate}`;
+  if (margin === null) {
+    return {
+      title,
+      status: 'warning',
+      text: `لم تُسجل مبيعات مكتملة في ${businessDate}؛ لم يتوفر أساس لحساب هامش الربح.`,
+    };
+  }
+  return {
+    title,
+    status: margin < targetMargin ? 'warning' : 'success',
+    text: `
+${margin < targetMargin ? '⚠️ <b>هامش الربح أقل من الحد المحدد</b>' : '✅ <b>هامش الربح ضمن الحد المحدد</b>'}
+━━━━━━━━━━━━━━━━━━━━
+اليوم: ${businessDate}
+المبيعات المكتملة: ${Number(marginRes.rows[0].total_sales).toLocaleString('ar-EG')} ج.م
+مجمل الربح المسجل: ${Number(marginRes.rows[0].gross_profit).toLocaleString('ar-EG')} ج.م
+هامش الربح الإجمالي: ${margin.toLocaleString('ar-EG', { minimumFractionDigits: 1, maximumFractionDigits: 2 })}%
+الحد المستهدف: ${targetMargin}%
+عدد الفواتير: ${Number(marginRes.rows[0].invoice_count)}
+    `.trim(),
+  };
+};
+
+const systemHealthHandler: AutomationHandler = async () => {
+  const title = 'فحص سلامة النظام';
+  const { checkHealth } = await import('../database/pool.ts');
+  const dbHealth = await checkHealth();
+  return {
+    title,
+    status: dbHealth.ok ? 'success' : 'warning',
+    text: `
+🖥️ <b>تقرير فحص سلامة النظام والخادم</b>
+━━━━━━━━━━━━━━━━━━━━
+🟢 <b>حالة الخدمة:</b> تم تشغيل الفحص
+🗄️ <b>قاعدة البيانات:</b> ${dbHealth.ok ? 'اتصال ناجح' : 'تعذر الاتصال'} (${dbHealth.latencyMs}ms)
+⏱ ${new Date().toLocaleString('ar-EG', { timeZone: 'Africa/Cairo' })}
+    `.trim(),
+  };
+};
+
+const dailyBackupReminderHandler: AutomationHandler = async () => {
+  const title = 'تذكير بالتحقق من النسخ الاحتياطية';
+  const now = new Date();
+  // فحص فعلي لعمر آخر نسخة ناجحة عبر خدمة النسخ الاحتياطي (أحدث ملف في مجلد النسخ)
+  let latest: { name: string; ageHours: number; sizeMb: number } | null = null;
+  try {
+    const { listBackups } = await import('./backupService.ts');
+    const backups = await listBackups();
+    const newest = backups[0];
+    if (newest) {
+      latest = {
+        name: newest.name,
+        ageHours: (now.getTime() - new Date(newest.mtime).getTime()) / 3_600_000,
+        sizeMb: Number(newest.size || 0) / (1024 * 1024),
+      };
+    }
+  } catch {
+    // تعذر فحص ملفات النسخ — نعتمد حالة التحذير أدناه
+  }
+
+  if (latest && latest.ageHours < 24) {
+    return {
+      title,
+      status: 'success',
+      text: `
+🔒 <b>تقرير فحص النسخ الاحتياطية</b>
+━━━━━━━━━━━━━━━━━━━━
+✅ <b>توجد نسخة احتياطية حديثة قابلة للاستعادة.</b>
+📦 <b>آخر نسخة:</b> <code>${latest.name}</code>
+⏳ <b>عمر النسخة:</b> ${latest.ageHours.toFixed(1)} ساعة (${latest.sizeMb.toFixed(1)} م.ب)
+💡 يُنصح دورياً بتجربة استعادة نسخة والتأكد من موقع التخزين الخارجي.
+⏱ ${now.toLocaleString('ar-EG', { timeZone: 'Africa/Cairo' })}
+      `.trim(),
+    };
+  }
+
+  const staleNote = latest
+    ? `⚠️ <b>آخر نسخة موجودة قديمة:</b> <code>${latest.name}</code> — عمرها ${latest.ageHours.toFixed(1)} ساعة (الحد المقبول 24 ساعة).`
+    : '⚠️ <b>لم يُعثر على أي ملف نسخة احتياطية في مجلد النسخ المحلي.</b>';
+  return {
+    title,
+    status: 'warning',
+    text: `
+🔒 <b>تذكير بفحص النسخ الاحتياطية</b>
+━━━━━━━━━━━━━━━━━━━━
+⚠️ لم يتم التحقق من وجود نسخة احتياطية حديثة قابلة للاستعادة خلال الـ 24 ساعة الماضية.
+${staleNote}
+راجع آخر ملف محفوظ، وموقع التخزين الخارجي، ونتيجة تجربة الاستعادة قبل اعتبار النسخ سليمة.
+⏱ ${now.toLocaleString('ar-EG', { timeZone: 'Africa/Cairo' })}
+    `.trim(),
+  };
+};
+
+const largeDiscountAlertHandler: AutomationHandler = async () => {
+  const title = 'تنبيه الخصومات المرتفعة';
+  const discountRes = await query(
+    `SELECT s.sale_number, s.subtotal, s.total_amount, s.discount_amount, s.discount_percent, s.created_at, u.full_name as cashier_name
+     FROM sales s
+     LEFT JOIN users u ON u.id = s.user_id
+     WHERE s.created_at >= NOW() - INTERVAL '24 HOURS'
+       AND s.deleted_at IS NULL
+       AND (s.discount_percent >= 15 OR (s.subtotal > 0 AND (s.discount_amount / s.subtotal * 100) >= 15))
+     ORDER BY s.created_at DESC LIMIT 10`,
+  );
+
+  if (discountRes.rows.length === 0) {
+    return {
+      title,
+      status: 'success',
+      text: `
+🛡️ <b>تقرير فحص الخصومات المرتفعة</b>
+━━━━━━━━━━━━━━━━━━━━
+✅ <b>العمليات طبيعية:</b> لم يتم رصد أي خصومات استثنائية (أعلى من 15%) خلال آخر 24 ساعة.
+⏱ ${new Date().toLocaleTimeString('ar-EG', { timeZone: 'Africa/Cairo' })}
+      `.trim(),
+    };
+  }
+  const list = discountRes.rows
+    .map((r: any) => {
+      const pct =
+        r.discount_percent || (r.subtotal > 0 ? (r.discount_amount / r.subtotal) * 100 : 0);
+      const cashier = r.cashier_name ? ` (الكاشير: ${r.cashier_name})` : '';
+      return `  🏷️ فاتورة <b>#${r.sale_number}</b>: خصم ${Number(pct).toFixed(1)}% (${Number(r.discount_amount).toLocaleString('ar-EG')} ج.م من أصل ${Number(r.subtotal).toLocaleString('ar-EG')} ج.م)${cashier}`;
+    })
+    .join('\n');
+  return {
+    title,
+    status: 'warning',
+    text: `
+🚨 <b>إنذار الرقابة المالية — خصومات مرتفعة تم رصدها</b>
+━━━━━━━━━━━━━━━━━━━━
+العمليات التالية تجاوزت حد الخصم المسموح (15%) خلال آخر 24 ساعة:
+${list}
+━━━━━━━━━━━━━━━━━━━━
+⏱ <i>توقيت الفحص: ${new Date().toLocaleTimeString('ar-EG', { timeZone: 'Africa/Cairo' })}</i>
+    `.trim(),
+  };
+};
+
+const cashflowRiskShieldHandler: AutomationHandler = async () => {
+  const title = 'درع حماية السيولة والتدفقات النقدية';
+  const { getCashFlowProjection } = await import('./cashFlowProjectionService.ts');
+  const proj = await getCashFlowProjection();
+  const currentCash = Number(proj.currentBalance || 0);
+  const projected30d = Number(proj.projectedBalance30d || 0);
+  const hasDeficit =
+    proj.status === 'danger' || proj.runwayDays !== null || currentCash < 0 || projected30d < 0;
+
+  if (hasDeficit) {
+    return {
+      title,
+      status: 'warning',
+      text: `
+⚠️ <b>إنذار درع السيولة — مخاطر في التدفقات النقدية</b>
+━━━━━━━━━━━━━━━━━━━━
+💰 <b>الرصيد النقدي الحالي:</b> ${currentCash.toLocaleString('ar-EG')} ج.م
+📉 <b>الرصيد المتوقع بعد 30 يوماً:</b> ${projected30d.toLocaleString('ar-EG')} ج.م
+${proj.runwayDays !== null ? `🚨 <b>السيولة تغطي فقط:</b> ${proj.runwayDays} يوم\n` : ''}⚠️ <b>التفاصيل:</b> ${proj.warningMsg}
+━━━━━━━━━━━━━━━━━━━━
+💡 يُنصح بمراجعة جدول دفعات الموردين وتأجيل المصاريف غير العاجلة.
+⏱ <i>تم الفحص: ${new Date().toLocaleTimeString('ar-EG', { timeZone: 'Africa/Cairo' })}</i>
+      `.trim(),
+    };
+  }
+  return {
+    title,
+    status: 'success',
+    text: `
+🛡️ <b>تقرير درع السيولة والتدفقات النقدية</b>
+━━━━━━━━━━━━━━━━━━━━
+✅ <b>وضع السيولة مستقر ومطمئن:</b>
+💰 <b>الرصيد النقدي الحالي:</b> ${currentCash.toLocaleString('ar-EG')} ج.م
+📈 <b>الرصيد المتوقع بعد 30 يوماً:</b> ${projected30d.toLocaleString('ar-EG')} ج.م
+${proj.warningMsg}
+⏱ <i>تم الفحص: ${new Date().toLocaleTimeString('ar-EG', { timeZone: 'Africa/Cairo' })}</i>
+    `.trim(),
+  };
+};
+
+const shiftHandoverReconciliationHandler: AutomationHandler = async () => {
+  const title = 'مطابقة عهدة الكاشير وإغلاق الورديات';
+  const shiftRes = await query(
+    `SELECT ps.id, ps.shift_number, ps.cashier_name, ps.actual_cash, ps.expected_cash, ps.difference, ps.end_time
+     FROM pos_shifts ps
+     WHERE ps.status = 'closed'
+       AND ps.end_time >= NOW() - INTERVAL '24 HOURS'
+       AND ABS(COALESCE(ps.difference, 0)) >= 10
+     ORDER BY ps.end_time DESC LIMIT 10`,
+  );
+
+  if (shiftRes.rows.length === 0) {
+    return {
+      title,
+      status: 'success',
+      text: `
+⚖️ <b>تقرير مطابقة عهدة الورديات (24 ساعة)</b>
+━━━━━━━━━━━━━━━━━━━━
+✅ <b>كافة الورديات المغلقة متطابقة تماماً</b> ولا توجد أي فروقات نقدية (عجز أو زيادة) تتجاوز 10 ج.م.
+⏱ ${new Date().toLocaleTimeString('ar-EG', { timeZone: 'Africa/Cairo' })}
+      `.trim(),
+    };
+  }
+  const list = shiftRes.rows
+    .map((s: any) => {
+      const diff = Number(s.difference);
+      const diffText =
+        diff < 0
+          ? `عجز ${Math.abs(diff).toLocaleString('ar-EG')} ج.م 🔻`
+          : `زيادة ${diff.toLocaleString('ar-EG')} ج.م 🔺`;
+      return `  • وردية <b>#${s.shift_number || s.id}</b> (${s.cashier_name || 'كاشير'}): ${diffText} (متوقع: ${Number(s.expected_cash).toLocaleString('ar-EG')} | فعلي: ${Number(s.actual_cash).toLocaleString('ar-EG')})`;
+    })
+    .join('\n');
+  return {
+    title,
+    status: 'warning',
+    text: `
+🚨 <b>إنذار فروقات نقدية في ورديات الكاشير</b>
+━━━━━━━━━━━━━━━━━━━━
+تم رصد الفروقات التالية في الورديات المغلقة خلال آخر 24 ساعة:
+${list}
+━━━━━━━━━━━━━━━━━━━━
+⏱ <i>توقيت الفحص: ${new Date().toLocaleTimeString('ar-EG', { timeZone: 'Africa/Cairo' })}</i>
+    `.trim(),
+  };
+};
+
+const roasteryRecipeWasteGuardHandler: AutomationHandler = async () => {
+  const title = 'حارس الهدر والفاقد لخامات التحميص والبار';
+  const wasteRes = await query(
+    `SELECT p.name_ar, p.sku, COALESCE(SUM(sm.quantity), 0) AS wasted_qty, p.unit
+     FROM stock_movements sm
+     JOIN products p ON p.id = sm.product_id
+     WHERE sm.movement_type IN ('waste', 'damage', 'spoilage', 'adjustment')
+       AND sm.quantity < 0
+       AND sm.created_at >= NOW() - INTERVAL '24 HOURS'
+     GROUP BY p.id, p.name_ar, p.sku, p.unit
+     ORDER BY wasted_qty ASC LIMIT 10`,
+  );
+
+  if (wasteRes.rows.length === 0) {
+    return {
+      title,
+      status: 'success',
+      text: `
+☕ <b>تقرير حارس الهدر والفاقد للخامات</b>
+━━━━━━━━━━━━━━━━━━━━
+✅ <b>سجل الهدر نظيف:</b> لم تُسجل أي حركات تالف أو هدر لخامات البن والمستلزمات خلال آخر 24 ساعة.
+⏱ ${new Date().toLocaleTimeString('ar-EG', { timeZone: 'Africa/Cairo' })}
+      `.trim(),
+    };
+  }
+  const list = wasteRes.rows
+    .map(
+      (r: any) =>
+        `  ⚠️ <b>${r.name_ar}</b>: هدر ${Math.abs(Number(r.wasted_qty)).toFixed(2)} ${r.unit || 'كجم'}`,
+    )
+    .join('\n');
+  return {
+    title,
+    status: 'warning',
+    text: `
+🚨 <b>إنذار هدر وفاقد في خامات التحميص والبار</b>
+━━━━━━━━━━━━━━━━━━━━
+حركات الهدر والتالف المسجلة خلال آخر 24 ساعة:
+${list}
+━━━━━━━━━━━━━━━━━━━━
+⏱ <i>تم الفحص: ${new Date().toLocaleTimeString('ar-EG', { timeZone: 'Africa/Cairo' })}</i>
+    `.trim(),
+  };
+};
+
+const customerLoyaltyDormantWinbackHandler: AutomationHandler = async () => {
+  const title = 'حملة استعادة وتنشيط العملاء المنقطعين';
+  const dormantRes = await query(
+    `SELECT c.id, c.name_ar, c.phone, COALESCE(c.points, 0) as points,
+            COUNT(s.id) as total_orders,
+            COALESCE(SUM(s.total_amount), 0) as lifetime_spend,
+            MAX(s.sale_date) as last_order_date
+     FROM customers c
+     JOIN sales s ON s.customer_id = c.id
+     WHERE c.deleted_at IS NULL AND s.deleted_at IS NULL AND s.status = 'completed'
+     GROUP BY c.id, c.name_ar, c.phone, c.points
+     HAVING MAX(s.sale_date) < CURRENT_DATE - INTERVAL '30 DAYS' AND COUNT(s.id) >= 2
+     ORDER BY lifetime_spend DESC LIMIT 5`,
+  );
+
+  if (dormantRes.rows.length === 0) {
+    return {
+      title,
+      status: 'success',
+      text: `
+🎯 <b>حملة استعادة العملاء المميزين</b>
+━━━━━━━━━━━━━━━━━━━━
+✅ لا يوجد عملاء دائمون منقطعون لأكثر من 30 يوماً حالياً. معدل عودة العملاء ممتاز!
+⏱ ${new Date().toLocaleTimeString('ar-EG', { timeZone: 'Africa/Cairo' })}
+      `.trim(),
+    };
+  }
+  const list = dormantRes.rows
+    .map(
+      (c: any) =>
+        `  • <b>${c.name_ar}</b> (${c.phone || 'بدون هاتف'}): ${c.total_orders} طلبات سابقة — إجمالي إنفاق ${Number(c.lifetime_spend).toLocaleString('ar-EG')} ج.م — آخر زيارة: ${c.last_order_date}`,
+    )
+    .join('\n');
+  return {
+    title,
+    status: 'success',
+    text: `
+🎁 <b>فرص استعادة وتنشيط العملاء المنقطعين</b>
+━━━━━━━━━━━━━━━━━━━━
+العملاء الدائمون التاليون لم يزوروا المحل منذ أكثر من 30 يوماً:
+${list}
+━━━━━━━━━━━━━━━━━━━━
+💡 يُقترح إرسال رسالة ترحيبية أو نقاط ولاء إضافية لتشجيع عودتهم.
+⏱ <i>تم الفحص: ${new Date().toLocaleTimeString('ar-EG', { timeZone: 'Africa/Cairo' })}</i>
+    `.trim(),
+  };
+};
+
+const aiCopilotAssistantHandler: AutomationHandler = async (ctx) => {
+  const title = 'الموجز الذكي للمحل — Gemini Copilot';
+  const { askCopilot } = await import('./aiCopilotService.ts');
+  const reportDate = getCairoBusinessDate(ctx.scheduledFor);
+  const summaryPrompt = `اليوم هو ${reportDate}. أعطني تقريراً تحليلياً تنفيذياً من 3 نقاط سريعة تركز على أداء المحل والمخزون والتوصيات العملية لإدارة الوردية القادمة.`;
+  const failureHeader = `
+🤖 <b>الموجز التنفيذي الذكي — Gemini AI</b>
+━━━━━━━━━━━━━━━━━━━━
+⚠️ <b>فشل توليد الموجز الذكي:</b> `;
+  try {
+    const copilotRes = await askCopilot(summaryPrompt);
+    const replyText = typeof copilotRes === 'string' ? copilotRes : (copilotRes as any)?.text || '';
+    // الخدمة تعيد سبب الفشل نصًا (مفتاح غير مفعّل) بدل رمي استثناء — نكشفه بدل إخفائه خلف نجاح زائف
+    if (replyText.includes('لم يتم تفعيل المساعد الذكي بعد')) {
+      return {
+        title,
+        status: 'warning',
+        text: `
+${failureHeader}${replyText}
+⏱ ${new Date().toLocaleTimeString('ar-EG', { timeZone: 'Africa/Cairo' })}
+        `.trim(),
+      };
+    }
+    return {
+      title,
+      status: 'success',
+      text: `
+🤖 <b>الموجز التنفيذي الذكي — Gemini AI</b>
+━━━━━━━━━━━━━━━━━━━━
+${replyText || 'تم إجراء الفحص والتحليل الذكي بنجاح.'}
+━━━━━━━━━━━━━━━━━━━━
+⏱ <i>توقيت التوليد: ${new Date().toLocaleTimeString('ar-EG', { timeZone: 'Africa/Cairo' })}</i>
+      `.trim(),
+    };
+  } catch (err: any) {
+    return {
+      title,
+      status: 'warning',
+      text: `
+${failureHeader}${err?.message || 'خطأ غير معروف من خدمة Gemini'}
+⏱ ${new Date().toLocaleTimeString('ar-EG', { timeZone: 'Africa/Cairo' })}
+      `.trim(),
+    };
+  }
+};
+
+const errorTrackerAlertHandler: AutomationHandler = async () => {
+  const title = 'كاشف الأخطاء والإنذارات البرمجية';
+  const errLogs = await query(
+    `SELECT event_name, title, message, error_message, created_at
+     FROM automation_logs
+     WHERE (status = 'failed' OR error_message IS NOT NULL)
+       AND created_at >= NOW() - INTERVAL '24 hours'
+     ORDER BY created_at DESC
+     LIMIT 5`,
+  );
+
+  if (errLogs.rows.length > 0) {
+    const list = errLogs.rows
+      .map(
+        (r: any, idx: number) =>
+          `• <b>${r.title || r.event_name}</b>: ${r.error_message || r.message}`,
+      )
+      .join('\n');
+    return {
+      title,
+      status: 'warning',
+      text: `
+⚠️ <b>إنذار كاشف الأخطاء — تم رصد (${errLogs.rows.length}) أخطاء خلال آخر 24 ساعة:</b>
+━━━━━━━━━━━━━━━━━━━━
+${list}
+━━━━━━━━━━━━━━━━━━━━
+💡 يُنصح بفحص سجلات الخادم ومعالجة أسباب الأعطال.
+⏱ <i>تم الفحص: ${new Date().toLocaleTimeString('ar-EG', { timeZone: 'Africa/Cairo' })}</i>
+      `.trim(),
+    };
+  }
+  return {
+    title,
+    status: 'success',
+    text: `
+🛡️ <b>تقرير كاشف الأخطاء البرمجية وسلامة النظام</b>
+━━━━━━━━━━━━━━━━━━━━
+✅ <b>النظام يعمل بكفاءة واستقرار تام:</b>
+لا توجد أية استثناءات أو أخطاء برمجية مسجلة خلال آخر 24 ساعة.
+قاعدة البيانات والخدمات السحابية تعمل بحالة ممتازة.
+⏱ <i>تم الفحص: ${new Date().toLocaleTimeString('ar-EG', { timeZone: 'Africa/Cairo' })}</i>
+    `.trim(),
+  };
+};
+
+const scheduledCronTaskHandler: AutomationHandler = async () => {
+  const title = 'مدير المهام والجدولة الزمنية';
+  const cronsRes = await query(
+    `SELECT key, name_ar, cron_expression, last_run_at, last_status
+     FROM automations
+     WHERE trigger_type = 'cron' AND is_enabled = TRUE
+     ORDER BY id ASC`,
+  );
+  const count = cronsRes.rows.length;
+  const list = cronsRes.rows
+    .map((r: any) => `• <b>${r.name_ar}</b> (<code>${r.cron_expression}</code>)`)
+    .join('\n');
+
+  return {
+    title,
+    status: 'success',
+    text: `
+⏰ <b>تقرير مدير المهام والجدولة الزمنية</b>
+━━━━━━━━━━━━━━━━━━━━
+✅ <b>إجمالي المهام الدورية المجدولة والنشطة:</b> ${count} مهام
+${list}
+━━━━━━━━━━━━━━━━━━━━
+⚡ محرك الجدولة يعمل بانتظام وجاهز للتنفيذ في مواعيده المحددة.
+⏱ <i>تم الفحص: ${new Date().toLocaleTimeString('ar-EG', { timeZone: 'Africa/Cairo' })}</i>
+    `.trim(),
+  };
+};
+
+const telegramNotifierHandler: AutomationHandler = async () => {
+  const title = 'وكيل إشعارات تليجرام الفوري';
+  const { default: TelegramBotService } = await import('./telegramBotService.ts');
+  const botStatus = await TelegramBotService.getBotStatus();
+
+  if (botStatus.connected) {
+    return {
+      title,
+      status: 'success',
+      text: `
+📢 <b>تقرير وكيل إشعارات تليجرام الفوري</b>
+━━━━━━━━━━━━━━━━━━━━
+✅ <b>حالة البوت:</b> متصل ونشط 🟢
+🤖 <b>اسم البوت:</b> ${botStatus.botFirstName || 'Agoouz-Report'} (@${botStatus.botUsername || 'Agoouz_bot'})
+🆔 <b>معرف الشات الأساسي:</b> <code>${botStatus.defaultChatId || 'غير محدد'}</code>
+📡 <b>الاستماع التفاعلي:</b> ${botStatus.isPolling ? 'يعمل بنجاح' : 'جاهز'}
+━━━━━━━━━━━━━━━━━━━━
+🚀 قنوات إرسال التقارير والإنذارات الفورية مؤمنة وتعمل بكفاءة.
+⏱ <i>تم الفحص: ${new Date().toLocaleTimeString('ar-EG', { timeZone: 'Africa/Cairo' })}</i>
+      `.trim(),
+    };
+  }
+  return {
+    title,
+    status: 'warning',
+    text: `
+⚠️ <b>إنذار وكيل إشعارات تليجرام</b>
+━━━━━━━━━━━━━━━━━━━━
+❌ <b>البوت غير متصل:</b> ${botStatus.error || 'يرجى مراجعة إعدادات البوت والتوكن في لوحة التحكم'}
+━━━━━━━━━━━━━━━━━━━━
+💡 توجه إلى تبويب تليجرام بالأتمتة لتحديث بيانات البوت والتحقق منه.
+⏱ <i>تم الفحص: ${new Date().toLocaleTimeString('ar-EG', { timeZone: 'Africa/Cairo' })}</i>
+    `.trim(),
+  };
+};
+
+const webhookListenerHandler: AutomationHandler = async () => {
+  return {
+    title: 'مستمع الـ Webhook للطلبات الخارجية',
+    status: 'success',
+    text: `
+🌐 <b>تقرير مستمع الـ Webhook للطلبات الخارجية</b>
+━━━━━━━━━━━━━━━━━━━━
+✅ <b>حالة مسارات الاستقبال:</b> نشطة ومؤمنة
+🔗 <b>المسارات المتاحة:</b> <code>/telegram/webhook</code> و <code>/api/telegram/webhook</code>
+🛡️ <b>الحماية:</b> استقبال مشفر ومحمي برمز الجلسة والمصادقة
+━━━━━━━━━━━━━━━━━━━━
+جاهز لاستقبال الطلبات والتحديثات الفورية ومعالجتها لحظياً.
+⏱ <i>تم الفحص: ${new Date().toLocaleTimeString('ar-EG', { timeZone: 'Africa/Cairo' })}</i>
+    `.trim(),
+  };
+};
+
+// ─── السجل ───────────────────────────────────────────────
+
+export const AUTOMATION_HANDLERS: Record<string, AutomationHandler> = {
+  daily_sales_report: dailySalesReportHandler,
+  low_stock_alert: lowStockAlertHandler,
+  void_invoice_alert: antiFraudHandler,
+  anti_fraud_sentinel: antiFraudHandler,
+  warehouse_balancing: warehouseBalancingHandler,
+  supplier_payment_due_alert: supplierPaymentDueHandler,
+  daily_profit_margin_anomaly: profitMarginAnomalyHandler,
+  system_health: systemHealthHandler,
+  daily_backup_reminder: dailyBackupReminderHandler,
+  large_discount_alert: largeDiscountAlertHandler,
+  cashflow_risk_shield: cashflowRiskShieldHandler,
+  shift_handover_reconciliation: shiftHandoverReconciliationHandler,
+  roastery_recipe_waste_guard: roasteryRecipeWasteGuardHandler,
+  customer_loyalty_dormant_winback: customerLoyaltyDormantWinbackHandler,
+  ai_copilot_assistant: aiCopilotAssistantHandler,
+  error_tracker_alert: errorTrackerAlertHandler,
+  scheduled_cron_task: scheduledCronTaskHandler,
+  telegram_notifier: telegramNotifierHandler,
+  webhook_listener: webhookListenerHandler,
+};

@@ -126,7 +126,9 @@ export function runBackup(deps: BackupDeps): { archivePath: string; archiveName:
         encoding: 'utf8',
       });
       if (typeof gitStatus !== 'string' || gitStatus.trim()) {
-        throw new Error('Refusing git archive fallback because working-tree changes would be omitted.');
+        throw new Error(
+          'Refusing git archive fallback because working-tree changes would be omitted.',
+        );
       }
       run(`git archive --format=tar.gz -o "${archiveNameRelative}" HEAD`, {
         cwd: rootDir,

@@ -125,15 +125,13 @@ beforeAll(async () => {
   cleanup.productIds.push(testProductId);
 
   // Seed inventory
-  await query(
-    `INSERT INTO inventory (product_id, warehouse_id, quantity) VALUES ($1, $2, 50)`,
-    [testProductId, testWarehouseId],
-  );
+  await query(`INSERT INTO inventory (product_id, warehouse_id, quantity) VALUES ($1, $2, 50)`, [
+    testProductId,
+    testWarehouseId,
+  ]);
 
   // 3. Expense Category (fetch existing active category)
-  const expCatRes = await query(
-    `SELECT id FROM expense_categories WHERE is_active = TRUE LIMIT 1`,
-  );
+  const expCatRes = await query(`SELECT id FROM expense_categories WHERE is_active = TRUE LIMIT 1`);
   testExpenseCatId = expCatRes.rows[0]?.id || 1;
 
   // 4. Customer
@@ -169,44 +167,75 @@ afterAll(async () => {
 
   try {
     if (cleanup.bankReconciliationIds.length) {
-      await query(`DELETE FROM bank_reconciliations WHERE id = ANY($1::int[])`, [cleanup.bankReconciliationIds]);
+      await query(`DELETE FROM bank_reconciliations WHERE id = ANY($1::int[])`, [
+        cleanup.bankReconciliationIds,
+      ]);
     }
     if (cleanup.purchaseOrderIds.length) {
-      await query(`DELETE FROM purchase_order_items WHERE purchase_order_id = ANY($1::int[])`, [cleanup.purchaseOrderIds]);
-      await query(`DELETE FROM purchase_orders WHERE id = ANY($1::int[])`, [cleanup.purchaseOrderIds]);
+      await query(`DELETE FROM purchase_order_items WHERE purchase_order_id = ANY($1::int[])`, [
+        cleanup.purchaseOrderIds,
+      ]);
+      await query(`DELETE FROM purchase_orders WHERE id = ANY($1::int[])`, [
+        cleanup.purchaseOrderIds,
+      ]);
     }
     if (cleanup.purchaseReturnIds.length) {
-      await query(`DELETE FROM purchase_return_items WHERE purchase_return_id = ANY($1::int[])`, [cleanup.purchaseReturnIds]);
-      await query(`DELETE FROM purchase_returns WHERE id = ANY($1::int[])`, [cleanup.purchaseReturnIds]);
+      await query(`DELETE FROM purchase_return_items WHERE purchase_return_id = ANY($1::int[])`, [
+        cleanup.purchaseReturnIds,
+      ]);
+      await query(`DELETE FROM purchase_returns WHERE id = ANY($1::int[])`, [
+        cleanup.purchaseReturnIds,
+      ]);
     }
     if (cleanup.purchaseInvoiceIds.length) {
-      await query(`DELETE FROM purchase_invoice_items WHERE purchase_invoice_id = ANY($1::int[])`, [cleanup.purchaseInvoiceIds]);
-      await query(`DELETE FROM purchase_invoices WHERE id = ANY($1::int[])`, [cleanup.purchaseInvoiceIds]);
+      await query(`DELETE FROM purchase_invoice_items WHERE purchase_invoice_id = ANY($1::int[])`, [
+        cleanup.purchaseInvoiceIds,
+      ]);
+      await query(`DELETE FROM purchase_invoices WHERE id = ANY($1::int[])`, [
+        cleanup.purchaseInvoiceIds,
+      ]);
     }
     if (cleanup.saleIds.length) {
-      await query(`DELETE FROM payments WHERE reference_type = 'sale' AND reference_id = ANY($1::int[])`, [cleanup.saleIds]);
-      await query(`DELETE FROM invoice_items WHERE invoice_id IN (SELECT id FROM invoices WHERE sale_id = ANY($1::int[]))`, [cleanup.saleIds]);
+      await query(
+        `DELETE FROM payments WHERE reference_type = 'sale' AND reference_id = ANY($1::int[])`,
+        [cleanup.saleIds],
+      );
+      await query(
+        `DELETE FROM invoice_items WHERE invoice_id IN (SELECT id FROM invoices WHERE sale_id = ANY($1::int[]))`,
+        [cleanup.saleIds],
+      );
       await query(`DELETE FROM invoices WHERE sale_id = ANY($1::int[])`, [cleanup.saleIds]);
       await query(`DELETE FROM sale_items WHERE sale_id = ANY($1::int[])`, [cleanup.saleIds]);
-      await query(`DELETE FROM stock_movements WHERE reference_type = 'sale' AND reference_id = ANY($1::int[])`, [cleanup.saleIds]);
+      await query(
+        `DELETE FROM stock_movements WHERE reference_type = 'sale' AND reference_id = ANY($1::int[])`,
+        [cleanup.saleIds],
+      );
       await query(`DELETE FROM sales WHERE id = ANY($1::int[])`, [cleanup.saleIds]);
     }
     if (cleanup.partnerDrawingIds.length) {
-      await query(`DELETE FROM partner_drawings WHERE id = ANY($1::int[])`, [cleanup.partnerDrawingIds]);
+      await query(`DELETE FROM partner_drawings WHERE id = ANY($1::int[])`, [
+        cleanup.partnerDrawingIds,
+      ]);
     }
     if (cleanup.partnerIds.length) {
       await query(`DELETE FROM partners WHERE id = ANY($1::int[])`, [cleanup.partnerIds]);
     }
     if (cleanup.posShiftIds.length) {
-      await query(`DELETE FROM pos_cash_movements WHERE shift_id = ANY($1::int[])`, [cleanup.posShiftIds]);
+      await query(`DELETE FROM pos_cash_movements WHERE shift_id = ANY($1::int[])`, [
+        cleanup.posShiftIds,
+      ]);
       await query(`DELETE FROM pos_shifts WHERE id = ANY($1::int[])`, [cleanup.posShiftIds]);
     }
     if (cleanup.expenseIds.length) {
       await query(`DELETE FROM expenses WHERE id = ANY($1::int[])`, [cleanup.expenseIds]);
     }
     if (cleanup.productIds.length) {
-      await query(`DELETE FROM inventory_cost_layers WHERE product_id = ANY($1::int[])`, [cleanup.productIds]);
-      await query(`DELETE FROM stock_movements WHERE product_id = ANY($1::int[])`, [cleanup.productIds]);
+      await query(`DELETE FROM inventory_cost_layers WHERE product_id = ANY($1::int[])`, [
+        cleanup.productIds,
+      ]);
+      await query(`DELETE FROM stock_movements WHERE product_id = ANY($1::int[])`, [
+        cleanup.productIds,
+      ]);
       await query(`DELETE FROM inventory WHERE product_id = ANY($1::int[])`, [cleanup.productIds]);
       await query(`DELETE FROM products WHERE id = ANY($1::int[])`, [cleanup.productIds]);
     }
@@ -214,16 +243,26 @@ afterAll(async () => {
       await query(`DELETE FROM warehouses WHERE id = ANY($1::int[])`, [cleanup.warehouseIds]);
     }
     if (cleanup.supplierIds.length) {
-      await query(`DELETE FROM payments WHERE reference_type = 'supplier' AND reference_id = ANY($1::int[])`, [cleanup.supplierIds]);
+      await query(
+        `DELETE FROM payments WHERE reference_type = 'supplier' AND reference_id = ANY($1::int[])`,
+        [cleanup.supplierIds],
+      );
       await query(`DELETE FROM suppliers WHERE id = ANY($1::int[])`, [cleanup.supplierIds]);
     }
     if (cleanup.customerIds.length) {
-      await query(`DELETE FROM payments WHERE reference_type = 'customer' AND reference_id = ANY($1::int[])`, [cleanup.customerIds]);
+      await query(
+        `DELETE FROM payments WHERE reference_type = 'customer' AND reference_id = ANY($1::int[])`,
+        [cleanup.customerIds],
+      );
       await query(`DELETE FROM customers WHERE id = ANY($1::int[])`, [cleanup.customerIds]);
     }
     if (cleanup.journalEntryIds.length) {
-      await query(`DELETE FROM journal_entry_lines WHERE journal_entry_id = ANY($1::int[])`, [cleanup.journalEntryIds]);
-      await query(`DELETE FROM journal_entries WHERE id = ANY($1::int[])`, [cleanup.journalEntryIds]);
+      await query(`DELETE FROM journal_entry_lines WHERE journal_entry_id = ANY($1::int[])`, [
+        cleanup.journalEntryIds,
+      ]);
+      await query(`DELETE FROM journal_entries WHERE id = ANY($1::int[])`, [
+        cleanup.journalEntryIds,
+      ]);
     }
     if (cleanup.userIds.length) {
       await query(`DELETE FROM payments WHERE user_id = ANY($1::int[])`, [cleanup.userIds]);
@@ -239,7 +278,10 @@ afterAll(async () => {
 describe('1. Input Validation & Financial Precision', () => {
   it('يمنع تسجيل مصروف بقيمة سالبة', async () => {
     try {
-      await createExpense({ amount: -500, title: 'Test Expense', category_id: testExpenseCatId }, adminUserId);
+      await createExpense(
+        { amount: -500, title: 'Test Expense', category_id: testExpenseCatId },
+        adminUserId,
+      );
       expect.unreachable('يجب أن يرمي خطأ عند تمرير مبلغ سالب');
     } catch (err: any) {
       expect(err instanceof AppError).toBe(true);
@@ -249,7 +291,10 @@ describe('1. Input Validation & Financial Precision', () => {
 
   it('يمنع تسجيل مصروف بقيمة صفر', async () => {
     try {
-      await createExpense({ amount: 0, title: 'Test Expense', category_id: testExpenseCatId }, adminUserId);
+      await createExpense(
+        { amount: 0, title: 'Test Expense', category_id: testExpenseCatId },
+        adminUserId,
+      );
       expect.unreachable('يجب أن يرمي خطأ عند تمرير مبلغ صفر');
     } catch (err: any) {
       expect(err instanceof AppError).toBe(true);
@@ -393,7 +438,9 @@ describe('3. Customer Payments -> General Ledger Integration', () => {
 describe('4. Supplier Payments -> General Ledger Integration', () => {
   it('Recording supplier payment automatically posts Accounts Payable (Debit) and Cash (Credit)', async () => {
     // 1. Give supplier initial balance
-    await query(`UPDATE suppliers SET opening_balance = 8000.00, balance = 8000.00 WHERE id = $1`, [testSupplierId]);
+    await query(`UPDATE suppliers SET opening_balance = 8000.00, balance = 8000.00 WHERE id = $1`, [
+      testSupplierId,
+    ]);
 
     // 2. Record payment of 3500 EGP
     const payment = await recordSupplierPayment(
@@ -652,7 +699,10 @@ describe('8. Bank & Treasury Reconciliation API', () => {
     const todayStr = new Date().toISOString().slice(0, 10);
 
     // Calculate current ledger balance
-    const ledgerBal = await bankReconciliationService.getLedgerBalanceAsOfDate(bankAcc.id, todayStr);
+    const ledgerBal = await bankReconciliationService.getLedgerBalanceAsOfDate(
+      bankAcc.id,
+      todayStr,
+    );
     expect(typeof ledgerBal).toBe('number');
 
     // Create reconciliation via API

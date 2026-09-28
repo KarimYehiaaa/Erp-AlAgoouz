@@ -14,7 +14,7 @@ import {
   requireManagerOverride,
   enforceCashierDiscountOverride,
 } from '../middleware/managerOverride.ts';
-import { upload } from './helpers.ts';
+import { upload, requireAdmin } from './helpers.ts';
 import {
   commonQuerySchema,
   saleSchema,
@@ -112,6 +112,7 @@ router.put(
   enforceWarehouseAccess,
   requireIdempotency,
   validateBody(saleSchema),
+  requireManagerOverride,
   auditLog('sale_update', 'sales'),
   api.sales.update,
 );
@@ -130,6 +131,7 @@ router.delete(
   '/sales',
   authenticate,
   salesDeleteAuth,
+  requireAdmin,
   requireConfirmation('CONFIRM_DELETE_ALL_SALES'),
   auditLog('sales_delete_all', 'sales'),
   api.sales.deleteAll,
@@ -138,6 +140,7 @@ router.delete(
   '/sales/date/:saleDate',
   authenticate,
   salesDeleteAuth,
+  requireAdmin,
   requireConfirmation('CONFIRM_DELETE_SALES_DATE'),
   auditLog('sales_delete_date', 'sales'),
   api.sales.deleteByDate,
@@ -146,6 +149,7 @@ router.delete(
   '/sales/type/:saleType',
   authenticate,
   authorize('settings.delete', 'sales.delete'),
+  requireAdmin,
   requireConfirmation('CONFIRM_DELETE_SALES_TYPE'),
   auditLog('sales_delete_type', 'sales'),
   api.sales.deleteByType,

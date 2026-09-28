@@ -139,9 +139,7 @@ describe('رسم طرق الدفع (paymentMethodSummary)', () => {
        GROUP BY payment_method`,
       [today, today],
     );
-    const apiMap = Object.fromEntries(
-      summary.map((r: any) => [r.payment_method, Number(r.total)]),
-    );
+    const apiMap = Object.fromEntries(summary.map((r: any) => [r.payment_method, Number(r.total)]));
     const dbMap = Object.fromEntries(
       ledger.rows.map((r: any) => [r.payment_method, Number(r.total)]),
     );

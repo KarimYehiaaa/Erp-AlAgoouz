@@ -24,11 +24,7 @@
         </div>
 
         <div v-else class="held-orders-list">
-          <div
-            v-for="(order, idx) in heldOrders"
-            :key="order.id"
-            class="held-order-card"
-          >
+          <div v-for="(order, idx) in heldOrders" :key="order.id" class="held-order-card">
             <div class="order-card-header">
               <div class="order-meta">
                 <span class="order-badge">طلب معلق #{{ idx + 1 }}</span>
@@ -38,30 +34,18 @@
             </div>
 
             <div class="order-items-preview">
-              <span
-                v-for="item in order.items"
-                :key="item.id"
-                class="item-pill"
-              >
+              <span v-for="item in order.items" :key="item.id" class="item-pill">
                 {{ item.name_ar }} × {{ item.quantity }}
               </span>
             </div>
 
             <div class="order-card-footer">
-              <button
-                type="button"
-                class="btn-delete-held"
-                @click="deleteHeldOrder(idx)"
-              >
+              <button type="button" class="btn-delete-held" @click="deleteHeldOrder(idx)">
                 <AppIcon name="trash2" :size="14" />
                 <span>حذف</span>
               </button>
 
-              <button
-                type="button"
-                class="btn-restore-held"
-                @click="restoreOrder(order, idx)"
-              >
+              <button type="button" class="btn-restore-held" @click="restoreOrder(order, idx)">
                 <AppIcon name="check" :size="16" />
                 <span>استرجاع إلى السلة الحالية</span>
               </button>

@@ -76,10 +76,11 @@ export const sendAlert = async (subject: string, message: string, type: string =
   }
 
   // 2. تنبيه Telegram
-  const tgToken = process.env.TELEGRAM_BOT_TOKEN;
-  const tgChatId = process.env.TELEGRAM_CHAT_ID;
-  if (tgToken && tgChatId) {
-    try {
+  try {
+    const { default: TelegramBotService } = await import('./telegramBotService.ts');
+    const { token: tgToken, defaultChatId: tgChatId } =
+      await TelegramBotService.getBotCredentials();
+    if (tgToken && tgChatId) {
       // الهروب الرمزي لـ MarkdownV2 في تيليجرام لمنع أخطاء التفسير
       const cleanMessage = String(message || '').replace(/[_*[\]()~`>#+\-=|{}.!]/g, '\\$&');
       const cleanSubject = String(subject || '').replace(/[_*[\]()~`>#+\-=|{}.!]/g, '\\$&');
@@ -100,9 +101,9 @@ export const sendAlert = async (subject: string, message: string, type: string =
       if (!response.ok) {
         logger.warn(' [بن العجوز ERP] فشل إرسال التنبيه لـ Telegram: %s', response.statusText);
       }
-    } catch (err: any) {
-      logger.error(' [بن العجوز ERP] فشل الاتصال بخدمة تنبيهات Telegram: %s', err.message);
     }
+  } catch (err: any) {
+    logger.error(' [بن العجوز ERP] فشل الاتصال بخدمة تنبيهات Telegram: %s', err.message);
   }
 };
 

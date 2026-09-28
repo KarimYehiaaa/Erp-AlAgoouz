@@ -28,7 +28,9 @@ it('migrates queued historical sale types once before returning them for sync', 
   expect(writePendingQueue([historicalSale], storageDir)).toBe(true);
   const queue = readPendingQueue(storageDir);
   const paths = fs.readdirSync(storageDir);
-  const persisted = JSON.parse(fs.readFileSync(path.join(storageDir, 'pending_queue.json'), 'utf8'));
+  const persisted = JSON.parse(
+    fs.readFileSync(path.join(storageDir, 'pending_queue.json'), 'utf8'),
+  );
 
   expect(queue[0].sale_type).toBe('retail');
   expect(persisted[0].sale_type).toBe('retail');

@@ -46,7 +46,9 @@ function checkMigrations() {
     }
   }
 
-  console.log(`✅ تم فحص ${files.length} ملف ترحيل بنجاح. ${hasWarnings ? '(مع ملاحظات تاريخية)' : ''}`);
+  console.log(
+    `✅ تم فحص ${files.length} ملف ترحيل بنجاح. ${hasWarnings ? '(مع ملاحظات تاريخية)' : ''}`,
+  );
 }
 
 checkMigrations();

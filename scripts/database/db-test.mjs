@@ -45,9 +45,11 @@ const start = Date.now();
 
 try {
   // اختبار 1: الاتصال الأساسي
-  const res = await pool.query('SELECT current_database() AS db, current_user AS usr, version() AS ver');
+  const res = await pool.query(
+    'SELECT current_database() AS db, current_user AS usr, version() AS ver',
+  );
   const latency = Date.now() - start;
-  
+
   console.log(`✅ الاتصال نجح! (${latency}ms)`);
   console.log(`📦 قاعدة البيانات: ${res.rows[0].db}`);
   console.log(`👤 المستخدم:      ${res.rows[0].usr}`);
@@ -57,17 +59,19 @@ try {
   const tables = await pool.query(
     `SELECT table_name FROM information_schema.tables 
      WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
-     ORDER BY table_name`
+     ORDER BY table_name`,
   );
   console.log(`📋 الجداول الموجودة: ${tables.rows.length} جدول`);
-  tables.rows.forEach(r => console.log(`   • ${r.table_name}`));
+  tables.rows.forEach((r) => console.log(`   • ${r.table_name}`));
   console.log('');
 
   // اختبار 3: المستخدمون
   try {
-    const users = await pool.query('SELECT id, username, role_id, is_active FROM users WHERE deleted_at IS NULL LIMIT 5');
+    const users = await pool.query(
+      'SELECT id, username, role_id, is_active FROM users WHERE deleted_at IS NULL LIMIT 5',
+    );
     console.log(`👥 المستخدمون: ${users.rows.length} مستخدم`);
-    users.rows.forEach(u => console.log(`   • [${u.id}] ${u.username} (active: ${u.is_active})`));
+    users.rows.forEach((u) => console.log(`   • [${u.id}] ${u.username} (active: ${u.is_active})`));
   } catch (e) {
     console.log(`⚠️  جدول users: ${e.message}`);
   }
@@ -75,7 +79,9 @@ try {
 
   // اختبار 4: المنتجات
   try {
-    const products = await pool.query('SELECT COUNT(*) AS cnt FROM products WHERE deleted_at IS NULL');
+    const products = await pool.query(
+      'SELECT COUNT(*) AS cnt FROM products WHERE deleted_at IS NULL',
+    );
     console.log(`🛍️  المنتجات: ${products.rows[0].cnt} منتج`);
   } catch (e) {
     console.log(`⚠️  جدول products: ${e.message}`);
@@ -87,12 +93,11 @@ try {
   console.log(`   Total: ${pool.totalCount}`);
   console.log(`   Idle:  ${pool.idleCount}`);
   console.log(`   Wait:  ${pool.waitingCount}`);
-  
+
   console.log('');
   console.log('══════════════════════════════════════════════');
   console.log('   ✅ كل الاختبارات اجتازت بنجاح!            ');
   console.log('══════════════════════════════════════════════');
-
 } catch (err) {
   console.error(`❌ فشل الاتصال: ${err.message}`);
   console.error(`   Code: ${err.code}`);

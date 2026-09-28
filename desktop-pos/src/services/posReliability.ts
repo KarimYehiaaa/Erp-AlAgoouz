@@ -1,7 +1,11 @@
 export function isRetryableNetworkError(error: any): boolean {
   if (!error || error.response) return false;
   const code = String(error.code || '').toUpperCase();
-  if (['ECONNABORTED', 'ECONNRESET', 'ETIMEDOUT', 'ERR_NETWORK', 'ENOTFOUND', 'EAI_AGAIN'].includes(code)) {
+  if (
+    ['ECONNABORTED', 'ECONNRESET', 'ETIMEDOUT', 'ERR_NETWORK', 'ENOTFOUND', 'EAI_AGAIN'].includes(
+      code,
+    )
+  ) {
     return true;
   }
   const message = String(error.message || '').toLowerCase();

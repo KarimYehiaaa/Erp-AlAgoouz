@@ -52,7 +52,9 @@ function isEncryptionAvailable(): boolean {
 }
 
 function encodeQueue(content: string): Buffer {
-  return isEncryptionAvailable() ? safeStorage.encryptString(content) : Buffer.from(content, 'utf8');
+  return isEncryptionAvailable()
+    ? safeStorage.encryptString(content)
+    : Buffer.from(content, 'utf8');
 }
 
 function decodeQueue(raw: Buffer): string | null {
@@ -97,7 +99,9 @@ export function readPendingQueue(customDir?: string): any[] {
           const expectedHash = fs.readFileSync(checksumFile, 'utf8').trim();
           const actualHash = calculateSha256(raw);
           if (expectedHash !== actualHash) {
-            console.warn('[Storage Security] Primary queue checksum mismatch! Potential corruption or tampering.');
+            console.warn(
+              '[Storage Security] Primary queue checksum mismatch! Potential corruption or tampering.',
+            );
             isChecksumValid = false;
           }
         }
@@ -152,7 +156,8 @@ export function readPendingQueue(customDir?: string): any[] {
 
 export function writePendingQueue(queue: any[], customDir?: string): boolean {
   try {
-    const { primaryFile, backupFile, tempFile, checksumFile, backupChecksumFile } = getStoragePaths(customDir);
+    const { primaryFile, backupFile, tempFile, checksumFile, backupChecksumFile } =
+      getStoragePaths(customDir);
     const data = JSON.stringify(queue, null, 2);
     const encodedData = encodeQueue(data);
     const hash = calculateSha256(encodedData);
@@ -186,7 +191,7 @@ export function writePendingQueue(queue: any[], customDir?: string): boolean {
 
 export function saveTransaction(
   transaction: any,
-  customDir?: string
+  customDir?: string,
 ): { success: boolean; transaction?: any; error?: string; message?: string } {
   try {
     const queue = readPendingQueue(customDir);
@@ -238,7 +243,7 @@ export function updateQueueItemStatus(
   status: string,
   serverId?: any,
   errorMessage?: string,
-  customDir?: string
+  customDir?: string,
 ): boolean {
   const queue = readPendingQueue(customDir);
   const item = queue.find((t) => t.sync_id === syncId);

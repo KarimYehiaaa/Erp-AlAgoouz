@@ -107,9 +107,11 @@ beforeAll(async () => {
   }
 
   // Ensure reference_type allows reversal
-  await query(`ALTER TABLE journal_entries DROP CONSTRAINT IF EXISTS journal_entries_reference_type_check;`);
+  await query(
+    `ALTER TABLE journal_entries DROP CONSTRAINT IF EXISTS journal_entries_reference_type_check;`,
+  );
   await query(`ALTER TABLE journal_entries ADD CONSTRAINT journal_entries_reference_type_check 
-    CHECK (reference_type IN ('sale', 'purchase', 'payment', 'expense', 'payroll', 'stocktake', 'purchase_return', 'manual', 'opening', 'transfer', 'reversal'));`);
+    CHECK (reference_type IN ('sale', 'purchase', 'payment', 'expense', 'payroll', 'stocktake', 'purchase_return', 'manual', 'opening', 'transfer', 'reversal', 'partner_drawing'));`);
 });
 
 afterAll(async () => {
@@ -117,18 +119,16 @@ afterAll(async () => {
 
   // Cleanup in order
   if (cleanup.periodIds.length > 0) {
-    await query(`UPDATE financial_periods SET status = 'open' WHERE id = ANY($1::int[])`, [cleanup.periodIds]);
+    await query(`UPDATE financial_periods SET status = 'open' WHERE id = ANY($1::int[])`, [
+      cleanup.periodIds,
+    ]);
     await query(`DELETE FROM financial_periods WHERE id = ANY($1::int[])`, [cleanup.periodIds]);
   }
   if (cleanup.journalEntryIds.length > 0) {
-    await query(
-      `DELETE FROM journal_entry_lines WHERE journal_entry_id = ANY($1::int[])`,
-      [cleanup.journalEntryIds],
-    );
-    await query(
-      `DELETE FROM journal_entries WHERE id = ANY($1::int[])`,
-      [cleanup.journalEntryIds],
-    );
+    await query(`DELETE FROM journal_entry_lines WHERE journal_entry_id = ANY($1::int[])`, [
+      cleanup.journalEntryIds,
+    ]);
+    await query(`DELETE FROM journal_entries WHERE id = ANY($1::int[])`, [cleanup.journalEntryIds]);
   }
   if (cleanup.userIds.length > 0) {
     await query(`DELETE FROM users WHERE id = ANY($1::int[])`, [cleanup.userIds]);

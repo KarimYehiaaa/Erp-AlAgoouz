@@ -17,14 +17,13 @@ class InvoicesRepository extends BaseRepository {
       FROM invoices i LEFT JOIN customers c ON i.customer_id = c.id
       LEFT JOIN sales s ON i.sale_id = s.id WHERE i.deleted_at IS NULL`;
     const params: any[] = [];
-    let idx = 1;
     if (filters.payment_status) {
-      sql += ` AND i.payment_status = $${idx++}`;
       params.push(filters.payment_status);
+      sql += ` AND i.payment_status = $${params.length}`;
     }
     if (filters.customer_id) {
-      sql += ` AND i.customer_id = $${idx}`;
       params.push(filters.customer_id);
+      sql += ` AND i.customer_id = $${params.length}`;
     }
     sql += ` ORDER BY i.created_at DESC LIMIT ${sanitizeLimit(filters.limit)}`;
     return (await query(sql, params)).rows;

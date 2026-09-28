@@ -5,9 +5,7 @@ import { roundMoney, sumMoney, toNumber } from '../src/utils/money.ts';
 describe('Financial Cycles & Calculations Hardening', () => {
   describe('Sales Calculations (Taxes, Discounts, Subtotals)', () => {
     it('يحسب ضريبة القيمة المضافة ديناميكياً بدقة عند تمرير tax_percent', () => {
-      const items = [
-        { product_id: 1, quantity: 2, unit_price: 100, discount_amount: 0 },
-      ];
+      const items = [{ product_id: 1, quantity: 2, unit_price: 100, discount_amount: 0 }];
       // Subtotal = 200, Tax = 14% (28 EGP), Total = 228 EGP
       const result = calculateSaleTotals(items, { tax_percent: 14 });
       expect(result.subtotal).toBe(200);
@@ -30,9 +28,7 @@ describe('Financial Cycles & Calculations Hardening', () => {
     });
 
     it('يقبل tax_amount صريح بدلاً من النسبة المئوية', () => {
-      const items = [
-        { product_id: 1, quantity: 1, unit_price: 500, discount_amount: 0 },
-      ];
+      const items = [{ product_id: 1, quantity: 1, unit_price: 500, discount_amount: 0 }];
       const result = calculateSaleTotals(items, { tax_amount: 70 });
       expect(result.taxAmount).toBe(70);
       expect(result.totalAmount).toBe(570);

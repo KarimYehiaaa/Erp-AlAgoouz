@@ -64,7 +64,8 @@ export async function initServerConfig(): Promise<string> {
   if (typeof window !== 'undefined' && window.electronAPI?.getServerUrl) {
     try {
       const electronUrl = await window.electronAPI.getServerUrl();
-      const localUrl = typeof localStorage !== 'undefined' ? localStorage.getItem('pos_server_url') : null;
+      const localUrl =
+        typeof localStorage !== 'undefined' ? localStorage.getItem('pos_server_url') : null;
       if (localUrl) {
         const val = validateServerUrl(localUrl);
         if (val.valid && val.normalizedUrl) {

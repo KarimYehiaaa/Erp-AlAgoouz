@@ -5,6 +5,7 @@
 import { query, getClient } from '../database/pool.ts';
 import { AppError } from '../types/errors.ts';
 import { roundMoney } from '../utils/money.ts';
+import { emitAutomationEvent } from './automationEventBus.ts';
 
 export interface OpenShiftData {
   terminal_id?: number;
@@ -336,6 +337,15 @@ export const posShiftService = {
       }
 
       await client.query('COMMIT');
+      // حدث أتمتة فوري غير حاجب: مطابقة العهدة عند إغلاق الوردية (فرق ≥ 10 ج.م)
+      emitAutomationEvent('shift_handover_reconciliation', {
+        shift_id: shiftId,
+        shift_number: shift.shift_number || `SHIFT-${shiftId}`,
+        cash_difference: cashDifference,
+        cashier_user_id: userId,
+        cashier_name: shift.cashier_name,
+        warehouse_id: shift.warehouse_id,
+      });
       return {
         ...updateRes.rows[0],
         ...metrics,

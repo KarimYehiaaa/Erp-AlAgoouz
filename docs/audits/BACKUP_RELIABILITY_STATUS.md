@@ -32,19 +32,28 @@ Verified locally:
 
 Still required before declaring disaster recovery ready:
 
-- Verify closed accounting periods and all document families with richer financial fixtures.
+- Add richer backup/restore fixtures for sales, purchases, expenses, payments, returns and
+  reconciliation documents; only one journal entry inside a closed period is currently proven.
 - Verify production backup storage, retention and off-site retrieval; a successful HTTP health
   response does not establish any of these guarantees.
-- Extend relational-integrity fixtures to composite foreign keys and MATCH FULL null cases;
-  the implemented validator reads those definitions, but the restore drill currently proves
-  a missing product reference and preservation of the valid snapshot.
+
+Additional relational-integrity verification (2026-09-25):
+
+- The disposable restore drill adds a composite `MATCH FULL` relationship between products
+  and product categories, then verifies that a missing composite parent and a partially-null
+  key are both rejected before commit. After each rejected restore, every table remains
+  identical to the known-good snapshot. The targeted roundtrip passes locally on an ephemeral
+  PostgreSQL database that the test runner removes after completion.
+- The same drill restores a closed July 2025 accounting period containing a dated journal entry
+  and verifies both its closed status and journal date after restore.
 
 Restore input hardening verified locally:
 
 - Malformed JSON, non-object/empty rows, invalid column identifiers and inconsistent row
   column sets are rejected before acquiring a database connection (mocked boundary tests).
-- Replication-role permission failure immediately rolls back restore/reset; neither proceeds
-  to truncate tables after the failed statement. Ten regression cases passed.
+- Replication-role permission failure immediately rolls back restore. The system reset no
+  longer changes the replication role: it clears one reviewed table list with `RESTRICT`
+  in a transaction and aborts if the schema contains an unreviewed table or dependency.
 - The full restore drill on the disposable database still passes after this validation.
 - Restore checks declared foreign keys using PostgreSQL catalog definitions before resetting
   counters or committing. An encrypted snapshot containing an orphan stock movement is rejected

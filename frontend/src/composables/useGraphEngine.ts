@@ -120,6 +120,7 @@ export function useGraphEngine(options: GraphEngineOptions = {}) {
 
   // سحب وتحويم
   let dragNodeId: number | null = null;
+  let dragOffset = { x: 0, y: 0 };
   let isPanning = false;
   let lastPointer = { x: 0, y: 0 };
   let downPos = { x: 0, y: 0 };
@@ -452,11 +453,21 @@ export function useGraphEngine(options: GraphEngineOptions = {}) {
     const width = canvasEl.width / dpr;
     const height = canvasEl.height / dpr;
 
-    ctx.save();
-    ctx.clearRect(0, 0, width, height);
+    // 1. إعادة ضبط مصفوفة التحويل بالكامل ومسح كامل بكسلات الذاكرة التخزينية
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
 
+    // 2. تفعيل مقياس DPR لشاشات العرض بدقة 1:1 مع إحداثيات الـ CSS
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    // 3. ملء الخلفية بلون صلب يطابق بطاقة الثيم لمنع ترسبات الشفافية وظلال التتبع في المتصفح
+    ctx.fillStyle = theme.card;
+    ctx.fillRect(0, 0, width, height);
+
+    // 4. رسم شبكة النقاط الهندسية
     drawDotGrid(ctx, width, height);
 
+    ctx.save();
     ctx.translate(pan.x, pan.y);
     ctx.scale(zoom.value, zoom.value);
 
@@ -472,8 +483,8 @@ export function useGraphEngine(options: GraphEngineOptions = {}) {
     ctx.save();
     ctx.fillStyle = theme.dark ? 'rgba(148, 163, 184, 0.10)' : 'rgba(148, 163, 184, 0.14)';
     const gridSize = 24 * zoom.value;
-    const offsetX = pan.x % gridSize;
-    const offsetY = pan.y % gridSize;
+    const offsetX = ((pan.x % gridSize) + gridSize) % gridSize;
+    const offsetY = ((pan.y % gridSize) + gridSize) % gridSize;
     // حد أعلى لعدد النقاط على الأجهزة الضعيفة
     const cols = Math.ceil(width / gridSize);
     const rows = Math.ceil(height / gridSize);
@@ -671,6 +682,8 @@ export function useGraphEngine(options: GraphEngineOptions = {}) {
         ctx.lineWidth = 1.8;
       }
       ctx.stroke();
+      ctx.shadowBlur = 0;
+      ctx.shadowColor = 'transparent';
 
       // سهم توجيه هندسي احترافي يصب مباشرة في جدار العقدة الهدف
       const arrowAngle = Math.atan2(c.ty - c.cy2, c.tx - c.cx2);
@@ -693,6 +706,8 @@ export function useGraphEngine(options: GraphEngineOptions = {}) {
         ctx.shadowColor = sColor;
         ctx.shadowBlur = 8;
         ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.shadowColor = 'transparent';
       }
 
       // بطاقة اسم الرابط (Floating Pill Badge)
@@ -728,107 +743,134 @@ export function useGraphEngine(options: GraphEngineOptions = {}) {
   }
 
   function drawNodes(ctx: CanvasRenderingContext2D) {
+    const regularNodes: EngineNode[] = [];
+    let draggedNode: EngineNode | null = null;
+
     for (const n of nodes.value) {
-      const isHovered = hoveredNode.value?.id === n.id;
-      const isSelected = selectedNode.value?.id === n.id;
-      const isHighlighted = highlightNodeId === n.id;
-      const enter = reducedMotion ? 1 : n.enter;
-      if (enter <= 0) continue;
-
-      const w = n.width;
-      const h = n.height;
-      // حركة دخول أنيقة: تحجيم + شفافية + انزلاق خفيف
-      const scale = 0.85 + 0.15 * easeOutCubic(enter);
-      const alphaEnter = easeOutCubic(enter);
-      const slideY = (1 - easeOutCubic(enter)) * 14;
-
-      ctx.save();
-      ctx.globalAlpha = alphaEnter;
-      ctx.translate(n.x, n.y + slideY);
-      ctx.scale(scale, scale);
-
-      const accent = getNodeColor(n.group);
-
-      // هالة ripple على عقدة الوكيل عند التنفيذ الحقيقي
-      if (n.rippleT >= 0) {
-        const rt = n.rippleT;
-        const rr = (w / 2) * (1 + rt * 1.4);
-        ctx.beginPath();
-        ctx.arc(0, 0, rr, 0, Math.PI * 2);
-        ctx.strokeStyle = `rgba(56, 189, 248, ${(1 - rt) * 0.55})`;
-        ctx.lineWidth = 2.5 * (1 - rt) + 0.5;
-        ctx.stroke();
-      }
-
-      // توهج متدرج على العقد النشطة
-      if (n.glow > 0.01 || isHighlighted) {
-        const g = Math.max(n.glow, isHighlighted ? 0.8 : 0);
-        ctx.shadowColor = accent;
-        ctx.shadowBlur = 26 * g;
-        ctx.shadowOffsetY = 0;
+      if (dragNodeId === n.id) {
+        draggedNode = n;
       } else {
-        // ظل ناعم متوافق مع الثيم
-        ctx.shadowColor = theme.dark ? 'rgba(0, 0, 0, 0.45)' : 'rgba(15, 23, 42, 0.10)';
-        ctx.shadowBlur = isHovered ? 18 : 10;
-        ctx.shadowOffsetY = 3;
+        regularNodes.push(n);
       }
+    }
 
-      // خلفية بطاقة العقدة بلون الثيم
+    for (const n of regularNodes) {
+      drawSingleNode(ctx, n, false);
+    }
+    if (draggedNode) {
+      drawSingleNode(ctx, draggedNode, true);
+    }
+  }
+
+  function drawSingleNode(ctx: CanvasRenderingContext2D, n: EngineNode, isDragging: boolean) {
+    const isHovered = hoveredNode.value?.id === n.id;
+    const isSelected = selectedNode.value?.id === n.id;
+    const isHighlighted = highlightNodeId === n.id;
+    const enter = reducedMotion ? 1 : n.enter;
+    if (enter <= 0) return;
+
+    const w = n.width;
+    const h = n.height;
+    // عند السحب: رفع خفيف وتكبير سلس وتثبيت الإزاحة
+    const scale = isDragging ? 1.03 : 0.85 + 0.15 * easeOutCubic(enter);
+    const alphaEnter = easeOutCubic(enter);
+    const slideY = isDragging ? 0 : (1 - easeOutCubic(enter)) * 14;
+
+    ctx.save();
+    ctx.globalAlpha = alphaEnter;
+    ctx.translate(n.x, n.y + slideY);
+    ctx.scale(scale, scale);
+
+    const accent = getNodeColor(n.group);
+
+    // هالة ripple على عقدة الوكيل عند التنفيذ الحقيقي
+    if (n.rippleT >= 0) {
+      const rt = n.rippleT;
+      const rr = (w / 2) * (1 + rt * 1.4);
       ctx.beginPath();
-      roundRect(ctx, -w / 2, -h / 2, w, h, 12);
-      ctx.fillStyle = theme.card;
-      ctx.fill();
-      ctx.shadowBlur = 0;
+      ctx.arc(0, 0, rr, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(56, 189, 248, ${(1 - rt) * 0.55})`;
+      ctx.lineWidth = 2.5 * (1 - rt) + 0.5;
+      ctx.stroke();
+    }
+
+    // ظل الكارت النظيف
+    if (isDragging) {
+      ctx.shadowColor = theme.dark ? 'rgba(0, 0, 0, 0.55)' : 'rgba(2, 132, 199, 0.22)';
+      ctx.shadowBlur = 22;
+      ctx.shadowOffsetY = 6;
+    } else if (n.glow > 0.01 || isHighlighted) {
+      const g = Math.max(n.glow, isHighlighted ? 0.8 : 0);
+      ctx.shadowColor = accent;
+      ctx.shadowBlur = 26 * g;
       ctx.shadowOffsetY = 0;
+    } else {
+      ctx.shadowColor = theme.dark ? 'rgba(0, 0, 0, 0.45)' : 'rgba(15, 23, 42, 0.08)';
+      ctx.shadowBlur = isHovered ? 16 : 8;
+      ctx.shadowOffsetY = 2;
+    }
 
-      // تمييز لوني متدرج لبطاقة العقدة حسب المجموعة
-      const grad = ctx.createLinearGradient(-w / 2, -h / 2, w / 2, h / 2);
-      grad.addColorStop(0, hexWithAlpha(accent, theme.dark ? 0.16 : 0.07));
-      grad.addColorStop(1, hexWithAlpha(accent, 0));
-      ctx.fillStyle = grad;
-      ctx.fill();
+    // خلفية بطاقة العقدة بلون الثيم
+    ctx.beginPath();
+    roundRect(ctx, -w / 2, -h / 2, w, h, 12);
+    ctx.fillStyle = theme.card;
+    ctx.fill();
 
-      // إطار البطاقة
-      ctx.lineWidth = isSelected ? 2.5 : isHovered ? 2 : 1.2;
-      ctx.strokeStyle = isSelected
+    // إلغاء الظل فوراً لمنع ترسبه أو تكراره في أي عناصر أخرى
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetY = 0;
+    ctx.shadowColor = 'transparent';
+
+    // تمييز لوني متدرج لبطاقة العقدة حسب المجموعة
+    const grad = ctx.createLinearGradient(-w / 2, -h / 2, w / 2, h / 2);
+    grad.addColorStop(0, hexWithAlpha(accent, theme.dark ? 0.16 : 0.07));
+    grad.addColorStop(1, hexWithAlpha(accent, 0));
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    // إطار البطاقة
+    ctx.lineWidth = isDragging ? 2.5 : isSelected ? 2.5 : isHovered ? 2 : 1.2;
+    ctx.strokeStyle = isDragging
+      ? theme.accent
+      : isSelected
         ? theme.accent
         : isHovered || isHighlighted
           ? accent
           : theme.dark
             ? 'rgba(148, 163, 184, 0.35)'
             : theme.border;
-      ctx.stroke();
+    ctx.stroke();
 
-      // شريط التصنيف الجانبي
-      ctx.beginPath();
-      roundRectLeft(ctx, -w / 2, -h / 2, 6, h, 12);
-      ctx.fillStyle = accent;
-      ctx.fill();
+    // شريط التصنيف الجانبي
+    ctx.beginPath();
+    roundRectLeft(ctx, -w / 2, -h / 2, 6, h, 12);
+    ctx.fillStyle = accent;
+    ctx.fill();
 
-      // نقطة الحالة
-      ctx.beginPath();
-      ctx.arc(w / 2 - 16, -h / 2 + 16, 4, 0, Math.PI * 2);
-      ctx.fillStyle = n.is_active ? '#10b981' : theme.textMuted;
-      if (n.glow > 0.4) {
-        ctx.shadowColor = '#10b981';
-        ctx.shadowBlur = 8 * n.glow;
-      }
-      ctx.fill();
-      ctx.shadowBlur = 0;
-
-      // الاسم بالعربية
-      ctx.font = 'bold 13px sans-serif';
-      ctx.fillStyle = theme.text;
-      ctx.textAlign = 'right';
-      ctx.fillText(n.label_ar || n.label, w / 2 - 28, -h / 2 + 26);
-
-      // نوع العقدة والمجموعة
-      ctx.font = '11px sans-serif';
-      ctx.fillStyle = theme.textMuted;
-      ctx.fillText(typeLabelOf(n.type), w / 2 - 28, -h / 2 + 46);
-
-      ctx.restore();
+    // نقطة الحالة
+    ctx.beginPath();
+    ctx.arc(w / 2 - 16, -h / 2 + 16, 4, 0, Math.PI * 2);
+    ctx.fillStyle = n.is_active ? '#10b981' : theme.textMuted;
+    if (n.glow > 0.4) {
+      ctx.shadowColor = '#10b981';
+      ctx.shadowBlur = 8 * n.glow;
     }
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.shadowColor = 'transparent';
+
+    // الاسم بالعربية
+    ctx.font = 'bold 13px system-ui, -apple-system, sans-serif';
+    ctx.fillStyle = theme.text;
+    ctx.textAlign = 'right';
+    ctx.fillText(n.label_ar || n.label, w / 2 - 28, -h / 2 + 26);
+
+    // نوع العقدة والمجموعة
+    ctx.font = '11px system-ui, -apple-system, sans-serif';
+    ctx.fillStyle = theme.textMuted;
+    ctx.fillText(typeLabelOf(n.type), w / 2 - 28, -h / 2 + 46);
+
+    ctx.restore();
   }
 
   // ─── الخريطة المصغرة ───
@@ -875,7 +917,9 @@ export function useGraphEngine(options: GraphEngineOptions = {}) {
     const W = mm.width / dpr;
     const H = mm.height / dpr;
     mctx.save();
-    mctx.clearRect(0, 0, W, H);
+    mctx.setTransform(1, 0, 0, 1, 0, 0);
+    mctx.clearRect(0, 0, mm.width, mm.height);
+    mctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     mctx.fillStyle = theme.dark ? 'rgba(15, 23, 42, 0.75)' : 'rgba(248, 250, 252, 0.85)';
     mctx.fillRect(0, 0, W, H);
 
@@ -1368,6 +1412,7 @@ export function useGraphEngine(options: GraphEngineOptions = {}) {
     if (hit) {
       dragNodeId = hit.id;
       hit.fixed = true;
+      dragOffset = { x: hit.x - w.x, y: hit.y - w.y };
     } else {
       isPanning = true;
     }
@@ -1379,8 +1424,8 @@ export function useGraphEngine(options: GraphEngineOptions = {}) {
     if (dragNodeId !== null) {
       const node = nodes.value.find((n) => n.id === dragNodeId);
       if (node) {
-        node.x = w.x;
-        node.y = w.y;
+        node.x = w.x + dragOffset.x;
+        node.y = w.y + dragOffset.y;
         node.vx = 0;
         node.vy = 0;
         markDirty();

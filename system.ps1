@@ -14,7 +14,8 @@
 # ================================================================================
 
 param(
-    [string]$Action
+    [string]$Action,
+    [switch]$Silent
 )
 
 $Root = $PSScriptRoot
@@ -22,47 +23,64 @@ if (-not $Root) { $Root = (Get-Location).Path }
 Set-Location $Root
 
 function Start-SystemServer {
-    Write-Host ""
-    Write-Host "================================================================================" -ForegroundColor Cyan
-    Write-Host " [START] Checking and starting Bin Al-Ajouz ERP (Port 3000)..." -ForegroundColor Cyan
-    Write-Host "================================================================================" -ForegroundColor Cyan
-    Write-Host ""
+    param([switch]$Silent)
+
+    if (-not $Silent) {
+        Write-Host ""
+        Write-Host "================================================================================" -ForegroundColor Cyan
+        Write-Host " [START] Checking and starting Bin Al-Ajouz ERP (Port 3000)..." -ForegroundColor Cyan
+        Write-Host "================================================================================" -ForegroundColor Cyan
+        Write-Host ""
+    }
 
     # 1. Check if server is already running and healthy
     try {
         $check = Invoke-RestMethod -Uri "http://localhost:3000/api/health" -TimeoutSec 2 -ErrorAction Stop
         if ($check.success -eq $true -or $check.status -eq "ok") {
-            Write-Host "[OK] Server is already running and connected to database!" -ForegroundColor Green
-            Write-Host "[WEB] Opening browser: http://localhost:3000" -ForegroundColor Cyan
+            if (-not $Silent) {
+                Write-Host "[OK] Server is already running and connected to database!" -ForegroundColor Green
+                Write-Host "[WEB] Opening browser: http://localhost:3000" -ForegroundColor Cyan
+            }
             Start-Process "http://localhost:3000"
             return
         }
     } catch {}
 
     # 2. Release port 3000 and 5173 if occupied by stale process
-    Write-Host "[1/3] Checking and clearing ports 3000 and 5173..." -ForegroundColor Yellow
+    if (-not $Silent) {
+        Write-Host "[1/3] Checking and clearing ports 3000 and 5173..." -ForegroundColor Yellow
+    }
     $ports = @(3000, 5173)
     foreach ($port in $ports) {
         $pids = (Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue).OwningProcess
         if ($pids) {
             foreach ($p in $pids) {
                 Stop-Process -Id $p -Force -ErrorAction SilentlyContinue
-                Write-Host "   - Released port $port (PID: $p)" -ForegroundColor Gray
+                if (-not $Silent) {
+                    Write-Host "   - Released port $port (PID: $p)" -ForegroundColor Gray
+                }
             }
         }
     }
 
     # 3. Launch Unified Server in background
-    Write-Host "[2/3] Launching Unified Server (npm start)..." -ForegroundColor Cyan
+    if (-not $Silent) {
+        Write-Host "[2/3] Launching Unified Server (npm start)..." -ForegroundColor Cyan
+    }
     $backendDir = Join-Path $Root "backend"
-    Start-Process powershell -ArgumentList "-NoExit", "-Command", "Set-Location '$backendDir'; Write-Host '[RUNNING] Bin Al-Ajouz ERP Server on Port 3000...' -ForegroundColor Cyan; npm start" -WorkingDirectory $backendDir -WindowStyle Minimized
+    $windowStyle = if ($Silent) { "Hidden" } else { "Minimized" }
+    Start-Process powershell -ArgumentList "-NoExit", "-Command", "Set-Location '$backendDir'; npm start" -WorkingDirectory $backendDir -WindowStyle $windowStyle
 
-    # 4. Poll /api/health until ready (up to 35 seconds)
-    Write-Host "[3/3] Waiting for server health and database connection... " -NoNewline -ForegroundColor Yellow
+    # 4. Poll /api/health until ready (up to 40 seconds)
+    if (-not $Silent) {
+        Write-Host "[3/3] Waiting for server health and database connection... " -NoNewline -ForegroundColor Yellow
+    }
     $ready = $false
-    for ($i = 1; $i -le 35; $i++) {
+    for ($i = 1; $i -le 40; $i++) {
         Start-Sleep -Seconds 1
-        Write-Host "." -NoNewline -ForegroundColor Yellow
+        if (-not $Silent) {
+            Write-Host "." -NoNewline -ForegroundColor Yellow
+        }
         try {
             $res = Invoke-RestMethod -Uri "http://localhost:3000/api/health" -TimeoutSec 2 -ErrorAction Stop
             if ($res.success -eq $true -or $res.status -eq "ok") {
@@ -71,19 +89,25 @@ function Start-SystemServer {
             }
         } catch {}
     }
-    Write-Host ""
+    if (-not $Silent) {
+        Write-Host ""
+    }
 
     if ($ready) {
-        Write-Host ""
-        Write-Host "================================================================================" -ForegroundColor Green
-        Write-Host " [SUCCESS] System started successfully and database is connected!" -ForegroundColor Green
-        Write-Host " [WEB] Opening system in browser: http://localhost:3000" -ForegroundColor Cyan
-        Write-Host "================================================================================" -ForegroundColor Green
+        if (-not $Silent) {
+            Write-Host ""
+            Write-Host "================================================================================" -ForegroundColor Green
+            Write-Host " [SUCCESS] System started successfully and database is connected!" -ForegroundColor Green
+            Write-Host " [WEB] Opening system in browser: http://localhost:3000" -ForegroundColor Cyan
+            Write-Host "================================================================================" -ForegroundColor Green
+        }
         Start-Process "http://localhost:3000"
     } else {
-        Write-Host ""
-        Write-Host "[WARNING] Server took longer than expected to respond." -ForegroundColor Yellow
-        Write-Host "Please check the minimized PowerShell window or backend/.env configuration." -ForegroundColor Gray
+        if (-not $Silent) {
+            Write-Host ""
+            Write-Host "[WARNING] Server took longer than expected to respond." -ForegroundColor Yellow
+            Write-Host "Please check the backend log or backend/.env configuration." -ForegroundColor Gray
+        }
     }
 }
 
@@ -239,7 +263,7 @@ function Run-Migrations {
 # --------------------------------------------------------------------------------
 if ($Action) {
     switch ($Action.ToLower().Trim()) {
-        "start"   { Start-SystemServer; exit 0 }
+        "start"   { Start-SystemServer -Silent:$Silent; exit 0 }
         "stop"    { Stop-SystemServer; exit 0 }
         "restart" { Restart-SystemServer; exit 0 }
         "status"  { Check-SystemStatus; exit 0 }

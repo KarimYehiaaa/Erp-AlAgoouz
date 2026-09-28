@@ -1,101 +1,80 @@
 <template>
   <div class="workflow-canvas-card" dir="rtl">
-    <!-- شريط أدوات الرسم البياني -->
+    <!-- شريط أدوات الرسم البياني المتطور والمبسط -->
     <div class="workflow-toolbar">
-      <div class="toolbar-section">
+      <div class="toolbar-brand">
+        <span class="live-dot-pulse" />
         <span class="toolbar-title">
           <AppIcon name="activity" :size="16" />
-          خريطة ترابط وتدفق العمليات والوكلاء
+          خريطة التدفق وسير العمليات التفاعلية
         </span>
       </div>
 
-      <div class="toolbar-presets">
+      <div class="toolbar-center">
+        <!-- تبديل التخطيط بنمط Segmented Pill -->
+        <div class="segmented-control" role="tablist">
+          <button
+            type="button"
+            class="segmented-btn"
+            :class="{ active: engine.currentLayout.value === 'pipeline' }"
+            @click="engine.applyPipelineLayout()"
+            title="تخطيط متسلسل لسير العمليات (مدخلات → معالجة → مخزون → إشعارات)"
+          >
+            <AppIcon name="layers" :size="13" />
+            <span>المسار المتسلسل</span>
+          </button>
+          <button
+            type="button"
+            class="segmented-btn"
+            :class="{ active: engine.currentLayout.value === 'tree' }"
+            @click="engine.applyTreeLayout()"
+            title="تخطيط شجري هرمي منظم"
+          >
+            <AppIcon name="boxes" :size="13" />
+            <span>تخطيط شجري</span>
+          </button>
+        </div>
+
         <button
-          class="toolbar-btn"
-          :class="{ active: engine.currentLayout.value === 'pipeline' }"
-          @click="engine.applyPipelineLayout()"
-          title="تخطيط متسلسل لسير العمليات (مدخلات → معالجة → مخزون → إشعارات)"
+          type="button"
+          class="toolbar-action-btn"
+          @click="handleResetDefaults"
+          title="استعادة المواقع الافتراضية وتنظيم العقد"
         >
-          <AppIcon name="layers" :size="14" />
-          <span>المسار المتسلسل</span>
-        </button>
-        <button
-          class="toolbar-btn"
-          :class="{ active: engine.currentLayout.value === 'tree' }"
-          @click="engine.applyTreeLayout()"
-          title="تخطيط شجري منظم"
-        >
-          <AppIcon name="boxes" :size="14" />
-          <span>تخطيط شجري</span>
-        </button>
-        <button class="toolbar-btn" @click="handleResetDefaults" title="استعادة العقد الافتراضية">
-          <AppIcon name="refresh" :size="14" />
-          <span>إعادة الضبط</span>
+          <AppIcon name="refresh" :size="13" />
+          <span>إعادة التوزيع</span>
         </button>
       </div>
 
-      <div class="toolbar-zoom">
+      <div class="toolbar-tools">
         <div class="search-box-mini">
           <AppIcon name="search" :size="13" class="search-mini-icon" />
           <input
             v-model="searchQuery"
             type="text"
             class="search-mini-input"
-            placeholder="ابحث عن عقدة..."
+            placeholder="ابحث عن عقدة أو وكيل..."
             @keydown.enter="handleSearch"
           />
         </div>
-        <button class="zoom-btn" @click="engine.zoomIn()" title="تكبير">+</button>
-        <span class="zoom-level">{{ Math.round(engine.zoom.value * 100) }}%</span>
-        <button class="zoom-btn" @click="engine.zoomOut()" title="تصغير">−</button>
-        <button class="zoom-btn" @click="engine.fitView()" title="ملاءمة الشاشة">
-          <AppIcon name="monitor" :size="14" />
-        </button>
-        <button
-          class="btn-simulate"
-          :class="{ active: !engine.physicsFrozen.value }"
-          @click="engine.togglePhysics()"
-          title="تشغيل محاكاة القوى الفيزيائية أو تثبيتها"
-        >
-          <AppIcon :name="engine.physicsFrozen.value ? 'close' : 'zap'" :size="14" />
-          <span>{{ engine.physicsFrozen.value ? 'تثبيت الفيزياء' : 'تشغيل الفيزياء' }}</span>
-        </button>
-        <button
-          class="toolbar-btn"
-          :class="{ active: showPhysicsPanel }"
-          @click="showPhysicsPanel = !showPhysicsPanel"
-          title="لوحة ضبط الفيزياء الحية"
-        >
-          <AppIcon name="settings" :size="14" />
-          <span>الفيزياء</span>
-        </button>
+        <div class="zoom-pill-group">
+          <button type="button" class="zoom-pill-btn" @click="engine.zoomOut()" title="تصغير">
+            −
+          </button>
+          <span class="zoom-level">{{ Math.round(engine.zoom.value * 100) }}%</span>
+          <button type="button" class="zoom-pill-btn" @click="engine.zoomIn()" title="تكبير">
+            +
+          </button>
+          <button
+            type="button"
+            class="zoom-pill-btn fit"
+            @click="engine.fitView()"
+            title="ملاءمة الشاشة بالكامل"
+          >
+            <AppIcon name="monitor" :size="13" />
+          </button>
+        </div>
       </div>
-    </div>
-
-    <!-- لوحة الفيزياء الحية: sliders لحظية تُحفظ عبر PUT /automation/physics -->
-    <div v-if="showPhysicsPanel" class="physics-panel">
-      <div class="physics-slider" v-for="cfg in physicsSliders" :key="cfg.key">
-        <label :for="`ph-${cfg.key}`">{{ cfg.label }}</label>
-        <input
-          :id="`ph-${cfg.key}`"
-          type="range"
-          :min="cfg.min"
-          :max="cfg.max"
-          :step="cfg.step"
-          :value="engine.physics[cfg.key]"
-          @input="handlePhysicsInput(cfg.key, ($event.target as HTMLInputElement).valueAsNumber)"
-        />
-        <span class="physics-value">{{ formatPhysicsValue(engine.physics[cfg.key]) }}</span>
-      </div>
-      <span v-if="physicsSaveState" class="physics-save-state" :class="physicsSaveState">
-        {{
-          physicsSaveState === 'saving'
-            ? 'جاري الحفظ...'
-            : physicsSaveState === 'saved'
-              ? 'تم الحفظ ✓'
-              : 'فشل الحفظ'
-        }}
-      </span>
     </div>
 
     <!-- مساحة الـ Canvas -->
@@ -113,16 +92,16 @@
         @touchend="engine.onTouchEnd"
       />
 
-      <!-- دليل المجموعات -->
+      <!-- دليل المجموعات العائم الأنيق -->
       <div class="canvas-legend-floating">
-        <span class="legend-title">مفتاح المجموعات:</span>
+        <span class="legend-title">مفتاح المراحل:</span>
         <div class="legend-chips">
           <span class="legend-chip operations"><span class="dot" /> عمليات ومبيعات</span>
           <span class="legend-chip inventory"><span class="dot" /> مخازن ومستودعات</span>
           <span class="legend-chip production"><span class="dot" /> تصنيع ووصفات</span>
           <span class="legend-chip security"><span class="dot" /> رقابة وأمان</span>
           <span class="legend-chip notifications"><span class="dot" /> تليجرام وإشعارات</span>
-          <span class="legend-chip ai"><span class="dot" /> ذكاء اصطناعي (Gemini)</span>
+          <span class="legend-chip ai"><span class="dot" /> ذكاء اصطناعي</span>
         </div>
       </div>
 
@@ -146,7 +125,7 @@
         </div>
       </div>
 
-      <!-- لوحة تفاصيل العقدة الجانبية (نقر) -->
+      <!-- لوحة تفاصيل العقدة الجانبية التفاعلية مع مسارات الترابط -->
       <transition name="panel-slide">
         <aside v-if="engine.selectedNode.value" class="node-detail-panel">
           <div class="panel-head">
@@ -158,45 +137,111 @@
               <h4>{{ engine.selectedNode.value.label_ar || engine.selectedNode.value.label }}</h4>
               <p>{{ typeLabels[engine.selectedNode.value.type] }}</p>
             </div>
-            <button class="panel-close" @click="closeDetail" title="إغلاق">
+            <button type="button" class="panel-close" @click="closeDetail" title="إغلاق">
               <AppIcon name="close" :size="15" />
             </button>
           </div>
-          <dl class="panel-body">
-            <div class="panel-row">
-              <dt>المجموعة</dt>
-              <dd>
-                {{
-                  groupLabels[engine.selectedNode.value.group] || engine.selectedNode.value.group
-                }}
-              </dd>
+
+          <div class="panel-scroll-body">
+            <dl class="panel-body">
+              <div class="panel-row">
+                <dt>المجموعة والمرحلة</dt>
+                <dd>
+                  {{
+                    groupLabels[engine.selectedNode.value.group] || engine.selectedNode.value.group
+                  }}
+                </dd>
+              </div>
+              <div class="panel-row">
+                <dt>حالة العقدة</dt>
+                <dd class="status-active-dd">
+                  <span class="active-dot" :class="{ on: engine.selectedNode.value.is_active }" />
+                  {{ engine.selectedNode.value.is_active ? 'نشطة ومتصلة بالمسار' : 'معطلة مؤقتاً' }}
+                </dd>
+              </div>
+              <div v-if="engine.selectedNode.value.settings?.rule" class="panel-row">
+                <dt>القاعدة التشغيلية الإلزامية</dt>
+                <dd class="rule-highlight">
+                  {{
+                    ruleLabels[engine.selectedNode.value.settings.rule] ||
+                    engine.selectedNode.value.settings.rule
+                  }}
+                </dd>
+              </div>
+              <div v-if="detailSettingsText" class="panel-row">
+                <dt>المعاملات والإعدادات</dt>
+                <dd class="panel-settings">{{ detailSettingsText }}</dd>
+              </div>
+            </dl>
+
+            <!-- المسارات والروابط الواردة (Incoming Connections) -->
+            <div class="panel-connections-section" v-if="selectedIncomingEdges.length">
+              <div class="connections-header">
+                <AppIcon name="arrowLeft" :size="13" class="conn-header-icon in" />
+                <span>المسارات الواردة (تتغذى من):</span>
+                <span class="connections-count">{{ selectedIncomingEdges.length }}</span>
+              </div>
+              <div class="connections-list">
+                <button
+                  type="button"
+                  v-for="(conn, idx) in selectedIncomingEdges"
+                  :key="`in-${idx}`"
+                  class="connection-chip incoming"
+                  @click="selectConnectedNode(conn.node)"
+                  title="انقر للانتقال للعقدة المغذية"
+                >
+                  <span
+                    class="conn-node-dot"
+                    :style="{ background: groupColor(conn.node.group) }"
+                  />
+                  <div class="conn-info">
+                    <strong class="conn-label">{{ conn.node.label_ar || conn.node.label }}</strong>
+                    <span class="conn-condition">{{ conn.label }}</span>
+                  </div>
+                  <AppIcon name="search" :size="11" class="conn-goto-icon" />
+                </button>
+              </div>
             </div>
-            <div class="panel-row">
-              <dt>الحالة</dt>
-              <dd>{{ engine.selectedNode.value.is_active ? 'نشطة ✓' : 'معطلة' }}</dd>
+
+            <!-- المسارات والروابط الصادرة (Outgoing Connections) -->
+            <div class="panel-connections-section" v-if="selectedOutgoingEdges.length">
+              <div class="connections-header">
+                <AppIcon name="send" :size="13" class="conn-header-icon out" />
+                <span>المسارات الصادرة (تؤدي إلى):</span>
+                <span class="connections-count">{{ selectedOutgoingEdges.length }}</span>
+              </div>
+              <div class="connections-list">
+                <button
+                  type="button"
+                  v-for="(conn, idx) in selectedOutgoingEdges"
+                  :key="`out-${idx}`"
+                  class="connection-chip outgoing"
+                  @click="selectConnectedNode(conn.node)"
+                  title="انقر للانتقال للعقدة المستهدفة"
+                >
+                  <span
+                    class="conn-node-dot"
+                    :style="{ background: groupColor(conn.node.group) }"
+                  />
+                  <div class="conn-info">
+                    <strong class="conn-label">{{ conn.node.label_ar || conn.node.label }}</strong>
+                    <span class="conn-condition">{{ conn.label }}</span>
+                  </div>
+                  <AppIcon name="search" :size="11" class="conn-goto-icon" />
+                </button>
+              </div>
             </div>
-            <div v-if="engine.selectedNode.value.settings?.rule" class="panel-row">
-              <dt>القاعدة</dt>
-              <dd>
-                {{
-                  ruleLabels[engine.selectedNode.value.settings.rule] ||
-                  engine.selectedNode.value.settings.rule
-                }}
-              </dd>
-            </div>
-            <div v-if="detailSettingsText" class="panel-row">
-              <dt>الإعدادات</dt>
-              <dd class="panel-settings">{{ detailSettingsText }}</dd>
-            </div>
-          </dl>
+          </div>
+
           <div class="panel-actions">
             <button
+              type="button"
               class="btn-panel-primary"
               @click="focusSelected"
               title="تكبير الكاميرا على العقدة"
             >
               <AppIcon name="search" :size="13" />
-              <span>تكبير عليها</span>
+              <span>تركيز الكاميرا</span>
             </button>
           </div>
         </aside>
@@ -255,23 +300,53 @@ const engine = useGraphEngine({
 const canvasRef = ref<HTMLCanvasElement | null>(null);
 const containerRef = ref<HTMLDivElement | null>(null);
 const minimapRef = ref<HTMLCanvasElement | null>(null);
-const showPhysicsPanel = ref(false);
 const searchQuery = ref('');
-const physicsSaveState = ref<'saving' | 'saved' | 'error' | null>(null);
 
-const physicsSliders: Array<{
-  key: keyof PhysicsSettings;
+interface NodeConnectionInfo {
+  node: EngineNode;
   label: string;
-  min: number;
-  max: number;
-  step: number;
-}> = [
-  { key: 'repelForce', label: 'قوة التنافر بين العقد', min: 0, max: 9000, step: 100 },
-  { key: 'linkDistance', label: 'مسافة الروابط الهدف', min: 80, max: 500, step: 10 },
-  { key: 'collisionRadius', label: 'أنصاف أقطار التصادم', min: 0, max: 80, step: 2 },
-  { key: 'centerForceX', label: 'الجذب المركزي أفقيًا', min: 0, max: 0.2, step: 0.005 },
-  { key: 'centerForceY', label: 'الجذب المركزي رأسيًا', min: 0, max: 0.2, step: 0.005 },
-];
+  condition?: string | null;
+  direction: 'in' | 'out';
+}
+
+const selectedIncomingEdges = computed<NodeConnectionInfo[]>(() => {
+  if (!engine.selectedNode.value) return [];
+  const nodeId = engine.selectedNode.value.id;
+  return engine.edges.value
+    .filter((e) => e.target === nodeId)
+    .map((e) => {
+      const src = engine.nodes.value.find((n) => n.id === e.source);
+      return {
+        node: src!,
+        label: e.label || e.condition || 'تدفق أحداث مباشر',
+        condition: e.condition,
+        direction: 'in' as const,
+      };
+    })
+    .filter((c) => Boolean(c.node));
+});
+
+const selectedOutgoingEdges = computed<NodeConnectionInfo[]>(() => {
+  if (!engine.selectedNode.value) return [];
+  const nodeId = engine.selectedNode.value.id;
+  return engine.edges.value
+    .filter((e) => e.source === nodeId)
+    .map((e) => {
+      const tgt = engine.nodes.value.find((n) => n.id === e.target);
+      return {
+        node: tgt!,
+        label: e.label || e.condition || 'إجراء مباشر',
+        condition: e.condition,
+        direction: 'out' as const,
+      };
+    })
+    .filter((c) => Boolean(c.node));
+});
+
+function selectConnectedNode(targetNode: EngineNode) {
+  engine.focusNode(targetNode);
+  engine.selectedNode.value = targetNode;
+}
 
 const detailSettingsText = computed(() => {
   const s = engine.selectedNode.value?.settings;
@@ -292,10 +367,6 @@ function groupColor(group: string): string {
     security: '#ef4444',
   };
   return map[group] || '#0284c7';
-}
-
-function formatPhysicsValue(v: number): string {
-  return Math.abs(v) < 1 ? v.toFixed(3) : String(Math.round(v));
 }
 
 function closeDetail() {
@@ -375,27 +446,6 @@ function handleDragEnd(node: EngineNode) {
   }, 800);
 }
 
-// ─── حفظ إعدادات الفيزياء (debounce 600ms) ───
-let physicsTimer: number | null = null;
-
-function handlePhysicsInput(key: keyof PhysicsSettings, value: number) {
-  engine.updatePhysicsLive({ [key]: value } as Partial<PhysicsSettings>);
-  if (physicsTimer !== null) window.clearTimeout(physicsTimer);
-  physicsSaveState.value = 'saving';
-  physicsTimer = window.setTimeout(async () => {
-    physicsTimer = null;
-    try {
-      await automation.updatePhysics({ ...engine.physics });
-      physicsSaveState.value = 'saved';
-      window.setTimeout(() => {
-        if (physicsSaveState.value === 'saved') physicsSaveState.value = null;
-      }, 1800);
-    } catch {
-      physicsSaveState.value = 'error';
-    }
-  }, 600);
-}
-
 // ─── نبضات حقيقية: ربط التحرك بسجل التنفيذ عبر polling خفيف كل 45 ثانية (البند 16) ───
 let lastLogId = 0;
 let pollTimer: number | null = null;
@@ -451,7 +501,6 @@ watch(
 onBeforeUnmount(() => {
   stopPolling();
   if (positionsTimer !== null) window.clearTimeout(positionsTimer);
-  if (physicsTimer !== null) window.clearTimeout(physicsTimer);
   engine.detach();
 });
 </script>
@@ -465,72 +514,128 @@ onBeforeUnmount(() => {
   border: 1px solid var(--border-color, #e2e8f0);
   border-radius: 16px;
   overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
 }
 
+/* ── شريط الأدوات الرئيسي ── */
 .workflow-toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: 0.8rem;
+  gap: 0.75rem 1.25rem;
   padding: 0.85rem 1.25rem;
   background: var(--bg-soft, #f8fafc);
   border-bottom: 1px solid var(--border-color, #e2e8f0);
+}
+
+.toolbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.live-dot-pulse {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.6);
+  animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(16, 185, 129, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+  }
 }
 
 .toolbar-title {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  font-size: 0.88rem;
+  font-size: 0.9rem;
   font-weight: 700;
   color: var(--text-primary, var(--text, #1e293b));
 }
 
-.toolbar-presets,
-.toolbar-zoom {
+.toolbar-center {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.6rem;
   flex-wrap: wrap;
 }
 
-.toolbar-btn,
-.zoom-btn,
-.btn-simulate {
+/* ── مفتاح التبديل Segmented Control ── */
+.segmented-control {
+  display: inline-flex;
+  align-items: center;
+  background: color-mix(in srgb, var(--border-color, #cbd5e1) 40%, transparent);
+  padding: 3px;
+  border-radius: 999px;
+  gap: 3px;
+}
+
+.segmented-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.85rem;
+  border-radius: 999px;
+  border: none;
+  background: transparent;
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--text-secondary, var(--text-muted, #64748b));
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  min-height: 30px;
+}
+
+.segmented-btn:hover {
+  color: var(--text-primary, var(--text, #1e293b));
+}
+
+.segmented-btn.active {
+  background: var(--bg-card, #ffffff);
+  color: var(--primary, #0284c7);
+  font-weight: 700;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.toolbar-action-btn {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
   padding: 0.35rem 0.75rem;
-  border-radius: 8px;
+  border-radius: 999px;
   border: 1px solid var(--border-color, #cbd5e1);
   background: var(--bg-card, #ffffff);
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   font-weight: 600;
-  color: var(--text-primary, var(--text, #334155));
+  color: var(--text-secondary, var(--text-muted, #475569));
   cursor: pointer;
   transition: all 0.15s ease;
+  min-height: 30px;
 }
 
-.toolbar-btn:hover,
-.zoom-btn:hover {
+.toolbar-action-btn:hover {
   border-color: var(--primary, #0284c7);
+  color: var(--primary, #0284c7);
 }
 
-.toolbar-btn.active,
-.btn-simulate.active {
-  background: var(--primary, #0284c7);
-  color: #ffffff;
-  border-color: var(--primary, #0284c7);
-}
-
-.zoom-level {
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: var(--text-secondary, var(--text-muted, #64748b));
-  min-width: 42px;
-  text-align: center;
+/* ── أدوات التكبير والبحث ── */
+.toolbar-tools {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
 }
 
 .search-box-mini {
@@ -541,92 +646,77 @@ onBeforeUnmount(() => {
 
 .search-mini-icon {
   position: absolute;
-  right: 0.5rem;
+  right: 0.6rem;
   color: var(--text-secondary, var(--text-muted, #94a3b8));
+  pointer-events: none;
 }
 
 .search-mini-input {
-  width: 150px;
-  padding: 0.32rem 1.8rem 0.32rem 0.6rem;
-  border-radius: 8px;
+  width: 170px;
+  padding: 0.38rem 2rem 0.38rem 0.75rem;
+  border-radius: 999px;
   border: 1px solid var(--border-color, #cbd5e1);
   background: var(--bg-card, #ffffff);
   font-size: 0.76rem;
   color: var(--text-primary, var(--text, #334155));
   outline: none;
+  transition: all 0.2s ease;
 }
 
 .search-mini-input:focus {
   border-color: var(--primary, #0284c7);
   box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.12);
+  width: 195px;
 }
 
-/* ── لوحة الفيزياء الحية ── */
-.physics-panel {
-  display: flex;
+.zoom-pill-group {
+  display: inline-flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 1rem 1.5rem;
-  padding: 0.75rem 1.25rem;
-  background: var(--bg-soft, #f8fafc);
-  border-bottom: 1px solid var(--border-color, #e2e8f0);
-  animation: panel-enter 0.2s ease;
+  background: var(--bg-card, #ffffff);
+  border: 1px solid var(--border-color, #cbd5e1);
+  border-radius: 999px;
+  padding: 2px;
+  gap: 2px;
 }
 
-@keyframes panel-enter {
-  from {
-    opacity: 0;
-    transform: translateY(-4px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.physics-slider {
-  display: flex;
+.zoom-pill-btn {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  font-size: 0.74rem;
-  font-weight: 600;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  border-radius: 50%;
   color: var(--text-secondary, var(--text-muted, #475569));
-}
-
-.physics-slider input[type='range'] {
-  width: 110px;
-  accent-color: var(--primary, #0284c7);
-}
-
-.physics-value {
-  min-width: 46px;
-  font-family: monospace;
-  font-size: 0.7rem;
-  color: var(--primary, #0284c7);
-}
-
-.physics-save-state {
-  font-size: 0.72rem;
+  font-size: 0.85rem;
   font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
 }
 
-.physics-save-state.saved {
-  color: #059669;
+.zoom-pill-btn:hover {
+  background: var(--bg-soft, #f1f5f9);
+  color: var(--text-primary, var(--text, #0f172a));
 }
 
-.physics-save-state.saving {
+.zoom-pill-btn.fit {
+  font-size: 0.78rem;
+}
+
+.zoom-level {
+  font-size: 0.74rem;
+  font-weight: 700;
   color: var(--text-secondary, var(--text-muted, #64748b));
-}
-
-.physics-save-state.error {
-  color: #dc2626;
+  min-width: 38px;
+  text-align: center;
 }
 
 /* ── مساحة الكانفس ── */
 .canvas-viewport {
   position: relative;
   width: 100%;
-  height: 580px;
+  height: 600px;
   cursor: grab;
   user-select: none;
 }
@@ -641,6 +731,7 @@ onBeforeUnmount(() => {
   height: 100%;
 }
 
+/* ── دليل المجموعات العائم ── */
 .canvas-legend-floating {
   position: absolute;
   top: 1rem;
@@ -652,9 +743,9 @@ onBeforeUnmount(() => {
   background: color-mix(in srgb, var(--bg-card, #ffffff) 92%, transparent);
   backdrop-filter: blur(8px);
   border: 1px solid var(--border-color, #e2e8f0);
-  border-radius: 10px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-  font-size: 0.75rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.05);
+  font-size: 0.74rem;
   pointer-events: none;
 }
 
@@ -711,7 +802,7 @@ onBeforeUnmount(() => {
   font-size: 0.78rem;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
   z-index: 10;
-  max-width: 220px;
+  max-width: 230px;
 }
 
 .canvas-hover-tooltip strong {
@@ -727,7 +818,7 @@ onBeforeUnmount(() => {
 .node-rule-badge {
   margin-top: 0.3rem;
   padding: 0.2rem 0.4rem;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.12);
   border-radius: 4px;
   font-size: 0.68rem;
   color: #fde68a;
@@ -738,11 +829,14 @@ onBeforeUnmount(() => {
   position: absolute;
   top: 1rem;
   left: 1rem;
-  width: 250px;
+  width: 300px;
+  max-height: calc(100% - 2rem);
+  display: flex;
+  flex-direction: column;
   background: var(--bg-card, #ffffff);
   border: 1px solid var(--border-color, #e2e8f0);
-  border-radius: 12px;
-  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.12);
+  border-radius: 14px;
+  box-shadow: 0 12px 32px -4px rgba(0, 0, 0, 0.14);
   overflow: hidden;
   z-index: 12;
 }
@@ -751,8 +845,9 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: 0.6rem;
-  padding: 0.8rem 0.9rem;
+  padding: 0.85rem 1rem;
   border-bottom: 1px solid var(--border-color, #e2e8f0);
+  background: var(--bg-soft, #f8fafc);
 }
 
 .panel-accent {
@@ -772,11 +867,14 @@ onBeforeUnmount(() => {
   font-size: 0.88rem;
   font-weight: 800;
   color: var(--text-primary, var(--text, #0f172a));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .panel-titles p {
   margin: 0.1rem 0 0;
-  font-size: 0.7rem;
+  font-size: 0.72rem;
   color: var(--text-secondary, var(--text-muted, #64748b));
 }
 
@@ -785,31 +883,43 @@ onBeforeUnmount(() => {
   border: none;
   color: var(--text-secondary, var(--text-muted, #94a3b8));
   cursor: pointer;
-  padding: 0.25rem;
+  padding: 0.3rem;
   border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .panel-close:hover {
-  background: var(--bg-soft, #f1f5f9);
+  background: var(--bg-soft, #e2e8f0);
   color: var(--text-primary, var(--text, #0f172a));
+}
+
+.panel-scroll-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.85rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
 }
 
 .panel-body {
   margin: 0;
-  padding: 0.7rem 0.9rem;
+  padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.55rem;
+  gap: 0.6rem;
 }
 
 .panel-row {
   display: flex;
   flex-direction: column;
-  gap: 0.1rem;
+  gap: 0.15rem;
 }
 
 .panel-row dt {
-  font-size: 0.66rem;
+  font-size: 0.68rem;
   font-weight: 700;
   color: var(--text-secondary, var(--text-muted, #94a3b8));
 }
@@ -820,31 +930,163 @@ onBeforeUnmount(() => {
   color: var(--text-primary, var(--text, #1e293b));
 }
 
+.status-active-dd {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.status-active-dd .active-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #94a3b8;
+}
+
+.status-active-dd .active-dot.on {
+  background: #10b981;
+}
+
+.rule-highlight {
+  font-size: 0.74rem;
+  color: #b45309;
+  background: #fef3c7;
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+  font-weight: 600;
+}
+
 .panel-settings {
   font-size: 0.7rem;
   font-family: monospace;
   direction: ltr;
   text-align: left;
   word-break: break-all;
+  background: var(--bg-soft, #f8fafc);
+  padding: 0.35rem 0.5rem;
+  border-radius: 6px;
+  border: 1px solid var(--border-color, #e2e8f0);
+}
+
+/* ── مسارات الترابط في اللوحة الجانبية ── */
+.panel-connections-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding-top: 0.6rem;
+  border-top: 1px dashed var(--border-color, #e2e8f0);
+}
+
+.connections-header {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-secondary, var(--text-muted, #64748b));
+}
+
+.conn-header-icon.in {
+  color: #0284c7;
+}
+
+.conn-header-icon.out {
+  color: #10b981;
+}
+
+.connections-count {
+  font-size: 0.65rem;
+  background: var(--bg-soft, #f1f5f9);
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  font-weight: 700;
+  margin-right: auto;
+}
+
+.connections-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.connection-chip {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.65rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-color, #e2e8f0);
+  background: var(--bg-soft, #f8fafc);
+  cursor: pointer;
+  text-align: right;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.connection-chip:hover {
+  border-color: var(--primary, #0284c7);
+  background: color-mix(in srgb, var(--primary, #0284c7) 8%, var(--bg-card, #ffffff));
+  transform: translateX(-2px);
+}
+
+.conn-node-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.conn-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.conn-label {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--text-primary, var(--text, #0f172a));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.conn-condition {
+  font-size: 0.68rem;
+  color: var(--text-secondary, var(--text-muted, #64748b));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.conn-goto-icon {
+  color: var(--text-secondary, var(--text-muted, #94a3b8));
+  flex-shrink: 0;
 }
 
 .panel-actions {
-  padding: 0.7rem 0.9rem;
+  padding: 0.75rem 1rem;
   border-top: 1px solid var(--border-color, #e2e8f0);
+  background: var(--bg-soft, #f8fafc);
 }
 
 .btn-panel-primary {
+  width: 100%;
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
-  padding: 0.4rem 0.8rem;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.85rem;
   border-radius: 8px;
   border: none;
   background: var(--primary, #0284c7);
   color: #ffffff;
-  font-size: 0.75rem;
+  font-size: 0.78rem;
   font-weight: 700;
   cursor: pointer;
+  transition: all 0.15s ease;
 }
 
 .btn-panel-primary:hover {
@@ -859,7 +1101,7 @@ onBeforeUnmount(() => {
 .panel-slide-enter-from,
 .panel-slide-leave-to {
   opacity: 0;
-  transform: translateX(-12px);
+  transform: translateX(-14px);
 }
 
 /* ── الخريطة المصغرة ── */
@@ -868,10 +1110,11 @@ onBeforeUnmount(() => {
   bottom: 1rem;
   left: 1rem;
   border: 1px solid var(--border-color, #e2e8f0);
-  border-radius: 8px;
+  border-radius: 10px;
   overflow: hidden;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
   z-index: 8;
+  background: var(--bg-card, #ffffff);
 }
 
 .minimap-canvas {

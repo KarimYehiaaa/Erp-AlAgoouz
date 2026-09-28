@@ -414,33 +414,41 @@
         </div>
       </div>
 
-      <!-- شبكة بطاقات الوكلاء -->
+      <!-- شبكة بطاقات الوكلاء الحديثة والمريحة بصرياً -->
       <div class="agent-cards-grid">
         <div
           v-for="task in filteredTasks"
           :key="task.key"
-          class="agent-card"
+          class="agent-card-modern"
           :class="[task.category, { 'agent-disabled': !task.is_enabled }]"
         >
-          <!-- رأس البطاقة -->
-          <div class="agent-card-header">
-            <div class="agent-badge-group">
-              <span class="category-tag" :class="task.category">
-                {{ categoryLabels[task.category] || task.category }}
-              </span>
-              <span v-if="task.trigger_type === 'cron'" class="trigger-type-tag scheduled">
-                <AppIcon name="clock" :size="12" />
-                مجدول آلياً
-              </span>
-              <span v-else class="trigger-type-tag event-driven">
-                <AppIcon name="zap" :size="12" />
-                فوري عند الحدث
-              </span>
+          <!-- رأس البطاقة: الهوية والأيقونة ومفتاح التفعيل -->
+          <div class="card-top-bar">
+            <div class="card-identity">
+              <div class="agent-icon-avatar" :class="task.category">
+                <AppIcon :name="getTaskIcon(task.key)" :size="20" />
+              </div>
+              <div class="agent-title-block">
+                <h3 class="agent-name">{{ task.name_ar }}</h3>
+                <div class="agent-tag-row">
+                  <span class="category-pill" :class="task.category">
+                    {{ categoryLabels[task.category] || task.category }}
+                  </span>
+                  <span v-if="task.trigger_type === 'cron'" class="trigger-pill scheduled">
+                    <AppIcon name="clock" :size="11" />
+                    <span>مجدول آلياً</span>
+                  </span>
+                  <span v-else class="trigger-pill event-driven">
+                    <AppIcon name="zap" :size="11" />
+                    <span>فوري عند الحدث</span>
+                  </span>
+                </div>
+              </div>
             </div>
 
-            <!-- زر التبديل التفاعلي السلس -->
+            <!-- زر التبديل التفاعلي السلس iOS Style -->
             <label
-              class="custom-toggle"
+              class="ios-toggle-switch"
               :class="{ disabled: togglingKey === task.key }"
               :title="task.is_enabled ? 'تعطيل الوكيل مؤقتاً' : 'تفعيل الوكيل'"
             >
@@ -450,77 +458,84 @@
                 :disabled="togglingKey === task.key"
                 @change="handleToggleTask(task)"
               />
-              <span class="toggle-slider" />
-              <span class="toggle-status-text">{{ task.is_enabled ? 'نشط' : 'معطل' }}</span>
+              <span class="ios-slider" />
             </label>
           </div>
 
-          <!-- تفاصيل الوكيل -->
-          <div class="agent-card-body">
-            <h3 class="agent-name">{{ task.name_ar }}</h3>
-            <p class="agent-desc">{{ task.description_ar }}</p>
+          <!-- وصف المهمة بانسيابية وراحة بصرية -->
+          <p class="agent-desc">{{ task.description_ar }}</p>
 
-            <div class="agent-schedule-row">
-              <div class="schedule-pill">
-                <AppIcon name="calendar" :size="13" />
-                <span>{{ humanizeSchedule(task.cron_expression, task.trigger_type) }}</span>
-              </div>
+          <!-- شريط مسار الربط المصغر: إيه مربوط بإيه؟ -->
+          <div class="visual-pipeline-strip">
+            <div class="pipeline-node source" title="مصدر البيانات المشغلة">
+              <span class="node-role">المصدر</span>
+              <span class="node-text">{{
+                taskLinkageMap[task.key]?.source || 'حركات النظام'
+              }}</span>
             </div>
 
-            <!-- معلومات الترابط والدورة التشغيلية -->
-            <div class="agent-linkage-meta">
-              <div class="linkage-row">
-                <span class="linkage-title">المصدر والمشغل:</span>
-                <span class="linkage-detail"
-                  >{{ taskLinkageMap[task.key]?.source || 'حركات النظام' }} ({{
-                    taskLinkageMap[task.key]?.triggerDesc ||
-                    humanizeSchedule(task.cron_expression, task.trigger_type)
-                  }})</span
-                >
-              </div>
-              <div class="linkage-row">
-                <span class="linkage-title">الوجهة والقنوات:</span>
-                <span class="linkage-detail">{{
-                  taskLinkageMap[task.key]?.target || 'بوت تليجرام للمالك + إشعار داخلي'
-                }}</span>
-              </div>
+            <div class="pipeline-flow-connector">
+              <AppIcon name="arrowLeft" :size="12" />
+            </div>
+
+            <div class="pipeline-node trigger" title="طريقة وتوقيت التشغيل">
+              <span class="node-role">المشغل</span>
+              <span class="node-text">{{
+                taskLinkageMap[task.key]?.triggerDesc ||
+                humanizeSchedule(task.cron_expression, task.trigger_type)
+              }}</span>
+            </div>
+
+            <div class="pipeline-flow-connector">
+              <AppIcon name="arrowLeft" :size="12" />
+            </div>
+
+            <div class="pipeline-node target" title="الوجهة والقنوات">
+              <span class="node-role">الوجهة</span>
+              <span class="node-text">{{
+                taskLinkageMap[task.key]?.target || 'بوت تليجرام للمالك'
+              }}</span>
             </div>
           </div>
 
-          <!-- ذيل البطاقة: الحالة وزر التشغيل الفوري -->
+          <!-- ذيل البطاقة: مؤشر الحالة وزر التشغيل الفوري -->
           <div class="agent-card-footer">
-            <div class="last-run-status">
-              <span v-if="task.last_run_at" class="last-run-time">
-                آخر تشغيل: {{ formatTime(task.last_run_at) }}
-              </span>
-              <span v-else class="last-run-time idle">بانتظار أول تشغيل</span>
-
+            <div class="status-indicator-block">
               <span
-                v-if="task.last_status"
-                class="status-pill-mini"
-                :class="`status-${task.last_status}`"
-              >
-                {{ getStatusLabel(task.last_status) }}
-              </span>
+                class="status-dot"
+                :class="task.last_status ? `dot-${task.last_status}` : 'dot-idle'"
+              />
+              <div class="status-meta">
+                <span class="status-time" v-if="task.last_run_at">
+                  آخر تشغيل: {{ formatTime(task.last_run_at) }}
+                </span>
+                <span class="status-time idle" v-else>بانتظار أول تشغيل</span>
+                <span
+                  v-if="task.last_status"
+                  class="status-text-pill"
+                  :class="`status-${task.last_status}`"
+                >
+                  {{ getStatusLabel(task.last_status) }}
+                </span>
+              </div>
             </div>
 
-            <div class="agent-card-actions">
-              <button
-                class="btn btn-primary-action btn-sm"
-                :disabled="runningTaskKey === task.key"
-                @click="handleRunTaskNow(task)"
-                title="تشغيل الوكيل فوراً واستعراض التقرير الناتج"
-              >
-                <AppIcon
-                  v-if="runningTaskKey === task.key"
-                  name="refresh"
-                  :size="14"
-                  class="spin-anim"
-                />
-                <AppIcon v-else name="play" :size="14" />
-                <span>{{ runningTaskKey === task.key ? 'جاري الفحص...' : 'تشغيل فوري' }}</span>
-              </button>
-            </div>
+            <button
+              type="button"
+              class="btn-trigger-action"
+              :disabled="runningTaskKey === task.key"
+              @click="handleRunTaskNow(task)"
+              title="تشغيل الوكيل فوراً واستعراض التقرير الناتج"
+            >
+              <AppIcon
+                v-if="runningTaskKey === task.key"
+                name="refresh"
+                :size="13"
+                class="spin-anim"
+              />
+              <AppIcon v-else name="play" :size="13" />
+              <span>{{ runningTaskKey === task.key ? 'جاري الفحص...' : 'تشغيل فوري' }}</span>
+            </button>
           </div>
         </div>
 
@@ -1604,6 +1619,31 @@ function humanizeSchedule(cron: string | null, triggerType: string): string {
   return map[clean] || `⏱ جدول دوري (${clean})`;
 }
 
+function getTaskIcon(key: string): string {
+  const iconMap: Record<string, string> = {
+    daily_sales_report: 'receipt',
+    low_stock_alert: 'package',
+    void_invoice_alert: 'alertTriangle',
+    anti_fraud_sentinel: 'shield',
+    large_discount_alert: 'tag',
+    warehouse_balancing: 'truck',
+    system_health: 'activity',
+    daily_backup_reminder: 'database',
+    supplier_payment_due_alert: 'calendar',
+    daily_profit_margin_anomaly: 'trendingUp',
+    cashflow_risk_shield: 'walletCards',
+    shift_handover_reconciliation: 'badgeCheck',
+    roastery_recipe_waste_guard: 'flame',
+    customer_loyalty_dormant_winback: 'users',
+    ai_copilot_assistant: 'brain',
+    error_tracker_alert: 'alertTriangle',
+    scheduled_cron_task: 'clock',
+    telegram_notifier: 'send',
+    webhook_listener: 'activity',
+  };
+  return iconMap[key] || 'bot';
+}
+
 function formatTime(isoStr: string | null): string {
   if (!isoStr) return '—';
   try {
@@ -2292,313 +2332,420 @@ function formatHtmlMessage(raw: string): string {
   cursor: pointer;
 }
 
-/* شبكة بطاقات الوكلاء المتطورة */
+/* شبكة بطاقات الوكلاء الحديثة والمريحة بصرياً */
 .agent-cards-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-  gap: 1.1rem;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: 1.25rem;
 }
 
-.agent-card {
+.agent-card-modern {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   background: var(--bg-card, #ffffff);
   border: 1px solid var(--border-color, #e2e8f0);
-  border-radius: 14px;
-  padding: 1.15rem;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.02);
-  transition: all 0.2s ease;
-  border-right: 4px solid #0284c7;
+  border-radius: 16px;
+  padding: 1.25rem 1.35rem;
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.03),
+    0 6px 16px -4px rgba(0, 0, 0, 0.02);
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  overflow: hidden;
 }
 
-.agent-card.sales {
-  border-right-color: #10b981;
+.agent-card-modern::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 4px;
+  height: 100%;
+  border-radius: 0 16px 16px 0;
+  background: var(--primary, #0284c7);
 }
 
-.agent-card.inventory {
-  border-right-color: #0284c7;
+.agent-card-modern.sales::before {
+  background: #10b981;
 }
 
-.agent-card.security {
-  border-right-color: #ef4444;
+.agent-card-modern.inventory::before {
+  background: #0284c7;
 }
 
-.agent-card.system {
-  border-right-color: #8b5cf6;
+.agent-card-modern.security::before {
+  background: #ef4444;
 }
 
-.agent-card.agent-disabled {
-  opacity: 0.72;
-  background: #fafafa;
+.agent-card-modern.system::before {
+  background: #8b5cf6;
 }
 
-.agent-card-header {
+.agent-card-modern:hover {
+  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--primary, #0284c7) 35%, var(--border-color, #e2e8f0));
+}
+
+.agent-card-modern.agent-disabled {
+  opacity: 0.68;
+  background: var(--bg-soft, #fafafa);
+  filter: grayscale(0.2);
+}
+
+/* ── رأس البطاقة ── */
+.card-top-bar {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  margin-bottom: 0.85rem;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
 }
 
-.agent-badge-group {
+.card-identity {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.agent-icon-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
 }
 
-.category-tag {
-  display: inline-block;
-  padding: 0.2rem 0.55rem;
-  border-radius: 6px;
-  font-size: 0.72rem;
-  font-weight: 700;
-  background: #f1f5f9;
-  color: #475569;
+.agent-card-modern:hover .agent-icon-avatar {
+  transform: scale(1.05);
 }
 
-.category-tag.sales {
+.agent-icon-avatar.sales {
   background: #ecfdf5;
   color: #059669;
 }
 
-.category-tag.inventory {
+.agent-icon-avatar.inventory {
   background: #f0f9ff;
   color: #0284c7;
 }
 
-.category-tag.security {
+.agent-icon-avatar.security {
   background: #fef2f2;
   color: #dc2626;
 }
 
-.category-tag.system {
+.agent-icon-avatar.system {
   background: #f5f3ff;
   color: #7c3aed;
 }
 
-.trigger-type-tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  padding: 0.2rem 0.5rem;
-  border-radius: 6px;
-  font-size: 0.7rem;
-  font-weight: 600;
-}
-
-.trigger-type-tag.scheduled {
-  background: #f1f5f9;
-  color: #475569;
-}
-
-.trigger-type-tag.event-driven {
-  background: #fefce8;
-  color: #a16207;
-}
-
-/* Custom Modern Toggle */
-.custom-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  cursor: pointer;
-  user-select: none;
-}
-
-.custom-toggle.disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.custom-toggle input {
-  display: none;
-}
-
-.toggle-slider {
-  position: relative;
-  width: 36px;
-  height: 20px;
-  background: #cbd5e1;
-  border-radius: 999px;
-  transition: background 0.2s ease;
-}
-
-.toggle-slider::after {
-  content: '';
-  position: absolute;
-  top: 2px;
-  right: 2px;
-  width: 16px;
-  height: 16px;
-  background: #ffffff;
-  border-radius: 50%;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-  transition: transform 0.2s ease;
-}
-
-.custom-toggle input:checked + .toggle-slider {
-  background: #10b981;
-}
-
-.custom-toggle input:checked + .toggle-slider::after {
-  transform: translateX(-16px);
-}
-
-.toggle-status-text {
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: #64748b;
-}
-
-.custom-toggle input:checked ~ .toggle-status-text {
-  color: #059669;
+.agent-title-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  flex: 1;
+  min-width: 0;
 }
 
 .agent-name {
-  margin: 0 0 0.4rem;
-  font-size: 1.05rem;
-  font-weight: 700;
-  color: #0f172a;
+  margin: 0;
+  font-size: 0.98rem;
+  font-weight: 800;
+  color: var(--text-primary, #0f172a);
   line-height: 1.35;
-}
-
-.agent-desc {
-  margin: 0 0 0.8rem;
-  font-size: 0.82rem;
-  color: #475569;
-  line-height: 1.55;
-  min-height: 3.1rem;
-}
-
-.agent-schedule-row {
-  margin-bottom: 0.85rem;
-}
-
-.schedule-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0.25rem 0.65rem;
-  border-radius: 6px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  font-size: 0.74rem;
-  color: #475569;
-  font-weight: 600;
-}
-
-.agent-linkage-meta {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  padding: 0.5rem 0.65rem;
-  margin-bottom: 0.85rem;
-  font-size: 0.73rem;
-}
-
-.linkage-row {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-}
-
-.link-badge {
-  display: inline-block;
-  padding: 0.1rem 0.4rem;
-  border-radius: 4px;
-  font-size: 0.68rem;
-  font-weight: 700;
   white-space: nowrap;
-}
-
-.link-badge.source {
-  background: #e0e7ff;
-  color: #3730a3;
-}
-
-.link-badge.dest {
-  background: #dcfce7;
-  color: #166534;
-}
-
-.link-val {
-  color: #334155;
-  font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
-.agent-card-footer {
+.agent-tag-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding-top: 0.85rem;
-  border-top: 1px solid #f1f5f9;
-  gap: 0.5rem;
+  gap: 0.4rem;
+  flex-wrap: wrap;
 }
 
-.last-run-status {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-}
-
-.last-run-time {
-  font-size: 0.72rem;
-  color: #64748b;
-}
-
-.last-run-time.idle {
-  color: #94a3b8;
-}
-
-.status-pill-mini {
-  display: inline-block;
-  font-size: 0.68rem;
+.category-pill {
+  font-size: 0.7rem;
   font-weight: 700;
-  padding: 0.1rem 0.4rem;
-  border-radius: 4px;
+  padding: 0.15rem 0.5rem;
+  border-radius: 6px;
 }
 
-.status-pill-mini.status-success {
+.category-pill.sales {
   background: #ecfdf5;
   color: #059669;
 }
 
-.status-pill-mini.status-warning {
-  background: #fffbeb;
-  color: #d97706;
+.category-pill.inventory {
+  background: #f0f9ff;
+  color: #0284c7;
 }
 
-.status-pill-mini.status-failed {
+.category-pill.security {
   background: #fef2f2;
   color: #dc2626;
 }
 
-.btn-primary-action {
+.category-pill.system {
+  background: #f5f3ff;
+  color: #7c3aed;
+}
+
+.trigger-pill {
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 0.15rem 0.45rem;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.trigger-pill.scheduled {
+  background: var(--bg-soft, #f1f5f9);
+  color: var(--text-secondary, #475569);
+}
+
+.trigger-pill.event-driven {
+  background: #fefce8;
+  color: #a16207;
+}
+
+/* ── زر التبديل التفاعلي السلس iOS ── */
+.ios-toggle-switch {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+  flex-shrink: 0;
+  padding: 2px;
+}
+
+.ios-toggle-switch.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ios-toggle-switch input {
+  display: none;
+}
+
+.ios-slider {
+  position: relative;
+  width: 40px;
+  height: 22px;
+  background: #cbd5e1;
+  border-radius: 999px;
+  transition: background 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.ios-slider::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 18px;
+  height: 18px;
+  background: #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.ios-toggle-switch input:checked + .ios-slider {
+  background: #10b981;
+}
+
+.ios-toggle-switch input:checked + .ios-slider::after {
+  transform: translateX(-18px);
+}
+
+/* ── وصف المهمة ── */
+.agent-desc {
+  margin: 0.35rem 0 0.85rem;
+  font-size: 0.82rem;
+  color: var(--text-secondary, #475569);
+  line-height: 1.6;
+  min-height: 2.6rem;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ── شريط مسار الربط المصغر (Visual Pipeline Strip) ── */
+.visual-pipeline-strip {
+  display: grid;
+  grid-template-columns: 1fr auto 1.15fr auto 1.15fr;
+  align-items: center;
+  gap: 0.35rem;
+  background: var(--bg-soft, #f8fafc);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 10px;
+  padding: 0.6rem 0.75rem;
+  margin-bottom: 0.95rem;
+}
+
+.pipeline-node {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.node-role {
+  font-size: 0.65rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.pipeline-node.source .node-role {
+  color: #0284c7;
+}
+
+.pipeline-node.trigger .node-role {
+  color: #d97706;
+}
+
+.pipeline-node.target .node-role {
+  color: #059669;
+}
+
+.node-text {
+  font-size: 0.73rem;
+  font-weight: 600;
+  color: var(--text-primary, #1e293b);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pipeline-flow-connector {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted, #94a3b8);
+  flex-shrink: 0;
+}
+
+/* ── ذيل البطاقة ── */
+.agent-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--border-color, #f1f5f9);
+}
+
+.status-indicator-block {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 0;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.status-dot.dot-success {
+  background: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+}
+
+.status-dot.dot-warning {
+  background: #f59e0b;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15);
+}
+
+.status-dot.dot-failed {
+  background: #ef4444;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15);
+}
+
+.status-dot.dot-idle {
+  background: #cbd5e1;
+}
+
+.status-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.status-time {
+  font-size: 0.72rem;
+  color: var(--text-secondary, #64748b);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.status-time.idle {
+  color: var(--text-muted, #94a3b8);
+}
+
+.status-text-pill {
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.status-text-pill.status-success {
+  color: #059669;
+}
+
+.status-text-pill.status-warning {
+  color: #d97706;
+}
+
+.status-text-pill.status-failed {
+  color: #dc2626;
+}
+
+.btn-trigger-action {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  padding: 0.45rem 0.85rem;
+  padding: 0.42rem 0.9rem;
   border-radius: 8px;
-  border: none;
-  background: #0284c7;
+  border: 1px solid var(--primary, #0284c7);
+  background: var(--primary, #0284c7);
   color: #ffffff;
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   font-weight: 700;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
-.btn-primary-action:hover:not(:disabled) {
+.btn-trigger-action:hover:not(:disabled) {
   background: #0369a1;
+  border-color: #0369a1;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(2, 132, 199, 0.3);
 }
 
-.btn-primary-action:disabled {
+.btn-trigger-action:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.btn-trigger-action:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }

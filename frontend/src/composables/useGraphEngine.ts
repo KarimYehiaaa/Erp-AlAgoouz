@@ -207,12 +207,14 @@ export function useGraphEngine(options: GraphEngineOptions = {}) {
   function loopActive(): boolean {
     // هل ما زالت هناك أسباب لإطار جديد؟
     if (tweens.length) return true;
+    if (!engineActive || document.hidden) return false;
     if (camAnimating) return true;
     if (waves.length) return true;
     if (entryStartTs && performance.now() - entryStartTs < entryDuration) return true;
     if (!physicsFrozen.value && alpha > 0.004) return true;
     if (nodes.value.some((n) => n.glow > 0.01 || n.rippleT >= 0 || n.enter < 1)) return true;
     if (edges.value.some((e) => e.glow > 0.01)) return true;
+    if (!reducedMotion) return true; // استمرار حركة النبضات الانسيابية طالما التبويب نشط
     return false;
   }
 
@@ -489,70 +491,217 @@ export function useGraphEngine(options: GraphEngineOptions = {}) {
     ctx.restore();
   }
 
-  function edgeCurve(s: EngineNode, t: EngineNode) {
-    const dx = t.x - s.x;
-    return {
-      sx: s.x,
-      sy: s.y,
-      cx1: s.x + dx * 0.5,
-      cy1: s.y,
-      cx2: s.x + dx * 0.5,
-      cy2: t.y,
-      tx: t.x,
-      ty: t.y,
-    };
+  function edgeCurve(source: EngineNode, target: EngineNode) {
+    const dx = target.x - source.x;
+    const dy = target.y - source.y;
+    const hw = (source.width || NODE_W) / 2;
+    const hh = (source.height || NODE_H) / 2;
+
+    let sx = source.x;
+    let sy = source.y;
+    let tx = target.x;
+    let ty = target.y;
+
+    // توجيه انسيابي أفقي رئيسي للمسارات
+    if (Math.abs(dx) >= Math.abs(dy) * 0.75) {
+      if (dx >= 0) {
+        sx = source.x + hw;
+        tx = target.x - hw;
+      } else {
+        sx = source.x - hw;
+        tx = target.x + hw;
+      }
+      sy = source.y;
+      ty = target.y;
+    } else {
+      // توجيه رأسي
+      if (dy >= 0) {
+        sy = source.y + hh;
+        ty = target.y - hh;
+      } else {
+        sy = source.y - hh;
+        ty = target.y + hh;
+      }
+      sx = source.x;
+      tx = target.x;
+    }
+
+    const dist = Math.hypot(tx - sx, ty - sy);
+    const curvature = Math.min(Math.max(dist * 0.45, 45), 200);
+
+    let cx1 = sx;
+    let cy1 = sy;
+    let cx2 = tx;
+    let cy2 = ty;
+
+    if (Math.abs(dx) >= Math.abs(dy) * 0.75) {
+      const dir = dx >= 0 ? 1 : -1;
+      cx1 = sx + curvature * dir;
+      cx2 = tx - curvature * dir;
+    } else {
+      const dir = dy >= 0 ? 1 : -1;
+      cy1 = sy + curvature * dir;
+      cy2 = ty - curvature * dir;
+    }
+
+    return { sx, sy, cx1, cy1, cx2, cy2, tx, ty };
+  }
+
+  function drawArrowhead(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    angle: number,
+    color: string,
+    size = 9,
+  ) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(angle);
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(-size, -size * 0.48);
+    ctx.lineTo(-size * 0.65, 0);
+    ctx.lineTo(-size, size * 0.48);
+    ctx.closePath();
+    ctx.fillStyle = color;
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawEdgeBadge(
+    ctx: CanvasRenderingContext2D,
+    text: string,
+    x: number,
+    y: number,
+    isHighlighted: boolean,
+    color: string,
+  ) {
+    ctx.save();
+    ctx.font = '600 11px system-ui, -apple-system, "Segoe UI", Roboto, "Cairo", sans-serif';
+    const textMetrics = ctx.measureText(text);
+    const tw = textMetrics.width;
+    const badgeW = tw + 18;
+    const badgeH = 22;
+    const rx = x - badgeW / 2;
+    const ry = y - badgeH / 2;
+
+    ctx.beginPath();
+    roundRect(ctx, rx, ry, badgeW, badgeH, 11);
+    ctx.fillStyle = isHighlighted
+      ? theme.dark
+        ? 'rgba(30, 41, 59, 0.96)'
+        : 'rgba(255, 255, 255, 0.98)'
+      : theme.dark
+        ? 'rgba(15, 23, 42, 0.92)'
+        : 'rgba(248, 250, 252, 0.96)';
+    ctx.fill();
+
+    ctx.lineWidth = isHighlighted ? 1.6 : 1;
+    ctx.strokeStyle = isHighlighted
+      ? color
+      : theme.dark
+        ? 'rgba(148, 163, 184, 0.35)'
+        : 'rgba(203, 213, 225, 0.85)';
+    ctx.stroke();
+
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.08)';
+    ctx.shadowBlur = 4;
+    ctx.shadowOffsetY = 1;
+
+    ctx.fillStyle = isHighlighted ? (theme.dark ? '#38bdf8' : '#0284c7') : theme.text;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, x, y);
+    ctx.restore();
   }
 
   function drawEdges(ctx: CanvasRenderingContext2D) {
     const nodeMap = new Map<number, EngineNode>();
     for (const n of nodes.value) nodeMap.set(n.id, n);
 
-    for (const edge of edges.value) {
+    const activeNodeId = selectedNode.value?.id ?? hoveredNode.value?.id ?? null;
+    const now = performance.now();
+
+    for (let i = 0; i < edges.value.length; i++) {
+      const edge = edges.value[i]!;
       const s = nodeMap.get(edge.source);
       const t = nodeMap.get(edge.target);
       if (!s || !t) continue;
+
+      const isConnected =
+        activeNodeId !== null && (edge.source === activeNodeId || edge.target === activeNodeId);
+      const isDimmed = activeNodeId !== null && !isConnected;
+
       const c = edgeCurve(s, t);
 
       ctx.save();
+      if (isDimmed) {
+        ctx.globalAlpha = 0.16;
+      } else if (isConnected) {
+        ctx.globalAlpha = 1.0;
+      } else {
+        ctx.globalAlpha = 0.72;
+      }
+
+      const sColor = getNodeColor(s.group);
+      const tColor = getNodeColor(t.group);
+
+      // تدرج لوني انسيابي يربط بين مجموعة العقدة المصدر والمستقبلة
+      const grad = ctx.createLinearGradient(c.sx, c.sy, c.tx, c.ty);
+      grad.addColorStop(0, sColor);
+      grad.addColorStop(1, tColor);
+
       ctx.beginPath();
       ctx.moveTo(c.sx, c.sy);
       ctx.bezierCurveTo(c.cx1, c.cy1, c.cx2, c.cy2, c.tx, c.ty);
-      if (edge.glow > 0.01) {
-        // حافة متوهجة أثناء مرور الموجة
-        ctx.strokeStyle = theme.dark
-          ? `rgba(56, 189, 248, ${0.45 + edge.glow * 0.55})`
-          : `rgba(2, 132, 199, ${0.45 + edge.glow * 0.55})`;
-        ctx.lineWidth = 1.8 + edge.glow * 1.6;
-        ctx.shadowColor = theme.dark ? 'rgba(56, 189, 248, 0.8)' : 'rgba(2, 132, 199, 0.7)';
-        ctx.shadowBlur = 10 * edge.glow;
+
+      if (isConnected) {
+        ctx.strokeStyle = grad;
+        ctx.lineWidth = 3.2;
+        ctx.shadowColor = sColor;
+        ctx.shadowBlur = 10;
+      } else if (edge.glow > 0.01) {
+        ctx.strokeStyle = theme.accent;
+        ctx.lineWidth = 2.4;
+        ctx.shadowColor = theme.accent;
+        ctx.shadowBlur = 12 * edge.glow;
       } else {
-        ctx.strokeStyle = theme.dark ? 'rgba(148, 163, 184, 0.30)' : 'rgba(148, 163, 184, 0.45)';
+        ctx.strokeStyle = theme.dark ? 'rgba(148, 163, 184, 0.40)' : 'rgba(148, 163, 184, 0.60)';
         ctx.lineWidth = 1.8;
       }
       ctx.stroke();
-      ctx.restore();
 
-      // سهم توجيه دائري عند الطرف
-      const dx = c.tx - c.sx;
-      const dy = c.ty - c.sy;
-      const len = Math.hypot(dx, dy) || 1;
-      ctx.save();
-      ctx.fillStyle = edge.glow > 0.01 ? theme.accent : theme.textMuted;
-      ctx.globalAlpha = 0.75;
-      ctx.beginPath();
-      ctx.arc(c.tx - (dx / len) * 36, c.ty - (dy / len) * 24, 3, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
+      // سهم توجيه هندسي احترافي يصب مباشرة في جدار العقدة الهدف
+      const arrowAngle = Math.atan2(c.ty - c.cy2, c.tx - c.cx2);
+      drawArrowhead(
+        ctx,
+        c.tx,
+        c.ty,
+        arrowAngle,
+        isConnected ? tColor : theme.dark ? 'rgba(148, 163, 184, 0.75)' : '#64748b',
+        isConnected ? 10 : 8,
+      );
 
-      // تسمية الرابط إن وجدت
-      if (edge.label) {
-        ctx.save();
-        ctx.font = '11px sans-serif';
-        ctx.fillStyle = theme.textMuted;
-        ctx.textAlign = 'center';
-        ctx.fillText(edge.label, (c.sx + c.tx) / 2, (c.sy + c.ty) / 2 - 6);
-        ctx.restore();
+      // نبضات طاقة متحركة لطيفة توضح سريان البيانات على طول المسار
+      if (!reducedMotion && !isDimmed) {
+        const pulseT = (now * 0.0004 + i * 0.13) % 1;
+        const pt = getBezierPoint(c.sx, c.sy, c.cx1, c.cy1, c.cx2, c.cy2, c.tx, c.ty, pulseT);
+        ctx.beginPath();
+        ctx.arc(pt.x, pt.y, isConnected ? 4 : 2.5, 0, Math.PI * 2);
+        ctx.fillStyle = isConnected ? '#ffffff' : sColor;
+        ctx.shadowColor = sColor;
+        ctx.shadowBlur = 8;
+        ctx.fill();
       }
+
+      // بطاقة اسم الرابط (Floating Pill Badge)
+      if (edge.label) {
+        const mid = getBezierPoint(c.sx, c.sy, c.cx1, c.cy1, c.cx2, c.cy2, c.tx, c.ty, 0.5);
+        drawEdgeBadge(ctx, edge.label, mid.x, mid.y, isConnected, sColor);
+      }
+
+      ctx.restore();
     }
   }
 
@@ -924,37 +1073,78 @@ export function useGraphEngine(options: GraphEngineOptions = {}) {
 
   // ─── التخطيطات مع انتقال متحرك سلس ───
   function computePipelineTargets(): Map<number, { x: number; y: number }> {
-    // أعمدة التوزيع المنظم: مدخلات → معالجة → مستودعات → إشعارات ورقابة
-    const columns: Record<string, number> = {
-      sales: -360,
+    // 4 مراحل تشغيلية هندسية منظمة:
+    // مرحلة 1: مدخلات البيع والكاشير (-380)
+    // مرحلة 2: معالجة العمليات وحساب الوصفات (-120)
+    // مرحلة 3: المخازن وتحديث الأرصدة (140)
+    // مرحلة 4: التنبيهات وتليجرام والذكاء (400)
+    const stageMap: Record<number, { x: number; y: number }> = {
+      // المرحلة 1: المدخلات
+      7: { x: -380, y: -160 }, // تسجيل يدوي
+      8: { x: -380, y: -50 }, // فاتورة جملة
+      9: { x: -380, y: 60 }, // استيراد كاشير
+      1: { x: -380, y: 170 }, // كاشير نقطة البيع
+
+      // المرحلة 2: العمليات والوصفات
+      10: { x: -120, y: -110 }, // خصم مخزون مباشر
+      11: { x: -120, y: 5 }, // حساب الوصفات والتفكيك
+      3: { x: -120, y: 120 }, // محرك الوصفات
+
+      // المرحلة 3: المستودعات والمخازن
+      12: { x: 140, y: -55 }, // تحديث مخزون المخزن
+      2: { x: 140, y: 65 }, // المخزن الرئيسي
+
+      // المرحلة 4: الإشعارات وتليجرام والذكاء
+      6: { x: 400, y: -110 }, // إشعارات النظام
+      4: { x: 400, y: 5 }, // وكيل تليجرام
+      5: { x: 400, y: 120 }, // المساعد الذكي Gemini
+    };
+
+    const targets = new Map<number, { x: number; y: number }>();
+    const fallbackCols: Record<string, number> = {
+      sales: -380,
       production: -120,
       operations: -120,
-      inventory: 120,
-      security: 340,
-      notifications: 340,
-      ai: 340,
+      inventory: 140,
+      notifications: 400,
+      security: 400,
+      ai: 400,
     };
-    const targets = new Map<number, { x: number; y: number }>();
-    const colCounts: Record<number, number> = {};
+    const fallbackCounts: Record<number, number> = {};
+
     for (const n of nodes.value) {
-      const colX = columns[n.group] ?? 0;
-      const idx = colCounts[colX] || 0;
-      targets.set(n.id, { x: colX, y: (idx - 1.5) * 115 });
-      colCounts[colX] = idx + 1;
+      if (stageMap[n.id]) {
+        targets.set(n.id, stageMap[n.id]!);
+      } else {
+        const colX = fallbackCols[n.group] ?? 0;
+        const count = fallbackCounts[colX] || 0;
+        targets.set(n.id, { x: colX, y: (count - 1.5) * 115 });
+        fallbackCounts[colX] = count + 1;
+      }
     }
     return targets;
   }
 
   function computeTreeTargets(): Map<number, { x: number; y: number }> {
     // توزيع هرمي متوازن: مشغلات → معالجات → وكلاء
-    const levels: Record<string, number> = { trigger: -200, action: 0, agent: 200 };
+    const levels: Record<string, number> = { trigger: -190, action: 0, agent: 190 };
     const targets = new Map<number, { x: number; y: number }>();
-    const levelCounts: Record<number, number> = {};
+    const types = ['trigger', 'action', 'agent'] as const;
+
+    for (const t of types) {
+      const typeNodes = nodes.value.filter((n) => n.type === t);
+      const total = typeNodes.length;
+      typeNodes.forEach((n, idx) => {
+        const x = (idx - (total - 1) / 2) * 195;
+        const y = levels[t] ?? 0;
+        targets.set(n.id, { x, y });
+      });
+    }
+
     for (const n of nodes.value) {
-      const lvlY = levels[n.type] ?? 0;
-      const idx = levelCounts[lvlY] || 0;
-      targets.set(n.id, { x: (idx - 2) * 190, y: lvlY });
-      levelCounts[lvlY] = idx + 1;
+      if (!targets.has(n.id)) {
+        targets.set(n.id, { x: 0, y: 0 });
+      }
     }
     return targets;
   }

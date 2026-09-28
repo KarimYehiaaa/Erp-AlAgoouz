@@ -92,13 +92,24 @@ app.use(
         return callback(null, true);
       }
 
-      // 3. بيئات وتطبيقات الموبايل والديسك توب والتطوير المحلية (Capacitor / Localhost / LAN)
+      // 3. بيئات وتطبيقات الموبايل والديسك توب والتطوير والشبكة المحلية (Capacitor / Localhost / LAN)
+      let isLanOrigin = false;
+      try {
+        const parsed = new URL(origin);
+        const host = parsed.hostname;
+        isLanOrigin =
+          host.startsWith('192.168.') ||
+          host.startsWith('10.') ||
+          /^172\.(1[6-9]|2\d|3[0-1])\./.test(host);
+      } catch {}
+
       if (
         origin.startsWith('capacitor://') ||
         origin.startsWith('ionic://') ||
         origin === 'https://localhost' ||
         origin.startsWith('http://localhost') ||
         origin.startsWith('http://127.0.0.1') ||
+        isLanOrigin ||
         config.lanOrigins.includes(origin)
       ) {
         return callback(null, true);

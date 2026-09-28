@@ -371,6 +371,15 @@
               <AppIcon name="monitor" :size="16" />
               <span>الكمبيوتر المباشر (Localhost:3000)</span>
             </button>
+            <button
+              type="button"
+              class="preset-chip"
+              :class="{ active: !customServerUrl || customServerUrl === '' }"
+              @click="resetToLocalDefault"
+            >
+              <AppIcon name="refreshCw" :size="16" />
+              <span>الوضع التلقائي (افتراضي المتصفح)</span>
+            </button>
           </div>
 
           <div v-if="testResultMsg" class="test-box" :class="testResultStatus">
@@ -475,15 +484,40 @@ const onPasswordInput = () => {
 
 // ─── Server Config State ───────────────────────────────────
 const showServerConfig = ref(false);
-const customServerUrl = ref(getBaseServerUrl() || 'https://agoouz.vercel.app');
+const defaultServerUrl = () => {
+  const current = getBaseServerUrl();
+  if (current) return current;
+  if (
+    typeof window !== 'undefined' &&
+    (window.location.hostname === 'localhost' ||
+      window.location.hostname === '127.0.0.1' ||
+      window.location.hostname.startsWith('192.168.'))
+  ) {
+    return window.location.origin;
+  }
+  return 'https://agoouz.vercel.app';
+};
+const customServerUrl = ref(defaultServerUrl());
 const testingConn = ref(false);
 const testResultMsg = ref('');
 const testResultStatus = ref<'success' | 'error' | ''>('');
 
 const serverDisplayLabel = computed(() => {
   const url = getBaseServerUrl();
-  if (!url || url.includes('agoouz.vercel.app')) return 'سيرفر سحابي';
-  if (url.includes('192.168.') || url.includes('localhost')) return 'سيرفر محلي';
+  if (url.includes('agoouz.vercel.app')) return 'سيرفر سحابي';
+  if (url.includes('192.168.') || url.includes('localhost') || url.includes('127.0.0.1'))
+    return 'سيرفر محلي';
+  if (!url) {
+    if (
+      typeof window !== 'undefined' &&
+      (window.location.hostname === 'localhost' ||
+        window.location.hostname === '127.0.0.1' ||
+        window.location.hostname.startsWith('192.168.'))
+    ) {
+      return 'سيرفر محلي';
+    }
+    return 'سيرفر سحابي';
+  }
   return 'سيرفر مخصص';
 });
 
@@ -492,20 +526,33 @@ const selectPreset = (url: string) => {
   testServerConnection();
 };
 
+const resetToLocalDefault = () => {
+  customServerUrl.value = '';
+  setBaseServerUrl('');
+  testServerConnection();
+};
+
 const testServerConnection = async () => {
   testingConn.value = true;
   testResultMsg.value = '';
   testResultStatus.value = '';
 
-  const target = (customServerUrl.value || getBaseServerUrl()).replace(/\/+$/, '');
+  const target = (
+    customServerUrl.value ||
+    getBaseServerUrl() ||
+    (typeof window !== 'undefined' ? window.location.origin : '')
+  ).replace(/\/+$/, '');
   const startTime = Date.now();
   try {
     let res: any;
     try {
-      res = await axios.get(`${target}/api/v1/health`, { timeout: 12000 });
+      res = await axios.get(`${target}/api/v1/health`, { timeout: 10000 });
     } catch {
-      // تجربة المسار البديل /health
-      res = await axios.get(`${target}/health`, { timeout: 12000 });
+      try {
+        res = await axios.get(`${target}/api/health`, { timeout: 10000 });
+      } catch {
+        res = await axios.get(`${target}/health`, { timeout: 10000 });
+      }
     }
 
     const latency = Date.now() - startTime;

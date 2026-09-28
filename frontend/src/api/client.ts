@@ -46,8 +46,11 @@ export const getBaseServerUrl = (): string => {
 export const setBaseServerUrl = (url: string) => {
   if (!url || !isValidServerUrl(url)) {
     localStorage.removeItem('binalagoouz_server_url');
+    api.defaults.baseURL = `${getBaseServerUrl()}/api/v1`;
   } else {
-    localStorage.setItem('binalagoouz_server_url', url.replace(/\/+$/, ''));
+    const cleanUrl = url.replace(/\/+$/, '');
+    localStorage.setItem('binalagoouz_server_url', cleanUrl);
+    api.defaults.baseURL = `${cleanUrl}/api/v1`;
   }
 };
 

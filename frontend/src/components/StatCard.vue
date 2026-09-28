@@ -4,6 +4,7 @@
     :class="[`tone-${tone}`, `surface-raised`]"
     :style="{ animationDelay: delay }"
   >
+    <div class="stat-card-glow" aria-hidden="true"></div>
     <span class="stat-icon-wrap">
       <AppIcon class="stat-icon" :name="iconName" />
     </span>
@@ -41,44 +42,65 @@ const iconName = computed(() => props.icon || 'dashboard');
 
 <style lang="scss" scoped>
 .stat-card {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 16px;
+  gap: 16px;
+  padding: 16px 20px;
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  border-radius: 18px;
   background: linear-gradient(
     180deg,
     var(--color-surface, var(--bg-elevated)) 0%,
     var(--color-surface-sunken, var(--bg-elevated)) 100%
   );
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.05),
-    var(--shadow-xs);
+    0 2px 10px -2px rgba(0, 0, 0, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
   transition:
-    transform var(--motion-hover),
-    box-shadow var(--motion-hover),
-    border-color var(--motion-hover);
+    transform var(--motion-hover, 0.25s cubic-bezier(0.16, 1, 0.3, 1)),
+    box-shadow var(--motion-hover, 0.25s cubic-bezier(0.16, 1, 0.3, 1)),
+    border-color var(--motion-hover, 0.25s ease);
+  overflow: hidden;
+
+  .stat-card-glow {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    border-radius: inherit;
+    background: radial-gradient(
+      120% 90% at 92% 0%,
+      var(--glow-color, rgba(181, 138, 74, 0.08)) 0%,
+      transparent 65%
+    );
+    opacity: 0.8;
+    transition: opacity 0.3s ease;
+  }
 
   &:hover {
-    transform: translateY(-2px);
-    border-color: var(--primary-border);
+    transform: translateY(-3px);
+    border-color: var(--primary-border, var(--primary));
     box-shadow:
-      var(--shadow-sm),
-      0 8px 18px -4px var(--primary-halo);
+      0 12px 26px -6px var(--halo-color, var(--primary-halo)),
+      0 4px 10px -2px rgba(0, 0, 0, 0.05),
+      inset 0 1px 0 rgba(255, 255, 255, 0.8);
+
+    .stat-card-glow {
+      opacity: 1;
+    }
 
     .stat-icon-wrap {
-      transform: scale(1.06);
+      transform: scale(1.08) rotate(2deg);
+      box-shadow: 0 4px 14px -2px var(--halo-color, var(--primary-halo));
     }
   }
 
   &.tone-emerald,
   &.tone-success {
+    --glow-color: rgba(16, 185, 129, 0.12);
+    --halo-color: rgba(16, 185, 129, 0.25);
     &:hover {
       border-color: var(--color-emerald-border, var(--success));
-      box-shadow:
-        var(--shadow-sm),
-        0 8px 18px -4px var(--color-emerald-halo, rgba(16, 185, 129, 0.2));
     }
     .stat-icon-wrap {
       background: var(--color-emerald-soft, rgba(16, 185, 129, 0.12));
@@ -88,11 +110,10 @@ const iconName = computed(() => props.icon || 'dashboard');
   }
 
   &.tone-teal {
+    --glow-color: rgba(20, 184, 166, 0.12);
+    --halo-color: rgba(20, 184, 166, 0.25);
     &:hover {
       border-color: var(--color-teal-border, #14b8a6);
-      box-shadow:
-        var(--shadow-sm),
-        0 8px 18px -4px var(--color-teal-halo, rgba(20, 184, 166, 0.2));
     }
     .stat-icon-wrap {
       background: var(--color-teal-soft, rgba(20, 184, 166, 0.12));
@@ -103,11 +124,10 @@ const iconName = computed(() => props.icon || 'dashboard');
 
   &.tone-amber,
   &.tone-warning {
+    --glow-color: rgba(245, 158, 11, 0.12);
+    --halo-color: rgba(245, 158, 11, 0.25);
     &:hover {
       border-color: var(--color-amber-border, var(--warning));
-      box-shadow:
-        var(--shadow-sm),
-        0 8px 18px -4px var(--color-amber-halo, rgba(245, 158, 11, 0.2));
     }
     .stat-icon-wrap {
       background: var(--color-amber-soft, rgba(245, 158, 11, 0.12));
@@ -117,11 +137,10 @@ const iconName = computed(() => props.icon || 'dashboard');
   }
 
   &.tone-danger {
+    --glow-color: rgba(239, 68, 68, 0.12);
+    --halo-color: rgba(239, 68, 68, 0.25);
     &:hover {
       border-color: var(--color-danger-border, var(--danger));
-      box-shadow:
-        var(--shadow-sm),
-        0 8px 18px -4px var(--color-danger-halo, rgba(239, 68, 68, 0.2));
     }
     .stat-icon-wrap {
       background: var(--color-danger-soft, rgba(239, 68, 68, 0.12));
@@ -132,21 +151,25 @@ const iconName = computed(() => props.icon || 'dashboard');
 }
 
 .stat-icon-wrap {
-  width: 42px;
-  height: 42px;
+  width: 48px;
+  height: 48px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--primary) 10%, var(--bg-elevated));
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--primary) 12%, var(--bg-elevated));
   color: var(--primary);
   border: 1px solid var(--border-subtle, transparent);
   flex-shrink: 0;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
   transition:
-    transform var(--motion-hover),
-    background-color var(--motion-hover),
-    color var(--motion-hover),
-    border-color var(--motion-hover);
+    transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
+    background-color 0.25s ease,
+    color 0.25s ease,
+    border-color 0.25s ease,
+    box-shadow 0.25s ease;
+  position: relative;
+  z-index: 1;
 }
 
 .stat-icon {
@@ -157,22 +180,26 @@ const iconName = computed(() => props.icon || 'dashboard');
 .stat-info {
   min-width: 0;
   flex: 1;
+  position: relative;
+  z-index: 1;
 }
 
 .stat-label {
   display: block;
   margin-bottom: 3px;
   color: var(--text-muted);
-  font-size: 0.78rem;
-  font-weight: 900;
+  font-size: 0.8rem;
+  font-weight: 800;
 }
 
 .stat-value {
   display: block;
   color: var(--text-strong);
-  font-size: 1.25rem;
+  font-size: 1.35rem;
   font-weight: 900;
   line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
 }
 
 .stat-sub {
@@ -180,5 +207,6 @@ const iconName = computed(() => props.icon || 'dashboard');
   margin-top: 3px;
   color: var(--text-muted);
   font-size: 0.74rem;
+  font-weight: 600;
 }
 </style>

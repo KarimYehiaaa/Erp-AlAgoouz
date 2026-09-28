@@ -124,20 +124,22 @@ const cards = computed(() => {
 <style scoped>
 .kpi-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
 }
 
 .kpi-card {
   padding: 18px 20px;
-  border-radius: 16px;
+  border-radius: 20px;
   background: var(--card-bg, rgba(255, 255, 255, 0.04));
   border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
   position: relative;
   overflow: hidden;
+  box-shadow: 0 2px 10px -2px rgba(0, 0, 0, 0.05);
   transition:
-    transform 0.2s ease,
-    box-shadow 0.2s ease;
+    transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 0.25s ease;
 }
 
 .kpi-card::before {

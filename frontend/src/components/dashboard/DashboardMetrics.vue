@@ -14,36 +14,49 @@
       <RouterLink
         v-spotlight
         class="metric-card hover-lift glass-glow-card"
-        :class="metric.tone"
+        :class="[metric.tone, { 'has-spark': metric.spark && metric.spark.length > 1 }]"
         :to="metric.to"
       >
+        <!-- Atmospheric Ambient Glow -->
+        <div class="card-ambient-glow" aria-hidden="true"></div>
+
+        <!-- Top Header: Icon Squircle + Trend / Estimate Badges -->
         <div class="metric-top-bar">
-          <span class="metric-icon"><AppIcon :name="metric.icon" :size="18" /></span>
-          <span
-            v-if="metric.delta !== undefined"
-            class="trend-delta-pill"
-            :class="metric.delta >= 0 ? 'up' : 'down'"
-          >
-            <AppIcon :name="metric.delta >= 0 ? 'trendingUp' : 'trendingDown'" :size="11" />
-            {{ metric.delta >= 0 ? '+' : '' }}{{ metric.delta }}%
-          </span>
+          <div class="metric-icon-wrap">
+            <AppIcon class="metric-icon" :name="metric.icon" :size="20" />
+          </div>
+
+          <div class="metric-badges">
+            <span
+              v-if="metric.delta !== undefined"
+              class="trend-delta-pill"
+              :class="metric.delta >= 0 ? 'up' : 'down'"
+            >
+              <AppIcon :name="metric.delta >= 0 ? 'trendingUp' : 'trendingDown'" :size="11" />
+              <span>{{ metric.delta >= 0 ? '+' : '' }}{{ metric.delta }}%</span>
+            </span>
+            <span v-if="metric.estimate" class="estimate-pill" :title="metric.estimateNote">
+              <span class="estimate-dot"></span>
+              <span>تقديري</span>
+            </span>
+          </div>
         </div>
-        <span class="metric-label">
-          {{ metric.label }}
-          <span v-if="metric.estimate" class="estimate-pill" :title="metric.estimateNote"
-            >≈ تقديري</span
-          >
-        </span>
-        <strong class="metric-num">
-          <AnimatedNumber :value="metric.raw" :format="metric.format" />
-        </strong>
-        <small class="metric-sub">{{ metric.sub }}</small>
-        <Sparkline
-          v-if="metric.spark && metric.spark.length > 1"
-          :data="metric.spark"
-          :color="metric.sparkColor"
-          class="metric-spark"
-        />
+
+        <!-- Metric Content: Label & Main Value -->
+        <div class="metric-body">
+          <span class="metric-label">{{ metric.label }}</span>
+          <strong class="metric-num">
+            <AnimatedNumber :value="metric.raw" :format="metric.format" />
+          </strong>
+        </div>
+
+        <!-- Metric Footer: Subtitle + Integrated Sparkline -->
+        <div class="metric-footer">
+          <span class="metric-sub" :title="metric.sub">{{ metric.sub }}</span>
+          <div v-if="metric.spark && metric.spark.length > 1" class="metric-spark-wrap">
+            <Sparkline :data="metric.spark" :color="metric.sparkColor" class="metric-spark" />
+          </div>
+        </div>
       </RouterLink>
     </div>
   </section>
@@ -280,29 +293,9 @@ const onDrop = (event: any, index: any) => {
 <style lang="scss" scoped>
 @use './dashboardShared.scss';
 
-.metric-spark {
-  margin-top: 4px;
-  opacity: 0.92;
-  transition: opacity 0.2s ease;
-}
-
-.metric-card.bento-metric-card:hover .metric-spark {
-  opacity: 1;
-}
-
-/* وسام التقدير على البطاقات التقريبية (السيولة) */
-.estimate-pill {
-  display: inline-block;
-  margin-right: 3px;
-  padding: 1px 5px;
-  border-radius: 999px;
-  font-size: 0.55rem;
-  font-weight: 900;
-  line-height: 1.3;
-  vertical-align: middle;
-  color: var(--warning);
-  background: color-mix(in srgb, var(--warning) 12%, transparent);
-  border: 1px solid color-mix(in srgb, var(--warning) 30%, transparent);
-  cursor: help;
+.metric-spark-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
 }
 </style>

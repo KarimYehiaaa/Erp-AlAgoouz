@@ -190,6 +190,10 @@
                 <strong>استعادة العملاء المنقطعين:</strong> ينبه أسبوعياً بالعملاء الدائمين
                 المنقطعين لأكثر من 30 يوماً.
               </li>
+              <li>
+                <strong>حارس المديونيات والائتمان:</strong> رصد دوري لمديونيات عملاء الجملة والتجزئة
+                والإنذار عند تجاوز الحد الائتماني.
+              </li>
             </ul>
           </div>
 
@@ -234,6 +238,14 @@
               <li>
                 <strong>إنذار نقص المخزون:</strong> فحص مرتين يومياً (10 ص و 6 م) لتفادي نفاد خامات
                 القهوة.
+              </li>
+              <li>
+                <strong>حارس المشتريات وتوريد المخزن:</strong> التحقق من دخول مشتريات البن والخامات
+                للمخزن آلياً وتنبيه الإدارة عند ارتفاع سعر التكلفة.
+              </li>
+              <li>
+                <strong>مدقق أكياس البن ومطابقة الأكواب:</strong> مطابقة عدد الأكواب والمشروبات
+                المباعة ومبيعات أكياس البن لرصد الهدر والتسريب.
               </li>
               <li>
                 <strong>المناقلات الذكية:</strong> اقتراح مناقلة بضاعة من المخزن الرئيسي إلى مخزن
@@ -1207,6 +1219,21 @@ const taskLinkageMap: Record<string, { source: string; triggerDesc: string; targ
     triggerDesc: 'مجدول يومياً 12:00 ظهراً',
     target: 'تأكيد جاهزية نقاط الـ Webhook الآمنة',
   },
+  debt_credit_sentinel: {
+    source: 'مديونيات العملاء وفواتير الموردين',
+    triggerDesc: 'مجدول يومياً 12:00 ظهراً',
+    target: 'إنذار تجاوز الحد الائتماني والديون المتأخرة',
+  },
+  purchase_stock_ingestion_guard: {
+    source: 'فواتير المشتريات وحركات المخزن',
+    triggerDesc: 'مجدول يومياً 03:00 عصراً',
+    target: 'تأكيد ترحيل المخزن وإنذار ارتفاع التكلفة',
+  },
+  coffee_bags_cups_reconciler: {
+    source: 'مبيعات الكاشير وحركات صرف الأكواب والبن',
+    triggerDesc: 'مجدول يومياً 10:00 مساءً',
+    target: 'كشف هدر الأكواب وتدقيق أكياس البن',
+  },
 };
 
 // ─── بيانات وإعدادات تليجرام ───
@@ -1640,6 +1667,9 @@ function getTaskIcon(key: string): string {
     scheduled_cron_task: 'clock',
     telegram_notifier: 'send',
     webhook_listener: 'activity',
+    debt_credit_sentinel: 'walletCards',
+    purchase_stock_ingestion_guard: 'truck',
+    coffee_bags_cups_reconciler: 'coffee',
   };
   return iconMap[key] || 'bot';
 }

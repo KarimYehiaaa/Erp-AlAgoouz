@@ -757,6 +757,312 @@ const webhookListenerHandler: AutomationHandler = async () => {
   };
 };
 
+const debtCreditSentinelHandler: AutomationHandler = async () => {
+  const title = 'حارس المديونيات والائتمان لمحل بن العجوز';
+  // 1. مديونيات العملاء
+  const custStatsRes = await query(
+    `SELECT COUNT(*)::int as debtor_count,
+            COALESCE(SUM(balance), 0) as total_customer_debt
+     FROM customers
+     WHERE deleted_at IS NULL AND balance > 0`,
+  );
+  const debtorCount = Number(custStatsRes.rows[0]?.debtor_count || 0);
+  const totalCustomerDebt = Number(custStatsRes.rows[0]?.total_customer_debt || 0);
+
+  // العملاء المتجاوزين للحد الائتماني
+  const overLimitRes = await query(
+    `SELECT id, name_ar, phone, customer_type, balance, credit_limit
+     FROM customers
+     WHERE deleted_at IS NULL AND balance > 0 AND credit_limit > 0 AND balance > credit_limit
+     ORDER BY (balance - credit_limit) DESC LIMIT 5`,
+  );
+
+  // أعلى العملاء مديونية
+  const topDebtorsRes = await query(
+    `SELECT id, name_ar, phone, customer_type, balance, credit_limit
+     FROM customers
+     WHERE deleted_at IS NULL AND balance > 0
+     ORDER BY balance DESC LIMIT 5`,
+  );
+
+  // 2. مستحقات الموردين
+  const suppStatsRes = await query(
+    `SELECT COUNT(*)::int as unpaid_invoices_count,
+            COALESCE(SUM(total_amount - COALESCE(paid_amount, 0)), 0) as total_supplier_debt,
+            COALESCE(SUM(CASE WHEN due_date < CURRENT_DATE THEN (total_amount - COALESCE(paid_amount, 0)) ELSE 0 END), 0) as overdue_supplier_debt
+     FROM supplier_invoices
+     WHERE deleted_at IS NULL AND total_amount > COALESCE(paid_amount, 0)`,
+  );
+  const unpaidInvoicesCount = Number(suppStatsRes.rows[0]?.unpaid_invoices_count || 0);
+  const totalSupplierDebt = Number(suppStatsRes.rows[0]?.total_supplier_debt || 0);
+  const overdueSupplierDebt = Number(suppStatsRes.rows[0]?.overdue_supplier_debt || 0);
+
+  const hasBreaches = overLimitRes.rows.length > 0 || overdueSupplierDebt > 0;
+
+  const breachesText =
+    overLimitRes.rows.length > 0
+      ? `\n🚨 <b>عملاء تجاوزوا الحد الائتماني المسموح:</b>\n` +
+        overLimitRes.rows
+          .map(
+            (c: any) =>
+              `  ⚠️ <b>${c.name_ar}</b> (${c.customer_type === 'wholesale' ? 'جملة' : 'تجزئة'}): رصيد <code>${Number(c.balance).toLocaleString('ar-EG')}</code> ج.م (الحد: ${Number(c.credit_limit).toLocaleString('ar-EG')} ج.م)`,
+          )
+          .join('\n')
+      : '';
+
+  const topDebtorsText =
+    topDebtorsRes.rows.length > 0
+      ? `\n📋 <b>أبرز أرصدة العملاء المدينة:</b>\n` +
+        topDebtorsRes.rows
+          .map(
+            (c: any) =>
+              `  • ${c.name_ar}: ${Number(c.balance).toLocaleString('ar-EG')} ج.م (${c.phone || 'بدون هاتف'})`,
+          )
+          .join('\n')
+      : '  • لا توجد مديونيات قائمة على العملاء.';
+
+  const supplierText =
+    unpaidInvoicesCount > 0
+      ? `\n🏭 <b>مستحقات الموردين:</b> ${totalSupplierDebt.toLocaleString('ar-EG')} ج.م (${unpaidInvoicesCount} فواتير)${overdueSupplierDebt > 0 ? `\n  ⚠️ منها متأخر السداد: <b>${overdueSupplierDebt.toLocaleString('ar-EG')} ج.م</b>` : ''}`
+      : '\n🏭 <b>مستحقات الموردين:</b> مسددة بالكامل.';
+
+  return {
+    title,
+    status: hasBreaches ? 'warning' : 'success',
+    text: `
+💳 <b>تقرير حارس المديونيات والائتمان — بن العجوز</b>
+━━━━━━━━━━━━━━━━━━━━
+👥 <b>إجمالي مديونيات العملاء:</b> ${totalCustomerDebt.toLocaleString('ar-EG')} ج.م (${debtorCount} عميل)
+${supplierText}
+${breachesText}
+━━━━━━━━━━━━━━━━━━━━
+${topDebtorsText}
+━━━━━━━━━━━━━━━━━━━━
+⏱ <i>تم الفحص: ${new Date().toLocaleTimeString('ar-EG', { timeZone: 'Africa/Cairo' })}</i>
+    `.trim(),
+  };
+};
+
+const purchaseStockIngestionGuardHandler: AutomationHandler = async (ctx) => {
+  const title = 'حارس المشتريات وتوريد المخزن وتغير التكلفة';
+  // 1. فحص فواتير الشراء لآخر 24 ساعة
+  const recentPurchasesRes = await query(
+    `SELECT pi.id, pi.invoice_number, pi.total_amount, pi.invoice_date, w.name_ar as warehouse_name,
+            COUNT(pii.id)::int as items_count
+     FROM purchase_invoices pi
+     JOIN warehouses w ON w.id = pi.warehouse_id
+     LEFT JOIN purchase_invoice_items pii ON pii.purchase_invoice_id = pi.id
+     WHERE pi.created_at >= NOW() - INTERVAL '24 HOURS' AND pi.deleted_at IS NULL
+     GROUP BY pi.id, pi.invoice_number, pi.total_amount, pi.invoice_date, w.name_ar
+     ORDER BY pi.created_at DESC`,
+  );
+
+  // 2. التحقق من سلامة الربط المخزني (عدم وجود فواتير شراء بدون حركات مخزنية)
+  const orphanPurchasesRes = await query(
+    `SELECT pi.invoice_number
+     FROM purchase_invoices pi
+     WHERE pi.created_at >= NOW() - INTERVAL '7 DAYS' AND pi.deleted_at IS NULL
+       AND NOT EXISTS (
+         SELECT 1 FROM stock_movements sm
+         WHERE sm.reference_type = 'purchase_invoice' AND sm.reference_id = pi.id
+       )
+     LIMIT 5`,
+  );
+
+  // 3. فحص ارتفاع أسعار التكلفة للخامات الواردة مقارنة بأسعار الأساس
+  const spikeThresholdPct = Number(ctx.config?.cost_spike_threshold_pct || 5.0);
+  const costSpikesRes = await query(
+    `SELECT p.name_ar, p.purchase_price as old_price, pii.unit_price as new_price,
+            pi.invoice_number,
+            ROUND(((pii.unit_price - p.purchase_price) / NULLIF(p.purchase_price, 0) * 100)::numeric, 1) as increase_pct
+     FROM purchase_invoice_items pii
+     JOIN purchase_invoices pi ON pi.id = pii.purchase_invoice_id
+     JOIN products p ON p.id = pii.product_id
+     WHERE pi.created_at >= NOW() - INTERVAL '24 HOURS' AND pi.deleted_at IS NULL
+       AND p.purchase_price > 0
+       AND pii.unit_price > p.purchase_price * (1 + $1::numeric / 100)
+     ORDER BY increase_pct DESC
+     LIMIT 5`,
+    [spikeThresholdPct],
+  );
+
+  const hasOrphans = orphanPurchasesRes.rows.length > 0;
+  const hasSpikes = costSpikesRes.rows.length > 0;
+  const isWarning = hasOrphans || hasSpikes;
+
+  const purchasesCount = recentPurchasesRes.rows.length;
+  const totalPurchasedToday = recentPurchasesRes.rows.reduce(
+    (sum: number, r: any) => sum + Number(r.total_amount || 0),
+    0,
+  );
+
+  let details = '';
+  if (purchasesCount > 0) {
+    details +=
+      `\n📦 <b>فواتير الشراء الواردة (آخر 24 ساعة):</b> ${purchasesCount} فاتورة بإجمالي <b>${totalPurchasedToday.toLocaleString('ar-EG')} ج.م</b>\n` +
+      recentPurchasesRes.rows
+        .slice(0, 3)
+        .map(
+          (r: any) =>
+            `  • <b>#${r.invoice_number}</b>: ${Number(r.total_amount).toLocaleString('ar-EG')} ج.م (${r.warehouse_name})`,
+        )
+        .join('\n');
+  } else {
+    details += `\n📦 <b>فواتير الشراء:</b> لم يتم تسجيل فواتير شراء جديدة خلال آخر 24 ساعة.`;
+  }
+
+  if (hasOrphans) {
+    details +=
+      `\n\n🚨 <b>إنذار أمني للمخزن:</b> فواتير مشتريات لم تُرحل لحركات المخزن:\n` +
+      orphanPurchasesRes.rows
+        .map(
+          (r: any) => `  ❌ فاتورة <code>${r.invoice_number}</code> غير مسجلة في stock_movements!`,
+        )
+        .join('\n');
+  }
+
+  if (hasSpikes) {
+    details +=
+      `\n\n📈 <b>تنبيه تضخم أسعار التوريد (ارتفاع > ${spikeThresholdPct}%):</b>\n` +
+      costSpikesRes.rows
+        .map(
+          (r: any) =>
+            `  🔺 <b>${r.name_ar}</b>: السعر السابق <code>${r.old_price}</code> ➔ الجديد <code>${r.new_price}</code> ج.م (+${r.increase_pct}%) بفاتورة #${r.invoice_number}`,
+        )
+        .join('\n') +
+      `\n💡 يُنصح بمراجعة تسعير المنيو أو التفاوض مع المورد.`;
+  }
+
+  return {
+    title,
+    status: isWarning ? 'warning' : 'success',
+    text: `
+🚚 <b>تقرير حارس المشتريات وتوريد المخزن</b>
+━━━━━━━━━━━━━━━━━━━━
+✅ <b>تكامل المخزن:</b> ${hasOrphans ? 'يوجد خلل في بعض التوريدات ⚠️' : 'كافة المشتريات دخلت المخزن وتحدثت تكلفتها بنجاح 🟢'}
+${details}
+━━━━━━━━━━━━━━━━━━━━
+⏱ <i>تم الفحص: ${new Date().toLocaleTimeString('ar-EG', { timeZone: 'Africa/Cairo' })}</i>
+    `.trim(),
+  };
+};
+
+const coffeeBagsCupsReconcilerHandler: AutomationHandler = async (ctx) => {
+  const title = 'مدقق استهلاك الأكواب ومبيعات أكياس البن';
+  const reportDate = getCairoBusinessDate(ctx.scheduledFor);
+  const maxVariancePct = Number(ctx.config?.max_cup_variance_pct || 5.0);
+
+  // 1. مبيعات المشروبات بالكوب اليوم
+  const drinksRes = await query(
+    `SELECT COUNT(si.id)::int as drink_lines,
+            COALESCE(SUM(si.quantity), 0) as total_cups_sold
+     FROM sale_items si
+     JOIN sales s ON s.id = si.sale_id
+     JOIN products p ON p.id = si.product_id
+     LEFT JOIN product_categories pc ON pc.id = p.category_id
+     WHERE s.sale_date = $1::date AND s.deleted_at IS NULL AND s.status = 'completed'
+       AND (
+         pc.name_ar ILIKE '%مشروب%' OR pc.name_ar ILIKE '%قهوة%' OR pc.name_ar ILIKE '%بار%'
+         OR p.name_ar ILIKE '%كوب%' OR p.name_ar ILIKE '%لاتيه%' OR p.name_ar ILIKE '%إسبريسو%'
+         OR p.name_ar ILIKE '%مقطر%' OR p.name_ar ILIKE '%شاي%' OR p.name_ar ILIKE '%كابتشينو%'
+         OR p.name_ar ILIKE '%فلات وايت%' OR p.name_ar ILIKE '%أمريكانو%' OR p.name_ar ILIKE '%موكا%'
+       )`,
+    [reportDate],
+  );
+  const totalCupsSold = Number(drinksRes.rows[0]?.total_cups_sold || 0);
+
+  // 2. فحص استهلاك الأكواب من المخزن (حركات الصرف والتالف والوصفات)
+  const cupDispatchedRes = await query(
+    `SELECT p.name_ar, ABS(COALESCE(SUM(sm.quantity), 0)) as cups_dispatched
+     FROM stock_movements sm
+     JOIN products p ON p.id = sm.product_id
+     WHERE sm.created_at::date = $1::date AND sm.quantity < 0
+       AND (p.name_ar ILIKE '%كوب%' OR p.name_ar ILIKE '%كاس%' OR p.name_ar ILIKE '%cup%')
+     GROUP BY p.name_ar`,
+    [reportDate],
+  );
+  const totalCupsDispatched = cupDispatchedRes.rows.reduce(
+    (acc: number, r: any) => acc + Number(r.cups_dispatched || 0),
+    0,
+  );
+
+  // حساب الفرق ونسبة التباين للأكواب
+  let cupVarianceText = '';
+  let isCupWarning = false;
+  if (totalCupsDispatched > 0 && totalCupsSold > 0) {
+    const diff = totalCupsDispatched - totalCupsSold;
+    const variancePct = (Math.abs(diff) / totalCupsSold) * 100;
+    if (diff > 0 && variancePct > maxVariancePct) {
+      isCupWarning = true;
+      cupVarianceText = `\n⚠️ <b>انحراف في استهلاك الأكواب:</b> تم صرف <b>${totalCupsDispatched}</b> كوب بينما المباع <b>${totalCupsSold}</b> مشروب (هدر/فرق: ${diff} كوب، ${variancePct.toFixed(1)}%)`;
+    } else {
+      cupVarianceText = `\n✅ <b>تطابق الأكواب:</b> تم صرف (${totalCupsDispatched}) كوب مقابل (${totalCupsSold}) مشروب مباع (مطابقة ممتازة).`;
+    }
+  } else if (totalCupsSold > 0) {
+    cupVarianceText = `\n☕ <b>المشروبات المباعة اليوم:</b> <b>${totalCupsSold}</b> كوب مشروب محضّر.`;
+  } else {
+    cupVarianceText = `\n☕ لم تسجل مبيعات مشروبات حتى الآن لهذا اليوم.`;
+  }
+
+  // 3. مبيعات أكياس البن المعبأ والمباع بالكيلو اليوم
+  const coffeeBagsRes = await query(
+    `SELECT p.name_ar,
+            COALESCE(SUM(si.quantity), 0) as bags_sold,
+            COALESCE(SUM(si.total_amount), 0) as total_revenue
+     FROM sale_items si
+     JOIN sales s ON s.id = si.sale_id
+     JOIN products p ON p.id = si.product_id
+     LEFT JOIN product_categories pc ON pc.id = p.category_id
+     WHERE s.sale_date = $1::date AND s.deleted_at IS NULL AND s.status = 'completed'
+       AND (
+         pc.name_ar ILIKE '%بن%' OR pc.name_ar ILIKE '%حبوب%' OR pc.name_ar ILIKE '%محمصة%'
+         OR p.name_ar ILIKE '%كيس%' OR p.name_ar ILIKE '%بن %' OR p.name_ar ILIKE '%توليفة%'
+         OR p.unit = 'kg' OR p.name_ar ILIKE '%جرام%'
+       )
+     GROUP BY p.name_ar
+     ORDER BY bags_sold DESC
+     LIMIT 5`,
+    [reportDate],
+  );
+
+  const totalBagsCount = coffeeBagsRes.rows.reduce(
+    (acc: number, r: any) => acc + Number(r.bags_sold || 0),
+    0,
+  );
+  const totalBagsRevenue = coffeeBagsRes.rows.reduce(
+    (acc: number, r: any) => acc + Number(r.total_revenue || 0),
+    0,
+  );
+
+  let bagsText = '';
+  if (coffeeBagsRes.rows.length > 0) {
+    bagsText =
+      `\n🛍️ <b>مبيعات أكياس البن والتحميص اليوم:</b> ${totalBagsCount} كيس/كجم بقيمة <b>${totalBagsRevenue.toLocaleString('ar-EG')} ج.م</b>\n` +
+      coffeeBagsRes.rows
+        .map(
+          (r: any) =>
+            `  • ${r.name_ar}: ${Number(r.bags_sold).toFixed(1)} كيس/كجم (${Number(r.total_revenue).toLocaleString('ar-EG')} ج.م)`,
+        )
+        .join('\n');
+  } else {
+    bagsText = `\n🛍️ <b>أكياس البن:</b> لم تُسجل مبيعات لأكياس البن حتى الآن لهذا اليوم.`;
+  }
+
+  return {
+    title,
+    status: isCupWarning ? 'warning' : 'success',
+    text: `
+☕ <b>تقرير تدقيق استهلاك الأكواب ومبيعات أكياس البن</b>
+━━━━━━━━━━━━━━━━━━━━
+التاريخ: ${reportDate}
+${cupVarianceText}
+${bagsText}
+━━━━━━━━━━━━━━━━━━━━
+⏱ <i>تم الفحص: ${new Date().toLocaleTimeString('ar-EG', { timeZone: 'Africa/Cairo' })}</i>
+    `.trim(),
+  };
+};
+
 // ─── السجل ───────────────────────────────────────────────
 
 export const AUTOMATION_HANDLERS: Record<string, AutomationHandler> = {
@@ -779,4 +1085,7 @@ export const AUTOMATION_HANDLERS: Record<string, AutomationHandler> = {
   scheduled_cron_task: scheduledCronTaskHandler,
   telegram_notifier: telegramNotifierHandler,
   webhook_listener: webhookListenerHandler,
+  debt_credit_sentinel: debtCreditSentinelHandler,
+  purchase_stock_ingestion_guard: purchaseStockIngestionGuardHandler,
+  coffee_bags_cups_reconciler: coffeeBagsCupsReconcilerHandler,
 };

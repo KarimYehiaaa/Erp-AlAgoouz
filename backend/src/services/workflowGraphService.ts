@@ -78,6 +78,9 @@ const EXECUTABLE_AUTOMATION_KEYS = new Set([
   'webhook_listener',
   'scheduled_cron_task',
   'telegram_notifier',
+  'debt_credit_sentinel',
+  'purchase_stock_ingestion_guard',
+  'coffee_bags_cups_reconciler',
 ]);
 
 const AUTOMATED_TRIGGER_KEYS = new Set([
@@ -95,6 +98,9 @@ const AUTOMATED_TRIGGER_KEYS = new Set([
   'error_tracker_alert',
   'webhook_listener',
   'telegram_notifier',
+  'debt_credit_sentinel',
+  'purchase_stock_ingestion_guard',
+  'coffee_bags_cups_reconciler',
 ]);
 
 const canonicalAutomationKey = (key: string) => AUTOMATION_ALIASES[key] || key;
@@ -329,18 +335,21 @@ export class WorkflowGraphService {
       // إعادة زرع الوكلاء والمشغلات والعمليات
       await client.query(`
         INSERT INTO workflows_nodes (id, type, label, label_ar, group_name, settings, position_x, position_y) VALUES
-          (1, 'agent', 'Cashier POS',        'كاشير نقطة البيع',     'operations',  '{"icon": "monitor", "color": "#10b981"}'::jsonb,  -220, -120),
+          (1, 'agent', 'Cashier POS',        'كاشير POS',            'operations',  '{"icon": "monitor", "color": "#10b981"}'::jsonb,  -220, -120),
           (2, 'agent', 'Main Warehouse',     'المخزن الرئيسي',       'inventory',   '{"icon": "warehouse", "color": "#3b82f6"}'::jsonb,  220,  -60),
           (3, 'agent', 'Recipe Engine',      'محرك الوصفات',         'production',  '{"icon": "flask", "color": "#f59e0b"}'::jsonb,       0,   120),
           (4, 'agent', 'Telegram Bot',       'وكيل تليجرام',         'notifications','{"icon": "send", "color": "#8b5cf6"}'::jsonb,       320,  160),
-          (5, 'agent', 'AI Copilot (Gemini)','المساعد الذكي Gemini',  'ai',          '{"icon": "brain", "color": "#ec4899"}'::jsonb,      -320,  160),
+          (5, 'agent', 'AI Copilot (Gemini)','المساعد Gemini',       'ai',          '{"icon": "brain", "color": "#ec4899"}'::jsonb,      -320,  160),
           (6, 'agent', 'System Alerts',      'إشعارات النظام',       'notifications','{"icon": "bell", "color": "#ef4444"}'::jsonb,        320, -160),
-          (7, 'trigger', 'Manual Daily Entry',     'إدخال يومي يدوي',         'sales',     '{"icon": "edit", "color": "#6b7280", "rule": "RULE_1_MANUAL"}'::jsonb,     -420, -220),
-          (8, 'trigger', 'Wholesale Invoice',      'فاتورة جملة',             'sales',     '{"icon": "file-text", "color": "#6b7280", "rule": "RULE_2_WHOLESALE"}'::jsonb, -420, 0),
-          (9, 'trigger', 'Cashier Report Import',  'استيراد تقرير الكاشير',   'sales',     '{"icon": "upload", "color": "#6b7280", "rule": "RULE_3_CASHIER"}'::jsonb,  -420, 220),
-          (10, 'action', 'Direct Stock Deduction',  'خصم مخزون مباشر',         'inventory', '{"icon": "minus-circle", "color": "#14b8a6"}'::jsonb, 0,  -220),
-          (11, 'action', 'Recipe Calculation',      'حساب الوصفات والتفكيك',   'production','{"icon": "calculator", "color": "#f97316"}'::jsonb,   0,    0),
-          (12, 'action', 'Warehouse Stock Update',  'تحديث مخزون المخزن',      'inventory', '{"icon": "refresh-cw", "color": "#0ea5e9"}'::jsonb,  220,  220)
+          (7, 'trigger', 'Manual Daily Entry',     'إدخال يدوي',            'sales',     '{"icon": "edit", "color": "#6b7280", "rule": "RULE_1_MANUAL"}'::jsonb,     -420, -220),
+          (8, 'trigger', 'Wholesale Invoice',      'فاتورة جملة',           'sales',     '{"icon": "file-text", "color": "#6b7280", "rule": "RULE_2_WHOLESALE"}'::jsonb, -420, 0),
+          (9, 'trigger', 'Cashier Report Import',  'تقرير الكاشير',         'sales',     '{"icon": "upload", "color": "#6b7280", "rule": "RULE_3_CASHIER"}'::jsonb,  -420, 220),
+          (10, 'action', 'Direct Stock Deduction',  'خصم مخزون مباشر',       'inventory', '{"icon": "minus-circle", "color": "#14b8a6"}'::jsonb, 0,  -220),
+          (11, 'action', 'Recipe Calculation',      'حساب الوصفات',          'production','{"icon": "calculator", "color": "#f97316"}'::jsonb,   0,    0),
+          (12, 'action', 'Warehouse Stock Update',  'تحديث المخزن',          'inventory', '{"icon": "refresh-cw", "color": "#0ea5e9"}'::jsonb,  220,  220),
+          (13, 'agent', 'Debt & Credit Sentinel',      'وكيل المديونيات',      'sales',      '{"icon": "credit-card", "color": "#f59e0b"}'::jsonb, -220,   60),
+          (14, 'agent', 'Purchase Ingestion Guard',    'وكيل المشتريات',        'inventory',  '{"icon": "truck",       "color": "#10b981"}'::jsonb,    0,  -60),
+          (15, 'agent', 'Coffee Bags & Cups Counter',  'مطابق الأكواب والبن',   'production', '{"icon": "coffee",      "color": "#8b5cf6"}'::jsonb,  220,   60)
         ON CONFLICT DO NOTHING;
 
         SELECT setval('workflows_nodes_id_seq', (SELECT MAX(id) FROM workflows_nodes));
@@ -355,7 +364,14 @@ export class WorkflowGraphService {
           (2, 6, 'on_low_stock', 'تنبيه نقص'),
           (6, 4, 'always', 'إشعار تليجرام'),
           (4, 5, 'command = /ai', 'استعلام ذكي'),
-          (5, 2, 'read_only', 'قراءة بيانات المخزون')
+          (5, 2, 'read_only', 'قراءة بيانات المخزون'),
+          (8, 13, 'is_credit = true', 'بيع آجل / فواتير جملة'),
+          (13, 6, 'limit_breached', 'تنبيه تجاوز الائتمان'),
+          (14, 2, NULL, 'تحديث رصيد المخزن آلياً'),
+          (14, 6, 'on_cost_increase', 'إنذار ارتفاع سعر التكلفة'),
+          (1, 15, NULL, 'مبيعات الكاشير (مشروبات + أكياس)'),
+          (15, 2, NULL, 'مطابقة المنصرف من الأكواب والبن'),
+          (15, 6, 'variance > 5%', 'إنذار هدر الأكواب/البن')
         ON CONFLICT DO NOTHING;
       `);
     });

@@ -33,10 +33,25 @@ function Start-SystemServer {
         Write-Host ""
     }
 
-    # 1. Check if server is already running and healthy
+    # 1. Ensure local PostgreSQL service is running if installed
+    $pgServices = Get-Service -Name "postgresql*" -ErrorAction SilentlyContinue
+    if ($pgServices) {
+        $stoppedPg = $pgServices | Where-Object { $_.Status -ne "Running" }
+        if ($stoppedPg) {
+            if (-not $Silent) {
+                Write-Host "[1/4] Starting local PostgreSQL service..." -ForegroundColor Yellow
+            }
+            try {
+                $stoppedPg | Start-Service -ErrorAction SilentlyContinue
+                Start-Sleep -Seconds 1
+            } catch {}
+        }
+    }
+
+    # 2. Check if server is already running and healthy with database connected
     try {
         $check = Invoke-RestMethod -Uri "http://localhost:3000/api/health" -TimeoutSec 2 -ErrorAction Stop
-        if ($check.success -eq $true -or $check.status -eq "ok") {
+        if (($check.success -eq $true -or $check.status -eq "ok") -and ($null -eq $check.db -or $check.db.connected -eq $true)) {
             if (-not $Silent) {
                 Write-Host "[OK] Server is already running and connected to database!" -ForegroundColor Green
                 Write-Host "[WEB] Opening browser: http://localhost:3000" -ForegroundColor Cyan
@@ -46,9 +61,9 @@ function Start-SystemServer {
         }
     } catch {}
 
-    # 2. Release port 3000 and 5173 if occupied by stale process
+    # 3. Release port 3000 and 5173 if occupied by stale process
     if (-not $Silent) {
-        Write-Host "[1/3] Checking and clearing ports 3000 and 5173..." -ForegroundColor Yellow
+        Write-Host "[2/4] Checking and clearing ports 3000 and 5173..." -ForegroundColor Yellow
     }
     $ports = @(3000, 5173)
     foreach ($port in $ports) {
@@ -62,28 +77,35 @@ function Start-SystemServer {
             }
         }
     }
+    Start-Sleep -Milliseconds 600
 
-    # 3. Launch Unified Server in background
+    # 4. Launch Unified Server in background with logging
     if (-not $Silent) {
-        Write-Host "[2/3] Launching Unified Server (npm start)..." -ForegroundColor Cyan
+        Write-Host "[3/4] Launching Unified Server (npm start)..." -ForegroundColor Cyan
     }
     $backendDir = Join-Path $Root "backend"
     $windowStyle = if ($Silent) { "Hidden" } else { "Minimized" }
-    Start-Process powershell -ArgumentList "-NoExit", "-Command", "Set-Location '$backendDir'; npm start" -WorkingDirectory $backendDir -WindowStyle $windowStyle
+    $startupLog = Join-Path $backendDir "startup.log"
 
-    # 4. Poll /api/health until ready (up to 40 seconds)
+    # Reset startup log header
+    "=== [$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] Starting Bin Al-Ajouz ERP Server ===" | Out-File -FilePath $startupLog -Encoding utf8 -Force
+
+    $procArgs = @("-NoExit", "-ExecutionPolicy", "Bypass", "-Command", "Set-Location '$backendDir'; npm start *>> '$startupLog'")
+    Start-Process powershell -ArgumentList $procArgs -WorkingDirectory $backendDir -WindowStyle $windowStyle
+
+    # 5. Poll /api/health until ready (up to 45 seconds for cold DB start)
     if (-not $Silent) {
-        Write-Host "[3/3] Waiting for server health and database connection... " -NoNewline -ForegroundColor Yellow
+        Write-Host "[4/4] Waiting for server health and database connection... " -NoNewline -ForegroundColor Yellow
     }
     $ready = $false
-    for ($i = 1; $i -le 40; $i++) {
+    for ($i = 1; $i -le 45; $i++) {
         Start-Sleep -Seconds 1
         if (-not $Silent) {
             Write-Host "." -NoNewline -ForegroundColor Yellow
         }
         try {
             $res = Invoke-RestMethod -Uri "http://localhost:3000/api/health" -TimeoutSec 2 -ErrorAction Stop
-            if ($res.success -eq $true -or $res.status -eq "ok") {
+            if (($res.success -eq $true -or $res.status -eq "ok") -and ($null -eq $res.db -or $res.db.connected -eq $true)) {
                 $ready = $true
                 break
             }
@@ -106,7 +128,7 @@ function Start-SystemServer {
         if (-not $Silent) {
             Write-Host ""
             Write-Host "[WARNING] Server took longer than expected to respond." -ForegroundColor Yellow
-            Write-Host "Please check the backend log or backend/.env configuration." -ForegroundColor Gray
+            Write-Host "Please check the backend log ($startupLog) or backend/.env configuration." -ForegroundColor Gray
         }
     }
 }
@@ -191,11 +213,19 @@ function Check-SystemStatus {
     try {
         $h = Invoke-RestMethod -Uri "http://localhost:3000/api/health" -TimeoutSec 3 -ErrorAction Stop
         Write-Host "   [ONLINE] Server Status: ONLINE and HEALTHY (OK)" -ForegroundColor Green
-        if ($h.database) {
-            Write-Host "   [DB] Database Status: $($h.database.status)" -ForegroundColor Green
-            if ($h.database.latencyMs) {
-                Write-Host "   [PING] Response Latency: $($h.database.latencyMs) ms" -ForegroundColor Gray
+        if ($h.db) {
+            $dbStatus = "Disconnected"
+            $dbColor = "Red"
+            if ($h.db.connected) {
+                $dbStatus = "Connected"
+                $dbColor = "Green"
             }
+            Write-Host "   [DB] Database Status: $dbStatus" -ForegroundColor $dbColor
+            if ($h.db.latencyMs) {
+                Write-Host "   [PING] Response Latency: $($h.db.latencyMs) ms" -ForegroundColor Gray
+            }
+        } elseif ($h.database) {
+            Write-Host "   [DB] Database Status: $($h.database.status)" -ForegroundColor Green
         }
         if ($h.uptime) {
             Write-Host "   [UPTIME] Server Uptime: $([math]::Round($h.uptime / 60, 1)) minutes" -ForegroundColor Gray

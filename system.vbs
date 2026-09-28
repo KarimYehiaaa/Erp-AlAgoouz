@@ -2,5 +2,9 @@
 '  Bin Al-Ajouz ERP - 100% Silent Background Launcher (Zero Console Window Flash)
 ' ================================================================================
 Set WshShell = CreateObject("WScript.Shell")
-scriptDir = CreateObject("Scripting.FileSystemObject").GetParentFolderName(WScript.ScriptFullName)
-WshShell.Run "powershell -WindowStyle Hidden -ExecutionPolicy Bypass -File """ & scriptDir & "\system.ps1"" start -Silent", 0, False
+Set fso = CreateObject("Scripting.FileSystemObject")
+scriptDir = fso.GetParentFolderName(WScript.ScriptFullName)
+WshShell.CurrentDirectory = scriptDir
+
+command = "powershell.exe -WindowStyle Hidden -ExecutionPolicy Bypass -Command ""& '" & scriptDir & "\system.ps1' start -Silent"""
+WshShell.Run command, 0, False

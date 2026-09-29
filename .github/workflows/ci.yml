@@ -189,7 +189,7 @@ jobs:
           }
 
           # 2) الواجهة تُقدَّم من frontend/dist الحقيقي (index.html فعلي)
-          curl -sf http://localhost:3100/ | grep -q '<!DOCTYPE html>' || {
+          curl -sf http://localhost:3100/ | grep -qi '<!doctype html>' || {
             echo "❌ GET / فشل (الواجهة لم تُقدَّم — dist مزيف بلا index.html؟)"
             kill "$SERVER_PID" 2>/dev/null || true
             exit 1

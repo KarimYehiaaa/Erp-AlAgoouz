@@ -69,6 +69,9 @@ export const updateGuardianIncidentStatus = wrap(async (req: Request, res: Respo
   }
 
   const status = String(req.body?.status || '') as GuardianStatus;
+  if (!['open', 'investigating', 'fix_ready', 'resolved', 'ignored'].includes(status)) {
+    return res.status(400).json({ success: false, message: 'Invalid incident status' });
+  }
   const updated = await ProjectGuardianService.updateIncidentStatus(id, status, {
     rootCause: req.body?.root_cause,
     proposedFix: req.body?.proposed_fix,

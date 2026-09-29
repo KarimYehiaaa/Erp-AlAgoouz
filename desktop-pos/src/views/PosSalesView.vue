@@ -151,26 +151,44 @@
           </button>
         </div>
 
-        <!-- Update action appears only when a release is available or downloaded -->
+        <!-- Smart In-App Update Trigger Button (Always accessible) -->
         <button
-          v-if="updateState.state === 'available' || updateState.state === 'downloaded'"
           type="button"
           class="ribbon-btn update-btn"
-          :class="{ ready: updateState.state === 'downloaded' }"
+          :class="{
+            ready: isDownloaded,
+            downloading: isDownloading,
+            available: isAvailable,
+            checking: isChecking,
+          }"
           :title="
-            updateState.state === 'downloaded'
-              ? 'تحديث البرنامج الآن'
-              : 'يوجد تحديث جديد ويتم تنزيله'
+            isDownloaded
+              ? 'تحديث جديد جاهز للتثبيت الفوري — انقر للتطبيق'
+              : isDownloading
+                ? `جاري تنزيل التحديث (${downloadPercent}%)`
+                : isAvailable
+                  ? 'يوجد إصدار جديد ويتم تنزيله'
+                  : 'فحص وتحديث البرنامج'
           "
-          @click="handleUpdateAction"
+          @click="openUpdateModal"
         >
           <AppIcon
-            :name="updateState.state === 'downloaded' ? 'download' : 'refreshCw'"
+            :name="isDownloaded ? 'download' : isDownloading ? 'refreshCw' : isAvailable ? 'download' : 'refreshCw'"
             :size="15"
+            :class="{ 'spin-anim': isChecking || isDownloading }"
           />
-          <span class="btn-label">{{
-            updateState.state === 'downloaded' ? 'تحديث الآن' : 'تحديث متاح'
-          }}</span>
+          <span class="btn-label">
+            {{
+              isDownloaded
+                ? 'تحديث جاهز'
+                : isDownloading
+                  ? `تنزيل ${downloadPercent}%`
+                  : isAvailable
+                    ? 'تحديث متاح'
+                    : 'تحديث البرنامج'
+            }}
+          </span>
+          <span v-if="isDownloaded" class="update-pulse-dot"></span>
         </button>
 
         <!-- System Status & Sync Pill -->
@@ -218,12 +236,16 @@
       </div>
     </header>
 
-    <div v-if="updateState.state === 'downloaded'" class="pos-update-banner" role="status">
-      <div>
-        <strong>تحديث جديد جاهز</strong>
-        <span>الإصدار {{ updateState.version }} جاهز، وسيتم تثبيته بعد إعادة تشغيل البرنامج.</span>
+    <div v-if="isDownloaded" class="pos-update-banner" role="status">
+      <div class="banner-text">
+        <AppIcon name="download" :size="16" />
+        <strong>تحديث جديد جاهز للتطبيق الفوري (v{{ updateState.version }})</strong>
+        <span>تم تنزيل الحزمة بنجاح. انقر لتطبيق التحديث وإعادة التشغيل دون الحاجة لإعادة التثبيت يدوياً.</span>
       </div>
-      <button type="button" @click="installAvailableUpdate">إعادة التشغيل والتحديث</button>
+      <div class="banner-actions">
+        <button type="button" class="btn-banner-apply" @click="installUpdate">تحديث وتثبيت الآن</button>
+        <button type="button" class="btn-banner-info" @click="openUpdateModal">التفاصيل</button>
+      </div>
     </div>
 
     <!-- ═══════════════════ HELD ORDERS RIBBON ═══════════════════ -->
@@ -400,6 +422,9 @@
       @submit-pin="handlePinSubmit"
       @cancel="showPinModal = false"
     />
+
+    <!-- Smart In-App Update Modal -->
+    <UpdateModal :is-open="showUpdateModal" @close="closeUpdateModal" />
   </div>
 </template>
 
@@ -414,11 +439,13 @@ import ReturnsModal from '../components/ReturnsModal.vue';
 import HeldOrdersModal from '../components/HeldOrdersModal.vue';
 import CashMovementModal from '../components/CashMovementModal.vue';
 import ManagerPinModal from '../components/ManagerPinModal.vue';
+import UpdateModal from '../components/UpdateModal.vue';
 import { usePosAuthStore } from '../stores/posAuth';
 import { usePosShiftStore } from '../stores/posShift';
 import { usePosCartStore } from '../stores/posCart';
 import { usePosAudio } from '../composables/usePosAudio';
 import { useBarcodeScanner } from '../composables/useBarcodeScanner';
+import { useAppUpdater } from '../composables/useAppUpdater';
 import { api } from '../services/api';
 import { formatMoney } from '../utils/currency';
 import { checkoutPayloadKey, isRetryableNetworkError } from '../services/posReliability';
@@ -469,7 +496,22 @@ watch(autoPrint, (val) => {
 const isOnline = ref(navigator.onLine);
 const pendingSyncCount = ref(0);
 const pendingPrint = ref<{ key: string; sale: any } | null>(null);
-const updateState = ref<{ state: string; version?: string; message?: string }>({ state: 'idle' });
+const {
+  updateState,
+  appVersion,
+  showUpdateModal,
+  isAvailable,
+  isDownloading,
+  isDownloaded,
+  isChecking,
+  hasUpdate,
+  downloadPercent,
+  initUpdater,
+  checkForUpdates,
+  installUpdate,
+  openUpdateModal,
+  closeUpdateModal,
+} = useAppUpdater();
 
 // ─── Live Clock & Real-time Date ───
 const currentTimeString = ref('');
@@ -514,23 +556,6 @@ const handleLogoError = (e: Event) => {
   const target = e.target as HTMLImageElement;
   if (target) {
     target.style.display = 'none';
-  }
-};
-
-const installAvailableUpdate = async () => {
-  if (window.electronAPI?.installUpdate) {
-    await window.electronAPI.installUpdate();
-  }
-};
-
-const handleUpdateAction = async () => {
-  if (updateState.value.state === 'downloaded') {
-    await installAvailableUpdate();
-    return;
-  }
-  if (window.electronAPI?.checkForUpdates) {
-    updateState.value = { state: 'checking' };
-    await window.electronAPI.checkForUpdates();
   }
 };
 
@@ -1078,12 +1103,7 @@ onMounted(async () => {
 
   loadHeldOrders();
 
-  if (window.electronAPI?.getUpdateStatus) {
-    updateState.value = await window.electronAPI.getUpdateStatus();
-  }
-  window.electronAPI?.onUpdateStatus?.((status) => {
-    updateState.value = status;
-  });
+  await initUpdater();
 
   await shiftStore.fetchCurrentShift();
   if (!shiftStore.isShiftOpen) {
@@ -1396,14 +1416,49 @@ onBeforeUnmount(() => {
       }
 
       &.update-btn {
-        background: rgba(245, 158, 11, 0.2);
+        background: rgba(245, 158, 11, 0.15);
         color: #fef3c7;
-        border: 1px solid rgba(245, 158, 11, 0.4);
+        border: 1px solid rgba(245, 158, 11, 0.35);
+        position: relative;
+        gap: 6px;
+
+        &:hover {
+          background: rgba(245, 158, 11, 0.25);
+          border-color: rgba(245, 158, 11, 0.55);
+        }
+
+        &.checking,
+        &.downloading {
+          background: rgba(59, 130, 246, 0.18);
+          color: #bfdbfe;
+          border-color: rgba(59, 130, 246, 0.45);
+        }
+
+        &.available {
+          background: rgba(245, 158, 11, 0.25);
+          color: #fbbf24;
+          border-color: rgba(245, 158, 11, 0.6);
+        }
 
         &.ready {
-          background: rgba(16, 185, 129, 0.25);
-          color: #a7f3d0;
-          border-color: rgba(16, 185, 129, 0.5);
+          background: linear-gradient(135deg, rgba(16, 185, 129, 0.3), rgba(5, 150, 105, 0.35));
+          color: #6ee7b7;
+          border-color: #10b981;
+          box-shadow: 0 0 12px rgba(16, 185, 129, 0.35);
+          animation: pulse-update-btn 2s infinite ease-in-out;
+        }
+
+        .update-pulse-dot {
+          width: 7px;
+          height: 7px;
+          background: #10b981;
+          border-radius: 50%;
+          box-shadow: 0 0 8px #10b981;
+          margin-right: 2px;
+        }
+
+        .spin-anim {
+          animation: spin-icon 1.2s linear infinite;
         }
       }
 
@@ -1553,26 +1608,83 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 6px 16px;
-  background: #fff7df;
-  border-bottom: 1px solid #e6c66a;
-  color: #5c3b00;
+  gap: 16px;
+  padding: 8px 20px;
+  background: linear-gradient(90deg, #064e3b, #047857);
+  border-bottom: 1px solid #10b981;
+  color: #ecfdf5;
 
-  div {
+  .banner-text {
     display: flex;
-    align-items: baseline;
+    align-items: center;
     gap: 10px;
+
+    strong {
+      color: #a7f3d0;
+      font-weight: 700;
+    }
+
+    span {
+      font-size: 0.85rem;
+      color: #d1fae5;
+    }
   }
 
-  button {
-    padding: 4px 12px;
-    border: none;
-    border-radius: 6px;
-    background: #8a572a;
-    color: #fff;
-    font-weight: 800;
-    cursor: pointer;
+  .banner-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    .btn-banner-apply {
+      padding: 6px 14px;
+      border: none;
+      border-radius: 8px;
+      background: #10b981;
+      color: #ffffff;
+      font-weight: 800;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.2s;
+
+      &:hover {
+        background: #059669;
+        box-shadow: 0 0 12px rgba(16, 185, 129, 0.5);
+      }
+    }
+
+    .btn-banner-info {
+      padding: 6px 12px;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.1);
+      color: #ecfdf5;
+      font-size: 0.82rem;
+      cursor: pointer;
+
+      &:hover {
+        background: rgba(255, 255, 255, 0.2);
+      }
+    }
+  }
+}
+
+@keyframes pulse-update-btn {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
+  }
+  50% {
+    transform: scale(1.03);
+    box-shadow: 0 0 16px rgba(16, 185, 129, 0.6);
+  }
+}
+
+@keyframes spin-icon {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
   }
 }
 

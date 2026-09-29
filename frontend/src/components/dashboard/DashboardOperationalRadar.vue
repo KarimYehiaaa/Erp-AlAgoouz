@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <article class="panel glass-glow-card radar-card">
     <div class="panel-head compact">
       <div>
@@ -30,7 +30,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount, onActivated, onDeactivated, watch } from 'vue';
 import {
   Chart,
   RadialLinearScale,
@@ -87,9 +87,24 @@ const scoreLabel = computed(() => {
   return 'يحتاج متابعة';
 });
 
+const cleanupChart = () => {
+  if (radarCanvasRef.value) {
+    try {
+      const existing = Chart.getChart(radarCanvasRef.value);
+      if (existing) existing.destroy();
+    } catch {}
+  }
+  if (chartInstance) {
+    try {
+      chartInstance.destroy();
+    } catch {}
+    chartInstance = null;
+  }
+};
+
 const renderChart = () => {
   if (!radarCanvasRef.value) return;
-  if (chartInstance) chartInstance.destroy();
+  cleanupChart();
 
   const ctx = radarCanvasRef.value.getContext('2d');
   if (!ctx) return;
@@ -143,6 +158,18 @@ const renderChart = () => {
 };
 
 onMounted(() => {
+  renderChart();
+});
+
+onBeforeUnmount(() => {
+  cleanupChart();
+});
+
+onDeactivated(() => {
+  cleanupChart();
+});
+
+onActivated(() => {
   renderChart();
 });
 

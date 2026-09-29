@@ -431,6 +431,7 @@
 </template>
 
 <script setup lang="ts">
+defineOptions({ name: 'ProductsView' });
 import { ref, onMounted, onBeforeUnmount, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { products as api, warehouses as warehousesApi } from '@/api';

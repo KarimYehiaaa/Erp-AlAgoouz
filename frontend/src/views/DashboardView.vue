@@ -482,7 +482,18 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import {
+  computed,
+  nextTick,
+  onActivated,
+  onDeactivated,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+  watch,
+} from 'vue';
+
+defineOptions({ name: 'DashboardView' });
 import { useAuthStore } from '@/stores/auth';
 import { useAppStore } from '@/stores/app';
 import AppIcon from '@/components/AppIcon.vue';
@@ -788,7 +799,32 @@ const setPerformanceMode = async (mode: any) => {
 };
 
 const destroyCharts = () => {
-  while (charts.length) charts.pop()?.destroy();
+  while (charts.length) {
+    try {
+      charts.pop()?.destroy();
+    } catch {}
+  }
+  if (Chart) {
+    const allRefs = [
+      performanceChartRef,
+      salesTypeChartRef,
+      paymentChartRef,
+      expenseChartRef,
+      categoryProfitChartRef,
+      topProductsChartRef,
+      topCustomersChartRef,
+      peakHoursChartRef,
+      forecastingChartRef,
+    ];
+    for (const refItem of allRefs) {
+      if (refItem?.value) {
+        try {
+          const c = Chart.getChart(refItem.value);
+          if (c) c.destroy();
+        } catch {}
+      }
+    }
+  }
 };
 
 const chartColors = () => ({
@@ -872,422 +908,344 @@ const baseOptions = (moneyTooltip = true) => {
 };
 
 const createChart = (ChartLib: any, chartRef: any, config: any) => {
-  if (!chartRef.value) return;
-  charts.push(new ChartLib(chartRef.value, config));
+  if (!chartRef?.value) return null;
+  try {
+    const existing = ChartLib.getChart(chartRef.value);
+    if (existing) {
+      existing.destroy();
+    }
+  } catch (e) {
+    console.warn('Could not destroy existing chart on canvas:', e);
+  }
+  try {
+    const instance = new ChartLib(chartRef.value, config);
+    charts.push(instance);
+    return instance;
+  } catch (err) {
+    console.error('Failed to create chart:', err);
+    return null;
+  }
 };
+
+let isRenderingCharts = false;
+let pendingRenderCharts = false;
 
 const renderCharts = async () => {
   if (!stats.value) return;
-  destroyCharts();
-  await nextTick();
-  const ChartLib = await loadChartLib();
-  const colors = chartColors();
-  const trend = stats.value.salesTrend || [];
-  const expenseTrend = stats.value.expenseTrend || [];
-  const grouping = stats.value.period?.grouping || 'day';
-  const formatTrendLabel = (value: any) => {
-    if (!value) return '';
-    const date = new Date(value);
-    if (grouping === 'month') {
-      return date.toLocaleDateString('ar-EG', { month: 'long', year: 'numeric' });
-    }
-    return shortDate(value);
-  };
-  const labels = trend.map((row: any) => formatTrendLabel(row.date));
-  const expensesByDate = new Map(
-    expenseTrend.map((row: any) => [formatTrendLabel(row.date), Number(row.expenses || 0)]),
-  );
-
-  // Helper to construct canvas gradients
-  const makeGradient = (canvas: any, color: string, opacityStart = 0.4, opacityEnd = 0.02) => {
-    if (!canvas) return colorMix(color, opacityStart);
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return colorMix(color, opacityStart);
-    const grad = ctx.createLinearGradient(0, 0, 0, canvas.clientHeight || 200);
-    grad.addColorStop(0, colorMix(color, opacityStart));
-    grad.addColorStop(1, colorMix(color, opacityEnd));
-    return grad;
-  };
-
-  const performanceDatasets: any[] = [
-    {
-      label: 'المبيعات',
-      data: trend.map((row: any) => Number(row.sales || 0)),
-      type: 'bar',
-      backgroundColor: makeGradient(performanceChartRef.value, colors.primary, 0.4, 0.1),
-      borderColor: colors.primary,
-      borderRadius: 6,
-      borderSkipped: false,
-      maxBarThickness: 24,
-      hoverBackgroundColor: colorMix(colors.primary, 0.7),
-      hoverBorderColor: colors.primary,
-      hoverBorderWidth: 1,
-    },
-  ];
-
-  if (performanceMode.value === 'full') {
-    performanceDatasets.push(
-      {
-        label: 'الربح',
-        data: trend.map((row: any) => Number(row.profit || 0)),
-        type: 'line',
-        borderColor: colors.accent,
-        backgroundColor: makeGradient(performanceChartRef.value, colors.accent, 0.35, 0.01),
-        fill: true,
-        tension: 0.35,
-        pointRadius: 3,
-        borderWidth: 2.5,
-        hoverBackgroundColor: colors.accent,
-        hoverBorderWidth: 3,
-      },
-      {
-        label: 'المصروفات',
-        data: trend.map((row: any) => expensesByDate.get(formatTrendLabel(row.date)) || 0),
-        type: 'line',
-        borderColor: colors.danger,
-        backgroundColor: makeGradient(performanceChartRef.value, colors.danger, 0.15, 0.01),
-        borderDash: [6, 5],
-        tension: 0.35,
-        pointRadius: 2,
-        borderWidth: 2,
-      },
-    );
+  if (isRenderingCharts) {
+    pendingRenderCharts = true;
+    return;
   }
+  isRenderingCharts = true;
+  try {
+    destroyCharts();
+    await nextTick();
+    const ChartLib = await loadChartLib();
+    const colors = chartColors();
+    const trend = stats.value.salesTrend || [];
+    const expenseTrend = stats.value.expenseTrend || [];
+    const grouping = stats.value.period?.grouping || 'day';
+    const formatTrendLabel = (value: any) => {
+      if (!value) return '';
+      const date = new Date(value);
+      if (grouping === 'month') {
+        return date.toLocaleDateString('ar-EG', { month: 'long', year: 'numeric' });
+      }
+      return shortDate(value);
+    };
+    const labels = trend.map((row: any) => formatTrendLabel(row.date));
+    const expensesByDate = new Map(
+      expenseTrend.map((row: any) => [formatTrendLabel(row.date), Number(row.expenses || 0)]),
+    );
 
-  createChart(ChartLib, performanceChartRef, {
-    type: 'bar',
-    data: { labels, datasets: performanceDatasets },
-    options: {
-      ...baseOptions(true),
-      // أعمدة تظهر تباعًا (staggered) لحركة أكثر حيوية
-      animation: {
-        duration: 1000,
-        easing: 'easeOutQuart',
-        delay: (ctx: any) => ctx.dataIndex * 35,
+    // Helper to construct canvas gradients
+    const makeGradient = (canvas: any, color: string, opacityStart = 0.4, opacityEnd = 0.02) => {
+      if (!canvas) return colorMix(color, opacityStart);
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return colorMix(color, opacityStart);
+      const grad = ctx.createLinearGradient(0, 0, 0, canvas.clientHeight || 200);
+      grad.addColorStop(0, colorMix(color, opacityStart));
+      grad.addColorStop(1, colorMix(color, opacityEnd));
+      return grad;
+    };
+
+    const performanceDatasets: any[] = [
+      {
+        label: 'المبيعات',
+        data: trend.map((row: any) => Number(row.sales || 0)),
+        type: 'bar',
+        backgroundColor: makeGradient(performanceChartRef.value, colors.primary, 0.4, 0.1),
+        borderColor: colors.primary,
+        borderRadius: 6,
+        borderSkipped: false,
+        maxBarThickness: 24,
+        hoverBackgroundColor: colorMix(colors.primary, 0.7),
+        hoverBorderColor: colors.primary,
+        hoverBorderWidth: 1,
       },
-    },
-  });
+    ];
 
-  createChart(ChartLib, salesTypeChartRef, {
-    type: 'bar',
-    data: {
-      labels: (stats.value.salesByType || []).map((row: any) => saleTypeLabel(row.sale_type)),
-      datasets: [
+    if (performanceMode.value === 'full') {
+      performanceDatasets.push(
         {
-          label: 'المبيعات',
-          data: (stats.value.salesByType || []).map((row: any) => Number(row.total || 0)),
-          backgroundColor: [
-            makeGradient(salesTypeChartRef.value, colors.primary, 0.7, 0.3),
-            makeGradient(salesTypeChartRef.value, colors.accent, 0.7, 0.3),
-            makeGradient(salesTypeChartRef.value, colors.warning, 0.7, 0.3),
-          ],
-          borderRadius: 7,
-          hoverBackgroundColor: [
-            colorMix(colors.primary, 0.9),
-            colorMix(colors.accent, 0.9),
-            colorMix(colors.warning, 0.9),
-          ],
-        },
-      ],
-    },
-    options: {
-      ...baseOptions(true),
-      animation: {
-        duration: 900,
-        easing: 'easeOutQuart',
-        delay: (ctx: any) => ctx.dataIndex * 70,
-      },
-    },
-  });
-
-  createChart(ChartLib, paymentChartRef, {
-    type: 'doughnut',
-    data: {
-      labels: (stats.value.paymentSummary || []).map((row: any) =>
-        paymentStatusLabel(row.payment_status),
-      ),
-      datasets: [
-        {
-          label: 'التحصيل',
-          data: (stats.value.paymentSummary || []).map((row: any) => Number(row.total || 0)),
-          backgroundColor: [colors.accent, colors.warning, colors.danger, colors.primary],
-          borderWidth: 0,
-          hoverBackgroundColor: [
-            colorMix(colors.accent, 0.85),
-            colorMix(colors.warning, 0.85),
-            colorMix(colors.danger, 0.85),
-            colorMix(colors.primary, 0.85),
-          ],
-          hoverOffset: 4,
-        },
-      ],
-    },
-    options: { ...baseOptions(true), cutout: '62%', scales: {} },
-  });
-
-  createChart(ChartLib, expenseChartRef, {
-    type: 'doughnut',
-    data: {
-      labels: (stats.value.expenseByCategory || []).map((row: any) => row.name_ar),
-      datasets: [
-        {
-          label: 'المصروفات',
-          data: (stats.value.expenseByCategory || []).map((row: any) => Number(row.total || 0)),
-          backgroundColor: [colors.warning, colors.danger, colors.primary, colors.accent],
-          borderWidth: 0,
-          hoverBackgroundColor: [
-            colorMix(colors.warning, 0.85),
-            colorMix(colors.danger, 0.85),
-            colorMix(colors.primary, 0.85),
-            colorMix(colors.accent, 0.85),
-          ],
-          hoverOffset: 4,
-        },
-      ],
-    },
-    options: { ...baseOptions(true), cutout: '58%', scales: {} },
-  });
-
-  createChart(ChartLib, categoryProfitChartRef, {
-    type: 'doughnut',
-    data: {
-      labels: (stats.value.categoryProfitability || []).map((row: any) => row.name_ar),
-      datasets: [
-        {
-          label: 'أرباح الفئات',
-          data: (stats.value.categoryProfitability || []).map((row: any) =>
-            Number(row.profit || 0),
-          ),
-          backgroundColor: [
-            colors.accent,
-            colors.primary,
-            colors.warning,
-            colors.danger,
-            '#6366f1',
-            '#ec4899',
-            '#14b8a6',
-            '#f59e0b',
-          ],
-          borderWidth: 0,
-          hoverBackgroundColor: [
-            colorMix(colors.accent, 0.85),
-            colorMix(colors.primary, 0.85),
-            colorMix(colors.warning, 0.85),
-            colorMix(colors.danger, 0.85),
-            'rgba(99, 102, 241, 0.85)',
-            'rgba(236, 72, 153, 0.85)',
-            'rgba(20, 184, 166, 0.85)',
-            'rgba(245, 158, 11, 0.85)',
-          ],
-          hoverOffset: 4,
-        },
-      ],
-    },
-    options: { ...baseOptions(true), cutout: '58%', scales: {} },
-  });
-
-  createChart(ChartLib, topProductsChartRef, {
-    type: 'bar',
-    data: {
-      labels: (stats.value.topProducts || []).map((row: any) => row.name_ar),
-      datasets: [
-        {
-          label: 'المبيعات',
-          data: (stats.value.topProducts || []).map((row: any) => Number(row.revenue || 0)),
-          backgroundColor: makeGradient(topProductsChartRef.value, colors.primary, 0.75, 0.25),
-          borderRadius: 4,
-          maxBarThickness: 16,
-          hoverBackgroundColor: colorMix(colors.primary, 0.95),
-        },
-      ],
-    },
-    options: {
-      ...baseOptions(true),
-      indexAxis: 'y',
-      // شريط سباق: كل شريط ينمو بعد اللي قبله
-      animation: {
-        duration: 1400,
-        easing: 'easeOutQuart',
-        delay: (ctx: any) => ctx.dataIndex * 85,
-      },
-      scales: {
-        x: {
-          beginAtZero: true,
-          grid: { color: colors.grid },
-          ticks: { callback: (value: any) => money(value) },
-        },
-        y: { grid: { display: false } },
-      },
-    },
-  });
-
-  createChart(ChartLib, topCustomersChartRef, {
-    type: 'bar',
-    data: {
-      labels: (stats.value.topCustomers || []).map((row: any) => row.name_ar || 'عميل غير مسجل'),
-      datasets: [
-        {
-          label: 'إجمالي الشراء',
-          data: (stats.value.topCustomers || []).map((row: any) => Number(row.total_spent || 0)),
-          backgroundColor: makeGradient(topCustomersChartRef.value, colors.accent, 0.75, 0.25),
-          borderRadius: 4,
-          maxBarThickness: 16,
-          hoverBackgroundColor: colorMix(colors.accent, 0.95),
-        },
-      ],
-    },
-    options: {
-      ...baseOptions(true),
-      indexAxis: 'y',
-      // شريط سباق: كل شريط ينمو بعد اللي قبله
-      animation: {
-        duration: 1400,
-        easing: 'easeOutQuart',
-        delay: (ctx: any) => ctx.dataIndex * 85,
-      },
-      scales: {
-        x: {
-          beginAtZero: true,
-          grid: { color: colors.grid },
-          ticks: { callback: (value: any) => money(value) },
-        },
-        y: { grid: { display: false } },
-      },
-    },
-  });
-
-  createChart(ChartLib, peakHoursChartRef, {
-    type: 'line',
-    data: {
-      labels: (stats.value.peakHours || []).map((row: any) => formatHour(row.hour)),
-      datasets: [
-        {
-          label: 'المبيعات',
-          data: (stats.value.peakHours || []).map((row: any) => Number(row.revenue || 0)),
-          borderColor: colors.primary,
-          backgroundColor: makeGradient(peakHoursChartRef.value, colors.primary, 0.3, 0.01),
+          label: 'الربح',
+          data: trend.map((row: any) => Number(row.profit || 0)),
+          type: 'line',
+          borderColor: colors.accent,
+          backgroundColor: makeGradient(performanceChartRef.value, colors.accent, 0.35, 0.01),
           fill: true,
-          tension: 0.4,
-          yAxisID: 'y',
-          borderWidth: 3,
-          pointRadius: 2.5,
-          hoverBackgroundColor: colors.primary,
-          hoverBorderWidth: 4,
-        },
-        {
-          label: 'الطلبات',
-          data: (stats.value.peakHours || []).map((row: any) => Number(row.orders_count || 0)),
-          borderColor: colors.warning,
-          backgroundColor: makeGradient(peakHoursChartRef.value, colors.warning, 0.15, 0.01),
-          fill: true,
-          tension: 0.4,
-          yAxisID: 'y1',
-          borderWidth: 2,
-          pointRadius: 2,
-          hoverBackgroundColor: colors.warning,
+          tension: 0.35,
+          pointRadius: 3,
+          borderWidth: 2.5,
+          hoverBackgroundColor: colors.accent,
           hoverBorderWidth: 3,
         },
-      ],
-    },
-    options: {
-      ...baseOptions(true),
-      animation: { duration: 1200, easing: 'easeInOutCubic' },
-      scales: {
-        x: { grid: { display: false } },
-        y: {
-          type: 'linear',
-          display: true,
-          position: 'left',
-          grid: { color: colors.grid },
-          ticks: { callback: (value: any) => money(value) },
+        {
+          label: 'المصروفات',
+          data: trend.map((row: any) => expensesByDate.get(formatTrendLabel(row.date)) || 0),
+          type: 'line',
+          borderColor: colors.danger,
+          backgroundColor: makeGradient(performanceChartRef.value, colors.danger, 0.15, 0.01),
+          borderDash: [6, 5],
+          tension: 0.35,
+          pointRadius: 2,
+          borderWidth: 2,
         },
-        y1: {
-          type: 'linear',
-          display: true,
-          position: 'right',
-          grid: { drawOnChartArea: false },
-          ticks: { callback: (value: any) => number(value) },
+      );
+    }
+
+    createChart(ChartLib, performanceChartRef, {
+      type: 'bar',
+      data: { labels, datasets: performanceDatasets },
+      options: {
+        ...baseOptions(true),
+        // أعمدة تظهر بسلاسة وسرعة لتجربة استجابة فورية
+        animation: {
+          duration: 450,
+          easing: 'easeOutQuart',
+          delay: (ctx: any) => ctx.dataIndex * 15,
         },
       },
-      plugins: {
-        ...baseOptions(true).plugins,
-        tooltip: {
-          rtl: true,
-          textDirection: 'rtl',
-          callbacks: {
-            label: (ctx: any) => {
-              if (ctx.datasetIndex === 0) {
-                return `المبيعات: ${money(ctx.parsed.y)}`;
-              } else {
-                return `الطلبات: ${number(ctx.parsed.y)} طلب`;
-              }
-            },
-          },
-        },
-      },
-    },
-  });
-
-  // ─── Demand Forecasting Chart ───
-  if (forecastingChartRef.value) {
-    const last7 = trend.slice(-7);
-    const actualSales = last7.map((r: any) => Number(r.sales || 0));
-    const chartLabels = [];
-    const actualDataset = [];
-    const forecastDataset = [];
-
-    last7.forEach((r: any) => {
-      chartLabels.push(formatTrendLabel(r.date));
-      actualDataset.push(Number(r.sales || 0));
-      forecastDataset.push(null);
     });
 
-    if (actualSales.length > 0) {
-      forecastDataset[forecastDataset.length - 1] = actualSales[actualSales.length - 1];
-    }
-
-    const baseDate = last7.length > 0 ? new Date(last7[last7.length - 1].date) : new Date();
-    const lastVal = actualSales[actualSales.length - 1] || 1500;
-
-    for (let i = 1; i <= 7; i++) {
-      const nextDate = new Date(baseDate);
-      nextDate.setDate(baseDate.getDate() + i);
-      chartLabels.push(shortDate(nextDate));
-
-      const dayOfWeek = nextDate.getDay();
-      let factor = 1.0;
-      if (dayOfWeek === 4 || dayOfWeek === 5) factor = 1.22;
-      else if (dayOfWeek === 0 || dayOfWeek === 1) factor = 0.92;
-
-      const projection = Math.round(lastVal * (1.004 + (Math.random() * 0.02 - 0.01)) * factor);
-      forecastDataset.push(projection);
-      actualDataset.push(null);
-    }
-
-    createChart(ChartLib, forecastingChartRef, {
-      type: 'line',
+    createChart(ChartLib, salesTypeChartRef, {
+      type: 'bar',
       data: {
-        labels: chartLabels,
+        labels: (stats.value.salesByType || []).map((row: any) => saleTypeLabel(row.sale_type)),
         datasets: [
           {
-            label: 'المبيعات الفعلية (أسبوع مضى)',
-            data: actualDataset,
+            label: 'المبيعات',
+            data: (stats.value.salesByType || []).map((row: any) => Number(row.total || 0)),
+            backgroundColor: [
+              makeGradient(salesTypeChartRef.value, colors.primary, 0.7, 0.3),
+              makeGradient(salesTypeChartRef.value, colors.accent, 0.7, 0.3),
+              makeGradient(salesTypeChartRef.value, colors.warning, 0.7, 0.3),
+            ],
+            borderRadius: 7,
+            hoverBackgroundColor: [
+              colorMix(colors.primary, 0.9),
+              colorMix(colors.accent, 0.9),
+              colorMix(colors.warning, 0.9),
+            ],
+          },
+        ],
+      },
+      options: {
+        ...baseOptions(true),
+        animation: {
+          duration: 400,
+          easing: 'easeOutQuart',
+          delay: (ctx: any) => ctx.dataIndex * 20,
+        },
+      },
+    });
+
+    createChart(ChartLib, paymentChartRef, {
+      type: 'doughnut',
+      data: {
+        labels: (stats.value.paymentSummary || []).map((row: any) =>
+          paymentStatusLabel(row.payment_status),
+        ),
+        datasets: [
+          {
+            label: 'التحصيل',
+            data: (stats.value.paymentSummary || []).map((row: any) => Number(row.total || 0)),
+            backgroundColor: [colors.accent, colors.warning, colors.danger, colors.primary],
+            borderWidth: 0,
+            hoverBackgroundColor: [
+              colorMix(colors.accent, 0.85),
+              colorMix(colors.warning, 0.85),
+              colorMix(colors.danger, 0.85),
+              colorMix(colors.primary, 0.85),
+            ],
+            hoverOffset: 4,
+          },
+        ],
+      },
+      options: { ...baseOptions(true), cutout: '62%', scales: {} },
+    });
+
+    createChart(ChartLib, expenseChartRef, {
+      type: 'doughnut',
+      data: {
+        labels: (stats.value.expenseByCategory || []).map((row: any) => row.name_ar),
+        datasets: [
+          {
+            label: 'المصروفات',
+            data: (stats.value.expenseByCategory || []).map((row: any) => Number(row.total || 0)),
+            backgroundColor: [colors.warning, colors.danger, colors.primary, colors.accent],
+            borderWidth: 0,
+            hoverBackgroundColor: [
+              colorMix(colors.warning, 0.85),
+              colorMix(colors.danger, 0.85),
+              colorMix(colors.primary, 0.85),
+              colorMix(colors.accent, 0.85),
+            ],
+            hoverOffset: 4,
+          },
+        ],
+      },
+      options: { ...baseOptions(true), cutout: '58%', scales: {} },
+    });
+
+    createChart(ChartLib, categoryProfitChartRef, {
+      type: 'doughnut',
+      data: {
+        labels: (stats.value.categoryProfitability || []).map((row: any) => row.name_ar),
+        datasets: [
+          {
+            label: 'أرباح الفئات',
+            data: (stats.value.categoryProfitability || []).map((row: any) =>
+              Number(row.profit || 0),
+            ),
+            backgroundColor: [
+              colors.accent,
+              colors.primary,
+              colors.warning,
+              colors.danger,
+              '#6366f1',
+              '#ec4899',
+              '#14b8a6',
+              '#f59e0b',
+            ],
+            borderWidth: 0,
+            hoverBackgroundColor: [
+              colorMix(colors.accent, 0.85),
+              colorMix(colors.primary, 0.85),
+              colorMix(colors.warning, 0.85),
+              colorMix(colors.danger, 0.85),
+              'rgba(99, 102, 241, 0.85)',
+              'rgba(236, 72, 153, 0.85)',
+              'rgba(20, 184, 166, 0.85)',
+              'rgba(245, 158, 11, 0.85)',
+            ],
+            hoverOffset: 4,
+          },
+        ],
+      },
+      options: { ...baseOptions(true), cutout: '58%', scales: {} },
+    });
+
+    createChart(ChartLib, topProductsChartRef, {
+      type: 'bar',
+      data: {
+        labels: (stats.value.topProducts || []).map((row: any) => row.name_ar),
+        datasets: [
+          {
+            label: 'المبيعات',
+            data: (stats.value.topProducts || []).map((row: any) => Number(row.revenue || 0)),
+            backgroundColor: makeGradient(topProductsChartRef.value, colors.primary, 0.75, 0.25),
+            borderRadius: 4,
+            maxBarThickness: 16,
+            hoverBackgroundColor: colorMix(colors.primary, 0.95),
+          },
+        ],
+      },
+      options: {
+        ...baseOptions(true),
+        indexAxis: 'y',
+        // شريط سباق سريع وسلس
+        animation: {
+          duration: 450,
+          easing: 'easeOutQuart',
+          delay: (ctx: any) => ctx.dataIndex * 25,
+        },
+        scales: {
+          x: {
+            beginAtZero: true,
+            grid: { color: colors.grid },
+            ticks: { callback: (value: any) => money(value) },
+          },
+          y: { grid: { display: false } },
+        },
+      },
+    });
+
+    createChart(ChartLib, topCustomersChartRef, {
+      type: 'bar',
+      data: {
+        labels: (stats.value.topCustomers || []).map((row: any) => row.name_ar || 'عميل غير مسجل'),
+        datasets: [
+          {
+            label: 'إجمالي الشراء',
+            data: (stats.value.topCustomers || []).map((row: any) => Number(row.total_spent || 0)),
+            backgroundColor: makeGradient(topCustomersChartRef.value, colors.accent, 0.75, 0.25),
+            borderRadius: 4,
+            maxBarThickness: 16,
+            hoverBackgroundColor: colorMix(colors.accent, 0.95),
+          },
+        ],
+      },
+      options: {
+        ...baseOptions(true),
+        indexAxis: 'y',
+        // شريط سباق سريع وسلس
+        animation: {
+          duration: 450,
+          easing: 'easeOutQuart',
+          delay: (ctx: any) => ctx.dataIndex * 25,
+        },
+        scales: {
+          x: {
+            beginAtZero: true,
+            grid: { color: colors.grid },
+            ticks: { callback: (value: any) => money(value) },
+          },
+          y: { grid: { display: false } },
+        },
+      },
+    });
+
+    createChart(ChartLib, peakHoursChartRef, {
+      type: 'line',
+      data: {
+        labels: (stats.value.peakHours || []).map((row: any) => formatHour(row.hour)),
+        datasets: [
+          {
+            label: 'المبيعات',
+            data: (stats.value.peakHours || []).map((row: any) => Number(row.revenue || 0)),
             borderColor: colors.primary,
-            backgroundColor: makeGradient(forecastingChartRef.value, colors.primary, 0.25, 0.01),
+            backgroundColor: makeGradient(peakHoursChartRef.value, colors.primary, 0.3, 0.01),
             fill: true,
-            tension: 0.3,
-            pointRadius: 4,
-            borderWidth: 2.5,
+            tension: 0.4,
+            yAxisID: 'y',
+            borderWidth: 3,
+            pointRadius: 2.5,
+            hoverBackgroundColor: colors.primary,
+            hoverBorderWidth: 4,
           },
           {
-            label: 'توقعات الطلب (AI Forecast للأسبوع القادم)',
-            data: forecastDataset,
-            borderColor: colors.accent,
-            borderDash: [5, 5],
-            backgroundColor: 'transparent',
-            tension: 0.3,
-            pointRadius: 4,
-            borderWidth: 2.5,
+            label: 'الطلبات',
+            data: (stats.value.peakHours || []).map((row: any) => Number(row.orders_count || 0)),
+            borderColor: colors.warning,
+            backgroundColor: makeGradient(peakHoursChartRef.value, colors.warning, 0.15, 0.01),
+            fill: true,
+            tension: 0.4,
+            yAxisID: 'y1',
+            borderWidth: 2,
+            pointRadius: 2,
+            hoverBackgroundColor: colors.warning,
+            hoverBorderWidth: 3,
           },
         ],
       },
@@ -1296,10 +1254,119 @@ const renderCharts = async () => {
         animation: { duration: 1200, easing: 'easeInOutCubic' },
         scales: {
           x: { grid: { display: false } },
-          y: { grid: { color: colors.grid }, ticks: { callback: (value: any) => money(value) } },
+          y: {
+            type: 'linear',
+            display: true,
+            position: 'left',
+            grid: { color: colors.grid },
+            ticks: { callback: (value: any) => money(value) },
+          },
+          y1: {
+            type: 'linear',
+            display: true,
+            position: 'right',
+            grid: { drawOnChartArea: false },
+            ticks: { callback: (value: any) => number(value) },
+          },
+        },
+        plugins: {
+          ...baseOptions(true).plugins,
+          tooltip: {
+            rtl: true,
+            textDirection: 'rtl',
+            callbacks: {
+              label: (ctx: any) => {
+                if (ctx.datasetIndex === 0) {
+                  return `المبيعات: ${money(ctx.parsed.y)}`;
+                } else {
+                  return `الطلبات: ${number(ctx.parsed.y)} طلب`;
+                }
+              },
+            },
+          },
         },
       },
     });
+
+    // ─── Demand Forecasting Chart ───
+    if (forecastingChartRef.value) {
+      const last7 = trend.slice(-7);
+      const actualSales = last7.map((r: any) => Number(r.sales || 0));
+      const chartLabels = [];
+      const actualDataset = [];
+      const forecastDataset = [];
+
+      last7.forEach((r: any) => {
+        chartLabels.push(formatTrendLabel(r.date));
+        actualDataset.push(Number(r.sales || 0));
+        forecastDataset.push(null);
+      });
+
+      if (actualSales.length > 0) {
+        forecastDataset[forecastDataset.length - 1] = actualSales[actualSales.length - 1];
+      }
+
+      const baseDate = last7.length > 0 ? new Date(last7[last7.length - 1].date) : new Date();
+      const lastVal = actualSales[actualSales.length - 1] || 1500;
+
+      for (let i = 1; i <= 7; i++) {
+        const nextDate = new Date(baseDate);
+        nextDate.setDate(baseDate.getDate() + i);
+        chartLabels.push(shortDate(nextDate));
+
+        const dayOfWeek = nextDate.getDay();
+        let factor = 1.0;
+        if (dayOfWeek === 4 || dayOfWeek === 5) factor = 1.22;
+        else if (dayOfWeek === 0 || dayOfWeek === 1) factor = 0.92;
+
+        const projection = Math.round(lastVal * (1.004 + (Math.random() * 0.02 - 0.01)) * factor);
+        forecastDataset.push(projection);
+        actualDataset.push(null);
+      }
+
+      createChart(ChartLib, forecastingChartRef, {
+        type: 'line',
+        data: {
+          labels: chartLabels,
+          datasets: [
+            {
+              label: 'المبيعات الفعلية (أسبوع مضى)',
+              data: actualDataset,
+              borderColor: colors.primary,
+              backgroundColor: makeGradient(forecastingChartRef.value, colors.primary, 0.25, 0.01),
+              fill: true,
+              tension: 0.3,
+              pointRadius: 4,
+              borderWidth: 2.5,
+            },
+            {
+              label: 'توقعات الطلب (AI Forecast للأسبوع القادم)',
+              data: forecastDataset,
+              borderColor: colors.accent,
+              borderDash: [5, 5],
+              backgroundColor: 'transparent',
+              tension: 0.3,
+              pointRadius: 4,
+              borderWidth: 2.5,
+            },
+          ],
+        },
+        options: {
+          ...baseOptions(true),
+          animation: { duration: 450, easing: 'easeOutQuart' },
+          scales: {
+            x: { grid: { display: false } },
+            y: { grid: { color: colors.grid }, ticks: { callback: (value: any) => money(value) } },
+          },
+        },
+      });
+    }
+  } finally {
+    isRenderingCharts = false;
+    if (pendingRenderCharts) {
+      pendingRenderCharts = false;
+      renderCharts();
+    }
   }
 };
 
@@ -1347,9 +1414,28 @@ const loadDashboard = async () => {
   }
 };
 
-const handleWindowFocus = () => loadDashboard();
+const handleWindowFocus = () => {
+  // تخفيف الضغط: لا نعيد جلب البيانات إذا كانت حية وحُدثت خلال آخر 60 ثانية
+  if (lastUpdated.value && Date.now() - lastUpdated.value.getTime() < 60_000) return;
+  loadDashboard();
+};
 const handleRealtimeUpdate = () => loadDashboard();
 const handleThemeChange = () => renderCharts();
+
+onActivated(() => {
+  // إعادة رسم المخططات بسلاسة عند العودة للشاشة
+  if (stats.value && charts.length === 0) {
+    renderCharts();
+  }
+  // إذا كانت البيانات قديمة، يتم تحديثها في الخلفية
+  if (!stats.value || !lastUpdated.value || Date.now() - lastUpdated.value.getTime() > 120_000) {
+    loadDashboard();
+  }
+});
+
+onDeactivated(() => {
+  destroyCharts();
+});
 
 onMounted(() => {
   loadDashboard();

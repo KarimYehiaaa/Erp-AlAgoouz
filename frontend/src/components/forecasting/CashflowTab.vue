@@ -162,12 +162,20 @@ const loadChartLib = async () => {
 const renderChart = async () => {
   if (!chartCanvas.value || !props.cashflowData) return;
 
+  const Chart = await loadChartLib();
+  if (chartCanvas.value) {
+    try {
+      const existing = Chart.getChart(chartCanvas.value);
+      if (existing) existing.destroy();
+    } catch {}
+  }
   if (chartInstance) {
-    chartInstance.destroy();
+    try {
+      chartInstance.destroy();
+    } catch {}
     chartInstance = null;
   }
 
-  const Chart = await loadChartLib();
   const ctx = chartCanvas.value.getContext('2d');
   if (!ctx) return;
 
@@ -303,6 +311,12 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   window.removeEventListener('theme-changed', handleThemeChange);
+  if (chartInstance) {
+    try {
+      chartInstance.destroy();
+    } catch {}
+    chartInstance = null;
+  }
 });
 </script>
 

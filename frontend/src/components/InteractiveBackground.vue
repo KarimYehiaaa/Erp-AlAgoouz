@@ -30,9 +30,15 @@ onMounted(() => {
   const particleCount = prefersReducedMotion.matches ? 12 : 45;
   const mouse = { x: null, y: null, radius: 160 };
 
+  let lastInteractionTime = Date.now();
+
   const handleMouseMove = (e: any) => {
     mouse.x = e.clientX;
     mouse.y = e.clientY;
+    lastInteractionTime = Date.now();
+    if (!running && !prefersReducedMotion.matches) {
+      startAnimation();
+    }
   };
 
   const handleMouseLeave = () => {
@@ -40,8 +46,8 @@ onMounted(() => {
     mouse.y = null;
   };
 
-  window.addEventListener('mousemove', handleMouseMove);
-  document.addEventListener('mouseleave', handleMouseLeave);
+  window.addEventListener('mousemove', handleMouseMove, { passive: true });
+  document.addEventListener('mouseleave', handleMouseLeave, { passive: true });
 
   // init gold dust particles
   for (let i = 0; i < particleCount; i++) {
@@ -57,7 +63,14 @@ onMounted(() => {
   }
 
   const animate = () => {
-    if (!running) return; // أوقفت أثناء إخفاء التبويب
+    if (!running) return;
+
+    // تهدئة وإيقاف الحلقة عند خمول المؤشر لأكثر من ثانيتين لتوفير 100% من أداء المعالج والكرت لتصفح الصفحات
+    if (Date.now() - lastInteractionTime > 2500) {
+      stopAnimation();
+      return;
+    }
+
     ctx.clearRect(0, 0, width, height);
 
     for (let i = 0; i < particles.length; i++) {
@@ -70,7 +83,6 @@ onMounted(() => {
         const distance = Math.sqrt(dx * dx + dy * dy);
         if (distance < mouse.radius) {
           const force = (mouse.radius - distance) / mouse.radius;
-          // gravity pull
           p.x += (dx / distance) * force * 0.45;
           p.y += (dy / distance) * force * 0.45;
           p.alpha = Math.min(0.65, p.alpha + 0.02);
@@ -114,10 +126,13 @@ onMounted(() => {
     }
   };
 
-  // إيقاف كامل للحلقة عندما يكون التبويب مخفيًا (كانت تعمل 60fps على كل الصفحات بلا توقف)
+  // إيقاف كامل للحلقة عندما يكون التبويب مخفيًا
   const handleVisibility = () => {
     if (document.hidden) stopAnimation();
-    else startAnimation();
+    else {
+      lastInteractionTime = Date.now();
+      startAnimation();
+    }
   };
   document.addEventListener('visibilitychange', handleVisibility);
 
@@ -142,5 +157,8 @@ onMounted(() => {
   pointer-events: none;
   z-index: -1;
   opacity: 0.95;
+  will-change: transform;
+  transform: translateZ(0);
+  contain: strict;
 }
 </style>

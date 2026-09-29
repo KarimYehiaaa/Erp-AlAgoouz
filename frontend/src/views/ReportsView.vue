@@ -242,6 +242,7 @@
 </template>
 
 <script setup lang="ts">
+defineOptions({ name: 'ReportsView' });
 import { ref, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import AppIcon from '@/components/AppIcon.vue';

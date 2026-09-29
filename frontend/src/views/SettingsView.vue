@@ -38,6 +38,7 @@
 </template>
 
 <script setup lang="ts">
+defineOptions({ name: 'SettingsView' });
 import { ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import AppIcon from '@/components/AppIcon.vue';

@@ -107,12 +107,22 @@ export interface ElectronAPI {
   loadSecureSession?: () => Promise<PosSessionData | null>;
   clearSecureSession?: () => Promise<boolean>;
   hasSecureSession?: () => Promise<boolean>;
-  getDeviceInfo: () => Promise<DeviceInfo>;
-  getUpdateStatus?: () => Promise<{ state: string; version?: string; message?: string }>;
+  getDeviceInfo?: () => Promise<DeviceInfo>;
+  getUpdateStatus?: () => Promise<{
+    state: string;
+    version?: string;
+    message?: string;
+    percent?: number;
+  }>;
   checkForUpdates?: () => Promise<{ success: boolean; message?: string }>;
   installUpdate?: () => Promise<{ success: boolean; message?: string }>;
   onUpdateStatus?: (
-    callback: (status: { state: string; version?: string; message?: string }) => void,
+    callback: (status: {
+      state: string;
+      version?: string;
+      message?: string;
+      percent?: number;
+    }) => void,
   ) => void;
   onBarcodeScan: (callback: (barcode: string) => void) => void;
   onSyncUpdated: (callback: (info: { synced: number; remaining: number }) => void) => void;

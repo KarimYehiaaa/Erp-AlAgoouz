@@ -192,6 +192,7 @@
 </template>
 
 <script setup lang="ts">
+defineOptions({ name: 'SalesView' });
 import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import AppIcon from '@/components/AppIcon.vue';

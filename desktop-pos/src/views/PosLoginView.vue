@@ -149,10 +149,42 @@
       </form>
 
       <div class="login-footer">
-        <span>الجهاز: <strong>TRM-MAIN-01</strong></span>
-        <span>المحل: <strong>المحل الرئيسي</strong></span>
+        <div class="terminal-meta">
+          <span>الجهاز: <strong>TRM-MAIN-01</strong></span>
+          <span>المحل: <strong>المحل الرئيسي</strong></span>
+        </div>
+        <button
+          type="button"
+          class="btn-footer-updater"
+          :class="{
+            'update-ready': isDownloaded,
+            'update-downloading': isDownloading,
+            'update-available': isAvailable,
+          }"
+          :title="
+            isDownloaded
+              ? 'تحديث جديد جاهز للتثبيت الفوري — اضغط للتطبيق'
+              : isDownloading
+                ? `جاري تحميل التحديث (${downloadPercent}%)`
+                : 'فحص التحديثات التلقائية'
+          "
+          @click="openUpdateModal"
+        >
+          <AppIcon
+            :name="isDownloaded ? 'download' : isDownloading || isChecking ? 'refreshCw' : 'download'"
+            :size="13"
+            :class="{ 'spin-anim': isChecking || isDownloading }"
+          />
+          <span>v{{ appVersion }}</span>
+          <span v-if="isDownloaded" class="badge-ready">تحديث جاهز!</span>
+          <span v-else-if="isDownloading" class="badge-downloading">{{ downloadPercent }}%</span>
+          <span v-else-if="isAvailable" class="badge-available">متاح</span>
+        </button>
       </div>
     </div>
+
+    <!-- Smart In-App Update Modal -->
+    <UpdateModal :is-open="showUpdateModal" @close="closeUpdateModal" />
   </div>
 </template>
 
@@ -161,7 +193,9 @@ import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import axios from 'axios';
 import AppIcon from '../components/AppIcon.vue';
+import UpdateModal from '../components/UpdateModal.vue';
 import { usePosAuthStore } from '../stores/posAuth';
+import { useAppUpdater } from '../composables/useAppUpdater';
 import {
   getServerUrl,
   setServerUrl,
@@ -171,6 +205,19 @@ import {
 
 const router = useRouter();
 const authStore = usePosAuthStore();
+const {
+  updateState,
+  appVersion,
+  showUpdateModal,
+  isAvailable,
+  isDownloading,
+  isDownloaded,
+  isChecking,
+  downloadPercent,
+  initUpdater,
+  openUpdateModal,
+  closeUpdateModal,
+} = useAppUpdater();
 
 const REMEMBERED_USER_KEY = 'pos_remembered_username';
 
@@ -292,6 +339,7 @@ const selectPreset = async (preset: 'local' | 'cloud') => {
 };
 
 onMounted(async () => {
+  await initUpdater();
   serverUrlInput.value = getServerUrl();
   const savedUser = localStorage.getItem(REMEMBERED_USER_KEY);
   if (savedUser) {
@@ -757,11 +805,95 @@ const handleLogin = async () => {
 
 .login-footer {
   display: flex;
+  align-items: center;
   justify-content: space-between;
   margin-top: 20px;
   padding-top: 14px;
   border-top: 1px solid var(--border-soft, #f0ebe1);
   font-size: 0.78rem;
   color: var(--text-muted, #78716c);
+
+  .terminal-meta {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .btn-footer-updater {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(0, 0, 0, 0.04);
+    border: 1px solid var(--border-soft, #e7e0d3);
+    padding: 3px 8px;
+    border-radius: 6px;
+    color: var(--text-muted, #78716c);
+    font-size: 0.74rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+
+    &:hover {
+      background: rgba(0, 0, 0, 0.08);
+      color: var(--primary, #8a572a);
+      border-color: var(--primary, #8a572a);
+    }
+
+    &.update-ready {
+      background: #ecfdf5;
+      color: #065f46;
+      border-color: #10b981;
+      font-weight: 700;
+
+      .badge-ready {
+        background: #10b981;
+        color: #fff;
+        padding: 1px 5px;
+        border-radius: 4px;
+        font-size: 0.65rem;
+      }
+    }
+
+    &.update-downloading {
+      background: #eff6ff;
+      color: #1e40af;
+      border-color: #3b82f6;
+
+      .badge-downloading {
+        background: #3b82f6;
+        color: #fff;
+        padding: 1px 5px;
+        border-radius: 4px;
+        font-size: 0.65rem;
+      }
+    }
+
+    &.update-available {
+      background: #fffbeb;
+      color: #92400e;
+      border-color: #f59e0b;
+
+      .badge-available {
+        background: #f59e0b;
+        color: #fff;
+        padding: 1px 5px;
+        border-radius: 4px;
+        font-size: 0.65rem;
+      }
+    }
+
+    .spin-anim {
+      animation: spin 1.2s linear infinite;
+    }
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 </style>

@@ -511,6 +511,7 @@
 </template>
 
 <script setup lang="ts">
+defineOptions({ name: 'InventoryView' });
 import { ref, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { inventory as inventoryApi } from '@/api';

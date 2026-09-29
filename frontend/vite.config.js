@@ -34,9 +34,13 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           if (!id.includes('node_modules')) return undefined;
+          if (id.includes('@sentry')) return 'vendor-sentry';
+          if (id.includes('@lucide')) return 'vendor-icons';
           if (id.includes('chart.js')) return 'chartjs';
           if (id.includes('html2pdf.js')) return 'pdf-export';
           if (id.includes('jspdf') || id.includes('html2canvas')) return 'pdf-vendor';
+          if (id.includes('axios')) return 'vendor-axios';
+          if (id.includes('vue') || id.includes('pinia')) return 'vendor-vue';
           return undefined;
         },
       },

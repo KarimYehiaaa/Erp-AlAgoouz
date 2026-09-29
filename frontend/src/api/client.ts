@@ -59,8 +59,6 @@ const api = axios.create({
   withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
-    'Cache-Control': 'no-cache',
-    Pragma: 'no-cache',
   },
 });
 
@@ -197,25 +195,83 @@ api.interceptors.response.use(
   },
 );
 
-// ─── مساعدات مُنمّطة ──────────────────────────────────────────────────────────
-// المعترض أعلاه يفكّ الاستجابة (يعيد res.data) — هذه الدوال تعكس ذلك في النظام النوعي
-// بحيث تُعيد Promise<ApiEnvelope<T>> بدل Promise<AxiosResponse> المضلِّل.
+// ─── In-Flight Request Deduplication & Fast Response Cache ──────────────────
+const inFlightRequests = new Map<string, Promise<any>>();
+const memoryCache = new Map<string, { data: any; expiry: number }>();
+
+const buildRequestKey = (url: string, config?: AxiosRequestConfig): string => {
+  const paramsStr = config?.params ? JSON.stringify(config.params) : '';
+  return `${url}::${paramsStr}`;
+};
+
+export const clearApiCache = () => {
+  memoryCache.clear();
+};
+
+export interface RequestOptions extends AxiosRequestConfig {
+  cacheTtlMs?: number;
+  skipCache?: boolean;
+}
+
 export type Api<T = any> = Promise<ApiEnvelope<T>>;
 
-export const get = <T = any>(url: string, config?: AxiosRequestConfig): Api<T> =>
-  api.get(url, config) as unknown as Api<T>;
+export const get = <T = any>(url: string, config?: RequestOptions): Api<T> => {
+  const reqKey = buildRequestKey(url, config);
+  const now = Date.now();
 
-export const post = <T = any>(url: string, data?: unknown, config?: AxiosRequestConfig): Api<T> =>
-  api.post(url, data, config) as unknown as Api<T>;
+  // 1. Memory micro-cache check (if configured with TTL, e.g. for warehouses, categories, etc.)
+  if (!config?.skipCache && config?.cacheTtlMs && config.cacheTtlMs > 0) {
+    const cached = memoryCache.get(reqKey);
+    if (cached && cached.expiry > now) {
+      return Promise.resolve(cached.data) as unknown as Api<T>;
+    }
+  }
 
-export const put = <T = any>(url: string, data?: unknown, config?: AxiosRequestConfig): Api<T> =>
-  api.put(url, data, config) as unknown as Api<T>;
+  // 2. In-flight request deduplication: prevents firing parallel duplicate requests
+  if (!config?.skipCache && inFlightRequests.has(reqKey)) {
+    return inFlightRequests.get(reqKey) as unknown as Api<T>;
+  }
 
-export const patch = <T = any>(url: string, data?: unknown, config?: AxiosRequestConfig): Api<T> =>
-  api.patch(url, data, config) as unknown as Api<T>;
+  const promise = (api.get(url, config) as unknown as Api<T>)
+    .then((res) => {
+      inFlightRequests.delete(reqKey);
+      if (config?.cacheTtlMs && config.cacheTtlMs > 0) {
+        memoryCache.set(reqKey, { data: res, expiry: Date.now() + config.cacheTtlMs });
+      }
+      return res;
+    })
+    .catch((err) => {
+      inFlightRequests.delete(reqKey);
+      throw err;
+    });
 
-export const del = <T = any>(url: string, config?: AxiosRequestConfig): Api<T> =>
-  api.delete(url, config) as unknown as Api<T>;
+  inFlightRequests.set(reqKey, promise);
+  return promise;
+};
+
+export const post = <T = any>(url: string, data?: unknown, config?: AxiosRequestConfig): Api<T> => {
+  clearApiCache();
+  return api.post(url, data, config) as unknown as Api<T>;
+};
+
+export const put = <T = any>(url: string, data?: unknown, config?: AxiosRequestConfig): Api<T> => {
+  clearApiCache();
+  return api.put(url, data, config) as unknown as Api<T>;
+};
+
+export const patch = <T = any>(
+  url: string,
+  data?: unknown,
+  config?: AxiosRequestConfig,
+): Api<T> => {
+  clearApiCache();
+  return api.patch(url, data, config) as unknown as Api<T>;
+};
+
+export const del = <T = any>(url: string, config?: AxiosRequestConfig): Api<T> => {
+  clearApiCache();
+  return api.delete(url, config) as unknown as Api<T>;
+};
 
 /** طلب ملف ثنائي — المعترض يعيد Blob مباشرة عند responseType: 'blob'. */
 export const getBlob = (url: string, config?: AxiosRequestConfig): Promise<Blob> =>

@@ -33,11 +33,22 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // App & Device Info
   getDeviceInfo: () => ipcRenderer.invoke('app:get-device-info'),
-  getUpdateStatus: () => ipcRenderer.invoke('app:get-update-status'),
+  getUpdateStatus: () =>
+    ipcRenderer.invoke('app:get-update-status') as Promise<{
+      state: string;
+      version?: string;
+      message?: string;
+      percent?: number;
+    }>,
   checkForUpdates: () => ipcRenderer.invoke('app:check-for-updates'),
   installUpdate: () => ipcRenderer.invoke('app:install-update'),
   onUpdateStatus: (
-    callback: (status: { state: string; version?: string; message?: string }) => void,
+    callback: (status: {
+      state: string;
+      version?: string;
+      message?: string;
+      percent?: number;
+    }) => void,
   ) => {
     ipcRenderer.on('updater:status', (_event, status) => callback(status));
   },

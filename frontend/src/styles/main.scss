@@ -1504,15 +1504,18 @@ table {
 /* Page fade and slide-up transition */
 .fade-slide-enter-active,
 .fade-slide-leave-active {
-  transition: all 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+  transition:
+    opacity 0.16s ease,
+    transform 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform;
 }
 .fade-slide-enter-from {
   opacity: 0;
-  transform: translateY(12px);
+  transform: translateY(6px);
 }
 .fade-slide-leave-to {
   opacity: 0;
-  transform: translateY(-12px);
+  transform: translateY(-6px);
 }
 
 /* ── Custom Animation & Micro-interaction Classes ── */

@@ -21,9 +21,19 @@ let mainWindow: BrowserWindow | null = null;
 let syncWorker: PosSyncWorker | null = null;
 let secureSessionStore: SecureSessionStore | null = null;
 let updateCheckTimer: NodeJS.Timeout | null = null;
-let latestUpdateStatus: { state: string; version?: string; message?: string } = { state: 'idle' };
+let latestUpdateStatus: {
+  state: string;
+  version?: string;
+  message?: string;
+  percent?: number;
+} = { state: 'idle' };
 
-function publishUpdateStatus(status: { state: string; version?: string; message?: string }) {
+function publishUpdateStatus(status: {
+  state: string;
+  version?: string;
+  message?: string;
+  percent?: number;
+}) {
   latestUpdateStatus = status;
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send('updater:status', status);
@@ -50,10 +60,19 @@ function configureAutoUpdates() {
     console.log('[Updater] Checking for updates');
     publishUpdateStatus({ state: 'checking' });
   });
-  autoUpdater.on('update-not-available', () => publishUpdateStatus({ state: 'current' }));
+  autoUpdater.on('update-not-available', () => {
+    publishUpdateStatus({ state: 'current', message: 'أنت تعمل بأحدث إصدار رسمي بالفعل' });
+  });
   autoUpdater.on('update-available', (info) => {
     console.log(`[Updater] Update available: ${info.version}`);
     publishUpdateStatus({ state: 'available', version: info.version });
+  });
+  autoUpdater.on('download-progress', (progressObj) => {
+    console.log(`[Updater] Download progress: ${Math.round(progressObj.percent)}%`);
+    publishUpdateStatus({
+      state: 'downloading',
+      percent: Math.round(progressObj.percent),
+    });
   });
   autoUpdater.on('update-downloaded', (info) => {
     console.log(`[Updater] Update downloaded: ${info.version}; it will install on next restart`);
@@ -165,8 +184,16 @@ ipcMain.handle('app:check-for-updates', async (event) => {
   if (!validateIpcSender(event, app.isPackaged, process.env.VITE_DEV_SERVER_URL)) {
     return { success: false, message: 'تم رفض الطلب: مرسل غير مصرح له' };
   }
-  if (!app.isPackaged)
-    return { success: false, message: 'التحديث التلقائي يعمل في النسخة المثبتة فقط' };
+  if (!app.isPackaged) {
+    publishUpdateStatus({
+      state: 'current',
+      message:
+        'أنت في بيئة التطوير (v' +
+        app.getVersion() +
+        ') — التحديث التلقائي المباشر يعمل في النسخة المثبتة.',
+    });
+    return { success: true, message: 'بيئة تطوير' };
+  }
   await checkForUpdates();
   return { success: true };
 });

@@ -20,9 +20,22 @@
       <AppNavbar v-else />
       <main class="layout-content" :class="{ 'cashier-content': authStore.isCashier }">
         <ErrorBoundary>
-          <router-view v-slot="{ Component }">
+          <router-view v-slot="{ Component, route }">
             <transition name="fade-slide" mode="out-in">
-              <component :is="Component" />
+              <keep-alive
+                :max="10"
+                :include="[
+                  'DashboardView',
+                  'SalesView',
+                  'InventoryView',
+                  'ProductsView',
+                  'PurchasesAndExpensesView',
+                  'ReportsView',
+                  'SettingsView',
+                ]"
+              >
+                <component :is="Component" :key="route.name || route.path" />
+              </keep-alive>
             </transition>
           </router-view>
         </ErrorBoundary>

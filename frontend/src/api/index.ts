@@ -122,12 +122,13 @@ export const products = {
   categories: () =>
     get<Array<{ id: number; name: string; name_ar?: string; slug?: string }>>(
       '/products/categories',
+      { cacheTtlMs: 30_000 },
     ),
   createCategory: (data: Record<string, unknown>) => post('/products/categories', data),
   updateCategory: (id: number | string, data: Record<string, unknown>) =>
     put(`/products/categories/${id}`, data),
   deleteCategory: (id: number | string) => del(`/products/categories/${id}`),
-  units: () => get<Unit[]>('/products/units'),
+  units: () => get<Unit[]>('/products/units', { cacheTtlMs: 30_000 }),
   createUnit: (data: Record<string, unknown>) => post<Unit>('/products/units', data),
   updateUnit: (id: number | string, data: Record<string, unknown>) =>
     put<Unit>(`/products/units/${id}`, data),

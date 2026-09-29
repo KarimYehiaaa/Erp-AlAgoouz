@@ -1,0 +1,105 @@
+name: Project Guardian Observer
+
+on:
+  push:
+    branches: ['main']
+  workflow_run:
+    workflows: ['CI/CD Pipeline']
+    types: [completed]
+  deployment_status:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  observe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send project signal to Project Guardian
+        env:
+          PROJECT_GUARDIAN_SECRET: ${{ secrets.PROJECT_GUARDIAN_SECRET }}
+          PROJECT_GUARDIAN_ENDPOINT: ${{ vars.PROJECT_GUARDIAN_ENDPOINT || 'https://agoouz.vercel.app/api/v1/guardian/events' }}
+          EVENT_NAME: ${{ github.event_name }}
+          REPOSITORY: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${PROJECT_GUARDIAN_SECRET}" ]; then
+            echo "PROJECT_GUARDIAN_SECRET is not configured; observer is disabled safely."
+            exit 0
+          fi
+
+          KIND="observation"
+          SEVERITY="info"
+          COMPONENT="repository"
+          ENVIRONMENT="online"
+          EVENT_TYPE="github.${EVENT_NAME}"
+          TITLE="GitHub ${EVENT_NAME}"
+          SUMMARY="Repository activity observed"
+          SOURCE_REF="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          DEDUPE_KEY=""
+
+          if [ "${EVENT_NAME}" = "workflow_run" ]; then
+            CONCLUSION="$(jq -r '.workflow_run.conclusion // "unknown"' "${GITHUB_EVENT_PATH}")"
+            WORKFLOW_NAME="$(jq -r '.workflow_run.name // "workflow"' "${GITHUB_EVENT_PATH}")"
+            HEAD_SHA="$(jq -r '.workflow_run.head_sha // ""' "${GITHUB_EVENT_PATH}")"
+            HEAD_BRANCH="$(jq -r '.workflow_run.head_branch // ""' "${GITHUB_EVENT_PATH}")"
+            SHA="${HEAD_SHA:-${SHA}}"
+            REF_NAME="${HEAD_BRANCH:-${REF_NAME}}"
+            COMPONENT="ci"
+            EVENT_TYPE="ci.workflow.completed"
+            TITLE="${WORKFLOW_NAME}: ${CONCLUSION}"
+            SUMMARY="GitHub Actions workflow ${WORKFLOW_NAME} finished with conclusion ${CONCLUSION}."
+            DEDUPE_KEY="ci:${WORKFLOW_NAME}:${CONCLUSION}"
+
+            case "${CONCLUSION}" in
+              failure|timed_out|startup_failure)
+                KIND="incident"
+                SEVERITY="high"
+                ;;
+              cancelled|action_required)
+                KIND="incident"
+                SEVERITY="medium"
+                ;;
+            esac
+          elif [ "${EVENT_NAME}" = "deployment_status" ]; then
+            STATE="$(jq -r '.deployment_status.state // "unknown"' "${GITHUB_EVENT_PATH}")"
+            TARGET="$(jq -r '.deployment_status.target_url // .deployment_status.environment_url // ""' "${GITHUB_EVENT_PATH}")"
+            ENVIRONMENT="$(jq -r '.deployment.environment // "online"' "${GITHUB_EVENT_PATH}")"
+            COMPONENT="deployment"
+            EVENT_TYPE="deployment.status"
+            TITLE="Deployment: ${STATE}"
+            SUMMARY="Deployment status changed to ${STATE}."
+            SOURCE_REF="${TARGET:-${SOURCE_REF}}"
+            DEDUPE_KEY="deployment:${ENVIRONMENT}:${STATE}"
+            case "${STATE}" in
+              failure|error)
+                KIND="incident"
+                SEVERITY="critical"
+                ;;
+            esac
+          elif [ "${EVENT_NAME}" = "push" ]; then
+            TITLE="Push to ${REF_NAME}"
+            SUMMARY="New commit pushed to ${REF_NAME}: ${SHA}"
+          fi
+
+          PAYLOAD="$(jq -n             --arg kind "${KIND}"             --arg source "github"             --arg event_type "${EVENT_TYPE}"             --arg title "${TITLE}"             --arg summary "${SUMMARY}"             --arg severity "${SEVERITY}"             --arg component "${COMPONENT}"             --arg environment "${ENVIRONMENT}"             --arg source_ref "${SOURCE_REF}"             --arg commit_sha "${SHA}"             --arg branch "${REF_NAME}"             --arg dedupe_key "${DEDUPE_KEY}"             --arg repository "${REPOSITORY}"             --arg run_id "${GITHUB_RUN_ID}"             '{
+              kind: $kind,
+              source: $source,
+              event_type: $event_type,
+              title: $title,
+              summary: $summary,
+              severity: $severity,
+              component: $component,
+              environment: $environment,
+              source_ref: $source_ref,
+              commit_sha: $commit_sha,
+              branch: $branch,
+              dedupe_key: (if $dedupe_key == "" then null else $dedupe_key end),
+              metadata: { repository: $repository, github_run_id: $run_id }
+            }')"
+
+          curl --fail-with-body --silent --show-error --max-time 20             -X POST             -H "content-type: application/json"             -H "x-project-guardian-secret: ${PROJECT_GUARDIAN_SECRET}"             --data "${PAYLOAD}"             "${PROJECT_GUARDIAN_ENDPOINT}"

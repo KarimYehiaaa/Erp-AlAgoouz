@@ -2,6 +2,7 @@ import { logger } from '../services/loggerService.ts';
 import { AppError } from '../types/errors.ts';
 import config from '../config/index.ts';
 import { emitAutomationEvent } from '../services/automationEventBus.ts';
+import { reportProjectGuardianIncidentSafely } from '../services/projectGuardianService.ts';
 /**
  * تصنيف أخطاء PostgreSQL (رموز pg) إلى AppError عربي واضح.
  * @param {any} err الخطأ الخام
@@ -93,6 +94,17 @@ const errorHandler = (err, req, res, _next) => {
       user_id: userId,
       message: finalErr.message || message,
       code,
+    });
+    reportProjectGuardianIncidentSafely({
+      source: 'runtime',
+      eventType: 'http.5xx',
+      title: `${req.method} ${req.path} -> ${statusCode}`,
+      summary: finalErr.message || message,
+      severity: statusCode >= 503 ? 'critical' : 'high',
+      component: 'backend',
+      environment: config.isDevelopment ? 'local' : 'online',
+      dedupeKey: `runtime:${req.method}:${req.path}:${code}`,
+      metadata: { request_id: requestId, user_id: userId || null, status_code: statusCode, code },
     });
   }
   res.status(statusCode).json({

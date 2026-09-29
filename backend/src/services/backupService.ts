@@ -98,6 +98,8 @@ const RESTORE_ORDER = [
   'idempotency_records',
   'automations',
   'automation_logs',
+  'project_guardian_incidents',
+  'project_guardian_events',
   'workflows_nodes',
   'workflows_edges',
   'telegram_logs',

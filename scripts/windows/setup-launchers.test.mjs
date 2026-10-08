@@ -9,6 +9,7 @@ import {
   readFileSync,
   realpathSync,
   rmSync,
+  statSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -22,11 +23,14 @@ const assertReportedDirectory = (stdout, marker, expected) => {
   assert.ok(reported, stdout);
   const actualPath = realpathSync(reported.slice(marker.length + 1));
   const expectedPath = realpathSync(expected);
-  assert.equal(
-    process.platform === 'win32' ? actualPath.toLowerCase() : actualPath,
-    process.platform === 'win32' ? expectedPath.toLowerCase() : expectedPath,
-    `Reported directory does not match fixture: ${JSON.stringify({ actualPath, expectedPath })}`,
-  );
+  const actualDirectory = statSync(actualPath, { bigint: true });
+  const expectedDirectory = statSync(expectedPath, { bigint: true });
+  const message = `Reported directory does not match fixture: ${JSON.stringify({ actualPath, expectedPath })}`;
+  assert.ok(actualDirectory.isDirectory() && expectedDirectory.isDirectory(), message);
+  // realpathSync's JS implementation preserves Windows 8.3 names. Filesystem
+  // identity, rather than a spelling comparison, proves these aliases match.
+  assert.equal(actualDirectory.dev, expectedDirectory.dev, message);
+  assert.equal(actualDirectory.ino, expectedDirectory.ino, message);
 };
 
 for (const [script, command] of [

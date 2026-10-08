@@ -30,6 +30,7 @@ frontend/**
 !frontend/nginx.conf
 !frontend/index.html
 !frontend/vite.config.js
+!frontend/vercel.json
 !frontend/postcss.config.js
 !frontend/tsconfig.json
 !frontend/tsconfig.node.json

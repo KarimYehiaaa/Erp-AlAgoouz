@@ -60,7 +60,11 @@ for (const [script, command] of [
 }
 
 const withLauncherFixture = (callback) => {
-  const directory = mkdtempSync(path.join(tmpdir(), 'erp-cashier-launcher relocated-'));
+  // Windows can expose TEMP through its 8.3 alias while PowerShell resolves the
+  // same directory to the long name. Compare the actual directory identity.
+  const directory = realpathSync(
+    mkdtempSync(path.join(tmpdir(), 'erp-cashier-launcher relocated-')),
+  );
   const launchers = path.join(directory, 'scripts', 'windows', 'launchers');
   mkdirSync(launchers, { recursive: true });
   try {

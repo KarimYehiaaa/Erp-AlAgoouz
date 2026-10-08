@@ -12,6 +12,7 @@ assert.equal(process.env.RUNNER_OS, 'Linux');
 const root = process.cwd();
 assert.ok(fs.existsSync(path.join(root, 'docker-compose.yml')));
 const project = `erp-compose-${randomUUID()}`;
+fs.mkdirSync(path.join(root, 'scratch'), { recursive: true });
 const directory = fs.mkdtempSync(path.join(root, 'scratch/compose-verification-'));
 const envFile = path.join(directory, 'fixture.env');
 const fixture = {

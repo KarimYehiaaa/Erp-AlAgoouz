@@ -23,11 +23,12 @@ export function useParticles(options: ParticlesOptions = {}) {
     speed = 0.4,
   } = options;
 
-  const canvasRef = ref<any>(null);
+  const canvasRef = ref<HTMLCanvasElement | null>(null);
   let ctx: CanvasRenderingContext2D | null = null;
   let particles: any[] = [];
   let animationId: number | null = null;
-  let isActive = false;
+  const isActive = ref(false);
+  let resizeListener: (() => void) | null = null;
 
   const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 
@@ -99,14 +100,15 @@ export function useParticles(options: ParticlesOptions = {}) {
     animationId = requestAnimationFrame(animate);
   };
 
-  const init = (canvas: any) => {
+  const init = (canvas: HTMLCanvasElement) => {
+    destroy();
     if (prefersReducedMotion.matches) return;
 
     canvasRef.value = canvas;
     ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const resize = () => {
+    resizeListener = () => {
       if (!canvasRef.value) return;
       const rect = canvasRef.value.parentElement?.getBoundingClientRect();
       if (rect) {
@@ -115,27 +117,28 @@ export function useParticles(options: ParticlesOptions = {}) {
       }
     };
 
-    resize();
-    window.addEventListener('resize', resize);
+    resizeListener();
+    window.addEventListener('resize', resizeListener);
 
     particles = Array.from({ length: count }, () => createParticle(canvas.width, canvas.height));
 
-    isActive = true;
+    isActive.value = true;
     animate();
-
-    onUnmounted(() => {
-      window.removeEventListener('resize', resize);
-    });
   };
 
   const destroy = () => {
-    isActive = false;
-    if (animationId) {
+    isActive.value = false;
+    if (animationId !== null) {
       cancelAnimationFrame(animationId);
       animationId = null;
     }
+    if (resizeListener) {
+      window.removeEventListener('resize', resizeListener);
+      resizeListener = null;
+    }
     particles = [];
     ctx = null;
+    canvasRef.value = null;
   };
 
   onUnmounted(destroy);
@@ -144,6 +147,6 @@ export function useParticles(options: ParticlesOptions = {}) {
     canvasRef,
     init,
     destroy,
-    isActive: ref(isActive),
+    isActive,
   };
 }

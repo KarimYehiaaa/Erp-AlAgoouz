@@ -97,7 +97,6 @@ export function useGraphEngine(options: GraphEngineOptions = {}) {
   let minimapCtx: CanvasRenderingContext2D | null = null;
   let resizeObserver: ResizeObserver | null = null;
   let rafId: number | null = null;
-  let dirty = false;
   let engineActive = false; // تبويب الخريطة معروض
   let lastFrameTs = 0;
   let themeReadTs = 0;
@@ -108,7 +107,6 @@ export function useGraphEngine(options: GraphEngineOptions = {}) {
 
   // الفيزياء
   let alpha = 0; // طاقة المحاكاة — تتحلل حتى التوقف الكامل للحلقة
-  let lastWakeTs = 0;
 
   // انتقالات التخطيط
   let tweens: Tween[] = [];
@@ -201,7 +199,6 @@ export function useGraphEngine(options: GraphEngineOptions = {}) {
 
   // ─── إدارة الحلقة: dirty rendering فقط ───
   function markDirty() {
-    dirty = true;
     ensureLoop();
   }
 
@@ -251,13 +248,11 @@ export function useGraphEngine(options: GraphEngineOptions = {}) {
       // خمول تام — إيقاف الحلقة نهائيًا حتى العلامة التالية
       isAnimating.value = false;
       alpha = 0;
-      dirty = false;
     }
   }
 
   function wakePhysics(strength = 1) {
     alpha = Math.max(alpha, strength);
-    lastWakeTs = performance.now();
     isAnimating.value = true;
     markDirty();
   }
@@ -508,10 +503,10 @@ export function useGraphEngine(options: GraphEngineOptions = {}) {
     const hw = (source.width || NODE_W) / 2;
     const hh = (source.height || NODE_H) / 2;
 
-    let sx = source.x;
-    let sy = source.y;
-    let tx = target.x;
-    let ty = target.y;
+    let sx: number;
+    let sy: number;
+    let tx: number;
+    let ty: number;
 
     // توجيه انسيابي أفقي رئيسي للمسارات
     if (Math.abs(dx) >= Math.abs(dy) * 0.75) {

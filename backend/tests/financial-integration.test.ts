@@ -196,6 +196,35 @@ afterAll(async () => {
       ]);
     }
     if (cleanup.saleIds.length) {
+      // Cost layers (migrations 020/088) reference their stock movements. Remove
+      // the layers and their consumptions before the movements to satisfy the FK.
+      await query(
+        `DELETE FROM inventory_cost_layer_consumptions
+         WHERE layer_id IN (
+           SELECT l.id FROM inventory_cost_layers l
+           WHERE l.source_movement_id IN (
+             SELECT id FROM stock_movements
+             WHERE reference_type = 'sale' AND reference_id = ANY($1::int[])
+           )
+         )`,
+        [cleanup.saleIds],
+      );
+      await query(
+        `DELETE FROM inventory_cost_layer_consumptions
+         WHERE stock_movement_id IN (
+           SELECT id FROM stock_movements
+           WHERE reference_type = 'sale' AND reference_id = ANY($1::int[])
+         )`,
+        [cleanup.saleIds],
+      );
+      await query(
+        `DELETE FROM inventory_cost_layers
+         WHERE source_movement_id IN (
+           SELECT id FROM stock_movements
+           WHERE reference_type = 'sale' AND reference_id = ANY($1::int[])
+         )`,
+        [cleanup.saleIds],
+      );
       await query(
         `DELETE FROM payments WHERE reference_type = 'sale' AND reference_id = ANY($1::int[])`,
         [cleanup.saleIds],
@@ -230,6 +259,13 @@ afterAll(async () => {
       await query(`DELETE FROM expenses WHERE id = ANY($1::int[])`, [cleanup.expenseIds]);
     }
     if (cleanup.productIds.length) {
+      await query(
+        `DELETE FROM inventory_cost_layer_consumptions
+         WHERE layer_id IN (
+           SELECT id FROM inventory_cost_layers WHERE product_id = ANY($1::int[])
+         )`,
+        [cleanup.productIds],
+      );
       await query(`DELETE FROM inventory_cost_layers WHERE product_id = ANY($1::int[])`, [
         cleanup.productIds,
       ]);

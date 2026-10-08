@@ -1,6 +1,5 @@
 import { query, getClient } from '../database/pool.ts';
 import { AppError } from '../types/errors.ts';
-import { invalidateDashboardCache } from './dashboardService.ts';
 import { broadcast } from './websocketService.ts';
 import { sanitizeLimit } from '../utils/money.ts';
 import { accountingService } from './accountingService.ts';
@@ -86,7 +85,6 @@ export const createExpense = async (data: Record<string, any>, userId: number) =
     });
 
     await client.query('COMMIT');
-    invalidateDashboardCache();
     broadcast('expenses_changed', createdRow);
     return createdRow;
   } catch (err) {
@@ -175,7 +173,6 @@ export const updateExpense = async (id: number, data: Record<string, any>) => {
     });
 
     await client.query('COMMIT');
-    invalidateDashboardCache();
     broadcast('expenses_changed', updatedRow);
     return updatedRow;
   } catch (err) {
@@ -250,7 +247,6 @@ export const deleteExpense = async (id: number) => {
     await accountingService.deleteJournalEntryByReference('expense', id, client);
 
     await client.query('COMMIT');
-    invalidateDashboardCache();
     broadcast('expenses_changed', { id });
   } catch (err) {
     await client.query('ROLLBACK');

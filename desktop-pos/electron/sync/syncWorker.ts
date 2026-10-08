@@ -7,6 +7,11 @@ import https from 'https';
 import { BrowserWindow } from 'electron';
 import { validateServerUrl } from '../../src/services/serverUrlPolicy';
 
+// Match backend posShiftController.batchSync request limits.
+const MAX_BATCH_SALES = 50;
+const MAX_ITEMS_PER_SALE = 100;
+const MAX_BATCH_ITEMS = 500;
+
 export interface SyncConfig {
   serverUrl: string;
   checkIntervalMs: number;
@@ -22,6 +27,7 @@ export function validateWorkerServerUrl(
 export class PosSyncWorker {
   private isRunning = false;
   private intervalId: NodeJS.Timeout | null = null;
+  private startupTimeoutId: NodeJS.Timeout | null = null;
   private serverUrl: string;
   private authToken: string | null = null;
   private syncInFlight = false;
@@ -55,6 +61,30 @@ export class PosSyncWorker {
 
   public getAuthToken(): string | null {
     return this.authToken;
+  }
+
+  public getQueueContext(): { origin_server: string; origin_user_id: number } | null {
+    if (!this.authToken) return null;
+    try {
+      // Routing metadata only. The destination API still verifies the signed JWT.
+      const claims = JSON.parse(
+        Buffer.from(this.authToken.split('.')[1], 'base64url').toString('utf8'),
+      );
+      const userId = Number(claims.userId);
+      if (!Number.isSafeInteger(userId) || userId <= 0) return null;
+      return { origin_server: this.serverUrl, origin_user_id: userId };
+    } catch {
+      return null;
+    }
+  }
+
+  public ownsQueueItem(item: any): boolean {
+    const context = this.getQueueContext();
+    return (
+      !!context &&
+      item.origin_server === context.origin_server &&
+      Number(item.origin_user_id) === context.origin_user_id
+    );
   }
 
   public setAuthToken(token: string | null) {
@@ -119,6 +149,7 @@ export class PosSyncWorker {
       );
       return false;
     }
+    if (this.serverUrl !== res.normalizedUrl) this.authToken = null;
     this.serverUrl = res.normalizedUrl;
     console.log('[SyncWorker] Central server URL updated to:', this.serverUrl);
     return true;
@@ -129,7 +160,10 @@ export class PosSyncWorker {
     this.isRunning = true;
 
     // First check after 3 seconds
-    setTimeout(() => this.runSyncCycle(), 3000);
+    this.startupTimeoutId = setTimeout(() => {
+      this.startupTimeoutId = null;
+      void this.runSyncCycle();
+    }, 3000);
 
     // Continuous loop
     this.intervalId = setInterval(() => {
@@ -140,12 +174,15 @@ export class PosSyncWorker {
   }
 
   public stop() {
+    if (this.startupTimeoutId) {
+      clearTimeout(this.startupTimeoutId);
+      this.startupTimeoutId = null;
+    }
     if (this.intervalId) {
       clearInterval(this.intervalId);
       this.intervalId = null;
     }
     this.isRunning = false;
-    this.syncInFlight = false;
     console.log('[SyncWorker] Background sync worker stopped.');
   }
 
@@ -157,24 +194,32 @@ export class PosSyncWorker {
   }> {
     if (this.syncInFlight) {
       console.log('[SyncWorker] Sync cycle already in flight. Skipping overlapping run.');
-      const queue = this.readQueue();
-      const remaining = queue.filter(
-        (item) =>
-          (item.status === 'PENDING' || item.status === 'FAILED') && (item.retry_count || 0) < 10,
-      ).length;
-      return { success: false, synced: 0, remaining };
+      return {
+        success: false,
+        synced: 0,
+        remaining: 0,
+        message: 'توجد دورة مزامنة جارية؛ أعد المحاولة بعد انتهائها',
+      };
     }
 
     this.syncInFlight = true;
     try {
       const queue = this.readQueue();
-      const pendingItems = queue.filter(
+      const allPendingItems = queue.filter(
         (item) =>
           (item.status === 'PENDING' || item.status === 'FAILED') && (item.retry_count || 0) < 10,
       );
+      const pendingItems = allPendingItems.filter((item) => this.ownsQueueItem(item));
 
       if (pendingItems.length === 0) {
-        return { success: true, synced: 0, remaining: 0 };
+        return {
+          success: allPendingItems.length === 0,
+          synced: 0,
+          remaining: allPendingItems.length,
+          ...(allPendingItems.length
+            ? { message: 'فواتير محفوظة لحساب أو سيرفر آخر، أو بلا هوية قديمة؛ لن تُرسل تلقائيًا' }
+            : {}),
+        };
       }
 
       if (!this.authToken) {
@@ -185,6 +230,8 @@ export class PosSyncWorker {
       }
 
       console.log(`[SyncWorker] Found ${pendingItems.length} pending items. Attempting sync...`);
+      const cycleServerUrl = this.serverUrl;
+      const cycleAuthToken = this.authToken;
 
       // Pre-flight server URL security verification
       const urlCheck = validateWorkerServerUrl(this.serverUrl, this.isPackaged);
@@ -207,18 +254,57 @@ export class PosSyncWorker {
         return { success: false, synced: 0, remaining: pendingItems.length };
       }
 
+      if (this.serverUrl !== cycleServerUrl || this.authToken !== cycleAuthToken) {
+        return {
+          success: false,
+          synced: 0,
+          remaining: pendingItems.length,
+          message: 'SESSION_CHANGED_DURING_SYNC',
+        };
+      }
+
+      // Submit one bounded batch per cycle. Unsent records keep their retry count.
+      const batchItems: any[] = [];
+      let batchItemCount = 0;
+      for (const item of pendingItems) {
+        const itemCount = Array.isArray(item.items) ? item.items.length : 0;
+        if (itemCount > MAX_ITEMS_PER_SALE) {
+          this.updateStatus(
+            item.sync_id,
+            'FAILED',
+            undefined,
+            'تجاوزت الفاتورة حد 100 صنف؛ تحتاج مراجعة قبل المزامنة',
+          );
+          continue;
+        }
+        if (batchItems.length >= MAX_BATCH_SALES || batchItemCount + itemCount > MAX_BATCH_ITEMS)
+          break;
+        batchItems.push(item);
+        batchItemCount += itemCount;
+      }
+      if (!batchItems.length) {
+        return {
+          success: false,
+          synced: 0,
+          remaining: pendingItems.length,
+          message: 'NO_VALID_BATCH',
+        };
+      }
+      const submittedIds = new Set(batchItems.map((item) => item.sync_id));
+
       try {
         const payload = {
-          sales: pendingItems.map((item) => ({
+          sales: batchItems.map(({ origin_server: _server, origin_user_id: _user, ...item }) => ({
             ...item,
             pos_shift_id: item.pos_shift_id || undefined,
           })),
         };
 
-        const result = await this.postJson(`${this.serverUrl}/sales/batch-sync`, payload);
+        const result = await this.postJson(`${cycleServerUrl}/sales/batch-sync`, payload);
         if (result && result.success && Array.isArray(result.results)) {
           let syncedCount = 0;
           for (const res of result.results) {
+            if (!submittedIds.delete(res.sync_id)) continue;
             if (res.status === 'SYNCED') {
               const localUpdated = this.updateStatus(res.sync_id, 'SYNCED', res.sale_id);
               if (localUpdated) {
@@ -238,7 +324,7 @@ export class PosSyncWorker {
             }
           }
           console.log(
-            `[SyncWorker] Batch sync completed. Locally persisted sync: ${syncedCount}/${pendingItems.length}`,
+            `[SyncWorker] Batch sync completed. Locally persisted sync: ${syncedCount}/${batchItems.length}`,
           );
 
           const currentQueue = this.readQueue();
@@ -257,14 +343,14 @@ export class PosSyncWorker {
             });
           }
           return {
-            success: syncedCount > 0 && syncedCount === pendingItems.length,
+            success: syncedCount > 0 && syncedCount === batchItems.length,
             synced: syncedCount,
             remaining,
           };
         }
 
         // Server returned failure or invalid result structure
-        for (const item of pendingItems) {
+        for (const item of batchItems) {
           this.updateStatus(
             item.sync_id,
             'FAILED',
@@ -280,7 +366,7 @@ export class PosSyncWorker {
         return { success: false, synced: 0, remaining };
       } catch (err: any) {
         console.error('[SyncWorker] Error during batch sync:', err.message);
-        for (const item of pendingItems) {
+        for (const item of batchItems) {
           this.updateStatus(
             item.sync_id,
             'FAILED',
@@ -295,6 +381,14 @@ export class PosSyncWorker {
         ).length;
         return { success: false, synced: 0, remaining };
       }
+    } catch (error: any) {
+      console.error('[SyncWorker] Queue cycle stopped:', error?.message || 'QUEUE_READ_FAILED');
+      return {
+        success: false,
+        synced: 0,
+        remaining: 0,
+        message: error?.message || 'تعذر قراءة الطابور المحلي؛ لم تتم مزامنته',
+      };
     } finally {
       this.syncInFlight = false;
     }

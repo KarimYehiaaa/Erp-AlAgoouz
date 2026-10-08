@@ -20,6 +20,12 @@ export const useAppStore = defineStore('app', () => {
   );
   const notifications = ref<any[]>([]);
   const notificationDrawerOpen = ref(false);
+  const notificationContextRevision = ref(0);
+  const resetNotifications = () => {
+    notificationContextRevision.value++;
+    notifications.value = [];
+    notificationDrawerOpen.value = false;
+  };
   const isOnline = ref(navigator.onLine);
   const pendingSyncCount = ref(0);
   const dataRefreshTrigger = ref(0);
@@ -194,6 +200,8 @@ export const useAppStore = defineStore('app', () => {
     setWorkspace,
     notifications,
     notificationDrawerOpen,
+    notificationContextRevision,
+    resetNotifications,
     isOnline,
     pendingSyncCount,
     dataRefreshTrigger,

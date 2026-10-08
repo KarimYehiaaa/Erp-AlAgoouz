@@ -1,11 +1,9 @@
-import { BaseRepository } from './base.repository.ts';
 import { query } from '../database/pool.ts';
 import { getPaginationParams, buildPaginationMeta } from '../utils/pagination.ts';
 /**
  * عمليات المبيعات: القائمة مع الترقيم والتصفية.
  */
-class SalesRepository extends BaseRepository {
-  tableName = 'sales';
+class SalesRepository {
   /**
    * قائمة المبيعات مع بيانات العميل والمستخدم والمخزن (مع ترقيم وتصفية).
    * @param {Record<string, any>} [filters] عوامل التصفية (sale_type، entry_mode، from_date، to_date، status، page، limit)

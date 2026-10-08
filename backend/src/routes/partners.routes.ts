@@ -12,21 +12,14 @@ const router = Router();
 router.get(
   '/partners/drawings',
   authenticate,
-  authorize('reports.view', 'expenses.view', 'settings.view', 'dashboard.view'),
+  authorize('reports.view', 'expenses.view', 'settings.view'),
   partnersController.listDrawings,
 );
 
 router.post(
   '/partners/drawings',
   authenticate,
-  authorize(
-    'reports.view',
-    'expenses.add',
-    'expenses.view',
-    'settings.edit',
-    'settings.view',
-    'pos.view',
-  ),
+  authorize('reports.view', 'expenses.add', 'expenses.view', 'settings.edit', 'settings.view'),
   requireIdempotency,
   partnersController.createDrawing,
 );
@@ -42,7 +35,7 @@ router.delete(
 router.get(
   '/partners/settlement',
   authenticate,
-  authorize('reports.view', 'expenses.view', 'settings.view', 'dashboard.view'),
+  authorize('reports.view', 'expenses.view', 'settings.view'),
   partnersController.settlement,
 );
 
@@ -50,14 +43,14 @@ router.get(
 router.get(
   '/partners',
   authenticate,
-  authorize('reports.view', 'expenses.view', 'settings.view', 'dashboard.view'),
+  authorize('reports.view', 'expenses.view', 'settings.view'),
   partnersController.listPartners,
 );
 
 router.get(
   '/partners/:id',
   authenticate,
-  authorize('reports.view', 'expenses.view', 'settings.view', 'dashboard.view'),
+  authorize('reports.view', 'expenses.view', 'settings.view'),
   partnersController.getPartner,
 );
 
@@ -88,7 +81,7 @@ router.delete(
 router.get(
   '/',
   authenticate,
-  authorize('reports.view', 'expenses.view', 'settings.view', 'dashboard.view'),
+  authorize('reports.view', 'expenses.view', 'settings.view'),
   partnersController.listPartners,
 );
 

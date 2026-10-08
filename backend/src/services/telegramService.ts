@@ -2,6 +2,8 @@
  * services/telegramService.ts — خدمة إرسال التنبيهات والتقارير عبر Telegram Bot API
  * خدمة خفيفة ومباشرة تتصل بـ Telegram Bot API بدون أي مكتبات إضافية.
  */
+import { requestCloudJson } from '../utils/cloudProviderRequest.ts';
+import { AppError } from '../types/errors.ts';
 
 export interface TelegramConfig {
   botToken?: string;
@@ -15,7 +17,8 @@ export class TelegramService {
   static async sendMessage(
     text: string,
     config?: TelegramConfig,
-    parseMode: 'HTML' | 'Markdown' = 'HTML',
+    parseMode: 'HTML' | 'Markdown' | 'MarkdownV2' = 'HTML',
+    signal: AbortSignal = AbortSignal.timeout(10_000),
   ): Promise<{ success: boolean; error?: string; messageId?: number }> {
     const token = (config?.botToken || process.env.TELEGRAM_BOT_TOKEN || '').trim();
     const chatId = (config?.chatId || process.env.TELEGRAM_CHAT_ID || '').trim();
@@ -26,48 +29,48 @@ export class TelegramService {
         error: 'يرجى إدخال كل من Bot Token و Chat ID أولاً',
       };
     }
+    if (!/^\d+:[A-Za-z0-9_-]+$/.test(token)) {
+      return { success: false, error: 'صيغة رمز بوت Telegram غير صالحة' };
+    }
+    if (process.env.NODE_ENV === 'test') {
+      return { success: false, error: 'الإرسال الخارجي معطل في وضع الاختبارات' };
+    }
 
     try {
       const url = `https://api.telegram.org/bot${token}/sendMessage`;
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: chatId,
-          text: text,
-          parse_mode: parseMode,
-          disable_web_page_preview: true,
-        }),
-      });
-
-      const data = await res.json();
-      if (!data.ok) {
-        let friendlyErr = data.description || 'فشل إرسال الرسالة إلى تليجرام';
-        if (data.description?.includes('Unauthorized')) {
-          friendlyErr = 'رمز الـ Bot Token غير صحيح أو تم حذفه من BotFather';
-        } else if (data.description?.includes('chat not found')) {
-          friendlyErr = 'الـ Chat ID غير صحيح، أو أنك لم تضغط Start في شات البوت بعد';
-        } else if (data.description?.includes("bot can't initiate conversation")) {
-          friendlyErr =
-            'يجب عليك أولاً فتح شات البوت على تليجرام والضغط على زر Start لكي يتمكن من مراسلتك!';
-        } else if (data.description?.includes('bot was blocked')) {
-          friendlyErr = 'البوت محظور من هذا الحساب في تليجرام، يرجى إلغاء الحظر والضغط على Start';
-        }
-
-        return {
-          success: false,
-          error: friendlyErr,
-        };
+      const data = await requestCloudJson(
+        url,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: chatId,
+            text: text,
+            parse_mode: parseMode,
+            disable_web_page_preview: true,
+          }),
+        },
+        'فشل إرسال Telegram',
+        signal,
+      );
+      const messageId = (data.result as { message_id?: unknown } | undefined)?.message_id;
+      if (
+        data.ok !== true ||
+        typeof messageId !== 'number' ||
+        !Number.isSafeInteger(messageId) ||
+        messageId <= 0
+      ) {
+        return { success: false, error: 'لم يؤكد Telegram حفظ الرسالة بمعرّف صالح' };
       }
 
       return {
         success: true,
-        messageId: data.result?.message_id,
+        messageId,
       };
-    } catch (err: any) {
+    } catch (err: unknown) {
       return {
         success: false,
-        error: err.message || 'خطأ في الاتصال بسيرفر تليجرام',
+        error: err instanceof AppError ? err.message : 'تعذر الاتصال الآمن بخدمة Telegram',
       };
     }
   }

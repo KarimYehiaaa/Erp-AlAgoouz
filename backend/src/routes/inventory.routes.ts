@@ -53,7 +53,13 @@ router.post(
   upload.single('file'),
   api.inventory.importReturnExcel,
 );
-router.get('/warehouses', authenticate, api.inventory.warehouses);
+// POS needs the assigned warehouse for cashier operations; inventory users need it for stock workflows.
+router.get(
+  '/warehouses',
+  authenticate,
+  authorize('inventory.view', 'pos.view'),
+  api.inventory.warehouses,
+);
 router.post(
   '/inventory/transfer',
   authenticate,

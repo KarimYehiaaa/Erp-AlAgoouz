@@ -329,11 +329,12 @@ const dailyBackupReminderHandler: AutomationHandler = async () => {
   if (latest && latest.ageHours < 24) {
     return {
       title,
-      status: 'success',
+      status: 'warning',
       text: `
 🔒 <b>تقرير فحص النسخ الاحتياطية</b>
 ━━━━━━━━━━━━━━━━━━━━
-✅ <b>توجد نسخة احتياطية حديثة قابلة للاستعادة.</b>
+📦 <b>وُجد ملف نسخة احتياطية حديث.</b>
+⚠️ لم يتم التحقق من سلامته أو إمكانية استعادته؛ وجود الملف وحده لا يثبت نجاح الاستعادة.
 📦 <b>آخر نسخة:</b> <code>${latest.name}</code>
 ⏳ <b>عمر النسخة:</b> ${latest.ageHours.toFixed(1)} ساعة (${latest.sizeMb.toFixed(1)} م.ب)
 💡 يُنصح دورياً بتجربة استعادة نسخة والتأكد من موقع التخزين الخارجي.
@@ -498,8 +499,9 @@ const roasteryRecipeWasteGuardHandler: AutomationHandler = async () => {
     `SELECT p.name_ar, p.sku, COALESCE(SUM(sm.quantity), 0) AS wasted_qty, p.unit
      FROM stock_movements sm
      JOIN products p ON p.id = sm.product_id
-     WHERE sm.movement_type IN ('waste', 'damage', 'spoilage', 'adjustment')
-       AND sm.quantity < 0
+     WHERE sm.movement_type IN ('wastage', 'waste', 'damage', 'spoilage', 'adjustment')
+       AND sm.from_warehouse_id IS NOT NULL
+       AND sm.to_warehouse_id IS NULL
        AND sm.created_at >= NOW() - INTERVAL '24 HOURS'
      GROUP BY p.id, p.name_ar, p.sku, p.unit
      ORDER BY wasted_qty ASC LIMIT 10`,
@@ -644,10 +646,7 @@ const errorTrackerAlertHandler: AutomationHandler = async () => {
 
   if (errLogs.rows.length > 0) {
     const list = errLogs.rows
-      .map(
-        (r: any, idx: number) =>
-          `• <b>${r.title || r.event_name}</b>: ${r.error_message || r.message}`,
-      )
+      .map((r: any) => `• <b>${r.title || r.event_name}</b>: ${r.error_message || r.message}`)
       .join('\n');
     return {
       title,
@@ -987,7 +986,7 @@ const coffeeBagsCupsReconcilerHandler: AutomationHandler = async (ctx) => {
   );
 
   // حساب الفرق ونسبة التباين للأكواب
-  let cupVarianceText = '';
+  let cupVarianceText: string;
   let isCupWarning = false;
   if (totalCupsDispatched > 0 && totalCupsSold > 0) {
     const diff = totalCupsDispatched - totalCupsSold;
@@ -1034,7 +1033,7 @@ const coffeeBagsCupsReconcilerHandler: AutomationHandler = async (ctx) => {
     0,
   );
 
-  let bagsText = '';
+  let bagsText: string;
   if (coffeeBagsRes.rows.length > 0) {
     bagsText =
       `\n🛍️ <b>مبيعات أكياس البن والتحميص اليوم:</b> ${totalBagsCount} كيس/كجم بقيمة <b>${totalBagsRevenue.toLocaleString('ar-EG')} ج.م</b>\n` +

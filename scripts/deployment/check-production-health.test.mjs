@@ -1,6 +1,18 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { checkHealthResponse, checkProduction } from './check-production-health.mjs';
+import {
+  checkHealthResponse,
+  checkProduction,
+  checkWebResponse,
+} from './check-production-health.mjs';
+
+const secureHtmlHeaders = {
+  'content-type': 'text/html',
+  'content-security-policy': "default-src 'self'",
+  'x-content-type-options': 'nosniff',
+  'x-frame-options': 'SAMEORIGIN',
+  'referrer-policy': 'strict-origin-when-cross-origin',
+};
 
 test('rejects an HTML fallback even with HTTP 200', async () => {
   await assert.rejects(
@@ -10,6 +22,17 @@ test('rejects an HTML fallback even with HTTP 200', async () => {
       }),
     ),
     /did not return JSON/,
+  );
+});
+
+test('rejects a web page missing required security headers', async () => {
+  await assert.rejects(
+    checkWebResponse(
+      new Response('<!DOCTYPE html>', {
+        headers: { 'content-type': 'text/html' },
+      }),
+    ),
+    /missing security headers: content-security-policy, x-content-type-options, x-frame-options, referrer-policy/,
   );
 });
 
@@ -30,7 +53,7 @@ test('checks direct API, frontend proxy and web separately', async () => {
     fetchImpl: async (url) => {
       calls.push(url.href);
       return url.pathname === '/'
-        ? new Response('<!DOCTYPE html>', { headers: { 'content-type': 'text/html' } })
+        ? new Response('<!DOCTYPE html>', { headers: secureHtmlHeaders })
         : Response.json({ success: true, db: { connected: true } });
     },
   });
@@ -45,7 +68,7 @@ test('fails if only the frontend proxy is broken', async () => {
       fetchImpl: async (url) => {
         if (url.pathname === '/api/v1/health') throw new Error('proxy unavailable');
         return url.pathname === '/'
-          ? new Response('<!DOCTYPE html>', { headers: { 'content-type': 'text/html' } })
+          ? new Response('<!DOCTYPE html>', { headers: secureHtmlHeaders })
           : Response.json({ success: true, db: { connected: true } });
       },
     }),

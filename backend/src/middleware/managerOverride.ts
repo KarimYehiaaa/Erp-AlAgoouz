@@ -16,17 +16,13 @@ import jwt from 'jsonwebtoken';
 import config from '../config/index.ts';
 import { query } from '../database/pool.ts';
 import { AppError } from '../types/errors.ts';
-import { ADMIN_ROLES } from '../../../shared/permissions.js';
-import { roundMoney, parseAmount } from '../utils/money.ts';
+import { ADMIN_ROLES, WAREHOUSE_GLOBAL_ROLES } from '../../../shared/permissions.js';
+import { requiresCashierDiscountOverride } from '../../../shared/managerOverridePolicy.ts';
 import { logger } from '../services/loggerService.ts';
 import type { Request, Response, NextFunction } from 'express';
 
 export const OVERRIDE_TTL_SECONDS = 10 * 60;
 const OVERRIDE_HEADER = 'x-manager-override';
-
-/** حد الخصم الحر للكاشير (يجب أن يطابق قاعدة الواجهة في usePosSales.ts) */
-const CASHIER_MAX_FLAT_DISCOUNT = 50;
-const CASHIER_MAX_DISCOUNT_RATIO = 0.15;
 
 interface OverridePayload {
   typ: 'pos_override';
@@ -35,27 +31,9 @@ interface OverridePayload {
   jti?: string;
 }
 
-// ذاكرة محلية احتياطية لحالات الطوارئ أو بيئات الاختبار المنعزلة
-const consumedOverrideTokens = new Map<string, number>();
-
 export const clearConsumedOverrideTokens = async () => {
-  consumedOverrideTokens.clear();
-  try {
-    await query(`DELETE FROM manager_override_tokens`);
-  } catch {
-    // ignore if table not present
-  }
+  await query(`DELETE FROM manager_override_tokens`);
 };
-
-setInterval(
-  () => {
-    const now = Date.now();
-    for (const [id, expiresAt] of consumedOverrideTokens.entries()) {
-      if (now > expiresAt) consumedOverrideTokens.delete(id);
-    }
-  },
-  10 * 60 * 1000,
-).unref?.();
 
 /**
  * إصدار توكن تجاوز قصير الأجل بعد نجاح التحقق من PIN المدير.
@@ -64,7 +42,11 @@ setInterval(
  * @param {number} cashierUserId معرف الكاشير الطالب
  * @returns {Promise<{ token: string, expires_in: number }>}
  */
-export const issueManagerOverrideToken = async (managerId: number, cashierUserId: number) => {
+export const issueManagerOverrideToken = async (
+  managerId: number,
+  cashierUserId: number,
+  executor: { query: (text: string, params: any[]) => Promise<any> } = { query },
+) => {
   const jti = crypto.randomUUID();
   const token = jwt.sign(
     { typ: 'pos_override', mgr: managerId, csr: cashierUserId, jti } satisfies OverridePayload,
@@ -75,13 +57,14 @@ export const issueManagerOverrideToken = async (managerId: number, cashierUserId
   const expiresAt = new Date(Date.now() + OVERRIDE_TTL_SECONDS * 1000);
 
   try {
-    await query(
+    await executor.query(
       `INSERT INTO manager_override_tokens (jti, token_hash, manager_user_id, cashier_user_id, expires_at)
        VALUES ($1, $2, $3, $4, $5)`,
       [jti, tokenHash, managerId, cashierUserId, expiresAt],
     );
   } catch (err: any) {
     logger.warn(`Failed to persist manager override token: ${err?.message}`);
+    throw new AppError('تعذر تسجيل موافقة المدير. حاول مرة أخرى', 503);
   }
 
   return { token, expires_in: OVERRIDE_TTL_SECONDS };
@@ -132,8 +115,6 @@ const readOverride = async (req: Request): Promise<{ id: number; name: string } 
 
   // 2. التحقق الذري من الاستخدام لمرة واحدة (Atomic Single-Use Consumption)
   const jti = payload.jti || crypto.createHash('sha256').update(token).digest('hex');
-  let consumedInDb = false;
-
   try {
     const consumeRes = await query(
       `UPDATE manager_override_tokens
@@ -146,9 +127,7 @@ const readOverride = async (req: Request): Promise<{ id: number; name: string } 
       [jti, currentUserId || payload.csr],
     );
 
-    if (consumeRes.rowCount && consumeRes.rowCount > 0) {
-      consumedInDb = true;
-    } else {
+    if (!consumeRes.rowCount || consumeRes.rowCount <= 0) {
       // فحص تفصيلي لسبب الفشل لإرجاع كود الخطأ المناسب
       const checkRes = await query(
         `SELECT used_at, expires_at, cashier_user_id FROM manager_override_tokens WHERE jti = $1`,
@@ -187,27 +166,23 @@ const readOverride = async (req: Request): Promise<{ id: number; name: string } 
     }
   } catch (err: any) {
     if (err instanceof AppError) throw err;
-    // استكمال في حال تعذر قاعدة البيانات واستخدام الذاكرة الاحتياطية
-  }
-
-  if (!consumedInDb) {
-    if (consumedOverrideTokens.has(jti)) {
-      throw new AppError(
-        'تم استخدام توكن مصادقة المدير مسبقاً — يلزم الحصول على مصادقة جديدة لكل عملية',
-        403,
-        'MANAGER_OVERRIDE_ALREADY_USED',
-      );
-    }
-    consumedOverrideTokens.set(jti, Date.now() + OVERRIDE_TTL_SECONDS * 1000);
+    // Consumption is centrally coordinated. A process-local fallback could
+    // accept the same persisted token again after the database recovers.
+    throw new AppError(
+      'تعذر التحقق من استخدام موافقة المدير — أعد المحاولة عند عودة الاتصال',
+      503,
+      'MANAGER_OVERRIDE_CONSUMPTION_UNAVAILABLE',
+    );
   }
 
   // المدير يجب أن يبقى نشطًا وقت الاستخدام (إبطال فوري عند تعطيل الحساب)
+  // الأدوار المقبولة للاعتماد هي نفسها التي تصدرها /pos/verify-pin (إداريون ومدير).
   try {
     const mgrRes = await query(
       `SELECT u.id, u.full_name FROM users u
        JOIN roles r ON u.role_id = r.id
        WHERE u.id = $1 AND u.is_active = TRUE AND u.deleted_at IS NULL AND r.name = ANY($2::text[])`,
-      [payload.mgr, ADMIN_ROLES],
+      [payload.mgr, WAREHOUSE_GLOBAL_ROLES],
     );
     const manager = mgrRes.rows[0];
     if (!manager) {
@@ -221,7 +196,11 @@ const readOverride = async (req: Request): Promise<{ id: number; name: string } 
     return { id: manager.id, name: manager.full_name || String(manager.id) };
   } catch (err: any) {
     if (err instanceof AppError) throw err;
-    return { id: payload.mgr, name: String(payload.mgr) };
+    throw new AppError(
+      'تعذر التحقق من أن حساب المدير ما زال نشطًا — أعد المحاولة عند عودة الاتصال',
+      503,
+      'MANAGER_OVERRIDE_VERIFICATION_UNAVAILABLE',
+    );
   }
 };
 
@@ -249,22 +228,16 @@ export const enforceCashierDiscountOverride = async (
 ) => {
   try {
     const body = req.body || {};
-    const items = Array.isArray(body.items) ? body.items : [];
-    const itemsTotal = roundMoney(items.reduce((sum: number, it: any) => sumMoneyLine(sum, it), 0));
-    const fallbackTotal = roundMoney(parseAmount(body.total_amount));
-    const base = items.length ? itemsTotal : fallbackTotal;
-
-    // خصم نقاط الولاء تُمنح للعميل تلقائيًا ولا تُحتسب ضمن "الخصم اليدوي" الخاضع للحد
-    const loyaltyDiscount = roundMoney((parseAmount(body.loyalty_points_redeemed) || 0) / 10);
-    const manualDiscount = Math.max(
-      0,
-      roundMoney(parseAmount(body.discount_amount)) - loyaltyDiscount,
-    );
-
-    const excessive =
-      manualDiscount > CASHIER_MAX_FLAT_DISCOUNT ||
-      (base > 0 && manualDiscount / base > CASHIER_MAX_DISCOUNT_RATIO);
-    if (!excessive) return next();
+    if (
+      !requiresCashierDiscountOverride({
+        items: Array.isArray(body.items) ? body.items : [],
+        totalAmount: body.total_amount,
+        discountAmount: body.discount_amount,
+        loyaltyPointsRedeemed: body.loyalty_points_redeemed,
+      })
+    ) {
+      return next();
+    }
 
     const manager = await readOverride(req);
     if (manager) (req as any).managerOverride = manager;
@@ -273,9 +246,3 @@ export const enforceCashierDiscountOverride = async (
     next(err);
   }
 };
-
-// جمع بخطوات قروش صحيحة لتحصين الفاصلة العائمة (نفس نهج utils/money.ts)
-const sumMoneyLine = (sum: number, it: any) =>
-  (Math.round(sum * 100) +
-    Math.round((Number(it?.quantity) || 0) * (Number(it?.unit_price) || 0) * 100)) /
-  100;

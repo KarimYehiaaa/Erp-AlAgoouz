@@ -1,12 +1,11 @@
 /**
- * plService.js — تقرير الربح والخسارة (P&L)
+ * plService.ts — تقرير الربح والخسارة (P&L)
  *
  * المنطق:
  *  الإيرادات      = مجموع المبيعات المكتملة في الفترة
  *
- *  تكلفة البضاعة = يُفضَّل cost_amount من sale_items (POS)
- *                  وإلا نستخدم المشتريات (purchase_invoices) كتقريب
- *                  لأن المبيعات اليومية (daily) لا تحتوي items
+ *  تكلفة البضاعة = التكلفة المحفوظة مع المبيعات، ثم تكلفة البنود عند غيابها
+ *                  ولا تُستخدم المشتريات بديلًا لتكلفة المبيعات
  *
  *  هامش الربح الإجمالي = إيرادات - تكلفة البضاعة
  *
@@ -17,9 +16,9 @@
  *  التدفق النقدي = رصيد أول الشهر + إيرادات - مشتريات - مصاريف
  */
 
-import { query } from '../database/pool.ts';
+import { query, withReadOnlySnapshot } from '../database/pool.ts';
 import { getOpeningBalanceForDate } from './openingBalanceService.ts';
-import { appCache } from '../utils/cache.ts';
+import { getTreasuryMovementTotals } from './treasuryMovementService.ts';
 import { roundMoney } from '../utils/money.ts';
 
 const toNum = (v) => Number(v || 0);
@@ -35,26 +34,24 @@ const toNum = (v) => Number(v || 0);
  * @param {string} toDate تاريخ النهاية
  * @returns {Promise<any>}
  */
-export const getProfitAndLoss = async (fromDate: string, toDate: string) => {
-  const cacheKey = `pl_${fromDate}_${toDate}`;
-  const cachedVal = appCache.get(cacheKey);
-  if (cachedVal) return cachedVal;
+export const getProfitAndLoss = async (fromDate: string, toDate: string) =>
+  withReadOnlySnapshot(async (client) => {
+    const read: typeof query = (sql, params) => client.query(sql, params);
 
-  const [
-    salesData,
-    cogsFromItems,
-    purchasesData,
-    expensesData,
-    expensesByCategory,
-    salesByType,
-    returnsData,
-    cashInData,
-    supplierPaymentsData,
-    partnerDrawingsData,
-  ] = await Promise.all([
-    // ── 1. إجمالي الإيرادات ──
-    query(
-      `SELECT
+    const [
+      salesData,
+      cogsFromItems,
+      purchasesData,
+      expensesData,
+      expensesByCategory,
+      salesByType,
+      returnsData,
+      supplierPaymentsData,
+      partnerDrawingsData,
+    ] = await Promise.all([
+      // ── 1. إجمالي الإيرادات ──
+      read(
+        `SELECT
          COALESCE(SUM(total_amount), 0)  AS revenue,
          COALESCE(SUM(cost_amount),  0)  AS cogs_stored,
          COALESCE(SUM(profit_amount),0)  AS gross_profit_stored,
@@ -64,36 +61,36 @@ export const getProfitAndLoss = async (fromDate: string, toDate: string) => {
        WHERE deleted_at IS NULL
          AND status = 'completed'
          AND sale_date BETWEEN $1::date AND $2::date`,
-      [fromDate, toDate],
-    ),
+        [fromDate, toDate],
+      ),
 
-    // ── 2. تكلفة البضاعة من sale_items (للمبيعات POS التي تحتوي items) ──
-    query(
-      `SELECT COALESCE(SUM(si.cost_price * si.quantity), 0) AS cogs_items
+      // ── 2. تكلفة البضاعة من sale_items (للمبيعات POS التي تحتوي items) ──
+      read(
+        `SELECT COALESCE(SUM(si.cost_price * si.quantity), 0) AS cogs_items
        FROM sale_items si
        JOIN sales s ON s.id = si.sale_id
        WHERE s.deleted_at IS NULL
          AND s.status = 'completed'
          AND s.sale_date BETWEEN $1::date AND $2::date`,
-      [fromDate, toDate],
-    ),
+        [fromDate, toDate],
+      ),
 
-    // ── 3. إجمالي المشتريات في الفترة ──
-    query(
-      `SELECT
+      // ── 3. إجمالي المشتريات في الفترة ──
+      read(
+        `SELECT
          COALESCE(SUM(total_amount), 0) AS purchases_total,
          COUNT(*)::int                  AS purchases_count
        FROM purchase_invoices
        WHERE deleted_at IS NULL
          AND invoice_date BETWEEN $1::date AND $2::date`,
-      [fromDate, toDate],
-    ),
+        [fromDate, toDate],
+      ),
 
-    // ── 4. إجمالي المصاريف (مواصفة المصاريف الثابتة والمتغيرة) ──
-    query(
-      `SELECT
+      // ── 4. إجمالي المصاريف (مواصفة المصاريف الثابتة والمتغيرة) ──
+      read(
+        `SELECT
          COALESCE(SUM(e.amount), 0) AS expenses_total,
-         COALESCE(SUM(CASE WHEN COALESCE(e.payment_method, '') != 'adjustment' THEN e.amount ELSE 0 END), 0) AS cash_expenses_total,
+         COALESCE(SUM(CASE WHEN LOWER(TRIM(COALESCE(e.payment_method, ''))) != 'adjustment' THEN e.amount ELSE 0 END), 0) AS cash_expenses_total,
          COALESCE(SUM(CASE WHEN COALESCE(e.is_fixed, ec.is_fixed, FALSE) = TRUE THEN e.amount ELSE 0 END), 0) AS fixed_expenses_total,
          COALESCE(SUM(CASE WHEN COALESCE(e.is_fixed, ec.is_fixed, FALSE) = FALSE THEN e.amount ELSE 0 END), 0) AS variable_expenses_total,
          COUNT(e.id)::int AS expenses_count
@@ -101,12 +98,12 @@ export const getProfitAndLoss = async (fromDate: string, toDate: string) => {
        LEFT JOIN expense_categories ec ON ec.id = e.category_id
        WHERE e.deleted_at IS NULL
          AND e.expense_date BETWEEN $1::date AND $2::date`,
-      [fromDate, toDate],
-    ),
+        [fromDate, toDate],
+      ),
 
-    // ── 5. المصاريف مُجمَّعة بالتصنيف ودرجة الثبات ──
-    query(
-      `SELECT
+      // ── 5. المصاريف مُجمَّعة بالتصنيف ودرجة الثبات ──
+      read(
+        `SELECT
          COALESCE(ec.name_ar, 'أخرى') AS category,
          COALESCE(e.is_fixed, ec.is_fixed, FALSE) AS is_fixed,
          COALESCE(SUM(e.amount), 0)   AS total,
@@ -117,12 +114,12 @@ export const getProfitAndLoss = async (fromDate: string, toDate: string) => {
          AND e.expense_date BETWEEN $1::date AND $2::date
        GROUP BY ec.id, ec.name_ar, COALESCE(e.is_fixed, ec.is_fixed, FALSE)
        ORDER BY total DESC`,
-      [fromDate, toDate],
-    ),
+        [fromDate, toDate],
+      ),
 
-    // ── 6. المبيعات مُجمَّعة بالنوع ──
-    query(
-      `SELECT
+      // ── 6. المبيعات مُجمَّعة بالنوع ──
+      read(
+        `SELECT
          sale_type,
          COALESCE(SUM(total_amount), 0)  AS revenue,
          COALESCE(SUM(cost_amount),  0)  AS cogs,
@@ -133,245 +130,218 @@ export const getProfitAndLoss = async (fromDate: string, toDate: string) => {
          AND status = 'completed'
          AND sale_date BETWEEN $1::date AND $2::date
        GROUP BY sale_type`,
-      [fromDate, toDate],
-    ),
+        [fromDate, toDate],
+      ),
 
-    // ── 7. المرتجعات في الفترة ──
-    query(
-      `SELECT COALESCE(SUM(total_amount), 0) AS returns_total, COUNT(*)::int AS returns_count
+      // ── 7. المرتجعات في الفترة ──
+      read(
+        `SELECT COALESCE(SUM(total_amount), 0) AS returns_total, COUNT(*)::int AS returns_count
        FROM sales
        WHERE deleted_at IS NULL
          AND status = 'returned'
          AND sale_date BETWEEN $1::date AND $2::date`,
-      [fromDate, toDate],
-    ),
+        [fromDate, toDate],
+      ),
 
-    // ── 8. التدفقات النقدية الفعلية المحصلة (Cash-In) ──
-    query(
-      `WITH payment_records AS (
-         SELECT amount, payment_method
-         FROM payments
-         WHERE reference_type IN ('sale', 'invoice', 'customer_opening', 'customer_advance', 'customer_deposit')
-           AND created_at BETWEEN $1::date AND ($2::date + INTERVAL '1 day')
-       ),
-       direct_sales_without_payments AS (
-         SELECT s.total_amount as amount, 'cash' as payment_method
-         FROM sales s
-         WHERE s.deleted_at IS NULL
-           AND s.status = 'completed'
-           AND s.payment_status = 'paid'
-           AND s.sale_date BETWEEN $1::date AND $2::date
-           AND NOT EXISTS (
-             SELECT 1 FROM payments p
-             WHERE (p.reference_type = 'sale' AND p.reference_id = s.id)
-                OR (p.reference_type = 'invoice' AND p.reference_id IN (SELECT id FROM invoices WHERE sale_id = s.id))
-           )
-       )
-       SELECT
-         COALESCE(SUM(amount), 0) as cash_in_total,
-         COALESCE(SUM(CASE WHEN LOWER(COALESCE(payment_method, 'cash')) IN ('cash', 'نقد', 'نقدي') THEN amount ELSE 0 END), 0) as cash_in_cash,
-         COALESCE(SUM(CASE WHEN LOWER(COALESCE(payment_method, 'cash')) NOT IN ('cash', 'نقد', 'نقدي') THEN amount ELSE 0 END), 0) as cash_in_electronic
-       FROM (
-         SELECT * FROM payment_records
-         UNION ALL
-         SELECT * FROM direct_sales_without_payments
-       ) all_cash_in`,
-      [fromDate, toDate],
-    ),
-
-    // ── 9. المدفوعات النقدية للموردين (Cash-Out to Suppliers) ──
-    query(
-      `SELECT COALESCE(SUM(amount), 0) as paid_to_suppliers
+      // ── 9. المدفوعات النقدية للموردين (Cash-Out to Suppliers) ──
+      read(
+        `SELECT COALESCE(SUM(amount), 0) as paid_to_suppliers
        FROM payments
        WHERE reference_type = 'supplier'
-         AND created_at BETWEEN $1::date AND ($2::date + INTERVAL '1 day')`,
-      [fromDate, toDate],
-    ),
+         AND LOWER(TRIM(COALESCE(payment_method, 'cash'))) <> 'credit'
+         AND created_at >= $1::date AND created_at < ($2::date + INTERVAL '1 day')`,
+        [fromDate, toDate],
+      ),
 
-    // ── 10. مسحوبات الشركاء (Partner Drawings) ──
-    query(
-      `SELECT COALESCE(SUM(amount), 0) as partner_drawings
+      // ── 10. مسحوبات الشركاء (Partner Drawings) ──
+      read(
+        `SELECT COALESCE(SUM(amount), 0) as partner_drawings
        FROM partner_drawings
        WHERE drawing_date BETWEEN $1::date AND $2::date`,
-      [fromDate, toDate],
-    ),
-  ]);
+        [fromDate, toDate],
+      ),
+    ]);
 
-  // ── حساب رصيد أول المدة بخوارزمية ذكية ──
-  // الخوارزمية:
-  // 1. نبحث عن opening balance لنفس الشهر أو أقرب شهر سابق
-  // 2. لو مش موجود، نرجع صفر
-  const fromDateObj = new Date(fromDate + 'T00:00:00');
-  const openingRow = await getOpeningBalanceForDate(fromDateObj);
-  let openingBalance = toNum(openingRow.amount);
+    // ── حساب رصيد أول المدة بخوارزمية ذكية ──
+    // الخوارزمية:
+    // 1. نبحث عن opening balance لنفس الشهر أو أقرب شهر سابق
+    // 2. لو مش موجود، نرجع صفر
+    const openingRow = await getOpeningBalanceForDate(fromDate, read);
+    let openingBalance = toNum(openingRow.amount);
 
-  // لو رجع صفر، حاول تبحث في الشهر نفسه بكل الـ keys الممكنة
-  if (openingBalance === 0) {
-    const yr = fromDateObj.getFullYear();
-    const mo = String(fromDateObj.getMonth() + 1).padStart(2, '0');
-    const altRow = await query(
-      `SELECT value FROM settings
+    // لو رجع صفر، حاول تبحث في الشهر نفسه بكل الـ keys الممكنة
+    if (openingBalance === 0) {
+      const altRow = await read(
+        `SELECT value FROM settings
        WHERE key LIKE $1
+         AND NOT EXISTS (SELECT 1 FROM settings WHERE key = $2)
        ORDER BY updated_at DESC
        LIMIT 1`,
-      [`sales_opening_balance:${yr}-${mo}%`],
-    );
-    if (altRow.rows[0]?.value) {
-      openingBalance = toNum(altRow.rows[0].value?.amount || 0);
+        [
+          `sales_opening_balance:${fromDate.slice(0, 7)}%`,
+          `sales_opening_balance:${fromDate.slice(0, 7)}`,
+        ],
+      );
+      if (altRow.rows[0]?.value) {
+        openingBalance = toNum(altRow.rows[0].value?.amount || 0);
+      }
     }
-  }
 
-  // ── بناء القيم ──
-  const revenue = roundMoney(toNum(salesData.rows[0]?.revenue));
-  const cogsFromItems_ = roundMoney(toNum(cogsFromItems.rows[0]?.cogs_items));
-  const cogsStored = roundMoney(toNum(salesData.rows[0]?.cogs_stored));
-  const purchases = roundMoney(toNum(purchasesData.rows[0]?.purchases_total));
-  const expensesTotal = roundMoney(toNum(expensesData.rows[0]?.expenses_total));
-  const fixedExpenses = roundMoney(toNum(expensesData.rows[0]?.fixed_expenses_total));
-  const variableExpenses = roundMoney(toNum(expensesData.rows[0]?.variable_expenses_total));
-  const returns = roundMoney(toNum(returnsData.rows[0]?.returns_total));
+    // ── بناء القيم ──
+    const revenue = roundMoney(toNum(salesData.rows[0]?.revenue));
+    const cogsFromItems_ = roundMoney(toNum(cogsFromItems.rows[0]?.cogs_items));
+    const cogsStored = roundMoney(toNum(salesData.rows[0]?.cogs_stored));
+    const purchases = roundMoney(toNum(purchasesData.rows[0]?.purchases_total));
+    const expensesTotal = roundMoney(toNum(expensesData.rows[0]?.expenses_total));
+    const fixedExpenses = roundMoney(toNum(expensesData.rows[0]?.fixed_expenses_total));
+    const variableExpenses = roundMoney(toNum(expensesData.rows[0]?.variable_expenses_total));
+    const returns = roundMoney(toNum(returnsData.rows[0]?.returns_total));
 
-  // خوارزمية تحديد COGS الموثوقة:
-  // 1. الأولوية لتكلفة المبيعات المخزنة في فواتير البيع (sales.cost_amount)
-  // 2. إذا لم تتوفر، يتم حسابها من بنود البيع (sale_items.cost_price * quantity)
-  // 3. لا يتم استخدام مشتريات الفترة كبديل للـ COGS منعاً لتضخيم التكلفة بأصول مخزنية لم تُبع بعد
-  let cogsUsed: number;
-  let cogsBasis: string;
+    // خوارزمية تحديد COGS الموثوقة:
+    // 1. الأولوية لتكلفة المبيعات المخزنة في فواتير البيع (sales.cost_amount)
+    // 2. إذا لم تتوفر، يتم حسابها من بنود البيع (sale_items.cost_price * quantity)
+    // 3. لا يتم استخدام مشتريات الفترة كبديل للـ COGS منعاً لتضخيم التكلفة بأصول مخزنية لم تُبع بعد
+    let cogsUsed: number;
+    let cogsBasis: string;
 
-  if (cogsStored > 0) {
-    cogsUsed = cogsStored;
-    cogsBasis = 'cost_stored';
-  } else if (cogsFromItems_ > 0) {
-    cogsUsed = cogsFromItems_;
-    cogsBasis = 'sale_items';
-  } else {
-    cogsUsed = 0;
-    cogsBasis = 'untracked';
-  }
+    if (cogsStored > 0) {
+      cogsUsed = cogsStored;
+      cogsBasis = 'cost_stored';
+    } else if (cogsFromItems_ > 0) {
+      cogsUsed = cogsFromItems_;
+      cogsBasis = 'sale_items';
+    } else {
+      cogsUsed = 0;
+      cogsBasis = 'untracked';
+    }
 
-  const netRevenue = revenue; // المبيعات المكتملة هي صافي الإيرادات
-  const grossRevenue = roundMoney(revenue + returns); // المبيعات الإجمالية
-  const grossProfit = roundMoney(netRevenue - cogsUsed);
-  const grossProfitMargin = netRevenue > 0 ? roundMoney((grossProfit / netRevenue) * 100) : 0;
-  const netProfit = roundMoney(grossProfit - expensesTotal);
-  const netProfitMargin = netRevenue > 0 ? roundMoney((netProfit / netRevenue) * 100) : 0;
-  const breakEvenRevenue =
-    grossProfitMargin > 0 ? roundMoney(fixedExpenses / (grossProfitMargin / 100)) : 0;
+    const netRevenue = revenue; // المبيعات المكتملة هي صافي الإيرادات
+    const grossRevenue = roundMoney(revenue + returns); // المبيعات الإجمالية
+    const grossProfit = roundMoney(netRevenue - cogsUsed);
+    const grossProfitMargin = netRevenue > 0 ? roundMoney((grossProfit / netRevenue) * 100) : 0;
+    const netProfit = roundMoney(grossProfit - expensesTotal);
+    const netProfitMargin = netRevenue > 0 ? roundMoney((netProfit / netRevenue) * 100) : 0;
+    const breakEvenRevenue =
+      grossProfitMargin > 0 ? roundMoney(fixedExpenses / (grossProfitMargin / 100)) : 0;
 
-  /**
-   * التدفق النقدي الحقيقي (Cash Flow - Cash Basis):
-   * رصيد أول المدة + المقبوضات النقدية الفعلية - المدفوعات النقدية الفعلية (مصاريف + مسدد للموردين + مسحوبات شركاء)
-   */
-  const cashIn = roundMoney(toNum(cashInData.rows[0]?.cash_in_total));
-  const cashInCash = roundMoney(toNum(cashInData.rows[0]?.cash_in_cash));
-  const cashInElectronic = roundMoney(toNum(cashInData.rows[0]?.cash_in_electronic));
-  const supplierPayments = roundMoney(toNum(supplierPaymentsData.rows[0]?.paid_to_suppliers));
-  const partnerDrawings = roundMoney(toNum(partnerDrawingsData.rows[0]?.partner_drawings));
-  const cashExpensesTotal = roundMoney(toNum(expensesData.rows[0]?.cash_expenses_total));
-  const cashOut = roundMoney(cashExpensesTotal + supplierPayments + partnerDrawings);
-  const netCashFlow = roundMoney(cashIn - cashOut);
-  const cashFlowBefore = openingBalance;
-  const cashFlowClosing = roundMoney(openingBalance + netCashFlow);
+    /**
+     * التدفق النقدي الحقيقي (Cash Flow - Cash Basis):
+     * رصيد أول المدة + المقبوضات النقدية الفعلية - المدفوعات النقدية الفعلية (مصاريف + مسدد للموردين + مسحوبات شركاء)
+     */
+    const treasury = await getTreasuryMovementTotals(fromDate, toDate, read);
+    const cashIn = treasury.cashIn;
+    const cashInCash = treasury.cashInCash;
+    const cashInElectronic = treasury.cashInElectronic;
+    const supplierPayments = roundMoney(toNum(supplierPaymentsData.rows[0]?.paid_to_suppliers));
+    const partnerDrawings = roundMoney(toNum(partnerDrawingsData.rows[0]?.partner_drawings));
+    const cashExpensesTotal = roundMoney(toNum(expensesData.rows[0]?.cash_expenses_total));
+    const cashOut = treasury.cashOut;
+    const netCashFlow = treasury.net;
+    const cashFlowBefore = openingBalance;
+    const cashFlowClosing = roundMoney(openingBalance + netCashFlow);
 
-  // ── تفاصيل المبيعات بالنوع ──
-  const byType = {};
-  for (const row of salesByType.rows) {
-    byType[row.sale_type] = {
-      revenue: roundMoney(toNum(row.revenue)),
-      cogs: roundMoney(toNum(row.cogs)),
-      gross_profit: roundMoney(toNum(row.gross_profit)),
-      count: row.count,
+    // ── تفاصيل المبيعات بالنوع ──
+    const byType: Record<
+      string,
+      { revenue: number; cogs: number; gross_profit: number; count: string | number }
+    > = {};
+    for (const row of salesByType.rows) {
+      byType[row.sale_type] = {
+        revenue: roundMoney(toNum(row.revenue)),
+        cogs: roundMoney(toNum(row.cogs)),
+        gross_profit: roundMoney(toNum(row.gross_profit)),
+        count: row.count,
+      };
+    }
+
+    const result = {
+      period: { from: fromDate, to: toDate },
+      cogs_basis: cogsBasis,
+      opening_balance: openingBalance, // رصيد أول المدة للشفافية
+
+      // ── قسم الإيرادات ──
+      revenue: {
+        gross: grossRevenue,
+        returns: returns,
+        net: netRevenue,
+        count: toNum(salesData.rows[0]?.sales_count) + toNum(returnsData.rows[0]?.returns_count),
+        discounts: roundMoney(toNum(salesData.rows[0]?.discounts)),
+        by_type: byType,
+      },
+
+      // ── قسم التكلفة ──
+      cogs: {
+        total: cogsUsed,
+        from_items: cogsFromItems_,
+        from_stored: cogsStored,
+        from_purchases: purchases,
+      },
+
+      // ── هامش الربح الإجمالي ──
+      gross_profit: {
+        amount: grossProfit,
+        margin: grossProfitMargin,
+      },
+
+      // ── المصاريف التشغيلية (ثابتة ومتغيرة) ──
+      operating_expenses: {
+        total: expensesTotal,
+        fixed_total: fixedExpenses,
+        variable_total: variableExpenses,
+        break_even_revenue: breakEvenRevenue,
+        count: toNum(expensesData.rows[0]?.expenses_count),
+        breakdown: expensesByCategory.rows.map((r) => ({
+          category: r.category,
+          is_fixed: Boolean(r.is_fixed),
+          total: roundMoney(toNum(r.total)),
+          count: r.count,
+        })),
+      },
+
+      // ── صافي الربح ──
+      net_profit: {
+        amount: netProfit,
+        margin: netProfitMargin,
+      },
+
+      // ── المشتريات ──
+      purchases: {
+        total: purchases,
+        count: toNum(purchasesData.rows[0]?.purchases_count),
+      },
+
+      // ── التدفق النقدي الحقيقي والمطابقة ──
+      cash_flow: {
+        opening: cashFlowBefore,
+        revenue: revenue,
+        cash_in: cashIn,
+        cash_in_cash: cashInCash,
+        cash_in_electronic: cashInElectronic,
+        cash_out: cashOut,
+        closing: cashFlowClosing,
+        purchases: purchases,
+        supplier_payments: supplierPayments,
+        partner_drawings: partnerDrawings,
+        expenses: cashExpensesTotal,
+        net_change: netCashFlow,
+      },
     };
-  }
 
-  const result = {
-    period: { from: fromDate, to: toDate },
-    cogs_basis: cogsBasis,
-    opening_balance: openingBalance, // رصيد أول المدة للشفافية
-
-    // ── قسم الإيرادات ──
-    revenue: {
-      gross: grossRevenue,
-      returns: returns,
-      net: netRevenue,
-      count: toNum(salesData.rows[0]?.sales_count) + toNum(returnsData.rows[0]?.returns_count),
-      discounts: roundMoney(toNum(salesData.rows[0]?.discounts)),
-      by_type: byType,
-    },
-
-    // ── قسم التكلفة ──
-    cogs: {
-      total: cogsUsed,
-      from_items: cogsFromItems_,
-      from_stored: cogsStored,
-      from_purchases: purchases,
-    },
-
-    // ── هامش الربح الإجمالي ──
-    gross_profit: {
-      amount: grossProfit,
-      margin: grossProfitMargin,
-    },
-
-    // ── المصاريف التشغيلية (ثابتة ومتغيرة) ──
-    operating_expenses: {
-      total: expensesTotal,
-      fixed_total: fixedExpenses,
-      variable_total: variableExpenses,
-      break_even_revenue: breakEvenRevenue,
-      count: toNum(expensesData.rows[0]?.expenses_count),
-      breakdown: expensesByCategory.rows.map((r) => ({
-        category: r.category,
-        is_fixed: Boolean(r.is_fixed),
-        total: roundMoney(toNum(r.total)),
-        count: r.count,
-      })),
-    },
-
-    // ── صافي الربح ──
-    net_profit: {
-      amount: netProfit,
-      margin: netProfitMargin,
-    },
-
-    // ── المشتريات ──
-    purchases: {
-      total: purchases,
-      count: toNum(purchasesData.rows[0]?.purchases_count),
-    },
-
-    // ── التدفق النقدي الحقيقي والمطابقة ──
-    cash_flow: {
-      opening: cashFlowBefore,
-      revenue: revenue,
-      cash_in: cashIn,
-      cash_in_cash: cashInCash,
-      cash_in_electronic: cashInElectronic,
-      cash_out: cashOut,
-      closing: cashFlowClosing,
-      purchases: purchases,
-      supplier_payments: supplierPayments,
-      partner_drawings: partnerDrawings,
-      expenses: expensesTotal,
-      net_change: netCashFlow,
-    },
-  };
-
-  // ── مطابقة أرقام قائمة الدخل مع دفتر الأستاذ العام (General Ledger Reconciliation) ──
-  try {
-    const { accountingService } = await import('./accountingService.ts');
-    (result as any).ledger_reconciliation = await accountingService.getLedgerReconciliationSummary(
-      fromDate,
-      toDate,
-    );
-  } catch {
-    // Fallback gracefully if ledger is unavailable
-    (result as any).ledger_reconciliation = null;
-  }
-
-  appCache.set(cacheKey, result, 15 * 60 * 1000, ['pl_report']);
-  return result;
-};
+    // ── مطابقة أرقام قائمة الدخل مع دفتر الأستاذ العام (General Ledger Reconciliation) ──
+    await read('SAVEPOINT pl_ledger_reconciliation');
+    try {
+      const { accountingService } = await import('./accountingService.ts');
+      (result as any).ledger_reconciliation =
+        await accountingService.getLedgerReconciliationSummary(fromDate, toDate, read);
+    } catch {
+      await read('ROLLBACK TO SAVEPOINT pl_ledger_reconciliation');
+      // Fallback gracefully if ledger is unavailable
+      (result as any).ledger_reconciliation = null;
+    } finally {
+      await read('RELEASE SAVEPOINT pl_ledger_reconciliation');
+    }
+    return result;
+  });
 
 /**
  * getMonthlyPLSummary — ملخص شهري لآخر N شهور للرسم البياني

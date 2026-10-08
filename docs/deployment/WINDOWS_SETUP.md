@@ -4,11 +4,11 @@
 
 ## الخدمات المطلوبة
 
-| الخدمة | المنفذ | الحالة المطلوبة |
-| --- | --- | --- |
-| Frontend | 5173 | `npm run dev` داخل `frontend` |
-| Backend | 3000 | `npm run dev` داخل `backend` |
-| PostgreSQL | 5432 | يجب أن تكون قاعدة البيانات تعمل |
+| الخدمة     | المنفذ | الحالة المطلوبة                 |
+| ---------- | ------ | ------------------------------- |
+| Frontend   | 5173   | `npm run dev` داخل `frontend`   |
+| Backend    | 3000   | `npm run dev` داخل `backend`    |
+| PostgreSQL | 5432   | يجب أن تكون قاعدة البيانات تعمل |
 
 ## إعداد PostgreSQL محلي
 
@@ -38,22 +38,23 @@ JWT_SECRET=<long-random-secret>
 ثم شغل إعداد قاعدة البيانات:
 
 ```powershell
-cd "D:\AlAgoouz System\AlAgoouz-erp\backend"
-npm run setup-db
+npm run setup-db -w backend
 ```
+
+السكربت `scripts/windows/setup-database.ps1` يستدعي الأمر نفسه ويعيد رمز الفشل إذا لم تكتمل التهيئة. يستخدم `DATABASE_URL` عند وجوده. عند إنشاء مستخدم وقاعدة لأول مرة على PostgreSQL المثبت على Windows، يحتاج الإعداد إلى كلمة مرور المدير في `POSTGRES_PASSWORD` عبر البيئة المحلية؛ لا تضعها في Git. لا تحتاج قاعدة Supabase الحالية إلى كلمة مرور مدير PostgreSQL محلي.
+
+لإعداد مكونات المشروع كلها بعد تجهيز ملف البيئة، شغّل `npm run setup` أو `scripts/windows/setup.ps1`. يتولى المعالج التثبيت من ملفات القفل، وينتظر جاهزية Docker المحلي عند اختياره، ويتوقف إذا فشل تثبيت الحزم أو إعداد القاعدة أو البناء.
 
 ## تشغيل الخوادم
 
 افتح نافذتين:
 
 ```powershell
-cd "D:\AlAgoouz System\AlAgoouz-erp\backend"
-npm run dev
+npm run dev -w backend
 ```
 
 ```powershell
-cd "D:\AlAgoouz System\AlAgoouz-erp\frontend"
-npm run dev
+npm run dev -w frontend
 ```
 
 تحقق من الخادم:
@@ -77,6 +78,5 @@ docker compose up -d
 ## إعادة تعيين كلمة مرور المدير
 
 ```powershell
-cd "D:\AlAgoouz System\AlAgoouz-erp\backend"
-node src/database/reset-admin.js admin "NewStrongPasswordHere"
+npm run reset-admin -w backend -- admin "NewStrongPasswordHere"
 ```

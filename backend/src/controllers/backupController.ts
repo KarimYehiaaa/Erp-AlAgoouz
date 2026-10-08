@@ -54,7 +54,15 @@ export const backup = {
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
   restore: wrap(async (req, res) => {
-    ok(res, await backupService.restoreBackup(req.body.name));
+    ok(
+      res,
+      await backupService.restoreBackup(req.body.name, {
+        userId: req.user.id,
+        username: req.user.username,
+        ipAddress: req.ip,
+        action: 'backup_restore',
+      }),
+    );
   }),
   /**
    * استعادة قاعدة البيانات من ملف مرفوع.
@@ -63,18 +71,16 @@ export const backup = {
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
   restoreFile: wrap(async (req, res) => {
-    let filePath: string | null = null;
-    try {
-      if (!req.file?.buffer) throw new AppError('لم يتم رفع ملف النسخة', 400);
-      await fs.mkdir(path.join(process.cwd(), 'backups'), { recursive: true });
-      const fileName = `uploaded-restore-${Date.now()}.json`;
-      filePath = path.join(process.cwd(), 'backups', fileName);
-      await fs.writeFile(filePath, req.file.buffer);
-      ok(res, await backupService.restoreBackup(fileName));
-    } finally {
-      // حذف الملف المؤقت دائماً بعد الانتهاء — سواء نجح أو فشل
-      if (filePath) await fs.unlink(filePath).catch(() => {});
-    }
+    if (!req.file?.buffer) throw new AppError('لم يتم رفع ملف النسخة', 400);
+    ok(
+      res,
+      await backupService.restoreBackupContent(req.file.buffer.toString('utf8'), {
+        userId: req.user.id,
+        username: req.user.username,
+        ipAddress: req.ip,
+        action: 'backup_restore_file',
+      }),
+    );
   }),
   /**
    * مسح جميع بيانات النظام.
@@ -83,7 +89,15 @@ export const backup = {
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
   clear: wrap(async (req, res) => {
-    ok(res, await backupService.clearAllData());
+    ok(
+      res,
+      await backupService.clearAllData({
+        userId: req.user.id,
+        username: req.user.username,
+        ipAddress: req.ip,
+        action: 'data_clear',
+      }),
+    );
   }),
   /**
    * اختبار إعدادات النسخ الاحتياطي السحابي.

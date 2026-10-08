@@ -56,18 +56,20 @@ async function calculateShiftMetrics(
          p.reference_id as sale_id,
          LOWER(COALESCE(p.payment_method, 'cash')) as method,
          p.amount
-       FROM payments p
-       WHERE p.reference_type = 'sale'
-         AND p.reference_id IN (SELECT id FROM shift_sales WHERE status = 'completed')
+     FROM payments p
+     WHERE p.reference_type = 'sale'
+       AND LOWER(TRIM(COALESCE(p.payment_method, 'cash'))) <> 'credit'
+       AND p.reference_id IN (SELECT id FROM shift_sales WHERE status = 'completed')
        UNION ALL
        SELECT
          i.sale_id,
          LOWER(COALESCE(p.payment_method, 'cash')) as method,
          p.amount
-       FROM payments p
-       JOIN invoices i ON p.reference_id = i.id
-       WHERE p.reference_type = 'invoice'
-         AND i.sale_id IN (SELECT id FROM shift_sales WHERE status = 'completed')
+     FROM payments p
+     JOIN invoices i ON p.reference_id = i.id
+     WHERE p.reference_type = 'invoice'
+       AND LOWER(TRIM(COALESCE(p.payment_method, 'cash'))) <> 'credit'
+       AND i.sale_id IN (SELECT id FROM shift_sales WHERE status = 'completed')
      ),
      fallback_sales AS (
        SELECT
@@ -77,18 +79,48 @@ async function calculateShiftMetrics(
        FROM shift_sales s
        WHERE s.status = 'completed'
          AND s.payment_status = 'paid'
-         AND s.id NOT IN (SELECT sale_id FROM sale_payments)
+         AND NOT EXISTS (SELECT 1 FROM payments p WHERE (p.reference_type='sale' AND p.reference_id=s.id)
+           OR (p.reference_type='invoice' AND p.reference_id IN (SELECT id FROM invoices WHERE sale_id=s.id)))
      ),
      all_payments AS (
        SELECT * FROM sale_payments
        UNION ALL
        SELECT * FROM fallback_sales
+     ),
+     returned_cash_receipts AS (
+       -- The original receipt stays in the drawer ledger. The refund is a
+       -- separate cash movement, possibly on a different shift/day.
+       SELECT p.amount
+       FROM payments p
+       WHERE p.reference_type = 'sale'
+         AND p.reference_id IN (SELECT id FROM shift_sales WHERE status = 'returned' OR payment_status = 'refunded')
+         AND LOWER(COALESCE(p.payment_method, 'cash')) IN ('cash', 'نقد', 'نقدي')
+       UNION ALL
+       SELECT p.amount
+       FROM payments p
+       JOIN invoices i ON p.reference_id = i.id
+       WHERE p.reference_type = 'invoice'
+         AND i.sale_id IN (SELECT id FROM shift_sales WHERE status = 'returned' OR payment_status = 'refunded')
+         AND LOWER(COALESCE(p.payment_method, 'cash')) IN ('cash', 'نقد', 'نقدي')
+       UNION ALL
+       SELECT s.total_amount
+       FROM shift_sales s
+       WHERE (s.status = 'returned' OR s.payment_status = 'refunded')
+         AND NOT EXISTS (SELECT 1 FROM payments p
+                         WHERE (p.reference_type = 'sale' AND p.reference_id = s.id)
+                            OR (p.reference_type = 'invoice' AND p.reference_id IN
+                                (SELECT id FROM invoices WHERE sale_id = s.id)))
+         AND EXISTS (SELECT 1 FROM pos_cash_movements m
+                     WHERE m.movement_type = 'expense'
+                       AND m.reason = 'رد نقدية لمرتجع بيع ' ||
+                           (SELECT sale_number FROM sales WHERE id = s.id))
      )
      SELECT
        (SELECT COUNT(*) FROM shift_sales WHERE status = 'completed') as total_invoices_count,
        (SELECT COALESCE(SUM(total_amount), 0) FROM shift_sales WHERE status = 'completed') as live_total_sales,
        (SELECT COALESCE(SUM(discount_amount), 0) FROM shift_sales WHERE status = 'completed') as live_total_discounts,
        (SELECT COALESCE(SUM(total_amount), 0) FROM shift_sales WHERE status = 'returned' OR payment_status = 'refunded') as live_total_refunds,
+       (SELECT COALESCE(SUM(amount), 0) FROM returned_cash_receipts) as returned_cash_received,
        COALESCE(SUM(CASE WHEN method IN ('cash', 'نقد', 'نقدي') THEN amount ELSE 0 END), 0) as live_cash_sales,
        COALESCE(SUM(CASE WHEN method IN ('card', 'visa', 'mastercard', 'pos_terminal', 'mada', 'شبكة') THEN amount ELSE 0 END), 0) as live_card_sales,
        COALESCE(SUM(CASE WHEN method IN ('transfer', 'bank_transfer', 'instapay', 'vodafone_cash', 'wallet', 'محفظة', 'تحويل') THEN amount ELSE 0 END), 0) as live_transfer_sales,
@@ -123,7 +155,10 @@ async function calculateShiftMetrics(
   const deposits = roundMoney(Number(moves.total_deposits || 0));
   const withdrawals = roundMoney(Number(moves.total_withdrawals || 0));
 
-  const expectedCash = roundMoney(Number(openingCash) + liveCashSales + deposits - withdrawals);
+  const returnedCashReceived = roundMoney(Number(stats.returned_cash_received || 0));
+  const expectedCash = roundMoney(
+    Number(openingCash) + liveCashSales + returnedCashReceived + deposits - withdrawals,
+  );
 
   return {
     invoices_count: totalInvoicesCount,
@@ -143,48 +178,66 @@ async function calculateShiftMetrics(
 export const posShiftService = {
   /**
    * فتح وردية كاشير جديدة
+   * قفل استشاري لكل كاشير + إعادة فحص داخل معاملة يمنع فتح ورديتين متزامنتين
+   * (السباق السابق read-then-write كان يسمح بورديتين مفتوحتين لنفس الكاشير).
    */
   async openShift(userId: number, data: OpenShiftData) {
-    // 1. التأكد من عدم وجود وردية مفتوحة لنفس المستخدم
-    const activeRes = await query(
-      `SELECT id, shift_number FROM pos_shifts WHERE cashier_user_id = $1 AND status = 'open' LIMIT 1`,
-      [userId],
-    );
-    if (activeRes.rows.length > 0) {
-      return activeRes.rows[0];
-    }
+    const client = await getClient();
+    try {
+      await client.query('BEGIN');
+      // تسلسل فتح الوردية لنفس الكاشير فقط — لا يزاحم بقية الكاشيرين
+      await client.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [
+        `pos_shift_open:${userId}`,
+      ]);
 
-    // 2. تحديد المخزن الافتراضي إذا لم يتم تمريره
-    let warehouseId = data.warehouse_id;
-    if (!warehouseId) {
-      const wRes = await query(
-        `SELECT id FROM warehouses WHERE deleted_at IS NULL ORDER BY id ASC LIMIT 1`,
+      // 1. التأكد من عدم وجود وردية مفتوحة لنفس المستخدم
+      const activeRes = await client.query(
+        `SELECT id, shift_number FROM pos_shifts WHERE cashier_user_id = $1 AND status = 'open' LIMIT 1 FOR UPDATE`,
+        [userId],
       );
-      warehouseId = wRes.rows[0]?.id;
-    }
+      if (activeRes.rows.length > 0) {
+        await client.query('COMMIT');
+        return activeRes.rows[0];
+      }
 
-    // 3. تحديد الجهاز
-    let terminalId = data.terminal_id;
-    if (!terminalId) {
-      const tRes = await query(
-        `SELECT id FROM pos_terminals WHERE is_active = TRUE ORDER BY id ASC LIMIT 1`,
+      // 2. تحديد المخزن الافتراضي إذا لم يتم تمريره
+      let warehouseId = data.warehouse_id;
+      if (!warehouseId) {
+        const wRes = await client.query(
+          `SELECT id FROM warehouses WHERE deleted_at IS NULL ORDER BY id ASC LIMIT 1`,
+        );
+        warehouseId = wRes.rows[0]?.id;
+      }
+
+      // 3. تحديد الجهاز
+      let terminalId = data.terminal_id;
+      if (!terminalId) {
+        const tRes = await client.query(
+          `SELECT id FROM pos_terminals WHERE is_active = TRUE ORDER BY id ASC LIMIT 1`,
+        );
+        terminalId = tRes.rows[0]?.id || null;
+      }
+
+      const shiftNumber = `SHF-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Date.now().toString().slice(-4)}`;
+      const openingCash = Number(data.opening_cash || 0);
+
+      const insertRes = await client.query(
+        `INSERT INTO pos_shifts (
+          shift_number, terminal_id, warehouse_id, cashier_user_id,
+          opening_cash, expected_cash, status, notes
+        ) VALUES ($1, $2, $3, $4, $5, $5, 'open', $6)
+        RETURNING *`,
+        [shiftNumber, terminalId, warehouseId, userId, openingCash, data.notes || null],
       );
-      terminalId = tRes.rows[0]?.id || null;
+
+      await client.query('COMMIT');
+      return insertRes.rows[0];
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
     }
-
-    const shiftNumber = `SHF-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Date.now().toString().slice(-4)}`;
-    const openingCash = Number(data.opening_cash || 0);
-
-    const insertRes = await query(
-      `INSERT INTO pos_shifts (
-        shift_number, terminal_id, warehouse_id, cashier_user_id,
-        opening_cash, expected_cash, status, notes
-      ) VALUES ($1, $2, $3, $4, $5, $5, 'open', $6)
-      RETURNING *`,
-      [shiftNumber, terminalId, warehouseId, userId, openingCash, data.notes || null],
-    );
-
-    return insertRes.rows[0];
   },
 
   /**
@@ -241,10 +294,28 @@ export const posShiftService = {
         throw new AppError('يجب أن يكون المبلغ أكبر من صفر', 400);
       }
 
+      // القيم المعتمدة في القاعدة وتقارير الوردية هي deposit/drop/expense.
+      // رفض أي قيمة غير معروفة بدل حفظها بصمت وجعلها غائبة عن كشف Z.
+      const rawType = String(data.movement_type || '').toLowerCase();
+      const movementType =
+        rawType === 'deposit'
+          ? 'deposit'
+          : rawType === 'drop'
+            ? 'drop'
+            : rawType === 'expense' || rawType === 'withdrawal'
+              ? 'expense'
+              : null;
+      if (!movementType) {
+        throw new AppError('نوع الحركة النقدية غير صالح (المقبول: deposit / drop / expense)', 400);
+      }
+      if (!data.reason || !String(data.reason).trim()) {
+        throw new AppError('سبب الحركة النقدية مطلوب', 400);
+      }
+
       const res = await client.query(
         `INSERT INTO pos_cash_movements (shift_id, movement_type, amount, reason, authorized_by)
          VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-        [data.shift_id, data.movement_type, amount, data.reason, userId],
+        [data.shift_id, movementType, amount, String(data.reason).trim(), userId],
       );
 
       const movement = res.rows[0];

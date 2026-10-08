@@ -1,7 +1,8 @@
 import { getClient, query } from '../database/pool.ts';
 import { AppError } from '../types/errors.ts';
-import { invalidateDashboardCache } from './dashboardService.ts';
 import { roundMoney } from '../utils/money.ts';
+import { getAllowedWarehouses } from '../middleware/warehouseAccess.ts';
+import { depleteInventoryCostLayers } from './productCostService.ts';
 
 /**
  * إنشاء عملية جرد جديدة كمسودة للمخزن المحدد
@@ -20,9 +21,13 @@ export const createStocktake = async (warehouseId: number, userId: number, notes
   try {
     await client.query('BEGIN');
 
+    const allowed = await getAllowedWarehouses(userId, client);
+    if (!allowed.includes(Number(warehouseId)))
+      throw new AppError('لا تملك صلاحية جرد هذا المخزن', 403);
+
     // 1. التحقق من وجود المخزن وصلاحيته
     const whRes = await client.query(
-      `SELECT id, name_ar FROM warehouses WHERE id = $1 AND deleted_at IS NULL AND is_active = TRUE`,
+      `SELECT id, name_ar FROM warehouses WHERE id = $1 AND deleted_at IS NULL AND is_active = TRUE FOR UPDATE`,
       [warehouseId],
     );
     if (!whRes.rows[0]) {
@@ -57,7 +62,8 @@ export const createStocktake = async (warehouseId: number, userId: number, notes
       `INSERT INTO stocktake_items (stocktake_id, product_id, system_quantity, unit_cost)
        SELECT $1, p.id, COALESCE(i.quantity, 0), COALESCE(p.purchase_price, 0)
        FROM products p
-       LEFT JOIN inventory i ON i.product_id = p.id AND i.warehouse_id = $2
+       LEFT JOIN LATERAL (SELECT SUM(quantity) AS quantity FROM inventory
+         WHERE product_id = p.id AND warehouse_id = $2) i ON TRUE
        WHERE p.deleted_at IS NULL
          AND p.is_active = TRUE
          AND NOT EXISTS (
@@ -106,7 +112,7 @@ export const getStocktakeList = async (allowedWarehouseIds?: number[]) => {
      JOIN warehouses w ON s.warehouse_id = w.id
      JOIN users u ON s.created_by = u.id`;
   const params: any[] = [];
-  if (allowedWarehouseIds && allowedWarehouseIds.length > 0) {
+  if (allowedWarehouseIds !== undefined) {
     sql += ` WHERE s.warehouse_id = ANY($1::int[])`;
     params.push(allowedWarehouseIds);
   }
@@ -147,7 +153,7 @@ export const getStocktakeDetails = async (
     throw new AppError('عملية الجرد المطلوبة غير موجودة', 404);
   }
 
-  if (allowedWarehouseIds && allowedWarehouseIds.length > 0) {
+  if (allowedWarehouseIds !== undefined) {
     if (!allowedWarehouseIds.includes(Number(stocktakeRes.rows[0].warehouse_id))) {
       throw new AppError('غير مصرح لك بالوصول لبيانات جرد هذا المخزن', 403);
     }
@@ -205,7 +211,7 @@ export const updateStocktakeItems = async (
     );
     if (!stocktakeRes.rows[0]) throw new AppError('عملية الجرد غير موجودة', 404);
 
-    if (allowedWarehouseIds && allowedWarehouseIds.length > 0) {
+    if (allowedWarehouseIds !== undefined) {
       if (!allowedWarehouseIds.includes(Number(stocktakeRes.rows[0].warehouse_id))) {
         throw new AppError('غير مصرح لك بتعديل جرد هذا المخزن', 403);
       }
@@ -231,8 +237,16 @@ export const updateStocktakeItems = async (
           ? null
           : Number(item.actual_quantity);
 
-      if (!productId) continue;
-      if (actualQty !== null && (isNaN(actualQty) || actualQty < 0)) {
+      if (!Number.isSafeInteger(productId) || productId <= 0 || productIds.includes(productId)) {
+        throw new AppError('معرف المنتج غير صالح أو مكرر في بنود الجرد', 400);
+      }
+      if (
+        actualQty !== null &&
+        (!Number.isFinite(actualQty) ||
+          actualQty < 0 ||
+          actualQty > 999999999.999 ||
+          Math.abs(actualQty * 1000 - Math.round(actualQty * 1000)) > 0.000001)
+      ) {
         throw new AppError('الكمية الفعلية يجب أن تكون قيمة موجبة أو فارغة', 400);
       }
       productIds.push(productId);
@@ -241,7 +255,7 @@ export const updateStocktakeItems = async (
 
     if (productIds.length > 0) {
       // الفرق = الكمية الفعلية الجديدة − الكمية الدفترية (NULL عند غياب الكمية الفعلية)
-      await client.query(
+      const updated = await client.query(
         `UPDATE stocktake_items si
          SET actual_quantity = v.actual_qty,
              difference = CASE WHEN v.actual_qty IS NULL THEN NULL ELSE v.actual_qty - si.system_quantity END
@@ -252,6 +266,8 @@ export const updateStocktakeItems = async (
          WHERE si.stocktake_id = $1 AND si.product_id = v.product_id`,
         [stocktakeId, productIds, actualQtys],
       );
+      if (updated.rowCount !== productIds.length)
+        throw new AppError('أحد المنتجات غير موجود أو مكرر في مسودة الجرد', 409);
     }
 
     await client.query('COMMIT');
@@ -289,8 +305,11 @@ export const completeStocktake = async (
     if (!stocktakeRes.rows[0]) throw new AppError('عملية الجرد غير موجودة', 404);
 
     const stocktake = stocktakeRes.rows[0];
+    const currentAllowed = await getAllowedWarehouses(userId, client);
+    if (!currentAllowed.includes(Number(stocktake.warehouse_id)))
+      throw new AppError('لا تملك صلاحية اعتماد جرد هذا المخزن', 403);
 
-    if (allowedWarehouseIds && allowedWarehouseIds.length > 0) {
+    if (allowedWarehouseIds !== undefined) {
       if (!allowedWarehouseIds.includes(Number(stocktake.warehouse_id))) {
         throw new AppError('غير مصرح لك باعتماد جرد هذا المخزن', 403);
       }
@@ -298,13 +317,19 @@ export const completeStocktake = async (
     if (stocktake.status !== 'draft') {
       throw new AppError('عملية الجرد معتمدة ومسواة بالفعل', 400);
     }
+    const warehouse = await client.query(
+      `SELECT id FROM warehouses WHERE id = $1
+      AND deleted_at IS NULL AND is_active = TRUE FOR SHARE`,
+      [stocktake.warehouse_id],
+    );
+    if (!warehouse.rows[0]) throw new AppError('مخزن الجرد غير نشط أو محذوف', 409);
 
     // 2. سحب جميع بنود الجرد
     const itemsRes = await client.query(
       `SELECT si.*, p.name_ar
        FROM stocktake_items si
        JOIN products p ON si.product_id = p.id
-       WHERE si.stocktake_id = $1`,
+       WHERE si.stocktake_id = $1 ORDER BY si.product_id, si.id`,
       [stocktakeId],
     );
     const items = itemsRes.rows;
@@ -312,72 +337,153 @@ export const completeStocktake = async (
     let totalDeficit = 0;
     let totalSurplus = 0;
 
-    // 3. تسوية كل بند يوجد فيه فرق
+    const seenProducts = new Set<number>();
+    // الاحتفاظ بالدفعات والمحجوز؛ التسوية تطبق فرق الإجمالي فقط.
     for (const item of items) {
-      // إذا لم يتم إدخال كمية فعلية، نتخطى التسوية لهذا الصنف
-      if (item.actual_quantity === null || item.actual_quantity === undefined) {
-        continue;
+      const productId = Number(item.product_id);
+      if (seenProducts.has(productId))
+        throw new AppError('المسودة تحتوي على منتج مكرر؛ يلزم مراجعتها قبل الاعتماد', 409);
+      seenProducts.add(productId);
+      if (item.actual_quantity == null) continue;
+      const targetProduct = await client.query(
+        `SELECT p.id FROM products p WHERE p.id = $1
+        AND p.deleted_at IS NULL AND p.is_active = TRUE AND NOT EXISTS
+        (SELECT 1 FROM product_recipes r WHERE r.product_id = p.id AND r.deleted_at IS NULL AND r.is_active = TRUE)`,
+        [productId],
+      );
+      if (!targetProduct.rows[0])
+        throw new AppError('أحد منتجات الجرد غير نشط أو مرتبط بوصفة؛ يلزم مراجعة المسودة', 409);
+      const actualUnits = Math.round(Number(item.actual_quantity) * 1000);
+      if (
+        !Number.isSafeInteger(actualUnits) ||
+        actualUnits < 0 ||
+        actualUnits > 999999999999 ||
+        Math.abs(Number(item.actual_quantity) * 1000 - actualUnits) > 0.000001
+      ) {
+        throw new AppError('كمية الجرد غير صالحة أو تتجاوز دقة المخزون', 409);
       }
-
-      const actQty = Number(item.actual_quantity);
-      const cost = Number(item.unit_cost);
-
-      // قفل كل صفوف المخزون للمنتج في هذا المخزن (كل الدفعات) ثم قراءة
-      // الإجمالي الدفتري الحالي — قد تكون حدثت حركات بيع/شراء بعد إنشاء
-      // مسودة الجرد، ويجب حساب الفرق مقابل إجمالي الكمية الحالية
+      // Ensure the default-batch row exists as a transaction-scoped serialization point.
       await client.query(
-        `SELECT product_id FROM inventory WHERE product_id = $1 AND warehouse_id = $2 FOR UPDATE`,
-        [item.product_id, stocktake.warehouse_id],
+        `INSERT INTO inventory (product_id, warehouse_id, quantity) VALUES ($1,$2,0)
+        ON CONFLICT (product_id, warehouse_id, COALESCE(batch_number, '')) DO NOTHING`,
+        [productId, stocktake.warehouse_id],
       );
-      const sumRes = await client.query(
-        `SELECT COALESCE(SUM(quantity), 0)::numeric AS total FROM inventory
-         WHERE product_id = $1 AND warehouse_id = $2`,
-        [item.product_id, stocktake.warehouse_id],
+      const stockRows = await client.query(
+        `SELECT * FROM inventory WHERE product_id = $1 AND warehouse_id = $2
+        ORDER BY id FOR UPDATE`,
+        [productId, stocktake.warehouse_id],
       );
-      const currentQty = Number(sumRes.rows[0].total || 0);
-      const diff = actQty - currentQty;
-
-      if (Math.abs(diff) > 0.0001) {
-        const movementQty = Math.abs(diff);
-        const movementValue = roundMoney(movementQty * cost);
-
-        if (diff < 0) {
-          totalDeficit += movementValue;
-        } else {
-          totalSurplus += movementValue;
+      let currentUnits = 0;
+      let reservedUnits = 0;
+      for (const row of stockRows.rows) {
+        row.units = Math.round(Number(row.quantity) * 1000);
+        row.reservedUnits = Math.round(Number(row.reserved_quantity ?? 0) * 1000);
+        if (
+          !Number.isSafeInteger(row.units) ||
+          row.units < 0 ||
+          !Number.isSafeInteger(row.reservedUnits) ||
+          row.reservedUnits < 0 ||
+          row.reservedUnits > row.units
+        )
+          throw new AppError('رصيد دفعة الجرد أو المحجوز غير صالح', 409);
+        currentUnits += row.units;
+        reservedUnits += row.reservedUnits;
+      }
+      if (!Number.isSafeInteger(currentUnits) || !Number.isSafeInteger(reservedUnits))
+        throw new AppError('إجمالي المخزون غير صالح', 409);
+      if (actualUnits < reservedUnits)
+        throw new AppError('رصيد الجرد أقل من المحجوز؛ راجع الحجز قبل الاعتماد', 409);
+      const deltaUnits = actualUnits - currentUnits;
+      const diff = deltaUnits / 1000;
+      await client.query(
+        'UPDATE stocktake_items SET system_quantity = $1, difference = $2 WHERE id = $3',
+        [currentUnits / 1000, diff, item.id],
+      );
+      if (!deltaUnits) continue;
+      if (deltaUnits > 0) {
+        await client.query(
+          `INSERT INTO inventory (product_id, warehouse_id, quantity) VALUES ($1,$2,$3)
+          ON CONFLICT (product_id, warehouse_id, COALESCE(batch_number, ''))
+          DO UPDATE SET quantity = inventory.quantity + EXCLUDED.quantity, updated_at = NOW()`,
+          [productId, stocktake.warehouse_id, diff],
+        );
+      } else {
+        let remaining = -deltaUnits;
+        for (const row of stockRows.rows) {
+          const take = Math.min(remaining, row.units - row.reservedUnits);
+          if (take > 0)
+            await client.query(
+              'UPDATE inventory SET quantity = quantity - $1, updated_at = NOW() WHERE id = $2',
+              [take / 1000, row.id],
+            );
+          remaining -= take;
+          if (!remaining) break;
         }
-
-        // ضبط الصف الافتراضي على الكمية الفعلية وتصفير باقي الدفعات —
-        // الجرد الفعلي لا يفرّق بين الدفعات فيجب أن يساوي الإجمالي الكمية المعدودة
-        await client.query(
-          `INSERT INTO inventory (product_id, warehouse_id, quantity)
-           VALUES ($1, $2, $3)
-           ON CONFLICT (product_id, warehouse_id, COALESCE(batch_number, ''))
-           DO UPDATE SET quantity = EXCLUDED.quantity, updated_at = NOW()`,
-          [item.product_id, stocktake.warehouse_id, actQty],
+        if (remaining) throw new AppError('رصيد غير محجوز غير كاف لتسوية الجرد', 409);
+      }
+      const movementQty = Math.abs(diff);
+      const estimatedCost = Number(item.unit_cost);
+      let estimatedQuantity = 0;
+      let movementValue = 0;
+      if (deltaUnits < 0) {
+        const consumed = await depleteInventoryCostLayers(
+          client,
+          productId,
+          Number(stocktake.warehouse_id),
+          movementQty,
         );
-        await client.query(
-          `UPDATE inventory SET quantity = 0, updated_at = NOW()
-           WHERE product_id = $1 AND warehouse_id = $2
-             AND batch_number IS NOT NULL AND batch_number <> ''`,
-          [item.product_id, stocktake.warehouse_id],
+        estimatedQuantity = Math.max(
+          0,
+          Math.round((movementQty - consumed.quantity) * 1000) / 1000,
         );
-
-        // تسجيل الحركة المخزنية من نوع adjustment
-        const fromWh = diff < 0 ? stocktake.warehouse_id : null;
-        const toWh = diff > 0 ? stocktake.warehouse_id : null;
-        const note = `تسوية جرد تلقائية - معرف الجرد: ${stocktake.id}`;
-
+        if (estimatedQuantity > 0 && (!Number.isFinite(estimatedCost) || estimatedCost < 0))
+          throw new AppError('تكلفة الجزء بلا طبقات غير صالحة', 409);
+        movementValue = roundMoney(
+          consumed.cost + (estimatedQuantity > 0 ? estimatedQuantity * estimatedCost : 0),
+        );
+        totalDeficit += movementValue;
+      } else {
+        if (!Number.isFinite(estimatedCost) || estimatedCost < 0)
+          throw new AppError('تكلفة زيادة الجرد غير صالحة', 409);
+        estimatedQuantity = movementQty;
+        movementValue = roundMoney(movementQty * estimatedCost);
+        totalSurplus += movementValue;
+      }
+      const note = `تسوية جرد تلقائية - معرف الجرد: ${stocktake.id}${estimatedQuantity > 0 ? ` (تكلفة تقديرية لكمية ${estimatedQuantity})` : ''}`;
+      const movement = await client.query(
+        `INSERT INTO stock_movements
+        (product_id, from_warehouse_id, to_warehouse_id, movement_type, quantity, user_id, notes, unit_cost, total_cost, reference_type)
+        VALUES ($1,$2,$3,'adjustment',$4,$5,$6,$7,$8,'stocktake') RETURNING id`,
+        [
+          productId,
+          deltaUnits < 0 ? stocktake.warehouse_id : null,
+          deltaUnits > 0 ? stocktake.warehouse_id : null,
+          movementQty,
+          userId,
+          note,
+          movementValue / movementQty,
+          movementValue,
+        ],
+      );
+      if (deltaUnits > 0) {
         await client.query(
-          `INSERT INTO stock_movements (
-             product_id, from_warehouse_id, to_warehouse_id, movement_type,
-             quantity, user_id, notes, unit_cost, total_cost
-           ) VALUES ($1, $2, $3, 'adjustment', $4, $5, $6, $7, $8)`,
-          [item.product_id, fromWh, toWh, movementQty, userId, note, cost, movementValue],
+          `INSERT INTO inventory_cost_layers
+          (product_id, warehouse_id, source_movement_id, source_type, quantity, remaining_quantity, unit_cost, total_cost)
+          VALUES ($1,$2,$3,'stocktake_estimated',$4,$4,$5,$6)`,
+          [
+            productId,
+            stocktake.warehouse_id,
+            movement.rows[0].id,
+            movementQty,
+            estimatedCost,
+            movementValue,
+          ],
         );
       }
     }
 
+    totalDeficit = roundMoney(totalDeficit);
+    totalSurplus = roundMoney(totalSurplus);
     // 4. تحديث حالة الجرد الرئيسي وقيم الفروقات الإجمالية
     await client.query(
       `UPDATE stocktakes
@@ -438,7 +544,6 @@ export const completeStocktake = async (
     }
 
     await client.query('COMMIT');
-    invalidateDashboardCache();
 
     return {
       success: true,
@@ -471,7 +576,7 @@ export const deleteStocktake = async (
       throw new AppError('عملية الجرد غير موجودة', 404);
     }
 
-    if (allowedWarehouseIds && allowedWarehouseIds.length > 0) {
+    if (allowedWarehouseIds !== undefined) {
       if (!allowedWarehouseIds.includes(Number(stocktakeRes.rows[0].warehouse_id))) {
         throw new AppError('غير مصرح لك بحذف جرد هذا المخزن', 403);
       }

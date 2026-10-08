@@ -13,7 +13,11 @@ const invoices = {
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
   list: wrap(async (req, res) => {
-    ok(res, await invoiceService.getInvoices(req.query));
+    const role = req.user?.role_name || req.user?.role;
+    const allowed = WAREHOUSE_GLOBAL_ROLES.includes(role)
+      ? null
+      : await getAllowedWarehouses(req.user.id);
+    ok(res, await invoiceService.getInvoices({ ...req.query, allowed_warehouse_ids: allowed }));
   }),
   /**
    * إنشاء فاتورة.
@@ -33,7 +37,7 @@ const invoices = {
   get: wrap(async (req, res) => {
     const inv = await invoiceService.getInvoiceById(req.params.id);
     const userRole = (req as any).user?.role_name || (req as any).user?.role;
-    if (!WAREHOUSE_GLOBAL_ROLES.includes(userRole) && inv?.warehouse_id) {
+    if (!WAREHOUSE_GLOBAL_ROLES.includes(userRole)) {
       const allowed = await getAllowedWarehouses((req as any).user.id);
       if (!allowed.includes(Number(inv.warehouse_id))) {
         throw new AppError('ليس لديك صلاحية للوصول إلى فواتير هذا المخزن', 403);
@@ -63,7 +67,7 @@ const invoices = {
   pdf: wrap(async (req, res) => {
     const inv = await invoiceService.getInvoiceById(req.params.id);
     const userRole = (req as any).user?.role_name || (req as any).user?.role;
-    if (!WAREHOUSE_GLOBAL_ROLES.includes(userRole) && inv?.warehouse_id) {
+    if (!WAREHOUSE_GLOBAL_ROLES.includes(userRole)) {
       const allowed = await getAllowedWarehouses((req as any).user.id);
       if (!allowed.includes(Number(inv.warehouse_id))) {
         throw new AppError('ليس لديك صلاحية للوصول إلى فواتير هذا المخزن', 403);

@@ -13,5 +13,11 @@
     "noEmit": true,
     "types": ["node"]
   },
-  "include": ["api/**/*", "backend/src/**/*", "shared/**/*"]
+  "include": [
+    "api/**/*",
+    "backend/src/**/*",
+    "shared/**/*",
+    "scripts/database/setup-project.ts",
+    "scripts/database/backup-system.ts"
+  ]
 }

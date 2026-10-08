@@ -3,8 +3,8 @@
  *
  * يرسل الحسابات الإحصائية ونماذج التنبؤ المعقدة إلى microservice بايثون عند توفره،
  * مع التحقق الصارم من صحة الاستجابات أثناء التشغيل (Runtime Validation) عبر مكتبة Zod.
- * يتضمن Fallback تلقائي وفوري للخوارزميات المحلية في Node.js عند عدم توفر الخدمة أو فشل التحقق
- * لضمان عدم توقف النظام نهائياً.
+ * يعيد null عند عدم توفر الخدمة أو فشل التحقق ليختار المستدعي بديله المحلي.
+ * هذا عميل اختياري؛ مسارات ERP الحالية لا تستدعيه تلقائيًا.
  */
 import { z } from 'zod';
 import { logger } from './loggerService.ts';
@@ -19,7 +19,7 @@ export interface RequestOptions {
 export const parseTimeout = (raw: string | undefined): number => {
   if (!raw) return DEFAULT_TIMEOUT_MS;
   const parsed = Number(raw);
-  if (!Number.isFinite(parsed) || parsed <= 0 || parsed > 30000) {
+  if (!Number.isFinite(parsed) || parsed < 1 || parsed > 30000) {
     return DEFAULT_TIMEOUT_MS;
   }
   return Math.floor(parsed);
@@ -33,57 +33,57 @@ export const getAnalyticsTimeoutMs = (): number => {
 
 export const HistoricalSalesPointSchema = z.object({
   date: z.string(),
-  quantity: z.number(),
+  quantity: z.number().finite(),
 });
 
 export const ProductForecastInputSchema = z.object({
-  product_id: z.number(),
+  product_id: z.number().finite(),
   name_ar: z.string(),
   category_name: z.string().nullable().optional(),
   historical_sales: z.array(HistoricalSalesPointSchema),
-  current_stock: z.number().optional(),
+  current_stock: z.number().finite().optional(),
 });
 
 export const ProductForecastOutputSchema = z.object({
-  product_id: z.number(),
+  product_id: z.number().finite(),
   name_ar: z.string(),
-  forecast_7d: z.number(),
-  forecast_30d: z.number(),
-  daily_forecast: z.array(z.number()),
-  trend_slope: z.number(),
-  confidence_score: z.number().min(0).max(1),
+  forecast_7d: z.number().finite(),
+  forecast_30d: z.number().finite(),
+  daily_forecast: z.array(z.number().finite()),
+  trend_slope: z.number().finite(),
+  confidence_score: z.number().finite().min(0).max(1),
   quality: z.string(),
-  mae: z.number().nullable().optional(),
-  mape: z.number().nullable().optional(),
-  data_points: z.number().nonnegative(),
+  mae: z.number().finite().nullable().optional(),
+  mape: z.number().finite().nullable().optional(),
+  data_points: z.number().finite().nonnegative(),
 });
 
 export const DemandForecastRequestSchema = z.object({
-  forecast_days: z.number().positive(),
+  forecast_days: z.number().finite().int().min(1).max(365),
   products: z.array(ProductForecastInputSchema),
 });
 
 export const DemandForecastResponseSchema = z.object({
   status: z.string(),
-  forecast_days: z.number().positive(),
+  forecast_days: z.number().finite().int().min(1).max(365),
   results: z.array(ProductForecastOutputSchema),
 });
 
 export const CustomerActivityInputSchema = z.object({
-  customer_id: z.number(),
+  customer_id: z.number().finite(),
   name_ar: z.string(),
-  days_since_last_order: z.number(),
-  total_orders: z.number(),
-  total_spent: z.number(),
-  average_order_value: z.number(),
+  days_since_last_order: z.number().finite(),
+  total_orders: z.number().finite(),
+  total_spent: z.number().finite(),
+  average_order_value: z.number().finite(),
 });
 
 export const CustomerChurnOutputSchema = z.object({
-  customer_id: z.number(),
+  customer_id: z.number().finite(),
   name_ar: z.string(),
-  churn_risk_estimate: z.number().min(0).max(1).optional(),
-  churn_probability: z.number().min(0).max(1).optional(),
-  churn_risk_score: z.number().min(0).max(100),
+  churn_risk_estimate: z.number().finite().min(0).max(1).optional(),
+  churn_probability: z.number().finite().min(0).max(1).optional(),
+  churn_risk_score: z.number().finite().min(0).max(100),
   risk_level: z.string(),
   recommended_action: z.string(),
 });
@@ -94,27 +94,27 @@ export const ChurnRiskRequestSchema = z.object({
 
 export const ChurnRiskResponseSchema = z.object({
   status: z.string(),
-  total_analyzed: z.number().nonnegative(),
-  high_risk_count: z.number().nonnegative(),
+  total_analyzed: z.number().finite().nonnegative(),
+  high_risk_count: z.number().finite().nonnegative(),
   results: z.array(CustomerChurnOutputSchema),
 });
 
 export const MenuItemInputSchema = z.object({
-  product_id: z.number(),
+  product_id: z.number().finite(),
   name_ar: z.string(),
   category_name: z.string().nullable().optional(),
-  units_sold: z.number(),
-  unit_cost: z.number(),
-  unit_price: z.number(),
+  units_sold: z.number().finite(),
+  unit_cost: z.number().finite(),
+  unit_price: z.number().finite(),
 });
 
 export const MenuItemOutputSchema = z.object({
-  product_id: z.number(),
+  product_id: z.number().finite(),
   name_ar: z.string(),
   category_name: z.string().nullable().optional(),
-  units_sold: z.number(),
-  profit_margin_unit: z.number(),
-  total_profit: z.number(),
+  units_sold: z.number().finite(),
+  profit_margin_unit: z.number().finite(),
+  total_profit: z.number().finite(),
   quadrant: z.string(),
   recommendation: z.string(),
 });
@@ -125,16 +125,16 @@ export const MenuMatrixRequestSchema = z.object({
 
 export const MenuMatrixResponseSchema = z.object({
   status: z.string(),
-  total_items: z.number().nonnegative(),
-  benchmark_popularity: z.number(),
-  benchmark_profitability: z.number(),
+  total_items: z.number().finite().nonnegative(),
+  benchmark_popularity: z.number().finite(),
+  benchmark_profitability: z.number().finite(),
   items: z.array(MenuItemOutputSchema),
 });
 
 export const MetricDataPointSchema = z.object({
   timestamp: z.string(),
   entity_id: z.string(),
-  value: z.number(),
+  value: z.number().finite(),
   entity_type: z.string(),
 });
 
@@ -142,26 +142,26 @@ export const AnomalyPointOutputSchema = z.object({
   timestamp: z.string(),
   entity_id: z.string(),
   entity_type: z.string(),
-  value: z.number(),
-  z_score: z.number(),
+  value: z.number().finite(),
+  z_score: z.number().finite(),
   is_anomaly: z.boolean(),
   explanation: z.string(),
   iqr_outlier: z.boolean().optional(),
-  q1: z.number().nullable().optional(),
-  q3: z.number().nullable().optional(),
-  lower_bound: z.number().nullable().optional(),
-  upper_bound: z.number().nullable().optional(),
+  q1: z.number().finite().nullable().optional(),
+  q3: z.number().finite().nullable().optional(),
+  lower_bound: z.number().finite().nullable().optional(),
+  upper_bound: z.number().finite().nullable().optional(),
   quality: z.string().optional(),
 });
 
 export const AnomalyDetectionRequestSchema = z.object({
   points: z.array(MetricDataPointSchema),
-  sensitivity: z.number().optional(),
+  sensitivity: z.number().finite().positive().optional(),
 });
 
 export const AnomalyDetectionResponseSchema = z.object({
   status: z.string(),
-  anomalies_found: z.number().nonnegative(),
+  anomalies_found: z.number().finite().nonnegative(),
   results: z.array(AnomalyPointOutputSchema),
 });
 

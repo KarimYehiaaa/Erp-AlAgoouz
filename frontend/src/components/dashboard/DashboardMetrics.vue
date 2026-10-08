@@ -253,7 +253,7 @@ const mainMetrics = computed(() => {
       sparkColor: '#10b981',
       delta: profitDelta,
       margin: marginRate,
-      sub: `${s?.month?.cogsBasis === 'purchases' ? 'تقديري بناء على المشتريات — ' : ''}تحصيل ${percent(s?.month?.collectionRate)}`,
+      sub: `${s?.month?.cogsBasis === 'untracked' ? 'تكلفة المبيعات غير مسجلة — ' : s?.month?.cogsBasis === 'purchases' ? 'تقديري بناء على المشتريات — ' : ''}تحصيل ${percent(s?.month?.collectionRate)}`,
       icon: 'reports',
       tone: 'profit',
       to: '/reports',
@@ -266,13 +266,11 @@ const mainMetrics = computed(() => {
       raw: cashVal,
       format: money,
       estimate: true,
-      estimateNote:
-        s?.cashDetails?.estimateNote ||
-        'تقدير نقدي: رصيد أول المدة + تحصيلات العملاء الفعلية − مدفوعات الموردين − المصروفات',
+      estimateNote: s?.cashDetails?.estimateNote || 'رصيد أول المدة + صافي حركات النقدية',
       sub:
         Number(s?.cashDetails?.oldDebtCollections || 0) > 0
           ? `منها ${moneyCompact(s?.cashDetails?.oldDebtCollections)} سداد ديون سابقة`
-          : 'رصيد أول المدة + تحصيلات − مصاريف − موردين',
+          : 'رصيد أول المدة + صافي حركات النقدية',
       statusText: cashVal >= 0 ? 'سيولة آمنة' : 'عجز نقدي',
       statusClass: cashVal >= 0 ? 'safe' : 'danger',
       icon: 'wallet',

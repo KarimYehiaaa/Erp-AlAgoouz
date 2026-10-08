@@ -16,7 +16,7 @@
           <!-- PIN Masked Display -->
           <div class="pin-display" :class="{ error: !!errorMessage }">
             <span
-              v-for="i in 4"
+              v-for="i in 8"
               :key="i"
               class="pin-dot"
               :class="{ filled: enteredPin.length >= i }"
@@ -100,11 +100,8 @@ const emit = defineEmits<{
 const enteredPin = ref('');
 
 const appendDigit = (d: string) => {
-  if (enteredPin.value.length < 6) {
+  if (enteredPin.value.length < 8) {
     enteredPin.value += d;
-    if (enteredPin.value.length === 4) {
-      submit();
-    }
   }
 };
 

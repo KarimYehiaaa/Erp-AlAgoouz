@@ -7,6 +7,7 @@ import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import config from '../config/index.ts';
 import { authenticate, authorize } from '../middleware/auth.ts';
+import { requireGlobalWarehouseRole } from '../middleware/warehouseAccess.ts';
 import { validateBody } from '../middleware/validate.ts';
 import { loginSchema } from './schemas.ts';
 import * as authCtrl from '../controllers/authController.ts';
@@ -41,8 +42,20 @@ router.post('/auth/refresh', refreshLimiter, authCtrl.refresh);
 router.post('/auth/logout', authenticate, authCtrl.logoutHandler);
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
-router.get('/dashboard', authenticate, authorize('dashboard.view'), api.dashboard);
-router.get('/operations/alerts', authenticate, authorize('dashboard.view'), api.operations.alerts);
+router.get(
+  '/dashboard',
+  authenticate,
+  requireGlobalWarehouseRole,
+  authorize('dashboard.view'),
+  api.dashboard,
+);
+router.get(
+  '/operations/alerts',
+  authenticate,
+  requireGlobalWarehouseRole,
+  authorize('dashboard.view'),
+  api.operations.alerts,
+);
 router.get(
   '/operations/audit-logs',
   authenticate,

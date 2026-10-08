@@ -338,7 +338,7 @@
               v-model="customServerUrl"
               type="text"
               class="server-input"
-              placeholder="مثال: https://agoouz.vercel.app أو http://192.168.1.14:3000"
+              :placeholder="serverUrlPlaceholder"
               dir="ltr"
             />
           </div>
@@ -356,16 +356,8 @@
             <button
               type="button"
               class="preset-chip"
-              :class="{ active: customServerUrl === 'http://192.168.1.14:3000' }"
-              @click="selectPreset('http://192.168.1.14:3000')"
-            >
-              <AppIcon name="building" :size="16" />
-              <span>سيرفر المحل (192.168.1.14:3000)</span>
-            </button>
-            <button
-              type="button"
-              class="preset-chip"
               :class="{ active: customServerUrl === 'http://localhost:3000' }"
+              v-if="isValidServerUrl('http://localhost:3000')"
               @click="selectPreset('http://localhost:3000')"
             >
               <AppIcon name="monitor" :size="16" />
@@ -408,7 +400,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, nextTick } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import AppIcon from '@/components/AppIcon.vue';
 import { useAuthStore } from '@/stores/auth';
@@ -419,7 +411,13 @@ import {
   usePasswordStrength,
   useInputAnimations,
 } from '@/composables/useLoginAnimations';
-import { getBaseServerUrl, setBaseServerUrl } from '@/api/client';
+import {
+  assertValidServerUrl,
+  ServerAddressError,
+  isValidServerUrl,
+  getBaseServerUrl,
+  setBaseServerUrl,
+} from '@/api/client';
 import { brandingState } from '@/design-system/themes/themeEngine';
 import axios from 'axios';
 
@@ -498,6 +496,7 @@ const defaultServerUrl = () => {
   return 'https://agoouz.vercel.app';
 };
 const customServerUrl = ref(defaultServerUrl());
+const serverUrlPlaceholder = 'رابط HTTPS أو عنوان الشبكة المحلية للسيرفر';
 const testingConn = ref(false);
 const testResultMsg = ref('');
 const testResultStatus = ref<'success' | 'error' | ''>('');
@@ -532,53 +531,83 @@ const resetToLocalDefault = () => {
   testServerConnection();
 };
 
-const testServerConnection = async () => {
-  testingConn.value = true;
-  testResultMsg.value = '';
-  testResultStatus.value = '';
-
-  const target = (
+let serverDiagnosticRequest = 0;
+onBeforeUnmount(() => {
+  serverDiagnosticRequest++;
+});
+const diagnosticTarget = () =>
+  (
     customServerUrl.value ||
     getBaseServerUrl() ||
     (typeof window !== 'undefined' ? window.location.origin : '')
   ).replace(/\/+$/, '');
+const testServerConnection = async () => {
+  const request = ++serverDiagnosticRequest;
+  testingConn.value = true;
+  testResultMsg.value = '';
+  testResultStatus.value = '';
+
+  const target = diagnosticTarget();
+  const current = () => request === serverDiagnosticRequest && target === diagnosticTarget();
   const startTime = Date.now();
   try {
+    assertValidServerUrl(target);
     let res: any;
     try {
       res = await axios.get(`${target}/api/v1/health`, { timeout: 10000 });
     } catch {
+      if (!current()) return;
       try {
         res = await axios.get(`${target}/api/health`, { timeout: 10000 });
       } catch {
+        if (!current()) return;
         res = await axios.get(`${target}/health`, { timeout: 10000 });
       }
     }
 
+    if (!current()) return;
     const latency = Date.now() - startTime;
-    if (res.data && (res.data.success || res.status === 200)) {
+    if (
+      res.status === 200 &&
+      typeof res.data === 'object' &&
+      res.data !== null &&
+      res.data.success === true &&
+      res.data.db?.connected === true
+    ) {
       testResultStatus.value = 'success';
       const isDbOk = res.data.db?.connected ? ' • قاعدة البيانات متصلة ✅' : '';
       testResultMsg.value = `✅ الاتصال ناجح! (استجابة: ${latency}ms${isDbOk})`;
     } else {
-      throw new Error('استجابة غير متوقعة');
+      testResultStatus.value = 'error';
+      testResultMsg.value =
+        '❌ الخادم استجاب، لكن الرد لا يؤكد اتصال API النظام وقاعدة البيانات. راجع عنوان السيرفر.';
     }
   } catch (err: any) {
+    if (!current()) return;
     testResultStatus.value = 'error';
-    if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
+    if (err instanceof ServerAddressError) {
+      testResultMsg.value = err.message;
+    } else if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
       testResultMsg.value = `⏳ استجابة السيرفر بطيئة (${target}) - يرجى الانتظار والمحاولة ثانية.`;
     } else {
       testResultMsg.value = `❌ تعذر الاتصال بالسيرفر (${target}). تحقق من تشغيل السيرفر والإنترنت.`;
     }
   } finally {
-    testingConn.value = false;
+    if (request === serverDiagnosticRequest) testingConn.value = false;
   }
 };
 
 const saveServerConfig = () => {
-  setBaseServerUrl(customServerUrl.value);
-  showServerConfig.value = false;
-  testResultMsg.value = '';
+  try {
+    setBaseServerUrl(customServerUrl.value.trim());
+    serverDiagnosticRequest++;
+    testingConn.value = false;
+    showServerConfig.value = false;
+    testResultMsg.value = '';
+  } catch (err: any) {
+    testResultStatus.value = 'error';
+    testResultMsg.value = err.message || 'عنوان السيرفر غير صالح';
+  }
 };
 
 // ─── Login Handler ────────────────────────────────────────
@@ -653,11 +682,7 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-/*
-  FONT IMPORTS
-  Cairo for UI / Aref Ruqaa for Arabic calligraphy
-*/
-@import url('https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@400;700&family=Cairo:wght@400;500;600;700;800&display=swap');
+/* Use available fonts and CSS fallbacks so login can load without external CSS. */
 
 /* CSS CUSTOM PROPERTIES (Universal Enterprise Theme) */
 .login-page {

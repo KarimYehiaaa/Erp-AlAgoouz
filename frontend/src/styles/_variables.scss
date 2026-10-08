@@ -5,7 +5,8 @@
    ========================================================================== */
 
 @use '../design-system' as *;
-@import url('https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@400;700&family=Cairo:wght@300;400;500;600;700;800&family=Outfit:wght@300;400;500;600;700;800&display=swap');
+// Remote fonts load independently in index.html so offline font failures cannot
+// reject Vite's lazy page stylesheet preload and prevent navigation.
 
 :root {
   /* ── Native Controls Follow Light Theme ── */

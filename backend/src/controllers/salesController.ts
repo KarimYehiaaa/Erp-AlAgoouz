@@ -100,7 +100,7 @@ const sales = {
   return: wrap(async (req, res) => {
     ok(
       res,
-      await salesService.returnSale(req.params.id, req.user.id, req.body.notes),
+      await salesService.returnSale(req.params.id, req.user.id, req.body.notes ?? req.body.reason),
       'تمت عملية المرتجع بنجاح',
     );
   }),

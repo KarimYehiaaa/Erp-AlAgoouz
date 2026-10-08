@@ -3,8 +3,7 @@ import { query, getClient } from '../database/pool.ts';
 import { AppError } from '../types/errors.ts';
 import { getOpeningBalance } from './openingBalanceService.ts';
 import { encrypt } from '../utils/crypto.ts';
-import { clearWarehouseCache } from '../middleware/warehouseAccess.ts';
-import { appCache } from '../utils/cache.ts';
+import { WAREHOUSE_GLOBAL_ROLES } from '../../../shared/permissions.js';
 const getUsers = async () =>
   (
     await query(
@@ -89,17 +88,6 @@ const updateUser = async (id, data) => {
       await client.query(`UPDATE refresh_tokens SET revoked = TRUE WHERE user_id = $1`, [id]);
     }
     await client.query('COMMIT');
-    // إبطال كاش المستخدمين لضمان عدم حدوث تضارب في التوكنات (SESSION_REVOKED)
-    appCache.delete(`auth_user:${id}`);
-    appCache.invalidateByTag('auth_users');
-    // تغيير الدور/التفعيل/المخزن يؤثر على المخازن المسموحة — مسح الكاش فوراً
-    if (
-      data.role_id !== undefined ||
-      data.is_active !== undefined ||
-      data.warehouse_id !== undefined
-    ) {
-      clearWarehouseCache(id);
-    }
     return result.rows[0];
   } catch (err: any) {
     await client.query('ROLLBACK');
@@ -141,8 +129,6 @@ const updateRole = async (id, data) => {
     `UPDATE roles SET name_ar = COALESCE($1, name_ar), description = COALESCE($2, description), updated_at = NOW() WHERE id = $3 AND deleted_at IS NULL RETURNING *`,
     [data.name_ar, data.description, id],
   );
-  appCache.invalidateByTag('auth_roles');
-  appCache.invalidateByTag('auth_users');
   return result.rows[0];
 };
 const deleteRole = async (id) => {
@@ -167,34 +153,66 @@ const deleteRole = async (id) => {
       400,
     );
   await query(`UPDATE roles SET deleted_at = NOW() WHERE id = $1`, [id]);
-  appCache.invalidateByTag('auth_roles');
-  appCache.invalidateByTag('auth_users');
   return { success: true };
 };
-const getNotifications = async (userId) =>
-  (
-    await query(
-      `SELECT * FROM notifications WHERE user_id = $1 OR user_id IS NULL ORDER BY created_at DESC LIMIT 50`,
-      [userId],
-    )
-  ).rows;
-const markNotificationRead = async (id, userId) => {
-  if (!userId) {
+const requireNotificationUser = (userId) => {
+  if (!Number.isSafeInteger(userId) || userId <= 0 || userId > 2147483647) {
     throw new AppError('معرف المستخدم مطلوب لتحديث حالة الإشعار', 400, 'USER_REQUIRED');
   }
+};
+// Resolve the audience from the current database role, never a client-provided role.
+const notificationAudience = (userParam, roleParam) => `u.id = ${userParam}
+  AND u.is_active = TRUE AND u.deleted_at IS NULL AND r.deleted_at IS NULL
+  AND (n.user_id = u.id OR (n.user_id IS NULL AND r.name = ANY(${roleParam}::text[])))`;
+const notificationReadState = (userParam) => `CASE WHEN n.user_id IS NULL
+  THEN COALESCE(n.data->'_read_by'->>(${userParam}::int)::text = 'true', FALSE)
+  ELSE COALESCE(n.is_read, FALSE) END`;
+const notificationReadData = (userParam) => `CASE WHEN n.user_id IS NULL THEN
+  (CASE WHEN jsonb_typeof(n.data) = 'object' THEN n.data ELSE '{}'::jsonb END)
+  || jsonb_build_object('_read_by',
+    (CASE WHEN jsonb_typeof(n.data->'_read_by') = 'object'
+      THEN n.data->'_read_by' ELSE '{}'::jsonb END)
+    || jsonb_build_object((${userParam}::int)::text, TRUE))
+  ELSE n.data END`;
+const getNotifications = async (userId) => {
+  requireNotificationUser(userId);
+  return (
+    await query(
+      `SELECT n.id, n.user_id, n.type, n.title_ar, n.message_ar,
+        CASE WHEN n.user_id IS NULL AND jsonb_typeof(n.data) = 'object'
+          THEN n.data - '_read_by' ELSE n.data END AS data,
+        n.created_at, ${notificationReadState('$1')} AS is_read
+      FROM notifications n CROSS JOIN users u JOIN roles r ON r.id = u.role_id
+      WHERE ${notificationAudience('$1', '$2')}
+      ORDER BY n.created_at DESC, n.id DESC LIMIT 50`,
+      [userId, WAREHOUSE_GLOBAL_ROLES],
+    )
+  ).rows;
+};
+const markNotificationRead = async (id, userId) => {
+  requireNotificationUser(userId);
+  if (!Number.isSafeInteger(id) || id <= 0 || id > 2147483647) {
+    throw new AppError('معرف الإشعار غير صالح', 400, 'INVALID_NOTIFICATION_ID');
+  }
   const res = await query(
-    `UPDATE notifications SET is_read = TRUE WHERE id = $1 AND (user_id = $2 OR user_id IS NULL)`,
-    [id, userId],
+    `UPDATE notifications n SET
+      is_read = CASE WHEN n.user_id IS NULL THEN n.is_read ELSE TRUE END,
+      data = ${notificationReadData('$2')}
+    FROM users u JOIN roles r ON r.id = u.role_id
+    WHERE n.id = $1 AND ${notificationAudience('$2', '$3')}`,
+    [id, userId, WAREHOUSE_GLOBAL_ROLES],
   );
   return { updated: res.rowCount || 0 };
 };
 const markAllNotificationsRead = async (userId) => {
-  if (!userId) {
-    throw new AppError('معرف المستخدم مطلوب لتحديث حالة الإشعارات', 400, 'USER_REQUIRED');
-  }
+  requireNotificationUser(userId);
   const res = await query(
-    `UPDATE notifications SET is_read = TRUE WHERE is_read = FALSE AND (user_id = $1 OR user_id IS NULL)`,
-    [userId],
+    `UPDATE notifications n SET
+      is_read = CASE WHEN n.user_id IS NULL THEN n.is_read ELSE TRUE END,
+      data = ${notificationReadData('$1')}
+    FROM users u JOIN roles r ON r.id = u.role_id
+    WHERE NOT (${notificationReadState('$1')}) AND ${notificationAudience('$1', '$2')}`,
+    [userId, WAREHOUSE_GLOBAL_ROLES],
   );
   return { updated: res.rowCount || 0 };
 };
@@ -333,8 +351,11 @@ const getProfitReport = async (filters: Record<string, any> = {}) => {
               COUNT(DISTINCT p.id) as products_count,
               COALESCE(SUM(si.quantity), 0) as total_qty,
               COALESCE(SUM(si.total_amount), 0) as total_revenue,
-              COALESCE(SUM(si.quantity * COALESCE(si.cost_price, p.purchase_price, 0)), 0) as total_cost,
-              COALESCE(SUM(si.total_amount) - SUM(si.quantity * COALESCE(si.cost_price, p.purchase_price, 0)), 0) as net_profit
+              COUNT(si.product_id) FILTER (WHERE si.cost_price IS NULL)::int as missing_cost_items,
+              CASE WHEN COUNT(si.product_id) FILTER (WHERE si.cost_price IS NULL) > 0 THEN NULL
+                   ELSE COALESCE(SUM(si.quantity * si.cost_price), 0) END as total_cost,
+              CASE WHEN COUNT(si.product_id) FILTER (WHERE si.cost_price IS NULL) > 0 THEN NULL
+                   ELSE COALESCE(SUM(si.total_amount) - SUM(si.quantity * si.cost_price), 0) END as net_profit
        FROM products p
        LEFT JOIN product_categories pc ON pc.id = p.category_id
        LEFT JOIN (
@@ -348,7 +369,7 @@ const getProfitReport = async (filters: Record<string, any> = {}) => {
        ) si ON si.product_id = p.id
        WHERE p.deleted_at IS NULL
        GROUP BY pc.id, pc.name_ar
-       ORDER BY net_profit DESC`,
+       ORDER BY net_profit DESC NULLS LAST`,
       [filters.from_date || null, filters.to_date || null],
     ),
   ]);
@@ -402,7 +423,7 @@ const getPurchasesReport = async (filters: Record<string, any> = {}) => {
     query(
       `SELECT COUNT(*)::int as invoices_count,
               COALESCE(SUM(total_amount), 0) as total_amount,
-              COALESCE((SELECT SUM(amount) FROM payments WHERE reference_type IN ('supplier', 'purchase_invoice') AND ($1::date IS NULL OR created_at::date >= $1) AND ($2::date IS NULL OR created_at::date <= $2)), 0) as paid_amount
+              COALESCE((SELECT SUM(amount) FROM payments WHERE reference_type IN ('supplier', 'purchase_invoice') AND LOWER(TRIM(COALESCE(payment_method, 'cash'))) <> 'credit' AND ($1::date IS NULL OR created_at::date >= $1) AND ($2::date IS NULL OR created_at::date <= $2)), 0) as paid_amount
        FROM purchase_invoices
        WHERE deleted_at IS NULL
          AND ($1::date IS NULL OR invoice_date >= $1)
@@ -484,7 +505,7 @@ const getWastageReport = async (filters: Record<string, any> = {}) => {
        p.unit,
        pc.name_ar as category,
        COALESCE(SUM(CASE WHEN sm.movement_type = 'consumption' THEN sm.quantity ELSE 0 END), 0)::numeric as theoretical_consumption,
-       COALESCE(SUM(CASE WHEN sm.movement_type = 'adjustment' AND sm.from_warehouse_id IS NOT NULL AND sm.to_warehouse_id IS NULL THEN sm.quantity ELSE 0 END), 0)::numeric as actual_waste
+       COALESCE(SUM(CASE WHEN sm.movement_type IN ('adjustment', 'wastage') AND sm.from_warehouse_id IS NOT NULL AND sm.to_warehouse_id IS NULL THEN sm.quantity ELSE 0 END), 0)::numeric as actual_waste
      FROM products p
      LEFT JOIN product_categories pc ON p.category_id = pc.id
      LEFT JOIN stock_movements sm ON p.id = sm.product_id
@@ -494,7 +515,7 @@ const getWastageReport = async (filters: Record<string, any> = {}) => {
      GROUP BY p.id, p.name_ar, p.unit, pc.name_ar
      HAVING
        SUM(CASE WHEN sm.movement_type = 'consumption' THEN sm.quantity ELSE 0 END) > 0
-       OR SUM(CASE WHEN sm.movement_type = 'adjustment' AND sm.from_warehouse_id IS NOT NULL AND sm.to_warehouse_id IS NULL THEN sm.quantity ELSE 0 END) > 0
+       OR SUM(CASE WHEN sm.movement_type IN ('adjustment', 'wastage') AND sm.from_warehouse_id IS NOT NULL AND sm.to_warehouse_id IS NULL THEN sm.quantity ELSE 0 END) > 0
      ORDER BY actual_waste DESC`,
     [filters.from_date || null, filters.to_date || null],
   );
@@ -740,9 +761,6 @@ const deleteUser = async (id, currentUserId) => {
       '\u0627\u0644\u0645\u0633\u062A\u062E\u062F\u0645 \u063A\u064A\u0631 \u0645\u0648\u062C\u0648\u062F',
       404,
     );
-  appCache.delete(`auth_user:${id}`);
-  appCache.invalidateByTag('auth_users');
-  clearWarehouseCache(id);
   return result.rows[0];
 };
 const getPermissions = async () =>
@@ -767,7 +785,6 @@ const updateRolePermissions = async (roleId, permissionIds) => {
       await client.query(sql, values);
     }
     await client.query('COMMIT');
-    appCache.invalidateByTag('auth_roles');
     return { success: true };
   } catch (err: any) {
     await client.query('ROLLBACK');

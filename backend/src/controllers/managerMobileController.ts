@@ -1,11 +1,11 @@
 import type { Request, Response, NextFunction } from 'express';
-import { query } from '../database/pool.ts';
+import { query, withTransaction } from '../database/pool.ts';
 import { AppError } from '../types/errors.ts';
 import { roundMoney } from '../utils/money.ts';
-import { businessToday } from '../utils/localDate.ts';
+import { businessToday, isCalendarDate, shiftCalendarDate } from '../utils/localDate.ts';
 import { broadcast } from '../services/websocketService.ts';
 import { issueManagerOverrideToken } from '../middleware/managerOverride.ts';
-import { ADMIN_ROLES } from '../../../shared/permissions.js';
+import { WAREHOUSE_GLOBAL_ROLES } from '../../../shared/permissions.js';
 
 export const managerMobileController = {
   /**
@@ -13,7 +13,10 @@ export const managerMobileController = {
    */
   async getSummary(req: Request, res: Response, next: NextFunction) {
     try {
-      const todayStr = (req.query.date as string) || businessToday();
+      const todayStr = req.query.date ?? businessToday();
+      if (!isCalendarDate(todayStr)) {
+        throw new AppError('التاريخ يجب أن يكون تاريخًا صالحًا بصيغة YYYY-MM-DD', 400);
+      }
 
       // دالة مساعدة لتجميع المبيعات حسب طرق الدفع ونوع البيع
       const getSalesSummaryByType = async (saleTypes: string[]) => {
@@ -27,7 +30,7 @@ export const managerMobileController = {
             COALESCE(SUM((SELECT SUM(p.amount) FROM payments p WHERE p.reference_type = 'sale' AND p.reference_id = s.id AND LOWER(p.payment_method) IN ('card', 'visa', 'فيزا'))), 0) AS card_amount,
             COALESCE(SUM(CASE WHEN NOT EXISTS (SELECT 1 FROM payments p WHERE p.reference_type = 'sale' AND p.reference_id = s.id) THEN s.total_amount ELSE 0 END), 0) AS other_amount
            FROM sales s
-           WHERE s.sale_date = $1 AND s.sale_type = ANY($2::varchar[]) AND s.status != 'cancelled'`,
+           WHERE s.sale_date = $1 AND s.sale_type = ANY($2::varchar[]) AND s.status NOT IN ('cancelled', 'returned') AND s.payment_status IS DISTINCT FROM 'refunded' AND s.deleted_at IS NULL`,
           [todayStr, saleTypes],
         );
         const row = res.rows[0] || {};
@@ -49,39 +52,71 @@ export const managerMobileController = {
       const wholesale = await getSalesSummaryByType(['wholesale']);
 
       // 3. مبيعات الأمس للمقارنة
-      const yesterdayDate = new Date(`${todayStr}T00:00:00`);
-      yesterdayDate.setDate(yesterdayDate.getDate() - 1);
-      const yesterdayStr = yesterdayDate.toISOString().slice(0, 10);
+      const yesterdayStr = shiftCalendarDate(todayStr, -1);
 
       const yesterdayRes = await query(
-        `SELECT COALESCE(SUM(total_amount), 0) AS total_amount, COUNT(*)::int AS count 
-         FROM sales 
-         WHERE sale_date = $1 AND status != 'cancelled'`,
+        `SELECT COALESCE(SUM(total_amount), 0) AS total_amount, COUNT(*)::int AS count
+         FROM sales
+         WHERE sale_date = $1 AND status NOT IN ('cancelled', 'returned') AND payment_status IS DISTINCT FROM 'refunded' AND deleted_at IS NULL`,
         [yesterdayStr],
       );
 
-      // 4. الوردية الحالية: بعض قواعد البيانات القديمة لا تحتوي جداول/أعمدة
-      // الورديات الجديدة، لذلك لا نسمح بفشل التقرير كله بسبب هذا الجزء الاختياري.
-      const activeShiftRes = { rows: [] as any[] };
+      // 4. الوردية الحالية المفتوحة في المحل وحساب النقدية الفعلية المتوقعة
+      let activeShift: any = null;
+      try {
+        const activeShiftRes = await query(
+          `SELECT
+            s.id, s.shift_number, s.status, s.opening_cash, s.opened_at,
+            COALESCE(u.full_name, u.username, 'كاشير') AS cashier_name,
+            w.name_ar AS warehouse_name,
+            t.terminal_code,
+            (s.opening_cash + COALESCE((
+              SELECT SUM(p.amount)
+              FROM payments p
+              JOIN sales sl ON p.reference_id = sl.id AND p.reference_type = 'sale'
+              WHERE sl.pos_shift_id = s.id AND LOWER(p.payment_method) IN ('cash', 'نقد', 'نقدي') AND sl.deleted_at IS NULL
+            ), 0) + COALESCE((
+              SELECT SUM(CASE WHEN movement_type = 'deposit' THEN amount WHEN movement_type IN ('drop', 'expense') THEN -amount ELSE 0 END)
+              FROM pos_cash_movements WHERE shift_id = s.id
+            ), 0)) AS current_expected_cash
+           FROM pos_shifts s
+           LEFT JOIN users u ON s.cashier_user_id = u.id
+           LEFT JOIN warehouses w ON s.warehouse_id = w.id
+           LEFT JOIN pos_terminals t ON s.terminal_id = t.id
+           WHERE s.status = 'open'
+           ORDER BY s.opened_at DESC
+           LIMIT 1`,
+        );
+        if (activeShiftRes.rows[0]) {
+          activeShift = {
+            ...activeShiftRes.rows[0],
+            current_expected_cash: roundMoney(Number(activeShiftRes.rows[0].current_expected_cash)),
+          };
+        }
+      } catch {
+        activeShift = null;
+      }
 
       // 5. المصروفات اليومية
       const expensesRes = await query(
-        `SELECT COALESCE(SUM(amount), 0) AS total_expenses, COUNT(*)::int AS count 
-         FROM expenses 
+        `SELECT COALESCE(SUM(amount), 0) AS total_expenses, COUNT(*)::int AS count
+         FROM expenses
          WHERE expense_date = $1 AND deleted_at IS NULL`,
         [todayStr],
       );
 
       // 6. أحدث الفواتير المسجلة اليوم (Live Stream)
       const recentSalesRes = await query(
-        `SELECT 
+        `SELECT
           s.id, s.sale_number, s.sale_type,
           COALESCE((SELECT p.payment_method FROM payments p WHERE p.reference_type = 'sale' AND p.reference_id = s.id ORDER BY p.created_at DESC LIMIT 1), 'cash') AS payment_method,
           s.total_amount, s.created_at,
-          'كاشير' AS cashier_name, c.name_ar AS customer_name
+          COALESCE(u.full_name, u.username, 'كاشير') AS cashier_name,
+          COALESCE(c.name_ar, 'عميل نقدي') AS customer_name
          FROM sales s
+         LEFT JOIN users u ON s.user_id = u.id
          LEFT JOIN customers c ON s.customer_id = c.id
-         WHERE s.sale_date = $1 AND s.status != 'cancelled'
+         WHERE s.sale_date = $1 AND s.status NOT IN ('cancelled', 'returned') AND s.payment_status IS DISTINCT FROM 'refunded' AND s.deleted_at IS NULL
          ORDER BY s.created_at DESC
          LIMIT 10`,
         [todayStr],
@@ -124,14 +159,7 @@ export const managerMobileController = {
             count: Number(expensesRes.rows[0].count),
           },
           netCashflow,
-          activeShift: activeShiftRes.rows[0]
-            ? {
-                ...activeShiftRes.rows[0],
-                current_expected_cash: roundMoney(
-                  Number(activeShiftRes.rows[0].current_expected_cash),
-                ),
-              }
-            : null,
+          activeShift,
           recentSales: recentSalesRes.rows.map((row) => ({
             id: row.id,
             saleNumber: row.sale_number,
@@ -157,7 +185,7 @@ export const managerMobileController = {
     try {
       // 1. القيمة المالية الإجمالية للمخزون
       const valuationRes = await query(
-        `SELECT 
+        `SELECT
           COALESCE(SUM(i.quantity * COALESCE(p.purchase_price, 0)), 0) AS total_valuation,
           COALESCE(SUM(i.quantity * COALESCE(p.sale_price, 0)), 0) AS total_retail_value,
           COALESCE(SUM(i.quantity), 0) AS total_quantity,
@@ -169,7 +197,7 @@ export const managerMobileController = {
 
       // 2. تقسيم القيمة والكمية حسب الأقسام
       const categoryBreakdownRes = await query(
-        `SELECT 
+        `SELECT
           COALESCE(c.name_ar, 'أخرى') AS category_name,
           COALESCE(c.slug, 'other') AS category_slug,
           COALESCE(SUM(i.quantity * COALESCE(p.purchase_price, 0)), 0) AS valuation,
@@ -185,7 +213,7 @@ export const managerMobileController = {
 
       // 3. قائمة الأصناف التي أوشكت على النفاد (Low Stock Items)
       const lowStockRes = await query(
-        `SELECT 
+        `SELECT
           p.id, p.name_ar, p.sku, p.unit, p.min_stock,
           COALESCE(c.name_ar, 'عام') AS category_name,
           COALESCE(SUM(i.quantity), 0) AS current_stock,
@@ -223,7 +251,7 @@ export const managerMobileController = {
             sku: row.sku,
             unit: row.unit,
             category: row.category_name,
-            minLimit: Number(row.min_limit),
+            minLimit: Number(row.min_stock ?? 0),
             currentStock: roundQty(row.current_stock),
             costPrice: roundMoney(Number(row.cost_price)),
             stockValue: roundMoney(Number(row.stock_value)),
@@ -245,7 +273,7 @@ export const managerMobileController = {
       const params = status === 'all' ? [] : [status];
 
       const approvalsRes = await query(
-        `SELECT 
+        `SELECT
           r.*,
           u.full_name AS requester_name,
           u.username AS requester_username,
@@ -261,7 +289,7 @@ export const managerMobileController = {
 
       res.json({
         success: true,
-        data: approvalsRes.rows,
+        data: approvalsRes.rows.map(({ override_token: _token, ...row }) => row),
       });
     } catch (err) {
       next(err);
@@ -332,37 +360,45 @@ export const managerMobileController = {
         throw new AppError('القرار يجب أن يكون approved أو rejected', 400);
       }
 
-      const reqRes = await query(`SELECT * FROM manager_approval_requests WHERE id = $1`, [
-        requestId,
-      ]);
-
-      if (!reqRes.rows[0]) {
-        throw new AppError('طلب الموافقة غير موجود', 404);
+      if (!Number.isSafeInteger(requestId) || requestId <= 0) {
+        throw new AppError('رقم طلب الموافقة غير صالح', 400);
       }
-
-      const approvalReq = reqRes.rows[0];
-
-      if (approvalReq.status !== 'pending') {
-        throw new AppError(`تم اتخاذ قرار مسبقاً بهذا الطلب (${approvalReq.status})`, 400);
-      }
-
-      let overrideToken: string | null = null;
-      if (decision === 'approved') {
-        // توليد توكن التجاوز المعتمد
-        const tokenObj = await issueManagerOverrideToken(
-          managerId,
-          approvalReq.requester_user_id || managerId,
+      const decidedRequest = await withTransaction(async (client) => {
+        const reqRes = await client.query(
+          `SELECT * FROM manager_approval_requests WHERE id = $1 FOR UPDATE`,
+          [requestId],
         );
-        overrideToken = tokenObj.token;
-      }
 
-      const updateRes = await query(
-        `UPDATE manager_approval_requests 
-         SET status = $1, override_token = $2, decided_by_user_id = $3, decided_at = NOW(), updated_at = NOW()
-         WHERE id = $4
-         RETURNING *`,
-        [decision, overrideToken, managerId, requestId],
-      );
+        if (!reqRes.rows[0]) {
+          throw new AppError('طلب الموافقة غير موجود', 404);
+        }
+
+        const approvalReq = reqRes.rows[0];
+
+        if (approvalReq.status !== 'pending') {
+          throw new AppError(`تم اتخاذ قرار مسبقاً بهذا الطلب (${approvalReq.status})`, 400);
+        }
+
+        let overrideToken: string | null = null;
+        if (decision === 'approved') {
+          // توليد توكن التجاوز المعتمد
+          const tokenObj = await issueManagerOverrideToken(
+            managerId,
+            approvalReq.requester_user_id || managerId,
+            client,
+          );
+          overrideToken = tokenObj.token;
+        }
+
+        const updateRes = await client.query(
+          `UPDATE manager_approval_requests
+           SET status = $1, override_token = $2, decided_by_user_id = $3, decided_at = NOW(), updated_at = NOW()
+           WHERE id = $4
+           RETURNING *`,
+          [decision, overrideToken, managerId, requestId],
+        );
+        return updateRes.rows[0];
+      });
 
       const managerRes = await query(`SELECT full_name, username FROM users WHERE id = $1`, [
         managerId,
@@ -370,16 +406,20 @@ export const managerMobileController = {
       const managerName = managerRes.rows[0]?.full_name || managerRes.rows[0]?.username || 'المدير';
 
       const resultPayload = {
-        ...updateRes.rows[0],
+        ...decidedRequest,
         manager_name: managerName,
       };
 
       // بث النتيجة للكاشير فوراً لفك القفل وإتمام الفاتورة
       broadcast('approval:decided', resultPayload);
 
+      const responsePayload = { ...resultPayload };
+      if (Number(responsePayload.requester_user_id) !== Number(managerId)) {
+        delete responsePayload.override_token;
+      }
       res.json({
         success: true,
-        data: resultPayload,
+        data: responsePayload,
       });
     } catch (err) {
       next(err);
@@ -393,7 +433,7 @@ export const managerMobileController = {
     try {
       const requestId = Number(req.params.id);
       const reqRes = await query(
-        `SELECT r.*, mgr.full_name AS decided_by_name 
+        `SELECT r.*, mgr.full_name AS decided_by_name
          FROM manager_approval_requests r
          LEFT JOIN users mgr ON r.decided_by_user_id = mgr.id
          WHERE r.id = $1`,
@@ -407,8 +447,7 @@ export const managerMobileController = {
       const row = reqRes.rows[0];
       const currentUserId = (req as any).user?.id || (req as any).user?.userId;
       const userRole = (req as any).user?.role_name || (req as any).user?.role;
-      const isPrivileged =
-        (ADMIN_ROLES as readonly string[]).includes(userRole) || userRole === 'manager';
+      const isPrivileged = (WAREHOUSE_GLOBAL_ROLES as readonly string[]).includes(userRole ?? '');
       const isOwner = currentUserId && Number(row.requester_user_id) === Number(currentUserId);
 
       // يمنع أي مستخدم آخر غير صاحب الطلب أو المديرين من استطلاع الطلب

@@ -1,11 +1,14 @@
 import { computed, ref } from 'vue';
 import { users as userApi, backup as backupApi } from '@/api';
+import { useAuthStore } from '@/stores/auth';
+import { useRouter } from 'vue-router';
 
 /**
  * إدارة النسخ الاحتياطي: النسخ المحلية (إنشاء/تنزيل/استرداد/تصفير) + النسخ السحابي
  * (Google Drive / Dropbox / Webhook) مع فحص اتصال تجريبي.
  */
 export function useBackupSettings() {
+  const router = useRouter();
   const backups = ref<any[]>([]);
   const backupView = ref('cards');
   const backuping = ref(false);
@@ -102,9 +105,19 @@ export function useBackupSettings() {
   const createBackup = async () => {
     backuping.value = true;
     try {
-      await backupApi.create();
+      const blob = await backupApi.createAndDownload();
+      if (!blob || blob.size === 0) throw new Error('تعذر إنشاء ملف النسخة الاحتياطية');
+      const url = URL.createObjectURL(blob);
+      const link = Object.assign(document.createElement('a'), {
+        href: url,
+        download: `backup-${new Date().toISOString().replace(/[:.]/g, '-')}.json`,
+      });
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
       await refreshBackups();
-      alert('تم إنشاء النسخة الاحتياطية');
+      alert('تم إنشاء ملف النسخة الاحتياطية وإرسال طلب تنزيله؛ تأكد من حفظه على جهازك');
     } catch (e: any) {
       alert(e.message || 'فشل إنشاء النسخة');
     } finally {
@@ -127,17 +140,29 @@ export function useBackupSettings() {
   };
 
   const restore = async (name: any) => {
-    if (!confirm('استرداد نسخة سيستبدل بيانات النظام. استمر؟')) return;
+    if (
+      !confirm(
+        'أوقف البيع والمزامنة على جميع الأجهزة أولاً. الاسترداد سيستبدل بيانات النظام وينهي جلسات الدخول. استمر؟',
+      )
+    )
+      return;
     try {
       await backupApi.restore(name);
-      alert('تم الاسترداد بنجاح');
+      useAuthStore().invalidateSession();
+      alert('تم الاسترداد بنجاح وإنهاء جلسات الدخول. سجّل الدخول مرة أخرى على الأجهزة.');
+      await router.replace({ name: 'Login' });
     } catch (e: any) {
       alert(e.message || 'فشل الاسترداد');
     }
   };
 
   const clearSystem = async () => {
-    if (!confirm('سيتم حذف كل الحركات والأرصدة والعملاء والموردين والبيانات المالية. ستبقى المنتجات والتصنيفات والوصفات وأسعار البيع والتكلفة وإعدادات التشغيل. أكمل لإنشاء نسخة احتياطية وتنزيلها أولاً.')) return;
+    if (
+      !confirm(
+        'سيتم حذف كل الحركات والأرصدة والعملاء والموردين والبيانات المالية. ستبقى المنتجات والتصنيفات والوصفات وأسعار البيع والتكلفة وإعدادات التشغيل. أكمل لإنشاء نسخة احتياطية وتنزيلها أولاً.',
+      )
+    )
+      return;
     clearing.value = true;
     try {
       const blob = await backupApi.createAndDownload();
@@ -151,7 +176,9 @@ export function useBackupSettings() {
       window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
       await refreshBackups();
 
-      const token = prompt('تأكد أن النسخة الاحتياطية نزلت على جهازك وأن أجهزة البيع انتهت من المزامنة. لمسح البيانات نهائياً اكتب CONFIRM_CLEAR');
+      const token = prompt(
+        'تأكد أن النسخة الاحتياطية نزلت على جهازك وأن أجهزة البيع انتهت من المزامنة. لمسح البيانات نهائياً اكتب CONFIRM_CLEAR',
+      );
       if (token !== 'CONFIRM_CLEAR') return;
       await backupApi.clear({ confirm: 'CONFIRM_CLEAR' });
       alert('تم تصفير بيانات التشغيل مع الحفاظ على المنتجات والتصنيفات والوصفات والأسعار');
@@ -169,12 +196,18 @@ export function useBackupSettings() {
 
   const uploadRestore = async () => {
     if (!restoreFile.value) return;
-    if (!confirm('استرداد من ملف سيستبدل بيانات النظام. استمر؟')) return;
+    if (
+      !confirm(
+        'أوقف البيع والمزامنة على جميع الأجهزة أولاً. الاسترداد من الملف سيستبدل بيانات النظام وينهي جلسات الدخول. استمر؟',
+      )
+    )
+      return;
     uploading.value = true;
     try {
       await backupApi.restoreFile(restoreFile.value);
-      alert('تم الاسترداد من الملف');
-      await refreshBackups();
+      useAuthStore().invalidateSession();
+      alert('تم الاسترداد من الملف وإنهاء جلسات الدخول. سجّل الدخول مرة أخرى على الأجهزة.');
+      await router.replace({ name: 'Login' });
     } catch (e: any) {
       alert(e.message || 'فشل الاسترداد');
     } finally {

@@ -29,6 +29,12 @@ const ENCRYPTION_KEY = crypto.scryptSync(
  * @returns {string} النص المشفر بصيغة iv:authTag:ciphertext
  */
 export const encrypt = (text) => {
+  // Business backups must never be created with the predictable development fallback.
+  if (!rawBackupKey || rawBackupKey.length < 32) {
+    throw new Error(
+      'BACKUP_ENCRYPTION_KEY must contain at least 32 characters before creating a backup.',
+    );
+  }
   const iv = crypto.randomBytes(12); // GCM standard IV length is 12 bytes
   const cipher = crypto.createCipheriv(ALGORITHM, ENCRYPTION_KEY, iv);
 

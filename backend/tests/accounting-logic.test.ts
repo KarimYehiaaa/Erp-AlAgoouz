@@ -99,25 +99,16 @@ describe('Accounting & Sales Logic Unit Tests', () => {
   });
 
   it('effective product cost resolves recipe ingredients recursively', async () => {
-    const db: any = {
-      query: async (sql: string, params: any[] = []) => {
-        const text = String(sql).toLowerCase();
-
-        if (text.includes('purchase_price') && text.includes('from products')) {
-          return {
-            rows: [
+    const db = {
+      query: async () => ({
+        rowCount: 1,
+        rows: [
+          {
+            products: [
               { id: 10, purchase_price: 99, unit: 'kg' },
               { id: 11, purchase_price: 25, unit: 'kg' },
             ],
-          };
-        }
-
-        if (
-          text.includes('from product_recipes r') &&
-          text.includes('join product_recipe_items ri')
-        ) {
-          return {
-            rows: [
+            recipe_items: [
               {
                 parent_product_id: 10,
                 recipe_id: 7,
@@ -128,11 +119,9 @@ describe('Accounting & Sales Logic Unit Tests', () => {
                 ingredient_unit: 'kg',
               },
             ],
-          };
-        }
-
-        return { rows: [] };
-      },
+          },
+        ],
+      }),
     };
 
     const costs = await getProductsEffectiveCosts(db, [10, 11]);

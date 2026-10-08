@@ -1,6 +1,5 @@
 import { getClient, query, withTransaction } from '../database/pool.ts';
 import { AppError } from '../types/errors.ts';
-import { invalidateDashboardCache } from './dashboardService.ts';
 import { roundMoney, toNumber } from '../utils/money.ts';
 import { businessToday } from '../utils/localDate.ts';
 
@@ -598,7 +597,6 @@ export const createAdvance = async (data: Record<string, any>, userId: number) =
       ],
     );
     await client.query('COMMIT');
-    invalidateDashboardCache();
     return result.rows[0];
   } catch (e: any) {
     await client.query('ROLLBACK');
@@ -984,7 +982,6 @@ export const payPayrollRun = async (id: number, userId: number, paymentMethod: s
     );
 
     await client.query('COMMIT');
-    invalidateDashboardCache();
     return getPayrollRun(updated.rows[0].id);
   } catch (e: any) {
     await client.query('ROLLBACK');
@@ -1012,7 +1009,6 @@ export const deleteAdvance = async (id: number) => {
     }
     await client.query(`UPDATE employee_advances SET deleted_at = NOW() WHERE id = $1`, [id]);
     await client.query('COMMIT');
-    invalidateDashboardCache();
     return null;
   } catch (e: any) {
     await client.query('ROLLBACK');

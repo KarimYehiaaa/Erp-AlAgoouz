@@ -1,6 +1,28 @@
+import type { Request, Response } from 'express';
 import { describe, expect, it, vi } from 'vitest';
 import { csrfProtection } from '../src/middleware/csrf.ts';
 import { calculatePaymentTotal } from '../src/services/salesCalculations.ts';
+
+// Fixtures model only the Express members exercised by these middleware paths.
+const asRequest = (fixture: unknown): Request => fixture as Request;
+const asResponse = (fixture: unknown): Response => fixture as Response;
+const makeCapturedResponse = () => {
+  const captured: { status: number; body: Record<string, unknown> | null } = {
+    status: 0,
+    body: null,
+  };
+  const response = {
+    status: (status: number) => {
+      captured.status = status;
+      return response;
+    },
+    json: (body: Record<string, unknown>) => {
+      captured.body = body;
+      return response;
+    },
+  };
+  return { res: asResponse(response), captured };
+};
 
 const makeRequest = (origin: string | undefined) => ({
   method: 'POST',
@@ -50,13 +72,13 @@ describe('Security regressions', () => {
       await import('../src/middleware/managerOverride.ts');
     const { token } = await issueManagerOverrideToken(1, 100); // Issued for cashier 100
 
-    const req: any = {
+    const req = {
       headers: { 'x-manager-override': token },
       user: { id: 200, role_name: 'cashier' }, // Attempted by cashier 200
     };
     const next = vi.fn();
 
-    await requireManagerOverride(req, {} as any, next);
+    await requireManagerOverride(asRequest(req), asResponse({}), next);
 
     expect(next).toHaveBeenCalledOnce();
     const err = next.mock.calls[0][0];
@@ -73,57 +95,35 @@ describe('Security regressions', () => {
       items: [{ product_id: 1, quantity: 1 }],
     }));
 
-    const req: any = {
+    const req = {
       body: { sales: fakeSales },
       user: { id: 1, role_name: 'cashier' },
     };
-    let status = 0;
-    let jsonResult: any = null;
-    const res: any = {
-      status: (s: number) => {
-        status = s;
-        return res;
-      },
-      json: (j: any) => {
-        jsonResult = j;
-        return res;
-      },
-    };
+    const { res, captured } = makeCapturedResponse();
     const next = vi.fn();
 
-    await posShiftController.batchSyncSales(req, res, next);
+    await posShiftController.batchSyncSales(asRequest(req), res, next);
 
-    expect(status).toBe(400);
-    expect(jsonResult?.success).toBe(false);
-    expect(jsonResult?.message).toContain('حجم الدفعة كبير جداً');
+    expect(captured.status).toBe(400);
+    expect(captured.body?.success).toBe(false);
+    expect(captured.body?.message).toContain('حجم الدفعة كبير جداً');
   });
 
   it('rejects batch sync sales when sales array is empty (H-09)', async () => {
     const { posShiftController } = await import('../src/controllers/posShiftController.ts');
 
-    const req: any = {
+    const req = {
       body: { sales: [] },
       user: { id: 1, role_name: 'cashier' },
     };
-    let status = 0;
-    let jsonResult: any = null;
-    const res: any = {
-      status: (s: number) => {
-        status = s;
-        return res;
-      },
-      json: (j: any) => {
-        jsonResult = j;
-        return res;
-      },
-    };
+    const { res, captured } = makeCapturedResponse();
     const next = vi.fn();
 
-    await posShiftController.batchSyncSales(req, res, next);
+    await posShiftController.batchSyncSales(asRequest(req), res, next);
 
-    expect(status).toBe(400);
-    expect(jsonResult?.success).toBe(false);
-    expect(jsonResult?.message).toContain('مطلوب مصفوفة فواتير صالحة');
+    expect(captured.status).toBe(400);
+    expect(captured.body?.success).toBe(false);
+    expect(captured.body?.message).toContain('مطلوب مصفوفة فواتير صالحة');
   });
 
   it('rejects manager override token on reuse (replay attack prevention via DB atomic consumption)', async () => {
@@ -131,18 +131,18 @@ describe('Security regressions', () => {
       await import('../src/middleware/managerOverride.ts');
     const { token } = await issueManagerOverrideToken(1, 100);
 
-    const req: any = {
+    const req = {
       headers: { 'x-manager-override': token },
       user: { id: 100, role_name: 'cashier' },
     };
     const next1 = vi.fn();
-    await requireManagerOverride(req, {} as any, next1);
+    await requireManagerOverride(asRequest(req), asResponse({}), next1);
     expect(next1).toHaveBeenCalledOnce();
     expect(next1).toHaveBeenCalledWith(); // First use succeeded
 
     // Second use with the same token must fail
     const next2 = vi.fn();
-    await requireManagerOverride(req, {} as any, next2);
+    await requireManagerOverride(asRequest(req), asResponse({}), next2);
     expect(next2).toHaveBeenCalledOnce();
     const err = next2.mock.calls[0][0];
     expect(err).toBeDefined();
@@ -152,9 +152,7 @@ describe('Security regressions', () => {
 
   it('rejects unauthenticated requests trying to use idempotency key with authorization header (fail-closed)', async () => {
     const { requireIdempotency } = await import('../src/middleware/idempotency.ts');
-    let status = 0;
-    let jsonResult: any = null;
-    const req: any = {
+    const req = {
       method: 'POST',
       headers: {
         'idempotency-key': 'test-idem-unauth',
@@ -163,31 +161,26 @@ describe('Security regressions', () => {
       originalUrl: '/api/v1/sales',
       // user is undefined
     };
-    const res: any = {
-      status: (s: number) => {
-        status = s;
-        return res;
-      },
-      json: (j: any) => {
-        jsonResult = j;
-        return res;
-      },
-    };
+    const { res, captured } = makeCapturedResponse();
     const next = vi.fn();
 
-    await requireIdempotency(req, res, next);
+    await requireIdempotency(asRequest(req), res, next);
     expect(next).not.toHaveBeenCalled();
-    expect(status).toBe(401);
-    expect(jsonResult?.code).toBe('UNAUTHORIZED');
+    expect(captured.status).toBe(401);
+    expect(captured.body?.code).toBe('UNAUTHORIZED');
   });
 
   it('isolates idempotency keys across different users', async () => {
     const { requireIdempotency } = await import('../src/middleware/idempotency.ts');
     const { query } = await import('../src/database/pool.ts');
     const uniqueKey = `isolation-test-${Date.now()}`;
+    const users = await query(
+      `INSERT INTO users (username, password_hash, full_name, role_id) VALUES ($1, 'test', 'Isolation A', 1), ($2, 'test', 'Isolation B', 1) RETURNING id`,
+      [`${uniqueKey}-a`, `${uniqueKey}-b`],
+    );
 
     const makeMockRes = () => {
-      const res: any = {
+      const res = {
         statusCode: 200,
         headersSent: false,
         once: vi.fn(),
@@ -200,29 +193,54 @@ describe('Security regressions', () => {
     };
 
     // User 1 claims the key
-    const req1: any = {
+    const req1 = {
       method: 'POST',
       headers: { 'idempotency-key': uniqueKey },
       originalUrl: '/api/v1/sales',
-      user: { id: 101, role_name: 'cashier' },
+      user: { id: users.rows[0].id, role_name: 'cashier' },
     };
     const next1 = vi.fn();
-    await requireIdempotency(req1, makeMockRes(), next1);
+    await requireIdempotency(asRequest(req1), asResponse(makeMockRes()), next1);
     expect(next1).toHaveBeenCalledOnce();
 
     // User 2 claims the SAME idempotency key - because keys are user-scoped, User 2 gets their own lock
-    const req2: any = {
+    const req2 = {
       method: 'POST',
       headers: { 'idempotency-key': uniqueKey },
       originalUrl: '/api/v1/sales',
-      user: { id: 202, role_name: 'cashier' },
+      user: { id: users.rows[1].id, role_name: 'cashier' },
     };
     const next2 = vi.fn();
-    await requireIdempotency(req2, makeMockRes(), next2);
+    await requireIdempotency(asRequest(req2), asResponse(makeMockRes()), next2);
     expect(next2).toHaveBeenCalledOnce();
+
+    // Completed cached responses must remain separate too, not only the initial locks.
+    const cachedResponses = [
+      { ownerId: users.rows[0].id, invoice: 'private-owner-a' },
+      { ownerId: users.rows[1].id, invoice: 'private-owner-b' },
+    ];
+    for (const [index, user] of users.rows.entries()) {
+      await query(
+        `UPDATE idempotency_records SET status = 'COMPLETED', status_code = 201,
+         response_body = $2::jsonb WHERE user_id = $1 AND key LIKE $3`,
+        [user.id, JSON.stringify(cachedResponses[index]), `%${uniqueKey}`],
+      );
+    }
+    for (const [index, request] of [req1, req2].entries()) {
+      const replayResponse = makeMockRes();
+      const replayNext = vi.fn();
+      await requireIdempotency(asRequest(request), asResponse(replayResponse), replayNext);
+      expect(replayNext).not.toHaveBeenCalled();
+      expect(replayResponse.status).toHaveBeenCalledWith(201);
+      expect(replayResponse.json).toHaveBeenCalledExactlyOnceWith({
+        ...cachedResponses[index],
+        _idempotentReplay: true,
+      });
+    }
 
     // Clean up
     await query(`DELETE FROM idempotency_records WHERE key LIKE $1`, [`%${uniqueKey}`]);
+    await query('DELETE FROM users WHERE id = ANY($1::int[])', [users.rows.map((row) => row.id)]);
   });
 
   it('rejects batch sync sales when single invoice exceeds 100 items', async () => {
@@ -233,29 +251,18 @@ describe('Security regressions', () => {
       items: Array.from({ length: 101 }, (_, i) => ({ product_id: i + 1, quantity: 1 })),
     };
 
-    const req: any = {
+    const req = {
       body: { sales: [fakeSale] },
       user: { id: 1, role_name: 'cashier' },
     };
-    let status = 0;
-    let jsonResult: any = null;
-    const res: any = {
-      status: (s: number) => {
-        status = s;
-        return res;
-      },
-      json: (j: any) => {
-        jsonResult = j;
-        return res;
-      },
-    };
+    const { res, captured } = makeCapturedResponse();
     const next = vi.fn();
 
-    await posShiftController.batchSyncSales(req, res, next);
+    await posShiftController.batchSyncSales(asRequest(req), res, next);
 
-    expect(status).toBe(400);
-    expect(jsonResult?.success).toBe(false);
-    expect(jsonResult?.message).toContain('100 صنف لكل فاتورة');
+    expect(captured.status).toBe(400);
+    expect(captured.body?.success).toBe(false);
+    expect(captured.body?.message).toContain('100 صنف لكل فاتورة');
   });
 
   it('rejects batch sync sales when total items across all invoices exceed 500', async () => {
@@ -266,41 +273,30 @@ describe('Security regressions', () => {
       items: Array.from({ length: 90 }, (_, j) => ({ product_id: j + 1, quantity: 1 })),
     }));
 
-    const req: any = {
+    const req = {
       body: { sales: fakeSales },
       user: { id: 1, role_name: 'cashier' },
     };
-    let status = 0;
-    let jsonResult: any = null;
-    const res: any = {
-      status: (s: number) => {
-        status = s;
-        return res;
-      },
-      json: (j: any) => {
-        jsonResult = j;
-        return res;
-      },
-    };
+    const { res, captured } = makeCapturedResponse();
     const next = vi.fn();
 
-    await posShiftController.batchSyncSales(req, res, next);
+    await posShiftController.batchSyncSales(asRequest(req), res, next);
 
-    expect(status).toBe(400);
-    expect(jsonResult?.success).toBe(false);
-    expect(jsonResult?.message).toContain('500 صنف');
+    expect(captured.status).toBe(400);
+    expect(captured.body?.success).toBe(false);
+    expect(captured.body?.message).toContain('500 صنف');
   });
 
   it('enforces user ownership on notification read and rejects when userId is missing', async () => {
     const { markNotificationRead, markAllNotificationsRead } =
       await import('../src/services/userService.ts');
 
-    await expect(markNotificationRead(1, undefined as any)).rejects.toMatchObject({
+    await expect(markNotificationRead(1, undefined)).rejects.toMatchObject({
       statusCode: 400,
       code: 'USER_REQUIRED',
     });
 
-    await expect(markAllNotificationsRead(undefined as any)).rejects.toMatchObject({
+    await expect(markAllNotificationsRead(undefined)).rejects.toMatchObject({
       statusCode: 400,
       code: 'USER_REQUIRED',
     });

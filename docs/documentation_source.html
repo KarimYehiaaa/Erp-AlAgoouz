@@ -368,7 +368,7 @@
       <tr>
         <td><strong>Backend Core</strong></td>
         <td><span class="badge badge-success">Node.js + Express.js</span></td>
-        <td>Node 20+</td>
+        <td>Node 24.x</td>
         <td>خادم الـ RESTful APIs ومعالجة منطق الأعمال، المعاملات، وقواعد الأمان.</td>
       </tr>
       <tr>
@@ -380,7 +380,7 @@
       <tr>
         <td><strong>Database Engine</strong></td>
         <td><span class="badge badge-success">PostgreSQL</span></td>
-        <td>15 / 16</td>
+        <td>14+</td>
         <td>قاعدة البيانات العلاقية الأساسية ذات الموثوقية العالية ومعاملات ACID الصارمة.</td>
       </tr>
       <tr>
@@ -529,7 +529,7 @@ AlAgoouz-erp/
   <div class="feature-grid">
     <div class="feature-card">
       <h4>💻 متطلبات الخادم المحلي (Local Server)</h4>
-      <p>Node.js ≥ v20.0, PostgreSQL ≥ 15, 8GB RAM, Windows 10/11 أو Linux Ubuntu 22.04.</p>
+      <p>Node.js 24.x وPostgreSQL 14 أو أحدث. يلزم Android SDK وJDK لبناء تطبيق Android، وPython 3.12 لخدمة التحليلات الاختيارية.</p>
     </div>
     <div class="feature-card">
       <h4>🌐 متطلبات السحابة (Cloud Production)</h4>
@@ -539,16 +539,18 @@ AlAgoouz-erp/
 
   <h2>أوامر التشغيل السريعة:</h2>
   <pre>
-# 1. تثبيت الحزم للواجهة الأمامية والخلفية
-npm install
+# بعد إعداد ملف .env باتصال قاعدة بيانات محلية أو Supabase
+npm ci
+npm ci --prefix desktop-pos
 
-# 2. تنفيذ الترحيلات وبناء قاعدة البيانات
-npm run migrate
+# للتشغيل المحلي باستخدام PostgreSQL وRedis في Docker
+docker compose --profile local-db up -d postgres redis
+npm run setup-db -w backend
 
-# 3. بناء الواجهة للإنتاج وتشغيل السيرفر الموحد
-npm run build --prefix frontend
-npm start --prefix backend
-# المنفذ الافتراضي الموحد: http://localhost:3000
+# شغّل الخادم والواجهة كلٌ في نافذة طرفية مستقلة
+npm run dev -w backend
+npm run dev -w frontend
+# واجهة API: http://localhost:3000 — الواجهة: http://localhost:5173
   </pre>
 
   <div class="callout" style="text-align: center; margin-top: 30px;">

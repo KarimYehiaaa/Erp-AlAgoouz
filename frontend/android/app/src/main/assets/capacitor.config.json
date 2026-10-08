@@ -1,0 +1,28 @@
+{
+	"appId": "com.binalagoouz.manager",
+	"appName": "بن العجوز - تقارير الإدارة",
+	"webDir": "dist-native",
+	"server": {
+		"androidScheme": "https",
+		"cleartext": false,
+		"allowNavigation": []
+	},
+	"plugins": {
+		"CapacitorHttp": {
+			"enabled": true
+		},
+		"StatusBar": {
+			"style": "DARK",
+			"backgroundColor": "#090604",
+			"overlaysWebView": false
+		},
+		"SplashScreen": {
+			"launchShowDuration": 1500,
+			"launchAutoHide": true,
+			"backgroundColor": "#090604",
+			"androidSplashResourceName": "splash",
+			"androidScaleType": "CENTER_CROP",
+			"showSpinner": false
+		}
+	}
+}

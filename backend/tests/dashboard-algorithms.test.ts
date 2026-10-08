@@ -1,16 +1,11 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import {
-  getDashboardStats,
-  invalidateDashboardCache,
-  resolveCogs,
-} from '../src/services/dashboardService.ts';
+import { getDashboardStats, resolveCogs } from '../src/services/dashboardService.ts';
 import { query } from '../src/database/pool.ts';
-import pool from '../src/database/pool.ts';
 
 /**
  * اختبارات الخوارزميات الجديدة في لوحة التحكم:
  * 1) فصل أرصدة العملاء الافتتاحية عن المبيعات والأرباح (كانت تضخّمهما + عد مزدوج في الأصول).
- * 2) خوارزمية COGS الثلاثية: cost_stored ← sale_items ← purchases.
+ * 2) خوارزمية COGS الثلاثية: cost_stored ← sale_items ← untracked.
  *
  * تُستخدم نوافذ تواريخ قديمة معزولة (2025-06) لا يلمسها أي اختبار آخر،
  * حتى تكون التوقعات الدقيقة صحيحة مهما كانت بيانات الاختبارات المتوازية.
@@ -21,7 +16,7 @@ describe('خوارزميات لوحة التحكم (dashboardService)', () => {
     opening: '2025-06-15', // فصل الأرصدة الافتتاحية
     cogsTier1: '2025-06-16', // cost_amount مخزّن يغلب sale_items
     cogsTier2: '2025-06-17', // sale_items عندما لا توجد تكلفة مخزنة
-    cogsTier3: '2025-06-18', // المشتريات كتقدير
+    cogsTier3: '2025-06-18', // المشتريات غير المباعة ليست تكلفة مبيعات
     cogsZero: '2025-06-19', // لا توجد أي تكلفة
   };
 
@@ -30,7 +25,11 @@ describe('خوارزميات لوحة التحكم (dashboardService)', () => {
   const saleIds: number[] = [];
   const itemSaleIds: number[] = [];
 
-  const insertSale = async (saleNumber: string, date: string, opts: any = {}) => {
+  const insertSale = async (
+    saleNumber: string,
+    date: string,
+    opts: { total?: number; cost?: number; profit?: number } = {},
+  ) => {
     const res = await query(
       `INSERT INTO sales (sale_number, sale_type, sale_date, entry_mode, warehouse_id, user_id,
                           subtotal, discount_amount, tax_amount, total_amount, cost_amount, profit_amount,
@@ -122,8 +121,6 @@ describe('خوارزميات لوحة التحكم (dashboardService)', () => {
     saleIds.push(
       await insertSale('SL-TEST-DASH-005', W.cogsZero, { total: 100, cost: 0, profit: 0 }),
     );
-
-    invalidateDashboardCache();
   });
 
   afterAll(async () => {
@@ -136,7 +133,6 @@ describe('خوارزميات لوحة التحكم (dashboardService)', () => {
     await query(`DELETE FROM purchase_invoices WHERE invoice_number = 'PI-TEST-DASH-001'`);
     if (customerId) await query(`DELETE FROM customers WHERE id = $1`, [customerId]);
     if (productId) await query(`DELETE FROM products WHERE id = $1`, [productId]);
-    invalidateDashboardCache();
   });
 
   const getStatsFor = async (date: string) => {
@@ -175,27 +171,27 @@ describe('خوارزميات لوحة التحكم (dashboardService)', () => {
   // ═══════════════════════════════════════════════════════════════
   describe('resolveCogs (الدالة النقية — كل الحالات)', () => {
     it('المستوى الأول: cost_amount المخزّن يغلب دائمًا حتى لو وُجدت sale_items أو مشتريات', () => {
-      expect(resolveCogs(400, 1000, 300)).toEqual({ value: 400, basis: 'cost_stored' });
-      expect(resolveCogs(0.01, 1000, 300)).toEqual({ value: 0.01, basis: 'cost_stored' });
-      expect(resolveCogs(1, 0, 300)).toEqual({ value: 1, basis: 'cost_stored' });
+      expect(resolveCogs(400, 1000)).toEqual({ value: 400, basis: 'cost_stored' });
+      expect(resolveCogs(0.01, 1000)).toEqual({ value: 0.01, basis: 'cost_stored' });
+      expect(resolveCogs(1, 0)).toEqual({ value: 1, basis: 'cost_stored' });
     });
 
     it('المستوى الثاني: sale_items عندما لا توجد تكلفة مخزنة', () => {
-      expect(resolveCogs(0, 200, 300)).toEqual({ value: 200, basis: 'sale_items' });
-      expect(resolveCogs(0, 0.01, 300)).toEqual({ value: 0.01, basis: 'sale_items' });
-      expect(resolveCogs(null, 200, 300)).toEqual({ value: 200, basis: 'sale_items' });
+      expect(resolveCogs(0, 200)).toEqual({ value: 200, basis: 'sale_items' });
+      expect(resolveCogs(0, 0.01)).toEqual({ value: 0.01, basis: 'sale_items' });
+      expect(resolveCogs(null, 200)).toEqual({ value: 200, basis: 'sale_items' });
     });
 
-    it('المستوى الثالث: مشتريات الفترة كتقدير عندما لا توجد أي تكلفة', () => {
-      expect(resolveCogs(0, 0, 300)).toEqual({ value: 300, basis: 'purchases' });
-      expect(resolveCogs(0, null, 300)).toEqual({ value: 300, basis: 'purchases' });
-      expect(resolveCogs(undefined, 0, '250.5')).toEqual({ value: 250.5, basis: 'purchases' });
+    it('التكلفة غير مسجلة عند غياب تكلفة المبيعات والبنود', () => {
+      expect(resolveCogs(0, 0)).toEqual({ value: 0, basis: 'untracked' });
+      expect(resolveCogs(0, null)).toEqual({ value: 0, basis: 'untracked' });
+      expect(resolveCogs(undefined, 0)).toEqual({ value: 0, basis: 'untracked' });
     });
 
-    it('لا توجد أي بيانات تكلفة → صفر مع أساس purchases', () => {
-      expect(resolveCogs(0, 0, 0)).toEqual({ value: 0, basis: 'purchases' });
-      expect(resolveCogs(null, null, null)).toEqual({ value: 0, basis: 'purchases' });
-      expect(resolveCogs('', '', '')).toEqual({ value: 0, basis: 'purchases' });
+    it('لا توجد أي بيانات تكلفة → صفر مع أساس untracked', () => {
+      expect(resolveCogs(0, 0)).toEqual({ value: 0, basis: 'untracked' });
+      expect(resolveCogs(null, null)).toEqual({ value: 0, basis: 'untracked' });
+      expect(resolveCogs('', '')).toEqual({ value: 0, basis: 'untracked' });
     });
   });
 
@@ -218,16 +214,16 @@ describe('خوارزميات لوحة التحكم (dashboardService)', () => {
       expect(stats.month.grossProfit).toBe(800);
     }, 20000);
 
-    it('المستوى الثالث: مشتريات الفترة (300) عندما لا توجد تكلفة مفصلة', async () => {
+    it('لا تُحمّل مشتريات الفترة غير المباعة على تكلفة المبيعات', async () => {
       const stats = await getStatsFor(W.cogsTier3);
-      expect(stats.month.cogsBasis).toBe('purchases');
-      expect(stats.month.cost).toBe(300);
-      expect(stats.month.grossProfit).toBe(700);
+      expect(stats.month.cogsBasis).toBe('untracked');
+      expect(stats.month.cost).toBe(0);
+      expect(stats.month.grossProfit).toBe(1000);
     }, 20000);
 
-    it('لا توجد أي تكلفة → صفر مع أساس purchases والربح يساوي المبيعات', async () => {
+    it('لا توجد أي تكلفة → صفر مع أساس untracked والربح يساوي المبيعات', async () => {
       const stats = await getStatsFor(W.cogsZero);
-      expect(stats.month.cogsBasis).toBe('purchases');
+      expect(stats.month.cogsBasis).toBe('untracked');
       expect(stats.month.cost).toBe(0);
       expect(stats.month.grossProfit).toBe(100);
       expect(stats.month.netProfit).toBe(100);

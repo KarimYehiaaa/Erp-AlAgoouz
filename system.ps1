@@ -1,357 +1,104 @@
-# ================================================================================
-#  Bin Al-Ajouz ERP - Unified Control and Operations Script (Port 3000)
-# ================================================================================
-#  Interactive Usage:
-#    .\system.ps1
-#  Direct CLI Usage:
-#    .\system.ps1 start     - Start system and open in browser
-#    .\system.ps1 stop      - Stop system and release all ports
-#    .\system.ps1 restart   - Clean restart of the system
-#    .\system.ps1 status    - Check server and database health
-#    .\system.ps1 dev       - Start development mode (live reload)
-#    .\system.ps1 backup    - Create instant database backup
-#    .\system.ps1 migrate   - Run database migrations and schema check
-# ================================================================================
-
-param(
-    [string]$Action,
-    [switch]$Silent
-)
-
+# Bin Al-Ajouz ERP - unified Windows controls for the project on port 3000.
+param([string]$Action, [switch]$Silent)
+$ErrorActionPreference = 'Stop'
 $Root = $PSScriptRoot
 if (-not $Root) { $Root = (Get-Location).Path }
-Set-Location $Root
+Set-Location -LiteralPath $Root
+. (Join-Path $Root 'scripts\windows\runtime-control.ps1')
 
 function Start-SystemServer {
     param([switch]$Silent)
-
-    if (-not $Silent) {
-        Write-Host ""
-        Write-Host "================================================================================" -ForegroundColor Cyan
-        Write-Host " [START] Checking and starting Bin Al-Ajouz ERP (Port 3000)..." -ForegroundColor Cyan
-        Write-Host "================================================================================" -ForegroundColor Cyan
-        Write-Host ""
-    }
-
-    # 1. Ensure local PostgreSQL service is running if installed
-    $pgServices = Get-Service -Name "postgresql*" -ErrorAction SilentlyContinue
-    if ($pgServices) {
-        $stoppedPg = $pgServices | Where-Object { $_.Status -ne "Running" }
-        if ($stoppedPg) {
-            if (-not $Silent) {
-                Write-Host "[1/4] Starting local PostgreSQL service..." -ForegroundColor Yellow
-            }
-            try {
-                $stoppedPg | Start-Service -ErrorAction SilentlyContinue
-                Start-Sleep -Seconds 1
-            } catch {}
-        }
-    }
-
-    # 2. Check if server is already running and healthy with database connected
-    try {
-        $check = Invoke-RestMethod -Uri "http://localhost:3000/api/health" -TimeoutSec 2 -ErrorAction Stop
-        if (($check.success -eq $true -or $check.status -eq "ok") -and ($null -eq $check.db -or $check.db.connected -eq $true)) {
-            if (-not $Silent) {
-                Write-Host "[OK] Server is already running and connected to database!" -ForegroundColor Green
-                Write-Host "[WEB] Opening browser: http://localhost:3000" -ForegroundColor Cyan
-            }
-            Start-Process "http://localhost:3000"
-            return
-        }
-    } catch {}
-
-    # 3. Release port 3000 and 5173 if occupied by stale process
-    if (-not $Silent) {
-        Write-Host "[2/4] Checking and clearing ports 3000 and 5173..." -ForegroundColor Yellow
-    }
-    $ports = @(3000, 5173)
-    foreach ($port in $ports) {
-        $pids = (Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue).OwningProcess
-        if ($pids) {
-            foreach ($p in $pids) {
-                Stop-Process -Id $p -Force -ErrorAction SilentlyContinue
-                if (-not $Silent) {
-                    Write-Host "   - Released port $port (PID: $p)" -ForegroundColor Gray
-                }
-            }
-        }
-    }
-    Start-Sleep -Milliseconds 600
-
-    # 4. Launch Unified Server in background with logging
-    if (-not $Silent) {
-        Write-Host "[3/4] Launching Unified Server (npm start)..." -ForegroundColor Cyan
-    }
-    $backendDir = Join-Path $Root "backend"
-    $windowStyle = if ($Silent) { "Hidden" } else { "Minimized" }
-    $startupLog = Join-Path $backendDir "startup.log"
-
-    # Reset startup log header
-    "=== [$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] Starting Bin Al-Ajouz ERP Server ===" | Out-File -FilePath $startupLog -Encoding utf8 -Force
-
-    $procArgs = @("-NoExit", "-ExecutionPolicy", "Bypass", "-Command", "Set-Location '$backendDir'; npm start *>> '$startupLog'")
-    Start-Process powershell -ArgumentList $procArgs -WorkingDirectory $backendDir -WindowStyle $windowStyle
-
-    # 5. Poll /api/health until ready (up to 45 seconds for cold DB start)
-    if (-not $Silent) {
-        Write-Host "[4/4] Waiting for server health and database connection... " -NoNewline -ForegroundColor Yellow
-    }
-    $ready = $false
-    for ($i = 1; $i -le 45; $i++) {
-        Start-Sleep -Seconds 1
-        if (-not $Silent) {
-            Write-Host "." -NoNewline -ForegroundColor Yellow
-        }
-        try {
-            $res = Invoke-RestMethod -Uri "http://localhost:3000/api/health" -TimeoutSec 2 -ErrorAction Stop
-            if (($res.success -eq $true -or $res.status -eq "ok") -and ($null -eq $res.db -or $res.db.connected -eq $true)) {
-                $ready = $true
-                break
-            }
-        } catch {}
-    }
-    if (-not $Silent) {
-        Write-Host ""
-    }
-
-    if ($ready) {
-        if (-not $Silent) {
-            Write-Host ""
-            Write-Host "================================================================================" -ForegroundColor Green
-            Write-Host " [SUCCESS] System started successfully and database is connected!" -ForegroundColor Green
-            Write-Host " [WEB] Opening system in browser: http://localhost:3000" -ForegroundColor Cyan
-            Write-Host "================================================================================" -ForegroundColor Green
-        }
-        Start-Process "http://localhost:3000"
-    } else {
-        if (-not $Silent) {
-            Write-Host ""
-            Write-Host "[WARNING] Server took longer than expected to respond." -ForegroundColor Yellow
-            Write-Host "Please check the backend log ($startupLog) or backend/.env configuration." -ForegroundColor Gray
-        }
-    }
+    if (-not $Silent) { Write-Host '[START] Checking the owned ERP runtime and database...' -ForegroundColor Cyan }
+    Start-ErpRuntime $Root
+    if (-not $Silent) { Write-Host '[SUCCESS] ERP is ready with its database: http://localhost:3000' -ForegroundColor Green }
+    if (-not $Silent) { Start-Process 'http://localhost:3000' }
 }
 
 function Stop-SystemServer {
-    Write-Host ""
-    Write-Host "================================================================================" -ForegroundColor Yellow
-    Write-Host " [STOP] Stopping Bin Al-Ajouz ERP system completely..." -ForegroundColor Yellow
-    Write-Host "================================================================================" -ForegroundColor Yellow
-    Write-Host ""
-
-    # 1. Stop PM2 processes if present
-    $pm2 = Get-Command pm2 -ErrorAction SilentlyContinue
-    if ($pm2) {
-        pm2 stop bin-al-ajouz-erp 2>$null | Out-Null
-        pm2 delete bin-al-ajouz-erp 2>$null | Out-Null
-        Write-Host "   - Stopped PM2 processes." -ForegroundColor Gray
-    }
-
-    # 2. Release ports 3000 and 5173
-    Write-Host "Releasing listening ports 3000 and 5173..." -ForegroundColor Yellow
-    $ports = @(3000, 5173)
-    foreach ($port in $ports) {
-        $pids = (Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue).OwningProcess
-        if ($pids) {
-            foreach ($p in $pids) {
-                Stop-Process -Id $p -Force -ErrorAction SilentlyContinue
-                Write-Host "   - Terminated PID $p on port $port" -ForegroundColor Gray
-            }
-        }
-    }
-
-    # 3. Clean up node processes matching project path
-    Write-Host "Terminating lingering node.exe processes for ERP..." -ForegroundColor Yellow
-    Get-CimInstance Win32_Process -Filter "Name = 'node.exe'" -ErrorAction SilentlyContinue | Where-Object {
-        $_.CommandLine -like "*AlAgoouz*" -or $_.CommandLine -like "*src/index.ts*" -or $_.CommandLine -like "*vite*" -or $_.CommandLine -like "*bin-al-ajouz*"
-    } | ForEach-Object {
-        Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue
-    }
-
-    Start-Sleep -Seconds 1
-    Write-Host ""
-    Write-Host "================================================================================" -ForegroundColor Green
-    Write-Host " [SUCCESS] System stopped completely and all ports have been released!" -ForegroundColor Green
-    Write-Host "================================================================================" -ForegroundColor Green
+    Stop-ErpRuntime $Root
+    Write-Host '[SUCCESS] Verified ERP processes were stopped; unrelated applications were left running.' -ForegroundColor Green
 }
 
 function Restart-SystemServer {
-    Write-Host ""
-    Write-Host "================================================================================" -ForegroundColor Cyan
-    Write-Host " [RESTART] Restarting Bin Al-Ajouz ERP..." -ForegroundColor Cyan
-    Write-Host "================================================================================" -ForegroundColor Cyan
-    Write-Host ""
-
-    Write-Host "[1/2] Stopping active processes..." -ForegroundColor Yellow
-    Stop-SystemServer
-
-    Start-Sleep -Seconds 2
-
-    Write-Host ""
-    Write-Host "[2/2] Booting Unified Server again..." -ForegroundColor Cyan
-    Start-SystemServer
+    param([switch]$Silent)
+    Start-ErpRuntime $Root -Restart
+    if (-not $Silent) { Write-Host '[SUCCESS] ERP restarted and established database/HTTP readiness.' -ForegroundColor Green }
+    if (-not $Silent) { Start-Process 'http://localhost:3000' }
 }
 
 function Check-SystemStatus {
-    Write-Host ""
-    Write-Host "================================================================================" -ForegroundColor Cyan
-    Write-Host " [STATUS] Bin Al-Ajouz ERP Status and Database Health Report" -ForegroundColor Cyan
-    Write-Host "================================================================================" -ForegroundColor Cyan
-    Write-Host ""
-
-    Write-Host "1. Port 3000 Check:" -ForegroundColor White
-    $p3000 = (Get-NetTCPConnection -LocalPort 3000 -State Listen -ErrorAction SilentlyContinue)
-    if ($p3000) {
-        Write-Host "   [ONLINE] Port 3000 is ACTIVE and LISTENING (PID: $($p3000[0].OwningProcess))" -ForegroundColor Green
-    } else {
-        Write-Host "   [OFFLINE] Port 3000 is CLOSED (Server is not running)" -ForegroundColor Red
-    }
-
-    Write-Host ""
-    Write-Host "2. API Health Check (http://localhost:3000/api/health):" -ForegroundColor White
-    try {
-        $h = Invoke-RestMethod -Uri "http://localhost:3000/api/health" -TimeoutSec 3 -ErrorAction Stop
-        Write-Host "   [ONLINE] Server Status: ONLINE and HEALTHY (OK)" -ForegroundColor Green
-        if ($h.db) {
-            $dbStatus = "Disconnected"
-            $dbColor = "Red"
-            if ($h.db.connected) {
-                $dbStatus = "Connected"
-                $dbColor = "Green"
-            }
-            Write-Host "   [DB] Database Status: $dbStatus" -ForegroundColor $dbColor
-            if ($h.db.latencyMs) {
-                Write-Host "   [PING] Response Latency: $($h.db.latencyMs) ms" -ForegroundColor Gray
-            }
-        } elseif ($h.database) {
-            Write-Host "   [DB] Database Status: $($h.database.status)" -ForegroundColor Green
-        }
-        if ($h.uptime) {
-            Write-Host "   [UPTIME] Server Uptime: $([math]::Round($h.uptime / 60, 1)) minutes" -ForegroundColor Gray
-        }
-    } catch {
-        Write-Host "   [OFFLINE] No response from http://localhost:3000/api/health" -ForegroundColor Yellow
-    }
-
-    Write-Host ""
-    Write-Host "3. Local PostgreSQL Service Check:" -ForegroundColor White
-    $pg = Get-Service -Name "postgresql*" -ErrorAction SilentlyContinue | Where-Object { $_.Status -eq "Running" }
-    if ($pg) {
-        Write-Host "   [RUNNING] Local PostgreSQL Service: $($pg.DisplayName)" -ForegroundColor Green
-    } else {
-        Write-Host "   [INFO] No local PostgreSQL service active (system connects to cloud Supabase or remote DB)" -ForegroundColor Gray
-    }
+    $plan = Get-ErpRuntimePlan $Root
+    Assert-ErpRuntimeListenerOwnership $Root $plan
+    if (@(Get-ErpRuntimeListeners).Count -eq 0) { Write-Host '[OFFLINE] No owned ERP listener on port 3000.' -ForegroundColor Yellow; return }
+    if (Test-ErpRuntimeHealth) { Write-Host '[ONLINE] Owned ERP HTTP and database are healthy.' -ForegroundColor Green }
+    else { Write-Host '[UNHEALTHY] The owned ERP runtime has not established HTTP/database readiness.' -ForegroundColor Yellow }
 }
 
 function Start-DevMode {
-    Write-Host ""
-    Write-Host "================================================================================" -ForegroundColor Cyan
-    Write-Host " [DEV] Starting Bin Al-Ajouz ERP in Development Mode (Live Reload)..." -ForegroundColor Cyan
-    Write-Host "================================================================================" -ForegroundColor Cyan
-    Write-Host ""
-
-    $backendDir = Join-Path $Root "backend"
-    $frontendDir = Join-Path $Root "frontend"
-
-    Write-Host "Launching Backend Dev window (Watch Mode)..." -ForegroundColor Yellow
-    Start-Process powershell -ArgumentList "-NoExit", "-Command", "Set-Location '$backendDir'; Write-Host '[DEV] Backend Watch Mode...' -ForegroundColor Cyan; npm run dev" -WorkingDirectory $backendDir
-
-    Write-Host "Launching Frontend Dev window (Vite Server)..." -ForegroundColor Yellow
-    Start-Process powershell -ArgumentList "-NoExit", "-Command", "Set-Location '$frontendDir'; Write-Host '[DEV] Frontend Vite Server...' -ForegroundColor Green; npm run dev" -WorkingDirectory $frontendDir
-
-    Write-Host ""
-    Write-Host "[OK] Development servers launched in separate windows!" -ForegroundColor Green
+    foreach ($port in @(3000,5173)) {
+        if (Get-NetTCPConnection -State Listen -ErrorAction Stop | Where-Object { $_.LocalPort -eq $port }) { throw "Port $port is occupied; development servers were not started." }
+    }
+    $node = Test-ErpRuntimePrerequisites $Root -SkipFrontendBuild
+    $backend = Join-Path $Root 'backend'
+    $frontend = Join-Path $Root 'frontend'
+    $backendArguments = ConvertTo-ErpNativeArguments @('--watch','--import','tsx','--import',(Join-Path $backend 'src\services\sentryInstrumentation.ts'),(Join-Path $backend 'src\index.ts'))
+    $vite = Join-Path $Root 'node_modules\vite\bin\vite.js'
+    if (-not (Test-Path -LiteralPath $vite -PathType Leaf)) { $vite = Join-Path $frontend 'node_modules\vite\bin\vite.js' }
+    if (-not (Test-Path -LiteralPath $vite -PathType Leaf)) { throw 'Install frontend dependencies before starting development mode.' }
+    # The user explicitly selected interactive development windows.
+    Start-Process -FilePath $node -ArgumentList $backendArguments -WorkingDirectory $backend
+    Start-Process -FilePath $node -ArgumentList (ConvertTo-ErpNativeArguments @($vite)) -WorkingDirectory $frontend
+    Write-Host '[DEV] Backend watch and frontend Vite were launched.' -ForegroundColor Green
 }
 
 function Backup-Database {
-    Write-Host ""
-    Write-Host "================================================================================" -ForegroundColor Cyan
-    Write-Host " [BACKUP] Creating Instant Database Backup..." -ForegroundColor Cyan
-    Write-Host "================================================================================" -ForegroundColor Cyan
-    Write-Host ""
-
-    Set-Location $Root
-    node scripts/database/backup-system.ts
+    $node = (Get-Command node -ErrorAction Stop).Source
+    $null = Invoke-ErpNativeCommand $node @((Join-Path $Root 'scripts\database\backup-system.ts')) 'database backup'
+    Write-Host '[SUCCESS] Database backup completed.' -ForegroundColor Green
 }
 
 function Run-Migrations {
-    Write-Host ""
-    Write-Host "================================================================================" -ForegroundColor Cyan
-    Write-Host " [MIGRATE] Running Database Migrations and Schema Check..." -ForegroundColor Cyan
-    Write-Host "================================================================================" -ForegroundColor Cyan
-    Write-Host ""
-
-    $backendDir = Join-Path $Root "backend"
-    Set-Location $backendDir
-    node scripts/migrate.ts
-    Set-Location $Root
+    $node = (Get-Command node -ErrorAction Stop).Source
+    Push-Location (Join-Path $Root 'backend')
+    try { $null = Invoke-ErpNativeCommand $node @('scripts/migrate.ts') 'database migrations' } finally { Pop-Location }
+    Write-Host '[SUCCESS] Database migrations completed.' -ForegroundColor Green
 }
 
-# --------------------------------------------------------------------------------
-# CLI Argument Dispatcher
-# --------------------------------------------------------------------------------
+# CLI Argument Dispatcher. Dot sourcing exposes definitions for isolated verification.
+if ($MyInvocation.InvocationName -eq '.') { return }
 if ($Action) {
-    switch ($Action.ToLower().Trim()) {
-        "start"   { Start-SystemServer -Silent:$Silent; exit 0 }
-        "stop"    { Stop-SystemServer; exit 0 }
-        "restart" { Restart-SystemServer; exit 0 }
-        "status"  { Check-SystemStatus; exit 0 }
-        "dev"     { Start-DevMode; exit 0 }
-        "backup"  { Backup-Database; exit 0 }
-        "migrate" { Run-Migrations; exit 0 }
-        default {
-            Write-Host "[ERROR] Unknown action: $Action" -ForegroundColor Red
-            Write-Host "Available actions: start, stop, restart, status, dev, backup, migrate" -ForegroundColor Yellow
-            exit 1
+    try {
+        switch ($Action.ToLower().Trim()) {
+            'start' { Start-SystemServer -Silent:$Silent }
+            'stop' { Stop-SystemServer }
+            'restart' { Restart-SystemServer -Silent:$Silent }
+            'status' { Check-SystemStatus }
+            'dev' { Start-DevMode }
+            'backup' { Backup-Database }
+            'migrate' { Run-Migrations }
+            default { throw 'Unknown action. Use start, stop, restart, status, dev, backup or migrate.' }
         }
-    }
+        exit 0
+    } catch { Write-Error $_.Exception.Message -ErrorAction Continue; exit 1 }
 }
 
-# --------------------------------------------------------------------------------
-# Interactive Menu Loop
-# --------------------------------------------------------------------------------
 while ($true) {
     Clear-Host
-    Write-Host "================================================================================" -ForegroundColor Cyan
-    Write-Host "          Bin Al-Ajouz ERP - Unified Control Panel (Port 3000)          " -ForegroundColor Green
-    Write-Host "================================================================================" -ForegroundColor Cyan
-    Write-Host ""
-    Write-Host "   [1]  Start System (Launch Unified Server and Open Browser)" -ForegroundColor White
-    Write-Host "   [2]  Stop System (Release Ports 3000/5173 and Terminate Processes)" -ForegroundColor White
-    Write-Host "   [3]  Restart System (Clean Stop -> Wait -> Boot)" -ForegroundColor White
-    Write-Host "   [4]  Check System Status and Database Health" -ForegroundColor White
-    Write-Host "   [5]  Start Development Mode (Backend and Frontend Watch)" -ForegroundColor White
-    Write-Host "   [6]  Create Instant Database Backup" -ForegroundColor White
-    Write-Host "   [7]  Run Database Migrations and Schema Check" -ForegroundColor White
-    Write-Host ""
-    Write-Host "   [0]  Exit Control Panel" -ForegroundColor Gray
-    Write-Host ""
-    Write-Host "================================================================================" -ForegroundColor Cyan
-
-    $choice = Read-Host "   >> Select an option [0-7] and press Enter"
-
-    switch ($choice.Trim()) {
-        "1" { Start-SystemServer }
-        "2" { Stop-SystemServer }
-        "3" { Restart-SystemServer }
-        "4" { Check-SystemStatus }
-        "5" { Start-DevMode }
-        "6" { Backup-Database }
-        "7" { Run-Migrations }
-        "0" {
-            Write-Host ""
-            Write-Host "Thank you for using Bin Al-Ajouz ERP. Goodbye!" -ForegroundColor Green
-            Write-Host ""
-            exit 0
+    Write-Host 'Bin Al-Ajouz ERP - Unified Control Panel (Port 3000)' -ForegroundColor Cyan
+    Write-Host '[1] Start  [2] Stop  [3] Restart  [4] Status  [5] Dev  [6] Backup  [7] Migrate  [0] Exit'
+    $choice = Read-Host 'Select an option [0-7]'
+    try {
+        switch ($choice.Trim()) {
+            '1' { Start-SystemServer }
+            '2' { Stop-SystemServer }
+            '3' { Restart-SystemServer }
+            '4' { Check-SystemStatus }
+            '5' { Start-DevMode }
+            '6' { Backup-Database }
+            '7' { Run-Migrations }
+            '0' { exit 0 }
+            default { throw 'Invalid choice.' }
         }
-        default {
-            Write-Host ""
-            Write-Host "[ERROR] Invalid choice. Please enter a number between 0 and 7." -ForegroundColor Red
-        }
-    }
-
-    Write-Host ""
-    Write-Host "--------------------------------------------------------------------------------" -ForegroundColor Gray
-    Read-Host "Press Enter to return to main menu..."
+    } catch { Write-Error $_.Exception.Message -ErrorAction Continue }
+    Read-Host 'Press Enter to return to the menu'
 }

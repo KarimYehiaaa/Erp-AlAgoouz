@@ -1,3 +1,4 @@
+import { standalonePaymentSourceSql, linkPaymentJournalSources } from './paymentJournalSources.ts';
 /**
  * salesService.ts — دورة المبيعات (التنسيق الرئيسي)
  * الملف المركزي لعمليات البيع: الإنشاء، التعديل، الإرجاع، الحذف، الاستيراد.
@@ -9,15 +10,15 @@ import { salesRepository } from '../repositories/sales.repository.ts';
 import { getClient, query } from '../database/pool.ts';
 import { AppError } from '../types/errors.ts';
 import { recalculateCustomerBalance } from './customerBalanceService.ts';
-import { invalidateDashboardCache } from './dashboardService.ts';
 import { broadcast } from './websocketService.ts';
 import { emitAutomationEvent } from './automationEventBus.ts';
 import { roundMoney, parseAmount } from '../utils/money.ts';
 import { businessToday } from '../utils/localDate.ts';
+import { resolveSaleSettlement } from '../../../shared/saleSettlement.ts';
+import { settleSalePaymentAllocations } from './salePaymentOps.ts';
 import {
   calculateOutstandingAmount,
   calculatePaidAmount,
-  calculatePaymentTotal,
   calculateSaleTotals,
   SALE_TYPES,
 } from './salesCalculations.ts';
@@ -27,6 +28,7 @@ import {
   restoreInventoryForSale,
 } from './saleInventoryOps.ts';
 import { getAllowedWarehouses } from '../middleware/warehouseAccess.ts';
+import { parseSaleSyncId } from '../utils/saleSyncId.ts';
 import { WAREHOUSE_GLOBAL_ROLES } from '../../../shared/permissions.js';
 
 const assertSaleWarehouseAccess = async (client, userId: number, warehouseId: number | null) => {
@@ -37,7 +39,7 @@ const assertSaleWarehouseAccess = async (client, userId: number, warehouseId: nu
   const role = userRes.rows[0]?.role_name;
   if (role && WAREHOUSE_GLOBAL_ROLES.includes(role)) return;
 
-  const allowedWarehouses = await getAllowedWarehouses(userId);
+  const allowedWarehouses = await getAllowedWarehouses(userId, client);
   if (!warehouseId || !allowedWarehouses.includes(Number(warehouseId))) {
     throw new AppError('غير مصرح لك بالوصول لهذا المخزن', 403);
   }
@@ -69,6 +71,7 @@ const createDailySale = async (data: Record<string, any>, userId: number) => {
       '\u0646\u0648\u0639 \u0627\u0644\u0628\u064A\u0639 \u063A\u064A\u0631 \u0635\u062D\u064A\u062D. \u0627\u0644\u0623\u0646\u0648\u0627\u0639 \u0627\u0644\u0645\u062A\u0627\u062D\u0629: retail \u0623\u0648 wholesale \u0623\u0648 pos',
     );
   }
+  const syncId = parseSaleSyncId(data.sync_id);
   const rawItems = Array.isArray(data.items) ? data.items : [];
   const totals = calculateSaleTotals(rawItems, data);
   const items = totals.items;
@@ -106,10 +109,6 @@ const createDailySale = async (data: Record<string, any>, userId: number) => {
     throw new AppError(
       '\u0625\u062C\u0645\u0627\u0644\u064A \u0627\u0644\u0645\u0628\u064A\u0639\u0627\u062A \u064A\u062C\u0628 \u0623\u0646 \u064A\u0643\u0648\u0646 \u0623\u0643\u0628\u0631 \u0645\u0646 \u0635\u0641\u0631',
     );
-  const isCredit = data.payment_method === 'credit';
-  const paymentStatus = data.payment_status || (isCredit ? 'unpaid' : 'paid');
-  const rawPaidAmount = isCredit && data.paid_amount === undefined ? 0 : data.paid_amount || 0;
-  const effectivePaidAmount = calculatePaidAmount(paymentStatus, totalAmount, rawPaidAmount);
   const saleDate = data.sale_date || data.date || businessToday();
   // Itemized sales always derive profit from server-side cost layers. Manual
   // profit is retained only for historical/daily sales without line items.
@@ -118,10 +117,6 @@ const createDailySale = async (data: Record<string, any>, userId: number) => {
   try {
     await client.query('BEGIN');
     // حماية من الإرسال المزدوج (Offline replay): نفس sync_id يعيد البيع الموجود بدل إنشاء جديد
-    const isUuid = (str: string) =>
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(str);
-    const rawSyncId = typeof data.sync_id === 'string' && data.sync_id ? data.sync_id.trim() : null;
-    const syncId = rawSyncId && isUuid(rawSyncId) ? rawSyncId : null;
     if (syncId) {
       const dup = await client.query(
         `SELECT id, warehouse_id FROM sales WHERE sync_id = $1::uuid LIMIT 1`,
@@ -136,6 +131,42 @@ const createDailySale = async (data: Record<string, any>, userId: number) => {
     }
 
     await assertSaleWarehouseAccess(client, userId, warehouseId);
+
+    let settlement: ReturnType<typeof resolveSaleSettlement>;
+    try {
+      settlement = resolveSaleSettlement({ ...data, total_amount: totalAmount });
+    } catch (error) {
+      throw new AppError(error instanceof Error ? error.message : 'بيانات الدفع غير صالحة', 400);
+    }
+    const paymentStatus = settlement.payment_status;
+    const effectivePaidAmount = settlement.paid_amount;
+
+    if (data.pos_shift_id != null) {
+      const shiftId = Number(data.pos_shift_id);
+      if (!Number.isSafeInteger(shiftId) || shiftId <= 0) {
+        throw new AppError('رقم الوردية غير صالح', 400);
+      }
+      // Serialize against closeShift so a sale cannot be added after its totals
+      // have been calculated. Idempotent replays were handled above this lock.
+      const shiftResult = await client.query(
+        `SELECT status, cashier_user_id, warehouse_id, terminal_id
+         FROM pos_shifts WHERE id = $1 FOR UPDATE`,
+        [shiftId],
+      );
+      const shift = shiftResult.rows[0];
+      if (!shift || shift.status !== 'open') {
+        throw new AppError('لا يمكن إضافة مبيعات إلى وردية مغلقة أو غير موجودة', 409);
+      }
+      if (
+        Number(shift.cashier_user_id) !== Number(userId) ||
+        Number(shift.warehouse_id) !== Number(warehouseId)
+      ) {
+        throw new AppError('الوردية لا تخص الكاشير أو مخزن الفاتورة', 403);
+      }
+      if (data.terminal_id != null && Number(data.terminal_id) !== Number(shift.terminal_id)) {
+        throw new AppError('جهاز الكاشير لا يطابق جهاز الوردية', 400);
+      }
+    }
 
     if (redeemedPoints > 0) {
       const loyaltyResult = await client.query(
@@ -188,12 +219,13 @@ const createDailySale = async (data: Record<string, any>, userId: number) => {
         sale.id,
       ]);
     }
-    if (Array.isArray(data.payments) && data.payments.length > 0) {
-      calculatePaymentTotal(data.payments, totalAmount);
-      for (let idx = 0; idx < data.payments.length; idx++) {
-        const p = data.payments[idx];
+    const initialReceiptNumbers: string[] = [];
+    if (settlement.payments.length > 0) {
+      for (let idx = 0; idx < settlement.payments.length; idx++) {
+        const p = settlement.payments[idx];
         const pAmount = roundMoney(Number(p.amount) || 0);
         if (pAmount > 0) {
+          initialReceiptNumbers.push(`PAY-${sale.id}-${idx + 1}`);
           await client.query(
             `INSERT INTO payments (payment_number, reference_type, reference_id, amount, payment_method, user_id)
              VALUES ($1,'sale',$2,$3,$4,$5)`,
@@ -201,12 +233,6 @@ const createDailySale = async (data: Record<string, any>, userId: number) => {
           );
         }
       }
-    } else if (effectivePaidAmount > 0) {
-      await client.query(
-        `INSERT INTO payments (payment_number, reference_type, reference_id, amount, payment_method, user_id)
-         VALUES ($1,'sale',$2,$3,$4,$5)`,
-        [`PAY-${sale.id}`, sale.id, effectivePaidAmount, data.payment_method || 'cash', userId],
-      );
     }
     const invNumber = await generateNumber(client, 'INV', 'invoice');
     await client.query(
@@ -260,7 +286,7 @@ const createDailySale = async (data: Record<string, any>, userId: number) => {
 
     // الترحيل المحاسبي التلقائي للقيد المزدوج
     const { accountingService } = await import('./accountingService.ts');
-    await accountingService.postSaleJournalEntry(client, {
+    const journal = await accountingService.postSaleJournalEntry(client, {
       id: sale.id,
       sale_number: sale.sale_number,
       sale_type: sale.sale_type,
@@ -273,7 +299,7 @@ const createDailySale = async (data: Record<string, any>, userId: number) => {
         'cash',
       payment_status: paymentStatus,
       paid_amount: effectivePaidAmount,
-      payments: data.payments,
+      payments: settlement.payments,
       customer_id: customerId,
       warehouse_id: warehouseId,
       user_id: userId,
@@ -282,8 +308,9 @@ const createDailySale = async (data: Record<string, any>, userId: number) => {
         : saleDate,
     });
 
+    if (!journal) throw new AppError('تعذر ترحيل البيع', 409);
+    await linkPaymentJournalSources(client, initialReceiptNumbers, journal.id);
     await client.query('COMMIT');
-    invalidateDashboardCache();
     broadcast('sales_changed', { action: 'create', sale_id: sale.id });
     // حدث أتمتة فوري غير حاجب: فحص الخصم الكبير (حد النسبة من config المهمة أو 15)
     emitAutomationEvent('large_discount_alert', {
@@ -345,6 +372,10 @@ const updateSale = async (saleId: number, data: Record<string, any>, userId: num
         404,
       );
     await assertSaleWarehouseAccess(client, userId, existingSale.warehouse_id);
+    // Check before changing receipt rows: historical matches may identify only
+    // the payment, so deleting that row first would erase their source identity.
+    const { accountingService: postingService } = await import('./accountingService.ts');
+    await postingService.assertJournalReferenceMutable(client, 'sale', saleId);
     if (existingSale.status !== 'completed')
       throw new AppError(
         '\u0644\u0627 \u064A\u0645\u0643\u0646 \u062A\u0639\u062F\u064A\u0644 \u0639\u0645\u0644\u064A\u0629 \u063A\u064A\u0631 \u0645\u0643\u062A\u0645\u0644\u0629',
@@ -372,14 +403,26 @@ const updateSale = async (saleId: number, data: Record<string, any>, userId: num
     // المدفوع المطلوب: يُحتسب فقط إذا أُرسلت بيانات دفع صريحة،
     // وإلا يُحافظ على سجل الدفعات الحقيقي كما هو (تسوية بالفرق لاحقاً)
     const providesPaymentInput =
-      data.payment_status !== undefined || data.paid_amount !== undefined;
-    const requestedPaidAmount = providesPaymentInput
-      ? calculatePaidAmount(
-          data.payment_status || existingSale.payment_status || 'paid',
-          totalAmount,
-          data.paid_amount || 0,
-        )
-      : null;
+      data.payment_status !== undefined ||
+      data.paid_amount !== undefined ||
+      data.payments !== undefined;
+    let requestedSettlement: ReturnType<typeof resolveSaleSettlement> | null = null;
+    if (providesPaymentInput) {
+      try {
+        requestedSettlement = resolveSaleSettlement({
+          ...data,
+          total_amount: totalAmount,
+          payment_method: data.payment_method || existingSale.payment_method || 'cash',
+          payment_status:
+            Array.isArray(data.payments) && data.payments.length === 0
+              ? 'unpaid'
+              : data.payment_status || existingSale.payment_status || 'paid',
+        });
+      } catch (error) {
+        throw new AppError(error instanceof Error ? error.message : 'بيانات الدفع غير صالحة', 400);
+      }
+    }
+    const requestedPaidAmount = requestedSettlement?.paid_amount ?? null;
     const warehouseId =
       shouldReplaceItems && items.length
         ? await resolveSaleWarehouseId(items, data.warehouse_id || existingSale.warehouse_id)
@@ -408,13 +451,24 @@ const updateSale = async (saleId: number, data: Record<string, any>, userId: num
     }
     // تسوية الدفعات بالفرق فقط — لا يُحذف السجل المالي كاملاً عند كل تعديل
     const existingPaidRes = await client.query(
-      `SELECT COALESCE(SUM(amount), 0)::numeric AS total FROM payments WHERE reference_type = 'sale' AND reference_id = $1`,
+      `SELECT COALESCE(SUM(amount), 0)::numeric AS total FROM payments
+       WHERE LOWER(TRIM(COALESCE(payment_method, 'cash'))) <> 'credit'
+         AND ((reference_type = 'sale' AND reference_id = $1)
+          OR (reference_type = 'invoice' AND reference_id IN (SELECT id FROM invoices WHERE sale_id = $1)))`,
       [saleId],
     );
     const existingPaid = Number(existingPaidRes.rows[0].total || 0);
     const targetPaid = requestedPaidAmount === null ? existingPaid : requestedPaidAmount;
+    if (targetPaid > totalAmount) {
+      throw new AppError(
+        'التحصيلات المحفوظة تتجاوز إجمالي الفاتورة؛ يلزم تسويتها قبل التعديل',
+        409,
+      );
+    }
 
-    if (targetPaid > existingPaid + 1e-9) {
+    if (Array.isArray(data.payments) && requestedSettlement) {
+      await settleSalePaymentAllocations(client, saleId, userId, requestedSettlement.payments);
+    } else if (targetPaid > existingPaid + 1e-9) {
       await client.query(
         `INSERT INTO payments (payment_number, reference_type, reference_id, amount, payment_method, user_id)
          VALUES ($1,'sale',$2,$3,$4,$5)`,
@@ -422,7 +476,7 @@ const updateSale = async (saleId: number, data: Record<string, any>, userId: num
           `PAY-${saleId}-${Date.now()}`,
           saleId,
           roundMoney(targetPaid - existingPaid),
-          data.payment_method || 'cash',
+          requestedSettlement?.payments[0]?.payment_method || 'cash',
           userId,
         ],
       );
@@ -431,10 +485,21 @@ const updateSale = async (saleId: number, data: Record<string, any>, userId: num
       let excess = roundMoney(existingPaid - targetPaid);
       const payRows = (
         await client.query(
-          `SELECT id, amount FROM payments WHERE reference_type = 'sale' AND reference_id = $1 ORDER BY id DESC FOR UPDATE`,
+          `SELECT p.id, p.amount FROM payments p
+           WHERE LOWER(TRIM(COALESCE(p.payment_method, 'cash'))) <> 'credit'
+             AND NOT ${standalonePaymentSourceSql('p')}
+             AND ((p.reference_type = 'sale' AND p.reference_id = $1)
+              OR (p.reference_type = 'invoice' AND p.reference_id IN (SELECT id FROM invoices WHERE sale_id = $1)))
+           ORDER BY p.id DESC FOR UPDATE`,
           [saleId],
         )
       ).rows;
+      const mutableAmount = roundMoney(payRows.reduce((sum, pay) => sum + Number(pay.amount), 0));
+      if (mutableAmount < excess)
+        throw new AppError(
+          'لا يمكن تخفيض تحصيل مُرحّل من تعديل البيع؛ استخدم تسوية التحصيل أو المرتجع',
+          409,
+        );
       for (const pay of payRows) {
         if (excess <= 1e-9) break;
         const amt = Number(pay.amount);
@@ -452,7 +517,7 @@ const updateSale = async (saleId: number, data: Record<string, any>, userId: num
     }
     // تصحيح حالة الدفع لتطابق الواقع الفعلي بعد التسوية
     const finalPaymentStatus =
-      targetPaid >= totalAmount - 0.01 ? 'paid' : targetPaid > 0.01 ? 'partial' : 'unpaid';
+      targetPaid >= totalAmount ? 'paid' : targetPaid > 0 ? 'partial' : 'unpaid';
     await client.query(
       `UPDATE sales SET
         sale_type = $1,
@@ -525,6 +590,16 @@ const updateSale = async (saleId: number, data: Record<string, any>, userId: num
 
     // الترحيل المحاسبي التلقائي للقيد المزدوج بعد التعديل
     const { accountingService } = await import('./accountingService.ts');
+    const savedPayments = (
+      await client.query(
+        `SELECT p.payment_method, p.amount, p.payment_number FROM payments p
+         WHERE LOWER(TRIM(COALESCE(p.payment_method, 'cash'))) <> 'credit'
+           AND NOT ${standalonePaymentSourceSql('p')}
+           AND ((p.reference_type = 'sale' AND p.reference_id = $1)
+            OR (p.reference_type = 'invoice' AND p.reference_id IN (SELECT id FROM invoices WHERE sale_id = $1)))`,
+        [saleId],
+      )
+    ).rows;
     await accountingService.deleteJournalEntryByReference(client, 'sale', saleId);
     await accountingService.postSaleJournalEntry(client, {
       id: saleId,
@@ -534,6 +609,9 @@ const updateSale = async (saleId: number, data: Record<string, any>, userId: num
       cost_amount: costAmount,
       tax_amount: totals.taxAmount || 0,
       payment_method: data.payment_method || existingSale.payment_method || 'cash',
+      payment_status: finalPaymentStatus,
+      paid_amount: targetPaid,
+      payments: savedPayments,
       customer_id: customerId,
       warehouse_id: warehouseId,
       user_id: userId,
@@ -543,7 +621,6 @@ const updateSale = async (saleId: number, data: Record<string, any>, userId: num
     });
 
     await client.query('COMMIT');
-    invalidateDashboardCache();
     broadcast('sales_changed', { action: 'update', sale_id: saleId });
     // حدث أتمتة فوري غير حاجب: فحص الخصم الكبير عند تعديل الفاتورة
     emitAutomationEvent('large_discount_alert', {
@@ -661,6 +738,10 @@ const returnSale = async (saleId: number, userId: number, notes?: string) => {
         '\u0647\u0630\u0647 \u0627\u0644\u0639\u0645\u0644\u064A\u0629 \u062A\u0645 \u0625\u0631\u062C\u0627\u0639\u0647\u0627 \u0645\u0633\u0628\u0642\u0627\u064B',
       );
 
+    if (sale.deleted_at || sale.status !== 'completed' || sale.payment_status === 'refunded') {
+      throw new AppError('لا يمكن إرجاع بيع محذوف أو ملغى أو غير مكتمل', 409);
+    }
+
     await assertSaleWarehouseAccess(client, userId, sale.warehouse_id);
     const items = (await client.query(`SELECT * FROM sale_items WHERE sale_id = $1`, [saleId]))
       .rows;
@@ -687,22 +768,43 @@ const returnSale = async (saleId: number, userId: number, notes?: string) => {
 
     // استعلام عن مدفوعات الفاتورة الفعلية لتحديد وسيلة الرد ومبلغ الكاش الفعلي
     const paymentsRes = await client.query(
-      `SELECT payment_method, amount FROM payments WHERE reference_type = 'sale' AND reference_id = $1`,
+      `SELECT p.payment_method, p.amount FROM payments p
+       WHERE (p.reference_type = 'sale' AND p.reference_id = $1)
+          OR (p.reference_type = 'invoice' AND p.reference_id IN
+              (SELECT id FROM invoices WHERE sale_id = $1))`,
       [saleId],
     );
-    const salePayments = paymentsRes.rows;
+    const allSalePayments = paymentsRes.rows;
+    const salePayments = allSalePayments.filter(
+      (payment: any) => (payment.payment_method || 'cash').trim().toLowerCase() !== 'credit',
+    );
+    // Older paid POS sales without payment rows use the same cash fallback as shift reports.
+    if (!allSalePayments.length && sale.pos_shift_id && sale.payment_status === 'paid') {
+      salePayments.push({ payment_method: 'cash', amount: Number(sale.total_amount) });
+    }
+    const receivedAmount = roundMoney(
+      salePayments.reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0),
+    );
+    if (receivedAmount > roundMoney(Number(sale.total_amount))) {
+      throw new AppError('مدفوعات البيع تتجاوز إجمالي الفاتورة؛ يلزم مراجعتها قبل المرتجع', 409);
+    }
     const cashPaidAmount = roundMoney(
       salePayments
-        .filter((p: any) => (p.payment_method || 'cash').toLowerCase() === 'cash')
+        .filter((p: any) =>
+          ['cash', 'نقد', 'نقدي'].includes((p.payment_method || 'cash').toLowerCase()),
+        )
         .reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0),
     );
 
     // إذا كانت الفاتورة المرتجعة سُدد منها نقداً، وكان للمستخدم وردية POS مفتوحة، نسجل حركة سحب نقدي بما سُدد نقداً فقط
     if (cashPaidAmount > 0) {
       const activeShiftRes = await client.query(
-        `SELECT id FROM pos_shifts WHERE cashier_user_id = $1 AND warehouse_id = $2 AND status = 'open' LIMIT 1`,
+        `SELECT id FROM pos_shifts WHERE cashier_user_id = $1 AND warehouse_id = $2 AND status = 'open' LIMIT 1 FOR UPDATE`,
         [userId, sale.warehouse_id],
       );
+      if (sale.pos_shift_id && !activeShiftRes.rows.length) {
+        throw new AppError('افتح وردية في مخزن الفاتورة لتسجيل رد النقدية للمرتجع', 409);
+      }
       if (activeShiftRes.rows.length > 0) {
         await client.query(
           `INSERT INTO pos_cash_movements (shift_id, movement_type, amount, reason, authorized_by)
@@ -725,7 +827,9 @@ const returnSale = async (saleId: number, userId: number, notes?: string) => {
       tax_amount: Number(sale.tax_amount || 0),
       cost_amount: Number(sale.cost_amount || 0),
       sale_type: sale.sale_type,
-      payment_method: salePayments[0]?.payment_method || 'cash',
+      payment_method:
+        salePayments[0]?.payment_method ||
+        (allSalePayments.length > 0 ? allSalePayments[0].payment_method : 'cash'),
       payments: salePayments,
       customer_id: sale.customer_id,
       warehouse_id: sale.warehouse_id,
@@ -733,7 +837,6 @@ const returnSale = async (saleId: number, userId: number, notes?: string) => {
     });
 
     await client.query('COMMIT');
-    invalidateDashboardCache();
     broadcast('sales_changed', { action: 'return', sale_id: saleId });
     // حدث أتمتة فوري غير حاجب: كشف إلغاء/إرجاع الفواتير (رقم الفاتورة والمبلغ والكاشير)
     emitAutomationEvent('void_invoice_alert', {
@@ -803,7 +906,6 @@ const deleteAllSales = async (userId: number, allowedWarehouseIds?: number[]) =>
       ],
     );
     await client.query('COMMIT');
-    invalidateDashboardCache();
     broadcast('sales_changed', { action: 'delete_all' });
     return { deletedCount };
   } catch (err: any) {
@@ -878,7 +980,6 @@ const deleteSalesByDate = async (
       ],
     );
     await client.query('COMMIT');
-    invalidateDashboardCache();
     broadcast('sales_changed', { action: 'delete_date', date: saleDate });
     return { deletedCount, saleDate };
   } catch (err: any) {
@@ -948,7 +1049,6 @@ const deleteSalesByType = async (
       ],
     );
     await client.query('COMMIT');
-    invalidateDashboardCache();
     broadcast('sales_changed', { action: 'delete_type', type: saleType });
     return { deletedCount, saleType };
   } catch (err: any) {

@@ -11,6 +11,25 @@ export async function checkHealthResponse(response) {
   }
 }
 
+export async function checkWebResponse(response) {
+  if (!response.ok || !response.headers.get('content-type')?.toLowerCase().includes('text/html')) {
+    throw new Error(`Web endpoint returned unexpected response (HTTP ${response.status})`);
+  }
+
+  const requiredHeaders = [
+    'content-security-policy',
+    'x-content-type-options',
+    'x-frame-options',
+    'referrer-policy',
+  ];
+  const missingHeaders = requiredHeaders.filter((name) => !response.headers.get(name));
+  if (missingHeaders.length) {
+    throw new Error(`Web response is missing security headers: ${missingHeaders.join(', ')}`);
+  }
+
+  if (!/<!doctype html>/i.test(await response.text())) throw new Error('Web document is missing');
+}
+
 export async function checkProduction({
   apiOrigin = 'https://agoouz-api.vercel.app',
   webOrigin = 'https://agoouz.vercel.app',
@@ -34,11 +53,7 @@ export async function checkProduction({
       if (target.health) {
         await checkHealthResponse(response);
       } else {
-        if (!response.ok || !response.headers.get('content-type')?.includes('text/html')) {
-          throw new Error(`Web endpoint returned unexpected response (HTTP ${response.status})`);
-        }
-        if (!/<!doctype html>/i.test(await response.text()))
-          throw new Error('Web document is missing');
+        await checkWebResponse(response);
       }
       return target.name;
     }),

@@ -24,6 +24,23 @@ export default [
   // TypeScript recommended rules (applies to .ts/.tsx/.mts/.cts files only)
   ...tseslint.configs.recommended,
 
+  // Build and test configuration executes in Node, including PM2's CommonJS
+  // ecosystem file. Browser source rules do not describe this environment.
+  {
+    files: [
+      'config/**/*.{js,cjs,mjs,ts}',
+      'frontend/*config*.{js,ts}',
+      'backend/*config*.{js,ts}',
+      'desktop-pos/*config*.{js,ts}',
+    ],
+    languageOptions: { globals: { ...globals.node } },
+  },
+  {
+    files: ['config/**/*.cjs'],
+    languageOptions: { sourceType: 'commonjs' },
+    rules: { '@typescript-eslint/no-require-imports': 'off' },
+  },
+
   // Backend: Node.js files
   {
     files: ['backend/src/**/*.{js,mjs,ts}'],
@@ -153,7 +170,9 @@ export default [
     files: [
       'desktop-pos/src/**/*.{js,ts}',
       'desktop-pos/electron/**/*.{js,ts}',
-      'desktop-pos/tests/**/*.{js,ts}',
+      'desktop-pos/scripts/**/*.{js,mjs,ts}',
+      'desktop-pos/build/**/*.{js,mjs,ts}',
+      'desktop-pos/tests/**/*.{js,mjs,ts}',
     ],
     languageOptions: {
       ecmaVersion: 2024,
@@ -193,7 +212,7 @@ export default [
 
   // Api & Serverless
   {
-    files: ['api/**/*.{js,mjs,ts}'],
+    files: ['api/**/*.{js,mjs,ts}', 'backend/api/index.ts'],
     languageOptions: {
       ecmaVersion: 2024,
       sourceType: 'module',

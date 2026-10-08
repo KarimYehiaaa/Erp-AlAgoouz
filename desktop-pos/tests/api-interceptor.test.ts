@@ -2,18 +2,48 @@ import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import axios from 'axios';
 import { api } from '../src/services/api';
 import { sessionService } from '../src/services/sessionService';
+import {
+  clearManagerOverrideToken,
+  MANAGER_OVERRIDE_HEADER_NAME,
+  setManagerOverrideToken,
+} from '../src/services/managerOverride';
 
 describe('Desktop POS Axios & 401 Token Refresh Interceptor Tests', () => {
   const originalAdapter = api.defaults.adapter;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.restoreAllMocks();
-    sessionService.clearSession();
+    await sessionService.clearSession();
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
+    clearManagerOverrideToken();
     api.defaults.adapter = originalAdapter;
+  });
+
+  it('attaches a manager override only to its approved one-time request', async () => {
+    await sessionService.saveSession({
+      token: 'cashier-token',
+      user: { id: 7, name: 'Cashier' },
+    });
+    setManagerOverrideToken('manager-override-once', {
+      method: 'POST',
+      path: '/sales/12/return',
+    });
+    const captured: Array<{ url?: string; headers: any }> = [];
+    api.defaults.adapter = async (config) => {
+      captured.push({ url: config.url, headers: config.headers });
+      return { data: { success: true }, status: 200, statusText: 'OK', headers: {}, config };
+    };
+
+    await api.get('/products');
+    await api.post('/sales/12/return', {});
+    await api.post('/sales/12/return', {});
+
+    expect(captured[0].headers[MANAGER_OVERRIDE_HEADER_NAME]).toBeUndefined();
+    expect(captured[1].headers[MANAGER_OVERRIDE_HEADER_NAME]).toBe('manager-override-once');
+    expect(captured[2].headers[MANAGER_OVERRIDE_HEADER_NAME]).toBeUndefined();
   });
 
   it('1. Injects Authorization header from sessionService.getAccessToken()', async () => {
@@ -34,7 +64,7 @@ describe('Desktop POS Axios & 401 Token Refresh Interceptor Tests', () => {
       };
     };
 
-    await api.get('/products');
+    await api.get('/products', { withCredentials: true });
 
     expect(capturedConfig).not.toBeNull();
     const authHeader =
@@ -42,7 +72,7 @@ describe('Desktop POS Axios & 401 Token Refresh Interceptor Tests', () => {
       (typeof capturedConfig.headers?.get === 'function' &&
         capturedConfig.headers.get('Authorization'));
     expect(authHeader).toBe('Bearer valid-test-access-token');
-    expect(capturedConfig.withCredentials).toBe(true);
+    expect(capturedConfig.withCredentials).toBe(false);
   });
 
   it('retries a failed localhost request against 127.0.0.1 once', async () => {
@@ -105,7 +135,7 @@ describe('Desktop POS Axios & 401 Token Refresh Interceptor Tests', () => {
     expect(refreshSpy).toHaveBeenCalledWith(
       expect.stringContaining('/auth/refresh'),
       expect.objectContaining({ refreshToken: 'valid-refresh-token' }),
-      expect.any(Object),
+      expect.objectContaining({ withCredentials: false }),
     );
 
     // Verified sessionService received new tokens

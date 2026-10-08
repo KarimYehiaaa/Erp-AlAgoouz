@@ -173,7 +173,15 @@
           @click="openUpdateModal"
         >
           <AppIcon
-            :name="isDownloaded ? 'download' : isDownloading ? 'refreshCw' : isAvailable ? 'download' : 'refreshCw'"
+            :name="
+              isDownloaded
+                ? 'download'
+                : isDownloading
+                  ? 'refreshCw'
+                  : isAvailable
+                    ? 'download'
+                    : 'refreshCw'
+            "
             :size="15"
             :class="{ 'spin-anim': isChecking || isDownloading }"
           />
@@ -240,10 +248,15 @@
       <div class="banner-text">
         <AppIcon name="download" :size="16" />
         <strong>تحديث جديد جاهز للتطبيق الفوري (v{{ updateState.version }})</strong>
-        <span>تم تنزيل الحزمة بنجاح. انقر لتطبيق التحديث وإعادة التشغيل دون الحاجة لإعادة التثبيت يدوياً.</span>
+        <span
+          >تم تنزيل الحزمة بنجاح. انقر لتطبيق التحديث وإعادة التشغيل دون الحاجة لإعادة التثبيت
+          يدوياً.</span
+        >
       </div>
       <div class="banner-actions">
-        <button type="button" class="btn-banner-apply" @click="installUpdate">تحديث وتثبيت الآن</button>
+        <button type="button" class="btn-banner-apply" @click="installUpdate">
+          تحديث وتثبيت الآن
+        </button>
         <button type="button" class="btn-banner-info" @click="openUpdateModal">التفاصيل</button>
       </div>
     </div>
@@ -418,9 +431,9 @@
       :action-description="pinActionDescription"
       :loading="pinLoading"
       :error-message="pinErrorMessage"
-      @update:show="showPinModal = $event"
+      @update:show="setPinModalVisibility"
       @submit-pin="handlePinSubmit"
-      @cancel="showPinModal = false"
+      @cancel="cancelManagerPin"
     />
 
     <!-- Smart In-App Update Modal -->
@@ -447,8 +460,22 @@ import { usePosAudio } from '../composables/usePosAudio';
 import { useBarcodeScanner } from '../composables/useBarcodeScanner';
 import { useAppUpdater } from '../composables/useAppUpdater';
 import { api } from '../services/api';
+import {
+  getBrowserQueueContext,
+  readBrowserQueue,
+  saveBrowserSale,
+} from '../services/browserQueue';
+import { readBrowserCache, writeBrowserCache } from '../services/browserCache';
 import { formatMoney } from '../utils/currency';
 import { checkoutPayloadKey, isRetryableNetworkError } from '../services/posReliability';
+import {
+  clearManagerOverrideToken,
+  setManagerOverrideToken,
+  type ManagerOverrideTarget,
+} from '../services/managerOverride';
+import { requiresCashierDiscountOverride } from '../../../shared/managerOverridePolicy';
+import { businessCalendarDate } from '../../../shared/businessDate';
+import { resolveSaleSettlement } from '../../../shared/saleSettlement';
 
 const router = useRouter();
 const authStore = usePosAuthStore();
@@ -479,6 +506,7 @@ const pinActionDescription = ref('');
 const pinLoading = ref(false);
 const pinErrorMessage = ref('');
 let pendingPinAction: (() => Promise<void> | void) | null = null;
+let pendingPinTarget: ManagerOverrideTarget | null = null;
 
 const heldOrders = ref<any[]>([]);
 const customersList = ref<any[]>([]);
@@ -498,16 +526,13 @@ const pendingSyncCount = ref(0);
 const pendingPrint = ref<{ key: string; sale: any } | null>(null);
 const {
   updateState,
-  appVersion,
   showUpdateModal,
   isAvailable,
   isDownloading,
   isDownloaded,
   isChecking,
-  hasUpdate,
   downloadPercent,
   initUpdater,
-  checkForUpdates,
   installUpdate,
   openUpdateModal,
   closeUpdateModal,
@@ -693,36 +718,42 @@ const getProductStockTitle = (product: any) => {
 };
 
 const loadCatalogData = async () => {
+  const context = getBrowserQueueContext();
   loadingProducts.value = true;
+  categories.value = [];
+  allProducts.value = [];
   try {
     const [catsRes, prodsRes] = await Promise.all([
       api.get('/products/categories'),
       api.get('/products/shop'),
     ]);
+    if (context !== getBrowserQueueContext()) return;
 
     categories.value = catsRes.data?.data || catsRes.data || [];
     allProducts.value = prodsRes.data?.data || prodsRes.data || [];
 
-    localStorage.setItem('pos_cached_categories', JSON.stringify(categories.value));
-    localStorage.setItem('pos_cached_products', JSON.stringify(allProducts.value));
+    writeBrowserCache('categories', categories.value, context);
+    writeBrowserCache('products', allProducts.value, context);
   } catch {
-    const cachedCats = localStorage.getItem('pos_cached_categories');
-    const cachedProds = localStorage.getItem('pos_cached_products');
-    if (cachedCats) categories.value = JSON.parse(cachedCats);
-    if (cachedProds) allProducts.value = JSON.parse(cachedProds);
+    if (context !== getBrowserQueueContext()) return;
+    categories.value = readBrowserCache('categories', context);
+    allProducts.value = readBrowserCache('products', context);
   } finally {
     loadingProducts.value = false;
   }
 };
 
 const loadCustomers = async () => {
+  const context = getBrowserQueueContext();
+  customersList.value = [];
   try {
     const res = await api.get('/customers');
+    if (context !== getBrowserQueueContext()) return;
     customersList.value = res.data?.data || res.data || [];
-    localStorage.setItem('pos_cached_customers', JSON.stringify(customersList.value));
+    writeBrowserCache('customers', customersList.value, context);
   } catch {
-    const cached = localStorage.getItem('pos_cached_customers');
-    if (cached) customersList.value = JSON.parse(cached);
+    if (context !== getBrowserQueueContext()) return;
+    customersList.value = readBrowserCache('customers', context);
   }
 };
 
@@ -734,7 +765,7 @@ const loadTodaysInvoices = async () => {
     todaysInvoices.value = res.data?.data || res.data || [];
   } catch {
     // Offline sales fallback
-    const offlineSales = JSON.parse(localStorage.getItem('pos_offline_sales') || '[]');
+    const offlineSales = readBrowserQueue();
     todaysInvoices.value = offlineSales;
   } finally {
     loadingInvoices.value = false;
@@ -827,10 +858,7 @@ const saveOfflineSale = async (salePayload: any) => {
     return saveRes.transaction || salePayload;
   }
 
-  const offlineSales = JSON.parse(localStorage.getItem('pos_offline_sales') || '[]');
-  offlineSales.push(salePayload);
-  localStorage.setItem('pos_offline_sales', JSON.stringify(offlineSales));
-  return salePayload;
+  return saveBrowserSale(salePayload);
 };
 
 const handleCompleteSale = async (
@@ -850,12 +878,26 @@ const handleCompleteSale = async (
       ? crypto.randomUUID()
       : undefined;
 
+  let settlement: ReturnType<typeof resolveSaleSettlement>;
+  try {
+    settlement = resolveSaleSettlement({
+      total_amount: cartStore.total,
+      payment_method: cartStore.paymentMethod,
+      payments: payment.payments || cartStore.payments || undefined,
+    });
+  } catch (error) {
+    saleError.value = error instanceof Error ? error.message : 'بيانات الدفع غير صالحة';
+    submittingSale.value = false;
+    return;
+  }
+
   const salePayload = {
     sync_id: syncId,
     sale_type: 'retail',
-    sale_date: new Date().toISOString().slice(0, 10),
+    sale_date: businessCalendarDate(),
     payment_method: cartStore.paymentMethod,
-    payment_status: cartStore.paymentMethod === 'credit' ? 'partial' : 'paid',
+    payment_status: settlement.payment_status,
+    paid_amount: settlement.paid_amount,
     discount_amount: cartStore.effectiveDiscount,
     loyalty_points_redeemed: cartStore.loyaltyPointsRedeemed || 0,
     customer_id: payment.customerId ?? cartStore.customerId ?? null,
@@ -863,7 +905,7 @@ const handleCompleteSale = async (
     cash_given: payment.cashGiven ?? undefined,
     change_due: payment.changeDue,
     pos_shift_id: shiftStore.currentShift?.id || null,
-    payments: payment.payments || cartStore.payments || undefined,
+    payments: settlement.payments,
     notes: cartStore.notes || undefined,
     items: cartStore.items.map((i) => ({
       product_id: i.product_id,
@@ -873,8 +915,23 @@ const handleCompleteSale = async (
       notes: i.custom_notes || undefined,
     })),
   };
+  const needsManagerOverride = requiresCashierDiscountOverride({
+    items: cartStore.items.map((item) => ({
+      quantity: item.quantity,
+      unit_price: item.unit_price,
+    })),
+    totalAmount: cartStore.total,
+    discountAmount: cartStore.effectiveDiscount,
+    loyaltyPointsRedeemed: cartStore.loyaltyPointsRedeemed || 0,
+  });
 
   try {
+    if (needsManagerOverride && !navigator.onLine) {
+      throw new Error(
+        'هذا الخصم يتطلب موافقة مدير عبر اتصال الخادم؛ لن تُحفظ الفاتورة دون موافقة.',
+      );
+    }
+
     const currentKey = checkoutPayloadKey(salePayload);
     let saleRecord = pendingPrint.value?.key === currentKey ? pendingPrint.value.sale : null;
     let savedOffline = false;
@@ -885,6 +942,12 @@ const handleCompleteSale = async (
         saleRecord = res.data?.data || res.data;
       } catch (err) {
         if (!isRetryableNetworkError(err)) throw err;
+        if (needsManagerOverride) {
+          throw new Error(
+            'تعذر الاتصال بالخادم للتحقق من موافقة المدير؛ لم تُحفظ الفاتورة محليًا.',
+            { cause: err },
+          );
+        }
         saleRecord = await saveOfflineSale(salePayload);
         savedOffline = true;
       }
@@ -927,6 +990,13 @@ const handleCompleteSale = async (
     showCheckoutDrawer.value = false;
     await shiftStore.fetchCurrentShift();
   } catch (err: any) {
+    if (err.response?.data?.code === 'MANAGER_OVERRIDE_REQUIRED') {
+      pendingPinTarget = { method: 'POST', path: '/sales' };
+      pendingPinAction = () => handleCompleteSale(payment);
+      pinActionDescription.value = 'اعتماد الخصم اليدوي لهذه الفاتورة';
+      showPinModal.value = true;
+      return;
+    }
     playErrorBuzz();
     saleError.value = err.response?.data?.message || err.message || 'فشل حفظ الفاتورة';
     alert('فشل حفظ الفاتورة: ' + saleError.value);
@@ -970,32 +1040,52 @@ const openReturnsModal = () => {
 // ─── Returns & Manager PIN ───
 const promptReturnInvoice = (sale: any) => {
   pinActionDescription.value = `إرجاع فاتورة البيع رقم ${sale.sale_number || `#${sale.id}`} واسترداد مبلغ ${formatMoney(sale.total_amount)}`;
+  pendingPinTarget = { method: 'POST', path: `/sales/${sale.id}/return` };
   pendingPinAction = async () => {
     await executeReturn(sale);
   };
   showPinModal.value = true;
 };
 
+const setPinModalVisibility = (visible: boolean) => {
+  if (visible) showPinModal.value = true;
+  else cancelManagerPin();
+};
+
+const cancelManagerPin = () => {
+  showPinModal.value = false;
+  pendingPinAction = null;
+  pendingPinTarget = null;
+  clearManagerOverrideToken();
+};
+
 const handlePinSubmit = async (pin: string) => {
   pinLoading.value = true;
   pinErrorMessage.value = '';
   try {
-    // Check manager PIN via API or local credentials
-    await api.post('/auth/verify-pin', { pin, role: 'manager' });
+    if (!pendingPinTarget || !pendingPinAction) {
+      throw new Error('انتهت صلاحية العملية؛ أعد طلب موافقة المدير.');
+    }
+    const target = pendingPinTarget;
+    const response = await api.post('/pos/verify-pin', {
+      pin,
+      action: target.path === '/sales' ? 'اعتماد خصم فاتورة' : 'إرجاع فاتورة بيع',
+    });
+    const overrideToken = response.data?.override_token;
+    if (typeof overrideToken !== 'string' || !overrideToken) {
+      throw new Error('لم يصدر الخادم موافقة مدير صالحة؛ أعد المحاولة.');
+    }
+    setManagerOverrideToken(overrideToken, target);
     showPinModal.value = false;
-    if (pendingPinAction) {
-      await pendingPinAction();
-    }
+    const action = pendingPinAction;
+    pendingPinAction = null;
+    pendingPinTarget = null;
+    await action();
   } catch (err: any) {
-    // If offline or dev mode, accept valid PIN or fallback
-    if (!navigator.onLine && (pin === '1234' || pin === '9999')) {
-      showPinModal.value = false;
-      if (pendingPinAction) await pendingPinAction();
-    } else {
-      pinErrorMessage.value =
-        err.response?.data?.message || 'رمز المرور غير صحيح أو ليس لديك صلاحية مدير';
-      playErrorBuzz();
-    }
+    clearManagerOverrideToken();
+    pinErrorMessage.value =
+      err.response?.data?.message || err.message || 'رمز المرور غير صحيح أو ليس لديك صلاحية مدير';
+    playErrorBuzz();
   } finally {
     pinLoading.value = false;
   }
@@ -1005,7 +1095,6 @@ const executeReturn = async (sale: any) => {
   try {
     await api.post(`/sales/${sale.id}/return`, {
       reason: 'طلب العميل / مرتجع كاشير',
-      returned_items: sale.items || [],
     });
     sale.status = 'returned';
     playScanBeep();
@@ -1669,7 +1758,8 @@ onBeforeUnmount(() => {
 }
 
 @keyframes pulse-update-btn {
-  0%, 100% {
+  0%,
+  100% {
     transform: scale(1);
     box-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
   }

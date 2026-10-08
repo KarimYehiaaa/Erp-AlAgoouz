@@ -1,64 +1,28 @@
 @echo off
-chcp 65001 >nul
-title بُـن العـجـوز ERP - مُولّد تطبيق الموبايل (APK Builder)
-color 0E
+setlocal
+for %%I in ("%~dp0..\..") do set "ROOT_DIR=%%~fI"
+set "BUILD_SCRIPT=%~dp0build-apk.ps1"
+set "DEBUG_APK=%ROOT_DIR%\BinAlAgoouz-Manager-Debug.apk"
 
-echo.
-echo ====================================================================
-echo      ☕ بُـن العـجـوز ERP - مُولّد تطبيق الأندرويد الأصلي (APK)
-echo ====================================================================
-set "ROOT_DIR=%~dp0..\.."
+echo Building Android Debug APK with the guarded build script...
+rem This bypass applies to this PowerShell process only; it does not change system policy.
+powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%BUILD_SCRIPT%" -BuildType Debug
+if errorlevel 1 goto build_failure
 
-echo.
-echo [1/4] جاري بناء وتجهيز واجهات الموبايل الفاخرة للإنتاج...
-cd /d "%ROOT_DIR%"
-call npm run build --prefix frontend
-if %ERRORLEVEL% neq 0 (
-    echo [خطأ] فشل في بناء واجهات الفرونت إند.
-    pause
-    exit /b %ERRORLEVEL%
-)
+if not exist "%DEBUG_APK%" goto missing_apk
 
-echo.
-echo [2/4] جاري مزامنة ملفات الويب مع محرك الأندرويد الأصلي (Capacitor Sync)...
-cd /d "%ROOT_DIR%\frontend"
-call npx cap sync android
-if %ERRORLEVEL% neq 0 (
-    echo [خطأ] فشل في مزامنة الأندرويد.
-    pause
-    exit /b %ERRORLEVEL%
-)
-
-echo.
-echo [3/4] جاري تجميع وترجمة تطبيق الأندرويد واستخراج ملف الـ APK...
-cd /d "%ROOT_DIR%\frontend\android"
-call gradlew.bat assembleDebug
-if %ERRORLEVEL% neq 0 (
-    echo.
-    echo ℹ️ تنبيه: لبناء الـ APK مباشرة بدون Android Studio، يلزم توفر Java JDK 17 أو أعلى.
-    echo يمكنك فتح المشروع بضغطة زر في Android Studio من المسار:
-    echo %ROOT_DIR%\frontend\android
-    echo.
-    pause
-    exit /b 0
-)
-
-echo.
-echo [4/4] جاري نسخ ملف التثبيت المباشر إلى المجلد الرئيسي...
-cd /d "%ROOT_DIR%"
-if exist "%ROOT_DIR%\frontend\android\app\build\outputs\apk\debug\app-debug.apk" (
-    copy /y "%ROOT_DIR%\frontend\android\app\build\outputs\apk\debug\app-debug.apk" "%ROOT_DIR%\BinAlAgoouz-Manager.apk" >nul
-    echo.
-    echo ====================================================================
-    echo   ✅ تم استخراج وتجهيز ملف التثبيت بنجاح تام!
-    echo   📁 مسار الملف: %ROOT_DIR%\BinAlAgoouz-Manager.apk
-    echo ====================================================================
-    echo.
-    explorer.exe /select,"%ROOT_DIR%\BinAlAgoouz-Manager.apk"
-) else (
-    echo [تنبيه] لم يتم العثور على ملف APK المترجم.
-)
-
-echo.
-echo اضغط أي مفتاح للإغلاق...
+echo Debug APK generated: %DEBUG_APK%
+echo This debug build cannot update the installed release app.
+explorer.exe /select,"%DEBUG_APK%"
 pause >nul
+exit /b 0
+
+:build_failure
+echo [ERROR] Android SDK setup or APK build failed.
+pause
+exit /b 1
+
+:missing_apk
+echo [ERROR] Build succeeded without producing the expected APK.
+pause
+exit /b 1

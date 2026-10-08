@@ -13,6 +13,8 @@
  * { id, severity, user, warehouse, timestamp, event, reference, explanation, fingerprint }
  */
 import { query } from '../database/pool.ts';
+import { isCalendarDate, shiftCalendarDate } from '../utils/localDate.ts';
+import { AppError } from '../types/errors.ts';
 import { logger } from './loggerService.ts';
 import type {
   RiskAlert,
@@ -61,12 +63,14 @@ const SEVERITY_LEVELS: Record<string, number> = {
  */
 export async function detectExcessiveDiscounts(
   warehouseId: number | null,
-  startDate: Date | null,
-  endDate: Date | null,
+  startDate: Date | string | null,
+  endDate: Date | string | null,
   rules: RiskRuleConfig,
+  db: typeof query = query,
+  endExclusive = false,
 ): Promise<RiskAlert[]> {
   const alerts: RiskAlert[] = [];
-  const res = await query(
+  const res = await db(
     `SELECT s.id, s.sale_number, s.total_amount, s.subtotal, s.discount_amount, s.discount_percent,
             s.created_at, s.user_id, u.full_name as user_name, s.warehouse_id, w.name_ar as warehouse_name
      FROM sales s
@@ -76,7 +80,7 @@ export async function detectExcessiveDiscounts(
        AND (s.discount_percent >= $1 OR s.discount_amount >= $2)
        AND ($3::int IS NULL OR s.warehouse_id = $3)
        AND ($4::timestamptz IS NULL OR s.created_at >= $4)
-       AND ($5::timestamptz IS NULL OR s.created_at <= $5)
+       AND ($5::timestamptz IS NULL OR s.created_at ${endExclusive ? '<' : '<='} $5)
      ORDER BY s.created_at DESC
      LIMIT 50`,
     [rules.discountPctThreshold, rules.discountAmtThreshold, warehouseId, startDate, endDate],
@@ -112,12 +116,14 @@ export async function detectExcessiveDiscounts(
  */
 export async function detectRepeatedVoids(
   warehouseId: number | null,
-  startDate: Date | null,
-  endDate: Date | null,
+  startDate: Date | string | null,
+  endDate: Date | string | null,
   rules: RiskRuleConfig,
+  db: typeof query = query,
+  endExclusive = false,
 ): Promise<RiskAlert[]> {
   const alerts: RiskAlert[] = [];
-  const res = await query(
+  const res = await db(
     `SELECT s.user_id, u.full_name as user_name, s.warehouse_id, w.name_ar as warehouse_name,
             COUNT(*) as void_count, MAX(COALESCE(s.deleted_at, s.created_at)) as latest_time
      FROM sales s
@@ -126,7 +132,7 @@ export async function detectRepeatedVoids(
      WHERE s.status IN ('cancelled', 'voided')
        AND ($1::int IS NULL OR s.warehouse_id = $1)
        AND ($2::timestamptz IS NULL OR COALESCE(s.deleted_at, s.created_at) >= $2)
-       AND ($3::timestamptz IS NULL OR COALESCE(s.deleted_at, s.created_at) <= $3)
+       AND ($3::timestamptz IS NULL OR COALESCE(s.deleted_at, s.created_at) ${endExclusive ? '<' : '<='} $3)
      GROUP BY s.user_id, u.full_name, s.warehouse_id, w.name_ar
      HAVING COUNT(*) >= $4
      ORDER BY void_count DESC`,
@@ -157,12 +163,14 @@ export async function detectRepeatedVoids(
  */
 export async function detectCashDifferences(
   warehouseId: number | null,
-  startDate: Date | null,
-  endDate: Date | null,
+  startDate: Date | string | null,
+  endDate: Date | string | null,
   rules: RiskRuleConfig,
+  db: typeof query = query,
+  endExclusive = false,
 ): Promise<RiskAlert[]> {
   const alerts: RiskAlert[] = [];
-  const res = await query(
+  const res = await db(
     `SELECT ps.id, ps.shift_number, ps.cashier_user_id as user_id, u.full_name as user_name,
             ps.warehouse_id, w.name_ar as warehouse_name, ps.opening_cash, ps.expected_cash,
             ps.actual_cash, ps.cash_difference, ps.closed_at, ps.opened_at
@@ -173,7 +181,7 @@ export async function detectCashDifferences(
        AND ABS(COALESCE(ps.cash_difference, 0)) >= $1
        AND ($2::int IS NULL OR ps.warehouse_id = $2)
        AND ($3::timestamptz IS NULL OR ps.opened_at >= $3)
-       AND ($4::timestamptz IS NULL OR ps.opened_at <= $4)
+       AND ($4::timestamptz IS NULL OR ps.opened_at ${endExclusive ? '<' : '<='} $4)
      ORDER BY ps.closed_at DESC
      LIMIT 50`,
     [rules.cashDiffThreshold, warehouseId, startDate, endDate],
@@ -204,12 +212,14 @@ export async function detectCashDifferences(
  */
 export async function detectStockAdjustments(
   warehouseId: number | null,
-  startDate: Date | null,
-  endDate: Date | null,
+  startDate: Date | string | null,
+  endDate: Date | string | null,
   rules: RiskRuleConfig,
+  db: typeof query = query,
+  endExclusive = false,
 ): Promise<RiskAlert[]> {
   const alerts: RiskAlert[] = [];
-  const res = await query(
+  const res = await db(
     `SELECT sm.id, sm.product_id, p.name_ar as product_name, sm.quantity, sm.movement_type,
             sm.notes, sm.created_at, sm.user_id, u.full_name as user_name,
             COALESCE(sm.to_warehouse_id, sm.from_warehouse_id) as warehouse_id,
@@ -218,11 +228,11 @@ export async function detectStockAdjustments(
      LEFT JOIN products p ON p.id = sm.product_id
      LEFT JOIN users u ON u.id = sm.user_id
      LEFT JOIN warehouses w ON w.id = COALESCE(sm.to_warehouse_id, sm.from_warehouse_id)
-     WHERE sm.movement_type = 'adjustment'
+     WHERE sm.movement_type IN ('adjustment', 'wastage')
        AND ABS(sm.quantity) >= $1
        AND ($2::int IS NULL OR sm.to_warehouse_id = $2 OR sm.from_warehouse_id = $2)
        AND ($3::timestamptz IS NULL OR sm.created_at >= $3)
-       AND ($4::timestamptz IS NULL OR sm.created_at <= $4)
+       AND ($4::timestamptz IS NULL OR sm.created_at ${endExclusive ? '<' : '<='} $4)
      ORDER BY sm.created_at DESC
      LIMIT 50`,
     [rules.stockAdjThreshold, warehouseId, startDate, endDate],
@@ -240,7 +250,7 @@ export async function detectStockAdjustments(
       timestamp: r.created_at ? new Date(r.created_at).toISOString() : new Date().toISOString(),
       event: 'stock_adjustment',
       reference: { type: 'stock_movement', id: r.id },
-      explanation: `تسوية كمية يدوية بمقدار ${qty > 0 ? '+' : ''}${qty} للمنتج "${r.product_name || r.product_id}"${r.notes ? ` (السبب: ${r.notes})` : ''}.`,
+      explanation: `${r.movement_type === 'wastage' ? 'تسجيل هالك' : 'تسوية كمية يدوية'} بمقدار ${qty > 0 ? '+' : ''}${qty} للمنتج "${r.product_name || r.product_id}"${r.notes ? ` (السبب: ${r.notes})` : ''}.`,
     });
   }
 
@@ -253,10 +263,11 @@ export async function detectStockAdjustments(
 export async function detectUnusualLongShifts(
   warehouseId: number | null,
   rules: RiskRuleConfig,
+  db: typeof query = query,
 ): Promise<RiskAlert[]> {
   const alerts: RiskAlert[] = [];
   const hoursInterval = `${Math.max(1, Math.floor(rules.longShiftHours))} hours`;
-  const res = await query(
+  const res = await db(
     `SELECT ps.id, ps.shift_number, ps.cashier_user_id as user_id, u.full_name as user_name,
             ps.warehouse_id, w.name_ar as warehouse_name, ps.opened_at,
             ROUND((EXTRACT(EPOCH FROM (NOW() - ps.opened_at))/3600)::numeric, 1) as hours_open
@@ -291,12 +302,14 @@ export async function detectUnusualLongShifts(
  */
 export async function detectRepeatedPinOverrides(
   warehouseId: number | null,
-  startDate: Date | null,
-  endDate: Date | null,
+  startDate: Date | string | null,
+  endDate: Date | string | null,
   rules: RiskRuleConfig,
+  db: typeof query = query,
+  endExclusive = false,
 ): Promise<RiskAlert[]> {
   const alerts: RiskAlert[] = [];
-  const res = await query(
+  const res = await db(
     `SELECT mar.requester_user_id as user_id, u.full_name as user_name,
             mar.terminal_id, pt.warehouse_id, w.name_ar as warehouse_name,
             COUNT(*) as request_count, MAX(mar.created_at) as latest_time
@@ -306,7 +319,7 @@ export async function detectRepeatedPinOverrides(
      LEFT JOIN warehouses w ON w.id = pt.warehouse_id
      WHERE ($1::int IS NULL OR pt.warehouse_id = $1)
        AND ($2::timestamptz IS NULL OR mar.created_at >= $2)
-       AND ($3::timestamptz IS NULL OR mar.created_at <= $3)
+       AND ($3::timestamptz IS NULL OR mar.created_at ${endExclusive ? '<' : '<='} $3)
      GROUP BY mar.requester_user_id, u.full_name, mar.terminal_id, pt.warehouse_id, w.name_ar
      HAVING COUNT(*) >= $4
      ORDER BY request_count DESC`,
@@ -355,12 +368,27 @@ export function generateAlertFingerprint(alert: RiskAlert, dedupWindowMinutes: n
 /**
  * فحص وتجميع التنبيهات الأمنية والمالية عبر كافة قنوات المخاطر بالتوازي (Promise.allSettled)
  */
-export const scanRiskAlerts = async (options: RiskScanOptions = {}): Promise<RiskScanResult> => {
+export const scanRiskAlerts = async (
+  options: RiskScanOptions = {},
+  db: typeof query = query,
+): Promise<RiskScanResult> => {
   const startTime = Date.now();
   const effectiveWarehouseId = options.warehouseId ?? null;
   const warehouseId = effectiveWarehouseId ? Number(effectiveWarehouseId) : null;
-  const startDate = options.startDate ? new Date(options.startDate) : null;
-  const endDate = options.endDate ? new Date(options.endDate) : null;
+  const parseBound = (value: Date | string | null | undefined) => {
+    if (value == null) return null;
+    if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      if (!isCalendarDate(value)) throw new AppError('تاريخ فحص المخاطر غير صالح', 400);
+      return value;
+    }
+    const parsed = new Date(value);
+    if (!Number.isFinite(parsed.getTime())) throw new AppError('تاريخ فحص المخاطر غير صالح', 400);
+    return parsed;
+  };
+  const startDate = parseBound(options.startDate);
+  const rawEndDate = parseBound(options.endDate);
+  const endExclusive = typeof rawEndDate === 'string';
+  const endDate = endExclusive ? shiftCalendarDate(rawEndDate, 1) : rawEndDate;
 
   const rules: RiskRuleConfig = {
     ...DEFAULT_RISK_RULES,
@@ -374,27 +402,28 @@ export const scanRiskAlerts = async (options: RiskScanOptions = {}): Promise<Ris
   }> = [
     {
       name: 'excessive_discounts',
-      run: () => detectExcessiveDiscounts(warehouseId, startDate, endDate, rules),
+      run: () => detectExcessiveDiscounts(warehouseId, startDate, endDate, rules, db, endExclusive),
     },
     {
       name: 'repeated_voids',
-      run: () => detectRepeatedVoids(warehouseId, startDate, endDate, rules),
+      run: () => detectRepeatedVoids(warehouseId, startDate, endDate, rules, db, endExclusive),
     },
     {
       name: 'cash_differences',
-      run: () => detectCashDifferences(warehouseId, startDate, endDate, rules),
+      run: () => detectCashDifferences(warehouseId, startDate, endDate, rules, db, endExclusive),
     },
     {
       name: 'stock_adjustments',
-      run: () => detectStockAdjustments(warehouseId, startDate, endDate, rules),
+      run: () => detectStockAdjustments(warehouseId, startDate, endDate, rules, db, endExclusive),
     },
     {
       name: 'unusual_long_shifts',
-      run: () => detectUnusualLongShifts(warehouseId, rules),
+      run: () => detectUnusualLongShifts(warehouseId, rules, db),
     },
     {
       name: 'repeated_pin_overrides',
-      run: () => detectRepeatedPinOverrides(warehouseId, startDate, endDate, rules),
+      run: () =>
+        detectRepeatedPinOverrides(warehouseId, startDate, endDate, rules, db, endExclusive),
     },
   ];
 

@@ -25,6 +25,7 @@ export interface EncryptionEngine {
 export class SecureSessionStore {
   private sessionFilePath: string;
   private inMemorySession: PosSessionData | null = null;
+  private sessionInvalidated = false;
   private encryptionEngine: EncryptionEngine;
 
   constructor(customStorageDir?: string, customEngine?: EncryptionEngine) {
@@ -42,7 +43,9 @@ export class SecureSessionStore {
     if (!fs.existsSync(baseDir)) {
       try {
         fs.mkdirSync(baseDir, { recursive: true, mode: 0o700 });
-      } catch {}
+      } catch {
+        /* Saving reports a persistence error if the directory cannot be created. */
+      }
     }
 
     this.sessionFilePath = path.join(baseDir, 'session.enc');
@@ -68,7 +71,7 @@ export class SecureSessionStore {
       return { success: false, error: 'بيانات الجلسة أو التوكن غير متوفرة' };
     }
 
-    this.inMemorySession = {
+    const candidate = {
       ...session,
       savedAt: session.savedAt || new Date().toISOString(),
     };
@@ -78,18 +81,24 @@ export class SecureSessionStore {
       console.warn(
         '[SecureSessionStore] safeStorage encryption unavailable on host OS. Maintaining in-memory session only (fail-closed persistence).',
       );
-      this.safeDeleteSessionFile();
+      if (!this.safeDeleteSessionFile())
+        return { success: false, error: 'تعذر إبطال الجلسة السابقة على القرص' };
+      this.inMemorySession = candidate;
+      this.sessionInvalidated = false;
       return { success: true };
     }
 
     try {
-      const payloadString = JSON.stringify(this.inMemorySession);
+      const payloadString = JSON.stringify(candidate);
       const encryptedBuffer = this.encryptionEngine.encryptString(payloadString);
 
       // كتابة ذرية مع ملف مؤقت وحصر الأذونات (0o600)
       const tempPath = `${this.sessionFilePath}.tmp`;
       fs.writeFileSync(tempPath, encryptedBuffer, { mode: 0o600 });
       fs.renameSync(tempPath, this.sessionFilePath);
+
+      this.inMemorySession = candidate;
+      this.sessionInvalidated = false;
 
       return { success: true };
     } catch (err: any) {
@@ -102,6 +111,7 @@ export class SecureSessionStore {
    * قراءة وفك تشفير الجلسة المخزنة
    */
   public async loadSession(): Promise<PosSessionData | null> {
+    if (this.sessionInvalidated) return null;
     // 1. فحص الجلسة في الذاكرة الحية إن وجدت
     if (this.inMemorySession) {
       return this.inMemorySession;
@@ -144,9 +154,9 @@ export class SecureSessionStore {
    * مسح وتطهير الجلسة تماماً من الذاكرة والقرص
    */
   public async clearSession(): Promise<boolean> {
+    this.sessionInvalidated = true;
     this.inMemorySession = null;
-    this.safeDeleteSessionFile();
-    return true;
+    return this.safeDeleteSessionFile();
   }
 
   /**
@@ -159,16 +169,24 @@ export class SecureSessionStore {
     if (!this.encryptionEngine.isEncryptionAvailable()) {
       return false;
     }
-    return fs.existsSync(this.sessionFilePath);
+    return Boolean(await this.loadSession());
   }
 
-  private safeDeleteSessionFile() {
+  private safeDeleteSessionFile(): boolean {
     try {
       if (fs.existsSync(this.sessionFilePath)) {
         fs.unlinkSync(this.sessionFilePath);
       }
-    } catch (err) {
-      console.warn('[SecureSessionStore] Failed to unlink session file:', err);
+      return true;
+    } catch {
+      // A file lock can prevent unlink while still permitting credential invalidation.
+      try {
+        fs.writeFileSync(this.sessionFilePath, Buffer.alloc(0));
+        return true;
+      } catch {
+        console.warn('[SecureSessionStore] Could not invalidate the saved session');
+        return false;
+      }
     }
   }
 }

@@ -52,7 +52,7 @@ router.post(
   '/accounting/journal-entries',
   authenticate,
   authorize('accounting.manage'),
-  requireIdempotency,
+  // The journal service atomically binds its persistent key to the payload.
   validateBody(createJournalEntrySchema),
   accountingController.createJournalEntry,
 );

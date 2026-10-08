@@ -7,6 +7,7 @@
 import { localDb, type LocalOfflineSale } from './localDb';
 import { executeWithRetry } from '../utils/retryPolicy';
 import { sales } from '../api/sales.api';
+import { getApiCacheScope } from '../api/client';
 
 export class OutboxService {
   private static isSyncing = false;
@@ -21,6 +22,7 @@ export class OutboxService {
     quarantinedCount: number;
   }> {
     const current = await localDb.getOfflineSales();
+    const cycleContext = getApiCacheScope();
     const pendingNow = current.filter((s) => s.sync_status !== 'QUARANTINED').length;
     const quarantinedNow = current.length - pendingNow;
     if (this.isSyncing || !navigator.onLine) {
@@ -40,6 +42,9 @@ export class OutboxService {
       const items: LocalOfflineSale[] = await localDb.getOfflineSales();
 
       for (const item of items) {
+        if (getApiCacheScope() !== cycleContext) break;
+        // Preserve unknown legacy ownership and other contexts without retries.
+        if (item.origin_context !== cycleContext || cycleContext.endsWith('::anonymous')) continue;
         // تخطي الفواتير المحجورة لحين المراجعة اليدوية
         if (item.sync_status === 'QUARANTINED') {
           continue;
@@ -52,6 +57,7 @@ export class OutboxService {
           sync_status,
           retry_count,
           last_error,
+          origin_context,
           ...cleanPayload
         } = item;
         void sale_number;
@@ -59,16 +65,21 @@ export class OutboxService {
         void sync_status;
         void retry_count;
         void last_error;
+        void origin_context;
 
         const idempotencyKey = item.sync_id || offline_id;
 
         try {
           // تحديث الحالة إلى جاري المزامنة
-          await localDb.updateOfflineSale(offline_id, { sync_status: 'SYNCING' });
+          const marked = await localDb.updateOfflineSale(offline_id, { sync_status: 'SYNCING' });
+          if (!marked || getApiCacheScope() !== cycleContext) break;
 
           // تنفيذ الطلب مع سياسة الإعادة الذكية
           await executeWithRetry(
             async () => {
+              if (getApiCacheScope() !== cycleContext) {
+                throw { status: 409, message: 'تغير سياق الجلسة أثناء المزامنة' };
+              }
               return await sales.create(cleanPayload, {
                 headers: {
                   'Idempotency-Key': idempotencyKey,
@@ -84,9 +95,11 @@ export class OutboxService {
           );
 
           // الحذف فور نجاح المزامنة من قاعدة البيانات المحلية
-          await localDb.deleteOfflineSale(offline_id);
-          syncedCount++;
+          const removed = await localDb.deleteOfflineSale(offline_id);
+          if (removed) syncedCount++;
+          if (getApiCacheScope() !== cycleContext) break;
         } catch (err: any) {
+          if (getApiCacheScope() !== cycleContext) break;
           failedCount++;
           const status = err?.status || err?.response?.status;
           const currentRetries = (item.retry_count || 0) + 1;

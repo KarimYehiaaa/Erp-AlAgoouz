@@ -2,6 +2,9 @@ import crypto from 'crypto';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { resolvePoolMode } from '../database/poolMode.ts';
+import { resolveDatabaseSsl } from '../database/tlsConfig.ts';
+import { validateAccessTokenExpiration } from './jwtExpiration.ts';
 
 let __dirname = process.cwd();
 try {
@@ -11,9 +14,16 @@ try {
 } catch {
   // تجاهل مقصود
 }
-// تحميل .env من مجلد backend والجذر لضمان قراءة أي متغيرات أينما وُضعت
-dotenv.config({ path: path.resolve(__dirname, '../../.env') });
-dotenv.config({ path: path.resolve(__dirname, '../../../.env'), override: false });
+// Hosted runtimes must use their provisioned environment, not local files that
+// can conceal missing platform secrets. Keep backend/root discovery for local
+// services and maintenance commands.
+const hasHostedEnvironment = Boolean(
+  process.env.VERCEL || process.env.VERCEL_ENV || process.env.VERCEL_URL,
+);
+if (!hasHostedEnvironment) {
+  dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+  dotenv.config({ path: path.resolve(__dirname, '../../../.env'), override: false });
+}
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 /**
@@ -23,6 +33,13 @@ const optionalEnv = (name, defaultValue = '') => {
   const value = process.env[name];
   return value && value.trim() ? value.trim() : defaultValue;
 };
+
+// Vercel can omit NODE_ENV in some serverless contexts, so it must never use
+// development-only configuration defaults.
+const isVercelRuntime = Boolean(
+  process.env.VERCEL || process.env.VERCEL_ENV || process.env.VERCEL_URL,
+);
+const isProdEnv = process.env.NODE_ENV === 'production' || isVercelRuntime;
 
 // --- Database Configuration ---
 /**
@@ -38,14 +55,11 @@ const optionalEnv = (name, defaultValue = '') => {
  */
 /** @type {DbConfig} */
 let dbConfig;
+const databaseUrl = optionalEnv('DATABASE_URL');
 
-if (process.env.DATABASE_URL) {
-  let connStr = process.env.DATABASE_URL;
-  if (connStr.includes('pooler.supabase.com:5432')) {
-    connStr = connStr.replace(':5432', ':6543');
-  }
+if (databaseUrl) {
   dbConfig = {
-    connectionString: connStr,
+    connectionString: databaseUrl,
     host: null,
     port: null,
     database: null,
@@ -53,11 +67,8 @@ if (process.env.DATABASE_URL) {
     password: null,
   };
 } else {
-  const dbHost = optionalEnv('DB_HOST', 'localhost');
-  let portNum = parseInt(optionalEnv('DB_PORT', '5432'), 10);
-  if (dbHost && dbHost.includes('pooler.supabase.com') && portNum === 5432) {
-    portNum = 6543; // Switch to Transaction Mode (pooled clients)
-  }
+  const dbHost = optionalEnv('DB_HOST', isProdEnv ? '' : 'localhost');
+  const portNum = parseInt(optionalEnv('DB_PORT', '5432'), 10);
   const dbUser = process.env.DB_USER?.trim();
   const dbPassword = process.env.DB_PASSWORD?.trim();
   if (!dbUser || !dbPassword) {
@@ -73,37 +84,20 @@ if (process.env.DATABASE_URL) {
     database: optionalEnv('DB_NAME', 'postgres'),
   };
 }
+dbConfig.poolMode = resolvePoolMode(optionalEnv('DB_POOL_MODE', 'auto'), dbConfig);
 
-// ─── SSL Detection ─────────────────────────────────────────────────────────────
-// تفعيل SSL إذا:
-// 1. DB_SSL=true صريح في .env
-// 2. يوجد DATABASE_URL (عادةً Supabase)
-// 3. الـ Host يحتوي على 'supabase' أو 'neon'
-const isCloudDB =
-  process.env.DATABASE_URL ||
-  (dbConfig.host && (dbConfig.host.includes('supabase') || dbConfig.host.includes('neon')));
-
-const sslEnabled = process.env.DB_SSL === 'true' || !!isCloudDB;
-
-dbConfig.ssl = sslEnabled
-  ? { rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false' }
-  : false;
+// Keep TLS configuration outside the URI so pg cannot replace verification/CA.
+dbConfig.ssl = resolveDatabaseSsl(dbConfig, process.env, path.resolve(__dirname, '../../'));
+const sslEnabled = Boolean(dbConfig.ssl);
 
 // ─── Export Configuration ──────────────────────────────────────────────────────
 /**
  * إعدادات التطبيق المركزية (الخادم، قاعدة البيانات، JWT، CORS، معدل الطلبات، الشركة، النسخ الاحتياطي).
  * تُقرأ من متغيرات البيئة — لا توجد أسرار مضمّنة في الكود.
  */
-// Vercel does not reliably expose NODE_ENV to every serverless runtime. Treat
-// all deployed Vercel functions as production-like so security cannot fail open.
-const isVercelRuntime = Boolean(
-  process.env.VERCEL || process.env.VERCEL_ENV || process.env.VERCEL_URL,
-);
-const isProdEnv = process.env.NODE_ENV === 'production' || isVercelRuntime;
 const isDevelopmentProcess = optionalEnv('NODE_ENV', 'development') === 'development';
 const isRemoteDatabase = Boolean(
-  process.env.DATABASE_URL ||
-  (dbConfig.host && !['localhost', '127.0.0.1', '::1'].includes(dbConfig.host)),
+  databaseUrl || (dbConfig.host && !['localhost', '127.0.0.1', '::1'].includes(dbConfig.host)),
 );
 if (isDevelopmentProcess && !isProdEnv && isRemoteDatabase) {
   const explicitlyAllowed = process.env.ALLOW_REMOTE_DB_IN_DEVELOPMENT === 'true';
@@ -142,6 +136,7 @@ if (envRefreshSecret) {
 
 const config = {
   // ── Server ──
+  isVercel: isVercelRuntime,
   port: parseInt(optionalEnv('PORT', '3000'), 10),
   httpsPort: parseInt(optionalEnv('HTTPS_PORT', '3443'), 10),
   nodeEnv: isProdEnv ? 'production' : optionalEnv('NODE_ENV', 'development'),
@@ -155,7 +150,7 @@ const config = {
   jwt: {
     secret: finalJwtSecret,
     // توكن وصول قصير الأجل (ساعتان) مع تجديد صامت عبر refresh token — يقلل نافذة سرقة التوكن
-    expiresIn: optionalEnv('JWT_EXPIRES_IN', '2h'),
+    expiresIn: validateAccessTokenExpiration(optionalEnv('JWT_EXPIRES_IN', '2h')),
     refreshSecret: finalRefreshSecret,
     refreshExpiresIn: optionalEnv('JWT_REFRESH_EXPIRES_IN', '7d'),
   },
@@ -219,7 +214,12 @@ const config = {
 
 // ─── Validation at Startup ─────────────────────────────────────────────────────
 // التحقق من وجود إعدادات DB الأساسية
-if (!process.env.DATABASE_URL && !config.db.host) {
+if (isProdEnv && !databaseUrl && !process.env.DB_HOST?.trim()) {
+  throw new Error(
+    '[Config Error] Production requires an explicit DATABASE_URL or DB_HOST; implicit localhost fallback is disabled.',
+  );
+}
+if (!databaseUrl && !config.db.host) {
   throw new Error(' لا يوجد إعداد قاعدة بيانات: يجب توفير DATABASE_URL أو DB_HOST');
 }
 
@@ -234,7 +234,7 @@ if (isProdEnv) {
 
 // طباعة ملخص الإعدادات عند التشغيل (في بيئة التطوير فقط)
 if (config.isDevelopment && !process.env.SUPPRESS_CONFIG_LOG) {
-  const dbInfo = process.env.DATABASE_URL
+  const dbInfo = databaseUrl
     ? `DATABASE_URL (Cloud)`
     : `${config.db.host}:${config.db.port}/${config.db.database}`;
   console.log(`[Config]   DB: ${dbInfo} | SSL: ${sslEnabled} | Env: ${config.nodeEnv}`);

@@ -50,10 +50,19 @@
         <div class="adjuster-actions">
           <button
             class="btn btn-primary btn-large"
-            :disabled="adjustingPrices || adjustValue === 0"
+            :disabled="adjustingPrices || reviewingPrices || adjustValue === 0"
             @click="applyBulkAdjustment"
           >
             {{ adjustingPrices ? 'جاري تطبيق التعديل الجماعي...' : 'تطبيق التعديل الجماعي فوراً' }}
+          </button>
+          <button
+            v-if="hasPendingAdjustment"
+            data-test="review-adjustment"
+            class="btn btn-secondary"
+            :disabled="adjustingPrices || reviewingPrices"
+            @click="reviewBulkAdjustment"
+          >
+            {{ reviewingPrices ? 'جاري التحقق من النتيجة...' : 'التحقق من نتيجة التعديل السابق' }}
           </button>
         </div>
 
@@ -71,6 +80,15 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { products as productsApi } from '@/api';
+import { getApiCacheScope } from '@/api/client';
+import {
+  readPendingPriceAdjustment,
+  savePendingPriceAdjustment,
+  clearPendingPriceAdjustment,
+  PRICE_REPLAY_WINDOW_MS,
+  type PendingPriceAdjustment,
+  type PriceAdjustmentPayload,
+} from '@/utils/pendingPriceAdjustment';
 
 /**
  * تبويب تعديل الأسعار الجماعي — يطبق التعديل في قاعدة البيانات مباشرة.
@@ -87,15 +105,41 @@ const emit = defineEmits<{
 }>();
 
 // ─── state ────────────────────────────────────────────────────────────────────
-const adjustCategory = ref('');
-const adjustType = ref('sale'); // 'sale' | 'purchase'
-const adjustMode = ref('percent'); // 'percent' | 'fixed'
+const adjustCategory = ref<number | ''>('');
+const adjustType = ref<'sale' | 'purchase'>('sale');
+const adjustMode = ref<'percent' | 'fixed'>('percent');
 const adjustValue = ref(0);
 const adjustingPrices = ref(false);
+const reviewingPrices = ref(false);
+const hasPendingAdjustment = ref(false);
 const adjustSuccess = ref('');
 const adjustError = ref('');
+const operationScope = getApiCacheScope();
+let pendingAdjustment: PendingPriceAdjustment | undefined;
+try {
+  pendingAdjustment = readPendingPriceAdjustment(operationScope);
+  if (pendingAdjustment) {
+    hasPendingAdjustment.value = true;
+    const data = pendingAdjustment.payload;
+    adjustCategory.value = data.category_id ?? '';
+    adjustType.value = data.type;
+    adjustMode.value = data.adjust_type;
+    adjustValue.value = data.value;
+    adjustError.value = 'يوجد تعديل سابق غير مؤكد؛ أعد المحاولة بنفس القيم للتحقق من نتيجته.';
+  }
+} catch {
+  adjustError.value = 'تعذر قراءة التعديل المعلق؛ راجع نتيجة التعديل السابق قبل المتابعة.';
+}
+const makeOperationKey = () => {
+  try {
+    return crypto.randomUUID();
+  } catch {
+    return `bulk-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  }
+};
 
 const applyBulkAdjustment = async () => {
+  if (adjustingPrices.value || reviewingPrices.value) return;
   adjustSuccess.value = '';
   adjustError.value = '';
 
@@ -103,25 +147,126 @@ const applyBulkAdjustment = async () => {
     adjustError.value = 'يرجى إدخال قيمة تعديل غير صفرية';
     return;
   }
+  if (
+    !Number.isFinite(adjustValue.value) ||
+    adjustValue.value < -100 ||
+    adjustValue.value > 10_000_000
+  ) {
+    adjustError.value = 'أدخل قيمة تعديل صحيحة بين -100 و10000000.';
+    return;
+  }
+
+  const payload: PriceAdjustmentPayload = {
+    category_id: adjustCategory.value ? Number(adjustCategory.value) : null,
+    all_products: !adjustCategory.value,
+    type: adjustType.value,
+    adjust_type: adjustMode.value,
+    value: adjustValue.value,
+  };
+  if (getApiCacheScope() !== operationScope) {
+    adjustError.value = 'تغير الحساب أو الخادم؛ أعد فتح الشاشة قبل تعديل الأسعار.';
+    return;
+  }
+  try {
+    pendingAdjustment = readPendingPriceAdjustment(operationScope);
+    hasPendingAdjustment.value = !!pendingAdjustment;
+  } catch {
+    adjustError.value = 'تعذر قراءة التعديل المعلق؛ راجع نتيجة التعديل السابق قبل المتابعة.';
+    return;
+  }
+  if (
+    pendingAdjustment &&
+    (Date.now() - pendingAdjustment.createdAt >= PRICE_REPLAY_WINDOW_MS ||
+      Date.now() < pendingAdjustment.createdAt)
+  ) {
+    adjustError.value =
+      'راجع نتيجة التعديل السابق؛ انتهت مدة إعادة المحاولة الآمنة ولا يمكن تكراره تلقائيًا.';
+    return;
+  }
+  if (pendingAdjustment && JSON.stringify(pendingAdjustment.payload) !== JSON.stringify(payload)) {
+    adjustError.value =
+      'راجع نتيجة التعديل السابق أولًا؛ يمكنك إعادة محاولته بنفس القيم دون تكرار الزيادة.';
+    return;
+  }
 
   const confirmMsg = `هل أنت متأكد من تعديل أسعار ${adjustType.value === 'sale' ? 'البيع' : 'الشراء'} لجميع منتجات ${adjustCategory.value ? 'التصنيف المختار' : 'النظام بالكامل'} بمقدار ${adjustValue.value}${adjustMode.value === 'percent' ? '%' : ' ج.م'}؟ هذا التعديل نهائي ويؤثر مباشرة في قاعدة البيانات.`;
   if (!confirm(confirmMsg)) return;
 
-  adjustingPrices.value = true;
+  pendingAdjustment ??= { version: 1, payload, key: makeOperationKey(), createdAt: Date.now() };
   try {
-    const res = await productsApi.bulkAdjustPrices({
-      category_id: adjustCategory.value || null,
-      type: adjustType.value,
-      adjust_type: adjustMode.value,
-      value: adjustValue.value,
-    });
+    savePendingPriceAdjustment(operationScope, pendingAdjustment);
+    hasPendingAdjustment.value = true;
+  } catch {
+    adjustError.value = 'تعذر حفظ العملية لاستعادتها بأمان؛ لم يُرسل تعديل الأسعار.';
+    return;
+  }
+  adjustingPrices.value = true;
+  const operation = pendingAdjustment;
+  try {
+    const res = await productsApi.bulkAdjustPrices(payload, operation.key);
+    clearPendingPriceAdjustment(operationScope, operation.key);
+    pendingAdjustment = undefined;
+    hasPendingAdjustment.value = false;
     adjustSuccess.value = `تم تعديل أسعار ${res.data?.updatedCount || 0} منتجات بنجاح.`;
     adjustValue.value = 0;
     emit('reload');
   } catch (e: any) {
+    if ([400, 401, 403, 404, 422, 429].includes(e.status)) {
+      try {
+        clearPendingPriceAdjustment(operationScope, operation.key);
+        pendingAdjustment = undefined;
+        hasPendingAdjustment.value = false;
+      } catch {
+        adjustError.value = 'تعذر إزالة التعديل المعلق؛ راجع نتيجته قبل بدء تعديل آخر.';
+        return;
+      }
+    }
     adjustError.value = e.message || 'فشل تعديل الأسعار جماعياً';
   } finally {
     adjustingPrices.value = false;
+  }
+};
+
+const reviewBulkAdjustment = async () => {
+  if (adjustingPrices.value || reviewingPrices.value) return;
+  adjustError.value = '';
+  adjustSuccess.value = '';
+  if (getApiCacheScope() !== operationScope) {
+    adjustError.value = 'تغير الحساب أو الخادم؛ أعد فتح الشاشة قبل مراجعة التعديل.';
+    return;
+  }
+  reviewingPrices.value = true;
+  try {
+    const operation = readPendingPriceAdjustment(operationScope);
+    if (!operation) {
+      hasPendingAdjustment.value = false;
+      adjustError.value = 'لا توجد عملية معلقة محفوظة في هذه الشاشة.';
+      return;
+    }
+    const response = await productsApi.bulkAdjustmentStatus(operation.key);
+    if (getApiCacheScope() !== operationScope)
+      throw new Error('تغير الحساب أو الخادم؛ أعد فتح الشاشة لمراجعة النتيجة.');
+    if (
+      response.data?.state === 'completed' &&
+      Number.isSafeInteger(response.data.updatedCount) &&
+      response.data.updatedCount! >= 0
+    ) {
+      clearPendingPriceAdjustment(operationScope, operation.key);
+      pendingAdjustment = undefined;
+      hasPendingAdjustment.value = false;
+      adjustValue.value = 0;
+      adjustSuccess.value = `سبق تعديل أسعار ${response.data.updatedCount} منتجات بنجاح؛ لم تُنفذ زيادة جديدة.`;
+      emit('reload');
+    } else {
+      adjustError.value =
+        response.data?.state === 'processing'
+          ? 'العملية قيد المعالجة أو نتيجتها غير مؤكدة؛ احتُفظ بها للمراجعة دون تكرارها.'
+          : 'تعذر تأكيد نتيجة التعديل من السجل؛ راجع الأسعار وسجل النشاط قبل أي تعديل جديد.';
+    }
+  } catch (error: any) {
+    adjustError.value = error.message || 'تعذر التحقق من نتيجة التعديل السابق.';
+  } finally {
+    reviewingPrices.value = false;
   }
 };
 </script>

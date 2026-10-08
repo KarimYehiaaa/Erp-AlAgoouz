@@ -10,7 +10,9 @@ export const navigationGuard: NavigationGuard = async (to, _from, next) => {
   const auth = useAuthStore();
   const isNative =
     typeof window !== 'undefined' &&
-    (!!(window as any).Capacitor?.isNativePlatform?.() ||
+    (!!(
+      window as Window & { Capacitor?: { isNativePlatform?: () => boolean } }
+    ).Capacitor?.isNativePlatform?.() ||
       window.location.protocol === 'capacitor:' ||
       window.location.protocol === 'file:');
 
@@ -25,13 +27,13 @@ export const navigationGuard: NavigationGuard = async (to, _from, next) => {
     return next({ path: '/login', query: { redirect: to.fullPath || to.path } });
   }
   if (to.meta.guest && auth.isAuthenticated) {
-    if (isNative) return next('/mobile');
+    if (isNative) return next(auth.isCashier ? '/pos' : '/mobile');
     return next(auth.isCashier ? '/pos' : '/');
   }
 
-  // في تطبيق الموبايل الأصلي، نوجه الصفحة الرئيسية مباشرة إلى شاشة الموبايل
+  // في تطبيق الموبايل الأصلي، نوجه الصفحة الرئيسية مباشرة إلى شاشة الموبايل للمدراء، وللكاشير إلى POS
   if (isNative && (to.path === '/' || to.name === 'Dashboard')) {
-    return next('/mobile');
+    return next(auth.isCashier ? '/pos' : '/mobile');
   }
 
   // حماية وتوجيه الكاشير التلقائي
@@ -57,8 +59,8 @@ export const navigationGuard: NavigationGuard = async (to, _from, next) => {
 
   // صفحات المدير فقط
   if (to.meta.requireAdmin && auth.isAuthenticated) {
-    const role = auth.user?.role_name || (auth.user as any)?.role;
-    if (!role || !(ADMIN_ROLES as readonly string[]).includes(role)) {
+    const role = auth.user?.role_name;
+    if (!auth.profileLoaded || !role || !(ADMIN_ROLES as readonly string[]).includes(role)) {
       return next('/');
     }
   }

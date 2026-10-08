@@ -73,6 +73,9 @@ const errorHandler = (err, req, res, _next) => {
       userId,
       stack: err.stack,
       pgCode: err.code,
+      ...(process.env.NODE_ENV === 'test' && (err as any).maintenanceDiagnostics
+        ? { maintenanceDiagnostics: (err as any).maintenanceDiagnostics }
+        : {}),
       // PostgreSQL error code إن وجد
     });
   } else if (statusCode >= 400) {

@@ -1,15 +1,17 @@
 import { describe, it, expect, beforeAll } from 'vitest';
-import { query, getClient } from '../src/database/pool.ts';
+import { query } from '../src/database/pool.ts';
 import {
   createDailySale,
   deleteSalesByDate,
   deleteSalesByType,
   getSales,
+  getSaleById,
   getSalesSummary,
   returnSale,
   updateSale,
 } from '../src/services/salesService.ts';
 import { getAllowedWarehouses } from '../src/middleware/warehouseAccess.ts';
+import { posShiftService } from '../src/services/posShiftService.ts';
 import { businessToday } from '../src/utils/localDate.ts';
 import { randomUUID } from 'node:crypto';
 
@@ -109,6 +111,33 @@ describe('POS Warehouse Access & Batch Sync Security (Items 24, 25, 26)', () => 
     const allowed = await getAllowedWarehouses(cashierUserId);
     expect(allowed).toContain(allowedWarehouseId);
     expect(allowed).not.toContain(forbiddenWarehouseId);
+  });
+
+  it('rejects direct invoice lookup outside the assigned warehouse, including an empty scope', async () => {
+    const ownSale = await createDailySale(
+      { sale_type: 'retail', warehouse_id: allowedWarehouseId, total_amount: 37 },
+      adminUserId,
+    );
+    const foreignSale = await createDailySale(
+      { sale_type: 'retail', warehouse_id: forbiddenWarehouseId, total_amount: 43 },
+      adminUserId,
+    );
+    const scope = await getAllowedWarehouses(cashierUserId);
+
+    expect((await getSaleById(ownSale.id, scope)).id).toBe(ownSale.id);
+    await expect(getSaleById(foreignSale.id, scope)).rejects.toMatchObject({
+      statusCode: 403,
+    });
+    await expect(getSaleById(ownSale.id, [])).rejects.toMatchObject({ statusCode: 403 });
+    expect((await getSaleById(foreignSale.id)).id).toBe(foreignSale.id);
+    const persisted = await query(
+      'SELECT id, warehouse_id, total_amount FROM sales WHERE id = ANY($1::int[]) ORDER BY id',
+      [[ownSale.id, foreignSale.id]],
+    );
+    expect(persisted.rows).toEqual([
+      { id: ownSale.id, warehouse_id: allowedWarehouseId, total_amount: 37 },
+      { id: foreignSale.id, warehouse_id: forbiddenWarehouseId, total_amount: 43 },
+    ]);
   });
 
   it('1. Cashier with allowed warehouse creates sale successfully', async () => {
@@ -367,6 +396,42 @@ describe('POS Warehouse Access & Batch Sync Security (Items 24, 25, 26)', () => 
         cashierUserId,
       ),
     ).rejects.toThrow('غير مصرح لك بالوصول لهذا المخزن');
+  });
+
+  it('rejects a new offline sale after its shift closes but accepts an idempotent replay', async () => {
+    const shift = await posShiftService.openShift(cashierUserId, {
+      warehouse_id: allowedWarehouseId,
+      opening_cash: 0,
+      notes: 'isolated F19 regression test',
+    });
+    const syncId = randomUUID();
+    const salePayload = {
+      sale_type: 'pos',
+      warehouse_id: allowedWarehouseId,
+      pos_shift_id: shift.id,
+      sync_id: syncId,
+      total_amount: 20,
+      paid_amount: 20,
+      payment_method: 'cash',
+    };
+
+    const original = await createDailySale(salePayload, cashierUserId);
+    await posShiftService.closeShift(cashierUserId, shift.id, {
+      actual_cash: 20,
+      notes: 'close before delayed sync retry',
+    });
+
+    await expect(
+      createDailySale({ ...salePayload, sync_id: randomUUID(), total_amount: 30 }, cashierUserId),
+    ).rejects.toThrow('لا يمكن إضافة مبيعات إلى وردية مغلقة أو غير موجودة');
+
+    const replay = await createDailySale(salePayload, cashierUserId);
+    expect(replay.id).toBe(original.id);
+    expect(replay._duplicateSync).toBe(true);
+    const count = await query('SELECT COUNT(*)::int AS count FROM sales WHERE sync_id = $1::uuid', [
+      syncId,
+    ]);
+    expect(count.rows[0].count).toBe(1);
   });
 
   it("9. Date and type bulk deletions are limited to the user's allowed warehouses", async () => {

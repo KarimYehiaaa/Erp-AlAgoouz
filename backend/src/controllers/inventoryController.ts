@@ -10,7 +10,7 @@ const inventory = {
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
   list: wrap(async (req, res) => {
-    ok(res, await inventoryService.getInventory(req.query.warehouse_id));
+    ok(res, await inventoryService.getInventory(req.query.warehouse_id, req.user.id));
   }),
   /**
    * حركات المخزون (داخل/خارج) مع التصفية.
@@ -19,7 +19,7 @@ const inventory = {
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
   movements: wrap(async (req, res) => {
-    ok(res, await inventoryService.getStockMovements(req.query));
+    ok(res, await inventoryService.getStockMovements(req.query, req.user.id));
   }),
   /**
    * نقل كمية بين مخازن.
@@ -56,7 +56,7 @@ const inventory = {
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
   warehouses: wrap(async (req, res) => {
-    ok(res, await inventoryService.getWarehouses());
+    ok(res, await inventoryService.getWarehouses(req.user.id));
   }),
   /**
    * تنزيل قالب استيراد مرتجعات المخزون (Excel).
@@ -65,7 +65,10 @@ const inventory = {
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
   returnTemplate: wrap(async (req, res) => {
-    const buf = await inventoryExcelService.buildReturnTemplate(req.query.warehouse_id || null);
+    const buf = await inventoryExcelService.buildReturnTemplate(
+      req.query.warehouse_id || null,
+      req.user.id,
+    );
     res.setHeader(
       'Content-Type',
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -81,7 +84,15 @@ const inventory = {
    */
   validateReturnExcel: wrap(async (req, res) => {
     if (!req.file?.buffer) throw new AppError('يجب رفع ملف Excel', 400);
-    ok(res, await inventoryExcelService.validateReturnExcel(req.file.buffer), 'تم فحص الملف');
+    ok(
+      res,
+      await inventoryExcelService.validateReturnExcel(
+        req.file.buffer,
+        req.user.id,
+        req.body?.warehouse_id || req.query?.warehouse_id || null,
+      ),
+      'تم فحص الملف',
+    );
   }),
   /**
    * استيراد مرتجعات المخزون من ملف Excel.

@@ -125,7 +125,8 @@
               <p>
                 <strong>تاريخ الإصدار:</strong>
                 {{
-                  new Date().toLocaleDateString('ar-EG', {
+                  issuedAt.toLocaleDateString('ar-EG', {
+                    timeZone: BUSINESS_TIMEZONE,
                     year: 'numeric',
                     month: 'long',
                     day: 'numeric',
@@ -167,7 +168,8 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue';
+import { nextTick, onMounted, reactive, ref } from 'vue';
+import { BUSINESS_TIMEZONE, businessCalendarDate } from '../../../shared/businessDate';
 import AppLogo from '@/components/AppLogo.vue';
 import { quotes as quotesApi } from '@/api';
 import { formatMoney } from '@/utils/currency';
@@ -195,6 +197,7 @@ const form = reactive({
 });
 
 const saving = ref(false);
+const issuedAt = ref(new Date());
 const savingTemplate = ref(false);
 const error = ref('');
 const success = ref('');
@@ -342,9 +345,11 @@ const downloadPdf = async () => {
 
   saving.value = true;
   try {
+    issuedAt.value = new Date();
+    await nextTick();
     await exportElementToPdf({
       element: '.preview-doc',
-      filename: `quote-${new Date().toISOString().slice(0, 10)}.pdf`,
+      filename: `quote-${businessCalendarDate(issuedAt.value)}.pdf`,
     });
     success.value = 'تم تنزيل عرض السعر بنجاح.';
   } catch (e: any) {

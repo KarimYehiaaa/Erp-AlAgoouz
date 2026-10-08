@@ -1,32 +1,34 @@
 import pg from 'pg';
 import config from '../config/index.ts';
 import { logger } from '../services/loggerService.ts';
+import { BUSINESS_TIMEZONE } from '../utils/localDate.ts';
+import { installTransactionTimezone } from './transactionTimezone.ts';
+import { databaseConnectionOptions, isLoopbackDatabaseConnection } from './connectionOptions.ts';
+import {
+  assertMaintenanceScopeUsable,
+  protectBusinessTransaction,
+  protectPoolConnections,
+  closeMaintenancePool,
+  runSharedMaintenanceTask,
+} from './maintenanceBarrier.ts';
 const { Pool, types } = pg;
 types.setTypeParser(1082, (value) => value);
 types.setTypeParser(1700, (value) => {
   if (value === null) return null;
   return parseFloat(value);
 });
-const connectionOptions = process.env.DATABASE_URL
-  ? { connectionString: process.env.DATABASE_URL }
-  : {
-      host: config.db.host ?? undefined,
-      port: config.db.port ?? undefined,
-      database: config.db.database ?? undefined,
-      user: config.db.user ?? undefined,
-      password: config.db.password ?? undefined,
-    };
-const dbSsl = config.db.ssl;
+const connectionOptions = databaseConnectionOptions();
 // Keep a conservative serverless default, but make the limit explicit and
 // tunable for the selected Supabase pooler plan. Never accept an unsafe value.
 const isServerless = Boolean(
   process.env.VERCEL || process.env.VERCEL_ENV || process.env.VERCEL_URL,
 );
+const limitedConnectionBudget = isServerless || !isLoopbackDatabaseConnection(connectionOptions);
 const configuredPoolMax = Number.parseInt(process.env.DB_POOL_MAX || '', 10);
 const maxConnections =
   Number.isFinite(configuredPoolMax) && configuredPoolMax > 0
     ? Math.min(configuredPoolMax, 50)
-    : isServerless
+    : limitedConnectionBudget
       ? 3
       : 10;
 const configuredIdleTimeout = Number.parseInt(process.env.DB_POOL_IDLE_TIMEOUT_MS || '', 10);
@@ -38,22 +40,30 @@ const idleTimeoutMillis =
       : 10_000;
 const pool = new Pool({
   ...connectionOptions,
-  ssl: dbSsl,
   max: maxConnections,
-  min: isServerless ? 0 : 1,
+  min: limitedConnectionBudget ? 0 : 1,
   idleTimeoutMillis,
   connectionTimeoutMillis: 10000,
   statement_timeout: 30000,
   query_timeout: 30000,
   allowExitOnIdle: true,
+  // pg-pool awaits this hook before handing the connection to any query or transaction.
+  onConnect: async (client) => {
+    if (config.db.poolMode !== 'transaction') {
+      await client.query(`SET timezone = '${BUSINESS_TIMEZONE}'`);
+    }
+    installTransactionTimezone(client, {
+      transactionPooling: config.db.poolMode === 'transaction',
+      beforeTransaction: protectBusinessTransaction,
+      assertUsable: assertMaintenanceScopeUsable,
+    });
+  },
 });
+protectPoolConnections(pool);
 pool.on('error', (err, __client) => {
   logger.error('[DB Pool] خطأ غير متوقع في اتصال قاعدة البيانات:', err.message);
 });
-pool.on('connect', (client: any) => {
-  client.query("SET timezone = 'Africa/Cairo'").catch((err: any) => {
-    logger.warn('[DB Pool] تعذر ضبط المنطقة الزمنية Africa/Cairo:', err?.message || err);
-  });
+pool.on('connect', (_client: any) => {
   if (process.env.NODE_ENV === 'development') {
     logger.info(`[DB Pool] اتصال جديد — إجمالي: ${pool.totalCount} / ${maxConnections}`);
   }
@@ -85,20 +95,37 @@ const query = async (
   }
 };
 const getClient = () => pool.connect();
-const withTransaction = async <T>(fn: (client: any) => Promise<T>): Promise<T> => {
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-    const result = await fn(client);
-    await client.query('COMMIT');
-    return result;
-  } catch (err: any) {
-    await client.query('ROLLBACK');
-    throw err;
-  } finally {
-    client.release();
-  }
-};
+const withTransaction = async <T>(fn: (client: any) => Promise<T>): Promise<T> =>
+  runSharedMaintenanceTask(async () => {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const result = await fn(client);
+      await client.query('COMMIT');
+      return result;
+    } catch (err: any) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  });
+/** Run a multi-query report on one stable snapshot without allowing writes. */
+const withReadOnlySnapshot = async <T>(fn: (client: pg.PoolClient) => Promise<T>): Promise<T> =>
+  runSharedMaintenanceTask(async () => {
+    const client = await getClient();
+    try {
+      await client.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
+      const result = await fn(client);
+      await client.query('COMMIT');
+      return result;
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  });
 const checkHealth = async () => {
   const start = Date.now();
   try {
@@ -130,7 +157,16 @@ const checkHealth = async () => {
 const closePool = async () => {
   logger.info('[DB Pool] إغلاق جميع الاتصالات...');
   await pool.end();
+  await closeMaintenancePool();
   logger.info('[DB Pool] تم إغلاق الـ Pool بنجاح');
 };
 const pool_default = pool;
-export { checkHealth, closePool, pool_default as default, getClient, query, withTransaction };
+export {
+  checkHealth,
+  closePool,
+  pool_default as default,
+  getClient,
+  query,
+  withTransaction,
+  withReadOnlySnapshot,
+};

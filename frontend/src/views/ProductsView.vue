@@ -436,6 +436,7 @@ import { ref, onMounted, onBeforeUnmount, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { products as api, warehouses as warehousesApi } from '@/api';
 import { formatMoney } from '@/utils/currency';
+import { buildProductWarehouseStocks, changedProductWarehouseStocks } from '@/utils/productStocks';
 import { useProductMeta } from '@/composables/useProductMeta';
 import BaseTable from '@/components/ui/BaseTable.vue';
 import AppIcon from '@/components/AppIcon.vue';
@@ -611,18 +612,10 @@ const openForm = (p: any = null) => {
   formMsg.value = '';
   formErr.value = false;
 
-  const stocksObj: Record<string, number> = {};
-  warehouses.value.forEach((w: any) => {
-    stocksObj[w.id] = 0;
-  });
-  if (p && p.stock_details) {
-    const list = Array.isArray(p.stock_details) ? p.stock_details : [];
-    list.forEach((item: any) => {
-      if (item.warehouse_id) {
-        stocksObj[item.warehouse_id] = Number(item.quantity || 0);
-      }
-    });
-  }
+  const stocksObj = buildProductWarehouseStocks(
+    warehouses.value,
+    Array.isArray(p?.stock_details) ? p.stock_details : [],
+  );
 
   form.value = p
     ? {
@@ -630,6 +623,7 @@ const openForm = (p: any = null) => {
         primary_warehouse_id: p.primary_warehouse_id || warehouses.value[0]?.id || null,
         _original_primary_warehouse_id: p.primary_warehouse_id || warehouses.value[0]?.id || null,
         warehouse_stocks: stocksObj,
+        _original_warehouse_stocks: { ...stocksObj },
       }
     : {
         sku: buildNextSku(products.value),
@@ -665,9 +659,15 @@ const saveProduct = async () => {
     const payload: Record<string, any> = {
       ...form.value,
       primary_warehouse_id: primaryWarehouseId,
-      warehouse_stocks: form.value.warehouse_stocks,
+      warehouse_stocks: form.value.id
+        ? changedProductWarehouseStocks(
+            form.value.warehouse_stocks,
+            form.value._original_warehouse_stocks,
+          )
+        : form.value.warehouse_stocks,
     };
     delete payload._original_primary_warehouse_id;
+    delete payload._original_warehouse_stocks;
     payload.category_id = payload.category_id || null;
     payload.barcode = String(payload.barcode || '').trim() || null;
 

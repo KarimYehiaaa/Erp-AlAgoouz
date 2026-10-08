@@ -10,6 +10,7 @@
  * هذا الملف لا يُشغّل الخادم ولا الهجرات — يفصل البناء عن التشغيل ليُستورد
  * التطبيق في الاختبارات التكاملية أو في بيئة serverless (Vercel) مباشرة.
  */
+import './services/sentryInstrumentation.ts';
 import express from 'express';
 // Server reload trigger - updated calculations
 import cors from 'cors';
@@ -17,6 +18,7 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import './services/loggerService.ts';
 import { resolveFrontendDist } from './utils/frontendDist.ts';
+import { pickSafeDebugHeaders } from './utils/debugHeaders.ts';
 import rateLimit from 'express-rate-limit';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -32,6 +34,12 @@ import { initSentry } from './services/sentry.ts';
 import { syncMonitorController } from './controllers/syncMonitorController.ts';
 import { logger } from './services/loggerService.ts';
 import { csrfProtection } from './middleware/csrf.ts';
+import { isTrustedWebOrigin } from './utils/trustedOrigin.ts';
+import { maintenanceRequest } from './database/maintenanceBarrier.ts';
+import {
+  localProductionContentSecurityPolicy,
+  productionContentSecurityPolicy,
+} from './utils/contentSecurityPolicy.ts';
 
 // ─── تحديد مجلد العمل (يعمل في ESM وفي العقدة العادية) ───────────────────────
 let __dirname = process.cwd();
@@ -46,7 +54,6 @@ try {
 /** التطبيق الرئيسي لـ Express — يُبنى بكل الـ middleware والمسارات. */
 const app = express();
 
-initSentry(app);
 // ثقة البروكسي مشروطة: خلف Vercel فقط افتراضياً — التشغيل المباشر يعرض req.ip الحقيقي
 // ويمنع تزوير X-Forwarded-For لتجاوز rate-limit
 app.set('trust proxy', config.trustProxy);
@@ -56,14 +63,9 @@ app.use(
     crossOriginResourcePolicy: { policy: 'cross-origin' },
     contentSecurityPolicy: config.isProduction
       ? {
-          directives: {
-            defaultSrc: ["'self'"],
-            scriptSrc: ["'self'"],
-            styleSrc: ["'self'", "'unsafe-inline'"],
-            imgSrc: ["'self'", 'data:', 'blob:'],
-            connectSrc: ["'self'", 'wss:', 'ws:'],
-            fontSrc: ["'self'", 'data:'],
-          },
+          directives: config.isVercel
+            ? productionContentSecurityPolicy
+            : localProductionContentSecurityPolicy,
         }
       : false,
     hsts: { maxAge: 31536000, includeSubDomains: true, preload: true },
@@ -73,53 +75,20 @@ app.use(
 app.use(cookieParser());
 app.use(csrfProtection);
 app.use(
-  cors({
-    origin: (origin, callback) => {
-      // السماح للطلبات بدون origin (مثل الأدوات المباشرة، Server-to-Server، وتطبيقات الموبايل والديسك توب)
-      if (!origin || origin === 'file://' || origin === 'null') return callback(null, true);
+  cors((req, optionsCallback) =>
+    optionsCallback(null, {
+      origin: (origin, callback) => {
+        // السماح للطلبات بدون origin (مثل الأدوات المباشرة، Server-to-Server، وتطبيقات الموبايل والديسك توب)
+        if (!origin || origin === 'file://' || origin === 'null') return callback(null, true);
 
-      // 1. النطاقات المحددة صراحة في الإعدادات
-      if (config.corsOrigin.includes(origin)) {
-        return callback(null, true);
-      }
+        if (isTrustedWebOrigin(origin, req.headers.host)) return callback(null, true);
 
-      // 2. نطاقات Vercel — النطاق الرئيسي فقط افتراضياً؛ معاينات النشر عبر CORS_ALLOW_VERCEL_PREVIEWS
-      if (
-        origin === 'https://agoouz.vercel.app' ||
-        origin === 'https://agoouz-api.vercel.app' ||
-        (config.corsAllowVercelPreviews && origin.endsWith('.vercel.app'))
-      ) {
-        return callback(null, true);
-      }
-
-      // 3. بيئات وتطبيقات الموبايل والديسك توب والتطوير والشبكة المحلية (Capacitor / Localhost / LAN)
-      let isLanOrigin = false;
-      try {
-        const parsed = new URL(origin);
-        const host = parsed.hostname;
-        isLanOrigin =
-          host.startsWith('192.168.') ||
-          host.startsWith('10.') ||
-          /^172\.(1[6-9]|2\d|3[0-1])\./.test(host);
-      } catch {}
-
-      if (
-        origin.startsWith('capacitor://') ||
-        origin.startsWith('ionic://') ||
-        origin === 'https://localhost' ||
-        origin.startsWith('http://localhost') ||
-        origin.startsWith('http://127.0.0.1') ||
-        isLanOrigin ||
-        config.lanOrigins.includes(origin)
-      ) {
-        return callback(null, true);
-      }
-
-      // رفض النطاق غير المسموح به بهدوء دون كسر الخادم
-      return callback(null, false);
-    },
-    credentials: true,
-  }),
+        // رفض النطاق غير المسموح به بهدوء دون كسر الخادم
+        return callback(null, false);
+      },
+      credentials: req.headers.origin !== 'null' && req.headers.origin !== 'file://',
+    }),
+  ),
 );
 app.use(morgan(config.nodeEnv === 'development' ? 'dev' : 'combined'));
 app.use(express.json({ limit: '10mb' }));
@@ -146,9 +115,9 @@ app.use('/assets', express.static(path.join(__dirname, '../../assets')));
 app.use('/logo.png', express.static(path.join(__dirname, '../../assets/logo.png')));
 
 // ─── المسارات الرئيسية ───────────────────────────────────────────────────────
-app.use('/api/v1', routes);
-app.use('/api', routes); // مسار توافق مع الإصدارات السابقة
-app.use('/v1', routes); // مسار توافق إضافي للعملاء والموجهات السحابية
+app.use('/api/v1', maintenanceRequest, routes);
+app.use('/api', maintenanceRequest, routes); // مسار توافق مع الإصدارات السابقة
+app.use('/v1', maintenanceRequest, routes); // مسار توافق إضافي للعملاء والموجهات السحابية
 
 /**
  * نقطة تشخيص — متاحة فقط للمدير في بيئة غير الإنتاج.
@@ -167,7 +136,7 @@ const handleDebug = (req: any, res: any) => {
     originalUrl: req.originalUrl,
     path: req.path,
     method: req.method,
-    headers: req.headers,
+    headers: pickSafeDebugHeaders(req.headers),
     env: {
       NODE_ENV: process.env.NODE_ENV,
       VERCEL: process.env.VERCEL,
@@ -226,6 +195,7 @@ if (frontendDist) {
 }
 
 // ─── معالجات الأخطاء (يجب أن تكون آخر middleware) ────────────────────────────
+initSentry(app);
 app.use(notFound);
 app.use(errorHandler);
 

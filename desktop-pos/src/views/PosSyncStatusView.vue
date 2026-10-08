@@ -32,7 +32,7 @@
           </p>
         </div>
         <button
-          v-if="isOnline && pendingQueue.length > 0"
+          v-if="isOnline && pendingQueue.length > 0 && !queueReadError"
           type="button"
           class="btn-sync-now"
           :disabled="syncing"
@@ -42,7 +42,7 @@
           <span v-else>مزامنة الآن ({{ pendingQueue.length }})</span>
         </button>
         <button
-          v-if="failedCount > 0 && isOnline"
+          v-if="failedCount > 0 && isOnline && !queueReadError"
           type="button"
           class="btn-retry-failed"
           :disabled="syncing"
@@ -53,12 +53,32 @@
       </div>
 
       <!-- Pending Transactions Table -->
+      <p v-if="queueReadError" role="alert">{{ queueReadError }}</p>
+      <button v-if="canExportRecovery" type="button" :disabled="exporting" @click="exportRecovery">
+        {{ exporting ? 'جاري حفظ النسخة...' : 'حفظ نسخة للاسترجاع (للمسؤول)' }}
+      </button>
+      <p v-if="recoveryMessage" role="status">{{ recoveryMessage }}</p>
+      <div
+        v-if="retention.unknownCount || retention.otherContextCount || retention.unavailable"
+        role="status"
+      >
+        <p v-if="retention.unknownCount">
+          يوجد {{ retention.unknownCount }} فاتورة قديمة محفوظة تحتاج مراجعة مصدرها قبل المزامنة.
+        </p>
+        <p v-if="retention.otherContextCount">
+          يوجد {{ retention.otherContextCount }} فاتورة محفوظة لحساب أو سيرفر آخر. تظهر عند العودة
+          لسياقها.
+        </p>
+        <p v-if="retention.unavailable">
+          تعذر التأكد من حالة بعض الفواتير المحفوظة. البيانات تحتاج مراجعة.
+        </p>
+      </div>
       <div class="queue-table-section">
         <h3>الفواتير المعلقة محلياً ({{ pendingQueue.length }})</h3>
 
-        <div v-if="!pendingQueue.length" class="empty-queue">
+        <div v-if="!pendingQueue.length && !queueReadError" class="empty-queue">
           <AppIcon name="checkCircle" :size="36" />
-          <p>جميع الفواتير والعمليات مرحّلة بنجاح ولا يوجد أي فواتير معلقة!</p>
+          <p>لا توجد فواتير معلقة ظاهرة للحساب والسيرفر الحاليين.</p>
         </div>
 
         <div v-else class="table-wrap">
@@ -102,25 +122,110 @@ import { useRouter } from 'vue-router';
 import AppIcon from '../components/AppIcon.vue';
 import { api } from '../services/api';
 import { formatMoney } from '../utils/currency';
+import {
+  getBrowserQueueContext,
+  getBrowserQueueRetentionSummary,
+  getBrowserQueueRecoverySnapshot,
+  readBrowserQueue,
+  writeBrowserQueue,
+} from '../services/browserQueue';
+import { ADMIN_ROLES } from '../../../shared/permissions.js';
+import { sessionService } from '../services/sessionService';
 
 const router = useRouter();
 const isOnline = ref(navigator.onLine);
 const pendingQueue = ref<any[]>([]);
 const syncing = ref(false);
+const retention = ref({ unknownCount: 0, otherContextCount: 0, unavailable: false });
+const queueReadError = ref('');
+const canExportRecovery = !!window.electronAPI?.exportQueueRecovery || !window.electronAPI;
+const exporting = ref(false);
+const recoveryMessage = ref('');
+const exportRecovery = async () => {
+  if (exporting.value) return;
+  if (
+    !window.confirm(
+      'قد تحتوي نسخة الاسترجاع على بيانات عملاء ومبيعات وحسابات أخرى محفوظة على هذا الجهاز. احفظها في مكان آمن. هل تريد المتابعة؟',
+    )
+  )
+    return;
+  exporting.value = true;
+  recoveryMessage.value = '';
+  try {
+    if (window.electronAPI?.exportQueueRecovery) {
+      const result = await window.electronAPI.exportQueueRecovery();
+      if (result?.canceled) return;
+      recoveryMessage.value = result?.success
+        ? `حُفظت نسخة من ${result.fileCount} ملفات في ${result.directory}. الملفات الأصلية كما هي؛ لم تُرسل فواتير.`
+        : result?.error || 'تعذر حفظ نسخة الاسترجاع';
+      return;
+    }
+
+    const context = getBrowserQueueContext();
+    const revision = sessionService.getRevision();
+    const profile = await api.get('/auth/profile');
+    const user = profile.data?.data?.user;
+    if (
+      profile.data?.success !== true ||
+      !ADMIN_ROLES.includes(user?.role_name) ||
+      Number(user?.id) !== Number(sessionService.getUser()?.id) ||
+      context !== getBrowserQueueContext() ||
+      revision !== sessionService.getRevision()
+    ) {
+      throw new Error('تصدير ملفات الاسترجاع يتطلب جلسة مسؤول مؤكدة على السيرفر الحالي');
+    }
+    const snapshot = getBrowserQueueRecoverySnapshot();
+    const blob = new Blob([JSON.stringify(snapshot, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `alagoouz-pos-queue-recovery-${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
+    anchor.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    recoveryMessage.value = `تم تنزيل نسخة من ${snapshot.queues.length} طوابير بصيغتها الخام. لم تُرسل الفواتير ولم تُعدّل الملفات الأصلية.`;
+  } catch (error: any) {
+    recoveryMessage.value =
+      error?.response?.data?.message ||
+      error?.message ||
+      'تعذر حفظ نسخة الاسترجاع؛ الملفات الأصلية محفوظة.';
+  } finally {
+    exporting.value = false;
+  }
+};
 const failedCount = computed(
   () => pendingQueue.value.filter((item) => item.status === 'FAILED').length,
 );
 
 const loadQueue = async () => {
-  if ((window as any).electronAPI) {
-    pendingQueue.value = await (window as any).electronAPI.getPendingTransactions();
-  } else {
-    const savedQueue = JSON.parse(localStorage.getItem('pos_offline_sales') || '[]');
-    pendingQueue.value = savedQueue.map((sale: any) => ({
-      ...sale,
-      sale_type: sale.sale_type === 'branch' ? 'retail' : sale.sale_type,
-    }));
-    localStorage.setItem('pos_offline_sales', JSON.stringify(pendingQueue.value));
+  queueReadError.value = '';
+  pendingQueue.value = [];
+  retention.value = { unknownCount: 0, otherContextCount: 0, unavailable: false };
+  try {
+    if ((window as any).electronAPI) {
+      pendingQueue.value = await (window as any).electronAPI.getPendingTransactions();
+      const summary = await (window as any).electronAPI.getQueueRetentionSummary?.();
+      retention.value = {
+        unknownCount: summary?.unknownCount || 0,
+        otherContextCount: summary?.otherContextCount || 0,
+        unavailable: !summary?.success,
+      };
+    } else {
+      const savedQueue = readBrowserQueue();
+      pendingQueue.value = savedQueue.map((sale: any) => ({
+        ...sale,
+        sale_type: sale.sale_type === 'branch' ? 'retail' : sale.sale_type,
+      }));
+      const summary = getBrowserQueueRetentionSummary();
+      retention.value = {
+        unknownCount: summary.unknownCount,
+        otherContextCount: summary.otherContextCount,
+        unavailable: !summary.success,
+      };
+    }
+  } catch (error: any) {
+    queueReadError.value =
+      error?.message || 'تعذر قراءة الفواتير المحلية؛ يلزم مراجعة الملفات المحفوظة.';
+    retention.value.unavailable = true;
   }
 };
 
@@ -133,9 +238,51 @@ const triggerBatchSync = async () => {
       if (!res?.success && res?.synced === 0)
         throw new Error(res?.message || 'تعذر مزامنة الفواتير');
     } else {
-      const res = await api.post('/sales/batch-sync', { sales: pendingQueue.value });
+      const context = getBrowserQueueContext();
+      const queue = readBrowserQueue(context);
+      let itemCount = 0;
+      const batch = queue
+        .filter((item) => {
+          if (!Array.isArray(item.items) || item.items.length > 100) return false;
+          if (itemCount + item.items.length > 500) return false;
+          itemCount += item.items.length;
+          return true;
+        })
+        .slice(0, 50);
+      if (!batch.length) throw new Error('الفواتير المحفوظة تحتاج مراجعة الأصناف قبل المزامنة');
+      const res = await api.post('/sales/batch-sync', { sales: batch }, {
+        _queueContext: context,
+      } as any);
       if (!res.data.success) throw new Error(res.data.message || 'تعذر مزامنة الفواتير');
-      localStorage.removeItem('pos_offline_sales');
+      if (context !== getBrowserQueueContext())
+        throw new Error('تغير الحساب أو السيرفر؛ الفواتير المحلية محفوظة');
+      if (!Array.isArray(res.data.results))
+        throw new Error('استجابة المزامنة غير مكتملة؛ الفواتير محفوظة');
+      const submitted = new Set(batch.map((item) => item.sync_id));
+      const completed = new Set<string>();
+      const failures = new Map<string, string>();
+      for (const result of res.data.results) {
+        if (!submitted.delete(result.sync_id)) continue;
+        if (result.status === 'SYNCED') completed.add(result.sync_id);
+        else if (result.status === 'FAILED')
+          failures.set(result.sync_id, result.error || 'تعذر ترحيل الفاتورة');
+      }
+      const latest = readBrowserQueue(context);
+      writeBrowserQueue(
+        latest
+          .filter((item) => !completed.has(item.sync_id))
+          .map((item) =>
+            failures.has(item.sync_id)
+              ? {
+                  ...item,
+                  status: 'FAILED',
+                  last_error: failures.get(item.sync_id),
+                  retry_count: Number(item.retry_count || 0) + 1,
+                }
+              : item,
+          ),
+        context,
+      );
     }
     alert('تمت معالجة طابور المزامنة. راجع الحالات المتبقية إن وجدت.');
     await loadQueue();

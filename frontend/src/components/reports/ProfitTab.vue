@@ -72,8 +72,19 @@
               <td>{{ row.category_name || 'بدون تصنيف' }}</td>
               <td class="center">{{ row.products_count }}</td>
               <td class="money">{{ formatMoney(row.total_revenue || 0) }}</td>
-              <td class="money" :class="row.net_profit >= 0 ? 'profit-pos' : 'profit-neg'">
-                {{ formatMoney(row.net_profit || 0) }}
+              <td
+                class="money"
+                :class="
+                  row.net_profit == null
+                    ? 'muted'
+                    : row.net_profit >= 0
+                      ? 'profit-pos'
+                      : 'profit-neg'
+                "
+              >
+                {{
+                  row.net_profit == null ? 'تكلفة تاريخية غير مسجلة' : formatMoney(row.net_profit)
+                }}
               </td>
             </tr>
             <tr v-if="!(profit?.byCategory || []).length">

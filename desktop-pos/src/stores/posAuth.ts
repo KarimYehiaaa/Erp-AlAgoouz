@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { ref, computed } from 'vue';
+import { ref, computed, onScopeDispose } from 'vue';
 import { api } from '../services/api';
 import { getServerUrl } from '../services/config';
 import { sessionService } from '../services/sessionService';
@@ -9,6 +9,17 @@ export const usePosAuthStore = defineStore('posAuth', () => {
   const token = ref<string | null>(sessionService.getAccessToken());
   const terminal = ref<any>(sessionService.getTerminal());
   const sessionInitializing = ref(false);
+  let authAttempt = 0;
+  const clearLocalState = () => {
+    authAttempt++;
+    token.value = null;
+    user.value = null;
+    terminal.value = null;
+  };
+  if (typeof window !== 'undefined') {
+    window.addEventListener('pos:session-cleared', clearLocalState);
+    onScopeDispose(() => window.removeEventListener('pos:session-cleared', clearLocalState));
+  }
 
   const isAuthenticated = computed(
     () => !sessionInitializing.value && !!token.value && !!user.value,
@@ -73,6 +84,13 @@ export const usePosAuthStore = defineStore('posAuth', () => {
    * إذا فشل أي جزء من حفظ الجلسة أو تهيئة المزامنة، يتم التراجع الفوري (Rollback)
    */
   const login = async (credentials: { username: string; password: string }) => {
+    const attempt = ++authAttempt;
+    const startingServer = getServerUrl();
+    const ensureCurrentAttempt = () => {
+      if (attempt !== authAttempt || startingServer !== getServerUrl()) {
+        throw new Error('تغير الحساب أو السيرفر أثناء تسجيل الدخول');
+      }
+    };
     let res: any;
     try {
       res = await api.post('/auth/login', credentials);
@@ -104,6 +122,7 @@ export const usePosAuthStore = defineStore('posAuth', () => {
     }
 
     const payload = res.data?.data || res.data;
+    ensureCurrentAttempt();
 
     if (res.data?.success && payload?.token) {
       const serverUrl = getServerUrl();
@@ -111,6 +130,7 @@ export const usePosAuthStore = defineStore('posAuth', () => {
       // الخطوة 1: تهيئة الجلسة ذرّياً مع محرك المزامنة
       if (typeof window !== 'undefined' && window.electronAPI?.setAuthToken) {
         const sessionRes = await window.electronAPI.setAuthToken(payload.token, serverUrl);
+        ensureCurrentAttempt();
         if (sessionRes && !sessionRes.success) {
           token.value = null;
           user.value = null;
@@ -125,10 +145,10 @@ export const usePosAuthStore = defineStore('posAuth', () => {
         token: payload.token,
         refreshToken: payload.refreshToken,
         user: payload.user,
-        terminal: payload.terminal || terminal.value,
+        terminal: payload.terminal || undefined,
         savedAt: new Date().toISOString(),
       });
-
+      ensureCurrentAttempt();
       if (!saveOk && typeof window !== 'undefined' && window.electronAPI?.saveSecureSession) {
         // فشل الحفظ الآمن في بيئة Electron -> Rollback فوري
         token.value = null;
@@ -141,9 +161,7 @@ export const usePosAuthStore = defineStore('posAuth', () => {
       // الخطوة 3: تحديث الحالة التفاعلية فقط بعد نجاح كافة الخطوات الأمنية
       token.value = payload.token;
       user.value = payload.user;
-      if (payload.terminal) {
-        terminal.value = payload.terminal;
-      }
+      terminal.value = payload.terminal || null;
 
       return payload;
     }

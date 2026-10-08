@@ -4,7 +4,7 @@ import type { AddressInfo } from 'node:net';
 import bcrypt from 'bcryptjs';
 import app from '../src/app.ts';
 import { query } from '../src/database/pool.ts';
-import { appCache } from '../src/utils/cache.ts';
+import { requiredText } from './helpers/requiredText.ts';
 import { createDailySale } from '../src/services/salesService.ts';
 import { recordPayment, getCustomerStatement } from '../src/services/customerService.ts';
 
@@ -22,13 +22,30 @@ const cleanup = {
   recipeIds: [] as number[],
 };
 
+type TestUser = { id: number; username: string };
+type TestApiPayload = TestUser & {
+  token: string;
+  user?: TestUser;
+  name_ar?: string;
+  sale_price?: number | string;
+  purchase_price?: number | string;
+  is_active?: boolean;
+};
+type TestApiResponse = {
+  success?: boolean;
+  code?: string;
+  token?: string;
+  user?: TestUser;
+  data: TestApiPayload;
+};
+
 // Helper: Make HTTP request to test app
 const apiReq = async (
   endpoint: string,
   options: {
     method?: string;
     token?: string | null;
-    body?: any;
+    body?: unknown;
     headers?: Record<string, string>;
   } = {},
 ) => {
@@ -45,12 +62,12 @@ const apiReq = async (
     headers,
     body: options.body ? JSON.stringify(options.body) : undefined,
   });
-  let data: any = null;
+  let data: TestApiResponse;
   const text = await res.text();
   try {
-    data = JSON.parse(text);
+    data = JSON.parse(text) as TestApiResponse;
   } catch {
-    data = text;
+    throw new Error(`Expected JSON from ${endpoint} (HTTP ${res.status})`);
   }
   return { status: res.status, ok: res.ok, data };
 };
@@ -124,7 +141,7 @@ afterAll(async () => {
 // ─────────────────────────────────────────────────────────────────────────────
 describe('1. Authentication & Security Lifecycle', () => {
   const testPassword = 'TestPassword123!';
-  let adminUser: any;
+  let adminUser: TestUser;
   let adminToken: string;
 
   beforeAll(async () => {
@@ -151,7 +168,7 @@ describe('1. Authentication & Security Lifecycle', () => {
     expect(res.data.success).toBe(true);
     const token = res.data.data?.token || res.data.token;
     expect(token).toBeDefined();
-    adminToken = token;
+    adminToken = requiredText(token, 'Admin access token');
   });
 
   it('rejects login with wrong password (401)', async () => {
@@ -200,8 +217,6 @@ describe('1. Authentication & Security Lifecycle', () => {
   });
 
   it('immediately invalidates token when user token_version is incremented', async () => {
-    // Invalidate user cache tag
-    appCache.invalidateByTag('auth_users');
     await query(`UPDATE users SET token_version = COALESCE(token_version, 0) + 1 WHERE id = $1`, [
       adminUser.id,
     ]);
@@ -229,7 +244,7 @@ describe('2. RBAC & Granular Permissions Enforcement', () => {
     const rolesRes = await query(
       `SELECT id, name FROM roles WHERE name IN ('cashier', 'warehouse', 'manager')`,
     );
-    const roleMap = new Map(rolesRes.rows.map((r: any) => [r.name, r.id]));
+    const roleMap = new Map(rolesRes.rows.map((r: { name: string; id: number }) => [r.name, r.id]));
 
     // Cashier user
     const cashierRes = await query(
@@ -259,19 +274,22 @@ describe('2. RBAC & Granular Permissions Enforcement', () => {
       method: 'POST',
       body: { username: cashierRes.rows[0].username, password: testPassword },
     });
-    cashierToken = cLog.data.data?.token || cLog.data.token;
+    cashierToken = requiredText(cLog.data.data?.token || cLog.data.token, 'Cashier access token');
 
     const wLog = await apiReq('/auth/login', {
       method: 'POST',
       body: { username: whRes.rows[0].username, password: testPassword },
     });
-    warehouseToken = wLog.data.data?.token || wLog.data.token;
+    warehouseToken = requiredText(
+      wLog.data.data?.token || wLog.data.token,
+      'Warehouse access token',
+    );
 
     const mLog = await apiReq('/auth/login', {
       method: 'POST',
       body: { username: mgrRes.rows[0].username, password: testPassword },
     });
-    managerToken = mLog.data.data?.token || mLog.data.token;
+    managerToken = requiredText(mLog.data.data?.token || mLog.data.token, 'Manager access token');
   });
 
   it('cashier CAN view shop retail products', async () => {
@@ -350,7 +368,10 @@ describe('3. Products Lifecycle & Validation', () => {
       method: 'POST',
       body: { username: uRes.rows[0].username, password: 'AdminProdPass123!' },
     });
-    adminToken = loginRes.data.data?.token || loginRes.data.token;
+    adminToken = requiredText(
+      loginRes.data.data?.token || loginRes.data.token,
+      'Admin access token',
+    );
   });
 
   it('rejects product with negative sale_price (400)', async () => {
@@ -559,7 +580,12 @@ describe('4. Inventory Lifecycle & Golden Equation', () => {
        FROM stock_movements WHERE product_id = $1 GROUP BY movement_type`,
       [productId],
     );
-    const mvtMap = new Map(mvtRes.rows.map((r: any) => [r.movement_type, Number(r.total_qty)]));
+    const mvtMap = new Map(
+      mvtRes.rows.map((r: { movement_type: string; total_qty: number | string }) => [
+        r.movement_type,
+        Number(r.total_qty),
+      ]),
+    );
     expect(mvtMap.get('adjustment')).toBe(115); // 100 open + 10 adj + 5 adj
     expect(mvtMap.get('transfer')).toBe(20);
     expect(mvtMap.get('sale')).toBe(40);
@@ -625,7 +651,7 @@ describe('5. Inventory Concurrency & SELECT FOR UPDATE', () => {
     expect(rejected.length).toBe(1);
 
     if (fulfilled[0]?.status === 'fulfilled') {
-      cleanup.saleIds.push((fulfilled[0] as any).value.id);
+      cleanup.saleIds.push(fulfilled[0].value.id);
     }
 
     // Check error message on rejected call (matches either insufficient stock or stock changed)
@@ -749,7 +775,11 @@ describe('6. Composite Recipe Products (المنتجات المركبة وتفك
       [saleResult.id],
     );
     expect(consumptionMoves.rows.length).toBeGreaterThanOrEqual(2);
-    expect(consumptionMoves.rows.every((m: any) => m.movement_type === 'consumption')).toBe(true);
+    expect(
+      consumptionMoves.rows.every(
+        (m: { movement_type: string }) => m.movement_type === 'consumption',
+      ),
+    ).toBe(true);
   });
 });
 

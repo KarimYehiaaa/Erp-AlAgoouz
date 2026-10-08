@@ -74,4 +74,19 @@ describe('smoke: اختيار مجلد الواجهة المبنية (dist)', ()
       rmSync(root, { recursive: true, force: true });
     }
   });
+
+  it('يتجاهل واجهة قديمة في cwd/dist حتى لا يخفي غياب frontend/dist', () => {
+    const root = mkdtempSync(path.join(tmpdir(), 'dist-smoke-'));
+    try {
+      const staleDist = path.join(root, 'dist');
+      mkdirSync(staleDist, { recursive: true });
+      writeFileSync(path.join(staleDist, 'index.html'), '<!DOCTYPE html><title>stale</title>');
+
+      const result = resolveFrontendDist(root);
+      expect(result).not.toBe(staleDist);
+      if (result) expect(result).toMatch(/frontend[\\/]dist$/);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
 });

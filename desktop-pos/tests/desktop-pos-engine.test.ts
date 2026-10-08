@@ -9,7 +9,6 @@ import { PosSyncWorker, validateWorkerServerUrl } from '../electron/sync/syncWor
 import { checkoutPayloadKey, isRetryableNetworkError } from '../src/services/posReliability';
 import {
   readPendingQueue,
-  writePendingQueue,
   saveTransaction,
   updateQueueItemStatus,
   resetQueueItemRetry,
@@ -243,11 +242,15 @@ describe('Desktop POS Production Engine & Durability Tests', () => {
     expect(recovered.length).toBe(1);
     expect(recovered[0].sync_id).toBe('tx-1');
 
-    // Scenario C: Both corrupted -> safe fallback without throwing
+    // Scenario C: Preserve both corrupted files and refuse further writes
     fs.writeFileSync(paths.primaryFile, 'CORRUPTED_PRIMARY', 'utf8');
     fs.writeFileSync(paths.backupFile, 'CORRUPTED_BACKUP', 'utf8');
-    const safeFallback = readPendingQueue(testDir);
-    expect(safeFallback).toEqual([]);
+    const primaryBefore = fs.readFileSync(paths.primaryFile);
+    const backupBefore = fs.readFileSync(paths.backupFile);
+    expect(() => readPendingQueue(testDir)).toThrow('تعذر قراءة الطابور');
+    expect(saveTransaction({ sync_id: 'must-not-overwrite' }, testDir).success).toBe(false);
+    expect(fs.readFileSync(paths.primaryFile)).toEqual(primaryBefore);
+    expect(fs.readFileSync(paths.backupFile)).toEqual(backupBefore);
 
     fs.rmSync(testDir, { recursive: true, force: true });
   });
@@ -265,7 +268,14 @@ describe('Desktop POS Production Engine & Durability Tests', () => {
 
   it('Production Queue Storage Engine: Scenario E (Server SYNCED + Local Persistence Failure Protection)', async () => {
     const queue = [
-      { sync_id: 'persist-fail-1', status: 'PENDING', total_amount: 300, retry_count: 0 },
+      {
+        origin_server: 'http://localhost:3000/api/v1',
+        origin_user_id: 1,
+        sync_id: 'persist-fail-1',
+        status: 'PENDING',
+        total_amount: 300,
+        retry_count: 0,
+      },
     ];
 
     // Simulate disk failure in updateStatus
@@ -276,13 +286,23 @@ describe('Desktop POS Production Engine & Durability Tests', () => {
       updateStatusFails,
       () => null,
     );
-    worker.setAuthToken('token');
+    worker.setAuthToken(
+      `test.${Buffer.from(JSON.stringify({ userId: 1 })).toString('base64url')}.signature`,
+    );
     (worker as any).pingServer = vi.fn().mockResolvedValue(true);
 
     // Server returns SYNCED, but local disk write fails
     (worker as any).postJson = vi.fn().mockResolvedValue({
       success: true,
-      results: [{ sync_id: 'persist-fail-1', status: 'SYNCED', sale_id: 555 }],
+      results: [
+        {
+          origin_server: 'http://localhost:3000/api/v1',
+          origin_user_id: 1,
+          sync_id: 'persist-fail-1',
+          status: 'SYNCED',
+          sale_id: 555,
+        },
+      ],
     });
 
     const result = await worker.runSyncCycle();
@@ -530,8 +550,15 @@ describe('Desktop POS Production Engine & Durability Tests', () => {
   // 4. Retry Logic & Sync Engine Lifecycle
   // ─────────────────────────────────────────────────────────────
   it('Sync Worker Concurrency Lock', async () => {
-    let localQueue = [
-      { sync_id: 'sync-cycle-1', status: 'PENDING', total_amount: 250, retry_count: 0 },
+    const localQueue = [
+      {
+        origin_server: 'http://localhost:3000/api/v1',
+        origin_user_id: 1,
+        sync_id: 'sync-cycle-1',
+        status: 'PENDING',
+        total_amount: 250,
+        retry_count: 0,
+      },
     ];
 
     const worker = new PosSyncWorker(
@@ -553,11 +580,21 @@ describe('Desktop POS Production Engine & Durability Tests', () => {
       await new Promise((r) => setTimeout(r, 50));
       return {
         success: true,
-        results: [{ sync_id: 'sync-cycle-1', status: 'SYNCED', sale_id: 999 }],
+        results: [
+          {
+            origin_server: 'http://localhost:3000/api/v1',
+            origin_user_id: 1,
+            sync_id: 'sync-cycle-1',
+            status: 'SYNCED',
+            sale_id: 999,
+          },
+        ],
       };
     });
 
-    worker.setAuthToken('test-bearer-token');
+    worker.setAuthToken(
+      `test.${Buffer.from(JSON.stringify({ userId: 1 })).toString('base64url')}.signature`,
+    );
 
     // Launch first cycle
     const cycle1Promise = worker.runSyncCycle();
@@ -575,6 +612,8 @@ describe('Desktop POS Production Engine & Durability Tests', () => {
 
   it('Sync Worker Retry Progression up to 10 and Halting Auto-Sync', async () => {
     const testItem = {
+      origin_server: 'http://localhost:3000/api/v1',
+      origin_user_id: 1,
       sync_id: 'retry-test-1',
       status: 'PENDING',
       total_amount: 100,
@@ -606,7 +645,9 @@ describe('Desktop POS Production Engine & Durability Tests', () => {
       updateStatus,
       () => null,
     );
-    worker.setAuthToken('mock-token');
+    worker.setAuthToken(
+      `test.${Buffer.from(JSON.stringify({ userId: 1 })).toString('base64url')}.signature`,
+    );
     (worker as any).pingServer = vi.fn().mockResolvedValue(true);
 
     // Mock server returning FAILED
@@ -630,7 +671,7 @@ describe('Desktop POS Production Engine & Durability Tests', () => {
 
     // Fast forward to 9 and run -> reaches 10
     testItem.retry_count = 9;
-    const run10 = await worker.runSyncCycle();
+    await worker.runSyncCycle();
     expect(testItem.retry_count).toBe(10);
 
     // When retry_count = 10, worker MUST NOT attempt automatic retry on it

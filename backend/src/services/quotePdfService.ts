@@ -7,6 +7,8 @@ import { execFile } from 'child_process';
 import { promisify } from 'util';
 import { query } from '../database/pool.ts';
 import { toNumber } from '../utils/money.ts';
+import { BUSINESS_TIMEZONE, shiftCalendarDate } from '../utils/localDate.ts';
+import { businessCalendarDate } from '../../../shared/businessDate.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -18,14 +20,12 @@ const toDate = (value) => {
   return Number.isNaN(d.getTime()) ? new Date() : d;
 };
 
-const addDays = (date, days) => {
-  const d = new Date(date);
-  d.setDate(d.getDate() + days);
-  return d;
-};
+const addDays = (date, days) =>
+  new Date(`${shiftCalendarDate(businessCalendarDate(toDate(date)), days)}T00:00:00Z`);
 
 const formatDate = (value) =>
   new Intl.DateTimeFormat('ar-EG', {
+    timeZone: BUSINESS_TIMEZONE,
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
@@ -47,11 +47,7 @@ const escapeHtml = (value) =>
 
 const generateQuoteNumber = (issuedAt = new Date()) => {
   const d = toDate(issuedAt);
-  const stamp = [
-    d.getFullYear(),
-    String(d.getMonth() + 1).padStart(2, '0'),
-    String(d.getDate()).padStart(2, '0'),
-  ].join('');
+  const stamp = businessCalendarDate(d).replaceAll('-', '');
   const suffix = String(Math.floor(Math.random() * 9000) + 1000);
   return `QUO-${stamp}-${suffix}`;
 };
@@ -64,13 +60,8 @@ const getCompanyInfo = async () => {
 };
 
 const resolveLogoDataUri = async () => {
-  const candidates = [
-    path.resolve(process.cwd(), 'assets/logo.png'),
-    path.resolve(process.cwd(), '../assets/logo.png'),
-    path.resolve(__dirname, '../../../assets/logo.png'),
-  ];
-  const logoPath = candidates.find((candidate) => fsSync.existsSync(candidate));
-  if (!logoPath) return null;
+  const logoPath = path.resolve(__dirname, '../../../assets/logo.png');
+  if (!fsSync.existsSync(logoPath)) return null;
   const ext = path.extname(logoPath).slice(1).toLowerCase() || 'png';
   const mime = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : `image/${ext}`;
   const data = await fs.readFile(logoPath);
@@ -78,14 +69,68 @@ const resolveLogoDataUri = async () => {
 };
 
 const resolveChromePath = () => {
-  const candidates = [
-    process.env.CHROME_PATH,
-    'C:/Program Files/Google/Chrome/Application/chrome.exe',
-    'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe',
-    'C:/Program Files/Microsoft/Edge/Application/msedge.exe',
-    'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
-  ].filter((c): c is string => Boolean(c));
-  return candidates.find((candidate) => fsSync.existsSync(candidate)) || null;
+  const isFile = (candidate: string) => {
+    try {
+      return fsSync.statSync(candidate).isFile();
+    } catch {
+      return false;
+    }
+  };
+  const onPath = (command: string) => {
+    const names =
+      process.platform === 'win32' && !path.extname(command)
+        ? [command, `${command}.exe`]
+        : [command];
+    for (const directory of (process.env.PATH || '').split(path.delimiter).filter(Boolean)) {
+      for (const name of names) {
+        const candidate = path.resolve(directory.replace(/^"|"$/g, ''), name);
+        if (isFile(candidate)) return candidate;
+      }
+    }
+    return null;
+  };
+  const configured = process.env.CHROME_PATH?.trim();
+  if (configured) {
+    const candidate =
+      path.isAbsolute(configured) || /[/\\]/.test(configured)
+        ? path.resolve(configured)
+        : onPath(configured);
+    if (candidate && isFile(candidate)) return candidate;
+    throw new Error('Configured CHROME_PATH browser executable was not found.');
+  }
+
+  const commands =
+    process.platform === 'win32'
+      ? ['chrome.exe', 'msedge.exe', 'chromium.exe']
+      : ['chromium', 'chromium-browser', 'google-chrome', 'microsoft-edge', 'msedge'];
+  for (const command of commands) {
+    const candidate = onPath(command);
+    if (candidate) return candidate;
+  }
+  if (process.platform === 'win32') {
+    const roots = [
+      process.env.PROGRAMFILES,
+      process.env['PROGRAMFILES(X86)'],
+      process.env.LOCALAPPDATA,
+    ];
+    for (const root of roots.filter((value): value is string => Boolean(value))) {
+      for (const suffix of [
+        'Google/Chrome/Application/chrome.exe',
+        'Microsoft/Edge/Application/msedge.exe',
+      ]) {
+        const candidate = path.join(root, suffix);
+        if (isFile(candidate)) return candidate;
+      }
+    }
+  } else if (process.platform === 'darwin') {
+    for (const candidate of [
+      '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+      '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
+      '/Applications/Chromium.app/Contents/MacOS/Chromium',
+    ])
+      if (isFile(candidate)) return candidate;
+  }
+  return null;
 };
 
 const normalizeItems = (items: any[] = []) =>
@@ -131,6 +176,7 @@ const buildQuoteHtml = ({
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>عرض أسعار - ${escapeHtml(quoteNumber)}</title>
   <style>
@@ -362,26 +408,30 @@ const buildQuoteHtml = ({
 const renderHtmlToPdf = async (html) => {
   const chromePath = resolveChromePath();
   if (!chromePath) {
-    throw new Error('Chrome not found for PDF rendering');
+    throw new Error(
+      'No supported PDF browser was found. Install Chrome/Chromium or Edge and configure CHROME_PATH.',
+    );
   }
 
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'quote-pdf-'));
   const htmlPath = path.join(tempDir, 'quote.html');
   const pdfPath = path.join(tempDir, 'quote.pdf');
-  await fs.writeFile(htmlPath, html, 'utf8');
-
   try {
+    await fs.writeFile(htmlPath, html, 'utf8');
     await execFileAsync(
       chromePath,
       [
         '--headless=new',
         '--disable-gpu',
-        '--no-sandbox',
+        `--user-data-dir=${path.join(tempDir, 'browser-profile')}`,
+        '--no-first-run',
+        '--no-default-browser-check',
+        '--disable-background-networking',
         '--disable-extensions',
         '--hide-scrollbars',
         '--run-all-compositor-stages-before-draw',
         '--virtual-time-budget=1200',
-        '--print-to-pdf-no-header',
+        '--no-pdf-header-footer',
         `--print-to-pdf=${pdfPath}`,
         pathToFileURL(htmlPath).href,
       ],
@@ -389,6 +439,12 @@ const renderHtmlToPdf = async (html) => {
     );
 
     const buffer = await fs.readFile(pdfPath);
+    if (
+      buffer.subarray(0, 5).toString('ascii') !== '%PDF-' ||
+      !buffer.subarray(-1024).includes(Buffer.from('%%EOF'))
+    ) {
+      throw new Error('Browser did not produce a complete PDF.');
+    }
     return buffer;
   } finally {
     await fs.rm(tempDir, { recursive: true, force: true });

@@ -1,174 +1,162 @@
 /**
- * إعداد قاعدة البيانات تلقائياً
- * الاستخدام: node src/database/setup.ts
- * أو مع كلمة مرور postgres: set POSTGRES_PASSWORD=yourpassword && node src/database/setup.ts
+ * Initialize a local PostgreSQL database or migrate an existing endpoint.
+ * Remote endpoints always go through the shared migration-approval guard.
  */
 import pg from 'pg';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import dotenv from 'dotenv';
-
-dotenv.config();
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import config from '../config/index.ts';
+import { closePool } from './pool.ts';
+import { databaseConnectionOptions, isLoopbackDatabaseConnection } from './connectionOptions.ts';
+import { runMigrations } from '../../scripts/migrate.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const localPgFile = path.join(__dirname, '../../.postgres.local');
+const localPgFile = path.resolve(__dirname, '../../.postgres.local');
 if (!process.env.POSTGRES_PASSWORD && fs.existsSync(localPgFile)) {
   process.env.POSTGRES_PASSWORD = fs.readFileSync(localPgFile, 'utf8').trim();
 }
+
 const { Client } = pg;
 
-const isCI = !!process.env.CI;
-const DB_NAME = process.env.DB_NAME || 'bin_al_ajouz';
-const DB_USER = process.env.DB_USER || 'erp_user';
-const DB_PASSWORD =
-  process.env.DB_PASSWORD || process.env.POSTGRES_PASSWORD || (isCI ? 'postgres' : '');
-const ADMIN_USER = process.env.POSTGRES_USER || 'postgres';
-const ADMIN_PASSWORD =
-  process.env.POSTGRES_PASSWORD || process.env.DB_PASSWORD || (isCI ? 'postgres' : '');
-
-async function connectAsAdmin() {
-  const client = new Client({
-    host: process.env.DB_HOST || 'localhost',
-    port: parseInt(process.env.DB_PORT || '5432', 10),
-    user: ADMIN_USER,
-    password: ADMIN_PASSWORD,
-    database: 'postgres',
+/** Only decomposed loopback settings may create or alter local database roles. */
+export const canAutoProvisionDatabase = (endpoint: {
+  connectionString?: string | null;
+  host?: string | null;
+}): boolean =>
+  !endpoint.connectionString &&
+  isLoopbackDatabaseConnection({
+    connectionString: endpoint.connectionString ?? undefined,
+    host: endpoint.host,
   });
-  await client.connect();
-  return client;
-}
 
-async function connectAsApp() {
-  const client = new Client({
-    host: process.env.DB_HOST || 'localhost',
-    port: parseInt(process.env.DB_PORT || '5432', 10),
-    user: DB_USER,
-    password: DB_PASSWORD,
-    database: DB_NAME,
-  });
-  await client.connect();
-  return client;
-}
-
-async function runSqlFile(client, filePath) {
-  const sql = fs.readFileSync(filePath, 'utf8');
-  const filename = path.basename(filePath);
-  console.log(`  → تنفيذ: ${filename}`);
-  await client.query(sql);
-  await client.query(
-    `INSERT INTO schema_migrations (version) VALUES ($1) ON CONFLICT (version) DO NOTHING`,
-    [filename],
-  );
-}
-
-function getMigrationFiles() {
-  const migrationsDir = path.join(__dirname, '../../migrations');
-  return fs
-    .readdirSync(migrationsDir)
-    .filter((file) => file.endsWith('.sql'))
-    .sort((a, b) => {
-      const na = parseInt(a, 10);
-      const nb = parseInt(b, 10);
-      return na !== nb ? na - nb : a.localeCompare(b);
-    })
-    .map((file) => path.join(migrationsDir, file));
-}
-
-async function main() {
-  console.log('\n بن العجوز — إعداد PostgreSQL\n');
-
-  if (!DB_PASSWORD) {
-    console.error(' مطلوب DB_PASSWORD في backend/.env');
-    console.error('   مثال: DB_PASSWORD=replace_with_strong_password\n');
-    process.exit(1);
+const quoteIdentifier = (value: string, label: string): string => {
+  if (!/^[a-zA-Z0-9_]+$/.test(value)) {
+    throw new Error(`${label} contains unsupported characters.`);
   }
+  return `"${value}"`;
+};
 
-  // تحقق إن كانت القاعدة جاهزة
-  try {
-    const app = await connectAsApp();
-    const check = await app.query(`SELECT COUNT(*) FROM users`);
-    console.log(` القاعدة موجودة ومعدّة (${check.rows[0].count} مستخدمين)`);
-    await app.end();
-    return;
-  } catch {
-    console.log('ℹ  القاعدة تحتاج إعداد...\n');
-  }
-
-  if (!ADMIN_PASSWORD) {
-    console.error(' مطلوب كلمة مرور postgres.');
-    console.error('   نفّذ في PowerShell:\n');
-    console.error('   $env:POSTGRES_PASSWORD="كلمة_المرور_التي_اخترتها_عند_التثبيت"');
-    console.error('   node src/database/setup.ts\n');
-    process.exit(1);
-  }
-
-  const admin = await connectAsAdmin();
-  console.log(' اتصال بـ postgres');
-
-  if (!/^[a-zA-Z0-9_]+$/.test(DB_USER) || !/^[a-zA-Z0-9_]+$/.test(DB_NAME)) {
-    throw new Error('اسم المستخدم أو قاعدة البيانات يحتوي على أحرف غير مسموح بها.');
-  }
-
-  const safeUser = `"${DB_USER}"`;
-  const safeDb = `"${DB_NAME}"`;
-  const safePassword = DB_PASSWORD.replace(/'/g, "''");
-
-  const userExists = await admin.query(`SELECT 1 FROM pg_roles WHERE rolname = $1`, [DB_USER]);
-  if (!userExists.rows.length) {
-    await admin.query(`CREATE USER ${safeUser} WITH PASSWORD '${safePassword}'`);
-    console.log(` إنشاء المستخدم: ${DB_USER}`);
-  } else if (DB_USER !== ADMIN_USER) {
-    await admin.query(`ALTER USER ${safeUser} WITH PASSWORD '${safePassword}'`);
-    console.log(` تحديث كلمة مرور: ${DB_USER}`);
-  }
-
-  const dbExists = await admin.query(`SELECT 1 FROM pg_database WHERE datname = $1`, [DB_NAME]);
-  if (!dbExists.rows.length) {
-    await admin.query(`CREATE DATABASE ${safeDb} OWNER ${safeUser}`);
-    console.log(` إنشاء قاعدة البيانات: ${DB_NAME}`);
-  } else {
-    console.log(`ℹ  قاعدة البيانات موجودة: ${DB_NAME}`);
-  }
-
-  await admin.query(`GRANT ALL PRIVILEGES ON DATABASE ${safeDb} TO ${safeUser}`);
-  await admin.end();
-
-  const app = await connectAsApp();
-
-  await app.query(`
-    CREATE TABLE IF NOT EXISTS schema_migrations (
-      version VARCHAR(255) PRIMARY KEY,
-      applied_at TIMESTAMPTZ DEFAULT NOW()
+const setupLocalDatabase = async (): Promise<void> => {
+  const dbUser = String(config.db.user || '').trim();
+  const dbPassword = String(config.db.password || '').trim();
+  const dbName = String(config.db.database || '').trim();
+  const adminUser = (process.env.POSTGRES_USER || 'postgres').trim();
+  const adminPassword = (process.env.POSTGRES_PASSWORD || dbPassword).trim();
+  if (!dbUser || !dbPassword || !dbName || !adminPassword) {
+    throw new Error(
+      'Local database setup requires DB_USER, DB_PASSWORD, DB_NAME, and POSTGRES_PASSWORD (or a matching DB_PASSWORD).',
     );
-  `);
-
-  const appliedRes = await app
-    .query(`SELECT version FROM schema_migrations`)
-    .catch(() => ({ rows: [] }));
-  const applied = new Set(appliedRes.rows.map((r: any) => r.version));
-  const files = getMigrationFiles();
-
-  for (const file of files) {
-    if (!fs.existsSync(file)) throw new Error(`ملف غير موجود: ${file}`);
-    const filename = path.basename(file);
-    if (applied.has(filename)) continue;
-    await runSqlFile(app, file);
   }
 
-  await app.query(`GRANT ALL ON ALL TABLES IN SCHEMA public TO ${safeUser}`);
-  await app.query(`GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO ${safeUser}`);
-  await app.end();
+  const safeUser = quoteIdentifier(dbUser, 'DB_USER');
+  const safeDatabase = quoteIdentifier(dbName, 'DB_NAME');
+  quoteIdentifier(adminUser, 'POSTGRES_USER');
+  const safePassword = dbPassword.replace(/'/g, "''");
+  const endpoint = databaseConnectionOptions();
+  if ('connectionString' in endpoint && endpoint.connectionString) {
+    throw new Error(
+      'Automatic role and database provisioning is disabled for DATABASE_URL endpoints.',
+    );
+  }
+  if (!('host' in endpoint)) {
+    throw new Error('Local database provisioning requires decomposed connection settings.');
+  }
+  const localHost = endpoint.host || 'localhost';
+  const localPort = endpoint.port || 5432;
+  const admin = new Client({
+    host: localHost,
+    port: localPort,
+    user: adminUser,
+    password: adminPassword,
+    database: 'postgres',
+    ssl: endpoint.ssl,
+  });
 
-  console.log('\n تم الإعداد بنجاح!');
-  console.log('   شغّل Backend: npm run dev');
-  console.log('   غيّر كلمة مرور المدير قبل أي استخدام حقيقي.\n');
+  await admin.connect();
+  try {
+    const userExists = await admin.query('SELECT 1 FROM pg_roles WHERE rolname = $1', [dbUser]);
+    if (!userExists.rowCount) {
+      await admin.query(`CREATE USER ${safeUser} WITH PASSWORD '${safePassword}'`);
+      console.log(`Created local application role ${dbUser}.`);
+    } else if (dbUser !== adminUser) {
+      await admin.query(`ALTER USER ${safeUser} WITH PASSWORD '${safePassword}'`);
+    }
+
+    const databaseExists = await admin.query('SELECT 1 FROM pg_database WHERE datname = $1', [
+      dbName,
+    ]);
+    if (!databaseExists.rowCount) {
+      await admin.query(`CREATE DATABASE ${safeDatabase} OWNER ${safeUser}`);
+      console.log(`Created local database ${dbName}.`);
+    }
+    await admin.query(`GRANT ALL PRIVILEGES ON DATABASE ${safeDatabase} TO ${safeUser}`);
+  } finally {
+    await admin.end();
+  }
+
+  const databaseAdmin = new Client({
+    host: localHost,
+    port: localPort,
+    user: adminUser,
+    password: adminPassword,
+    database: dbName,
+    ssl: endpoint.ssl,
+  });
+  await databaseAdmin.connect();
+  try {
+    await databaseAdmin.query(`GRANT ALL ON SCHEMA public TO ${safeUser}`);
+    await databaseAdmin.query(`GRANT ALL ON ALL TABLES IN SCHEMA public TO ${safeUser}`);
+    await databaseAdmin.query(`GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO ${safeUser}`);
+  } finally {
+    await databaseAdmin.end();
+  }
+};
+
+export const setupDatabase = async (): Promise<void> => {
+  const endpoint = databaseConnectionOptions();
+  if (!canAutoProvisionDatabase(endpoint)) {
+    console.log(
+      'Using the configured database endpoint. Remote schema changes require the coordinated migration approval.',
+    );
+    await runMigrations();
+    return;
+  }
+
+  // Reuse an existing local database with the normal migration pipeline.
+  // Provisioning is only attempted for PostgreSQL's precise missing-database error.
+  const probe = new Client(endpoint);
+  let needsProvisioning = false;
+  try {
+    await probe.connect();
+  } catch (error) {
+    const code = (error as { code?: string }).code;
+    if (!['3D000', '28000'].includes(code || '')) throw error;
+    needsProvisioning = true;
+  } finally {
+    await probe.end().catch(() => undefined);
+  }
+
+  if (needsProvisioning) await setupLocalDatabase();
+  await runMigrations();
+};
+
+const main = async (): Promise<void> => {
+  try {
+    await setupDatabase();
+    console.log('\nDatabase setup completed successfully.');
+    console.log('Run the backend with: npm run dev -w backend');
+  } finally {
+    await closePool();
+  }
+};
+
+if (process.argv[1] && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url) {
+  main().catch((error: unknown) => {
+    console.error(
+      '\nDatabase setup failed:',
+      error instanceof Error ? error.message : 'Unknown error',
+    );
+    process.exitCode = 1;
+  });
 }
-
-main().catch((err) => {
-  console.error('\n فشل الإعداد:', err.message);
-  if (err.message.includes('password authentication failed')) {
-    console.error('   تحقق من POSTGRES_PASSWORD (كلمة مرور المستخدم postgres)');
-  }
-  process.exit(1);
-});

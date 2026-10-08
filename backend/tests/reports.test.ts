@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { getProfitAndLoss } from '../src/services/plService';
-import { query } from '../src/database/pool';
+import { getProfitAndLoss } from '../src/services/plService.ts';
+import { query } from '../src/database/pool.ts';
 
 describe('Financial Reports (P&L)', () => {
   let productId: number;
@@ -65,13 +65,13 @@ describe('Financial Reports (P&L)', () => {
     expect(pl).toBeDefined();
 
     // Test that the revenue reflects the test invoice (400)
-    const revenue = pl.revenue?.net || pl.summary?.sales || 0;
+    const revenue = pl.revenue.net;
 
     // We expect revenue to be at least 400 since there might be other transactions in DB
     expect(revenue).toBeGreaterThanOrEqual(400);
 
     // Test that expenses reflect our test expense (50)
-    const expenses = pl.operating_expenses?.total || pl.summary?.expenses || 0;
+    const expenses = pl.operating_expenses.total;
     expect(expenses).toBeGreaterThanOrEqual(50);
   });
 });

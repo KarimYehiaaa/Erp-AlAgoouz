@@ -236,6 +236,9 @@ const priorityActions = computed(() => [
 ]);
 
 const priorityHeadline = computed(() => {
+  if (!actionCenter.value.total && ['degraded', 'failed'].includes(actionCenter.value.scanStatus)) {
+    return 'فحص التنبيهات غير مكتمل';
+  }
   if (actionCenter.value.red > 0) {
     return `${actionCenter.value.red} مخالفات حرجة تتطلب تدخلاً فورياً`;
   }
@@ -250,6 +253,9 @@ const priorityHeadline = computed(() => {
 });
 
 const prioritySubtext = computed(() => {
+  if (['degraded', 'failed'].includes(actionCenter.value.scanStatus)) {
+    return 'تعذر إكمال فحص التنبيهات. أعد تحديث اللوحة؛ الأعداد المعروضة تشمل الفحوص المكتملة فقط.';
+  }
   if (actionCenter.value.total > 0) {
     return `تم رصد ${actionCenter.value.total} تنبيه عبر محرك الرقابة ومكافحة الاحتيال.`;
   }

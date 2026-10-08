@@ -8,7 +8,10 @@ import { Router } from 'express';
 import { authenticate, authorize, auditLog } from '../middleware/auth.ts';
 import { requireConfirmation } from '../middleware/confirmAction.ts';
 import { validateBody, validateQuery } from '../middleware/validate.ts';
-import { enforceWarehouseAccess } from '../middleware/warehouseAccess.ts';
+import {
+  enforceWarehouseAccess,
+  requireGlobalWarehouseRole,
+} from '../middleware/warehouseAccess.ts';
 import { requireIdempotency } from '../middleware/idempotency.ts';
 import {
   requireManagerOverride,
@@ -60,13 +63,21 @@ router.get(
   validateQuery(commonQuerySchema),
   api.sales.summary,
 );
-router.get('/sales/opening-balance', authenticate, salesViewAuth, api.sales.openingBalance);
+router.get(
+  '/sales/opening-balance',
+  authenticate,
+  requireGlobalWarehouseRole,
+  salesViewAuth,
+  api.sales.openingBalance,
+);
 router.put(
   '/sales/opening-balance',
   authenticate,
+  requireGlobalWarehouseRole,
   salesEditAuth,
   requireIdempotency,
   validateBody(openingBalanceSchema),
+  auditLog('sales_opening_balance_update', 'settings'),
   api.sales.saveOpeningBalance,
 );
 router.get('/sales/template', authenticate, salesViewAuth, api.sales.template);

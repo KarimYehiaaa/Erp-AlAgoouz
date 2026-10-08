@@ -35,7 +35,7 @@ const apiReq = async (
   options: {
     method?: string;
     token?: string | null;
-    body?: any;
+    body?: unknown;
     headers?: Record<string, string>;
   } = {},
 ) => {
@@ -52,13 +52,17 @@ const apiReq = async (
     headers,
     body: options.body ? JSON.stringify(options.body) : undefined,
   });
-  let data: any = null;
   const text = await res.text();
+  let parsed: unknown;
   try {
-    data = JSON.parse(text);
+    parsed = JSON.parse(text) as unknown;
   } catch {
-    data = text;
+    parsed = { raw: text };
   }
+  const data: Record<string, unknown> =
+    typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : {};
   return { status: res.status, ok: res.ok, data };
 };
 
@@ -92,7 +96,14 @@ beforeAll(async () => {
     method: 'POST',
     body: { username: uRes.rows[0].username, password: 'FinInvarPass123!' },
   });
-  adminToken = loginRes.data.data?.token || loginRes.data.token;
+  const nestedLoginData = loginRes.data.data;
+  const tokenValue =
+    typeof nestedLoginData === 'object' && nestedLoginData !== null
+      ? (nestedLoginData as Record<string, unknown>).token
+      : loginRes.data.token;
+  if (typeof tokenValue !== 'string')
+    throw new Error('Test administrator login returned no token.');
+  adminToken = tokenValue;
 
   // Retrieve accounts
   const accRes = await query(
@@ -106,16 +117,14 @@ beforeAll(async () => {
     if (row.code === '5201') expAccountId = row.id;
   }
 
-  // Ensure reference_type allows reversal
-  await query(
-    `ALTER TABLE journal_entries DROP CONSTRAINT IF EXISTS journal_entries_reference_type_check;`,
-  );
-  await query(`ALTER TABLE journal_entries ADD CONSTRAINT journal_entries_reference_type_check 
-    CHECK (reference_type IN ('sale', 'purchase', 'payment', 'expense', 'payroll', 'stocktake', 'purchase_return', 'manual', 'opening', 'transfer', 'reversal', 'partner_drawing'));`);
+  // Exercise the actual migrated journal schema without rewriting its constraints.
 });
 
 afterAll(async () => {
-  if (server) await new Promise<void>((resolve) => server.close(resolve));
+  if (server)
+    await new Promise<void>((resolve, reject) =>
+      server.close((error) => (error ? reject(error) : resolve())),
+    );
 
   // Cleanup in order
   if (cleanup.periodIds.length > 0) {
@@ -184,6 +193,8 @@ describe('1. Double-Entry Balancing & Atomicity Invariant', () => {
 
     expect(res.status).toBe(200);
     const entry = res.data.data;
+    if (!entry || typeof entry !== 'object' || !('id' in entry) || typeof entry.id !== 'number')
+      throw new Error('Journal creation did not return an entry id');
     expect(entry.id).toBeDefined();
     cleanup.journalEntryIds.push(entry.id);
 
@@ -317,7 +328,11 @@ describe('4. Financial Period Lock Database Trigger Invariant', () => {
     cleanup.periodIds.push(period.id);
 
     // 2. Close the period
-    await financialPeriodService.closePeriod(period.id, adminUserId);
+    // This test checks the database trigger, independently of the shared ledger fixtures.
+    await financialPeriodService.closePeriod(period.id, adminUserId, {
+      force: true,
+      notes: 'Isolated database trigger regression test',
+    });
 
     // 3. Attempt to create a journal entry in that period (2026-07-15)
     let errMessage = '';
@@ -331,8 +346,8 @@ describe('4. Financial Period Lock Database Trigger Invariant', () => {
           { account_id: revAccountId, debit: 0, credit: 1200 },
         ],
       });
-    } catch (err: any) {
-      errMessage = err.message || '';
+    } catch (err: unknown) {
+      errMessage = err instanceof Error ? err.message : String(err);
     }
     expect(errMessage).toMatch(/فترة.*(مغلقة|مقفلة)/);
 
@@ -351,6 +366,50 @@ describe('4. Financial Period Lock Database Trigger Invariant', () => {
     });
     cleanup.journalEntryIds.push(allowedEntry.id);
     expect(allowedEntry.id).toBeDefined();
+  });
+
+  it('prevents moving an existing closed-period journal entry into an open date', async () => {
+    const period = await financialPeriodService.createPeriod(adminUserId, {
+      period_code: `2026-M09-MOVE-TEST-${Date.now()}`,
+      period_name: 'فترة اختبار منع نقل قيد مغلق',
+      start_date: '2026-09-01',
+      end_date: '2026-09-30',
+      fiscal_year: 2026,
+    });
+    cleanup.periodIds.push(period.id);
+
+    const entry = await accountingService.createJournalEntry({
+      entry_date: '2026-09-15',
+      description: 'قيد لا يجوز نقله من فترة مغلقة',
+      created_by: adminUserId,
+      lines: [
+        { account_id: cashAccountId, debit: 350, credit: 0 },
+        { account_id: revAccountId, debit: 0, credit: 350 },
+      ],
+    });
+    cleanup.journalEntryIds.push(entry.id);
+
+    await financialPeriodService.closePeriod(period.id, adminUserId, {
+      force: true,
+      notes: 'Closed-period date-move trigger regression test',
+    });
+
+    let errMessage = '';
+    try {
+      await query(`UPDATE journal_entries SET entry_date = $1::date WHERE id = $2`, [
+        '2026-10-01',
+        entry.id,
+      ]);
+    } catch (err: unknown) {
+      errMessage = err instanceof Error ? err.message : String(err);
+    }
+    expect(errMessage).toMatch(/فترة.*مغلقة/);
+
+    await financialPeriodService.reopenPeriod(
+      period.id,
+      adminUserId,
+      'اختبار السماح بتنظيف بيانات الترحيل',
+    );
   });
 });
 

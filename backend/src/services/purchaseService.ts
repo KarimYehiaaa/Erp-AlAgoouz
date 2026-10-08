@@ -2,16 +2,32 @@ import { getClient, query } from '../database/pool.ts';
 import { AppError } from '../types/errors.ts';
 import { getDefaultWarehouseId } from './warehouseService.ts';
 import { parseLocalizedNumber } from '../utils/numberParsing.ts';
-import { invalidateDashboardCache } from './dashboardService.ts';
-import { roundMoney } from '../utils/money.ts';
-import { appCache } from '../utils/cache.ts';
+import { roundMoney, sanitizeLimit } from '../utils/money.ts';
 import { recalculateSupplierBalance } from './supplierService.ts';
+import { getInvoiceWarehouseScope } from './invoiceService.ts';
+
+const assertPurchaseWarehouseScope = async (client, userId: number, warehouseIds: number[]) => {
+  const allowed = await getInvoiceWarehouseScope(client, userId);
+  if (warehouseIds.some((id) => !Number.isSafeInteger(id) || id <= 0)) {
+    throw new AppError('مصدر مخزن الشراء غير محدد؛ يلزم مراجعة المستند الأصلي', 409);
+  }
+  if (allowed && warehouseIds.some((id) => !allowed.includes(id))) {
+    throw new AppError('فاتورة الشراء تشمل مخزنًا خارج نطاق المستخدم', 403);
+  }
+};
 
 /**
  * تحليل المبلغ المحلي (بفواصل عشرية عربية/أجنبية) إلى رقم.
  * @type {typeof parseLocalizedNumber}
  */
 export const parsePurchaseAmount = parseLocalizedNumber;
+
+const assertPurchaseQuantityPrecision = (quantity: number) => {
+  const units = Math.round(quantity * 1000);
+  if (!Number.isSafeInteger(units) || units <= 0 || Math.abs(quantity * 1000 - units) > 1e-7) {
+    throw new AppError('كمية الشراء تدعم ثلاث منازل عشرية فقط، وأقل كمية 0.001', 400);
+  }
+};
 
 // BUG-10 FIX: استخدام settings table مع FOR UPDATE lock بدل LIKE — يمنع race condition
 const generateNumber = async (client) => {
@@ -57,6 +73,7 @@ const normalizePurchasePayload = async (client, payload) => {
     if (!productId) throw new AppError('المنتج مطلوب', 400);
     if (!isFinite(quantity) || quantity <= 0)
       throw new AppError('الكمية يجب أن تكون أكبر من صفر', 400);
+    assertPurchaseQuantityPrecision(quantity);
     if (!isFinite(unitPrice) || unitPrice < 0) throw new AppError('سعر الوحدة غير صحيح', 400);
 
     const product = productMap.get(productId);
@@ -106,7 +123,12 @@ const normalizePurchasePayload = async (client, payload) => {
 };
 
 const applyPurchaseItems = async (client, invoice, items, userId, notePrefix = 'شراء') => {
-  for (const item of items) {
+  const sortedItems = [...items].sort(
+    (a, b) =>
+      Number(a.product_id) - Number(b.product_id) ||
+      Number(a.warehouse_id) - Number(b.warehouse_id),
+  );
+  for (const item of sortedItems) {
     await client.query(
       `INSERT INTO purchase_invoice_items (purchase_invoice_id, product_id, warehouse_id, unit, quantity, unit_price, total_amount)
        VALUES ($1,$2,$3,$4,$5,$6,$7)`,
@@ -167,14 +189,56 @@ const applyPurchaseItems = async (client, invoice, items, userId, notePrefix = '
   );
 };
 
+const assertPurchaseHasNoReturns = async (client, invoiceId: number) => {
+  const linked = await client.query(
+    'SELECT id FROM purchase_returns WHERE purchase_invoice_id = $1 LIMIT 1',
+    [invoiceId],
+  );
+  if (linked.rows.length)
+    throw new AppError(
+      'لا يمكن تعديل أو حذف فاتورة شراء لها مرتجعات؛ حافظ على المستند الأصلي واستخدم تسوية مستقلة',
+      409,
+    );
+};
+
 const reversePurchaseItems = async (client, invoice, items, userId, notePrefix = 'إلغاء شراء') => {
   const shortages: any[] = [];
 
   // ترتيب العناصر تصاعدياً بناءً على product_id لمنع Deadlock عند القفل المتزامن
-  const sortedItems = [...items].sort((a, b) => Number(a.product_id) - Number(b.product_id));
+  const sortedItems = [...items].sort(
+    (a, b) =>
+      Number(a.product_id) - Number(b.product_id) ||
+      Number(a.warehouse_id) - Number(b.warehouse_id),
+  );
+  const stockTotals = new Map<
+    string,
+    { product_id: number; warehouse_id: number; quantity: number }
+  >();
+  const stockRows = new Map<string, Array<{ id: number; units: number }>>();
+  for (const item of sortedItems) {
+    const productId = Number(item.product_id);
+    const warehouseId = Number(item.warehouse_id);
+    const quantity = Number(item.quantity);
+    if (
+      !Number.isSafeInteger(productId) ||
+      productId <= 0 ||
+      !Number.isSafeInteger(warehouseId) ||
+      warehouseId <= 0 ||
+      !Number.isFinite(quantity) ||
+      quantity <= 0
+    )
+      throw new AppError('بند الشراء لا يحدد مخزنًا وكمية صالحين للعكس', 409);
+    const key = `${productId}:${warehouseId}`;
+    const prior = stockTotals.get(key);
+    stockTotals.set(key, {
+      product_id: productId,
+      warehouse_id: warehouseId,
+      quantity: Math.round(((prior?.quantity || 0) + quantity) * 1000) / 1000,
+    });
+  }
 
   // أولاً: التحقق المسبق الصارم من أن الرصيد الحالي يغطي كمية الفاتورة بالكامل (منع التلاعب بالمخزون المستهلك)
-  for (const it of sortedItems) {
+  for (const it of stockTotals.values()) {
     const productId = Number(it.product_id);
     const warehouseId = Number(it.warehouse_id);
     const qty = Number(it.quantity);
@@ -182,18 +246,89 @@ const reversePurchaseItems = async (client, invoice, items, userId, notePrefix =
     if (!productId || !warehouseId || !qty || qty <= 0) continue;
 
     const lock = await client.query(
-      `SELECT quantity
+      `SELECT id, quantity
        FROM inventory
        WHERE product_id = $1 AND warehouse_id = $2
-       FOR UPDATE`,
+       ORDER BY id FOR UPDATE`,
       [productId, warehouseId],
     );
 
-    const currentQty = Number(lock.rows[0]?.quantity || 0);
+    const rows = lock.rows.map((row) => ({
+      id: Number(row.id),
+      units: Math.round(Number(row.quantity) * 1000),
+    }));
+    if (rows.some((row) => !Number.isSafeInteger(row.units) || row.units < 0))
+      throw new AppError('دفعات المخزون تحتاج مراجعة قبل عكس الشراء', 409);
+    stockRows.set(`${productId}:${warehouseId}`, rows);
+    const currentQty = rows.reduce((total, row) => total + row.units, 0) / 1000;
     if (currentQty < qty) {
       throw new AppError(
         `لا يمكن تعديل أو إلغاء فاتورة الشراء "${invoice.invoice_number}" لأن جزءاً من البضاعة تم استهلاكه أو بيعه بالفعل (الرصيد المتاح ${currentQty} أقل من كمية الفاتورة ${qty})`,
         400,
+      );
+    }
+  }
+
+  // Never remove a receipt whose FIFO layer has already been consumed. The
+  // physical warehouse total can still cover the old receipt after a later
+  // purchase, but deleting the original layer would erase cost provenance.
+  // Legacy movements with no linked layer remain eligible for the existing
+  // quantity-only reversal path; they have no tracked layer to delete.
+  const purchaseLayers = await client.query(
+    `SELECT sm.id AS movement_id, sm.quantity AS movement_quantity,
+            l.id AS layer_id, l.quantity AS layer_quantity,
+            l.remaining_quantity
+     FROM stock_movements sm
+     JOIN inventory_cost_layers l
+       ON l.source_movement_id = sm.id AND l.source_type = 'purchase'
+     WHERE sm.reference_type = 'purchase_invoice'
+       AND sm.reference_id = $1
+       AND sm.movement_type = 'purchase'
+     ORDER BY sm.product_id, sm.to_warehouse_id, sm.id, l.id
+     FOR UPDATE OF l`,
+    [invoice.id],
+  );
+  const layerCoverage = new Map<
+    number,
+    { receivedUnits: number; layeredUnits: number; remainingUnits: number }
+  >();
+  for (const row of purchaseLayers.rows) {
+    const movementId = Number(row.movement_id);
+    const movementUnits = Math.round(Number(row.movement_quantity) * 1000);
+    const layerUnits = Math.round(Number(row.layer_quantity) * 1000);
+    const remainingUnits = Math.round(Number(row.remaining_quantity) * 1000);
+    if (
+      ![movementUnits, layerUnits, remainingUnits].every(Number.isSafeInteger) ||
+      movementUnits <= 0 ||
+      layerUnits < 0 ||
+      remainingUnits < 0 ||
+      remainingUnits > layerUnits
+    ) {
+      throw new AppError('طبقات تكلفة فاتورة الشراء تحتاج مراجعة قبل التعديل أو الحذف', 409);
+    }
+    const aggregate = layerCoverage.get(movementId) || {
+      receivedUnits: movementUnits,
+      layeredUnits: 0,
+      remainingUnits: 0,
+    };
+    if (aggregate.receivedUnits !== movementUnits) {
+      throw new AppError(
+        'حركات استلام فاتورة الشراء غير متسقة؛ يلزم مراجعتها قبل التعديل أو الحذف',
+        409,
+      );
+    }
+    aggregate.layeredUnits += layerUnits;
+    aggregate.remainingUnits += remainingUnits;
+    layerCoverage.set(movementId, aggregate);
+  }
+  for (const layer of layerCoverage.values()) {
+    if (
+      layer.layeredUnits !== layer.receivedUnits ||
+      layer.remainingUnits !== layer.receivedUnits
+    ) {
+      throw new AppError(
+        'لا يمكن تعديل أو حذف فاتورة الشراء لأن طبقة تكلفتها استُهلكت أو لا تطابق كمية الاستلام؛ استخدم تسوية مستقلة',
+        409,
       );
     }
   }
@@ -206,12 +341,19 @@ const reversePurchaseItems = async (client, invoice, items, userId, notePrefix =
 
     if (!productId || !warehouseId || !qty || qty <= 0) continue;
 
-    await client.query(
-      `UPDATE inventory
-       SET quantity = quantity - $1, updated_at = NOW()
-       WHERE product_id = $2 AND warehouse_id = $3`,
-      [qty, productId, warehouseId],
-    );
+    let unitsToDeduct = Math.round(qty * 1000);
+    for (const row of stockRows.get(`${productId}:${warehouseId}`) || []) {
+      if (unitsToDeduct <= 0) break;
+      const take = Math.min(row.units, unitsToDeduct);
+      if (take <= 0) continue;
+      await client.query(
+        'UPDATE inventory SET quantity = quantity - $1, updated_at = NOW() WHERE id = $2',
+        [take / 1000, row.id],
+      );
+      row.units -= take;
+      unitsToDeduct -= take;
+    }
+    if (unitsToDeduct) throw new AppError('تعذر عكس كامل كمية الشراء من دفعات المخزون', 409);
 
     await client.query(
       `INSERT INTO stock_movements (
@@ -276,8 +418,6 @@ const refreshPurchasePrices = async (client, productIds) => {
   `,
     [uniqueIds],
   );
-  // أسعار الشراء تغيّرت — يجب إبطال كاش التكلفة الفعلية فوراً
-  appCache.invalidateByTag('product_cost');
 };
 
 /**
@@ -285,12 +425,13 @@ const refreshPurchasePrices = async (client, productIds) => {
  * @param {Record<string, any>} [filters] خيارات الفلترة (from_date, to_date, supplier_id, limit...)
  * @returns {Promise<{ rows: any[], total: number }>}
  */
-export const listPurchaseInvoices = async (filters: Record<string, any> = {}) => {
+export const listPurchaseInvoices = async (filters: Record<string, any> = {}, userId?: number) => {
+  const allowed = await getInvoiceWarehouseScope({ query }, Number(userId));
   let finalFilters = filters;
   if (typeof filters === 'number' || typeof filters === 'string') {
     finalFilters = { limit: filters };
   }
-  const limit = Number(finalFilters.limit) || 100;
+  const limit = sanitizeLimit(finalFilters.limit, 100, 500);
   const params: any[] = [];
   let sql = `SELECT pi.*,
       s.name_ar as supplier_name,
@@ -329,6 +470,13 @@ export const listPurchaseInvoices = async (filters: Record<string, any> = {}) =>
      WHERE pi.deleted_at IS NULL`;
 
   let idx = 1;
+  if (allowed) {
+    const scopeIndex = idx++;
+    params.push(allowed);
+    sql += ` AND pi.warehouse_id = ANY($${scopeIndex}::int[]) AND NOT EXISTS (
+      SELECT 1 FROM purchase_invoice_items item WHERE item.purchase_invoice_id = pi.id
+        AND NOT (COALESCE(item.warehouse_id, pi.warehouse_id) = ANY($${scopeIndex}::int[])))`;
+  }
   if (finalFilters.from_date) {
     sql += ` AND pi.invoice_date >= $${idx++}`;
     params.push(finalFilters.from_date);
@@ -398,6 +546,7 @@ export const createPurchaseInvoice = async (
       if (!productId) throw new AppError('المنتج مطلوب', 400);
       if (!isFinite(quantity) || quantity <= 0)
         throw new AppError('الكمية يجب أن تكون أكبر من صفر', 400);
+      assertPurchaseQuantityPrecision(quantity);
       if (!isFinite(unitPrice) || unitPrice < 0) throw new AppError('سعر الوحدة غير صحيح', 400);
 
       const product = productMap.get(productId);
@@ -443,6 +592,12 @@ export const createPurchaseInvoice = async (
 
     const supplierId = payload.supplier_id ? Number(payload.supplier_id) : null;
 
+    await assertPurchaseWarehouseScope(
+      client,
+      userId,
+      normalized.map((item) => Number(item.warehouse_id)),
+    );
+
     const inv = await client.query(
       `INSERT INTO purchase_invoices (invoice_number, invoice_date, warehouse_id, supplier_id, notes, subtotal, total_amount, created_by)
        VALUES ($1, COALESCE($2::date, CURRENT_DATE), $3, $4, $5, $6, $7, $8)
@@ -460,48 +615,7 @@ export const createPurchaseInvoice = async (
     );
     const invoice = inv.rows[0];
 
-    for (const item of normalized) {
-      await client.query(
-        `INSERT INTO purchase_invoice_items (purchase_invoice_id, product_id, warehouse_id, unit, quantity, unit_price, total_amount)
-         VALUES ($1,$2,$3,$4,$5,$6,$7)`,
-        [
-          invoice.id,
-          item.product_id,
-          item.warehouse_id,
-          item.unit,
-          item.quantity,
-          item.unit_price,
-          item.total_amount,
-        ],
-      );
-
-      await client.query(
-        `INSERT INTO inventory (product_id, warehouse_id, quantity)
-         VALUES ($1,$2,$3)
-         ON CONFLICT (product_id, warehouse_id, COALESCE(batch_number, ''))
-         DO UPDATE SET quantity = inventory.quantity + EXCLUDED.quantity, updated_at = NOW()`,
-        [item.product_id, item.warehouse_id, item.quantity],
-      );
-
-      await client.query(
-        `INSERT INTO stock_movements (
-          product_id, to_warehouse_id, movement_type, quantity, reference_type, reference_id, user_id, notes
-        ) VALUES ($1,$2,'purchase',$3,'purchase_invoice',$4,$5,$6)`,
-        [
-          item.product_id,
-          item.warehouse_id,
-          item.quantity,
-          invoice.id,
-          userId,
-          `شراء - ${invoice.invoice_number}`,
-        ],
-      );
-    }
-
-    await refreshPurchasePrices(
-      client,
-      normalized.map((item) => item.product_id),
-    );
+    await applyPurchaseItems(client, invoice, normalized, userId, 'شراء');
 
     if (supplierId) {
       await recalculateSupplierBalance(client, supplierId);
@@ -523,7 +637,6 @@ export const createPurchaseInvoice = async (
     });
 
     if (shouldManageTransaction) await client.query('COMMIT');
-    invalidateDashboardCache();
     return invoice;
   } catch (e: any) {
     if (shouldManageTransaction) await client.query('ROLLBACK');
@@ -563,11 +676,26 @@ export const updatePurchaseInvoice = async (
 
     if (!inv) throw new AppError('فاتورة الشراء غير موجودة', 404);
 
+    await assertPurchaseHasNoReturns(client, id);
     const oldItems = (
       await client.query(`SELECT * FROM purchase_invoice_items WHERE purchase_invoice_id = $1`, [
         id,
       ])
     ).rows;
+
+    await assertPurchaseWarehouseScope(client, userId, [
+      Number(inv.warehouse_id),
+      ...oldItems.map((item) => Number(item.warehouse_id || inv.warehouse_id)),
+    ]);
+    const { normalized, subtotal, invoiceWarehouseId, supplierId } = await normalizePurchasePayload(
+      client,
+      payload,
+    );
+    await assertPurchaseWarehouseScope(
+      client,
+      userId,
+      normalized.map((item) => Number(item.warehouse_id)),
+    );
 
     const oldProductIds = oldItems.map((item) => item.product_id);
     const shortages = await reversePurchaseItems(
@@ -579,11 +707,6 @@ export const updatePurchaseInvoice = async (
     );
 
     await client.query(`DELETE FROM purchase_invoice_items WHERE purchase_invoice_id = $1`, [id]);
-
-    const { normalized, subtotal, invoiceWarehouseId, supplierId } = await normalizePurchasePayload(
-      client,
-      payload,
-    );
 
     const updated = (
       await client.query(
@@ -640,7 +763,6 @@ export const updatePurchaseInvoice = async (
     });
 
     await client.query('COMMIT');
-    invalidateDashboardCache();
     return {
       success: true,
       updatedId: id,
@@ -686,6 +808,11 @@ export const deletePurchaseInvoice = async (invoiceId: number, userId: number) =
       ])
     ).rows;
 
+    await assertPurchaseHasNoReturns(client, id);
+    await assertPurchaseWarehouseScope(client, userId, [
+      Number(inv.warehouse_id),
+      ...items.map((item) => Number(item.warehouse_id || inv.warehouse_id)),
+    ]);
     const shortages = await reversePurchaseItems(client, inv, items, userId, 'حذف شراء');
 
     await client.query(`UPDATE purchase_invoices SET deleted_at = NOW() WHERE id = $1`, [id]);
@@ -705,7 +832,6 @@ export const deletePurchaseInvoice = async (invoiceId: number, userId: number) =
     await accountingService.deleteJournalEntryByReference(client, 'purchase', id);
 
     await client.query('COMMIT');
-    invalidateDashboardCache();
     return { success: true, deletedId: id, invoice_number: inv.invoice_number, shortages };
   } catch (e: any) {
     await client.query('ROLLBACK');

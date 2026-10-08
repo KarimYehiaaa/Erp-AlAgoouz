@@ -8,6 +8,9 @@ import { query } from '../database/pool.ts';
 import { createDailySale } from './salesService.ts';
 import { getDefaultWarehouseId } from './warehouseService.ts';
 import { readSafeWorkbook } from './excelSecurity.ts';
+import { businessToday } from '../utils/localDate.ts';
+import { findExcelHeaderIndex as findIndex } from '../utils/excelHeaders.ts';
+import { parseLocalizedNumber as toNumber } from '../utils/numberParsing.ts';
 
 const HEADER_ALIASES = {
   sale_date: ['sale_date', 'date', 'التاريخ'],
@@ -31,14 +34,6 @@ const normalizeDigits = (value) =>
     .replace(/[٠-٩]/g, (d) => '0123456789'['٠١٢٣٤٥٦٧٨٩'.indexOf(d)])
     .replace(/[\u200f\u200e]/g, '')
     .trim();
-
-const toNumber = (value, fallback = 0) => {
-  if (typeof value === 'number') return Number.isFinite(value) ? value : fallback;
-  const text = normalizeDigits(value).replace(/,/g, '').trim();
-  if (!text) return fallback;
-  const parsed = Number(text);
-  return Number.isFinite(parsed) ? parsed : fallback;
-};
 
 const formatYmd = (year, month, day) =>
   `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
@@ -107,26 +102,12 @@ const normalizePaymentMethod = (value) => {
 const resolveHeaderRow = (rows) => {
   for (let i = 0; i < rows.length; i++) {
     const firstRow = rows[i] || [];
-    const normalized = firstRow.map((cell) => normalizeText(cell));
-    if (
-      normalized.some((cell) =>
-        HEADER_ALIASES.sale_date.some(
-          (alias) => cell === normalizeText(alias) || cell.includes(normalizeText(alias)),
-        ),
-      )
-    ) {
+    if (findIndex(firstRow, HEADER_ALIASES.sale_date) !== -1) {
       return i;
     }
   }
   return -1;
 };
-
-const findIndex = (headers, aliases) =>
-  headers.findIndex((header) =>
-    aliases.some(
-      (alias) => header === normalizeText(alias) || header.includes(normalizeText(alias)),
-    ),
-  );
 
 const getStoreWarehouseId = async () => {
   const res = await query(
@@ -184,8 +165,7 @@ const buildHeaders = () => [
  */
 export const buildPosTemplate = async (warehouseId?: number) => {
   const products = await fetchPosProducts(warehouseId);
-  const today = new Date();
-  const todayStr = formatYmd(today.getFullYear(), today.getMonth() + 1, today.getDate());
+  const todayStr = businessToday();
 
   const wb = XLSX.utils.book_new();
   const headers = buildHeaders();
@@ -366,6 +346,7 @@ export const importPosExcel = async (buffer: Buffer, userId: number, warehouseId
   const { groups, errors } = await parsePosSalesExcel(buffer, resolvedWarehouseId);
   const targetWarehouseId = resolvedWarehouseId;
   let success = 0;
+  let itemsImported = 0;
   const failed: any[] = [];
 
   for (const group of groups) {
@@ -383,6 +364,7 @@ export const importPosExcel = async (buffer: Buffer, userId: number, warehouseId
         userId,
       );
       success++;
+      itemsImported += group.items.length;
     } catch (e: any) {
       failed.push({ sale_date: group.sale_date, message: e.message });
     }
@@ -393,6 +375,6 @@ export const importPosExcel = async (buffer: Buffer, userId: number, warehouseId
     total: groups.length,
     failed,
     parseErrors: errors,
-    itemsImported: groups.slice(0, success).reduce((sum, group) => sum + group.items.length, 0),
+    itemsImported,
   };
 };

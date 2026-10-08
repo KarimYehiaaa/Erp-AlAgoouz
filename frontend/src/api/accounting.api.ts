@@ -29,7 +29,8 @@ export interface JournalLine {
 export interface CreateJournalEntryPayload {
   entry_date: string;
   description: string;
-  reference_type?: string;
+  reference_type?: 'manual' | 'opening' | 'transfer';
+  idempotency_key?: string;
   reference_id?: number;
   lines: JournalLine[];
 }
@@ -301,14 +302,15 @@ export interface BankStatementTransaction {
   reconciliation_id: number;
   transaction_date: string;
   description: string;
-  reference_number?: string;
+  reference?: string | null;
   debit: number;
   credit: number;
-  status: 'unmatched' | 'matched' | 'excluded';
-  matched_journal_entry_line_id?: number;
-  match_confidence?: number;
-  match_rule?: string;
-  notes?: string;
+  amount: number;
+  status: 'unmatched' | 'matched' | 'partial' | 'excluded' | 'duplicate';
+  matched_journal_entry_id?: number | null;
+  matched_payment_id?: number | null;
+  matched_amount: number;
+  notes?: string | null;
 }
 
 export interface AgingReconciliationSide {
@@ -397,6 +399,7 @@ export const accountingApi = {
 
   // القوائم والدفاتر
   getGeneralLedger: (params: {
+    warehouse_id?: number;
     account_id?: number;
     account_code?: string;
     from_date?: string;
@@ -480,7 +483,7 @@ export const accountingApi = {
 
   matchTransaction: (
     txId: number,
-    data: { journal_entry_line_id?: number; bank_diff_entry?: boolean; notes?: string },
+    data: { journal_entry_id?: number; payment_id?: number; notes?: string },
   ) =>
     post<BankStatementTransaction>(`/accounting/reconciliations/transactions/${txId}/match`, data),
 

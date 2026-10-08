@@ -20,14 +20,16 @@ export const purchaseReturnController = {
       limit: req.query.limit ? Number(req.query.limit) : 50,
       offset: req.query.offset ? Number(req.query.offset) : 0,
     };
-    const returns = await purchaseReturnService.getPurchaseReturns(filters);
+    const userId = (req as any).user?.id || (req as any).user?.userId;
+    const returns = await purchaseReturnService.getPurchaseReturns(filters, userId);
     ok(res, returns);
   }),
 
   getPurchaseReturnById: wrap(async (req: Request, res: Response) => {
     const id = Number(req.params.id);
     if (!id) throw new AppError('معرف المرتجع غير صحيح', 400);
-    const ret = await purchaseReturnService.getPurchaseReturnById(id);
+    const userId = (req as any).user?.id || (req as any).user?.userId;
+    const ret = await purchaseReturnService.getPurchaseReturnById(id, userId);
     ok(res, ret);
   }),
 

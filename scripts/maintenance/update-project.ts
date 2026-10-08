@@ -1,16 +1,17 @@
 /**
  * update-project.ts — تحديث آمن للمشروع (Safe Auto-Updater)
  * ① نسخة احتياطية كاملة (النظام + قاعدة البيانات)
- * ② سحب آخر تحديثات من Git (مع تحذير عند الفشل)
+ * ② سحب تحديثات Git دون دمج غير سريع
  * ③ تثبيت الاعتماديات الجديدة
  * ④ بناء الواجهة + تحديث قاعدة البيانات (setup.ts)
- * ⑤ إعادة تشغيل خدمة الـ Backend (قتل العملية على المنفذ 3000 + تشغيل المهمة المجدولة)
+ * ⑤ إعادة تشغيل خدمة الـ Backend المثبتة
  *
  * التشغيل: `npm run update` (من الجذر) أو `node scripts/update-project.ts`
  */
 import { execSync } from 'child_process';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { restartWindowsBackend } from './windowsRestart.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, '../..');
@@ -33,53 +34,22 @@ async function main(): Promise<void> {
 
     // 2. سحب آخر التحديثات من Git
     console.log('\n\x1b[36m[2/5] Pulling latest updates from Git...\x1b[0m');
-    try {
-      runCommand('git pull', rootDir);
-    } catch {
-      console.warn('\x1b[31mWarning: git pull failed. Continuing update with local files.\x1b[0m');
-    }
+    runCommand('git pull --ff-only', rootDir);
 
     // 3. تثبيت الاعتماديات
     console.log('\n\x1b[36m[3/5] Installing new dependencies...\x1b[0m');
-    runCommand('npm install', path.join(rootDir, 'backend'));
-    runCommand('npm install', path.join(rootDir, 'frontend'));
+    runCommand('npm ci', rootDir);
 
     // 4. بناء الواجهة + تحديث قاعدة البيانات (setup.ts — بعد تحويل المشروع إلى TypeScript)
     console.log('\n\x1b[36m[4/5] Building frontend and updating database...\x1b[0m');
-    runCommand('node src/database/setup.ts', path.join(rootDir, 'backend'));
-    runCommand('npm run build', path.join(rootDir, 'frontend'));
+    runCommand('node --import tsx src/database/setup.ts', path.join(rootDir, 'backend'));
+    runCommand('npm run build:local -w frontend', rootDir);
 
     // 5. إعادة تشغيل خدمة الـ Backend
     console.log('\n\x1b[36m[5/5] Restarting the ERP Backend Service...\x1b[0m');
 
-    // العثور على PID العملية التي تستمع على المنفذ 3000 (الـ backend)
-    let backendPid: number | null = null;
-    try {
-      const output = execSync(
-        'powershell -Command "(Get-NetTCPConnection -LocalPort 3000 -ErrorAction SilentlyContinue).OwningProcess"',
-        { encoding: 'utf8' },
-      ).trim();
-      if (output && !isNaN(Number(output))) {
-        backendPid = parseInt(output, 10);
-      }
-    } catch {
-      // المنفذ قد لا يكون نشطًا
-    }
-
-    if (backendPid) {
-      console.log(`Killing old backend process (PID: ${backendPid})...`);
-      try {
-        execSync(`taskkill /F /PID ${backendPid}`, { stdio: 'inherit' });
-      } catch (err) {
-        console.warn(`Failed to kill process ${backendPid}: ${(err as Error).message}`);
-      }
-    } else {
-      console.log('No running backend process found on port 3000.');
-    }
-
-    // تشغيل المهمة المجدولة لبدء الـ backend بصمت
-    console.log('Starting the AlAgoouz-ERP-Backend service...');
-    execSync('schtasks /run /tn "AlAgoouz-ERP-Backend"', { stdio: 'inherit' });
+    console.log('Restarting the installed ERP Windows service or scheduled task...');
+    restartWindowsBackend();
 
     console.log('\n==================================================');
     console.log('\x1b[32m       ERP System Updated Successfully!           \x1b[0m');

@@ -10,6 +10,9 @@ const CAT_NAME = 'تصنيف اختبار استرجاع البيع';
 describe('Sale restore & sync_id idempotency integration tests', () => {
   it('Sale restore & sync_id idempotency integration tests', async () => {
     // Pre-cleanup
+    await query(
+      `DELETE FROM inventory_cost_layers WHERE source_movement_id IN (SELECT id FROM stock_movements WHERE notes LIKE '%TST-SLR%')`,
+    );
     await query(`DELETE FROM stock_movements WHERE notes LIKE '%TST-SLR%'`);
     await query(`DELETE FROM products WHERE sku = $1`, [SKU]);
     await query(`DELETE FROM product_categories WHERE name_ar = $1`, [CAT_NAME]);
@@ -109,6 +112,10 @@ describe('Sale restore & sync_id idempotency integration tests', () => {
           [ids],
         );
         await query(`DELETE FROM sale_items WHERE sale_id = ANY($1::int[])`, [ids]);
+        await query(
+          `DELETE FROM inventory_cost_layers WHERE source_movement_id IN (SELECT id FROM stock_movements WHERE reference_type = 'sale' AND reference_id = ANY($1::int[]))`,
+          [ids],
+        );
         await query(
           `DELETE FROM stock_movements WHERE reference_type = 'sale' AND reference_id = ANY($1::int[])`,
           [ids],

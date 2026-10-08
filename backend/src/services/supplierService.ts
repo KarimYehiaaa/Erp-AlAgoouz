@@ -1,5 +1,7 @@
 import { query, getClient } from '../database/pool.ts';
 import { AppError } from '../types/errors.ts';
+import { roundMoney } from '../utils/money.ts';
+import { linkPaymentJournalSources } from './paymentJournalSources.ts';
 
 /**
  * جلب قائمة الموردين النشطين.
@@ -156,10 +158,16 @@ export const deleteSupplier = async (id, userId) => {
  */
 export const getSupplierInvoices = async (supplierId) => {
   const invoicesRes = await query(
-    `SELECT id, invoice_number, invoice_date AS created_at, total_amount, notes
-     FROM purchase_invoices
-     WHERE supplier_id = $1 AND deleted_at IS NULL
-     ORDER BY invoice_date ASC, id ASC`,
+    `SELECT invoice.id, invoice.invoice_number, invoice.invoice_date AS created_at, invoice.total_amount, invoice.notes,
+       COALESCE((SELECT SUM(ret.total_amount) FROM purchase_returns ret
+          WHERE ret.purchase_invoice_id = invoice.id AND ret.status = 'completed' AND ret.deleted_at IS NULL), 0) AS returned_amount,
+       COALESCE((SELECT json_agg(json_build_object('id', ret.id, 'return_number', ret.return_number,
+          'return_date', ret.return_date, 'total_amount', ret.total_amount, 'notes', ret.notes) ORDER BY ret.return_date, ret.id)
+          FROM purchase_returns ret WHERE ret.purchase_invoice_id = invoice.id
+          AND ret.status = 'completed' AND ret.deleted_at IS NULL), '[]'::json) AS return_documents
+     FROM purchase_invoices invoice
+     WHERE invoice.supplier_id = $1 AND invoice.deleted_at IS NULL
+     ORDER BY invoice.invoice_date ASC, invoice.id ASC`,
     [supplierId],
   );
 
@@ -188,15 +196,17 @@ export const getSupplierInvoices = async (supplierId) => {
 
   const enriched = invoicesRes.rows.map((inv) => {
     const totalAmount = Number(inv.total_amount || 0);
+    const returnedAmount = roundMoney(Number(inv.returned_amount || 0));
+    const netAmount = roundMoney(Math.max(0, totalAmount - returnedAmount));
     const directPaid = directMap.get(Number(inv.id)) || 0;
-    const remainingBeforeGeneral = Math.max(0, totalAmount - directPaid);
+    const remainingBeforeGeneral = roundMoney(Math.max(0, netAmount - directPaid));
 
     const fromGeneral = Math.min(generalPool, remainingBeforeGeneral);
     generalPool = Math.max(0, generalPool - fromGeneral);
 
     const totalPaid = Math.round((directPaid + fromGeneral) * 100) / 100;
     let status = 'pending';
-    if (totalPaid >= totalAmount - 0.001) {
+    if (totalPaid >= netAmount) {
       status = 'paid';
     } else if (totalPaid > 0.001) {
       status = 'partial';
@@ -205,6 +215,9 @@ export const getSupplierInvoices = async (supplierId) => {
     return {
       ...inv,
       paid_amount: totalPaid,
+      returned_amount: returnedAmount,
+      net_amount: netAmount,
+      remaining_amount: roundMoney(Math.max(0, netAmount - totalPaid)),
       status,
     };
   });
@@ -221,7 +234,9 @@ export const getSupplierPayments = async (supplierId) =>
   (
     await query(
       `SELECT * FROM payments
-     WHERE reference_type = 'supplier' AND reference_id = $1
+     WHERE (reference_type = 'supplier' AND reference_id = $1)
+        OR (reference_type = 'purchase_invoice' AND reference_id IN
+            (SELECT id FROM purchase_invoices WHERE supplier_id = $1))
      ORDER BY created_at DESC`,
       [supplierId],
     )
@@ -268,17 +283,20 @@ export const recalculateSupplierBalance = async (
  * @returns {Promise<Record<string, any>>} الدفعة المسجلة
  */
 export const recordSupplierPayment = async (supplierId: number, data: any, userId?: number) => {
-  const amount = Number(data.amount);
-  if (isNaN(amount) || amount <= 0) {
+  const amount = roundMoney(Number(data.amount));
+  if (!Number.isFinite(amount) || amount <= 0) {
     throw new AppError('المبلغ المدفوع يجب أن يكون أكبر من الصفر', 400);
   }
-
-  // Verify supplier exists
-  await getSupplierById(supplierId);
 
   const client = await getClient();
   try {
     await client.query('BEGIN');
+
+    const supplier = await client.query(
+      'SELECT id FROM suppliers WHERE id = $1 AND deleted_at IS NULL FOR UPDATE',
+      [supplierId],
+    );
+    if (!supplier.rows.length) throw new AppError('المورد غير موجود أو تم حذفه', 404);
 
     const resSeq = await client.query(`SELECT nextval('seq_payments_number') AS next_val`);
     const paymentNumber = `SUP-PAY-${resSeq.rows[0].next_val}`;
@@ -299,7 +317,7 @@ export const recordSupplierPayment = async (supplierId: number, data: any, userI
     await recalculateSupplierBalance(client, supplierId);
 
     const { accountingService } = await import('./accountingService.ts');
-    await accountingService.postSupplierPaymentJournalEntry(client, {
+    const journal = await accountingService.postSupplierPaymentJournalEntry(client, {
       id: res.rows[0].id,
       payment_number: paymentNumber,
       supplier_id: supplierId,
@@ -310,8 +328,10 @@ export const recordSupplierPayment = async (supplierId: number, data: any, userI
       payment_date: data.payment_date || data.date,
     });
 
+    if (!journal) throw new AppError('تعذر ترحيل سداد المورد', 409);
+    await linkPaymentJournalSources(client, [paymentNumber], journal.id);
     await client.query('COMMIT');
-    return res.rows[0];
+    return { ...res.rows[0], journal_entry_id: journal.id };
   } catch (err) {
     await client.query('ROLLBACK');
     throw err;

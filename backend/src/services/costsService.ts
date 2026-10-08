@@ -2,7 +2,6 @@ import { AppError } from '../types/errors.ts';
 import { getClient, query } from '../database/pool.ts';
 import { calculateRecipeCost, unitPriceFor, normalizeUnit } from './productCostService.ts';
 import { consumeRecipeForSale as _consumeRecipe } from './recipesService.ts';
-import { invalidateDashboardCache } from './dashboardService.ts';
 
 const enrichRecipeCost = (recipe, effectiveIngredientCostsMap) => {
   const items = Array.isArray(recipe.items) ? recipe.items : [];
@@ -218,7 +217,6 @@ export const createRecipe = async (data: Record<string, any>, userId: number) =>
     );
 
     await client.query('COMMIT');
-    invalidateDashboardCache();
     return getRecipeById(recipe.id);
   } catch (e: any) {
     await client.query('ROLLBACK');
@@ -267,7 +265,6 @@ export const updateRecipe = async (id: number, data: Record<string, any>) => {
     );
 
     await client.query('COMMIT');
-    invalidateDashboardCache();
     return getRecipeById(id);
   } catch (e: any) {
     await client.query('ROLLBACK');
@@ -295,7 +292,6 @@ export const deleteRecipe = async (id: number) => {
     await updateProductPriceFromLatestPurchaseInvoice(client, current.rows[0].product_id);
 
     await client.query('COMMIT');
-    invalidateDashboardCache();
   } catch (e: any) {
     await client.query('ROLLBACK');
     throw e;

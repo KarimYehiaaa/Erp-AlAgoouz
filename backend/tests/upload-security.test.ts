@@ -1,18 +1,18 @@
 import { describe, it, expect, vi } from 'vitest';
-import { upload, requireAdmin } from '../src/routes/helpers';
+import { upload, requireAdmin } from '../src/routes/helpers.ts';
 import type { Request, Response, NextFunction } from 'express';
 
 describe('Upload Security & Middleware Verification', () => {
   it('enforces memoryStorage to prevent path traversal and arbitrary disk writes', () => {
     // Multer instance uses memoryStorage
-    expect(upload.storage).toBeDefined();
+    expect(Reflect.get(upload, 'storage')).toBeDefined();
     // Limits check: 5MB max
-    expect(upload.limits).toBeDefined();
-    expect(upload.limits?.fileSize).toBe(5 * 1024 * 1024);
+    expect(Reflect.get(upload, 'limits')).toMatchObject({ fileSize: 5 * 1024 * 1024 });
   });
 
   it('fileFilter accepts allowed MIME types', () => {
-    const filter = upload.fileFilter;
+    const filter: unknown = Reflect.get(upload, 'fileFilter');
+    if (typeof filter !== 'function') throw new Error('Multer file filter is missing');
     const allowed = [
       'image/jpeg',
       'image/png',
@@ -38,7 +38,8 @@ describe('Upload Security & Middleware Verification', () => {
   });
 
   it('fileFilter strictly rejects dangerous or unauthorized MIME types', () => {
-    const filter = upload.fileFilter;
+    const filter: unknown = Reflect.get(upload, 'fileFilter');
+    if (typeof filter !== 'function') throw new Error('Multer file filter is missing');
     const dangerous = [
       'application/x-msdownload', // .exe
       'application/javascript', // .js

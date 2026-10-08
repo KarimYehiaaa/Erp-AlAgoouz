@@ -9,7 +9,7 @@ export function useMouseParallax(intensity = 15) {
   const offset = reactive({ x: 0, y: 0 });
   let ticking = false;
 
-  const handleMouseMove = (e: any) => {
+  const handleMouseMove = (e: MouseEvent) => {
     if (ticking) return;
     ticking = true;
     requestAnimationFrame(() => {
@@ -54,7 +54,7 @@ export function usePasswordStrength() {
     { label: 'قوية', color: '#22C55E' },
   ];
 
-  const evaluate = (password: any) => {
+  const evaluate = (password: string) => {
     if (!password) {
       Object.assign(strength, { score: 0, label: '', color: 'transparent', percentage: 0 });
       return;
@@ -93,9 +93,9 @@ export function usePasswordStrength() {
  * @returns {{ activeField: Ref<string | null>, onFocusField: (name: string) => void, onBlurField: () => void, isFieldActive: (name: string) => boolean }}
  */
 export function useInputAnimations() {
-  const activeField = ref<any>(null);
+  const activeField = ref<string | null>(null);
 
-  const onFocusField = (fieldName: any) => {
+  const onFocusField = (fieldName: string) => {
     activeField.value = fieldName;
   };
 
@@ -103,7 +103,7 @@ export function useInputAnimations() {
     activeField.value = null;
   };
 
-  const isFieldActive = (fieldName: any) => activeField.value === fieldName;
+  const isFieldActive = (fieldName: string) => activeField.value === fieldName;
 
   return {
     activeField,
@@ -123,16 +123,24 @@ export function useInputAnimations() {
  */
 export function useStaggeredEntrance(itemCount: number, baseDelay = 80) {
   const visibleItems = ref(new Array(itemCount).fill(false));
+  const timers: ReturnType<typeof setTimeout>[] = [];
 
   onMounted(() => {
     for (let i = 0; i < itemCount; i++) {
-      setTimeout(
-        () => {
-          visibleItems.value[i] = true;
-        },
-        baseDelay * (i + 1),
+      timers.push(
+        setTimeout(
+          () => {
+            visibleItems.value[i] = true;
+          },
+          baseDelay * (i + 1),
+        ),
       );
     }
+  });
+
+  onUnmounted(() => {
+    timers.forEach(clearTimeout);
+    timers.length = 0;
   });
 
   return { visibleItems };

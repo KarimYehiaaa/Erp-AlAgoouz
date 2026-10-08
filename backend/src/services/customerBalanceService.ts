@@ -27,13 +27,19 @@ export const recalculateCustomerBalance = async (
         SELECT
           CASE
             WHEN s.status = 'returned' THEN 0
-            WHEN s.payment_status = 'paid' THEN 0
+            WHEN s.payment_status = 'paid' AND NOT EXISTS (
+              SELECT 1 FROM payments p
+              WHERE ((p.reference_type = 'sale' AND p.reference_id = s.id)
+                  OR (p.reference_type = 'invoice' AND p.reference_id = (SELECT id FROM invoices WHERE sale_id = s.id LIMIT 1)))
+            ) THEN 0
             ELSE
               GREATEST(0, COALESCE(s.total_amount, 0) - COALESCE((
                 SELECT SUM(amount)
                 FROM payments p
-                WHERE (p.reference_type = 'sale' AND p.reference_id = s.id)
+                WHERE LOWER(TRIM(COALESCE(p.payment_method, 'cash'))) <> 'credit'
+                  AND ((p.reference_type = 'sale' AND p.reference_id = s.id)
                    OR (p.reference_type = 'invoice' AND p.reference_id = (SELECT id FROM invoices WHERE sale_id = s.id LIMIT 1))
+                  )
               ), 0))
           END AS outstanding
         FROM sales s
@@ -45,12 +51,15 @@ export const recalculateCustomerBalance = async (
 
         SELECT
           CASE
-            WHEN i.payment_status = 'paid' THEN 0
+            WHEN i.payment_status = 'paid' AND NOT EXISTS (
+              SELECT 1 FROM payments p WHERE p.reference_type = 'invoice' AND p.reference_id = i.id
+            ) THEN 0
             ELSE
               GREATEST(0, COALESCE(i.total_amount, 0) - COALESCE((
                 SELECT SUM(amount)
                 FROM payments p
-                WHERE p.reference_type = 'invoice'
+                WHERE LOWER(TRIM(COALESCE(p.payment_method, 'cash'))) <> 'credit'
+                  AND p.reference_type = 'invoice'
                   AND p.reference_id = i.id
               ), 0))
           END AS outstanding
@@ -64,6 +73,7 @@ export const recalculateCustomerBalance = async (
       SELECT COALESCE(SUM(amount), 0) AS total_direct_paid
       FROM payments
       WHERE (reference_type IN ('customer_opening', 'customer_advance', 'customer_deposit') OR reference_type = 'customer')
+        AND LOWER(TRIM(COALESCE(payment_method, 'cash'))) <> 'credit'
         AND reference_id = $1
     )
     UPDATE customers c

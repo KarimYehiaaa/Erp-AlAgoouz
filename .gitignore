@@ -6,15 +6,25 @@ node_modules/
 # Build artifacts are regenerated from source for the target deployment.
 dist/
 frontend/dist/
+frontend/csp-build-*/
 backend/api/
+!backend/api/
+backend/api/*
+!backend/api/index.ts
 /assets/*-????????.js
 /assets/*-????????.css
 /assets/*-????????.js.map
 /assets/*-????????.css.map
 
 .env
+.env.*
+!.env.example
 backend/.env
+backend/.env.*
+!backend/.env.example
 frontend/.env
+frontend/.env.*
+!frontend/.env.example
 *.env.recovered
 *.recovered
 .postgres.local
@@ -50,23 +60,46 @@ eslint_output.txt
 # Test/coverage/temp output.
 tmp/
 scratch/
+/temp-e2e/
+/temp-npm-cache/
+.codex-npm-cache/
+.codex-gradle-cache/
+backend/.codex-npm-cache/
+backend/node-compile-cache/
+backend/tsx-*/
+frontend/node-compile-cache/
 coverage/
 .nyc_output/
 test-results/
 frontend/test-results/
+frontend/.playwright-dist/
+frontend/dist-native/
+frontend/temp-e2e/
 playwright-report/
 
 # Android build & SDK local properties
 frontend/android/.gradle/
+frontend/android/build/
 frontend/android/app/build/
 frontend/android/capacitor-cordova-android-plugins/build/
 local.properties
+*.keystore
+*.jks
+*.p12
+*.pfx
+signing-private/
 *.apk
+*.apk.manifest.json
+*.apk.idsig
 
 # Desktop POS build artifacts
 desktop-pos/dist/
 desktop-pos/dist-electron/
+desktop-pos/.verification/
 desktop-pos/release/
+desktop-pos/release-codex-*/
+desktop-pos/.codex-build-temp-*/
+desktop-pos/.codex-esbuild-temp-*/
 
 # Python cache & venv
 __pycache__/
@@ -75,10 +108,19 @@ __pycache__/
 .venv/
 venv/
 ENV/
+/pip-*/
+analytics-service/.uv-cache/
+analytics-service/.uv-tools/
+# Temporary trees pip creates while resolving or replacing packages.
+analytics-service/pip-*/
+analytics-service/tmp????????/
 
 # IDE / Session plans
 .zcode/
 .kiro/
 .vscode/
+
+# Verified Windows service tool cache; rebuilt by the installer.
+scripts/runtime-tools/
 
 

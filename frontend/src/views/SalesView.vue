@@ -67,6 +67,7 @@
         />
 
         <OpeningBalanceLedger
+          v-if="canViewGlobalOpeningBalance"
           :form="openingBalanceForm"
           :loading="openingBalanceLoading"
           :saving="openingBalanceSaving"
@@ -81,6 +82,7 @@
         <SalesSummaryCard
           :sales-health="salesHealth"
           :active-tab="activeTab"
+          :can-view-global-opening-balance="canViewGlobalOpeningBalance"
           :total-opening-balance-debts="totalOpeningBalanceDebts"
           :opening-balance-form="openingBalanceForm"
           :collected-total="collectedTotal"
@@ -208,11 +210,18 @@ import SalesDangerActions from '@/components/sales/SalesDangerActions.vue';
 import InvoicesView from '@/views/InvoicesView.vue';
 import CustomersView from '@/views/CustomersView.vue';
 import { sales as salesApi, customers as customersApi } from '@/api';
+import { useAuthStore } from '@/stores/auth';
 import { formatMoney } from '@/utils/currency';
 import { resolveStatusMeta } from '@/utils/statusMeta';
+import { WAREHOUSE_GLOBAL_ROLES } from '../../../shared/permissions.js';
 
 const route = useRoute();
 const router = useRouter();
+const authStore = useAuthStore();
+const canViewGlobalOpeningBalance = computed(() => {
+  const role = authStore.user?.role_name;
+  return Boolean(role && WAREHOUSE_GLOBAL_ROLES.includes(role));
+});
 
 const localTodayYmd = () => {
   const now = new Date();
@@ -440,6 +449,7 @@ const cancelEdit = () => {
 };
 
 const loadOpeningBalance = async () => {
+  if (!canViewGlobalOpeningBalance.value) return;
   openingBalanceLoading.value = true;
   try {
     const res = await salesApi.openingBalance({
@@ -467,6 +477,7 @@ const startOpeningBalanceEdit = async () => {
 };
 
 const saveOpeningBalance = async () => {
+  if (!canViewGlobalOpeningBalance.value) return;
   openingBalanceSaving.value = true;
   openingBalanceErr.value = false;
   try {
@@ -542,14 +553,17 @@ const onToDateChange = (v: string) => {
 const load = async () => {
   loadingSales.value = true;
   try {
+    const openingBalanceRequest = canViewGlobalOpeningBalance.value
+      ? salesApi
+          .openingBalance({
+            from_date: filters.value.from_date,
+            to_date: filters.value.to_date,
+          })
+          .catch(() => null)
+      : Promise.resolve(null);
     const [salesRes, openingRes, customersRes] = await Promise.all([
       salesApi.list(salesListQuery.value),
-      salesApi
-        .openingBalance({
-          from_date: filters.value.from_date,
-          to_date: filters.value.to_date,
-        })
-        .catch(() => null),
+      openingBalanceRequest,
       customersApi.list({ limit: 500 }).catch(() => null),
     ]);
     sales.value = salesRes.data;

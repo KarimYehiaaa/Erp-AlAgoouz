@@ -12,6 +12,9 @@ describe('Stocktake Lifecycle Integration Tests', () => {
   it('Full stocktake lifecycle integration test', async () => {
     // Pre-cleanup in case of previous aborted runs
     await query(
+      `DELETE FROM inventory_cost_layers WHERE source_movement_id IN (SELECT id FROM stock_movements WHERE notes LIKE '%معرف الجرد%' OR notes LIKE '%جرد مخازن%')`,
+    );
+    await query(
       `DELETE FROM stock_movements WHERE notes LIKE '%معرف الجرد%' OR notes LIKE '%جرد مخازن%'`,
     );
     await query(
@@ -122,6 +125,10 @@ describe('Stocktake Lifecycle Integration Tests', () => {
     } finally {
       // 7. Cleanup database records in reverse order
       if (productId) {
+        await query(
+          `DELETE FROM inventory_cost_layers WHERE source_movement_id IN (SELECT id FROM stock_movements WHERE product_id = $1)`,
+          [productId],
+        );
         await query(`DELETE FROM stock_movements WHERE product_id = $1`, [productId]);
         await query(`DELETE FROM inventory WHERE product_id = $1`, [productId]);
         await query(`DELETE FROM stocktake_items WHERE product_id = $1`, [productId]);

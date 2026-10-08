@@ -86,7 +86,7 @@ def forecast_product_demand(product: ProductForecastInput, horizon: int = 30) ->
         mean_val = round(float(np.mean(quantities)), 3)
         daily_preds = [max(0.0, mean_val)] * horizon
         f7d = round(sum(daily_preds[:7]), 3)
-        f30d = round(sum(daily_preds[:horizon]), 3)
+        f30d = round(sum(daily_preds[:min(30, horizon)]), 3)
         return ProductForecastOutput(
             product_id=product.product_id,
             name_ar=product.name_ar,

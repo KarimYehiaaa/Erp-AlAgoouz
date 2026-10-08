@@ -15,6 +15,7 @@ const LEGACY_AUTOMATION_ALIASES: Record<string, string> = {
 };
 let schedulerTimer: ReturnType<typeof setInterval> | null = null;
 let tickInProgress = false;
+let scheduledTick: Promise<void> | null = null;
 
 // ثابت مُخزَّن مؤقتًا: إنشاء Intl.DateTimeFormat مكلف ولا يلزم تكراره في كل استدعاء.
 const cairoFormatter = new Intl.DateTimeFormat('en-US', {
@@ -219,20 +220,41 @@ export const tickDueAutomations = async (now = new Date()) => {
 };
 
 export const initAutomationScheduler = () => {
+  // Scheduled jobs must not run from test processes or serverless instances.
+  if (
+    process.env.VERCEL ||
+    process.env.VERCEL_ENV ||
+    process.env.VERCEL_URL ||
+    process.env.NODE_ENV === 'test'
+  )
+    return null;
   if (schedulerTimer) return schedulerTimer;
   logger.info('[Automation] تم تفعيل المجدول المحلي — فحص المهام كل دقيقة بتوقيت القاهرة.');
+  const trigger = () => {
+    if (scheduledTick) return scheduledTick;
+    scheduledTick = tickDueAutomations()
+      .then(() => undefined)
+      .catch((error: any) => {
+        logger.error(`[Automation] فشل فحص الجدولة: ${error.message}`);
+      })
+      .finally(() => {
+        scheduledTick = null;
+      });
+    return scheduledTick;
+  };
   schedulerTimer = setInterval(() => {
-    tickDueAutomations().catch((error: any) =>
-      logger.error(`[Automation] فشل فحص الجدولة: ${error.message}`),
-    );
+    void trigger();
   }, TICK_INTERVAL_MS);
-  void tickDueAutomations().catch((error: any) =>
-    logger.error(`[Automation] فشل الفحص الأولي: ${error.message}`),
-  );
+  void trigger();
   return schedulerTimer;
 };
 
 export const stopAutomationScheduler = () => {
   if (schedulerTimer) clearInterval(schedulerTimer);
   schedulerTimer = null;
+};
+
+export const drainAutomationScheduler = async () => {
+  stopAutomationScheduler();
+  if (scheduledTick) await scheduledTick;
 };

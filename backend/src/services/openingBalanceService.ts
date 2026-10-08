@@ -1,10 +1,14 @@
-import { query } from '../database/pool.ts';
+import { query, withReadOnlySnapshot } from '../database/pool.ts';
+import { getTreasuryMovementNet } from './treasuryMovementService.ts';
+import { isCalendarDate } from '../utils/localDate.ts';
+import { businessCalendarDate } from '../../../shared/businessDate.ts';
+import { runSharedMaintenanceTask } from '../database/maintenanceBarrier.ts';
 import { AppError } from '../types/errors.ts';
 import { roundMoney } from '../utils/money.ts';
 
 const normalizeDate = (value, fieldName) => {
   const date = String(value || '').trim();
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+  if (!isCalendarDate(date)) {
     throw new AppError(`${fieldName} غير صالح`, 400);
   }
   return date;
@@ -12,68 +16,56 @@ const normalizeDate = (value, fieldName) => {
 
 const monthKey = (date) => String(date || '').slice(0, 7);
 const settingKey = (fromDate) => `sales_opening_balance:${monthKey(fromDate)}`;
-const monthSettingKey = (dateLike) => {
-  const date = dateLike instanceof Date ? dateLike : new Date(dateLike);
-  if (Number.isNaN(date.getTime())) return null;
-  return `sales_opening_balance:${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+const calendarDateOf = (value: Date | string): string | null => {
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value))
+    return isCalendarDate(value) ? value : null;
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isFinite(date.getTime()) ? businessCalendarDate(date) : null;
+};
+const monthSettingKey = (dateLike: Date | string) => {
+  const calendar = calendarDateOf(dateLike);
+  return calendar ? `sales_opening_balance:${calendar.slice(0, 7)}` : null;
 };
 /**
  * حساب رصيد الافتتاح الديناميكي (نقدية الخزنة) لتاريخ محدد.
  * @param {Date|string} date التاريخ
  * @returns {Promise<number>}
  */
-export const calculateDynamicOpeningBalance = async (date: Date, depth = 0) => {
-  // قاعدة الإيقاف: لا نرجع أكثر من 60 شهرًا (5 سنوات) — لو لم يوجد أي رصيد
-  // افتتاح مخزن حتى هذه النقطة فالنتيجة الصحيحة هي صفر (كان التكرار بلا حدّ
-  // يعلّق التقرير لأبدًا على قواعد البيانات الفارغة/الجديدة).
-  if (depth >= 60) return 0;
-
-  const yyyy = date.getFullYear();
-  const mm = date.getMonth() + 1;
-  const key = `sales_opening_balance:${yyyy}-${String(mm).padStart(2, '0')}`;
-
-  const result = await query(`SELECT value FROM settings WHERE key = $1 LIMIT 1`, [key]);
-  if (result.rows.length > 0 && result.rows[0].value) {
-    return Number(result.rows[0].value.amount) || 0;
-  }
-
-  const prevDate = new Date(yyyy, date.getMonth() - 1, 1);
-  const prevOpeningBalance = await calculateDynamicOpeningBalance(prevDate, depth + 1);
-
-  const prevYyyy = prevDate.getFullYear();
-  const prevMm = prevDate.getMonth() + 1;
-  const prevStart = `${prevYyyy}-${String(prevMm).padStart(2, '0')}-01`;
-  const prevLastDay = new Date(prevYyyy, prevMm, 0).getDate();
-  const prevEnd = `${prevYyyy}-${String(prevMm).padStart(2, '0')}-${String(prevLastDay).padStart(2, '0')}`;
-
-  const [salesRes, purchasesRes, expensesRes] = await Promise.all([
-    query(
-      `SELECT COALESCE(SUM(total_amount), 0) AS total
-       FROM sales
-       WHERE deleted_at IS NULL AND status = 'completed' AND sale_date BETWEEN $1::date AND $2::date`,
-      [prevStart, prevEnd],
-    ),
-    query(
-      `SELECT COALESCE(SUM(total_amount), 0) AS total
-       FROM purchase_invoices
-       WHERE deleted_at IS NULL AND invoice_date BETWEEN $1::date AND $2::date`,
-      [prevStart, prevEnd],
-    ),
-    query(
-      `SELECT COALESCE(SUM(amount), 0) AS total
-       FROM expenses
-       WHERE deleted_at IS NULL AND expense_date BETWEEN $1::date AND $2::date`,
-      [prevStart, prevEnd],
-    ),
-  ]);
-
-  const prevSales = Number(salesRes.rows[0].total || 0);
-  const prevPurchases = Number(purchasesRes.rows[0].total || 0);
-  const prevExpenses = Number(expensesRes.rows[0].total || 0);
-
-  return prevOpeningBalance + prevSales - prevPurchases - prevExpenses;
-};
-
+export const calculateDynamicOpeningBalance = async (
+  date: Date | string,
+  depth = 0,
+  db?: typeof query,
+) =>
+  runSharedMaintenanceTask(async () => {
+    const work = async (read: typeof query) => {
+      if (depth >= 60) return 0;
+      const calendar = calendarDateOf(date);
+      if (!calendar) throw new AppError('تاريخ رصيد الافتتاح غير صالح', 400);
+      const yyyy = Number(calendar.slice(0, 4));
+      const month = Number(calendar.slice(5, 7)) - 1;
+      const limit = 60 - depth;
+      const keys = Array.from(
+        { length: limit },
+        (_, index) =>
+          `sales_opening_balance:${new Date(Date.UTC(yyyy, month - index, 1)).toISOString().slice(0, 7)}`,
+      );
+      const settings = new Map(
+        (await read('SELECT key,value FROM settings WHERE key=ANY($1::text[])', [keys])).rows.map(
+          (row) => [row.key, row.value],
+        ),
+      );
+      const nearest = keys.findIndex((key) => Boolean(settings.get(key)));
+      const opening = nearest >= 0 ? Number(settings.get(keys[nearest]).amount) || 0 : 0;
+      if (nearest === 0) return opening;
+      const monthsBack = nearest >= 0 ? nearest : limit;
+      const first = new Date(Date.UTC(yyyy, month - monthsBack, 1)).toISOString().slice(0, 10);
+      const last = new Date(Date.UTC(yyyy, month, 0)).toISOString().slice(0, 10);
+      return roundMoney(opening + (await getTreasuryMovementNet(first, last, read)));
+    };
+    return db
+      ? work(db)
+      : withReadOnlySnapshot((client) => work((sql, params) => client.query(sql, params)));
+  });
 /**
  * جلب أرصدة الافتتاح بين تاريخين.
  * @param {string} fromDate تاريخ البداية
@@ -83,63 +75,26 @@ export const calculateDynamicOpeningBalance = async (date: Date, depth = 0) => {
 export const getOpeningBalance = async (fromDate: string, toDate: string) => {
   const from = normalizeDate(fromDate, 'تاريخ البداية');
   const to = normalizeDate(toDate, 'تاريخ النهاية');
-  const key = settingKey(from);
-  const result = await query(
-    `SELECT value
-     FROM settings
-     WHERE key = $1
-     LIMIT 1`,
-    [key],
-  );
-
-  if (result.rows[0]) {
-    const value = result.rows[0].value || {};
-    return {
-      from_date: from,
-      to_date: to,
-      amount: roundMoney(value.amount),
-    };
-  }
-
-  // Fallback to dynamically calculate from previous month if not set manually
-  const date = new Date(from);
-  const dynamicAmount = await calculateDynamicOpeningBalance(date);
-  return {
-    from_date: from,
-    to_date: to,
-    amount: roundMoney(dynamicAmount),
-  };
+  const opening = await getOpeningBalanceForDate(from);
+  return { from_date: from, to_date: to, amount: opening.amount };
 };
-
 /**
  * جلب رصيد الافتتاح لتاريخ محدد (أقرب سجل سابق).
  * @param {Date|string} dateLike التاريخ
  * @returns {Promise<{ amount: number }>}
  */
-export const getOpeningBalanceForDate = async (dateLike: Date | string) => {
-  const key = monthSettingKey(dateLike);
-  if (!key) return { amount: 0 };
-  const result = await query(
-    `SELECT value
-     FROM settings
-     WHERE key = $1
-     LIMIT 1`,
-    [key],
-  );
-  if (result.rows[0]) {
-    const value = result.rows[0].value || {};
-    return {
-      amount: roundMoney(value.amount),
-    };
-  }
-
-  const date = dateLike instanceof Date ? dateLike : new Date(dateLike);
-  const dynamicAmount = await calculateDynamicOpeningBalance(date);
-  return {
-    amount: roundMoney(dynamicAmount),
+export const getOpeningBalanceForDate = async (dateLike: Date | string, db?: typeof query) => {
+  const work = async (read: typeof query) => {
+    const key = monthSettingKey(dateLike);
+    if (!key) return { amount: 0 };
+    const result = await read('SELECT value FROM settings WHERE key=$1 LIMIT 1', [key]);
+    if (result.rows[0]) return { amount: roundMoney(result.rows[0].value?.amount) };
+    return { amount: roundMoney(await calculateDynamicOpeningBalance(dateLike, 0, read)) };
   };
+  return db
+    ? work(db)
+    : withReadOnlySnapshot((client) => work((sql, params) => client.query(sql, params)));
 };
-
 /**
  * حفظ رصيد افتتاح (مع إعادة احتساب اللاحق).
  * @param {{ from_date: string, to_date: string, amount: number }} params نطاق الرصيد والمبلغ

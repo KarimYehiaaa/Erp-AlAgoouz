@@ -5,8 +5,12 @@
  */
 import { Router } from 'express';
 import { authenticate, authorize } from '../middleware/auth.ts';
-import { validateBody } from '../middleware/validate.ts';
-import { copilotSchema } from './schemas.ts';
+import { validateBody, validateQuery } from '../middleware/validate.ts';
+import {
+  enforceWarehouseAccess,
+  requireGlobalWarehouseRole,
+} from '../middleware/warehouseAccess.ts';
+import { commonQuerySchema, copilotSchema } from './schemas.ts';
 import * as api from '../controllers/apiController.ts';
 
 const router = Router();
@@ -16,6 +20,8 @@ router.get(
   '/forecasting',
   authenticate,
   authorize('reports.view'),
+  validateQuery(commonQuerySchema),
+  enforceWarehouseAccess,
   api.forecasting.getDemandForecast,
 );
 router.get(
@@ -35,6 +41,8 @@ router.get(
   '/forecasting/staffing',
   authenticate,
   authorize('reports.view'),
+  validateQuery(commonQuerySchema),
+  enforceWarehouseAccess,
   api.forecasting.getStaffingForecast,
 );
 router.get(
@@ -47,6 +55,9 @@ router.get(
   '/forecasting/cashflow-projection',
   authenticate,
   authorize('reports.view'),
+  requireGlobalWarehouseRole,
+  validateQuery(commonQuerySchema),
+  enforceWarehouseAccess,
   api.forecasting.getCashFlowProjection,
 );
 router.get(

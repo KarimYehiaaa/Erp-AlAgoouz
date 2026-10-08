@@ -5,6 +5,10 @@ import { transferStock } from '../src/services/inventoryService.ts';
 describe('Stock Transfer Integration Tests', () => {
   it('Stock transfer integration tests', async () => {
     // Pre-cleanup
+    await query(
+      `DELETE FROM inventory_cost_layers WHERE product_id IN
+       (SELECT id FROM products WHERE sku IN ('SKU-TRF-1', 'SKU-TRF-2'))`,
+    );
     await query(`DELETE FROM stock_movements WHERE notes LIKE '%TST-TRF%'`);
     await query(
       `DELETE FROM inventory WHERE warehouse_id IN (SELECT id FROM warehouses WHERE code IN ('TST-WH1', 'TST-WH2'))`,
@@ -67,6 +71,13 @@ describe('Stock Transfer Integration Tests', () => {
          VALUES ($1, $2, 10.000)`,
         [p1Id, wh1Id],
       );
+      await query(
+        `INSERT INTO inventory_cost_layers
+           (product_id, warehouse_id, source_type, quantity, remaining_quantity, unit_cost, total_cost, created_at)
+         VALUES ($1, $2, 'test_fixture', 4, 4, 10, 40, NOW() - INTERVAL '1 minute'),
+                ($1, $2, 'test_fixture', 6, 6, 20, 120, NOW())`,
+        [p1Id, wh1Id],
+      );
 
       // Product 2 has 2 units in Warehouse 2
       await query(
@@ -112,6 +123,26 @@ describe('Stock Transfer Integration Tests', () => {
       expect(movs1.rows.length).toBe(1);
       expect(movs1.rows[0].product_id).toBe(p1Id);
       expect(Number(movs1.rows[0].quantity)).toBe(4);
+      expect(Number(movs1.rows[0].unit_cost)).toBe(10);
+      expect(Number(movs1.rows[0].total_cost)).toBe(40);
+
+      const afterFirstLayers = await query(
+        `SELECT product_id, warehouse_id, quantity, remaining_quantity, unit_cost
+         FROM inventory_cost_layers WHERE product_id = $1 ORDER BY warehouse_id, created_at, id`,
+        [p1Id],
+      );
+      expect(
+        afterFirstLayers.rows.map((row) => [
+          Number(row.warehouse_id),
+          Number(row.quantity),
+          Number(row.remaining_quantity),
+          Number(row.unit_cost),
+        ]),
+      ).toEqual([
+        [wh1Id, 4, 0, 10],
+        [wh1Id, 6, 6, 20],
+        [wh2Id, 4, 4, 10],
+      ]);
 
       // --- TEST 2: Different product transfer (Product 1 from WH1 to Product 2 in WH2) ---
       const res2 = await transferStock(
@@ -152,14 +183,42 @@ describe('Stock Transfer Integration Tests', () => {
       // First movement should be for Product 1 (outward)
       expect(movs2.rows[0].product_id).toBe(p1Id);
       expect(Number(movs2.rows[0].quantity)).toBe(3);
-      expect(movs2.rows[0].notes.includes('تحويل إلى: منتج تحويل هدف')).toBe(true);
+      expect(movs2.rows[0].notes).toContain(`تحويل إلى المنتج رقم ${p2Id}`);
 
       // Second movement should be for Product 2 (inward)
       expect(movs2.rows[1].product_id).toBe(p2Id);
       expect(Number(movs2.rows[1].quantity)).toBe(3);
-      expect(movs2.rows[1].notes.includes('تحويل من: منتج تحويل مصدر')).toBe(true);
+      expect(movs2.rows[1].notes).toContain(`تحويل من المنتج رقم ${p1Id}`);
+      expect(movs2.rows.map((row) => Number(row.total_cost))).toEqual([60, 60]);
+      expect(movs2.rows.map((row) => Number(row.unit_cost))).toEqual([20, 20]);
+
+      const finalLayers = await query(
+        `SELECT product_id, warehouse_id, quantity, remaining_quantity, unit_cost, source_type
+         FROM inventory_cost_layers WHERE product_id = ANY($1::int[])
+         ORDER BY product_id, warehouse_id, created_at, id`,
+        [[p1Id, p2Id]],
+      );
+      expect(
+        finalLayers.rows.map((row) => [
+          Number(row.product_id),
+          Number(row.warehouse_id),
+          Number(row.quantity),
+          Number(row.remaining_quantity),
+          Number(row.unit_cost),
+          row.source_type,
+        ]),
+      ).toEqual([
+        [p1Id, wh1Id, 4, 0, 10, 'test_fixture'],
+        [p1Id, wh1Id, 6, 3, 20, 'test_fixture'],
+        [p1Id, wh2Id, 4, 4, 10, 'transfer'],
+        [p2Id, wh2Id, 3, 3, 20, 'transfer'],
+      ]);
     } finally {
       // Cleanup
+      await query(
+        `DELETE FROM inventory_cost_layers WHERE product_id IN
+         (SELECT id FROM products WHERE sku IN ('SKU-TRF-1', 'SKU-TRF-2'))`,
+      );
       await query(`DELETE FROM stock_movements WHERE notes LIKE '%TST-TRF%'`);
       await query(
         `DELETE FROM inventory WHERE warehouse_id IN (SELECT id FROM warehouses WHERE code IN ('TST-WH1', 'TST-WH2'))`,

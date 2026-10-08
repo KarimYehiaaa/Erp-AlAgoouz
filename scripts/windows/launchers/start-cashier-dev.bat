@@ -1,18 +1,15 @@
 @echo off
 chcp 65001 > nul
-cd /d "%~dp0..\.."
+cd /d "%~dp0..\..\.." || exit /b 1
 
 echo [AlAgoouz ERP] Starting Developer Cashier Environment...
 
-:: 1. Ensure local backend is active
-powershell -NoProfile -Command "try { (Invoke-WebRequest -Uri 'http://localhost:3000/api/v1/sync/status' -TimeoutSec 1).StatusCode } catch { Start-Process powershell -ArgumentList '-NoProfile -WindowStyle Hidden -Command npm start --prefix backend' -WindowStyle Hidden }" > nul 2>&1
+:: 1. Wait for the shared ownership, schema and database-readiness checks.
+call powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "%cd%\system.ps1" start -Silent
+set "backendExitCode=%errorlevel%"
+if not "%backendExitCode%"=="0" exit /b %backendExitCode%
 
 :: 2. Start Desktop POS in development mode
-if exist "%~dp0..\..\desktop-pos\node_modules\electron\dist\electron.exe" (
-    start "" "%~dp0..\..\desktop-pos\node_modules\electron\dist\electron.exe" "%~dp0..\..\desktop-pos"
-) else (
-    echo [Error] Development Electron runtime not found. Run "npm install" in desktop-pos first.
-    pause
-)
+call "%~dp0start-desktop.bat"
 
-exit
+exit /b %errorlevel%

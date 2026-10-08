@@ -17,14 +17,18 @@ export function getEnvVar(key: string): string | undefined {
     if (typeof process !== 'undefined' && process.env && process.env[key]) {
       return process.env[key];
     }
-  } catch {}
+  } catch {
+    /* Unavailable or malformed optional configuration grants no trust. */
+  }
 
   try {
     const meta = import.meta as any;
     if (meta && meta.env && meta.env[key]) {
       return meta.env[key];
     }
-  } catch {}
+  } catch {
+    /* Unavailable or malformed optional configuration grants no trust. */
+  }
 
   return undefined;
 }
@@ -167,7 +171,9 @@ export function isTrustedServerUrl(
         if (cleanTargetUrl.startsWith(trustedClean)) {
           return true;
         }
-      } catch {}
+      } catch {
+        /* Unavailable or malformed optional configuration grants no trust. */
+      }
     }
   }
 

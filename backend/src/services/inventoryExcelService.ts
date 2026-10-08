@@ -7,43 +7,31 @@ import { query } from '../database/pool.ts';
 import { AppError } from '../types/errors.ts';
 import { returnProductToStock } from './inventoryService.ts';
 import { readSafeWorkbook } from './excelSecurity.ts';
-import { roundMoney } from '../utils/money.ts';
-
-const normalizeDigits = (value) =>
-  String(value ?? '')
-    .replace(/[٠-٩]/g, (d) => '0123456789'['٠١٢٣٤٥٦٧٨٩'.indexOf(d)])
-    .replace(/[٫٬]/g, '.')
-    .replace(/,/g, '.');
-
-const parseExcelQuantity = (value) => {
-  if (typeof value === 'number') return value;
-  const normalized = normalizeDigits(value).replace(/\s/g, '').replace(/[lI|]/g, '').trim();
-  if (!normalized) return NaN;
-  if (/^\d+\.\d+\.\d+$/.test(normalized)) {
-    return Number(normalized.replace(/\./g, ''));
-  }
-  return Number(normalized);
-};
+import { getAllowedWarehouses } from '../middleware/warehouseAccess.ts';
+import { findExcelHeaderIndex as findHeaderIndex } from '../utils/excelHeaders.ts';
+import { parseLocalizedNumber as parseExcelQuantity } from '../utils/numberParsing.ts';
 
 const isBlank = (value) => value === null || value === undefined || String(value).trim() === '';
+const isValidReturnQuantity = (qty: number) =>
+  Number.isFinite(qty) &&
+  qty >= 0.001 &&
+  qty <= 999999999.999 &&
+  Number.isSafeInteger(Math.round(qty * 1000)) &&
+  Math.abs(qty * 1000 - Math.round(qty * 1000)) <= 0.000001;
 const isPlaceholderWarehouse = (value) => {
   const text = String(value || '').trim();
   return !text || ['-', '—', '0'].includes(text);
 };
-const normalizeHeaderText = (value) =>
-  normalizeDigits(value)
-    .toLowerCase()
-    .replace(/[\s_-]+/g, '')
-    .replace(/[^\w\u0600-\u06ff]/g, '');
-const headerMatches = (value, aliases) => {
-  const normalized = normalizeHeaderText(value);
-  return aliases.some((alias) => normalized.includes(normalizeHeaderText(alias)));
-};
-const findHeaderIndex = (headers, aliases) =>
-  headers.findIndex((header) => headerMatches(header, aliases));
-
 const codeAliases = ['sku', 'productsku', 'productcode', 'itemcode', 'كود', 'الكود'];
-const qtyAliases = ['quantity', 'qty', 'returnquantity', 'restockquantity', 'الكمية', 'المرتجع'];
+const qtyAliases = [
+  'quantity',
+  'qty',
+  'returnquantity',
+  'restockquantity',
+  'الكمية المرتجعة',
+  'الكمية',
+  'المرتجع',
+];
 const notesAliases = ['notes', 'note', 'ملاحظات', 'ملاحظة'];
 const warehouseAliases = [
   'warehouse',
@@ -58,19 +46,27 @@ const warehouseAliases = [
 const resolveHeaderRow = (allRows) => {
   for (let i = 0; i < allRows.length; i++) {
     const row = Array.isArray(allRows[i]) ? allRows[i] : [];
-    const hasSku = row.some((cell) => headerMatches(cell, codeAliases));
-    const hasQty = row.some((cell) => headerMatches(cell, qtyAliases));
+    const hasSku = findHeaderIndex(row, codeAliases) !== -1;
+    const hasQty = findHeaderIndex(row, qtyAliases) !== -1;
     if (hasSku && hasQty) return i;
   }
   return -1;
 };
 
-const resolveWarehouseId = async (warehouseName, defaultWarehouseId, sku, rowNumber, failures) => {
+const resolveWarehouseId = async (
+  warehouseName,
+  defaultWarehouseId,
+  sku,
+  rowNumber,
+  failures,
+  allowed: number[],
+) => {
   let warehouseId = defaultWarehouseId ? Number(defaultWarehouseId) : null;
   if (!isPlaceholderWarehouse(warehouseName)) {
     const whRes = await query(
-      `SELECT id FROM warehouses WHERE name_ar = $1 AND deleted_at IS NULL LIMIT 1`,
-      [warehouseName],
+      `SELECT id FROM warehouses WHERE name_ar = $1 AND deleted_at IS NULL
+        AND is_active = TRUE AND id = ANY($2::int[]) ORDER BY id LIMIT 1`,
+      [warehouseName, allowed],
     );
     if (whRes.rows[0]) {
       warehouseId = whRes.rows[0].id;
@@ -82,13 +78,25 @@ const resolveWarehouseId = async (warehouseName, defaultWarehouseId, sku, rowNum
 
   if (!warehouseId) {
     const whRes = await query(
-      `SELECT id FROM warehouses WHERE deleted_at IS NULL ORDER BY id LIMIT 1`,
+      `SELECT id FROM warehouses WHERE deleted_at IS NULL AND is_active = TRUE
+        AND id = ANY($1::int[]) ORDER BY id LIMIT 1`,
+      [allowed],
     );
     warehouseId = whRes.rows[0]?.id || null;
   }
 
-  if (!warehouseId) {
+  if (!warehouseId || !Number.isSafeInteger(warehouseId) || !allowed.includes(warehouseId)) {
     failures.push({ row: rowNumber, sku, message: 'لم يتم تحديد مخزن صالح للصف' });
+    return null;
+  }
+
+  const target = await query(
+    `SELECT id FROM warehouses WHERE id = $1
+    AND deleted_at IS NULL AND is_active = TRUE AND id = ANY($2::int[])`,
+    [warehouseId, allowed],
+  );
+  if (!target.rows[0]) {
+    failures.push({ row: rowNumber, sku, message: 'المخزن المحدد غير نشط أو غير مصرح به' });
     return null;
   }
 
@@ -100,11 +108,15 @@ const resolveWarehouseId = async (warehouseName, defaultWarehouseId, sku, rowNum
  * @param {number} warehouseId معرف المخزن
  * @returns {Promise<Buffer>}
  */
-export const buildReturnTemplate = async (warehouseId: number) => {
+export const buildReturnTemplate = async (warehouseId: number, userId: number) => {
+  const allowed = await getAllowedWarehouses(userId);
+  if (!allowed.length) throw new AppError('لا يوجد مخزن مصرح به للمستخدم', 403);
   const selectedWarehouseId = warehouseId ? Number(warehouseId) : null;
   if (warehouseId && !Number.isInteger(selectedWarehouseId)) {
     throw new AppError('معرف المخزن غير صالح', 400);
   }
+  if (selectedWarehouseId != null && !allowed.includes(selectedWarehouseId))
+    throw new AppError('المخزن خارج نطاق صلاحياتك', 403);
 
   let sql = `
     SELECT p.id AS product_id, p.sku, p.name_ar, p.unit,
@@ -128,8 +140,10 @@ export const buildReturnTemplate = async (warehouseId: number) => {
             )
           )
         )
-      LEFT JOIN inventory i ON i.product_id = p.id AND i.warehouse_id = w.id
+      LEFT JOIN LATERAL (SELECT SUM(quantity) AS quantity FROM inventory
+        WHERE product_id = p.id AND warehouse_id = w.id) i ON TRUE
       WHERE p.deleted_at IS NULL AND p.is_active = TRUE
+        AND w.id = ANY($1::int[])
         AND NOT EXISTS (
           SELECT 1
           FROM product_recipes r
@@ -138,9 +152,9 @@ export const buildReturnTemplate = async (warehouseId: number) => {
             AND r.is_active = TRUE
         )
   `;
-  const params: any[] = [];
+  const params: any[] = [allowed];
   if (selectedWarehouseId) {
-    sql += ` AND w.id = $1`;
+    sql += ` AND w.id = $2`;
     params.push(selectedWarehouseId);
   }
   sql += ` ORDER BY pc.sort_order NULLS LAST, p.name_ar, w.id NULLS LAST`;
@@ -170,7 +184,7 @@ export const buildReturnTemplate = async (warehouseId: number) => {
       row.category_name || '',
       row.unit || '',
       row.warehouse_name || '',
-      roundMoney(row.current_stock || 0),
+      Math.round(Number(row.current_stock || 0) * 1000) / 1000,
       '',
       '',
     ]);
@@ -205,6 +219,13 @@ export const importReturnFromExcel = async (
   userId: number,
   defaultWarehouseId: number,
 ) => {
+  const allowed = await getAllowedWarehouses(userId);
+  if (
+    !allowed.length ||
+    (defaultWarehouseId != null && !allowed.includes(Number(defaultWarehouseId)))
+  ) {
+    throw new AppError('المخزن الافتراضي خارج نطاق صلاحياتك', 403);
+  }
   const wb = readSafeWorkbook(buffer);
   const ws = wb.Sheets[wb.SheetNames[0]];
   const allRows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' }) as any[][];
@@ -248,7 +269,7 @@ export const importReturnFromExcel = async (
     }
 
     const qty = parseExcelQuantity(qtyRaw);
-    if (Number.isNaN(qty) || qty <= 0) {
+    if (!isValidReturnQuantity(qty)) {
       results.failed.push({ row: rowNumber, sku, message: `الكمية غير صالحة: "${qtyRaw}"` });
       continue;
     }
@@ -263,7 +284,7 @@ export const importReturnFromExcel = async (
                   AND r.is_active = TRUE
               ) AS has_active_recipe
        FROM products p
-       WHERE p.sku = $1 AND p.deleted_at IS NULL`,
+       WHERE p.sku = $1 AND p.deleted_at IS NULL AND p.is_active = TRUE`,
       [sku],
     );
 
@@ -288,6 +309,7 @@ export const importReturnFromExcel = async (
       sku,
       rowNumber,
       results.failed,
+      allowed,
     );
     if (!warehouseId) continue;
 
@@ -331,7 +353,18 @@ export const importReturnFromExcel = async (
  * @param {Buffer} buffer محتوى الملف
  * @returns {Promise<{ valid: boolean, errors: string[] }>}
  */
-export const validateReturnExcel = async (buffer: Buffer) => {
+export const validateReturnExcel = async (
+  buffer: Buffer,
+  userId: number,
+  defaultWarehouseId: number,
+) => {
+  const allowed = await getAllowedWarehouses(userId);
+  if (
+    !allowed.length ||
+    (defaultWarehouseId != null && !allowed.includes(Number(defaultWarehouseId)))
+  ) {
+    throw new AppError('المخزن الافتراضي خارج نطاق صلاحياتك', 403);
+  }
   const wb = readSafeWorkbook(buffer);
   const ws = wb.Sheets[wb.SheetNames[0]];
   const allRows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' }) as any[][];
@@ -383,7 +416,7 @@ export const validateReturnExcel = async (buffer: Buffer) => {
     }
 
     const qty = parseExcelQuantity(qtyRaw);
-    if (Number.isNaN(qty) || qty <= 0) {
+    if (!isValidReturnQuantity(qty)) {
       errors.push(`الصف ${rowNumber}: الكمية غير صالحة`);
       continue;
     }
@@ -398,7 +431,7 @@ export const validateReturnExcel = async (buffer: Buffer) => {
                   AND r.is_active = TRUE
               ) AS has_active_recipe
        FROM products p
-       WHERE p.sku = $1 AND p.deleted_at IS NULL`,
+       WHERE p.sku = $1 AND p.deleted_at IS NULL AND p.is_active = TRUE`,
       [sku],
     );
 
@@ -411,23 +444,29 @@ export const validateReturnExcel = async (buffer: Buffer) => {
       continue;
     }
 
-    if (!isPlaceholderWarehouse(warehouseName)) {
-      const whRes = await query(
-        `SELECT id FROM warehouses WHERE name_ar = $1 AND deleted_at IS NULL LIMIT 1`,
-        [warehouseName],
+    const warehouseFailures: any[] = [];
+    const warehouseId = await resolveWarehouseId(
+      warehouseName,
+      defaultWarehouseId,
+      sku,
+      rowNumber,
+      warehouseFailures,
+      allowed,
+    );
+    if (!warehouseId) {
+      errors.push(
+        `الصف ${rowNumber}: ${warehouseFailures[0]?.message || 'لم يتم تحديد مخزن مصرح به'}`,
       );
-      if (!whRes.rows[0]) {
-        errors.push(`الصف ${rowNumber}: المخزن "${warehouseName}" غير موجود`);
-        continue;
-      }
+      continue;
     }
 
     validCount++;
     if (preview.length < 5) {
+      const target = await query('SELECT name_ar FROM warehouses WHERE id = $1', [warehouseId]);
       preview.push({
         sku,
         product_name: productRes.rows[0].name_ar,
-        warehouse_name: warehouseName,
+        warehouse_name: target.rows[0]?.name_ar || warehouseName,
         quantity: qty,
       });
     }

@@ -78,7 +78,7 @@ export const costs = {
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
   listProductions: wrap(async (req, res) => {
-    ok(res, await recipesService.listProductionBatches(req.query));
+    ok(res, await recipesService.listProductionBatches(req.query, req.user.id));
   }),
   /**
    * التراجع عن عملية إنتاج وإعادة المكونات للمخزون.

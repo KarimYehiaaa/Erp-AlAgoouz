@@ -7,7 +7,7 @@ const MAX_CELLS_PER_SHEET = 50000;
 
 const countSheetCells = (worksheet) => {
   if (!worksheet?.['!ref']) return 0;
-  const range = XLSX.utils.decode_range(worksheet['!ref']);
+  const range = XLSX.utils.decode_range(worksheet['!fullref'] || worksheet['!ref']);
   return (range.e.r - range.s.r + 1) * (range.e.c - range.s.c + 1);
 };
 
@@ -28,6 +28,8 @@ export const readSafeWorkbook = (buffer: Buffer, options: Record<string, any> = 
 
   const workbook = XLSX.read(buffer, {
     type: 'buffer',
+    raw: Boolean(options.raw),
+    codepage: options.codepage,
     cellDates: Boolean(options.cellDates),
     cellFormula: false,
     cellHTML: false,
@@ -46,6 +48,9 @@ export const readSafeWorkbook = (buffer: Buffer, options: Record<string, any> = 
   }
 
   for (const sheetName of workbook.SheetNames) {
+    if (workbook.Sheets[sheetName]['!fullref']) {
+      throw new AppError('Excel sheet exceeds the row limit; split the file before importing', 400);
+    }
     if (countSheetCells(workbook.Sheets[sheetName]) > MAX_CELLS_PER_SHEET) {
       throw new AppError('Excel sheet is too large', 400);
     }

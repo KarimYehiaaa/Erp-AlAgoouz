@@ -1,90 +1,48 @@
-import fs from 'fs/promises';
-import path from 'path';
-import pg from 'pg';
-import dotenv from 'dotenv';
+import fs from 'node:fs/promises';
+import { getClient, closePool } from '../../backend/src/database/pool.ts';
+import { BACKUP_TABLES } from '../../backend/src/services/backupService.ts';
 
-// Load .env from the backend directory
-dotenv.config();
-
-const BACKUP_FILE =
-  'd:/AlAgoouz System/AlAgoouz-erp/backend/backups/auto-backup-2026-06-26_20-03-32.json';
-
-async function main() {
-  console.log('\n======================================================');
-  console.log('       ☕ بن العجوز — فحص مطابقة البيانات المسترجعة');
-  console.log('======================================================\n');
-
-  // 1. Read backup file
-  let content;
-  try {
-    content = await fs.readFile(BACKUP_FILE, 'utf8');
-  } catch (e) {
-    console.error('❌ فشل قراءة ملف النسخة الاحتياطية:', e.message);
-    process.exit(1);
+// This check compares counts only; the restore round-trip test checks complete records.
+let client;
+try {
+  if (!process.argv[2]) throw new Error('Pass the backup JSON file to compare.');
+  const backup = JSON.parse(await fs.readFile(process.argv[2], 'utf8'));
+  const data = backup.data;
+  if (!data || typeof data !== 'object' || Array.isArray(data))
+    throw new Error('Invalid backup data.');
+  const allowed = new Set(BACKUP_TABLES);
+  for (const [table, rows] of Object.entries(data)) {
+    if (!allowed.has(table) || !Array.isArray(rows))
+      throw new Error('Unknown backup table or invalid rows.');
   }
-
-  const parsed = JSON.parse(content);
-  const backupData = parsed.data || {};
-
-  // 2. Connect to Database
-  const pool = new pg.Pool(
-    process.env.DATABASE_URL
-      ? { connectionString: process.env.DATABASE_URL }
-      : {
-          host: process.env.DB_HOST || 'localhost',
-          port: parseInt(process.env.DB_PORT || '5432', 10),
-          database: process.env.DB_NAME || 'bin_al_ajouz',
-          user: process.env.DB_USER || 'erp_user',
-          password: process.env.DB_PASSWORD,
-        },
-  );
-
-  // 3. Compare tables
-  const tables = Object.keys(backupData);
-
-  console.log('| الجدول | العدد في النسخة | العدد في القاعدة | الحالة |');
-  console.log('| :--- | :---: | :---: | :---: |');
-
-  let totalBackup = 0;
-  let totalDb = 0;
+  client = await getClient();
+  await client.query('BEGIN READ ONLY');
   let mismatches = 0;
-
-  for (const table of tables) {
-    const backupCount = Array.isArray(backupData[table]) ? backupData[table].length : 0;
-    totalBackup += backupCount;
-
-    let dbCount = 0;
-    let status = '✅ متطابق';
-
-    try {
-      const res = await pool.query(`SELECT COUNT(*) FROM "${table}"`);
-      dbCount = parseInt(res.rows[0].count, 10);
-      totalDb += dbCount;
-
-      if (dbCount !== backupCount) {
-        status = `❌ غير متطابق (${dbCount - backupCount})`;
-        mismatches++;
-      }
-    } catch (err) {
-      status = `⚠️ خطأ في الاستعلام (${err.message})`;
-      mismatches++;
-    }
-
-    console.log(`| ${table} | ${backupCount} | ${dbCount} | ${status} |`);
+  for (const [table, rows] of Object.entries(data)) {
+    // Identifiers come exclusively from the application's fixed backup table allowlist.
+    const count = Number(
+      (await client.query(`SELECT COUNT(*) AS count FROM "${table}"`)).rows[0].count,
+    );
+    if (count !== rows.length) mismatches++;
+    console.log(
+      JSON.stringify({
+        table,
+        backupCount: rows.length,
+        databaseCount: count,
+        matchingCount: count === rows.length,
+      }),
+    );
   }
-
-  console.log('\n======================================================');
-  console.log('                     الملخص');
-  console.log('======================================================');
-  console.log(`* إجمالي الجداول المفحوصة: ${tables.length}`);
-  console.log(`* إجمالي السجات في النسخة الاحتياطية: ${totalBackup}`);
-  console.log(`* إجمالي السجلات في قاعدة البيانات: ${totalDb}`);
-  console.log(`* عدد الفروقات المكتشفة: ${mismatches}`);
-  console.log('======================================================\n');
-
-  await pool.end();
+  await client.query('COMMIT');
+  if (mismatches) process.exitCode = 1;
+} catch (err) {
+  if (client) await client.query('ROLLBACK').catch(() => {});
+  console.error(
+    'Backup count comparison failed:',
+    err instanceof Error ? err.message : 'Unknown error',
+  );
+  process.exitCode = 1;
+} finally {
+  client?.release();
+  await closePool();
 }
-
-main().catch((err) => {
-  console.error('خطأ غير متوقع:', err);
-});

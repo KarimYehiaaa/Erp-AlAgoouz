@@ -8,7 +8,8 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import express from 'express';
 import http from 'node:http';
 import type { AddressInfo } from 'node:net';
-import { query } from '../src/database/pool.ts';
+import pool, { getClient, query } from '../src/database/pool.ts';
+import { runSharedMaintenanceTask } from '../src/database/maintenanceBarrier.ts';
 import { requireIdempotency, clearIdempotencyMemory } from '../src/middleware/idempotency.ts';
 
 describe('Idempotency & Concurrency Hardening', () => {
@@ -17,6 +18,8 @@ describe('Idempotency & Concurrency Hardening', () => {
   let baseUrl: string;
   let executionCount = 0;
   let shouldFailOnce = false;
+  let enterHeldRequest: (() => void) | undefined;
+  let heldRequest: Promise<void> | undefined;
 
   beforeAll(async () => {
     app = express();
@@ -26,6 +29,11 @@ describe('Idempotency & Concurrency Hardening', () => {
     // Mock endpoint that simulates async work
     app.post('/test-idempotent-action', async (req, res) => {
       executionCount++;
+
+      if (req.query.hold === 'true' && executionCount === 1) {
+        enterHeldRequest?.();
+        await heldRequest;
+      }
 
       if (shouldFailOnce) {
         shouldFailOnce = false;
@@ -66,8 +74,15 @@ describe('Idempotency & Concurrency Hardening', () => {
     executionCount = 0;
     const testKey = `test-concurrent-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-    // Fire 2 concurrent requests with a 150ms delay inside handler so the lock window is wide
-    const req1 = fetch(`${baseUrl}/test-idempotent-action?delay=150`, {
+    // Hold the first handler until the second response arrives; no timing assumption.
+    let release!: () => void;
+    heldRequest = new Promise((resolve) => {
+      release = resolve;
+    });
+    const entered = new Promise<void>((resolve) => {
+      enterHeldRequest = resolve;
+    });
+    const req1 = fetch(`${baseUrl}/test-idempotent-action?delay=0&hold=true`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -76,10 +91,9 @@ describe('Idempotency & Concurrency Hardening', () => {
       body: JSON.stringify({ actionId: 'concurrent-1' }),
     });
 
-    // Slight microtask pause (5ms) to ensure req1 enters and claims lock first
-    await new Promise((r) => setTimeout(r, 5));
+    await entered;
 
-    const req2 = fetch(`${baseUrl}/test-idempotent-action?delay=150`, {
+    const req2 = fetch(`${baseUrl}/test-idempotent-action?delay=0&hold=true`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -88,7 +102,15 @@ describe('Idempotency & Concurrency Hardening', () => {
       body: JSON.stringify({ actionId: 'concurrent-2' }),
     });
 
-    const [res1, res2] = await Promise.all([req1, req2]);
+    let res2: Response;
+    try {
+      res2 = await req2;
+    } finally {
+      release();
+      enterHeldRequest = undefined;
+      heldRequest = undefined;
+    }
+    const res1 = await req1;
 
     const statuses = [res1.status, res2.status].sort();
     // One must be 201 Created and the other must be 409 Conflict
@@ -139,7 +161,7 @@ describe('Idempotency & Concurrency Hardening', () => {
     expect(body2.executionCount).toBe(firstExecCount);
   });
 
-  it('Server error (5xx) unlocks key so subsequent retry succeeds', async () => {
+  it('Server error after execution is replayed without executing twice', async () => {
     const testKey = `test-retry-on-error-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     shouldFailOnce = true;
 
@@ -155,10 +177,9 @@ describe('Idempotency & Concurrency Hardening', () => {
 
     expect(res1.status).toBe(500);
 
-    // Wait a brief moment for error handler unlock to commit
-    await new Promise((r) => setTimeout(r, 20));
+    // The response is persisted before it is delivered; no timing delay is needed.
 
-    // Retry with SAME key now succeeds because lock was automatically cleared on 5xx
+    // An error after business work is uncertain: the same key must never rerun it.
     const res2 = await fetch(`${baseUrl}/test-idempotent-action?delay=10`, {
       method: 'POST',
       headers: {
@@ -168,15 +189,15 @@ describe('Idempotency & Concurrency Hardening', () => {
       body: JSON.stringify({ actionId: 'retry-success' }),
     });
 
-    expect(res2.status).toBe(201);
+    expect(res2.status).toBe(500);
     const body2 = (await res2.json()) as any;
-    expect(body2.success).toBe(true);
-    expect(body2.actionId).toBe('retry-success');
+    expect(body2._idempotentReplay).toBe(true);
+    expect(body2.error).toBe('Simulated server fault');
   });
 
-  it('Stale lock (>30s) is reclaimed and processed successfully', async () => {
+  it('A processing lock older than 30 seconds still prevents duplicate execution', async () => {
     const testKey = `test-stale-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    const scopedKey = `anon:/test-idempotent-action:${testKey}`;
+    const scopedKey = `anon:127.0.0.1:POST:/test-idempotent-action:${testKey}`;
 
     // Manually insert an expired lock from 40 seconds ago in DB
     await query(
@@ -185,7 +206,7 @@ describe('Idempotency & Concurrency Hardening', () => {
       [scopedKey],
     );
 
-    // New request comes in: should reclaim stale lock and complete successfully
+    // Slow or disconnected requests cannot be reclaimed solely based on elapsed time.
     const res = await fetch(`${baseUrl}/test-idempotent-action?delay=10`, {
       method: 'POST',
       headers: {
@@ -195,9 +216,113 @@ describe('Idempotency & Concurrency Hardening', () => {
       body: JSON.stringify({ actionId: 'stale-reclaimed' }),
     });
 
-    expect(res.status).toBe(201);
+    expect(res.status).toBe(409);
     const body = (await res.json()) as any;
-    expect(body.success).toBe(true);
-    expect(body.actionId).toBe('stale-reclaimed');
+    expect(body.code).toBe('REQUEST_IN_PROGRESS');
+  });
+  it('atomically reclaims an expired completed response with only one executor', async () => {
+    const testKey = `test-expired-${Date.now()}`;
+    const scopedKey = `anon:127.0.0.1:POST:/test-idempotent-action:${testKey}`;
+    await query(
+      `INSERT INTO idempotency_records (key, request_path, status, status_code, response_body, expires_at)
+      VALUES ($1, '/test-idempotent-action', 'COMPLETED', 201, '{}', NOW() - INTERVAL '1 second')`,
+      [scopedKey],
+    );
+    executionCount = 0;
+    let release!: () => void;
+    heldRequest = new Promise((resolve) => {
+      release = resolve;
+    });
+    const entered = new Promise<void>((resolve) => {
+      enterHeldRequest = resolve;
+    });
+    const request = () =>
+      fetch(`${baseUrl}/test-idempotent-action?hold=true`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Idempotency-Key': testKey },
+        body: '{}',
+      });
+    const first = request();
+    await entered;
+    try {
+      expect((await request()).status).toBe(409);
+    } finally {
+      release();
+      enterHeldRequest = undefined;
+      heldRequest = undefined;
+    }
+    expect((await first).status).toBe(201);
+    expect(executionCount).toBe(1);
+  });
+
+  it('cleanup preserves an expired unconfirmed operation and retry does not execute', async () => {
+    const testKey = `test-unconfirmed-${Date.now()}`;
+    const scopedKey = `anon:127.0.0.1:POST:/test-idempotent-action:${testKey}`;
+    await query(
+      `INSERT INTO idempotency_records (key, request_path, status, locked_at, expires_at)
+      VALUES ($1, '/test-idempotent-action', 'PROCESSING', NOW() - INTERVAL '2 days', NOW() - INTERVAL '1 day')`,
+      [scopedKey],
+    );
+    await query('SELECT cleanup_expired_idempotency_records()');
+    executionCount = 0;
+    const result = await fetch(`${baseUrl}/test-idempotent-action`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Idempotency-Key': testKey },
+      body: '{}',
+    });
+    expect(result.status).toBe(409);
+    expect(executionCount).toBe(0);
+    expect(
+      (await query('SELECT status FROM idempotency_records WHERE key=$1', [scopedKey])).rows[0]
+        .status,
+    ).toBe('PROCESSING');
+  });
+
+  it('retains ownership when a pooled connection changes timezone before completion', async () => {
+    const changePoolTimezone = (timezone: string) =>
+      runSharedMaintenanceTask(async () => {
+        const loans = await Promise.allSettled(
+          Array.from({ length: pool.options.max || 10 }, () => getClient()),
+        );
+        const clients = loans.flatMap((loan) => (loan.status === 'fulfilled' ? [loan.value] : []));
+        try {
+          const failed = loans.find((loan) => loan.status === 'rejected');
+          if (failed?.status === 'rejected') throw failed.reason;
+          await Promise.all(
+            clients.map((client) =>
+              client.query("SELECT set_config('TimeZone',$1,false)", [timezone]),
+            ),
+          );
+        } finally {
+          clients.forEach((client) => client.release());
+        }
+      });
+    executionCount = 0;
+    let release!: () => void;
+    heldRequest = new Promise((resolve) => {
+      release = resolve;
+    });
+    const entered = new Promise<void>((resolve) => {
+      enterHeldRequest = resolve;
+    });
+    const first = fetch(`${baseUrl}/test-idempotent-action?hold=true`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `test-zone-${Date.now()}` },
+      body: '{}',
+    });
+    await entered;
+    try {
+      await changePoolTimezone('UTC');
+      release();
+      expect((await first).status).toBe(201);
+      expect(executionCount).toBe(1);
+    } finally {
+      // A failed checkout must still release the held HTTP request and every loan.
+      release();
+      await first;
+      enterHeldRequest = undefined;
+      heldRequest = undefined;
+      await changePoolTimezone('Africa/Cairo');
+    }
   });
 });

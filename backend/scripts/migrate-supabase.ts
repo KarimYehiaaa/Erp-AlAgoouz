@@ -1,117 +1,18 @@
-/**
- * migrate-supabase.ts — ترحيل قاعدة البيانات إلى Supabase
- * ═══════════════════════════════════════════════════════════════
- * يتصل بقاعدة Supabase (من متغيرات البيئة) وينفّذ جميع ملفات الهجرات
- * (`migrations/*.sql`) بالترتيب دون تتبع schema_migrations — يُستخدم
- * لتهيئة قاعدة سحابية جديدة من الصفر.
- *
- * ⚠️ تحذير: يعمل على قاعدة الإنتاج إن وُجدت إعداداتها في .env — لا تشغّله
- * إلا وأنت متأكد من الوجهة المطلوبة.
- *
- * التشغيل: `npm run migrate-supabase` (من backend)
- */
-import pg from 'pg';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import dotenv from 'dotenv';
+/** Apply only pending migrations using the application's shared connection/TLS policy. */
+import { runMigrations } from './migrate.ts';
+import { closePool } from '../src/database/pool.ts';
 
-dotenv.config();
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const { Client } = pg;
-
-const DB_HOST = process.env.DB_HOST;
-const DB_PORT = parseInt(process.env.DB_PORT || '5432', 10);
-const DB_NAME = process.env.DB_NAME || 'postgres';
-const DB_USER = process.env.DB_USER || 'postgres';
-const DB_PASSWORD = process.env.DB_PASSWORD;
-const DB_SSL = process.env.DB_SSL === 'true';
-
-/**
- * تنفيذ ملف SQL كامل على العميل المتصل.
- * @param {pg.Client} client عميل PostgreSQL
- * @param {string} filePath مسار ملف SQL
- * @returns {Promise<void>}
- */
-async function runSqlFile(client: pg.Client, filePath: string): Promise<void> {
-  const sql = fs.readFileSync(filePath, 'utf8');
-  console.log(`  → تنفيذ: ${path.basename(filePath)}`);
-  await client.query(sql);
+const args = process.argv.slice(2);
+if (args.some((argument) => argument !== '--allow-remote') || args.length > 1) {
+  console.error('Usage: npm run migrate-supabase -w backend -- [--allow-remote]');
+  process.exitCode = 2;
 }
 
-/**
- * جمع ملفات الهجرات مرتبة أبجديًا.
- * @returns {string[]} مسارات ملفات SQL
- */
-function getMigrationFiles(): string[] {
-  const migrationsDir = path.join(__dirname, '../migrations');
-  return fs
-    .readdirSync(migrationsDir)
-    .filter((file) => file.endsWith('.sql'))
-    .sort((a, b) => a.localeCompare(b))
-    .map((file) => path.join(migrationsDir, file));
+try {
+  if (process.exitCode !== 2) await runMigrations({ allowRemote: args.includes('--allow-remote') });
+} catch {
+  console.error('Migration failed; inspect the migration log before retrying.');
+  process.exitCode = 1;
+} finally {
+  await closePool();
 }
-
-async function main(): Promise<void> {
-  console.log('\n☕ بن العجوز — ترحيل قاعدة البيانات إلى Supabase\n');
-
-  const connectionString = process.env.DATABASE_URL;
-  if (!connectionString && (!DB_PASSWORD || !DB_HOST)) {
-    console.error('❌ خطأ: لم يتم العثور على إعدادات قاعدة البيانات في ملف backend/.env');
-    console.error('يرجى التحقق من توفر DATABASE_URL أو (DB_HOST و DB_PASSWORD و DB_USER).');
-    process.exit(1);
-  }
-
-  if (connectionString) {
-    console.log('محاولة الاتصال بقاعدة البيانات عبر DATABASE_URL...');
-  } else {
-    console.log(`محاولة الاتصال بقاعدة البيانات على: ${DB_HOST}:${DB_PORT}/${DB_NAME}`);
-  }
-
-  const client = new Client(
-    connectionString
-      ? {
-          connectionString,
-          ssl: { rejectUnauthorized: false },
-        }
-      : {
-          host: DB_HOST,
-          port: DB_PORT,
-          database: DB_NAME,
-          user: DB_USER,
-          password: DB_PASSWORD,
-          ...(DB_SSL && { ssl: { rejectUnauthorized: false } }),
-        },
-  );
-
-  try {
-    await client.connect();
-    console.log('✅ تم الاتصال بنجاح بقاعدة بيانات Supabase!');
-  } catch (err) {
-    console.error('❌ فشل الاتصال بقاعدة البيانات:', (err as Error).message);
-    process.exit(1);
-  }
-
-  try {
-    const files = getMigrationFiles();
-    console.log(`جاري تشغيل ${files.length} ملف ترحيل (Migration)...`);
-
-    for (const file of files) {
-      if (!fs.existsSync(file)) throw new Error(`ملف غير موجود: ${file}`);
-      await runSqlFile(client, file);
-    }
-
-    console.log('\n🎉 تم ترحيل وتجهيز قاعدة البيانات بنجاح على Supabase!');
-  } catch (err) {
-    console.error('\n❌ فشل ترحيل قاعدة البيانات:', (err as Error).message);
-    process.exitCode = 1;
-  } finally {
-    await client.end();
-    if (process.exitCode && process.exitCode !== 0) {
-      process.exit(process.exitCode);
-    }
-  }
-}
-
-main();

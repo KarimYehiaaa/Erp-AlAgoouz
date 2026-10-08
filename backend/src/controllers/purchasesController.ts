@@ -9,7 +9,7 @@ export const purchases = {
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
   list: wrap(async (req, res) => {
-    ok(res, await purchaseService.listPurchaseInvoices(req.query));
+    ok(res, await purchaseService.listPurchaseInvoices(req.query, req.user.id));
   }),
   /**
    * إنشاء فاتورة شراء جديدة.

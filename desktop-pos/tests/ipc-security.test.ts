@@ -1,6 +1,10 @@
 import { describe, it, expect } from 'vitest';
+import path from 'node:path';
+import os from 'node:os';
+import { pathToFileURL } from 'node:url';
 import {
   validateIpcSender,
+  isTrustedAppEntryUrl,
   validateSessionPayload,
   validateTransactionPayload,
   containsDangerousKeys,
@@ -46,14 +50,15 @@ describe('Electron IPC Security Layer Tests', () => {
     });
 
     it('4. Permits local packaged application dist/index.html in production', () => {
+      const entryPath = path.join(os.tmpdir(), 'trusted-app', 'dist', 'index.html');
       const mockEvent = {
         senderFrame: {
           parent: null,
-          url: 'file:///C:/Users/AppData/Programs/AlAgoouz-POS/resources/app.asar/dist/index.html',
+          url: pathToFileURL(entryPath).href,
         },
       } as any;
 
-      const isValid = validateIpcSender(mockEvent, true);
+      const isValid = validateIpcSender(mockEvent, true, undefined, entryPath);
       expect(isValid).toBe(true);
     });
 
@@ -67,6 +72,40 @@ describe('Electron IPC Security Layer Tests', () => {
 
       const isValid = validateIpcSender(mockEvent, true);
       expect(isValid).toBe(false);
+    });
+
+    it('rejects a different local dist/index.html despite its matching filename', () => {
+      const entryPath = path.join(os.tmpdir(), 'trusted-app', 'dist', 'index.html');
+      const foreign = pathToFileURL(
+        path.join(os.tmpdir(), 'foreign-app', 'dist', 'index.html'),
+      ).href;
+      expect(
+        validateIpcSender(
+          { senderFrame: { parent: null, url: foreign } } as any,
+          true,
+          undefined,
+          entryPath,
+        ),
+      ).toBe(false);
+      expect(isTrustedAppEntryUrl(foreign, entryPath)).toBe(false);
+      expect(isTrustedAppEntryUrl(`${pathToFileURL(entryPath).href}#/sales`, entryPath)).toBe(true);
+      expect(
+        isTrustedAppEntryUrl(`${pathToFileURL(entryPath).href}?redirect=foreign`, entryPath),
+      ).toBe(false);
+    });
+
+    it('requires an explicit application entry for file IPC and the selected development origin', () => {
+      const entry = pathToFileURL(path.join(os.tmpdir(), 'trusted-app', 'dist', 'index.html')).href;
+      expect(validateIpcSender({ senderFrame: { parent: null, url: entry } } as any, true)).toBe(
+        false,
+      );
+      expect(
+        validateIpcSender(
+          { senderFrame: { parent: null, url: 'http://localhost:5173' } } as any,
+          false,
+          'http://localhost:5174',
+        ),
+      ).toBe(false);
     });
   });
 

@@ -65,7 +65,9 @@ export function usePosAudio() {
       gain2.connect(ctx.destination);
       osc2.start(ctx.currentTime + 0.08);
       osc2.stop(ctx.currentTime + 0.3);
-    } catch {}
+    } catch {
+      /* Sound is optional; a blocked audio context must not interrupt the sale. */
+    }
   };
 
   /**
@@ -90,7 +92,9 @@ export function usePosAudio() {
 
       osc.start();
       osc.stop(ctx.currentTime + 0.18);
-    } catch {}
+    } catch {
+      /* Sound is optional; a blocked audio context must not interrupt the sale. */
+    }
   };
 
   return {

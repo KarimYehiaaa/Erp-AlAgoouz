@@ -42,6 +42,7 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
 // ── إصلاح التجمّد: نفس host الصفحة (يعمل DEV + PROD)، backoff تصاعدي،
 //    إيقاف كامل عند إخفاء التبويب، وإزالة الإغلاق المزدوج في onerror.
 import { useAppStore } from './stores/app';
+import { setRealtimeConnected } from './services/realtimeStatus';
 const appStore = useAppStore(pinia);
 
 const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -70,6 +71,7 @@ const connectWebSocket = () => {
 
   ws.onopen = () => {
     reconnectAttempts = 0; // اتصال ناجح — إعادة تعيين العدّاد
+    setRealtimeConnected(true);
   };
 
   ws.onmessage = (event: any) => {
@@ -85,6 +87,7 @@ const connectWebSocket = () => {
 
   ws.onclose = () => {
     ws = null;
+    setRealtimeConnected(false);
     scheduleReconnect();
   };
 
@@ -100,6 +103,7 @@ const handleVisibility = () => {
       reconnectTimer = null;
     }
     if (ws) {
+      setRealtimeConnected(false);
       try {
         ws.close();
       } catch {

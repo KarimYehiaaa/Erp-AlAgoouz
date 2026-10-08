@@ -3,6 +3,8 @@ import { AppError } from '../types/errors.ts';
 import { deleteAllSales, importDailySales } from './salesService.ts';
 import { readSafeWorkbook } from './excelSecurity.ts';
 import { parseLocalizedNumber } from '../utils/numberParsing.ts';
+import { query } from '../database/pool.ts';
+import { findExcelHeaderIndex as findIndex } from '../utils/excelHeaders.ts';
 
 const TEMPLATE_HEADERS = [
   'sale_date',
@@ -142,12 +144,6 @@ const normalizePaymentMethod = (value) => {
 };
 
 const headersFromRow = (row) => row.map((h) => normalizeText(h));
-const findIndex = (headers, aliases) =>
-  headers.findIndex((header) =>
-    aliases.some(
-      (alias) => header === normalizeText(alias) || header.includes(normalizeText(alias)),
-    ),
-  );
 
 const resolveHeaderIndices = (headers) => ({
   sale_date: findIndex(headers, HEADER_ALIASES.sale_date),
@@ -181,7 +177,7 @@ export const buildImportTemplate = () => {
   const wsHelp = XLSX.utils.aoa_to_sheet([
     ['التعليمات'],
     ['يمكن تعبئة المبيعات اليومية في شيت sales أو الأول.'],
-    ['العملية delete_all تحذف المبيعات السابقة إن طلبت ذلك صراحة.'],
+    ['العملية delete_all متاحة للمدير فقط بتأكيد صريح وفي ملف منفصل دون صفوف مبيعات.'],
     ['أنواع المبيعات المقبولة: retail أو wholesale.'],
     ['حالات السداد: paid أو unpaid أو partial.'],
     ['طرق الدفع: cash أو card أو transfer أو credit.'],
@@ -194,7 +190,7 @@ export const buildImportTemplate = () => {
 
 const parseRow = (row, indices) => {
   const action = normalizeText(indices.action >= 0 ? row[indices.action] : '');
-  if (action === 'delete_all') return { action: 'delete_all' };
+  if (action === 'deleteall') return { action: 'delete_all' };
 
   const saleType = normalizeSaleType(indices.sale_type >= 0 ? row[indices.sale_type] : null);
   if (!saleType) throw new AppError('نوع البيع غير صحيح', 400);
@@ -301,8 +297,22 @@ export const importFromExcel = async (
   }
   let deletedCount = 0;
   if (hasDeleteAll) {
+    const user = await query(
+      `SELECT r.name AS role_name FROM users u JOIN roles r ON r.id = u.role_id
+       WHERE u.id = $1 AND u.is_active = TRUE`,
+      [userId],
+    );
+    if (user.rows[0]?.role_name !== 'admin') {
+      throw new AppError('حذف جميع المبيعات متاح للمدير فقط', 403);
+    }
+    // Imports commit each sale independently. Never remove existing records before
+    // a mixed replacement file whose parsing or business validation may fail.
+    if (rows.length || errors.length) {
+      throw new AppError('أمر حذف جميع المبيعات يجب أن يكون في ملف منفصل دون صفوف مبيعات', 400);
+    }
     const purge = await deleteAllSales(userId);
     deletedCount = purge.deletedCount || 0;
+    return { success: 0, failed: [], total: 0, parseErrors: errors, hasDeleteAll, deletedCount };
   }
   const importResult = await importDailySales(rows, userId);
   return { ...importResult, parseErrors: errors, hasDeleteAll, deletedCount };

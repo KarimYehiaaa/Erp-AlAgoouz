@@ -5,7 +5,7 @@ import { AppError } from '../types/errors.ts';
 import { ADMIN_ROLES, expandPermissionCodes } from '../../../shared/permissions.js';
 import type { User } from '../../../shared/types.ts';
 import { logger } from '../services/loggerService.ts';
-import { appCache } from '../utils/cache.ts';
+import { recordMaintenancePrincipal } from '../database/maintenanceBarrier.ts';
 
 /**
  * التحقق من صحة توكن JWT في رأس Authorization وتحميل بيانات المستخدم على req.user.
@@ -15,10 +15,13 @@ import { appCache } from '../utils/cache.ts';
  */
 const authenticate = async (req, res, next) => {
   try {
-    // قراءة التوكن من Cookie أو من Header (دعم الطريقتين للتوافقية)
+    // Explicit client identity must not be overridden by another account's cookie.
+    // A malformed Authorization header is rejected rather than falling back.
     const header = req.headers.authorization;
     const token =
-      req.cookies?.access_token || (header?.startsWith('Bearer ') ? header.split(' ')[1] : null);
+      header !== undefined
+        ? (/^Bearer\s+(\S+)$/i.exec(header)?.[1] ?? null)
+        : req.cookies?.access_token;
     if (!token) {
       throw new AppError('تسجيل الدخول مطلوب', 401, 'UNAUTHORIZED');
     }
@@ -26,22 +29,22 @@ const authenticate = async (req, res, next) => {
       algorithms: ['HS256'],
     }) as import('jsonwebtoken').JwtPayload;
 
-    const cacheKey = `auth_user:${decoded.userId}`;
-    let user = appCache.get(cacheKey) as User | null;
-
-    if (!user) {
-      const result = await query(
-        `SELECT u.id, u.uuid, u.username, u.full_name, u.email, u.role_id, u.warehouse_id, u.password_changed_at, u.token_version, r.name as role_name, r.name_ar as role_name_ar
+    // Authorization state must be current on every server process, including revocation.
+    const result = await query(
+      `SELECT u.id, u.uuid, u.username, u.full_name, u.email, u.role_id, u.warehouse_id, u.password_changed_at, u.token_version, u.session_generation, r.name as role_name, r.name_ar as role_name_ar
          FROM users u
          JOIN roles r ON u.role_id = r.id
          WHERE u.id = $1 AND u.is_active = TRUE AND u.deleted_at IS NULL`,
-        [decoded.userId],
-      );
-      if (!result.rows[0]) {
-        throw new AppError('المستخدم غير موجود أو غير نشط', 401, 'UNAUTHORIZED');
-      }
-      user = result.rows[0] as User;
-      appCache.set(cacheKey, user, 30 * 1000, ['auth_users']);
+      [decoded.userId],
+    );
+    if (!result.rows[0]) {
+      throw new AppError('المستخدم غير موجود أو غير نشط', 401, 'UNAUTHORIZED');
+    }
+    const { session_generation, ...user } = result.rows[0] as User & { session_generation: string };
+
+    // Restoring an older account/version must never resurrect its old JWTs.
+    if (typeof session_generation !== 'string' || decoded.gen !== session_generation) {
+      throw new AppError('تم إلغاء الجلسة. يرجى تسجيل الدخول مرة أخرى', 401, 'SESSION_REVOKED');
     }
 
     // إبطال فوري لتوكنات الوصول عند إلغاء كل الجلسات أو تغيير الصلاحيات
@@ -50,14 +53,12 @@ const authenticate = async (req, res, next) => {
       user.token_version !== null &&
       (decoded.ver ?? 0) !== Number(user.token_version)
     ) {
-      appCache.invalidateByTag('auth_users');
       throw new AppError('تم إلغاء الجلسة. يرجى تسجيل الدخول مرة أخرى', 401, 'SESSION_REVOKED');
     }
     if (user.password_changed_at) {
       const changedAtSec = Math.floor(new Date(user.password_changed_at).getTime() / 1e3);
       // سماحية 15 ثانية لفروقات التوقيت الدقيقة بين خادم التطبيق وقاعدة البيانات
       if ((decoded.iat ?? 0) < changedAtSec - 15) {
-        appCache.invalidateByTag('auth_users');
         throw new AppError(
           'تم تغيير كلمة المرور. يرجى تسجيل الدخول مرة أخرى',
           401,
@@ -65,6 +66,7 @@ const authenticate = async (req, res, next) => {
         );
       }
     }
+    recordMaintenancePrincipal(user.id, session_generation, Number(decoded.ver ?? 0));
     req.user = {
       ...user,
       userId: user.id,
@@ -99,19 +101,13 @@ const authorize =
       const flatPermissions = (permissions.flat(Infinity) as string[]).filter(Boolean);
       const acceptablePermissions = expandPermissionCodes(flatPermissions);
 
-      const permKey = `auth_role_perms:${roleId}`;
-      let rolePerms = appCache.get(permKey) as Set<string> | null;
-
-      if (!rolePerms) {
-        const result = await query(
-          `SELECT p.code FROM permissions p
+      const result = await query(
+        `SELECT p.code FROM permissions p
            JOIN role_permissions rp ON p.id = rp.permission_id
            WHERE rp.role_id = $1`,
-          [roleId],
-        );
-        rolePerms = new Set(result.rows.map((r: any) => r.code));
-        appCache.set(permKey, rolePerms, 60 * 1000, ['auth_roles']);
-      }
+        [roleId],
+      );
+      const rolePerms = new Set(result.rows.map((r: any) => r.code));
 
       const hasPermission = Array.from(acceptablePermissions).some((p) => rolePerms!.has(p));
       if (!hasPermission) {
@@ -151,9 +147,20 @@ function redactSensitiveData(data: any): any {
 const auditLog = (action: string, entityType: string) => async (req: any, res: any, next: any) => {
   const originalJson = res.json.bind(res);
   const originalSend = res.send.bind(res);
+  let auditAttempted = false;
   const tryWriteAudit = async (payload: any) => {
-    if (res.statusCode >= 400 || !req.user) return;
+    if (res.statusCode >= 400 || !req.user || auditAttempted) return;
+    // Express json() calls send(); send(object) calls json(). Audit the original
+    // response once, before those nested calls can serialize its secrets.
+    auditAttempted = true;
     try {
+      if (typeof payload === 'string') {
+        try {
+          payload = JSON.parse(payload);
+        } catch {
+          /* Plain-text response. */
+        }
+      }
       const rawData = payload?.data ?? payload;
       const safeData = redactSensitiveData(rawData);
       const entityId =

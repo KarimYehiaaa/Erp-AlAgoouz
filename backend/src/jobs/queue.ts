@@ -1,128 +1,156 @@
 import Bull from 'bullmq';
-import IORedisModule from 'ioredis';
-
+import IORedisModule, { type Redis } from 'ioredis';
 import { createBackup } from '../services/backupService.ts';
 import logger from '../services/loggerService.ts';
 
-// bullmq/ioredis ship CJS with class exports; cast through any for construction in ESM
+// bullmq/ioredis ship CJS with class exports; cast for construction in ESM.
 const { Queue, Worker } = Bull as any;
 const IORedis = IORedisModule as any;
 
-const isVercel = process.env.VERCEL === 'true' || !!process.env.VERCEL;
-
-/** طابور BullMQ النظامي (يُنشأ عند توفر Redis) — null إن كان معطلاً. */
 export let systemQueue: import('bullmq').Queue | null = null;
-/** عامل BullMQ النظامي (يُنشأ عند توفر Redis) — null إن كان معطلاً. */
 export let systemWorker: import('bullmq').Worker | null = null;
-
-/**
- * Redis اختياري — إذا لم يوجد REDIS_URL ولم يوجد Redis محلي،
- * لا يتم إنشاء Queue/Worker على الإطلاق ولا يتم طباعة أخطاء متكررة.
- */
-const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
+let connection: Redis | null = null;
 let redisReady = false;
+let initializing: Promise<boolean> | null = null;
+let stopping: Promise<void> | null = null;
+let generation = 0;
 
-/**
- * فحص توفر Redis بشكل غير مزعج (مهلة 3 ثوانٍ، بدون إعادة محاولة).
- * @returns {Promise<boolean>} true إذا كان Redis متاحًا
- */
-async function probeRedis() {
-  return new Promise((resolve) => {
-    const probe = new IORedis(REDIS_URL, {
-      maxRetriesPerRequest: 1,
-      retryStrategy: () => null, // لا إعادة محاولة
-      connectTimeout: 3000, // 3 ثوان فقط
-      lazyConnect: true,
-      enableOfflineQueue: false,
-    });
+const queueAllowed = () =>
+  process.env.NODE_ENV !== 'test' &&
+  !process.env.VERCEL &&
+  !process.env.VERCEL_ENV &&
+  !process.env.VERCEL_URL &&
+  !!process.env.REDIS_URL;
 
-    // كتم الأخطاء أثناء الفحص
-    probe.on('error', () => {});
-
-    probe
-      .connect()
-      .then(() => probe.ping())
-      .then(() => {
-        probe.disconnect();
-        resolve(true);
-      })
-      .catch(() => {
-        try {
-          probe.disconnect();
-        } catch {
-          // تجاهل مقصود
-        }
-        resolve(false);
-      });
+async function probeRedis(url: string): Promise<boolean> {
+  const probe = new IORedis(url, {
+    maxRetriesPerRequest: 1,
+    retryStrategy: () => null,
+    connectTimeout: 3000,
+    commandTimeout: 3000,
+    lazyConnect: true,
+    enableOfflineQueue: false,
   });
+  probe.on('error', () => {});
+  try {
+    await probe.connect();
+    await probe.ping();
+    return true;
+  } catch {
+    return false;
+  } finally {
+    probe.disconnect();
+  }
 }
 
-if (!isVercel) {
-  probeRedis()
-    .then((available) => {
-      if (!available) {
-        logger.info(
-          '[Queue]  Redis غير متاح — نظام الطوابير (BullMQ) معطّل. ' +
-            'لتفعيله: ثبّت Redis أو أضف REDIS_URL في .env',
-        );
-        return;
+async function releaseOwnedResources() {
+  redisReady = false;
+  const ownedWorker = systemWorker;
+  const ownedQueue = systemQueue;
+  const ownedConnection = connection;
+  const errors: unknown[] = [];
+  // Drain the worker while its queue, Redis and database are still available.
+  for (const resource of [ownedWorker, ownedQueue]) {
+    if (resource) {
+      try {
+        await resource.close();
+      } catch (error) {
+        errors.push(error);
       }
+    }
+  }
+  if (ownedConnection) {
+    try {
+      await ownedConnection.quit();
+    } catch (error) {
+      errors.push(error);
+      ownedConnection.disconnect();
+    }
+  }
+  systemWorker = null;
+  systemQueue = null;
+  connection = null;
+  if (errors.length) throw new AggregateError(errors, 'System queue shutdown failed.');
+}
 
-      redisReady = true;
-      logger.info('[Queue]  تم الاتصال بـ Redis — نظام الطوابير مُفعّل');
-
-      const connection = new IORedis(REDIS_URL, {
-        maxRetriesPerRequest: null,
-      });
-
-      // كتم أخطاء الاتصال بعد الإنشاء
-      connection.on('error', (err) => {
-        logger.error(`[Queue] خطأ Redis: ${err.message}`);
-      });
-
-      // Setup Main Queue
+/** Explicit boot only: imports must never consume jobs or connect to operator Redis. */
+export const initSystemQueue = (): Promise<boolean> => {
+  if (!queueAllowed() || stopping) return Promise.resolve(false);
+  if (redisReady) return Promise.resolve(true);
+  if (initializing) return initializing;
+  const epoch = generation;
+  initializing = (async () => {
+    try {
+      if (!(await probeRedis(process.env.REDIS_URL!)) || epoch !== generation) return false;
+      connection = new IORedis(process.env.REDIS_URL!, { maxRetriesPerRequest: null });
+      connection!.on('error', () => logger.error('[Queue] تعذر الاتصال بـRedis.'));
       systemQueue = new Queue('system-queue', { connection });
-
-      // Worker
+      systemQueue!.on('error', () => logger.error('[Queue] تعذر تنفيذ عملية في طابور Redis.'));
       systemWorker = new Worker(
         'system-queue',
         async (job) => {
           if (job.name === 'backup') {
             logger.info(`[Job] تنفيذ مهمة نسخ احتياطي ${job.id}`);
-            await createBackup();
+            const result = await createBackup();
             logger.info(`[Job] اكتملت المهمة ${job.id} بنجاح`);
-          } else if (job.name === 'auto_backup') {
-            // استيراد ديناميكي لتفادي التدوير مع autoBackupService
+            return result;
+          }
+          if (job.name === 'auto_backup') {
             const { runAutoBackup } = await import('../services/autoBackupService.ts');
             logger.info(`[Job] تنفيذ مهمة نسخ احتياطي تلقائي ${job.id}`);
-            await runAutoBackup();
-            logger.info(`[Job] اكتملت المهمة ${job.id} بنجاح`);
+            const result = await runAutoBackup();
+            if (result.status === 'partial') {
+              logger.warn(
+                `[Job] حُفظت النسخة المحلية للمهمة ${job.id} مع تنبيهات: ${result.warnings.join(', ')}`,
+              );
+            } else {
+              logger.info(`[Job] اكتملت المهمة ${job.id} بنجاح`);
+            }
+            return result;
           }
+          throw new Error('Unsupported system queue job.');
         },
         { connection },
       );
+      systemWorker!.on('error', () => logger.error('[Queue] تعذر تنفيذ عملية في عامل Redis.'));
+      systemWorker!.on('completed', (job) => logger.info(`[Queue] اكتملت المهمة ${job.id}`));
+      systemWorker!.on('failed', (job, err) =>
+        logger.error(`[Queue] فشلت المهمة ${job?.id}: ${err.message}`),
+      );
+      redisReady = true;
+      logger.info('[Queue] تم الاتصال بـRedis — نظام الطوابير مُفعّل');
+      return true;
+    } catch {
+      await releaseOwnedResources();
+      logger.warn('[Queue] تعذر تهيئة الطابور — سيُستخدم النسخ المباشر.');
+      return false;
+    } finally {
+      initializing = null;
+    }
+  })();
+  return initializing;
+};
 
-      systemWorker!.on('completed', (job) => {
-        logger.info(`[Queue] اكتملت المهمة ${job.id}`);
-      });
+/** Idempotent shutdown; cancel a pending probe before it can create a late worker. */
+export const stopSystemQueue = (): Promise<void> => {
+  if (stopping) return stopping;
+  ++generation;
+  redisReady = false;
+  stopping = (async () => {
+    try {
+      if (initializing) await initializing;
+      await releaseOwnedResources();
+    } finally {
+      stopping = null;
+    }
+  })();
+  return stopping;
+};
 
-      systemWorker!.on('failed', (job, err) => {
-        logger.error(`[Queue] فشلت المهمة ${job?.id}: ${err.message}`);
-      });
-    })
-    .catch((err) => {
-      logger.warn(`[Queue]  فشل تهيئة نظام الطوابير: ${err.message}`);
-    });
-}
-
-/**
- * إضافة مهمة نسخ احتياطي إلى الطابور (مع 3 محاولات وإرجاع تصاعدي).
- * @param {'full'|'auto'} [kind] نوع النسخة: كاملة أو تلقائية (مع رفع سحابي وتنظيف)
- * @returns {Promise<boolean>} true إذا تمت الجدولة عبر الطابور، false إذا كان الطابور غير متاح
- */
+/** Returns false when disabled so the caller can perform a direct local backup. */
 export const enqueueBackup = async (kind: 'full' | 'auto' = 'full'): Promise<boolean> => {
-  if (isVercel || !systemQueue || !redisReady) return false;
-  await systemQueue!.add(
+  if (!queueAllowed() || !systemQueue || !redisReady) return false;
+  await systemQueue.add(
     kind === 'auto' ? 'auto_backup' : 'backup',
     { time: new Date().toISOString() },
     {
@@ -133,11 +161,7 @@ export const enqueueBackup = async (kind: 'full' | 'auto' = 'full'): Promise<boo
   return true;
 };
 
-/**
- * إضافة مهمة نسخ احتياطي إلى الطابور (مع 3 محاولات وإرجاع تصاعدي).
- * @returns {Promise<void>}
- * @deprecated استخدم enqueueBackup بدلاً منها
- */
+/** @deprecated Use enqueueBackup instead. */
 export const addBackupJob = async () => {
   await enqueueBackup('full');
 };

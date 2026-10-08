@@ -9,19 +9,22 @@ chcp 65001 > nul
 :: 1. فحص مسار التثبيت الافتراضي للمستخدم
 if exist "%LocalAppData%\Programs\AlAgoouz-POS\AlAgoouz-POS.exe" (
     start "" "%LocalAppData%\Programs\AlAgoouz-POS\AlAgoouz-POS.exe"
-    exit
+    if errorlevel 1 exit /b 1
+    exit /b 0
 )
 
 :: 2. فحص مسار تثبيت البرامج العام (Program Files)
 if exist "%ProgramFiles%\AlAgoouz-POS\AlAgoouz-POS.exe" (
     start "" "%ProgramFiles%\AlAgoouz-POS\AlAgoouz-POS.exe"
-    exit
+    if errorlevel 1 exit /b 1
+    exit /b 0
 )
 
 :: 3. فحص مجلد الإصدار المستقل داخل المستودع (Standalone Unpacked)
-if exist "%~dp0..\..\desktop-pos\release\win-unpacked\AlAgoouz-POS.exe" (
-    start "" "%~dp0..\..\desktop-pos\release\win-unpacked\AlAgoouz-POS.exe"
-    exit
+if exist "%~dp0..\..\..\desktop-pos\release\win-unpacked\AlAgoouz-POS.exe" (
+    start "" "%~dp0..\..\..\desktop-pos\release\win-unpacked\AlAgoouz-POS.exe"
+    if errorlevel 1 exit /b 1
+    exit /b 0
 )
 
 :: إذا لم يتم العثور على التطبيق المثبت، توجيه المستخدم لتثبيت المثبت الرسمي
@@ -31,7 +34,7 @@ echo    تنبيه: تطبيق كاشير بن العجوز غير مثبت عل
 echo ======================================================================
 echo.
 echo يرجى تشغيل مثبت الإنتاج الرسمي:
-echo desktop-pos\release\AlAgoouz-POS-Setup-1.0.0.exe
+echo desktop-pos\release\AlAgoouz-POS-Setup-*.exe
 echo.
 pause
-exit
+exit /b 1

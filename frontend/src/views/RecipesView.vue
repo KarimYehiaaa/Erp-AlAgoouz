@@ -293,7 +293,7 @@
               >
                 {{ formatQty(reverseTarget.current_stock) }}
                 <small v-if="Number(reverseTarget.current_stock) < Number(reverseTarget.quantity)">
-                  (أقل من الكمية المنتجة — سيُعكس بالمتاح)
+                  (اختر كمية متاحة وغير محجوزة للعكس)
                 </small>
               </strong>
             </div>
@@ -309,8 +309,8 @@
               type="number"
               min="0.001"
               step="0.001"
-              :max="reverseTarget.quantity"
-              :placeholder="`الكمية الكاملة: ${formatQty(reverseTarget.quantity)}`"
+              :max="Number(reverseTarget.quantity) - Number(reverseTarget.reversed_quantity || 0)"
+              :placeholder="`الكمية المتبقية: ${formatQty(Number(reverseTarget.quantity) - Number(reverseTarget.reversed_quantity || 0))}`"
             />
           </div>
           <div class="reverse-warning">
@@ -779,12 +779,12 @@ const confirmReverse = (prod: any) => {
 };
 
 const doReverse = async () => {
-  if (!reverseTarget.value) return;
+  if (!reverseTarget.value || reversing.value) return;
   reverseError.value = '';
   reversing.value = reverseTarget.value.movement_id;
   try {
     const body: Record<string, any> = {};
-    if (reverseQtyInput.value && Number(reverseQtyInput.value) > 0) {
+    if (reverseQtyInput.value !== null && reverseQtyInput.value !== '') {
       body.reverse_qty = Number(reverseQtyInput.value);
     }
     await costsApi.reverseProduction(reverseTarget.value.movement_id, body);

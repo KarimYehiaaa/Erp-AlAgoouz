@@ -1,22 +1,17 @@
-# إعداد قاعدة بيانات بن العجوز
+# DATABASE_URL and local credentials are read by the shared backend setup.
+# For first-time native PostgreSQL provisioning, set POSTGRES_PASSWORD securely
+# in the calling session; an existing shared database does not need that password.
 $ErrorActionPreference = "Stop"
-
-Write-Host "`n=== إعداد قاعدة بيانات بن العجوز ===" -ForegroundColor Cyan
-
-if (-not $env:POSTGRES_PASSWORD) {
-    $secure = Read-Host "أدخل كلمة مرور مستخدم postgres (التي اخترتها عند التثبيت)" -AsSecureString
-    $env:POSTGRES_PASSWORD = [Runtime.InteropServices.Marshal]::PtrToStringAuto(
-        [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
-    )
+$Root = (Resolve-Path (Join-Path $PSScriptRoot "..\..\")).Path
+$setupExitCode = 1
+Push-Location -LiteralPath $Root
+try {
+    npm run setup-db -w backend
+    $setupExitCode = $LASTEXITCODE
+    if ($setupExitCode -eq 0) {
+        Write-Host "Database setup completed. Run npm run dev -w backend from the project root." -ForegroundColor Green
+    }
+} finally {
+    Pop-Location
 }
-
-# جذر المشروع مستويان أعلى هذا السكربت (scripts\windows\)
-$Root = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-Set-Location "$Root\backend"
-node src/database/setup.js
-
-if ($LASTEXITCODE -eq 0) {
-    Write-Host "`nشغّل الآن:" -ForegroundColor Green
-    Write-Host "  cd backend && npm run dev"
-    Write-Host "  cd frontend && npm run dev"
-}
+exit $setupExitCode

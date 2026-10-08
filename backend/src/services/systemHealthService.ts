@@ -169,9 +169,12 @@ export const revokeAllUserSessions = async (userId) => {
  */
 export const getRecentActivity = async (limit = 50) => {
   try {
+    // activity_logs لا يحتوي أعمدة entity_type/entity_id/ip_address — عنوان الـ IP
+    // مسجل اختيارياً داخل details JSONB (نفس شكل سجلات النظام الأخرى).
     const res = await query(
       `
-      SELECT al.id, al.user_id, u.username, u.full_name, al.module, al.action_ar, al.entity_type, al.entity_id, al.ip_address, al.created_at
+      SELECT al.id, al.user_id, u.username, u.full_name, al.module, al.action_ar,
+             al.details, al.details->>'ip' AS ip_address, al.created_at
       FROM activity_logs al
       LEFT JOIN users u ON al.user_id = u.id
       ORDER BY al.created_at DESC
@@ -199,9 +202,9 @@ export const getSystemCounts = async () => {
       ),
       query(`SELECT count(*) as count FROM products WHERE deleted_at IS NULL`),
       query(`SELECT count(*) as count FROM customers WHERE deleted_at IS NULL`),
-      query(
-        `SELECT count(*) as count FROM products p LEFT JOIN inventory i ON p.id = i.product_id WHERE p.deleted_at IS NULL AND p.reorder_level > 0 AND COALESCE(i.quantity, 0) <= p.reorder_level`,
-      ),
+      // عمود إعادة الطلب الفعلي هو products.min_stock؛ استخدم عرض المخزون الموحد
+      // v_product_stock (مصدر الحقيقة نفسه لتنبيهات انخفاض المخزون في النظام).
+      query(`SELECT count(*) as count FROM v_product_stock WHERE is_low_stock = TRUE`),
     ]);
 
     return {

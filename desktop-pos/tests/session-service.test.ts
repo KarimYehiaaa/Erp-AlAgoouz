@@ -29,7 +29,12 @@ describe('Desktop POS SessionService Tests', () => {
       hasSecureSession: vi.fn().mockResolvedValue(false),
       setAuthToken: vi.fn().mockResolvedValue({ success: true }),
     };
-    (globalThis as any).window = { electronAPI: mockElectronAPI };
+    (globalThis as any).window = {
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+      electronAPI: mockElectronAPI,
+    };
 
     service = new SessionService();
   });
@@ -143,5 +148,12 @@ describe('Desktop POS SessionService Tests', () => {
     expect(mockElectronAPI.setAuthToken).toHaveBeenCalledWith(null);
     expect(store['pos_token']).toBeUndefined();
     expect(store['pos_user']).toBeUndefined();
+  });
+
+  it('surfaces disk cleanup failure while always removing the background sync token', async () => {
+    mockElectronAPI.clearSecureSession.mockResolvedValue(false);
+    await expect(service.clearSession()).rejects.toThrow('تعذر إبطال الجلسة');
+    expect(service.getAccessToken()).toBeNull();
+    expect(mockElectronAPI.setAuthToken).toHaveBeenCalledWith(null);
   });
 });

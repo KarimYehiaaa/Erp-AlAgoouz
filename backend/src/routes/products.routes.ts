@@ -141,7 +141,14 @@ router.put(
   authenticate,
   authorize('products.edit'),
   validateBody(bulkPriceAdjustSchema),
+  requireIdempotency,
   api.products.bulkPriceAdjust,
+);
+router.get(
+  '/products/bulk-price/status/:operationKey',
+  authenticate,
+  authorize('products.edit'),
+  api.products.bulkPriceStatus,
 );
 router.get('/products/:id', authenticate, authorize('pos.view'), api.products.get);
 router.put(

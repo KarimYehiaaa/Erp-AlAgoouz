@@ -9,17 +9,18 @@
  * يُستخدم من:
  *  - `src/index.ts` عند بدء التشغيل المحلي (استيراد ديناميكي)
  *  - `run-vitest-local.ts` (تهيئة قاعدة الاختبارات)
- *  - سطر الأوامر مباشرة: `node scripts/migrate.ts`
+ *  - سطر الأوامر مباشرة لقاعدة محلية: `node scripts/migrate.ts`
+ *  - القاعدة البعيدة المنسقة: `npm run migrate-supabase -- --allow-remote`
  */
-import pg from 'pg';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import logger from '../src/services/loggerService.ts';
 
-import config from '../src/config/index.ts';
 import { getClient } from '../src/database/pool.ts';
+import { databaseConnectionOptions } from '../src/database/connectionOptions.ts';
+import { assertMigrationsAllowed } from '../src/database/migrationApproval.ts';
 
 dotenv.config();
 
@@ -36,19 +37,19 @@ if (!process.env.POSTGRES_PASSWORD && fs.existsSync(localPgFile)) {
  *
  * @returns {Promise<void>} يكتمل بعد تطبيق كل الهجرات أو التحقق من تحديث القاعدة
  */
-export async function runMigrations(): Promise<void> {
+export async function runMigrations(options: { allowRemote?: boolean } = {}): Promise<void> {
   const client = await getClient();
 
   try {
     logger.info('🔄 [بن العجوز ERP] جاري فحص وتحديث جداول قاعدة البيانات (Migrations)...');
 
-    // إنشاء جدول تتبع الهجرات إن لم يوجد
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS schema_migrations (
-        version VARCHAR(255) PRIMARY KEY,
-        applied_at TIMESTAMPTZ DEFAULT NOW()
-      );
+    const trackingTableRes = await client.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables
+        WHERE table_schema = 'public' AND table_name = 'schema_migrations'
+      )
     `);
+    const trackingTableExists = trackingTableRes.rows[0].exists;
 
     // فحص وجود جدول users (يعني أن القاعدة مهيأة مسبقًا)
     const usersTableExists = await client.query(`
@@ -73,8 +74,11 @@ export async function runMigrations(): Promise<void> {
       });
 
     // الحصول على الهجرات المنفذة مسبقًا
-    const appliedRes = await client.query(`SELECT version FROM schema_migrations`);
+    const appliedRes = trackingTableExists
+      ? await client.query(`SELECT version FROM schema_migrations`)
+      : { rows: [] as Array<{ version: string }> };
     const applied = new Set(appliedRes.rows.map((row) => row.version));
+    let legacyFilesToMark: string[] = [];
 
     // إذا كانت القاعدة مهيأة لكن جدول التتبع فارغ — كشف الهجرات المطبقة فعليًا
     if (dbIsSetup && applied.size === 0) {
@@ -112,39 +116,56 @@ export async function runMigrations(): Promise<void> {
         `[بن العجوز ERP] تم تحديد الهجرات المطبقة بالفعل تلقائياً حتى: ${maxMigrationToMark}`,
       );
 
-      for (const file of files) {
-        if (file <= maxMigrationToMark || file.startsWith(maxMigrationToMark)) {
-          await client.query(
-            `INSERT INTO schema_migrations (version) VALUES ($1) ON CONFLICT DO NOTHING`,
-            [file],
-          );
-          applied.add(file);
-          logger.info(`  → تم تسجيل الهجرة كمنفذة مسبقاً: ${file}`);
-        }
-      }
+      legacyFilesToMark = files.filter(
+        (file) => file <= maxMigrationToMark || file.startsWith(maxMigrationToMark),
+      );
+      legacyFilesToMark.forEach((file) => applied.add(file));
+    }
+
+    const pendingFiles = files.filter((file) => !applied.has(file));
+    assertMigrationsAllowed(
+      databaseConnectionOptions(),
+      pendingFiles,
+      options.allowRemote === true,
+      process.env.ERP_LOCAL_DATABASE_HOST,
+      !trackingTableExists || legacyFilesToMark.length > 0,
+    );
+
+    // After the remote-change guard, ensure migration tracking exists.
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS schema_migrations (
+        version VARCHAR(255) PRIMARY KEY,
+        applied_at TIMESTAMPTZ DEFAULT NOW()
+      );
+    `);
+
+    for (const file of legacyFilesToMark) {
+      await client.query(
+        `INSERT INTO schema_migrations (version) VALUES ($1) ON CONFLICT DO NOTHING`,
+        [file],
+      );
+      logger.info(`  → تم تسجيل الهجرة كمنفذة مسبقاً: ${file}`);
     }
 
     let appliedCount = 0;
 
     // تطبيق الهجرات المعلقة
-    for (const file of files) {
-      if (!applied.has(file)) {
-        logger.info(`[بن العجوز ERP] جاري تطبيق الهجرة: ${file}`);
-        const filePath = path.join(migrationsDir, file);
-        const sql = fs.readFileSync(filePath, 'utf8');
+    for (const file of pendingFiles) {
+      logger.info(`[بن العجوز ERP] جاري تطبيق الهجرة: ${file}`);
+      const filePath = path.join(migrationsDir, file);
+      const sql = fs.readFileSync(filePath, 'utf8');
 
-        try {
-          await client.query('BEGIN');
-          await client.query(sql);
-          await client.query(`INSERT INTO schema_migrations (version) VALUES ($1)`, [file]);
-          await client.query('COMMIT');
-          appliedCount++;
-        } catch (err) {
-          await client.query('ROLLBACK');
-          throw new Error(`فشلت الهجرة ${file}: ${(err as Error).message}`, {
-            cause: err,
-          });
-        }
+      try {
+        await client.query('BEGIN');
+        await client.query(sql);
+        await client.query(`INSERT INTO schema_migrations (version) VALUES ($1)`, [file]);
+        await client.query('COMMIT');
+        appliedCount++;
+      } catch (err) {
+        await client.query('ROLLBACK');
+        throw new Error(`فشلت الهجرة ${file}: ${(err as Error).message}`, {
+          cause: err,
+        });
       }
     }
 

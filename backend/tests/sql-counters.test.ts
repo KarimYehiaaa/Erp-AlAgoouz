@@ -7,6 +7,7 @@ import { listPurchaseInvoices } from '../src/services/purchaseService.ts';
 import { inventoryRepository } from '../src/repositories/inventory.repository.ts';
 import { invoicesRepository } from '../src/repositories/invoices.repository.ts';
 import { salesRepository } from '../src/repositories/sales.repository.ts';
+import { query } from '../src/database/pool.ts';
 
 /**
  * اختبار انتكاس: يضمن أن ترقيم معاملات SQL ($${n}) يبقى صحيحًا عبر كل تركيبات
@@ -16,6 +17,12 @@ import { salesRepository } from '../src/repositories/sales.repository.ts';
  */
 describe('SQL parameter numbering (regression)', () => {
   it('all filtered queries execute correctly across filter combinations', async () => {
+    const admins = await query(
+      `SELECT u.id FROM users u JOIN roles r ON r.id = u.role_id
+       WHERE r.name = 'admin' AND u.is_active = TRUE AND u.deleted_at IS NULL ORDER BY u.id LIMIT 1`,
+    );
+    expect(admins.rows).toHaveLength(1);
+    const userId = admins.rows[0].id;
     const cases: [string, () => Promise<unknown>][] = [
       // inventoryRepository.getStockMovements — عدّاد i مع فلاتر اختيارية
       ...[
@@ -28,7 +35,7 @@ describe('SQL parameter numbering (regression)', () => {
         (f) =>
           [
             `getStockMovements ${JSON.stringify(f)}`,
-            () => inventoryRepository.getStockMovements(f),
+            () => inventoryRepository.getStockMovements(f, [1, 2]),
           ] as [string, () => Promise<unknown>],
       ),
 
@@ -86,10 +93,10 @@ describe('SQL parameter numbering (regression)', () => {
       // listProductionBatches — idx حتى to_date
       ...[{}, { recipe_id: 1, from_date: '2026-01-01', to_date: '2026-08-15' }].map(
         (f) =>
-          [`listProductionBatches ${JSON.stringify(f)}`, () => listProductionBatches(f)] as [
-            string,
-            () => Promise<unknown>,
-          ],
+          [
+            `listProductionBatches ${JSON.stringify(f)}`,
+            () => listProductionBatches(f, userId),
+          ] as [string, () => Promise<unknown>],
       ),
 
       // getProducts — i متسلسل + LIMIT $${i}
@@ -131,7 +138,7 @@ describe('SQL parameter numbering (regression)', () => {
         { from_date: '2026-01-01', to_date: '2026-08-15' },
       ].map(
         (f) =>
-          [`listPurchaseInvoices ${JSON.stringify(f)}`, () => listPurchaseInvoices(f)] as [
+          [`listPurchaseInvoices ${JSON.stringify(f)}`, () => listPurchaseInvoices(f, 1)] as [
             string,
             () => Promise<unknown>,
           ],

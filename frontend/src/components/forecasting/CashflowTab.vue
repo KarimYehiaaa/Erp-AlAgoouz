@@ -2,8 +2,8 @@
   <div class="card table-card">
     <h3>توقع التدفقات النقدية والسيولة (Cash Flow Runway)</h3>
     <p class="section-desc">
-      تقدير السيولة النقدية المتوفرة للـ 30 يوماً القادمة بناءً على متوسطات المبيعات اليومية
-      التاريخية، مقارنةً بمتوسط المصاريف والمشتريات اليومية.
+      تقدير سيولة المحل للـ 30 يوماً القادمة من أرصدة النقدية والبنك والمحافظ في الأستاذ، ومتوسط
+      المقبوضات والمدفوعات المسجلة فعلياً.
     </p>
 
     <div v-if="cashflowData" class="cashflow-dashboard">
@@ -83,8 +83,8 @@
             <tr>
               <th>اليوم</th>
               <th>التاريخ</th>
-              <th>الوارد المتوقع (إيراد مبيعات)</th>
-              <th>الصادر المتوقع (مصاريف + مشتريات)</th>
+              <th>الوارد المتوقع (مقبوضات)</th>
+              <th>الصادر المتوقع (مدفوعات)</th>
               <th>صافي التدفق اليومي</th>
               <th>الرصيد التراكمي المتوقع</th>
             </tr>
@@ -167,12 +167,16 @@ const renderChart = async () => {
     try {
       const existing = Chart.getChart(chartCanvas.value);
       if (existing) existing.destroy();
-    } catch {}
+    } catch {
+      /* Chart cleanup is best effort when the canvas has already been removed. */
+    }
   }
   if (chartInstance) {
     try {
       chartInstance.destroy();
-    } catch {}
+    } catch {
+      /* Chart cleanup is best effort when the canvas has already been removed. */
+    }
     chartInstance = null;
   }
 
@@ -314,7 +318,9 @@ onBeforeUnmount(() => {
   if (chartInstance) {
     try {
       chartInstance.destroy();
-    } catch {}
+    } catch {
+      /* Chart cleanup is best effort when the canvas has already been removed. */
+    }
     chartInstance = null;
   }
 });

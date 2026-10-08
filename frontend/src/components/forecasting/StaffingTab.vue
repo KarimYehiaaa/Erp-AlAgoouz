@@ -88,12 +88,13 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { formatMoney } from '@/utils/currency';
+import { businessCalendarDate } from '../../../../shared/businessDate';
 
 // تبويب أوقات الذروة والشيفتات — بطاقات أعلى 5 ساعات + منتقي اليوم + جدول الكثافة التفصيلي.
 const props = defineProps<{ peakHours: any[]; weeklyDensity: Record<string, any> }>();
 
 const dayNames = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
-const selectedDay = ref(new Date().getDay());
+const selectedDay = ref(new Date(`${businessCalendarDate()}T00:00:00Z`).getUTCDay());
 
 const staffDayData = computed(() => {
   const data: any[] = [];

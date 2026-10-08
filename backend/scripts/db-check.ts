@@ -1,61 +1,19 @@
-/**
- * db-check.ts — فحص سريع لأعداد قاعدة البيانات
- * ════════════════════════════════════════════
- * أداة تشخيص: يعرض إحصائيات المنتجات والمخزون والوصفات (وصفاته) من القاعدة
- * المتصلة عبر متغيرات البيئة (DB_*). مفيد للتحقق من سلامة البيانات بعد
- * الهجرات أو الاستعادة.
- *
- * التشغيل: `node scripts/db-check.ts` (من backend)
- */
-import { Client } from 'pg';
-import dotenv from 'dotenv';
-import path from 'path';
-
-dotenv.config({ path: path.join(process.cwd(), '.env') });
-
-(async () => {
-  const client = new Client(
-    process.env.DATABASE_URL
-      ? { connectionString: process.env.DATABASE_URL }
-      : {
-          host: process.env.DB_HOST || 'localhost',
-          port: Number(process.env.DB_PORT || 5432),
-          user: process.env.DB_USER || 'erp_user',
-          password: process.env.DB_PASSWORD,
-          database: process.env.DB_NAME || 'bin_al_ajouz',
-        },
-  );
-
-  try {
-    await client.connect();
-
-    const q1 = await client.query(
-      `SELECT COUNT(*) AS total_products, COUNT(*) FILTER (WHERE deleted_at IS NOT NULL) AS deleted_products, COUNT(*) FILTER (WHERE deleted_at IS NULL) AS active_products FROM products;`,
-    );
-    console.log('PRODUCTS', q1.rows);
-
-    const q2 = await client.query(
-      `SELECT COUNT(*) AS inventory_rows, COALESCE(SUM(quantity),0) AS total_stock FROM inventory;`,
-    );
-    console.log('INVENTORY', q2.rows);
-
-    const q3 = await client.query(
-      `SELECT COUNT(*) AS total_recipes, COUNT(*) FILTER (WHERE deleted_at IS NOT NULL) AS deleted_recipes FROM product_recipes;`,
-    );
-    console.log('RECIPES', q3.rows);
-
-    const q4 = await client.query(
-      `SELECT COUNT(*) AS product_recipe_items FROM product_recipe_items;`,
-    );
-    console.log('RECIPE_ITEMS', q4.rows);
-  } catch (err) {
-    console.error('DB check failed:', (err as Error).message || err);
-    process.exitCode = 2;
-  } finally {
-    try {
-      await client.end();
-    } catch {
-      // تجاهل مقصود: فشل الإغلاق لا يُعد فشلًا للفحص
-    }
-  }
-})();
+/** Read-only counts use exactly the same DATABASE_URL/TLS policy as the application. */
+import { query, closePool } from '../src/database/pool.ts';
+try {
+  const checks = {
+    PRODUCTS:
+      'SELECT COUNT(*) AS total_products, COUNT(*) FILTER (WHERE deleted_at IS NOT NULL) AS deleted_products FROM products',
+    INVENTORY:
+      'SELECT COUNT(*) AS inventory_rows, COALESCE(SUM(quantity),0) AS total_stock FROM inventory',
+    RECIPES:
+      'SELECT COUNT(*) AS total_recipes, COUNT(*) FILTER (WHERE deleted_at IS NOT NULL) AS deleted_recipes FROM product_recipes',
+    RECIPE_ITEMS: 'SELECT COUNT(*) AS product_recipe_items FROM product_recipe_items',
+  };
+  for (const [label, sql] of Object.entries(checks)) console.log(label, (await query(sql)).rows);
+} catch {
+  console.error('Database counts check failed; check the application connection settings.');
+  process.exitCode = 1;
+} finally {
+  await closePool();
+}

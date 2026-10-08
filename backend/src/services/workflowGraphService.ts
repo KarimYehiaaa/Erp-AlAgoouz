@@ -6,6 +6,7 @@
 
 import crypto from 'node:crypto';
 import { query, withTransaction } from '../database/pool.ts';
+import { runSharedMaintenanceTask } from '../database/maintenanceBarrier.ts';
 import logger from './loggerService.ts';
 import { AppError } from '../types/errors.ts';
 
@@ -77,26 +78,6 @@ const EXECUTABLE_AUTOMATION_KEYS = new Set([
   'error_tracker_alert',
   'webhook_listener',
   'scheduled_cron_task',
-  'telegram_notifier',
-  'debt_credit_sentinel',
-  'purchase_stock_ingestion_guard',
-  'coffee_bags_cups_reconciler',
-]);
-
-const AUTOMATED_TRIGGER_KEYS = new Set([
-  'daily_sales_report',
-  'low_stock_alert',
-  'warehouse_balancing',
-  'system_health',
-  'daily_backup_reminder',
-  'supplier_payment_due_alert',
-  'daily_profit_margin_anomaly',
-  'cashflow_risk_shield',
-  'roastery_recipe_waste_guard',
-  'customer_loyalty_dormant_winback',
-  'scheduled_cron_task',
-  'error_tracker_alert',
-  'webhook_listener',
   'telegram_notifier',
   'debt_credit_sentinel',
   'purchase_stock_ingestion_guard',
@@ -555,176 +536,192 @@ export class WorkflowGraphService {
     key: string,
     options: { triggerSource?: string; executionId?: string; scheduledFor?: Date } = {},
   ): Promise<{ success: boolean; message: string; payload?: any }> {
-    const canonicalKey = canonicalAutomationKey(key);
-    const executionId = options.executionId || crypto.randomUUID();
-    const triggerSource = options.triggerSource || 'manual';
-    const startedAt = new Date();
-    let automationId: number;
-    let persistedKey = key;
-    let logId: number | null = null;
+    return runSharedMaintenanceTask(async () => {
+      const canonicalKey = canonicalAutomationKey(key);
+      const executionId = options.executionId || crypto.randomUUID();
+      const triggerSource = options.triggerSource || 'manual';
+      const startedAt = new Date();
+      let automationId: number;
+      let persistedKey = key;
+      let logId: number | null = null;
 
-    let notificationText = '';
-    let status: 'success' | 'failed' | 'warning' = 'success';
-    let title = `تشغيل الأتمتة: ${key}`;
+      let notificationText = '';
+      let status: 'success' | 'failed' | 'warning' = 'success';
+      let title = `تشغيل الأتمتة: ${key}`;
 
-    try {
-      const automationRes = await query(
-        `SELECT id, key, is_enabled, config FROM automations
+      try {
+        const automationRes = await query(
+          `SELECT id, key, is_enabled, config FROM automations
          WHERE key IN ($1, $2)
          ORDER BY CASE WHEN key = $1 THEN 0 ELSE 1 END LIMIT 1`,
-        [canonicalKey, key],
-      );
-      if (!automationRes.rows[0]) {
-        return { success: false, message: 'مهمة الأتمتة غير موجودة.' };
-      }
-      automationId = Number(automationRes.rows[0].id);
-      persistedKey = automationRes.rows[0].key;
-      if (triggerSource === 'scheduler' && !automationRes.rows[0].is_enabled) {
-        return { success: false, message: 'مهمة الأتمتة معطلة حاليًا.' };
-      }
-      if (!canRunAutomation(canonicalKey)) {
-        await query(
-          `UPDATE automations SET last_run_at = NOW(), last_status = 'warning', updated_at = NOW() WHERE key = $1`,
-          [persistedKey],
+          [canonicalKey, key],
         );
-        return { success: false, message: `لا يوجد معالج تنفيذ فعلي للمهمة: ${key}` };
-      }
+        if (!automationRes.rows[0]) {
+          return { success: false, message: 'مهمة الأتمتة غير موجودة.' };
+        }
+        automationId = Number(automationRes.rows[0].id);
+        persistedKey = automationRes.rows[0].key;
+        if (triggerSource === 'scheduler' && !automationRes.rows[0].is_enabled) {
+          return { success: false, message: 'مهمة الأتمتة معطلة حاليًا.' };
+        }
+        if (!canRunAutomation(canonicalKey)) {
+          await query(
+            `UPDATE automations SET last_run_at = NOW(), last_status = 'warning', updated_at = NOW() WHERE key = $1`,
+            [persistedKey],
+          );
+          return { success: false, message: `لا يوجد معالج تنفيذ فعلي للمهمة: ${key}` };
+        }
 
-      const logRes = await query(
-        `INSERT INTO automation_logs
+        const logRes = await query(
+          `INSERT INTO automation_logs
           (automation_id, event_name, status, title, message, payload, execution_id, trigger_source, started_at)
          VALUES ($1, $2, 'running', $3, $4, $5, $6, $7, $8)
          RETURNING id`,
-        [
-          automationId,
-          canonicalKey,
-          `تشغيل الأتمتة: ${key}`,
-          'بدأ تنفيذ مهمة الأتمتة',
-          JSON.stringify({ requestedKey: key, canonicalKey }),
-          executionId,
-          triggerSource,
-          startedAt,
-        ],
-      );
-      logId = Number(logRes.rows[0]?.id || 0) || null;
+          [
+            automationId,
+            canonicalKey,
+            `تشغيل الأتمتة: ${key}`,
+            'بدأ تنفيذ مهمة الأتمتة',
+            JSON.stringify({ requestedKey: key, canonicalKey }),
+            executionId,
+            triggerSource,
+            startedAt,
+          ],
+        );
+        logId = Number(logRes.rows[0]?.id || 0) || null;
 
-      const { default: TelegramBotService } = await import('./telegramBotService.ts');
-      const { default: TelegramService } = await import('./telegramService.ts');
-      const creds = await TelegramBotService.getBotCredentials();
+        const { default: TelegramBotService } = await import('./telegramBotService.ts');
+        const { default: TelegramService } = await import('./telegramService.ts');
+        const creds = await TelegramBotService.getBotCredentials();
 
-      // تنفيذ المعالج المناسب من السجل (key → handler) لجمع العنوان والنص والحالة
-      const { AUTOMATION_HANDLERS } = await import('./automationHandlers.ts');
-      const handler = AUTOMATION_HANDLERS[canonicalKey];
-      if (handler) {
-        const result = await handler({
-          key: canonicalKey,
-          config: automationRes.rows[0].config || {},
-          scheduledFor: options.scheduledFor || new Date(),
-        });
-        title = result.title;
-        notificationText = result.text;
-        status = result.status;
-      }
-
-      // قناة in_app: إنشاء إشعار داخلي عبر خدمة الإشعارات عند طلب المهمة ذلك
-      let inAppNotificationSent = false;
-      try {
-        const channelsRes = await query(`SELECT channels FROM automations WHERE key = $1 LIMIT 1`, [
-          persistedKey,
-        ]);
-        const channels = channelsRes.rows[0]?.channels || {};
-        if (channels.in_app) {
-          const { sendAlert } = await import('./notificationService.ts');
-          await sendAlert(
-            title,
-            notificationText.replace(/<[^>]*>/g, '').trim(),
-            status === 'warning' ? 'warning' : 'info',
-          );
-          inAppNotificationSent = true;
+        // تنفيذ المعالج المناسب من السجل (key → handler) لجمع العنوان والنص والحالة
+        const { AUTOMATION_HANDLERS } = await import('./automationHandlers.ts');
+        const handler = AUTOMATION_HANDLERS[canonicalKey];
+        if (handler) {
+          const result = await handler({
+            key: canonicalKey,
+            config: automationRes.rows[0].config || {},
+            scheduledFor: options.scheduledFor || new Date(),
+          });
+          title = result.title;
+          notificationText = result.text;
+          status = result.status;
         }
-      } catch (err: any) {
-        logger.warn(`فشل إنشاء الإشعار الداخلي للمهمة ${persistedKey}: ${err.message}`);
-      }
 
-      // إرسال الإشعار لتليجرام مع قراءة النتيجة الفعلية — الفشل لا يُبتلع كنجاح
-      let telegramSent = false;
-      let telegramError: string | null = null;
-      if (creds.token && creds.defaultChatId) {
-        const sendResult = await TelegramService.sendMessage(notificationText, {
-          botToken: creds.token,
-          chatId: creds.defaultChatId,
-        });
-        telegramSent = sendResult.success;
-        if (!sendResult.success) {
-          telegramError = sendResult.error || 'فشل إرسال الإشعار إلى تليجرام';
+        // قناة in_app: إنشاء إشعار داخلي عبر خدمة الإشعارات عند طلب المهمة ذلك
+        let inAppNotificationSent = false;
+        let inAppNotificationError: string | null = null;
+        let telegramEnabled = false;
+        try {
+          const channelsRes = await query(
+            `SELECT channels FROM automations WHERE key = $1 LIMIT 1`,
+            [persistedKey],
+          );
+          const channels = channelsRes.rows[0]?.channels || {};
+          telegramEnabled = channels.telegram === true;
+          if (channels.in_app) {
+            const { persistNotification } = await import('./notificationService.ts');
+            inAppNotificationSent = await persistNotification(
+              title,
+              notificationText.replace(/<[^>]*>/g, '').trim(),
+              status === 'warning' ? 'warning' : 'info',
+            );
+            if (!inAppNotificationSent) {
+              inAppNotificationError = 'تعذر حفظ الإشعار الداخلي';
+              status = 'warning';
+            }
+          }
+        } catch {
+          inAppNotificationError = 'تعذر إعداد الإشعار الداخلي';
+          status = 'warning';
+          logger.warn(`فشل إنشاء الإشعار الداخلي للمهمة ${persistedKey}`);
+        }
+
+        // إرسال الإشعار لتليجرام مع قراءة النتيجة الفعلية — الفشل لا يُبتلع كنجاح
+        let telegramSent = false;
+        let telegramError: string | null = null;
+        if (telegramEnabled && creds.token && creds.defaultChatId) {
+          const sendResult = await TelegramService.sendMessage(notificationText, {
+            botToken: creds.token,
+            chatId: creds.defaultChatId,
+          });
+          telegramSent = sendResult.success;
+          if (!sendResult.success) {
+            telegramError = sendResult.error || 'فشل إرسال الإشعار إلى تليجرام';
+            status = 'warning';
+          }
+        } else if (telegramEnabled) {
+          telegramError = 'إعدادات قناة Telegram غير مكتملة';
           status = 'warning';
         }
-      }
 
-      // تحديث حالة الأتمتة وتصفير عداد إعادة المحاولة عند النجاح
-      await query(
-        `UPDATE automations
+        const notificationError = telegramError || inAppNotificationError;
+        // تحديث حالة الأتمتة وتصفير عداد إعادة المحاولة عند النجاح
+        await query(
+          `UPDATE automations
          SET last_run_at = NOW(), last_status = $1, updated_at = NOW(),
              retry_count = 0, next_retry_at = NULL
          WHERE key = $2`,
-        [status, persistedKey],
-      );
+          [status, persistedKey],
+        );
 
-      if (logId) {
-        const finishedAt = new Date();
-        await query(
-          `UPDATE automation_logs
+        if (logId) {
+          const finishedAt = new Date();
+          await query(
+            `UPDATE automation_logs
            SET status = $1, title = $2, message = $3, payload = $4,
                error_message = $5, finished_at = $6, duration_ms = $7
            WHERE id = $8`,
-          [
-            status,
-            title,
-            telegramError
-              ? `اكتمل تنفيذ ${title} لكن فشل إرسال الإشعار: ${telegramError}`
-              : `اكتمل تنفيذ ${title}`,
-            JSON.stringify({
+            [
               status,
-              notificationSent: telegramSent,
-              inAppNotificationSent,
-              notificationError: telegramError,
-            }),
-            telegramError,
-            finishedAt,
-            finishedAt.getTime() - startedAt.getTime(),
-            logId,
-          ],
-        );
-      }
+              title,
+              notificationError
+                ? `اكتمل تنفيذ ${title} لكن تعذر إكمال الإشعار: ${notificationError}`
+                : `اكتمل تنفيذ ${title}`,
+              JSON.stringify({
+                status,
+                notificationSent: telegramSent,
+                inAppNotificationSent,
+                notificationError,
+              }),
+              notificationError,
+              finishedAt,
+              finishedAt.getTime() - startedAt.getTime(),
+              logId,
+            ],
+          );
+        }
 
-      // تسجيل في logs
-      await this.logTelegramMessage({
-        chat_id: creds.defaultChatId || 'system',
-        direction: 'out',
-        message: notificationText,
-        automation_key: persistedKey,
-      });
+        // تسجيل في logs
+        if (telegramEnabled && creds.token && creds.defaultChatId) {
+          await this.logTelegramMessage({
+            chat_id: creds.defaultChatId,
+            direction: 'out',
+            message: notificationText,
+            automation_key: persistedKey,
+          });
+        }
 
-      return {
-        success: true,
-        message: telegramError
-          ? `تم تنفيذ ${title} لكن فشل إرسال إشعار تليجرام: ${telegramError}`
-          : `تم تشغيل ${title} بنجاح${telegramSent ? ' وإرسال الإشعار لتليجرام' : ''}.`,
-        payload: {
-          notificationText,
-          status,
-          executionId,
-          notificationSent: telegramSent,
-          inAppNotificationSent,
-          notificationError: telegramError,
-        },
-      };
-    } catch (err: any) {
-      logger.error(`فشل تشغيل الأتمتة ${key}:`, err.message);
-      // تسجيل الفشل وزيادة عداد المحاولات مع backoff متزايد: دقيقة ثم 5 ثم 15
-      // (العمودان retry_count و next_retry_at يضيفهما ترحيل 083 ويقرأهما المجدول)
-      await query(
-        `UPDATE automations
+        return {
+          success: true,
+          message: notificationError
+            ? `تم تنفيذ ${title} لكن تعذر إكمال الإشعار: ${notificationError}`
+            : `تم تشغيل ${title} بنجاح${telegramSent ? ' وإرسال الإشعار لتليجرام' : ''}.`,
+          payload: {
+            notificationText,
+            status,
+            executionId,
+            notificationSent: telegramSent,
+            inAppNotificationSent,
+            notificationError,
+          },
+        };
+      } catch (err: any) {
+        logger.error(`فشل تشغيل الأتمتة ${key}:`, err.message);
+        // تسجيل الفشل وزيادة عداد المحاولات مع backoff متزايد: دقيقة ثم 5 ثم 15
+        // (العمودان retry_count و next_retry_at يضيفهما ترحيل 083 ويقرأهما المجدول)
+        await query(
+          `UPDATE automations
          SET last_run_at = NOW(), last_status = 'failed', updated_at = NOW(),
              retry_count = COALESCE(retry_count, 0) + 1,
              next_retry_at = NOW() + (CASE COALESCE(retry_count, 0) + 1
@@ -732,30 +729,31 @@ export class WorkflowGraphService {
                WHEN 2 THEN interval '5 minutes'
                ELSE interval '15 minutes' END)
          WHERE key = $1`,
-        [persistedKey],
-      );
-      if (logId) {
-        const finishedAt = new Date();
-        await query(
-          `UPDATE automation_logs
+          [persistedKey],
+        );
+        if (logId) {
+          const finishedAt = new Date();
+          await query(
+            `UPDATE automation_logs
            SET status = 'failed', title = $1, message = $2, error_message = $3,
                finished_at = $4, duration_ms = $5
            WHERE id = $6`,
-          [
-            `فشل تشغيل الأتمتة: ${key}`,
-            'فشل تنفيذ مهمة الأتمتة',
-            err.message || 'خطأ غير معروف',
-            finishedAt,
-            finishedAt.getTime() - startedAt.getTime(),
-            logId,
-          ],
-        );
+            [
+              `فشل تشغيل الأتمتة: ${key}`,
+              'فشل تنفيذ مهمة الأتمتة',
+              err.message || 'خطأ غير معروف',
+              finishedAt,
+              finishedAt.getTime() - startedAt.getTime(),
+              logId,
+            ],
+          );
+        }
+        return {
+          success: false,
+          message: `فشل تشغيل الأتمتة: ${err.message}`,
+        };
       }
-      return {
-        success: false,
-        message: `فشل تشغيل الأتمتة: ${err.message}`,
-      };
-    }
+    });
   }
 }
 

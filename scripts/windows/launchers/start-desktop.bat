@@ -8,10 +8,12 @@ echo     بن العجوز ERP — تشغيل كاشير سطح المكتب (PO
 echo ===================================================
 echo.
 echo [1/2] جاري الانتقال لمجلد المشروع...
-cd /d "%~dp0..\.."
+cd /d "%~dp0..\..\.." || exit /b 1
 
 echo [2/2] جاري تشغيل شاشة الكاشير...
 echo.
-npm run dev --prefix desktop-pos
+call npm run dev --prefix desktop-pos
+set "launchExitCode=%errorlevel%"
 
 pause
+exit /b %launchExitCode%

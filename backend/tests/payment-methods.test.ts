@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { getDashboardStats, invalidateDashboardCache } from '../src/services/dashboardService';
+import { getDashboardStats } from '../src/services/dashboardService.ts';
 import { query } from '../src/database/pool.ts';
-import pool from '../src/database/pool.ts';
 
 /**
  * اختبار انتكاس لرسم "طرق الدفع" (paymentMethodSummary):
@@ -77,8 +76,6 @@ describe('رسم طرق الدفع (paymentMethodSummary)', () => {
        VALUES ('PMT-TEST-003', 'supplier', $1, 900, 'bank', $2::timestamptz)`,
       [supplierId, `${today} 13:00:00Z`],
     );
-
-    invalidateDashboardCache();
   });
 
   afterAll(async () => {
@@ -87,7 +84,6 @@ describe('رسم طرق الدفع (paymentMethodSummary)', () => {
     if (invoiceId) await query(`DELETE FROM invoices WHERE id = $1`, [invoiceId]);
     if (saleId) await query(`DELETE FROM sales WHERE id = $1`, [saleId]);
     if (supplierId) await query(`DELETE FROM suppliers WHERE id = $1`, [supplierId]);
-    invalidateDashboardCache();
   });
 
   const getSummary = async () => {
@@ -96,27 +92,37 @@ describe('رسم طرق الدفع (paymentMethodSummary)', () => {
       from_date: today,
       to_date: today,
     });
-    return (stats.paymentMethodSummary as any[]) || [];
+    return (
+      (stats.paymentMethodSummary as { payment_method: string; total: string | number }[]) || []
+    );
   };
 
   it('يشمل مدفوعات الفواتير الآجلة (invoice) في توزيع طرق الدفع', async () => {
     const summary = await getSummary();
-    const card = summary.find((r: any) => r.payment_method === 'card');
+    const card = summary.find(
+      (r: { payment_method: string; total: string | number }) => r.payment_method === 'card',
+    );
     expect(card).toBeDefined();
+    if (!card) throw new Error('Card payment summary is missing');
     // 700 = سداد الفاتورة الآجلة بالكارت — كانت مستثناة قبل الإصلاح
     expect(Number(card.total)).toBe(700);
   });
 
   it('يستبعد مدفوعات الموردين (خروج نقد) من طرق دفع التحصيل', async () => {
     const summary = await getSummary();
-    const bank = summary.find((r: any) => r.payment_method === 'bank');
+    const bank = summary.find(
+      (r: { payment_method: string; total: string | number }) => r.payment_method === 'bank',
+    );
     expect(bank).toBeUndefined();
   });
 
   it('يستبعد مدفوعات المبيعات المرتجعة (المسترّدة للعميل)', async () => {
     const summary = await getSummary();
-    const cash = summary.find((r: any) => r.payment_method === 'cash');
+    const cash = summary.find(
+      (r: { payment_method: string; total: string | number }) => r.payment_method === 'cash',
+    );
     expect(cash).toBeDefined();
+    if (!cash) throw new Error('Cash payment summary is missing');
     // 500 فقط = البيع المكتمل، بدون دفعة البيع المرتجع (300)
     expect(Number(cash.total)).toBe(500);
   });
@@ -139,9 +145,17 @@ describe('رسم طرق الدفع (paymentMethodSummary)', () => {
        GROUP BY payment_method`,
       [today, today],
     );
-    const apiMap = Object.fromEntries(summary.map((r: any) => [r.payment_method, Number(r.total)]));
+    const apiMap = Object.fromEntries(
+      summary.map((r: { payment_method: string; total: string | number }) => [
+        r.payment_method,
+        Number(r.total),
+      ]),
+    );
     const dbMap = Object.fromEntries(
-      ledger.rows.map((r: any) => [r.payment_method, Number(r.total)]),
+      ledger.rows.map((r: { payment_method: string; total: string | number }) => [
+        r.payment_method,
+        Number(r.total),
+      ]),
     );
     expect(apiMap).toEqual(dbMap);
   });

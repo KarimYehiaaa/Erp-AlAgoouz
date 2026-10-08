@@ -1,7 +1,8 @@
 import { ref, computed } from 'vue';
 
 export interface AppUpdateState {
-  state: 'idle' | 'checking' | 'available' | 'downloading' | 'downloaded' | 'current' | 'error' | string;
+  state:
+    'idle' | 'checking' | 'available' | 'downloading' | 'downloaded' | 'current' | 'error' | string;
   version?: string;
   message?: string;
   percent?: number;
@@ -71,7 +72,8 @@ export function useAppUpdater() {
     if (typeof window === 'undefined' || !window.electronAPI?.checkForUpdates) {
       updateState.value = {
         state: 'current',
-        message: 'أنت في بيئة المتصفح التجريبية (Web Mode). التحديث متاح عبر تطبيق Electron المكتبي.',
+        message:
+          'أنت في بيئة المتصفح التجريبية (Web Mode). التحديث متاح عبر تطبيق Electron المكتبي.',
       };
       return;
     }

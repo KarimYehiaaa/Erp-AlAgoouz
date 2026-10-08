@@ -84,7 +84,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import AppIcon from './AppIcon.vue';
-import { api } from '../services/api';
+import { recordCashMovement } from '../services/posShiftService';
 import { usePosShiftStore } from '../stores/posShift';
 
 defineProps<{
@@ -111,7 +111,7 @@ const handleSubmit = async () => {
     const shiftId = shiftStore.currentShift?.id;
     if (!shiftId) throw new Error('لا توجد وردية مفتوحة حالياً');
 
-    await api.post('/pos/shifts/movements', {
+    await recordCashMovement({
       shift_id: shiftId,
       movement_type: movementType.value,
       amount: amount.value,

@@ -18,7 +18,7 @@ const routes: RouteRecordRaw[] = [
     path: '/mobile',
     name: 'ManagerMobile',
     component: () => import('@/views/ManagerMobileView.vue'),
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, permission: 'reports.view' },
   },
   {
     path: '/manager-mobile',

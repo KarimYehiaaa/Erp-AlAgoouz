@@ -8,10 +8,13 @@ high-performance analytical companion.
 import os
 import secrets
 import logging
+import math
 from contextlib import asynccontextmanager
 from typing import Optional, List
 from fastapi import FastAPI, HTTPException, Header, Depends, Request
 from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
+from fastapi.encoders import jsonable_encoder
 from fastapi.middleware.cors import CORSMiddleware
 
 from models import (
@@ -116,12 +119,23 @@ def verify_analytics_key(
             detail="Analytics service authentication is unconfigured.",
         )
 
-    if not x_key or not secrets.compare_digest(x_key, expected_key):
+    if not x_key or not secrets.compare_digest(x_key.encode("utf-8"), expected_key.encode("utf-8")):
         raise HTTPException(
             status_code=401,
             detail="Unauthorized: Missing or invalid X-Analytics-Service-Key",
         )
     return True
+
+
+@app.exception_handler(RequestValidationError)
+async def request_validation_handler(request: Request, exc: RequestValidationError):
+    # A raw JSON NaN literal can occur in the rejected input itself; keep the
+    # validation response JSON-safe instead of turning a client error into 500.
+    details = jsonable_encoder(
+        exc.errors(),
+        custom_encoder={float: lambda value: value if math.isfinite(value) else str(value)},
+    )
+    return JSONResponse(status_code=422, content={"detail": details})
 
 
 @app.exception_handler(Exception)

@@ -1,9 +1,28 @@
 import { defineConfig } from 'vite';
 import vue from '@vitejs/plugin-vue';
-import { fileURLToPath } from 'url';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath, URL } from 'node:url';
+import { createRequire } from 'node:module';
+import process from 'node:process';
+import { createCspMetaPlugin } from './src/security/cspMetaPolicy.js';
 
-export default defineConfig({
+const deploymentConfig = JSON.parse(
+  readFileSync(fileURLToPath(new URL('./vercel.json', import.meta.url)), 'utf8'),
+);
+const hostedCsp = deploymentConfig.headers
+  ?.find((rule) => rule.source === '/(.*)')
+  ?.headers.find((header) => header.key.toLowerCase() === 'content-security-policy')?.value;
+
+// The unminified CommonJS entry exceeds 1 MiB and makes esbuild use a temp file
+// during production chunking. On Windows that temporary file can be locked by
+// the scanner before esbuild removes it. Use the package's equivalent minified
+// entry while keeping the PDF feature lazy-loaded.
+const html2pdfEntry = createRequire(import.meta.url).resolve('html2pdf.js');
+const html2pdfMinifiedEntry = html2pdfEntry.replace(/html2pdf\.js$/, 'html2pdf.min.js');
+
+export default defineConfig(({ mode }) => ({
   plugins: [
+    createCspMetaPlugin(mode, hostedCsp, process.env.VITE_ANDROID_BUILD_TYPE),
     vue({
       template: {
         // plugin-vue >=6 defaults includeAbsolute:true when no devServer is
@@ -18,6 +37,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
+      'html2pdf.js': html2pdfMinifiedEntry,
     },
   },
   css: {
@@ -28,6 +48,8 @@ export default defineConfig({
     },
   },
   build: {
+    // Native packaging must not overwrite the assets served by the shop/web server.
+    outDir: mode === 'native' ? 'dist-native' : 'dist',
     // pdf-export is a lazy fallback chunk for client-side PDF generation.
     chunkSizeWarningLimit: 800,
     rollupOptions: {
@@ -62,4 +84,4 @@ export default defineConfig({
       '/ws': { target: 'ws://localhost:3000', ws: true },
     },
   },
-});
+}));

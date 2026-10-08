@@ -1,3 +1,9 @@
+import { receiptAccountCode } from '../utils/receiptAccount.ts';
+import { linkPaymentJournalSources } from './paymentJournalSources.ts';
+import { createHash } from 'node:crypto';
+import { parseGeneralLedgerFilters } from '../utils/ledgerFilters.ts';
+import { parseReportAsOfDate, parseReportPeriod } from '../utils/reportDates.ts';
+import { effectivePostedJournalSql, MAX_JOURNAL_LINE_AMOUNT } from '../utils/journalPosting.ts';
 /**
  * accountingService.ts — المحرك المحاسبي المتكامل ونظام الأستاذ العام (General Ledger)
  * ═════════════════════════════════════════════════════════════════════════════════
@@ -10,11 +16,11 @@
  *  - الميزانية العمومية (Balance Sheet) وقائمة الدخل الدفترية (Income Statement)
  */
 
-import { query, getClient } from '../database/pool.ts';
+import { query, getClient, withReadOnlySnapshot } from '../database/pool.ts';
 import { AppError } from '../types/errors.ts';
 import { roundMoney, sumMoney } from '../utils/money.ts';
-import { appCache } from '../utils/cache.ts';
 import { businessToday } from '../utils/localDate.ts';
+import { requireReceiptMethod } from '../utils/receiptMethod.ts';
 
 export function getLocalTodayDate(): string {
   return businessToday();
@@ -54,6 +60,18 @@ export const STANDARD_ACCOUNTS = {
   GENERAL_EXPENSE: '5205', // مصروفات تشغيلية عامة
 };
 
+export interface LedgerReconciliationSummary {
+  period: { from_date: string; to_date: string };
+  general_ledger: { revenue: number; cogs: number; expenses: number; net_profit: number };
+  operational: { revenue: number; cogs: number; expenses: number; net_profit: number };
+  variances: {
+    revenue: number;
+    cogs: number;
+    expenses: number;
+    net_profit: number;
+    is_fully_reconciled: boolean;
+  };
+}
 export interface JournalLineInput {
   account_id?: number;
   account_code?: string;
@@ -86,8 +104,6 @@ export interface CreateJournalEntryInput {
   idempotency_key?: string;
 }
 
-const CACHE_KEY_COA = 'chart_of_accounts_tree';
-
 export const accountingService = {
   // ─── 1. شجرة الحسابات (Chart of Accounts) ──────────────────────────────────
 
@@ -115,13 +131,13 @@ export const accountingService = {
     return res.rows;
   },
 
-  async getAccountById(id: number) {
-    const res = await query(`SELECT * FROM accounts WHERE id = $1`, [id]);
+  async getAccountById(id: number, db: typeof query = query) {
+    const res = await db(`SELECT * FROM accounts WHERE id = $1`, [id]);
     return res.rows[0] || null;
   },
 
-  async getAccountByCode(code: string) {
-    const res = await query(`SELECT * FROM accounts WHERE code = $1`, [code]);
+  async getAccountByCode(code: string, db: typeof query = query) {
+    const res = await db(`SELECT * FROM accounts WHERE code = $1`, [code]);
     return res.rows[0] || null;
   },
 
@@ -165,7 +181,6 @@ export const accountingService = {
       ],
     );
 
-    appCache.delete(CACHE_KEY_COA);
     return res.rows[0];
   },
 
@@ -194,7 +209,6 @@ export const accountingService = {
       ],
     );
 
-    appCache.delete(CACHE_KEY_COA);
     return res.rows[0];
   },
 
@@ -209,6 +223,89 @@ export const accountingService = {
   /**
    * إنشاء قيد يومية متوازن مع التحقق الحسابي الدقيق (Debit == Credit)
    */
+  /** Public journals have their own persistent, payload-bound idempotency scope. */
+  async createPublicJournalEntry(
+    data: CreateJournalEntryInput,
+    userId: number,
+    legacyKey?: string,
+  ) {
+    const referenceType = data.reference_type || 'manual';
+    if (!['manual', 'opening', 'transfer'].includes(referenceType))
+      throw new AppError('مراجع العمليات التلقائية لا تستخدم في القيود اليدوية', 400);
+    const input = {
+      ...data,
+      reference_type: referenceType as CreateJournalEntryInput['reference_type'],
+      created_by: userId,
+    };
+    if (data.idempotency_key === undefined) return this.createJournalEntry(input);
+    const rawKey = data.idempotency_key.trim();
+    if (!rawKey || rawKey.length > 150) throw new AppError('مفتاح العملية غير صالح', 400);
+    const digest = (value: string) => createHash('sha256').update(value).digest('base64url');
+    const scope = `public_journal:${userId}:${digest(rawKey)}:`;
+    const signature = digest(
+      JSON.stringify({
+        entry_date: data.entry_date || null,
+        reference_type: referenceType,
+        reference_id: data.reference_id ?? null,
+        description: data.description.trim(),
+        status: data.status || 'posted',
+        lines: data.lines.map((line) => ({
+          account_id: line.account_id ?? null,
+          account_code: line.account_code ?? null,
+          debit: roundMoney(Number(line.debit || 0)),
+          credit: roundMoney(Number(line.credit || 0)),
+          description: line.description || null,
+          warehouse_id: line.warehouse_id ?? null,
+        })),
+      }),
+    );
+    const key = scope + signature;
+    const client = await getClient();
+    try {
+      await client.query('BEGIN');
+      await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [scope]);
+      const legacyJournal = await client.query(
+        `SELECT entry_number FROM journal_entries WHERE idempotency_key=$1 AND created_by=$2
+         AND reference_type IN ('manual','opening','transfer')`,
+        [rawKey, userId],
+      );
+      if (legacyJournal.rows[0])
+        throw new AppError(
+          `هذا المفتاح مرتبط بالقيد السابق ${legacyJournal.rows[0].entry_number}؛ راجع نتيجته قبل إنشاء عملية جديدة`,
+          409,
+          'LEGACY_JOURNAL_REQUEST',
+        );
+      if (legacyKey) {
+        const legacy = await client.query('SELECT key FROM idempotency_records WHERE key = $1', [
+          legacyKey,
+        ]);
+        if (legacy.rows[0])
+          throw new AppError(
+            'هذا المفتاح يعود إلى طلب سابق؛ راجع نتيجة القيد قبل إنشاء عملية جديدة',
+            409,
+            'LEGACY_JOURNAL_REQUEST',
+          );
+      }
+      const existing = await client.query(
+        "SELECT idempotency_key FROM journal_entries WHERE idempotency_key LIKE $1 ESCAPE '!'",
+        [scope.replaceAll('_', '!_') + '%'],
+      );
+      if (existing.rows.some((row) => row.idempotency_key !== key))
+        throw new AppError(
+          'مفتاح العملية مستخدم لبيانات مختلفة؛ أنشئ عملية جديدة',
+          409,
+          'IDEMPOTENCY_CONFLICT',
+        );
+      const entry = await this.createJournalEntry({ ...input, idempotency_key: key }, client);
+      await client.query('COMMIT');
+      return entry;
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  },
   async createJournalEntry(data: CreateJournalEntryInput, providedClient?: any) {
     if (!data.lines || data.lines.length < 2) {
       throw new AppError('قيد اليومية يجب أن يحتوي على طرفين على الأقل (مدين ودائن)', 400);
@@ -221,6 +318,14 @@ export const accountingService = {
       const d = roundMoney(Number(line.debit || 0));
       const c = roundMoney(Number(line.credit || 0));
 
+      if (
+        !Number.isFinite(d) ||
+        !Number.isFinite(c) ||
+        d > MAX_JOURNAL_LINE_AMOUNT ||
+        c > MAX_JOURNAL_LINE_AMOUNT
+      ) {
+        throw new AppError('المبلغ خارج النطاق المسموح للقيد المحاسبي', 400);
+      }
       if (d < 0 || c < 0) {
         throw new AppError('المبالغ المدينة والدائنة يجب أن تكون موجبة أو صفر', 400);
       }
@@ -250,6 +355,24 @@ export const accountingService = {
     try {
       if (shouldManageTransaction) await client.query('BEGIN');
 
+      // قفل الفترة المحاسبية على مستوى التطبيق (دفاع متعدد الطبقات مع DB trigger):
+      // يمنع الترحيل بأثر رجعي داخل فترة مغلقة ويعطي خطأ واضحاً بدل استثناء القاعدة.
+      const lockedPeriodRes = await client.query(
+        `SELECT id, period_start, period_end FROM financial_periods
+         WHERE status IN ('closed', 'locked')
+           AND COALESCE($1::date, CURRENT_DATE) BETWEEN period_start AND period_end
+         LIMIT 1 FOR SHARE`,
+        [data.entry_date || null],
+      );
+      if (lockedPeriodRes.rows[0]) {
+        const p = lockedPeriodRes.rows[0];
+        throw new AppError(
+          `لا يمكن الترحيل في فترة محاسبية مغلقة (${p.period_start} إلى ${p.period_end}) — أعد فتح الفترة أو غيّر تاريخ القيد`,
+          409,
+          'PERIOD_LOCKED',
+        );
+      }
+
       // فحص ومنع تكرار القيود باستخدام مفتاح عدم التكرار وقفل المعاملة (Advisory Lock)
       if (data.idempotency_key) {
         await client.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [data.idempotency_key]);
@@ -258,7 +381,7 @@ export const accountingService = {
           `SELECT je.*,
                   COALESCE((SELECT SUM(debit) FROM journal_entry_lines WHERE journal_entry_id = je.id), 0) AS total_debit,
                   COALESCE((SELECT SUM(credit) FROM journal_entry_lines WHERE journal_entry_id = je.id), 0) AS total_credit
-           FROM journal_entries je 
+           FROM journal_entries je
            WHERE je.idempotency_key = $1`,
           [data.idempotency_key],
         );
@@ -359,7 +482,7 @@ export const accountingService = {
       payment_method?: string;
       payment_status?: string;
       paid_amount?: number;
-      payments?: Array<{ payment_method?: string; amount?: number }>;
+      payments?: Array<{ payment_method?: string; amount?: number; payment_number?: string }>;
       customer_id?: number;
       warehouse_id?: number;
       user_id?: number;
@@ -380,20 +503,9 @@ export const accountingService = {
 
     const lines: JournalLineInput[] = [];
 
-    const getAccountForMethod = (methodName?: string) => {
-      const m = (methodName || 'cash').toLowerCase();
-      if (m === 'card' || m === 'bank' || m === 'visa') {
-        return STANDARD_ACCOUNTS.BANK_ACCOUNTS;
-      }
-      if (m === 'transfer' || m === 'instapay' || m === 'wallet') {
-        return STANDARD_ACCOUNTS.E_WALLETS;
-      }
-      return sale.sale_type === 'wholesale'
-        ? STANDARD_ACCOUNTS.MAIN_TREASURY
-        : STANDARD_ACCOUNTS.SHOP_CASH_DRAWER;
-    };
+    const getAccountForMethod = (method?: string) => receiptAccountCode(method, sale.sale_type);
 
-    if (Array.isArray(sale.payments) && sale.payments.length > 0) {
+    if (Array.isArray(sale.payments)) {
       let allocatedDebit = 0;
       for (const p of sale.payments) {
         const pAmount = roundMoney(Number(p.amount || 0));
@@ -410,13 +522,8 @@ export const accountingService = {
       }
       const remainingUnpaid = roundMoney(totalAmount - allocatedDebit);
       if (remainingUnpaid > 0) {
-        const receivableAcct = sale.customer_id
-          ? STANDARD_ACCOUNTS.CUSTOMERS_RECEIVABLE
-          : sale.sale_type === 'wholesale'
-            ? STANDARD_ACCOUNTS.MAIN_TREASURY
-            : STANDARD_ACCOUNTS.SHOP_CASH_DRAWER;
         lines.push({
-          account_code: receivableAcct,
+          account_code: STANDARD_ACCOUNTS.CUSTOMERS_RECEIVABLE,
           debit: remainingUnpaid,
           credit: 0,
           description: `استحقاق متبقي مبيعات آجل ${sale.sale_number}`,
@@ -441,13 +548,8 @@ export const accountingService = {
       }
 
       if (remainingUnpaid > 0) {
-        const receivableAcct = sale.customer_id
-          ? STANDARD_ACCOUNTS.CUSTOMERS_RECEIVABLE
-          : sale.sale_type === 'wholesale'
-            ? STANDARD_ACCOUNTS.MAIN_TREASURY
-            : STANDARD_ACCOUNTS.SHOP_CASH_DRAWER;
         lines.push({
-          account_code: receivableAcct,
+          account_code: STANDARD_ACCOUNTS.CUSTOMERS_RECEIVABLE,
           debit: remainingUnpaid,
           credit: 0,
           description: `استحقاق مبيعات آجل ${sale.sale_number}`,
@@ -500,7 +602,7 @@ export const accountingService = {
       });
     }
 
-    return this.createJournalEntry(
+    const journal = await this.createJournalEntry(
       {
         entry_date: sale.sale_date,
         reference_type: 'sale',
@@ -512,6 +614,13 @@ export const accountingService = {
       },
       client,
     );
+
+    await linkPaymentJournalSources(
+      client,
+      (sale.payments || []).flatMap((p) => (p.payment_number ? [p.payment_number] : [])),
+      journal.id,
+    );
+    return journal;
   },
 
   /**
@@ -587,27 +696,89 @@ export const accountingService = {
       warehouse_id?: number;
       user_id?: number;
       return_date?: string;
+      warehouse_amounts?: Array<{
+        warehouse_id: number;
+        supplier_amount: number;
+        inventory_cost: number;
+      }>;
     },
   ) {
     const totalAmount = roundMoney(Number(returnDoc.total_amount || 0));
-    if (totalAmount <= 0) return;
+    if (!returnDoc.warehouse_amounts?.length && totalAmount <= 0) return;
 
-    const lines: JournalLineInput[] = [
-      {
-        account_code: STANDARD_ACCOUNTS.SUPPLIERS_PAYABLE,
-        debit: totalAmount,
-        credit: 0,
-        description: `تخفيض مستحقات مورد لمرتجع ${returnDoc.return_number}`,
-        warehouse_id: returnDoc.warehouse_id,
-      },
-      {
-        account_code: STANDARD_ACCOUNTS.FINISHED_GOODS,
-        debit: 0,
-        credit: totalAmount,
-        description: `خصم مخزون بضاعة مرتجعة ${returnDoc.return_number}`,
-        warehouse_id: returnDoc.warehouse_id,
-      },
-    ];
+    const lines: JournalLineInput[] = returnDoc.warehouse_amounts?.length
+      ? []
+      : [
+          {
+            account_code: STANDARD_ACCOUNTS.SUPPLIERS_PAYABLE,
+            debit: totalAmount,
+            credit: 0,
+            description: `تخفيض مستحقات مورد لمرتجع ${returnDoc.return_number}`,
+            warehouse_id: returnDoc.warehouse_id,
+          },
+          {
+            account_code: STANDARD_ACCOUNTS.FINISHED_GOODS,
+            debit: 0,
+            credit: totalAmount,
+            description: `خصم مخزون بضاعة مرتجعة ${returnDoc.return_number}`,
+            warehouse_id: returnDoc.warehouse_id,
+          },
+        ];
+
+    if (returnDoc.warehouse_amounts?.length) {
+      let supplierTotal = 0;
+      for (const amount of returnDoc.warehouse_amounts) {
+        const supplierAmount = roundMoney(Number(amount.supplier_amount));
+        const inventoryCost = roundMoney(Number(amount.inventory_cost));
+        if (
+          !Number.isSafeInteger(amount.warehouse_id) ||
+          amount.warehouse_id <= 0 ||
+          !Number.isFinite(supplierAmount) ||
+          supplierAmount < 0 ||
+          !Number.isFinite(inventoryCost) ||
+          inventoryCost < 0
+        ) {
+          throw new AppError('قيم مخازن مرتجع الشراء غير صحيحة', 409);
+        }
+        supplierTotal = sumMoney(supplierTotal, supplierAmount);
+        if (supplierAmount > 0)
+          lines.push({
+            account_code: STANDARD_ACCOUNTS.SUPPLIERS_PAYABLE,
+            debit: supplierAmount,
+            credit: 0,
+            description: `تخفيض مستحقات مورد لمرتجع ${returnDoc.return_number}`,
+            warehouse_id: amount.warehouse_id,
+          });
+        if (inventoryCost > 0)
+          lines.push({
+            account_code: STANDARD_ACCOUNTS.FINISHED_GOODS,
+            debit: 0,
+            credit: inventoryCost,
+            description: `تكلفة المخزون المصروف لمرتجع ${returnDoc.return_number}`,
+            warehouse_id: amount.warehouse_id,
+          });
+        const variance = roundMoney(inventoryCost - supplierAmount);
+        if (variance > 0)
+          lines.push({
+            account_code: STANDARD_ACCOUNTS.GENERAL_EXPENSE,
+            debit: variance,
+            credit: 0,
+            description: `فرق تكلفة مخزون عن تسوية المورد لمرتجع ${returnDoc.return_number}`,
+            warehouse_id: amount.warehouse_id,
+          });
+        else if (variance < 0)
+          lines.push({
+            account_code: STANDARD_ACCOUNTS.OTHER_INCOME,
+            debit: 0,
+            credit: -variance,
+            description: `فرق تسوية المورد عن تكلفة مخزون مرتجع ${returnDoc.return_number}`,
+            warehouse_id: amount.warehouse_id,
+          });
+      }
+      if (supplierTotal !== totalAmount)
+        throw new AppError('توزيع مبلغ المرتجع على المخازن لا يطابق المستند', 409);
+      if (!lines.length) return;
+    }
 
     return this.createJournalEntry(
       {
@@ -709,9 +880,14 @@ export const accountingService = {
     const amount = roundMoney(Number(payment.amount || 0));
     if (amount <= 0) return;
 
-    const method = (payment.payment_method || 'cash').toLowerCase();
-    const treasuryAccount =
-      method === 'card' ? STANDARD_ACCOUNTS.BANK_ACCOUNTS : STANDARD_ACCOUNTS.MAIN_TREASURY;
+    const method = requireReceiptMethod(payment.payment_method);
+    const treasuryAccount = ['card', 'bank', 'visa'].includes(method)
+      ? STANDARD_ACCOUNTS.BANK_ACCOUNTS
+      : ['transfer', 'bank_transfer', 'instapay', 'wallet', 'vodafone_cash'].includes(method)
+        ? STANDARD_ACCOUNTS.E_WALLETS
+        : method === 'drawer'
+          ? STANDARD_ACCOUNTS.SHOP_CASH_DRAWER
+          : STANDARD_ACCOUNTS.MAIN_TREASURY;
 
     const lines: JournalLineInput[] = [];
 
@@ -772,39 +948,49 @@ export const accountingService = {
     to_date?: string;
     warehouse_id?: number;
   }) {
-    let account: any = null;
-    if (params.account_id) {
-      account = await this.getAccountById(params.account_id);
-    } else if (params.account_code) {
-      account = await this.getAccountByCode(params.account_code);
-    }
+    const filters = parseGeneralLedgerFilters(params);
+    return withReadOnlySnapshot(async (client) => {
+      const read: typeof query = (sql, params) => client.query(sql, params);
+      let account: any = null;
+      if (filters.account_id) {
+        account = await this.getAccountById(filters.account_id, read);
+      } else if (filters.account_code) {
+        account = await this.getAccountByCode(filters.account_code, read);
+      }
 
-    if (!account) throw new AppError('يرجى تحديد حساب صالح لعرض دفتر الأستاذ', 400);
+      if (!account) throw new AppError('يرجى تحديد حساب صالح لعرض دفتر الأستاذ', 400);
 
-    const fromDate = params.from_date || '2000-01-01';
-    const toDate = params.to_date || '2099-12-31';
+      const fromDate = filters.from_date;
+      const toDate = filters.to_date;
 
-    // 1. حساب الرصيد الافتتاحي ما قبل from_date
-    const openRes = await query(
-      `SELECT
+      if (filters.warehouse_id !== undefined) {
+        const warehouse = await read('SELECT id FROM warehouses WHERE id = $1', [
+          filters.warehouse_id,
+        ]);
+        if (!warehouse.rows[0]) throw new AppError('المخزن المحدد غير موجود', 400);
+      }
+
+      // 1. حساب الرصيد الافتتاحي ما قبل from_date
+      const openRes = await read(
+        `SELECT
          COALESCE(SUM(jel.debit), 0) AS total_debit,
          COALESCE(SUM(jel.credit), 0) AS total_credit
        FROM journal_entry_lines jel
        JOIN journal_entries je ON je.id = jel.journal_entry_id
        WHERE jel.account_id = $1
-         AND je.status = 'posted'
-         AND je.entry_date < $2::date`,
-      [account.id, fromDate],
-    );
+         AND ${effectivePostedJournalSql('je')}
+         AND je.entry_date < $2::date AND ($3::int IS NULL OR jel.warehouse_id = $3)`,
+        [account.id, fromDate, filters.warehouse_id ?? null],
+      );
 
-    const openDebit = Number(openRes.rows[0].total_debit);
-    const openCredit = Number(openRes.rows[0].total_credit);
-    const isDebitNormal = account.normal_balance === 'debit';
-    const openingBalance = isDebitNormal ? openDebit - openCredit : openCredit - openDebit;
+      const openDebit = Number(openRes.rows[0].total_debit);
+      const openCredit = Number(openRes.rows[0].total_credit);
+      const isDebitNormal = account.normal_balance === 'debit';
+      const openingBalance = isDebitNormal ? openDebit - openCredit : openCredit - openDebit;
 
-    // 2. حركات الفترة المحددة
-    const movesRes = await query(
-      `SELECT
+      // 2. حركات الفترة المحددة
+      const movesRes = await read(
+        `SELECT
          je.id as entry_id,
          je.entry_number,
          je.entry_date,
@@ -821,49 +1007,49 @@ export const accountingService = {
        JOIN journal_entries je ON je.id = jel.journal_entry_id
        LEFT JOIN warehouses w ON w.id = jel.warehouse_id
        WHERE jel.account_id = $1
-         AND je.status = 'posted'
-         AND je.entry_date BETWEEN $2::date AND $3::date
+         AND ${effectivePostedJournalSql('je')}
+         AND je.entry_date BETWEEN $2::date AND $3::date AND ($4::int IS NULL OR jel.warehouse_id = $4)
        ORDER BY je.entry_date ASC, je.id ASC, jel.id ASC`,
-      [account.id, fromDate, toDate],
-    );
+        [account.id, fromDate, toDate, filters.warehouse_id ?? null],
+      );
 
-    let runningBalance = openingBalance;
-    const entries = movesRes.rows.map((row) => {
-      const d = Number(row.debit);
-      const c = Number(row.credit);
-      if (isDebitNormal) {
-        runningBalance = roundMoney(runningBalance + d - c);
-      } else {
-        runningBalance = roundMoney(runningBalance + c - d);
-      }
+      let runningBalance = openingBalance;
+      const entries = movesRes.rows.map((row) => {
+        const d = Number(row.debit);
+        const c = Number(row.credit);
+        if (isDebitNormal) {
+          runningBalance = roundMoney(runningBalance + d - c);
+        } else {
+          runningBalance = roundMoney(runningBalance + c - d);
+        }
+        return {
+          ...row,
+          debit: d,
+          credit: c,
+          running_balance: runningBalance,
+        };
+      });
+
+      const periodDebit = entries.reduce((s, e) => sumMoney(s, e.debit), 0);
+      const periodCredit = entries.reduce((s, e) => sumMoney(s, e.credit), 0);
+
       return {
-        ...row,
-        debit: d,
-        credit: c,
-        running_balance: runningBalance,
+        account,
+        period: { from_date: fromDate, to_date: toDate },
+        opening_balance: roundMoney(openingBalance),
+        period_debit: periodDebit,
+        period_credit: periodCredit,
+        closing_balance: roundMoney(runningBalance),
+        entries,
       };
     });
-
-    const periodDebit = entries.reduce((s, e) => sumMoney(s, e.debit), 0);
-    const periodCredit = entries.reduce((s, e) => sumMoney(s, e.credit), 0);
-
-    return {
-      account,
-      period: { from_date: fromDate, to_date: toDate },
-      opening_balance: roundMoney(openingBalance),
-      period_debit: periodDebit,
-      period_credit: periodCredit,
-      closing_balance: roundMoney(runningBalance),
-      entries,
-    };
   },
 
   /**
    * ميزان المراجعة (Trial Balance) — التوازن الإلزامي: إجمالي المدين = إجمالي الدائن
    */
-  async getTrialBalance(params: { from_date?: string; to_date?: string } = {}) {
-    const fromDate = params?.from_date || '2000-01-01';
-    const toDate = params?.to_date || '2099-12-31';
+  async getTrialBalance(params: unknown = {}) {
+    const { from_date: fromDate, to_date: toDate } = parseReportPeriod(params, 'trial');
 
     const sql = `
       WITH opening_moves AS (
@@ -873,7 +1059,7 @@ export const accountingService = {
           COALESCE(SUM(jel.credit), 0) AS open_credit
         FROM journal_entry_lines jel
         JOIN journal_entries je ON je.id = jel.journal_entry_id
-        WHERE je.status = 'posted' AND je.entry_date < $1::date
+        WHERE ${effectivePostedJournalSql('je')} AND je.entry_date < $1::date
         GROUP BY jel.account_id
       ),
       period_moves AS (
@@ -883,7 +1069,7 @@ export const accountingService = {
           COALESCE(SUM(jel.credit), 0) AS cur_credit
         FROM journal_entry_lines jel
         JOIN journal_entries je ON je.id = jel.journal_entry_id
-        WHERE je.status = 'posted' AND je.entry_date BETWEEN $1::date AND $2::date
+        WHERE ${effectivePostedJournalSql('je')} AND je.entry_date BETWEEN $1::date AND $2::date
         GROUP BY jel.account_id
       )
       SELECT
@@ -900,7 +1086,7 @@ export const accountingService = {
       FROM accounts a
       LEFT JOIN opening_moves om ON om.account_id = a.id
       LEFT JOIN period_moves pm ON pm.account_id = a.id
-      WHERE a.is_active = TRUE
+      WHERE a.is_active = TRUE OR om.account_id IS NOT NULL OR pm.account_id IS NOT NULL
       ORDER BY a.code ASC
     `;
 
@@ -975,9 +1161,10 @@ export const accountingService = {
   /**
    * الميزانية العمومية (Balance Sheet): الأصول = الخصوم + حقوق الملكية
    */
-  async getBalanceSheet(asOfDate: string = getLocalTodayDate()) {
+  async getBalanceSheet(inputDate?: unknown) {
+    const asOfDate = parseReportAsOfDate(inputDate);
     // نجلب ميزان المراجعة حتى هذا التاريخ
-    const tb = await this.getTrialBalance({ from_date: '2000-01-01', to_date: asOfDate });
+    const tb = await this.getTrialBalance({ from_date: asOfDate, to_date: asOfDate });
 
     const assets: any[] = [];
     const liabilities: any[] = [];
@@ -1138,10 +1325,12 @@ export const accountingService = {
     if (amount <= 0) return;
 
     let debitAccountCode = STANDARD_ACCOUNTS.MAIN_TREASURY;
-    const method = (payment.payment_method || 'cash').toLowerCase();
-    if (method === 'card' || method === 'bank') {
+    const method = requireReceiptMethod(payment.payment_method);
+    if (['card', 'bank', 'visa'].includes(method)) {
       debitAccountCode = STANDARD_ACCOUNTS.BANK_ACCOUNTS;
-    } else if (method === 'wallet' || method === 'instapay') {
+    } else if (
+      ['wallet', 'instapay', 'transfer', 'bank_transfer', 'vodafone_cash'].includes(method)
+    ) {
       debitAccountCode = STANDARD_ACCOUNTS.E_WALLETS;
     } else if (method === 'drawer') {
       debitAccountCode = STANDARD_ACCOUNTS.SHOP_CASH_DRAWER;
@@ -1167,7 +1356,9 @@ export const accountingService = {
         entry_date: payment.payment_date,
         reference_type: 'payment',
         reference_id: payment.id,
-        idempotency_key: `customer_payment:${payment.id}`,
+        // A customer can receive multiple payments, and one sale can be paid
+        // in several installments. The document ID is not the payment event ID.
+        idempotency_key: `customer_payment:${payment.payment_number || payment.id}`,
         description: `تحصيل دفعة عميل ${payment.payment_number || 'PAY-' + payment.id}`,
         lines,
         created_by: payment.user_id,
@@ -1197,9 +1388,11 @@ export const accountingService = {
 
     let creditAccountCode = STANDARD_ACCOUNTS.MAIN_TREASURY;
     const method = (payment.payment_method || 'cash').toLowerCase();
-    if (method === 'card' || method === 'bank') {
+    if (['card', 'bank', 'visa'].includes(method)) {
       creditAccountCode = STANDARD_ACCOUNTS.BANK_ACCOUNTS;
-    } else if (method === 'wallet' || method === 'instapay') {
+    } else if (
+      ['wallet', 'instapay', 'transfer', 'bank_transfer', 'vodafone_cash'].includes(method)
+    ) {
       creditAccountCode = STANDARD_ACCOUNTS.E_WALLETS;
     } else if (method === 'drawer') {
       creditAccountCode = STANDARD_ACCOUNTS.SHOP_CASH_DRAWER;
@@ -1341,16 +1534,8 @@ export const accountingService = {
       });
     }
 
-    const getAccountForMethod = (methodName?: string) => {
-      const m = (methodName || 'cash').toLowerCase();
-      if (m === 'card' || m === 'bank' || m === 'visa') {
-        return STANDARD_ACCOUNTS.BANK_ACCOUNTS;
-      }
-      if (m === 'transfer' || m === 'instapay' || m === 'wallet') {
-        return STANDARD_ACCOUNTS.E_WALLETS;
-      }
-      return STANDARD_ACCOUNTS.SHOP_CASH_DRAWER;
-    };
+    const getAccountForMethod = (method?: string) =>
+      receiptAccountCode(method, sale.sale_type || 'retail');
 
     if (Array.isArray(sale.payments) && sale.payments.length > 0) {
       let allocatedCredit = 0;
@@ -1369,11 +1554,8 @@ export const accountingService = {
       }
       const remainingUnpaid = roundMoney(totalAmount - allocatedCredit);
       if (remainingUnpaid > 0) {
-        const unpaidAcct = sale.customer_id
-          ? STANDARD_ACCOUNTS.CUSTOMERS_RECEIVABLE
-          : STANDARD_ACCOUNTS.SHOP_CASH_DRAWER;
         lines.push({
-          account_code: unpaidAcct,
+          account_code: STANDARD_ACCOUNTS.CUSTOMERS_RECEIVABLE,
           debit: 0,
           credit: remainingUnpaid,
           description: `إلغاء متبقي مبيعات آجل لمرتجع ${sale.sale_number}`,
@@ -1381,16 +1563,11 @@ export const accountingService = {
         });
       }
     } else {
-      let creditAccountCode = STANDARD_ACCOUNTS.SHOP_CASH_DRAWER;
-      const method = (sale.payment_method || 'cash').toLowerCase();
-
-      if (sale.customer_id) {
-        creditAccountCode = STANDARD_ACCOUNTS.CUSTOMERS_RECEIVABLE;
-      } else if (method === 'card' || method === 'bank') {
-        creditAccountCode = STANDARD_ACCOUNTS.BANK_ACCOUNTS;
-      } else if (method === 'transfer' || method === 'instapay' || method === 'wallet') {
-        creditAccountCode = STANDARD_ACCOUNTS.E_WALLETS;
-      }
+      const method = (sale.payment_method || 'cash').trim().toLowerCase();
+      const creditAccountCode =
+        method === 'credit' || sale.customer_id
+          ? STANDARD_ACCOUNTS.CUSTOMERS_RECEIVABLE
+          : getAccountForMethod(method);
 
       lines.push({
         account_code: creditAccountCode,
@@ -1669,37 +1846,35 @@ export const accountingService = {
    * عكس قيود مسير الرواتب عند الحذف أو التراجع
    */
   async reversePayrollJournalEntries(client: any, runId: number) {
-    const runner = client || query;
-    await runner(
-      `DELETE FROM journal_entry_lines 
-       WHERE journal_entry_id IN (
-         SELECT id FROM journal_entries WHERE reference_type = 'payroll' AND reference_id = $1
-       )`,
-      [runId],
-    );
-    await runner(
-      `DELETE FROM journal_entries WHERE reference_type = 'payroll' AND reference_id = $1`,
-      [runId],
-    );
+    await this.deleteJournalEntryByReference('payroll', runId, client);
   },
 
   /**
    * عكس قيد يومية مرحل (Journal Reversal)
-   * ينشئ قيداً عكسياً متوازناً ويغير حالة القيد الأصلي إلى voided لحفظ سلامة مسار التدقيق
+   * ينشئ قيداً عكسياً متوازناً مع إبقاء الأصل مرحلاً لحفظ تاريخ الأستاذ
    */
   async reverseJournalEntry(id: number, userId: number, reason?: string) {
     const client = await getClient();
     try {
       await client.query('BEGIN');
 
-      const origRes = await client.query(`SELECT * FROM journal_entries WHERE id = $1 FOR UPDATE`, [
-        id,
-      ]);
+      const origRes = await client.query(
+        `SELECT *, GREATEST(CURRENT_DATE, entry_date)::text AS reversal_date FROM journal_entries WHERE id = $1 FOR UPDATE`,
+        [id],
+      );
       const original = origRes.rows[0];
       if (!original) throw new AppError('قيد اليومية غير موجود', 404);
       if (original.status === 'voided') {
         throw new AppError('هذا القيد ملغى/معكوس بالفعل', 400);
       }
+
+      if (original.status !== 'posted') throw new AppError('لا يمكن عكس مسودة غير مرحلة', 400);
+      const priorReversal = await client.query(
+        `SELECT id FROM journal_entries WHERE reference_type='reversal' AND reference_id::text=$1::text
+         AND status IN ('posted','voided') LIMIT 1`,
+        [id],
+      );
+      if (priorReversal.rows[0]) throw new AppError('هذا القيد معكوس بالفعل', 400);
 
       const linesRes = await client.query(
         `SELECT * FROM journal_entry_lines WHERE journal_entry_id = $1`,
@@ -1721,6 +1896,7 @@ export const accountingService = {
 
       const reversalEntry = await this.createJournalEntry(
         {
+          entry_date: original.reversal_date,
           reference_type: 'reversal',
           reference_id: original.id,
           idempotency_key: `reversal_${original.id}`,
@@ -1729,11 +1905,6 @@ export const accountingService = {
           created_by: userId,
         },
         client,
-      );
-
-      await client.query(
-        `UPDATE journal_entries SET status = 'voided', updated_at = NOW() WHERE id = $1`,
-        [id],
       );
 
       await client.query('COMMIT');
@@ -1755,8 +1926,34 @@ export const accountingService = {
   /**
    * حذف قيد يومية مرتبط بمرجع تشغيلي
    */
+  async assertJournalReferenceMutable(client: any, referenceType: string, referenceId: number) {
+    const exec = (sql: string, params?: any[]) =>
+      typeof client === 'function' ? client(sql, params) : client.query(sql, params);
+    const sources = await exec(
+      `SELECT id FROM journal_entries WHERE reference_type=$1 AND reference_id=$2
+       ORDER BY id FOR UPDATE`,
+      [referenceType, referenceId],
+    );
+    const ids = sources.rows.map((row: { id: number }) => row.id);
+    if (!ids.length) return;
+    const claims = await exec(
+      `SELECT bst.id FROM bank_statement_transactions bst
+       JOIN bank_reconciliations br ON br.id=bst.reconciliation_id
+       LEFT JOIN payments p ON p.id=bst.matched_payment_id
+       WHERE br.status <> 'cancelled' AND bst.status IN ('matched','partial')
+         AND COALESCE(bst.matched_journal_entry_id,p.journal_entry_id)=ANY($1::int[])
+       LIMIT 1`,
+      [ids],
+    );
+    if (claims.rows.length)
+      throw new AppError(
+        'لا يمكن تعديل أو حذف قيد مستخدم في تسوية بنكية؛ راجع المطابقة أولاً',
+        409,
+      );
+  },
+
   async deleteJournalEntryByReference(first: any, second: any, third?: any) {
-    let client: any = null;
+    let client: any;
     let referenceType: string;
     let referenceId: number;
 
@@ -1770,33 +1967,41 @@ export const accountingService = {
       referenceId = Number(third);
     }
 
-    const exec = (sql: string, params?: any[]) => {
-      if (client?.query) return client.query(sql, params);
-      if (typeof client === 'function') return client(sql, params);
-      return query(sql, params);
-    };
-
-    await exec(
-      `DELETE FROM journal_entry_lines 
+    const ownedClient = client ? null : await getClient();
+    const runner = ownedClient || client;
+    const exec = (sql: string, params?: any[]) =>
+      typeof runner === 'function' ? runner(sql, params) : runner.query(sql, params);
+    try {
+      if (ownedClient) await exec('BEGIN');
+      await this.assertJournalReferenceMutable(runner, referenceType, referenceId);
+      await exec(
+        `DELETE FROM journal_entry_lines
        WHERE journal_entry_id IN (
          SELECT id FROM journal_entries WHERE reference_type = $1 AND reference_id = $2
        )`,
-      [referenceType, referenceId],
-    );
-    await exec(`DELETE FROM journal_entries WHERE reference_type = $1 AND reference_id = $2`, [
-      referenceType,
-      referenceId,
-    ]);
+        [referenceType, referenceId],
+      );
+      await exec(`DELETE FROM journal_entries WHERE reference_type = $1 AND reference_id = $2`, [
+        referenceType,
+        referenceId,
+      ]);
+      if (ownedClient) await exec('COMMIT');
+    } catch (error) {
+      if (ownedClient) await exec('ROLLBACK');
+      throw error;
+    } finally {
+      ownedClient?.release();
+    }
   },
 
   /**
    * تحليل أعمار ديون العملاء (Customer Aging)
    */
-  async getCustomerAging(asOfDate?: string) {
-    const dateStr = asOfDate || getLocalTodayDate();
+  async getCustomerAging(asOfDate?: unknown, db: typeof query = query) {
+    const dateStr = parseReportAsOfDate(asOfDate);
     const sql = `
       WITH unpaid_debts AS (
-        SELECT 
+        SELECT
           c.id AS customer_id,
           c.name_ar AS customer_name,
           c.phone AS customer_phone,
@@ -1805,18 +2010,26 @@ export const accountingService = {
           s.sale_date AS invoice_date,
           ($1::date - s.sale_date::date) AS age_days,
           s.total_amount - COALESCE((
-            SELECT SUM(amount) FROM payments 
-            WHERE (reference_type = 'sale' AND reference_id = s.id)
-               OR (reference_type = 'invoice' AND reference_id IN (SELECT id FROM invoices WHERE sale_id = s.id))
+            SELECT SUM(amount) FROM payments
+            WHERE ((reference_type = 'sale' AND reference_id = s.id)
+               OR (reference_type = 'invoice' AND reference_id IN (SELECT id FROM invoices WHERE sale_id = s.id)))
+              AND LOWER(TRIM(COALESCE(payment_method, 'cash'))) <> 'credit'
+              AND (created_at AT TIME ZONE 'Africa/Cairo')::date <= $1::date
           ), 0) AS remaining_amount
         FROM sales s
         JOIN customers c ON c.id = s.customer_id
-        WHERE s.deleted_at IS NULL 
+        WHERE s.deleted_at IS NULL
           AND s.status = 'completed'
-          AND s.payment_status != 'paid'
+          AND (s.payment_status != 'paid' OR EXISTS (
+            SELECT 1 FROM payments p WHERE
+              ((p.reference_type = 'sale' AND p.reference_id = s.id)
+               OR (p.reference_type = 'invoice' AND p.reference_id IN (SELECT id FROM invoices WHERE sale_id = s.id)))
+              AND LOWER(TRIM(COALESCE(p.payment_method, 'cash'))) <> 'credit'
+              AND (p.created_at AT TIME ZONE 'Africa/Cairo')::date > $1::date
+          ))
           AND s.sale_date <= $1::date
       )
-      SELECT 
+      SELECT
         customer_id,
         customer_name,
         customer_phone,
@@ -1831,7 +2044,7 @@ export const accountingService = {
       GROUP BY customer_id, customer_name, customer_phone
       ORDER BY total_due DESC
     `;
-    const res = await query(sql, [dateStr]);
+    const res = await db(sql, [dateStr]);
     const customers = res.rows.map((r: any) => ({
       ...r,
       invoices_count: Number(r.invoices_count),
@@ -1856,11 +2069,11 @@ export const accountingService = {
   /**
    * تحليل أعمار مستحقات الموردين (Supplier Aging)
    */
-  async getSupplierAging(asOfDate?: string) {
-    const dateStr = asOfDate || getLocalTodayDate();
+  async getSupplierAging(asOfDate?: unknown, db: typeof query = query) {
+    const dateStr = parseReportAsOfDate(asOfDate);
     const sql = `
-      WITH unpaid_bills AS (
-        SELECT 
+      WITH invoice_balances AS (
+        SELECT
           s.id AS supplier_id,
           s.name_ar AS supplier_name,
           s.phone AS supplier_phone,
@@ -1868,20 +2081,34 @@ export const accountingService = {
           pi.invoice_number,
           pi.invoice_date,
           ($1::date - pi.invoice_date::date) AS age_days,
-          pi.total_amount - COALESCE((
-            SELECT SUM(total_amount) FROM purchase_returns 
+          GREATEST(0, pi.total_amount - COALESCE((
+            SELECT SUM(total_amount) FROM purchase_returns
             WHERE purchase_invoice_id = pi.id AND status = 'completed' AND deleted_at IS NULL
+              AND return_date <= $1::date
           ), 0) - COALESCE((
-            SELECT SUM(amount) FROM payments 
-            WHERE (reference_type = 'purchase_invoice' AND reference_id = pi.id)
-               OR (reference_type = 'supplier' AND reference_id = s.id)
-          ), 0) AS remaining_amount
+            SELECT SUM(amount) FROM payments
+            WHERE reference_type = 'purchase_invoice' AND reference_id = pi.id
+              AND LOWER(TRIM(COALESCE(payment_method, 'cash'))) <> 'credit'
+              AND (created_at AT TIME ZONE 'Africa/Cairo')::date <= $1::date
+          ), 0)) AS invoice_due
         FROM purchase_invoices pi
         JOIN suppliers s ON s.id = pi.supplier_id
         WHERE pi.deleted_at IS NULL
           AND pi.invoice_date <= $1::date
+      ), supplier_payments AS (
+        SELECT reference_id AS supplier_id, SUM(amount) AS amount
+        FROM payments WHERE reference_type = 'supplier'
+          AND LOWER(TRIM(COALESCE(payment_method, 'cash'))) <> 'credit'
+          AND (created_at AT TIME ZONE 'Africa/Cairo')::date <= $1::date
+        GROUP BY reference_id
+      ), unpaid_bills AS (
+        SELECT b.*, GREATEST(0, b.invoice_due - GREATEST(0,
+          COALESCE(p.amount, 0) - COALESCE(SUM(b.invoice_due) OVER (
+            PARTITION BY b.supplier_id ORDER BY b.invoice_date, b.invoice_id
+            ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING), 0))) AS remaining_amount
+        FROM invoice_balances b LEFT JOIN supplier_payments p ON p.supplier_id = b.supplier_id
       )
-      SELECT 
+      SELECT
         supplier_id,
         supplier_name,
         supplier_phone,
@@ -1896,7 +2123,7 @@ export const accountingService = {
       GROUP BY supplier_id, supplier_name, supplier_phone
       ORDER BY total_due DESC
     `;
-    const res = await query(sql, [dateStr]);
+    const res = await db(sql, [dateStr]);
     const suppliers = res.rows.map((r: any) => ({
       ...r,
       invoices_count: Number(r.invoices_count),
@@ -1921,35 +2148,47 @@ export const accountingService = {
   /**
    * تقرير مطابقة أرقام العمليات التشغيلية مع الأستاذ العام
    */
-  async getLedgerReconciliationSummary(fromDate?: string, toDate?: string) {
-    const fDate = fromDate || getLocalTodayDate().slice(0, 8) + '01';
-    const tDate = toDate || getLocalTodayDate();
+  async getLedgerReconciliationSummary(
+    fromDate?: unknown,
+    toDate?: unknown,
+    db?: typeof query,
+  ): Promise<LedgerReconciliationSummary> {
+    const { from_date: fDate, to_date: tDate } = parseReportPeriod(
+      { from_date: fromDate, to_date: toDate },
+      'monthly',
+    );
+    if (!db)
+      return withReadOnlySnapshot((client) =>
+        this.getLedgerReconciliationSummary(fDate, tDate, (sql, params) =>
+          client.query(sql, params),
+        ),
+      );
 
-    const glRes = await query(
-      `SELECT 
+    const glRes = await db(
+      `SELECT
          COALESCE(SUM(CASE WHEN a.code LIKE '4%' THEN jel.credit - jel.debit ELSE 0 END), 0) AS gl_revenue,
          COALESCE(SUM(CASE WHEN a.code LIKE '51%' THEN jel.debit - jel.credit ELSE 0 END), 0) AS gl_cogs,
          COALESCE(SUM(CASE WHEN a.code LIKE '52%' THEN jel.debit - jel.credit ELSE 0 END), 0) AS gl_expenses
        FROM journal_entry_lines jel
        JOIN accounts a ON a.id = jel.account_id
        JOIN journal_entries je ON je.id = jel.journal_entry_id
-       WHERE je.status = 'posted'
+       WHERE ${effectivePostedJournalSql('je')}
          AND je.entry_date BETWEEN $1::date AND $2::date`,
       [fDate, tDate],
     );
 
-    const opsSalesRes = await query(
+    const opsSalesRes = await db(
       `SELECT COALESCE(SUM(total_amount), 0) AS ops_revenue,
               COALESCE(SUM(cost_amount), 0) AS ops_cogs
-       FROM sales 
+       FROM sales
        WHERE status = 'completed' AND deleted_at IS NULL
          AND sale_date BETWEEN $1::date AND $2::date`,
       [fDate, tDate],
     );
 
-    const opsExpRes = await query(
+    const opsExpRes = await db(
       `SELECT COALESCE(SUM(amount), 0) AS ops_expenses
-       FROM expenses 
+       FROM expenses
        WHERE deleted_at IS NULL
          AND expense_date BETWEEN $1::date AND $2::date`,
       [fDate, tDate],
@@ -1989,7 +2228,9 @@ export const accountingService = {
         cogs: cogsDiff,
         expenses: expensesDiff,
         net_profit: netProfitDiff,
-        is_fully_reconciled: netProfitDiff <= 0.05,
+        is_fully_reconciled: [revenueDiff, cogsDiff, expensesDiff, netProfitDiff].every(
+          (diff) => diff <= 0.05,
+        ),
       },
     };
   },
@@ -1998,12 +2239,17 @@ export const accountingService = {
    * حساب رصيد دفتر الأستاذ لحساب معين حتى تاريخ محدد
    * محصن ضد تسرب قيود المستقبل أو القيود غير المرحلة
    */
-  async getLedgerBalanceAsOfDate(accountId: number, asOfDate: string): Promise<number> {
+  async getLedgerBalanceAsOfDate(
+    accountId: number,
+    inputDate: unknown,
+    db: typeof query = query,
+  ): Promise<number> {
+    const asOfDate = parseReportAsOfDate(inputDate);
     const sql = `
-      SELECT 
+      SELECT
         COALESCE(
           SUM(
-            CASE 
+            CASE
               WHEN a.normal_balance = 'debit' THEN (jel.debit - jel.credit)
               ELSE (jel.credit - jel.debit)
             END
@@ -2011,16 +2257,16 @@ export const accountingService = {
         ) AS ledger_balance
       FROM accounts a
       LEFT JOIN (
-        journal_entry_lines jel 
-        JOIN journal_entries je 
-          ON je.id = jel.journal_entry_id 
-         AND je.status = 'posted' 
+        journal_entry_lines jel
+        JOIN journal_entries je
+          ON je.id = jel.journal_entry_id
+         AND ${effectivePostedJournalSql('je')}
          AND je.entry_date <= $2::date
       ) ON jel.account_id = a.id
       WHERE a.id = $1
       GROUP BY a.id, a.normal_balance
     `;
-    const res = await query(sql, [accountId, asOfDate]);
+    const res = await db(sql, [accountId, asOfDate]);
     if (res.rows.length === 0) {
       throw new AppError('الحساب المحاسبي غير موجود', 404);
     }
@@ -2030,12 +2276,14 @@ export const accountingService = {
   /**
    * قائمة الدخل الرسمية المباشرة من دفتر الأستاذ العام (Pure GL Income Statement)
    */
-  async getIncomeStatement(fromDate?: string, toDate?: string) {
-    const fDate = fromDate || getLocalTodayDate().slice(0, 8) + '01';
-    const tDate = toDate || getLocalTodayDate();
+  async getIncomeStatement(fromDate?: unknown, toDate?: unknown) {
+    const { from_date: fDate, to_date: tDate } = parseReportPeriod(
+      { from_date: fromDate, to_date: toDate },
+      'monthly',
+    );
 
     const res = await query(
-      `SELECT 
+      `SELECT
          a.id,
          a.code,
          a.name_ar,
@@ -2045,7 +2293,7 @@ export const accountingService = {
        FROM accounts a
        JOIN journal_entry_lines jel ON jel.account_id = a.id
        JOIN journal_entries je ON je.id = jel.journal_entry_id
-       WHERE je.status = 'posted'
+       WHERE ${effectivePostedJournalSql('je')}
          AND je.entry_date BETWEEN $1::date AND $2::date
          AND a.account_type IN ('revenue', 'expense')
        GROUP BY a.id, a.code, a.name_ar, a.account_type
@@ -2117,16 +2365,20 @@ export const accountingService = {
   /**
    * مطابقة تقارير الأعمار مع حسابات المراقبة بالأستاذ العام (Subledger vs Control Account)
    */
-  async reconcileAgingWithLedger(asOfDate?: string) {
-    const dateStr = asOfDate || getLocalTodayDate();
-    const customerAging = await this.getCustomerAging(dateStr);
-    const supplierAging = await this.getSupplierAging(dateStr);
+  async reconcileAgingWithLedger(asOfDate?: unknown, db: typeof query = query) {
+    const dateStr = parseReportAsOfDate(asOfDate);
+    const customerAging = await this.getCustomerAging(dateStr, db);
+    const supplierAging = await this.getSupplierAging(dateStr, db);
 
-    const arAccount = await this.getAccountByCode(STANDARD_ACCOUNTS.CUSTOMERS_RECEIVABLE);
-    const apAccount = await this.getAccountByCode(STANDARD_ACCOUNTS.SUPPLIERS_PAYABLE);
+    const arAccount = await this.getAccountByCode(STANDARD_ACCOUNTS.CUSTOMERS_RECEIVABLE, db);
+    const apAccount = await this.getAccountByCode(STANDARD_ACCOUNTS.SUPPLIERS_PAYABLE, db);
 
-    const arGlBalance = arAccount ? await this.getLedgerBalanceAsOfDate(arAccount.id, dateStr) : 0;
-    const apGlBalance = apAccount ? await this.getLedgerBalanceAsOfDate(apAccount.id, dateStr) : 0;
+    const arGlBalance = arAccount
+      ? await this.getLedgerBalanceAsOfDate(arAccount.id, dateStr, db)
+      : 0;
+    const apGlBalance = apAccount
+      ? await this.getLedgerBalanceAsOfDate(apAccount.id, dateStr, db)
+      : 0;
 
     const arTotalDue = customerAging.totals.total_due;
     const apTotalDue = supplierAging.totals.total_due;

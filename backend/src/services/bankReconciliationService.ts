@@ -1,3 +1,12 @@
+import { parseBankStatementRows } from '../utils/bankStatementImport.ts';
+import {
+  lockMatchingAccount,
+  journalSources,
+  paymentSources,
+  movementCents,
+  validateBankSource,
+} from './bankMatchingSources.ts';
+import { effectivePostedJournalSql } from '../utils/journalPosting.ts';
 /**
  * bankReconciliationService.ts — خدمة مطابقة وتسوية الحسابات البنكية والخزينة
  * ═══════════════════════════════════════════════════════════════════════════
@@ -7,10 +16,90 @@
  */
 
 import XLSX from 'xlsx';
+import type { PoolClient } from 'pg';
+import { z } from 'zod';
 import { query, getClient } from '../database/pool.ts';
 import { AppError } from '../types/errors.ts';
 import { roundMoney } from '../utils/money.ts';
 import { readSafeWorkbook } from './excelSecurity.ts';
+import { reportCalendarDate } from '../utils/reportDates.ts';
+
+const reconciliationInput = z
+  .object({
+    account_id: z.number().int().positive().max(2147483647),
+    statement_date: reportCalendarDate,
+    statement_balance: z.number().finite().gt(-1e13).lt(1e13),
+    notes: z.string().optional(),
+    status: z.enum(['draft', 'completed', 'cancelled']).optional(),
+  })
+  .strict();
+
+const matchInput = z
+  .object({
+    journal_entry_id: z.number().int().positive().max(2147483647).optional(),
+    payment_id: z.number().int().positive().max(2147483647).optional(),
+    notes: z.string().optional(),
+  })
+  .strict()
+  .refine((data) => Boolean(data.journal_entry_id) !== Boolean(data.payment_id));
+
+interface LockedReconciliation {
+  id: number;
+  account_id: number;
+  statement_date: string;
+  statement_balance: string | number;
+  status: string;
+}
+function normalizedStatement(row: BankStatementTransaction): BankStatementTransaction {
+  return {
+    ...row,
+    debit: roundMoney(Number(row.debit)),
+    credit: roundMoney(Number(row.credit)),
+    amount: roundMoney(Number(row.amount)),
+    matched_amount: roundMoney(Number(row.matched_amount)),
+  };
+}
+
+async function lockDraftReconciliation(client: PoolClient, id: number) {
+  const result = await client.query<LockedReconciliation>(
+    'SELECT * FROM bank_reconciliations WHERE id=$1 FOR UPDATE',
+    [id],
+  );
+  const rec = result.rows[0];
+  if (!rec) throw new AppError('جلسة المطابقة غير موجودة', 404);
+  if (rec.status !== 'draft') throw new AppError('لا يمكن تعديل جلسة مطابقة مكتملة أو ملغاة', 400);
+  return rec;
+}
+
+/** Always lock the session before its movements, matching import/close lock order. */
+async function editStatementTransaction<T>(
+  id: number,
+  work: (client: PoolClient, tx: BankStatementTransaction, rec: LockedReconciliation) => Promise<T>,
+) {
+  const parent = await query(
+    'SELECT reconciliation_id FROM bank_statement_transactions WHERE id=$1',
+    [id],
+  );
+  if (!parent.rows[0]) throw new AppError('حركة كشف الحساب غير موجودة', 404);
+  const client = await getClient();
+  try {
+    await client.query('BEGIN');
+    const rec = await lockDraftReconciliation(client, parent.rows[0].reconciliation_id);
+    const result = await client.query<BankStatementTransaction>(
+      'SELECT * FROM bank_statement_transactions WHERE id=$1 AND reconciliation_id=$2 FOR UPDATE',
+      [id, rec.id],
+    );
+    if (!result.rows[0]) throw new AppError('حركة كشف الحساب غير موجودة', 404);
+    const value = await work(client, result.rows[0], rec);
+    await client.query('COMMIT');
+    return value;
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
 
 export interface CreateReconciliationInput {
   account_id: number;
@@ -25,15 +114,15 @@ export interface BankStatementTransaction {
   reconciliation_id: number;
   transaction_date: string;
   description: string;
-  reference?: string;
+  reference?: string | null;
   debit: number;
   credit: number;
   amount: number;
   status: 'unmatched' | 'matched' | 'partial' | 'excluded' | 'duplicate';
-  matched_journal_entry_id?: number;
-  matched_payment_id?: number;
+  matched_journal_entry_id?: number | null;
+  matched_payment_id?: number | null;
   matched_amount: number;
-  notes?: string;
+  notes?: string | null;
   created_at: string;
 }
 
@@ -45,19 +134,19 @@ export const bankReconciliationService = {
     filters: { account_id?: number; from_date?: string; to_date?: string; status?: string } = {},
   ) {
     let sql = `
-      SELECT 
+      SELECT
         br.*,
         a.code AS account_code,
         a.name_ar AS account_name,
         u.full_name AS reconciled_by_name,
         COALESCE((
-          SELECT COUNT(*)::int 
-          FROM bank_statement_transactions bst 
+          SELECT COUNT(*)::int
+          FROM bank_statement_transactions bst
           WHERE bst.reconciliation_id = br.id
         ), 0) AS total_transactions_count,
         COALESCE((
-          SELECT COUNT(*)::int 
-          FROM bank_statement_transactions bst 
+          SELECT COUNT(*)::int
+          FROM bank_statement_transactions bst
           WHERE bst.reconciliation_id = br.id AND bst.status = 'matched'
         ), 0) AS matched_transactions_count
       FROM bank_reconciliations br
@@ -102,19 +191,19 @@ export const bankReconciliationService = {
    */
   async getReconciliationById(id: number) {
     const sql = `
-      SELECT 
+      SELECT
         br.*,
         a.code AS account_code,
         a.name_ar AS account_name,
         u.full_name AS reconciled_by_name,
         COALESCE((
-          SELECT COUNT(*)::int 
-          FROM bank_statement_transactions bst 
+          SELECT COUNT(*)::int
+          FROM bank_statement_transactions bst
           WHERE bst.reconciliation_id = br.id
         ), 0) AS total_transactions_count,
         COALESCE((
-          SELECT COUNT(*)::int 
-          FROM bank_statement_transactions bst 
+          SELECT COUNT(*)::int
+          FROM bank_statement_transactions bst
           WHERE bst.reconciliation_id = br.id AND bst.status = 'matched'
         ), 0) AS matched_transactions_count
       FROM bank_reconciliations br
@@ -142,12 +231,16 @@ export const bankReconciliationService = {
    * حساب رصيد دفتر الأستاذ لحساب معين حتى تاريخ محدد
    * تم تحصينه لمنع تسرب أي قيود مسودة أو قيود مستقبلية نهائياً
    */
-  async getLedgerBalanceAsOfDate(accountId: number, asOfDate: string): Promise<number> {
+  async getLedgerBalanceAsOfDate(
+    accountId: number,
+    asOfDate: string,
+    db: typeof query = query,
+  ): Promise<number> {
     const sql = `
-      SELECT 
+      SELECT
         COALESCE(
           SUM(
-            CASE 
+            CASE
               WHEN a.normal_balance = 'debit' THEN (jel.debit - jel.credit)
               ELSE (jel.credit - jel.debit)
             END
@@ -155,38 +248,48 @@ export const bankReconciliationService = {
         ) AS ledger_balance
       FROM accounts a
       LEFT JOIN (
-        journal_entry_lines jel 
-        JOIN journal_entries je 
-          ON je.id = jel.journal_entry_id 
-         AND je.status = 'posted' 
+        journal_entry_lines jel
+        JOIN journal_entries je
+          ON je.id = jel.journal_entry_id
+         AND ${effectivePostedJournalSql('je')}
          AND je.entry_date <= $2::date
       ) ON jel.account_id = a.id
       WHERE a.id = $1
       GROUP BY a.id, a.normal_balance
     `;
-    const res = await query(sql, [accountId, asOfDate]);
+    const res = await db(sql, [accountId, asOfDate]);
     if (res.rows.length === 0) {
       throw new AppError('الحساب المحاسبي غير موجود', 404);
     }
-    return roundMoney(Number(res.rows[0].ledger_balance));
+    const balance = Number(res.rows[0].ledger_balance);
+    if (!Number.isFinite(balance)) throw new AppError('رصيد دفتر الأستاذ غير صالح للمطابقة', 409);
+    return roundMoney(balance);
   },
 
   /**
    * إنشاء جلسة مطابقة وتسوية جديدة
    */
-  async createReconciliation(userId: number, data: CreateReconciliationInput) {
-    if (!data.account_id) {
-      throw new AppError('الحساب المحاسبي مطلوب للمطابقة', 400);
+  async createReconciliation(userId: number, input: unknown) {
+    const parsed = reconciliationInput.safeParse(input);
+    if (!parsed.success) {
+      throw new AppError(
+        'بيانات جلسة المطابقة غير صالحة: تحقق من الحساب والتاريخ والرصيد',
+        400,
+        'VALIDATION_ERROR',
+      );
     }
-    if (!data.statement_date) {
-      throw new AppError('تاريخ كشف الحساب مطلوب', 400);
+    const data = parsed.data;
+    const statementBalance = roundMoney(data.statement_balance);
+    if (Math.abs(statementBalance) >= 1e13) {
+      throw new AppError('رصيد كشف الحساب يتجاوز الحد المسموح', 400, 'VALIDATION_ERROR');
     }
-
-    const statementBalance = roundMoney(Number(data.statement_balance ?? 0));
     const ledgerBalance = await this.getLedgerBalanceAsOfDate(data.account_id, data.statement_date);
     const difference = roundMoney(statementBalance - ledgerBalance);
     const reconciledBalance = statementBalance;
     const status = data.status || (Math.abs(difference) <= 0.01 ? 'completed' : 'draft');
+    if (status === 'completed' && Math.abs(difference) > 0.01) {
+      throw new AppError('لا يمكن إكمال المطابقة مع وجود فرق بين كشف الحساب ودفتر الأستاذ', 400);
+    }
 
     const client = await getClient();
     try {
@@ -248,112 +351,30 @@ export const bankReconciliationService = {
    */
   async importBankStatement(reconciliationId: number, fileBuffer: Buffer, filename: string) {
     const rec = await this.getReconciliationById(reconciliationId);
-    if (rec.status === 'completed') {
+    if (rec.status !== 'draft') {
       throw new AppError('لا يمكن استيراد كشف حساب لجلسة مطابقة مكتملة ومغلقة', 400);
     }
 
-    const workbook = readSafeWorkbook(fileBuffer, { cellDates: true });
-    const sheetName = workbook.SheetNames[0];
-    if (!sheetName) throw new AppError('الملف لا يحتوي على أي صفحات بيانات', 400);
-
-    const sheet = workbook.Sheets[sheetName];
-    const rawRows = XLSX.utils.sheet_to_json(sheet, { defval: '' }) as Record<string, any>[];
-
-    if (!rawRows || rawRows.length === 0) {
-      throw new AppError('لم يتم العثور على أي حركات في ملف كشف الحساب', 400);
-    }
-
-    const parsedTransactions: Array<{
-      transaction_date: string;
-      description: string;
-      reference: string;
-      debit: number;
-      credit: number;
-      amount: number;
-    }> = [];
-
-    for (const row of rawRows) {
-      // البحث المرن عن الأعمدة باللغتين العربية والإنجليزية
-      const keys = Object.keys(row);
-      const findVal = (...patterns: string[]) => {
-        for (const pattern of patterns) {
-          const matchedKey = keys.find((k) =>
-            k.toLowerCase().trim().includes(pattern.toLowerCase().trim()),
-          );
-          if (matchedKey && row[matchedKey] !== undefined && row[matchedKey] !== '') {
-            return row[matchedKey];
-          }
-        }
-        return '';
-      };
-
-      const rawDate = findVal('date', 'تاريخ', 'trans_date', 'التاريخ');
-      const rawDesc = findVal('desc', 'وصف', 'بيان', 'تفاصيل', 'particular', 'details');
-      const rawRef = findVal('ref', 'مرجع', 'شيك', 'cheque', 'check', 'رقم');
-      const rawDebit = findVal('debit', 'مدين', 'سحب', 'withdrawal', 'out', 'منه');
-      const rawCredit = findVal('credit', 'دائن', 'إيداع', 'deposit', 'in', 'له');
-      const rawAmount = findVal('amount', 'مبلغ', 'قيمة', 'net');
-
-      // معالجة التاريخ
-      let dateStr = '';
-      if (rawDate instanceof Date) {
-        dateStr = rawDate.toISOString().slice(0, 10);
-      } else if (typeof rawDate === 'string' && rawDate.trim()) {
-        const d = new Date(rawDate.trim());
-        if (!isNaN(d.getTime())) {
-          dateStr = d.toISOString().slice(0, 10);
-        }
-      } else if (typeof rawDate === 'number') {
-        // Excel serial date number
-        const excelDate = new Date(Math.round((rawDate - 25569) * 86400 * 1000));
-        if (!isNaN(excelDate.getTime())) {
-          dateStr = excelDate.toISOString().slice(0, 10);
-        }
-      }
-
-      if (!dateStr) {
-        dateStr = rec.statement_date || new Date().toISOString().slice(0, 10);
-      }
-
-      const debitVal = roundMoney(Math.abs(Number(String(rawDebit).replace(/[^0-9.-]/g, '')) || 0));
-      const creditVal = roundMoney(
-        Math.abs(Number(String(rawCredit).replace(/[^0-9.-]/g, '')) || 0),
-      );
-      let amountVal = 0;
-
-      if (creditVal > 0) {
-        amountVal = creditVal;
-      } else if (debitVal > 0) {
-        amountVal = -debitVal;
-      } else if (rawAmount) {
-        amountVal = roundMoney(Number(String(rawAmount).replace(/[^0-9.-]/g, '')) || 0);
-      }
-
-      if (amountVal === 0 && debitVal === 0 && creditVal === 0) {
-        continue; // تجاهل الأسطر الفارغة
-      }
-
-      const finalDebit = amountVal < 0 ? Math.abs(amountVal) : debitVal;
-      const finalCredit = amountVal > 0 ? amountVal : creditVal;
-
-      parsedTransactions.push({
-        transaction_date: dateStr,
-        description: String(rawDesc || filename || 'حركة كشف حساب').trim(),
-        reference: String(rawRef || '').trim(),
-        debit: finalDebit,
-        credit: finalCredit,
-        amount: roundMoney(finalCredit - finalDebit),
-      });
-    }
-
-    if (parsedTransactions.length === 0) {
-      throw new AppError('تعذر استخراج حركات مالية صالحة من الملف', 400);
-    }
+    const workbook = readSafeWorkbook(fileBuffer, { raw: true, codepage: 65001 });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, {
+      header: 1,
+      defval: '',
+      raw: true,
+      blankrows: true,
+    });
+    const parsedTransactions = parseBankStatementRows(
+      rows,
+      rec.statement_date,
+      Boolean(workbook.Workbook?.WBProps?.date1904),
+      filename,
+    );
 
     const client = await getClient();
     try {
       await client.query('BEGIN');
 
+      await lockDraftReconciliation(client, reconciliationId);
       for (const tx of parsedTransactions) {
         await client.query(
           `INSERT INTO bank_statement_transactions (
@@ -371,12 +392,17 @@ export const bankReconciliationService = {
         );
       }
 
+      const transactions = await this.getStatementTransactions(
+        reconciliationId,
+        {},
+        (sql, params) => client.query(sql, params),
+      );
       await client.query('COMMIT');
 
       return {
         reconciliation_id: reconciliationId,
         imported_count: parsedTransactions.length,
-        transactions: await this.getStatementTransactions(reconciliationId),
+        transactions,
       };
     } catch (err) {
       await client.query('ROLLBACK');
@@ -392,9 +418,10 @@ export const bankReconciliationService = {
   async getStatementTransactions(
     reconciliationId: number,
     filters: { status?: string } = {},
+    db: typeof query = query,
   ): Promise<BankStatementTransaction[]> {
     let sql = `
-      SELECT 
+      SELECT
         bst.*,
         je.entry_number AS matched_entry_number,
         je.entry_date AS matched_entry_date,
@@ -413,7 +440,7 @@ export const bankReconciliationService = {
     }
 
     sql += ` ORDER BY bst.transaction_date ASC, bst.id ASC`;
-    const res = await query(sql, params);
+    const res = await db(sql, params);
 
     return res.rows.map((r: any) => ({
       ...r,
@@ -429,18 +456,15 @@ export const bankReconciliationService = {
    * يطابق حركات كشف الحساب البنكي مع قيود اليومية أو المدفوعات غير المطابقة
    */
   async autoMatchTransactions(reconciliationId: number) {
-    const rec = await this.getReconciliationById(reconciliationId);
-    if (rec.status === 'completed') {
-      throw new AppError('جلسة المطابقة مكتملة ومغلقة بالفعل', 400);
-    }
-
     const client = await getClient();
     try {
       await client.query('BEGIN');
+      const rec = await lockDraftReconciliation(client, reconciliationId);
+      await lockMatchingAccount(client, rec.account_id);
 
       // 1. جلب حركات كشف الحساب غير المطابقة
       const unmatchedTxRes = await client.query(
-        `SELECT * FROM bank_statement_transactions 
+        `SELECT * FROM bank_statement_transactions
          WHERE reconciliation_id = $1 AND status = 'unmatched'
          ORDER BY transaction_date ASC, id ASC
          FOR UPDATE`,
@@ -453,141 +477,84 @@ export const bankReconciliationService = {
         return { matched_count: 0, message: 'لا توجد حركات غير مطابقة لمعالجتها' };
       }
 
-      // 2. جلب قيود اليومية غير المطابقة للحساب البنكي
-      const ledgerRes = await client.query(
-        `SELECT 
-           jel.id AS line_id,
-           jel.debit,
-           jel.credit,
-           je.id AS journal_entry_id,
-           je.entry_number,
-           je.entry_date,
-           je.description
-         FROM journal_entry_lines jel
-         JOIN journal_entries je ON je.id = jel.journal_entry_id
-         WHERE jel.account_id = $1
-           AND je.status = 'posted'
-           AND je.id NOT IN (
-             SELECT matched_journal_entry_id 
-             FROM bank_statement_transactions 
-             WHERE matched_journal_entry_id IS NOT NULL
-           )
-         ORDER BY je.entry_date ASC, je.id ASC`,
-        [rec.account_id],
-      );
-      const candidateLines = ledgerRes.rows;
-
-      // 3. جلب المدفوعات غير المطابقة (إن وُجدت)
-      const paymentsRes = await client.query(
-        `SELECT 
-           p.id AS payment_id,
-           p.payment_number,
-           p.amount,
-           p.reference_type,
-           p.created_at::date AS payment_date
-         FROM payments p
-         WHERE p.id NOT IN (
-           SELECT matched_payment_id 
-           FROM bank_statement_transactions 
-           WHERE matched_payment_id IS NOT NULL
-         )
-         ORDER BY p.created_at ASC`,
-      );
-      const candidatePayments = paymentsRes.rows;
-
+      const sources = await journalSources(client, rec);
+      const payments = await paymentSources(client, sources);
+      const byJournal = new Map(sources.map((source) => [source.id, source]));
       let matchedCount = 0;
-      const usedLineIds = new Set<number>();
-      const usedPaymentIds = new Set<number>();
-
       for (const tx of unmatchedTxs) {
-        const txDate = new Date(tx.transaction_date).getTime();
-        const txDebit = roundMoney(Number(tx.debit || 0));
-        const txCredit = roundMoney(Number(tx.credit || 0));
-
-        // من منظور محاسبي:
-        // إيداع في البنك (Bank Credit) يقابله في دفتر الأستاذ مدين في حساب البنك (Ledger Debit)
-        // سحب من البنك (Bank Debit) يقابله في دفتر الأستاذ دائن في حساب البنك (Ledger Credit)
-        const targetLedgerDebit = txCredit;
-        const targetLedgerCredit = txDebit;
-
-        // مطابقة أسطر الأستاذ العام
-        const matchedLine = candidateLines.find((line) => {
-          if (usedLineIds.has(line.line_id)) return false;
-          const lineDebit = roundMoney(Number(line.debit || 0));
-          const lineCredit = roundMoney(Number(line.credit || 0));
-
-          const amountMatches =
-            (targetLedgerDebit > 0 && Math.abs(lineDebit - targetLedgerDebit) <= 0.01) ||
-            (targetLedgerCredit > 0 && Math.abs(lineCredit - targetLedgerCredit) <= 0.01);
-
-          if (!amountMatches) return false;
-
-          // سماحية التاريخ: ±5 أيام
-          const lineDate = new Date(line.entry_date).getTime();
-          const daysDiff = Math.abs(txDate - lineDate) / (1000 * 60 * 60 * 24);
-          return daysDiff <= 5;
-        });
-
-        if (matchedLine) {
-          usedLineIds.add(matchedLine.line_id);
-          await client.query(
-            `UPDATE bank_statement_transactions 
-             SET status = 'matched',
-                 matched_journal_entry_id = $1,
-                 matched_amount = $2,
-                 notes = COALESCE(notes, '') || ' [مطابقة آلية مع قيد ' || $3 || ']'
-             WHERE id = $4`,
-            [
-              matchedLine.journal_entry_id,
-              Math.abs(Number(tx.amount)),
-              matchedLine.entry_number,
-              tx.id,
-            ],
-          );
-          matchedCount++;
-          continue;
+        let signedAmount: number;
+        try {
+          signedAmount = movementCents(tx, rec);
+        } catch (error) {
+          if (error instanceof AppError && error.statusCode === 400) continue;
+          throw error;
         }
-
-        // مطابقة جدول المدفوعات كخيار ثانٍ إن لم يطابق قيد مباشر
-        const matchedPayment = candidatePayments.find((p) => {
-          if (usedPaymentIds.has(p.payment_id)) return false;
-          const pAmount = roundMoney(Number(p.amount || 0));
-          const txAbsAmount = roundMoney(Math.abs(Number(tx.amount)));
-
-          if (Math.abs(pAmount - txAbsAmount) > 0.01) return false;
-
-          const pDate = new Date(p.payment_date).getTime();
-          const daysDiff = Math.abs(txDate - pDate) / (1000 * 60 * 60 * 24);
-          return daysDiff <= 5;
-        });
-
-        if (matchedPayment) {
-          usedPaymentIds.add(matchedPayment.payment_id);
-          await client.query(
-            `UPDATE bank_statement_transactions 
-             SET status = 'matched',
-                 matched_payment_id = $1,
-                 matched_amount = $2,
-                 notes = COALESCE(notes, '') || ' [مطابقة آلية مع دفعة ' || $3 || ']'
-             WHERE id = $4`,
-            [
-              matchedPayment.payment_id,
-              Math.abs(Number(tx.amount)),
-              matchedPayment.payment_number,
-              tx.id,
-            ],
-          );
-          matchedCount++;
+        const amount = Math.abs(signedAmount);
+        const withinDate = (date: string) =>
+          Math.abs(new Date(date).getTime() - new Date(tx.transaction_date).getTime()) <=
+          5 * 86400000;
+        const compatible = sources.filter(
+          (source) =>
+            Math.sign(source.movement) === Math.sign(signedAmount) &&
+            source.remaining >= amount &&
+            withinDate(source.entry_date),
+        );
+        const compatibleIds = new Set(compatible.map((source) => source.id));
+        const availablePayments = payments.filter(
+          (payment) => compatibleIds.has(payment.journalId) && payment.remaining >= amount,
+        );
+        const referenceSources = compatible.filter(
+          (source) => tx.reference && tx.reference === source.entry_number,
+        );
+        const referencePayments = availablePayments.filter(
+          (payment) => tx.reference && tx.reference === payment.payment_number,
+        );
+        const referenced = new Set([
+          ...referenceSources.map((source) => source.id),
+          ...referencePayments.map((payment) => payment.journalId),
+        ]);
+        const exactPayments = availablePayments.filter((payment) => payment.remaining === amount);
+        const exactSources = compatible.filter((source) => source.remaining === amount);
+        const candidates = referenced.size
+          ? referenced
+          : new Set([
+              ...exactSources.map((source) => source.id),
+              ...exactPayments.map((payment) => payment.journalId),
+            ]);
+        const chosen = candidates.size === 1 ? byJournal.get([...candidates][0]) : undefined;
+        let paymentId: number | undefined;
+        if (chosen) {
+          const matchingPayments = (
+            referencePayments.length ? referencePayments : exactPayments
+          ).filter((payment) => payment.journalId === chosen.id);
+          if (matchingPayments.length === 1) {
+            paymentId = matchingPayments[0].id;
+            matchingPayments[0].remaining -= amount;
+          }
         }
+        if (!chosen) continue;
+        chosen.remaining -= amount;
+        await client.query(
+          `UPDATE bank_statement_transactions SET status='matched',
+          matched_journal_entry_id=$1,matched_payment_id=$2,matched_amount=$3,
+          notes=COALESCE(notes,'') || ' [مطابقة آلية مع قيد ' || $4 || ']'
+          WHERE id=$5`,
+          [chosen.id, paymentId ?? null, amount / 100, chosen.entry_number, tx.id],
+        );
+        matchedCount++;
       }
-
+      const transactions = await this.getStatementTransactions(
+        reconciliationId,
+        {},
+        (sql, params) => client.query(sql, params),
+      );
       await client.query('COMMIT');
 
       return {
         reconciliation_id: reconciliationId,
         matched_count: matchedCount,
         remaining_unmatched: unmatchedTxs.length - matchedCount,
-        transactions: await this.getStatementTransactions(reconciliationId),
+        transactions,
       };
     } catch (err) {
       await client.query('ROLLBACK');
@@ -600,29 +567,24 @@ export const bankReconciliationService = {
   /**
    * مطابقة يدوية لحركة كشف حساب مع قيد يومية أو دفعة
    */
-  async matchTransaction(
-    statementTxId: number,
-    matchData: { journal_entry_id?: number; payment_id?: number; notes?: string },
-  ) {
-    if (!matchData.journal_entry_id && !matchData.payment_id) {
-      throw new AppError('يجب تحديد قيد يومية أو دفعة للمطابقة', 400);
+  async matchTransaction(statementTxId: number, input: unknown) {
+    const parsed = matchInput.safeParse(input);
+    if (!parsed.success) {
+      throw new AppError(
+        'يجب تحديد قيد يومية أو دفعة واحدة صحيحة للمطابقة',
+        400,
+        'VALIDATION_ERROR',
+      );
     }
+    const matchData = parsed.data;
 
-    const txRes = await query(`SELECT * FROM bank_statement_transactions WHERE id = $1`, [
-      statementTxId,
-    ]);
-    const tx = txRes.rows[0];
-    if (!tx) throw new AppError('حركة كشف الحساب غير موجودة', 404);
-
-    const rec = await this.getReconciliationById(tx.reconciliation_id);
-    if (rec.status === 'completed') {
-      throw new AppError('جلسة المطابقة مكتملة ومغلقة', 400);
-    }
-
-    const matchedAmount = roundMoney(Math.abs(Number(tx.amount)));
-
-    const res = await query(
-      `UPDATE bank_statement_transactions
+    return editStatementTransaction(statementTxId, async (client, tx, rec) => {
+      const resolved = await validateBankSource(client, tx, rec, {
+        journalId: matchData.journal_entry_id,
+        paymentId: matchData.payment_id,
+      });
+      const res = await client.query(
+        `UPDATE bank_statement_transactions
        SET status = 'matched',
            matched_journal_entry_id = $1,
            matched_payment_id = $2,
@@ -630,45 +592,37 @@ export const bankReconciliationService = {
            notes = COALESCE($4, notes)
        WHERE id = $5
        RETURNING *`,
-      [
-        matchData.journal_entry_id || null,
-        matchData.payment_id || null,
-        matchedAmount,
-        matchData.notes || null,
-        statementTxId,
-      ],
-    );
+        [
+          resolved.journalId,
+          resolved.paymentId ?? null,
+          resolved.amount,
+          matchData.notes || null,
+          statementTxId,
+        ],
+      );
 
-    return res.rows[0];
+      return normalizedStatement(res.rows[0]);
+    });
   },
 
   /**
    * إلغاء مطابقة حركة كشف حساب (Unmatch)
    */
   async unmatchTransaction(statementTxId: number) {
-    const txRes = await query(`SELECT * FROM bank_statement_transactions WHERE id = $1`, [
-      statementTxId,
-    ]);
-    const tx = txRes.rows[0];
-    if (!tx) throw new AppError('حركة كشف الحساب غير موجودة', 404);
-
-    const rec = await this.getReconciliationById(tx.reconciliation_id);
-    if (rec.status === 'completed') {
-      throw new AppError('لا يمكن تعديل جلسة مطابقة مكتملة ومغلقة', 400);
-    }
-
-    const res = await query(
-      `UPDATE bank_statement_transactions
+    return editStatementTransaction(statementTxId, async (client) => {
+      const res = await client.query(
+        `UPDATE bank_statement_transactions
        SET status = 'unmatched',
            matched_journal_entry_id = NULL,
            matched_payment_id = NULL,
            matched_amount = 0
        WHERE id = $1
        RETURNING *`,
-      [statementTxId],
-    );
+        [statementTxId],
+      );
 
-    return res.rows[0];
+      return normalizedStatement(res.rows[0]);
+    });
   },
 
   /**
@@ -679,14 +633,9 @@ export const bankReconciliationService = {
       throw new AppError('سبب الاستبعاد إلزامي', 400);
     }
 
-    const txRes = await query(`SELECT * FROM bank_statement_transactions WHERE id = $1`, [
-      statementTxId,
-    ]);
-    const tx = txRes.rows[0];
-    if (!tx) throw new AppError('حركة كشف الحساب غير موجودة', 404);
-
-    const res = await query(
-      `UPDATE bank_statement_transactions
+    return editStatementTransaction(statementTxId, async (client) => {
+      const res = await client.query(
+        `UPDATE bank_statement_transactions
        SET status = 'excluded',
            matched_journal_entry_id = NULL,
            matched_payment_id = NULL,
@@ -694,57 +643,75 @@ export const bankReconciliationService = {
            notes = $1
        WHERE id = $2
        RETURNING *`,
-      [reason.trim(), statementTxId],
-    );
+        [reason.trim(), statementTxId],
+      );
 
-    return res.rows[0];
+      return normalizedStatement(res.rows[0]);
+    });
   },
 
   /**
    * اعتماد وإغلاق جلسة المطابقة الصارم (Difference = 0 Enforcement)
    */
   async finalizeReconciliation(reconciliationId: number, userId: number) {
-    const rec = await this.getReconciliationById(reconciliationId);
-    if (rec.status === 'completed') {
-      throw new AppError('جلسة المطابقة معتمدة ومكتملة بالفعل', 400);
-    }
-
-    // التحقق من الحركات غير المطابقة
-    const txStatsRes = await query(
-      `SELECT 
-         COUNT(*) AS total_count,
-         COUNT(CASE WHEN status = 'unmatched' THEN 1 END) AS unmatched_count
-       FROM bank_statement_transactions
-       WHERE reconciliation_id = $1`,
-      [reconciliationId],
-    );
-    const { total_count, unmatched_count } = txStatsRes.rows[0];
-
-    // إعادة حساب رصيد الأستاذ في تاريخ الكشف للتأكد من عدم تغيره
-    const latestLedgerBalance = await this.getLedgerBalanceAsOfDate(
-      rec.account_id,
-      rec.statement_date,
-    );
-    const statementBalance = roundMoney(Number(rec.statement_balance));
-    const difference = roundMoney(statementBalance - latestLedgerBalance);
-
-    if (Math.abs(difference) > 0.01) {
-      throw new AppError(
-        `لا يمكن اعتماد جلسة المطابقة! يوجد فارق غير مسوى قدره (${difference} ج.م) بين رصيد الكشف (${statementBalance}) ورصيد الأستاذ (${latestLedgerBalance}). يجب تسوية جميع الفروقات ليصبح الفارق صفراً.`,
-        400,
-      );
-    }
-
-    if (Number(total_count) > 0 && Number(unmatched_count) > 0) {
-      throw new AppError(
-        `يوجد ${unmatched_count} حركة في كشف الحساب البنكي لم يتم مطابقتها أو استبعادها بعد.`,
-        400,
-      );
-    }
-
     const client = await getClient();
     try {
       await client.query('BEGIN');
+      const rec = await lockDraftReconciliation(client, reconciliationId);
+      await lockMatchingAccount(client, rec.account_id);
+
+      // التحقق من الحركات غير المطابقة
+      const txStatsRes = await client.query(
+        `SELECT
+         COUNT(*) AS total_count,
+         COUNT(CASE WHEN status IN ('unmatched', 'partial') THEN 1 END) AS unmatched_count
+       FROM bank_statement_transactions
+       WHERE reconciliation_id = $1`,
+        [reconciliationId],
+      );
+      const { total_count, unmatched_count } = txStatsRes.rows[0];
+
+      // إعادة حساب رصيد الأستاذ في تاريخ الكشف للتأكد من عدم تغيره
+      const latestLedgerBalance = await this.getLedgerBalanceAsOfDate(
+        rec.account_id,
+        rec.statement_date,
+        (sql, params) => client.query(sql, params),
+      );
+      const statementBalance = roundMoney(Number(rec.statement_balance));
+      const difference = roundMoney(statementBalance - latestLedgerBalance);
+
+      if (Math.abs(difference) > 0.01) {
+        throw new AppError(
+          `لا يمكن اعتماد جلسة المطابقة! يوجد فارق غير مسوى قدره (${difference} ج.م) بين رصيد الكشف (${statementBalance}) ورصيد الأستاذ (${latestLedgerBalance}). يجب تسوية جميع الفروقات ليصبح الفارق صفراً.`,
+          400,
+        );
+      }
+
+      if (Number(total_count) > 0 && Number(unmatched_count) > 0) {
+        throw new AppError(
+          `يوجد ${unmatched_count} حركة في كشف الحساب البنكي لم يتم مطابقتها أو استبعادها بعد.`,
+          400,
+        );
+      }
+
+      const matches = await client.query<BankStatementTransaction>(
+        "SELECT * FROM bank_statement_transactions WHERE reconciliation_id=$1 AND status='matched' ORDER BY id",
+        [reconciliationId],
+      );
+      for (const tx of matches.rows) {
+        const resolved = await validateBankSource(
+          client,
+          tx,
+          rec,
+          tx.matched_payment_id
+            ? { paymentId: tx.matched_payment_id }
+            : { journalId: tx.matched_journal_entry_id || undefined },
+        );
+        if (tx.matched_journal_entry_id && tx.matched_journal_entry_id !== resolved.journalId)
+          throw new AppError('مصدر الدفعة يختلف عن القيد المرتبط بالحركة', 409);
+        if (roundMoney(Number(tx.matched_amount)) !== resolved.amount)
+          throw new AppError('مبلغ المطابقة المحفوظ لا يساوي حركة الكشف', 409);
+      }
 
       await client.query(
         `UPDATE bank_reconciliations

@@ -103,6 +103,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import AppIcon from '@/components/AppIcon.vue';
 import { useAuthStore } from '@/stores/auth';
+import { useAppStore } from '@/stores/app';
 import { usePosShift } from '@/composables/usePosShift';
 
 const {
@@ -115,6 +116,7 @@ const {
 
 const router = useRouter();
 const authStore = useAuthStore();
+const appStore = useAppStore();
 
 const currentTime = ref('');
 const currentDate = ref('');
@@ -166,8 +168,12 @@ const handleLogout = async () => {
     return;
   }
 
-  await authStore.logout();
-  router.push('/login');
+  try {
+    await authStore.logout();
+    await router.push('/login');
+  } catch {
+    appStore.addToast('تعذر إتمام تسجيل الخروج. تحقق من الاتصال وحاول مرة أخرى.', 'error');
+  }
 };
 
 onMounted(() => {

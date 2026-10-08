@@ -127,8 +127,9 @@
               :disabled="!canEdit"
             ></textarea>
             <p class="hint mt-12">
-              أدخل محتوى ملف المفتاح JSON الخاص بـ Service Account من Google Cloud Console، وتأكد من
-              مشاركة مجلد الـ Google Drive مع بريد حساب الخدمة.
+              أدخل محتوى ملف المفتاح JSON الخاص بـ Service Account من Google Cloud Console، واستخدم
+              مجلدًا داخل Shared Drive متاح لحسابك وشاركه مع بريد حساب الخدمة. للحسابات الشخصية
+              استخدم خيار OAuth2؛ حساب الخدمة لا يملك مساحة تخزين خاصة.
             </p>
           </div>
 
@@ -177,11 +178,18 @@
             <input
               type="text"
               v-model="cloudBackupSettings.gdrive_folder_id"
-              placeholder="أدخل Folder ID (اختياري)"
+              :placeholder="
+                cloudBackupSettings.gdrive_auth_type === 'service_account'
+                  ? 'أدخل معرف مجلد داخل Shared Drive'
+                  : 'أدخل Folder ID (اختياري)'
+              "
               :disabled="!canEdit"
             />
-            <p class="hint">
+            <p v-if="cloudBackupSettings.gdrive_auth_type === 'oauth'" class="hint">
               إذا تركته فارغاً سيتم رفع الملف في المجلد الرئيسي لحساب جوجل درايف الخاص بك.
+            </p>
+            <p v-else class="hint">
+              اختر مجلدًا داخل Shared Drive؛ مشاركة مجلد شخصي مع حساب الخدمة لا تمنحه مساحة تخزين.
             </p>
           </div>
         </div>
@@ -223,7 +231,7 @@
               :disabled="!canEdit"
             />
             <p class="hint mt-12">
-              يدعم روابط Webhooks الخاصة بـ Discord بشكل مباشر مع تفاصيل محسنة.
+              يدعم Webhooks عبر HTTPS فقط، ويرفض عناوين الشبكة الداخلية لأمان النسخ الاحتياطية.
             </p>
           </div>
         </div>

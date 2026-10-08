@@ -3,45 +3,8 @@
  * كل الدوال نقية — بلا حالة.
  */
 
-/**
- * تطبيع رمز الوحدة (عربي/إنجليزي) إلى كود موحد (kg/g/l/ml/count).
- * @param u — رمز الوحدة الخام من DB أو الإدخال
- * @returns الكود الموحد أو null إن لم يُعرف
- */
-export const normalizeUnit = (u: any): string | null => {
-  const map: Record<string, string> = {
-    kg: 'kg',
-    kilo: 'kg',
-    كيلو: 'kg',
-    كيلوجرام: 'kg',
-    كجم: 'kg',
-    g: 'g',
-    gram: 'g',
-    جرام: 'g',
-    غرام: 'g',
-    l: 'l',
-    liter: 'l',
-    litre: 'l',
-    لتر: 'l',
-    ml: 'ml',
-    milli: 'ml',
-    ملي: 'ml',
-    مل: 'ml',
-    count: 'count',
-    unit: 'count',
-    piece: 'count',
-    pieces: 'count',
-    عدد: 'count',
-    قطعة: 'count',
-  };
-  return (
-    map[
-      String(u || '')
-        .trim()
-        .toLowerCase() as keyof typeof map
-    ] || null
-  );
-};
+import { normalizeUnit } from '../../../shared/units';
+export { normalizeUnit } from '../../../shared/units';
 
 /**
  * تحويل كمية بين وحدتين فيزيائيتين.
@@ -85,13 +48,8 @@ export const itemCost = (item: any, allProducts: any[]): number => {
   const p = allProducts.find((x: any) => x.id === item.ingredient_product_id);
   if (!p) return 0;
 
-  // fallback: لو purchase_price صفر/غير موجود استخدم sale_price
-  const basePrice =
-    Number(p.purchase_price || 0) > 0
-      ? p.purchase_price
-      : Number(p.sale_price || 0) > 0
-        ? p.sale_price
-        : 0;
+  // لا تستخدم سعر البيع كتكلفة؛ سعر البيع ليس مصدرًا صالحًا لتكلفة المكون.
+  const basePrice = Number(p.purchase_price || 0) > 0 ? p.purchase_price : 0;
 
   const price = unitPriceFor(basePrice, p.unit, item.unit_code);
   return Number(item.quantity || 0) * price;

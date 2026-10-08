@@ -2,14 +2,14 @@ import { getClient, query } from '../database/pool.ts';
 import { AppError } from '../types/errors.ts';
 import { getProductsEffectiveCosts } from './productCostService.ts';
 import { getDefaultWarehouseId, getWarehouseIdByCode } from './warehouseService.ts';
-import { ensureInventoryRow } from './inventoryService.ts';
+import { adjustStock, ensureInventoryRow } from './inventoryService.ts';
+import { getAllowedWarehouses } from '../middleware/warehouseAccess.ts';
 import { sanitizeLimit, toNumber } from '../utils/money.ts';
-import { appCache } from '../utils/cache.ts';
-import { invalidateDashboardCache } from './dashboardService.ts';
+import type { PoolClient } from 'pg';
 
 /**
- * Ø¬Ù„Ø¨ Ù‚Ø§Ø¦Ù…Ø© Ø§Ù„Ù…Ù†ØªØ¬Ø§Øª Ù…Ø¹ ÙÙ„ØªØ±Ø© ÙˆØ¨Ø­Ø« ÙˆØªØ±Ù‚ÙŠÙ….
- * @param {Record<string, any>} [filters] Ø®ÙŠØ§Ø±Ø§Øª Ø§Ù„ÙÙ„ØªØ±Ø© (search, category_id, warehouse_id, is_active...)
+ * جلب قائمة المنتجات مع فلترة وبحث وترقيم.
+ * @param {Record<string, any>} [filters] خيارات الفلترة (search, category_id, warehouse_id, is_active...)
  * @returns {Promise<{ rows: any[], total: number }>}
  */
 export const getProducts = async (filters: Record<string, any> = {}) => {
@@ -100,8 +100,8 @@ export const getProducts = async (filters: Record<string, any> = {}) => {
 };
 
 /**
- * Ø¬Ù„Ø¨ Ù…Ù†ØªØ¬ ÙˆØ§Ø­Ø¯ ÙƒØ§Ù…Ù„Ø§Ù‹ Ù…Ø¹ Ø§Ù„ÙˆØµÙØ© ÙˆØ§Ù„Ù…Ø®Ø²ÙˆÙ†.
- * @param {number} id Ù…Ø¹Ø±Ù Ø§Ù„Ù…Ù†ØªØ¬
+ * جلب منتج واحد كاملاً مع الوصفة والمخزون.
+ * @param {number} id معرف المنتج
  * @returns {Promise<any>}
  */
 export const getProductById = async (id: number) => {
@@ -122,7 +122,7 @@ export const getProductById = async (id: number) => {
      WHERE p.id = $1 AND p.deleted_at IS NULL`,
     [id],
   );
-  if (!result.rows[0]) throw new AppError('Ø§Ù„Ù…Ù†ØªØ¬ ØºÙŠØ± Ù…ÙˆØ¬ÙˆØ¯', 404);
+  if (!result.rows[0]) throw new AppError('المنتج غير موجود', 404);
   const product = result.rows[0];
 
   if (product.has_active_recipe) {
@@ -148,7 +148,7 @@ const generateProductSku = async (client) => {
   return `${PRODUCT_SKU_PREFIX}${String(result.rows[0].next_number).padStart(3, '0')}`;
 };
 
-/** ØªÙˆÙ„ÙŠØ¯ Ø±Ù‚Ù… SKU ØªÙ„Ù‚Ø§Ø¦ÙŠ Ù„Ù„Ù…Ù†ØªØ¬ Ø§Ù„ØªØ§Ù„ÙŠ. */
+/** توليد رقم SKU تلقائي للمنتج التالي. */
 export const getNextProductSku = async () => {
   const client = await getClient();
   try {
@@ -165,15 +165,92 @@ export const getNextProductSku = async () => {
 };
 
 /**
- * Ø¥Ù†Ø´Ø§Ø¡ Ù…Ù†ØªØ¬ Ø¬Ø¯ÙŠØ¯ Ù…Ø¹ Ø§Ù„Ø£Ø±ØµØ¯Ø© Ø§Ù„Ø§ÙØªØªØ§Ø­ÙŠØ© ÙˆØ§Ù„Ù…Ø®Ø§Ø²Ù†.
- * @param {Record<string, any>} data Ø¨ÙŠØ§Ù†Ø§Øª Ø§Ù„Ù…Ù†ØªØ¬
+ * إنشاء منتج جديد مع الأرصدة الافتتاحية والمخازن.
+ * @param {Record<string, any>} data بيانات المنتج
  * @returns {Promise<any>}
  */
-export const createProduct = async (data: Record<string, any>) => {
-  const client = await getClient();
-  try {
-    await client.query('BEGIN');
+const applyProductStocks = async (
+  client: import('pg').PoolClient,
+  productId: number,
+  data: Record<string, any>,
+  userId?: number,
+  allowInitialStock = false,
+) => {
+  const absolute = data.warehouse_stocks != null;
+  const stocks = absolute
+    ? data.warehouse_stocks
+    : allowInitialStock
+      ? data.initial_stock
+      : undefined;
+  if (stocks == null) return;
+  if (typeof stocks !== 'object' || Array.isArray(stocks))
+    throw new AppError('أرصدة المخازن غير صالحة', 400);
+  const entries = Object.entries(stocks).sort(([a], [b]) => Number(a) - Number(b));
+  if (!entries.length) return;
+  if (!Number.isSafeInteger(userId) || Number(userId) <= 0)
+    throw new AppError('المستخدم مطلوب لتعديل المخزون', 403);
+  const allowed = await getAllowedWarehouses(Number(userId), client);
+  for (const [key, raw] of entries) {
+    const warehouseId = Number(key);
+    if (!Number.isSafeInteger(warehouseId) || warehouseId <= 0 || !allowed.includes(warehouseId))
+      throw new AppError('المخزن خارج نطاق صلاحياتك', 403);
+    const quantity = toNumber(raw, NaN);
+    const units = Math.round(quantity * 1000);
+    if (
+      !Number.isFinite(quantity) ||
+      quantity < 0 ||
+      quantity > 999999999.999 ||
+      !Number.isSafeInteger(units) ||
+      Math.abs(quantity * 1000 - units) > 0.000001
+    )
+      throw new AppError('رصيد المخزن غير صالح', 400);
+    const current = await client.query(
+      'SELECT quantity FROM inventory WHERE product_id = $1 AND warehouse_id = $2 ORDER BY id FOR UPDATE',
+      [productId, warehouseId],
+    );
+    const currentQuantity = current.rows.reduce((sum, row) => sum + Number(row.quantity), 0);
+    const target = absolute ? quantity : currentQuantity + quantity;
+    // Metadata-only saves may include unchanged balances of inactive or recipe products.
+    if (Math.abs(target - currentQuantity) < 0.000001) continue;
+    await adjustStock(
+      {
+        product_id: productId,
+        warehouse_id: warehouseId,
+        quantity: target,
+        notes: 'تسوية رصيد من حفظ المنتج',
+      },
+      Number(userId),
+      client,
+    );
+  }
+};
 
+const validateProductCategory = async (client: PoolClient, value: unknown) => {
+  if (value === undefined || value === null) return;
+  if (!['string', 'number'].includes(typeof value)) throw new AppError('التصنيف غير صالح', 400);
+  const id = Number(value);
+  if (!Number.isSafeInteger(id) || id <= 0 || id > 2147483647)
+    throw new AppError('التصنيف غير صالح', 400);
+  // Acquire before product row locks, matching category deletion and Excel import.
+  await lockCategoryHierarchy(client);
+  const category = await client.query(
+    'SELECT id FROM product_categories WHERE id = $1 AND deleted_at IS NULL FOR SHARE',
+    [id],
+  );
+  if (!category.rows[0]) throw new AppError('التصنيف غير موجود', 404);
+};
+
+export const createProduct = async (
+  data: Record<string, any>,
+  transactionClient?: import('pg').PoolClient,
+  userId?: number,
+) => {
+  const ownsTransaction = !transactionClient;
+  const client = transactionClient ?? (await getClient());
+  try {
+    if (ownsTransaction) await client.query('BEGIN');
+
+    await validateProductCategory(client, data.category_id);
     const sku = String(data.sku || '').trim() || (await generateProductSku(client));
     const barcode = String(data.barcode || '').trim() || null;
     const result = await client.query(
@@ -189,64 +266,51 @@ export const createProduct = async (data: Record<string, any>) => {
         data.purchase_price || 0,
         data.sale_price,
         data.wholesale_price,
-        data.min_stock || 5,
+        data.min_stock ?? 5,
         data.image_url,
         data.is_active ?? true,
         data.track_expiry ?? false,
         data.primary_warehouse_id || null,
       ],
     );
-    if (data.warehouse_stocks && typeof data.warehouse_stocks === 'object') {
-      for (const [wId, qty] of Object.entries(data.warehouse_stocks)) {
-        const val = toNumber(qty);
-        await client.query(
-          `INSERT INTO inventory (product_id, warehouse_id, quantity) VALUES ($1,$2,$3)
-           ON CONFLICT (product_id, warehouse_id, COALESCE(batch_number, ''))
-           DO UPDATE SET quantity = EXCLUDED.quantity, updated_at = NOW()`,
-          [result.rows[0].id, wId, val],
-        );
-      }
-    } else if (data.initial_stock) {
-      for (const [warehouseId, qty] of Object.entries(data.initial_stock)) {
-        await client.query(
-          `INSERT INTO inventory (product_id, warehouse_id, quantity) VALUES ($1,$2,$3)
-           ON CONFLICT (product_id, warehouse_id, COALESCE(batch_number, ''))
-           DO UPDATE SET quantity = inventory.quantity + $3, updated_at = NOW()`,
-          [result.rows[0].id, warehouseId, qty],
-        );
-      }
-    }
+    await applyProductStocks(client, result.rows[0].id, data, userId, true);
 
-    await client.query('COMMIT');
-    appCache.invalidateByTag('product_cost');
-    appCache.invalidateByTag('products');
-    invalidateDashboardCache();
+    if (ownsTransaction) {
+      await client.query('COMMIT');
+    }
     return result.rows[0];
   } catch (err: any) {
-    await client.query('ROLLBACK');
+    if (ownsTransaction) await client.query('ROLLBACK');
     throw err;
   } finally {
-    client.release();
+    if (ownsTransaction) client.release();
   }
 };
 
 /**
- * ØªØ­Ø¯ÙŠØ« Ù…Ù†ØªØ¬ (Ø¨ÙŠØ§Ù†Ø§ØªØŒ Ù…Ø®Ø§Ø²Ù†ØŒ Ø£Ø±ØµØ¯Ø©).
- * @param {number} id Ù…Ø¹Ø±Ù Ø§Ù„Ù…Ù†ØªØ¬
- * @param {Record<string, any>} data Ø§Ù„Ø­Ù‚ÙˆÙ„ Ø§Ù„Ù…Ø·Ù„ÙˆØ¨ ØªØ­Ø¯ÙŠØ«Ù‡Ø§
+ * تحديث منتج (بيانات، مخازن، أرصدة).
+ * @param {number} id معرف المنتج
+ * @param {Record<string, any>} data الحقول المطلوب تحديثها
  * @returns {Promise<any>}
  */
-export const updateProduct = async (id: number, data: Record<string, any>) => {
-  const client = await getClient();
+export const updateProduct = async (
+  id: number,
+  data: Record<string, any>,
+  transactionClient?: import('pg').PoolClient,
+  userId?: number,
+) => {
+  const ownsTransaction = !transactionClient;
+  const client = transactionClient ?? (await getClient());
   try {
-    await client.query('BEGIN');
+    if (ownsTransaction) await client.query('BEGIN');
 
+    await validateProductCategory(client, data.category_id);
     const existingRes = await client.query(
       'SELECT p.id, p.primary_warehouse_id, EXISTS (SELECT 1 FROM product_recipes r WHERE r.product_id = p.id AND r.deleted_at IS NULL AND r.is_active = TRUE) AS has_active_recipe FROM products p WHERE p.id = $1 AND p.deleted_at IS NULL FOR UPDATE',
       [id],
     );
     const existing = existingRes.rows[0];
-    if (!existing) throw new AppError('Ø§Ù„Ù…Ù†ØªØ¬ ØºÙŠØ± Ù…ÙˆØ¬ÙˆØ¯', 404);
+    if (!existing) throw new AppError('المنتج غير موجود', 404);
 
     const warehouseProvided = data.primary_warehouse_id !== undefined;
     const nextWarehouseId = warehouseProvided
@@ -258,16 +322,13 @@ export const updateProduct = async (id: number, data: Record<string, any>) => {
 
     if (warehouseChanged) {
       if (existing.has_active_recipe) {
-        throw new AppError(
-          'Ù„Ø§ ÙŠÙ…ÙƒÙ† ØªØºÙŠÙŠØ± Ù…Ø®Ø²Ù† Ù…Ù†ØªØ¬ Ù…Ø±ØªØ¨Ø· Ø¨ÙˆØµÙØ© Ù†Ø´Ø·Ø©',
-          400,
-        );
+        throw new AppError('لا يمكن تغيير مخزن منتج مرتبط بوصفة نشطة', 400);
       }
       const warehouseRes = await client.query(
         'SELECT id FROM warehouses WHERE id = $1 AND deleted_at IS NULL AND is_active = TRUE',
         [nextWarehouseId],
       );
-      if (!warehouseRes.rows[0]) throw new AppError('Ø§Ù„Ù…Ø®Ø²Ù† ØºÙŠØ± Ù…ÙˆØ¬ÙˆØ¯', 404);
+      if (!warehouseRes.rows[0]) throw new AppError('المخزن غير موجود', 404);
     }
 
     const fields = [
@@ -315,28 +376,18 @@ export const updateProduct = async (id: number, data: Record<string, any>) => {
       );
     }
 
-    if (data.warehouse_stocks && typeof data.warehouse_stocks === 'object') {
-      for (const [wId, qty] of Object.entries(data.warehouse_stocks)) {
-        const val = toNumber(qty);
-        await client.query(
-          `INSERT INTO inventory (product_id, warehouse_id, quantity) VALUES ($1,$2,$3)
-           ON CONFLICT (product_id, warehouse_id, COALESCE(batch_number, ''))
-           DO UPDATE SET quantity = EXCLUDED.quantity, updated_at = NOW()`,
-          [id, wId, val],
-        );
-      }
-    }
+    await applyProductStocks(client, id, data, userId);
 
-    await client.query('COMMIT');
-    appCache.invalidateByTag('product_cost');
-    appCache.invalidateByTag('products');
-    invalidateDashboardCache();
-    return getProductById(id);
+    if (ownsTransaction) {
+      await client.query('COMMIT');
+      return getProductById(id);
+    }
+    return (await client.query('SELECT * FROM products WHERE id = $1', [id])).rows[0];
   } catch (err: any) {
-    await client.query('ROLLBACK');
+    if (ownsTransaction) await client.query('ROLLBACK');
     throw err;
   } finally {
-    client.release();
+    if (ownsTransaction) client.release();
   }
 };
 
@@ -371,9 +422,6 @@ export const deleteProduct = async (id: number) => {
     );
 
     await client.query('COMMIT');
-    appCache.invalidateByTag('product_cost');
-    appCache.invalidateByTag('products');
-    invalidateDashboardCache();
   } catch (err: any) {
     await client.query('ROLLBACK');
     throw err;
@@ -424,9 +472,6 @@ export const deleteAllProducts = async () => {
     }
 
     await client.query('COMMIT');
-    appCache.invalidateByTag('product_cost');
-    appCache.invalidateByTag('products');
-    invalidateDashboardCache();
     return { deletedCount: result.rowCount || 0 };
   } catch (err: any) {
     await client.query('ROLLBACK');
@@ -436,7 +481,7 @@ export const deleteAllProducts = async () => {
   }
 };
 
-/** Ø¬Ù„Ø¨ Ø´Ø¬Ø±Ø© Ø§Ù„ØªØµÙ†ÙŠÙØ§Øª. */
+/** جلب شجرة التصنيفات. */
 export const getCategories = async () => {
   const result = await query(
     `SELECT pc.*, COALESCE(COUNT(p.id), 0) AS products_count
@@ -450,11 +495,8 @@ export const getCategories = async () => {
 };
 
 /**
- * *B1J1 'D*C'DJA: CD EF*,'* 'DE-D E9 391 'D41'!/'D(J9/'D1(- H'DE(J9'* 'DA9DJ)
- */
-/**
- * ØªÙ‚Ø±ÙŠØ± ØªÙƒØ§Ù„ÙŠÙ Ø§Ù„Ù…Ù†ØªØ¬Ø§Øª.
- * @param {Record<string, any>} [filters] Ø®ÙŠØ§Ø±Ø§Øª Ø§Ù„ØªÙ‚Ø±ÙŠØ± (warehouse_id...)
+ * تقرير تكاليف المنتجات.
+ * @param {Record<string, any>} [filters] خيارات التقرير (warehouse_id...)
  * @returns {Promise<any[]>}
  */
 export const getCostsReport = async (filters: Record<string, any> = {}) => {
@@ -522,11 +564,8 @@ export const getCostsReport = async (filters: Record<string, any> = {}) => {
 };
 
 /**
- * EF*,'* 'DA19: 'DEF*,'* 'D*J DG' E.2HF AJ E.2F 'DA19 E9 (J'F'* 'DH5A) H'DE.2HF 'D-'DJ DCD ECHF
- */
-/**
- * Ù…Ù†ØªØ¬Ø§Øª Ø§Ù„ÙØ±Ø¹ Ù„Ù„Ø¨ÙŠØ¹ Ø§Ù„Ø³Ø±ÙŠØ¹ (Ù…Ø¹ ÙÙ„ØªØ±Ø© ÙˆØªØ±Ù‚ÙŠÙ…).
- * @param {Record<string, any>} [filters] Ø®ÙŠØ§Ø±Ø§Øª Ø§Ù„ÙÙ„ØªØ±Ø© (search, category_id...)
+ * منتجات المحل للبيع السريع (مع فلترة وترقيم).
+ * @param {Record<string, any>} [filters] خيارات الفلترة (search, category_id...)
  * @returns {Promise<{ rows: any[], total: number }>}
  */
 export const getShopProducts = async (filters: Record<string, any> = {}) => {
@@ -591,53 +630,126 @@ export const getShopProducts = async (filters: Record<string, any> = {}) => {
   }));
 };
 
-/** Ø¥Ù†Ø´Ø§Ø¡ ØªØµÙ†ÙŠÙ Ø¬Ø¯ÙŠØ¯. */
-export const createCategory = async (data: Record<string, any>) => {
-  const result = await query(
-    `INSERT INTO product_categories (name_ar, slug, parent_id, sort_order) VALUES ($1,$2,$3,$4) RETURNING *`,
-    [
-      data.name_ar,
-      data.slug || data.name_ar.replace(/\s/g, '-'),
-      data.parent_id,
-      data.sort_order || 0,
-    ],
-  );
-  return result.rows[0];
+export const lockCategoryHierarchy = (client: PoolClient) =>
+  client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [
+    'alagoouz.product_category_hierarchy',
+  ]);
+
+const parseCategoryParent = (value: unknown): number | null => {
+  if (value == null) return null;
+  if (!['string', 'number'].includes(typeof value) || String(value).trim() === '')
+    throw new AppError('التصنيف الأب غير صالح', 400);
+  const id = Number(value);
+  if (!Number.isSafeInteger(id) || id <= 0) throw new AppError('التصنيف الأب غير صالح', 400);
+  return id;
 };
 
-/** ØªØ­Ø¯ÙŠØ« ØªØµÙ†ÙŠÙ. */
+const validateCategoryParent = async (
+  client: PoolClient,
+  parentId: number | null,
+  categoryId?: number,
+) => {
+  if (parentId === null) return;
+  if (parentId === categoryId) throw new AppError('لا يمكن ربط التصنيف بنفسه', 400);
+  const ancestors = await client.query(
+    `WITH RECURSIVE ancestors AS (
+       SELECT id, parent_id, deleted_at FROM product_categories WHERE id = $1
+       UNION
+       SELECT pc.id, pc.parent_id, pc.deleted_at FROM product_categories pc
+       JOIN ancestors a ON pc.id = a.parent_id
+     ) SELECT id, parent_id, deleted_at FROM ancestors`,
+    [parentId],
+  );
+  const rows = new Map<number, { parent_id: number | null; deleted_at: unknown }>(
+    ancestors.rows.map((row) => [Number(row.id), row]),
+  );
+  if (!rows.has(parentId) || rows.get(parentId)!.deleted_at)
+    throw new AppError('التصنيف الأب غير موجود', 404);
+  const visited = new Set<number>();
+  let current: number | null = parentId;
+  while (current !== null) {
+    if (current === categoryId || visited.has(current))
+      throw new AppError('لا يمكن إنشاء دورة في شجرة التصنيفات', 400);
+    const row = rows.get(current);
+    if (!row || row.deleted_at) throw new AppError('سلسلة التصنيف الأب غير صالحة', 400);
+    visited.add(current);
+    current = row.parent_id === null ? null : Number(row.parent_id);
+  }
+};
+
+/** إنشاء تصنيف جديد. */
+export const createCategory = async (data: Record<string, any>) => {
+  const parentId = parseCategoryParent(data.parent_id);
+  const client = await getClient();
+  try {
+    await client.query('BEGIN');
+    await lockCategoryHierarchy(client);
+    await validateCategoryParent(client, parentId);
+    const result = await client.query(
+      `INSERT INTO product_categories (name_ar, slug, parent_id, sort_order) VALUES ($1,$2,$3,$4) RETURNING *`,
+      [data.name_ar, data.slug || data.name_ar.replace(/\s/g, '-'), parentId, data.sort_order || 0],
+    );
+    await client.query('COMMIT');
+    return result.rows[0];
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+};
+
+/** تحديث تصنيف. */
 export const updateCategory = async (id: number, data: Record<string, any>) => {
-  const result = await query(
-    `UPDATE product_categories
+  const parentProvided = data.parent_id !== undefined;
+  const parentId = parseCategoryParent(data.parent_id);
+  const categoryId = Number(id);
+  const client = await getClient();
+  try {
+    await client.query('BEGIN');
+    await lockCategoryHierarchy(client);
+    const existing = await client.query(
+      'SELECT id FROM product_categories WHERE id = $1 AND deleted_at IS NULL FOR NO KEY UPDATE',
+      [id],
+    );
+    if (!existing.rows[0]) throw new AppError('التصنيف غير موجود', 404);
+    if (parentProvided) await validateCategoryParent(client, parentId, categoryId);
+    const result = await client.query(
+      `UPDATE product_categories
      SET name_ar = COALESCE($1, name_ar),
          slug = COALESCE($2, slug),
-         parent_id = COALESCE($3, parent_id),
-         sort_order = COALESCE($4, sort_order)
-     WHERE id = $5 AND deleted_at IS NULL
+         parent_id = CASE WHEN $3::boolean THEN $4::int ELSE parent_id END,
+         sort_order = COALESCE($5, sort_order)
+     WHERE id = $6 AND deleted_at IS NULL
      RETURNING *`,
-    [data.name_ar, data.slug, data.parent_id, data.sort_order, id],
-  );
-  if (!result.rows[0]) throw new AppError('Ø§Ù„ØªØµÙ†ÙŠÙ ØºÙŠØ± Ù…ÙˆØ¬ÙˆØ¯', 404);
-  return result.rows[0];
+      [data.name_ar, data.slug, parentProvided, parentId, data.sort_order, id],
+    );
+    await client.query('COMMIT');
+    return result.rows[0];
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
 };
 
-/** Ø­Ø°Ù ØªØµÙ†ÙŠÙ (Ø­Ø°Ù Ù†Ø§Ø¹Ù…). */
+/** حذف تصنيف (حذف ناعم). */
 export const deleteCategory = async (id: number) => {
   const client = await getClient();
   try {
     await client.query('BEGIN');
+    await lockCategoryHierarchy(client);
     const category = await client.query(
-      `SELECT id FROM product_categories WHERE id = $1 AND deleted_at IS NULL`,
+      `SELECT id FROM product_categories WHERE id = $1 AND deleted_at IS NULL FOR NO KEY UPDATE`,
       [id],
     );
-    if (!category.rows[0]) throw new AppError('Ø§Ù„ØªØµÙ†ÙŠÙ ØºÙŠØ± Ù…ÙˆØ¬ÙˆØ¯', 404);
+    if (!category.rows[0]) throw new AppError('التصنيف غير موجود', 404);
 
     await client.query(`UPDATE products SET category_id = NULL WHERE category_id = $1`, [id]);
+    await client.query('UPDATE product_categories SET parent_id = NULL WHERE parent_id = $1', [id]);
     await client.query(`UPDATE product_categories SET deleted_at = NOW() WHERE id = $1`, [id]);
     await client.query('COMMIT');
-    appCache.invalidateByTag('product_cost');
-    appCache.invalidateByTag('products');
-    invalidateDashboardCache();
     return { id };
   } catch (err: any) {
     await client.query('ROLLBACK');
@@ -647,7 +759,7 @@ export const deleteCategory = async (id: number) => {
   }
 };
 
-/** Ø¬Ù„Ø¨ Ù‚Ø§Ø¦Ù…Ø© Ø§Ù„ÙˆØ­Ø¯Ø§Øª. */
+/** جلب قائمة الوحدات. */
 export const getUnits = async () => {
   return (
     await query(
@@ -662,7 +774,7 @@ export const getUnits = async () => {
   ).rows;
 };
 
-/** Ø¥Ù†Ø´Ø§Ø¡ ÙˆØ­Ø¯Ø© Ù‚ÙŠØ§Ø³ Ø¬Ø¯ÙŠØ¯Ø©. */
+/** إنشاء وحدة قياس جديدة. */
 export const createUnit = async (data: Record<string, any>) => {
   const result = await query(
     `INSERT INTO product_units (name_ar, sort_order) VALUES ($1, $2) RETURNING *`,
@@ -671,7 +783,7 @@ export const createUnit = async (data: Record<string, any>) => {
   return result.rows[0];
 };
 
-/** ØªØ­Ø¯ÙŠØ« ÙˆØ­Ø¯Ø© Ù‚ÙŠØ§Ø³. */
+/** تحديث وحدة قياس. */
 export const updateUnit = async (id: number, data: Record<string, any>) => {
   const result = await query(
     `UPDATE product_units
@@ -682,46 +794,88 @@ export const updateUnit = async (id: number, data: Record<string, any>) => {
      RETURNING *`,
     [data.name_ar, data.sort_order, id],
   );
-  if (!result.rows[0]) throw new AppError('Ø§Ù„ÙˆØ­Ø¯Ø© ØºÙŠØ± Ù…ÙˆØ¬ÙˆØ¯Ø©', 404);
+  if (!result.rows[0]) throw new AppError('الوحدة غير موجودة', 404);
   return result.rows[0];
 };
 
-/** Ø­Ø°Ù ÙˆØ­Ø¯Ø© Ù‚ÙŠØ§Ø³. */
+/** حذف وحدة قياس. */
 export const deleteUnit = async (id: number) => {
   const unit = await query(
     `SELECT name_ar FROM product_units WHERE id = $1 AND deleted_at IS NULL`,
     [id],
   );
-  if (!unit.rows[0]) throw new AppError('Ø§Ù„ÙˆØ­Ø¯Ø© ØºÙŠØ± Ù…ÙˆØ¬ÙˆØ¯Ø©', 404);
+  if (!unit.rows[0]) throw new AppError('الوحدة غير موجودة', 404);
   await query(`UPDATE product_units SET deleted_at = NOW() WHERE id = $1`, [id]);
   return { id };
 };
 
-/**
- * ØªØ¹Ø¯ÙŠÙ„ Ø£Ø³Ø¹Ø§Ø± Ù…Ø¬Ù…ÙˆØ¹Ø© Ù…Ù†ØªØ¬Ø§Øª Ø¯ÙØ¹Ø© ÙˆØ§Ø­Ø¯Ø© (Ù†Ø³Ø¨Ø© Ø£Ùˆ Ù…Ø¨Ù„Øº Ø«Ø§Ø¨Øª).
- * @param {Record<string, any>} data Ø¨ÙŠØ§Ù†Ø§Øª Ø§Ù„ØªØ¹Ø¯ÙŠÙ„ (category_id, type, adjust_type, value)
- * @param {number} userId Ù…Ø¹Ø±Ù Ø§Ù„Ù…Ø³ØªØ®Ø¯Ù… Ø§Ù„Ù…Ù†ÙÙ‘Ø°
- * @returns {Promise<{ updated: number }>}
- */
-export const bulkAdjustPrices = async (data: Record<string, any>, __userId: number) => {
+/** Read the current user's stored bulk price result without repeating the operation. */
+export const getBulkPriceAdjustmentStatus = async (
+  operationKey: string,
+  userId: number,
+  actionPath = '/api/v1/products/bulk-price',
+) => {
+  if (typeof operationKey !== 'string' || !/^[a-zA-Z0-9-]{1,50}$/.test(operationKey))
+    throw new AppError('مفتاح العملية غير صالح', 400);
+  if (!Number.isSafeInteger(userId) || userId <= 0) throw new AppError('المستخدم غير صالح', 403);
+  const scopedKey = `user:${userId}:PUT:${actionPath}:${operationKey}`;
+  const record = (
+    await query(
+      'SELECT status, status_code, response_body FROM idempotency_records WHERE key = $1 AND user_id = $2 AND request_path = $3',
+      [scopedKey, userId, actionPath],
+    )
+  ).rows[0];
+  if (!record) return { state: 'absent' as const };
+  if (record.status === 'PROCESSING') return { state: 'processing' as const };
+  let body = record.response_body;
+  if (typeof body === 'string') {
+    try {
+      body = JSON.parse(body);
+    } catch {
+      return { state: 'unconfirmed' as const };
+    }
+  }
+  const count = body?.data?.updatedCount;
+  if (
+    record.status === 'COMPLETED' &&
+    record.status_code >= 200 &&
+    record.status_code < 300 &&
+    body?.success === true &&
+    Number.isSafeInteger(count) &&
+    count >= 0
+  )
+    return { state: 'completed' as const, updatedCount: count as number };
+  // A recorded server error cannot prove whether the financial operation committed.
+  return { state: 'unconfirmed' as const };
+};
+
+/** Adjust prices and record the actor and scope in one transaction. */
+export const bulkAdjustPrices = async (data: Record<string, any>, userId: number) => {
   const { category_id, type, value, adjust_type, all_products } = data;
-  const val = Number(value);
-  if (!Number.isFinite(val)) throw new AppError('القيمة غير صالحة', 400);
+  const val = toNumber(value, NaN);
+  if (
+    value == null ||
+    typeof value === 'boolean' ||
+    String(value).trim() === '' ||
+    !Number.isFinite(val) ||
+    val < -100 ||
+    val > 10_000_000
+  )
+    throw new AppError('القيمة غير صالحة', 400);
+  if (!['percent', 'fixed'].includes(adjust_type))
+    throw new AppError('طريقة التعديل غير صالحة', 400);
+  if (!Number.isSafeInteger(userId) || userId <= 0) throw new AppError('المستخدم غير صالح', 403);
 
   const isAllProducts = all_products === true || all_products === 'true';
   let parsedCatId: number | null = null;
 
   if (!isAllProducts) {
-    parsedCatId = parseInt(category_id, 10);
-    if (!Number.isInteger(parsedCatId) || parsedCatId <= 0) {
+    parsedCatId = Number(category_id);
+    if (!Number.isSafeInteger(parsedCatId) || parsedCatId <= 0) {
       throw new AppError(
         'يجب تحديد التصنيف المطلوب تعديل أسعاره بشكل صحيح، أو تأكيد التطبيق على جميع المنتجات (all_products: true)',
         400,
       );
-    }
-    const catCheck = await query('SELECT id FROM product_categories WHERE id = $1', [parsedCatId]);
-    if (!catCheck.rows[0]) {
-      throw new AppError('التصنيف المحدد غير موجود', 404);
     }
   }
 
@@ -752,6 +906,44 @@ export const bulkAdjustPrices = async (data: Record<string, any>, __userId: numb
     params.push(parsedCatId);
   }
 
-  const result = await query(sql, params);
-  return { updatedCount: result.rowCount };
+  const client = await getClient();
+  try {
+    await client.query('BEGIN');
+    const actor = await client.query(
+      'SELECT id FROM users WHERE id = $1 AND is_active = TRUE AND deleted_at IS NULL',
+      [userId],
+    );
+    if (!actor.rows[0]) throw new AppError('المستخدم غير صالح', 403);
+    if (parsedCatId != null) {
+      const category = await client.query(
+        'SELECT id FROM product_categories WHERE id = $1 AND deleted_at IS NULL',
+        [parsedCatId],
+      );
+      if (!category.rows[0]) throw new AppError('التصنيف المحدد غير موجود', 404);
+    }
+    const result = await client.query(sql, params);
+    await client.query(
+      'INSERT INTO activity_logs (user_id, module, action_ar, details) VALUES ($1,$2,$3,$4)',
+      [
+        userId,
+        'products',
+        'تعديل أسعار المنتجات جماعيًا',
+        JSON.stringify({
+          category_id: parsedCatId,
+          all_products: isAllProducts,
+          type,
+          adjust_type,
+          value: val,
+          updated_count: result.rowCount,
+        }),
+      ],
+    );
+    await client.query('COMMIT');
+    return { updatedCount: result.rowCount };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
 };

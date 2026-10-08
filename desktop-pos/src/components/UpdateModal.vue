@@ -16,7 +16,12 @@
             <p class="header-sub">التحديث التلقائي الفوري دون الحاجة لإعادة التثبيت اليدوي</p>
           </div>
         </div>
-        <button type="button" class="close-modal-btn" @click="emit('close')" title="إغلاق النافذة (Esc)">
+        <button
+          type="button"
+          class="close-modal-btn"
+          @click="emit('close')"
+          title="إغلاق النافذة (Esc)"
+        >
           <AppIcon name="close" :size="16" />
         </button>
       </div>
@@ -52,10 +57,7 @@
           <!-- Download Progress Bar (Shows when downloading) -->
           <div v-if="isDownloading" class="progress-container">
             <div class="progress-bar-track">
-              <div
-                class="progress-bar-fill"
-                :style="{ width: `${downloadPercent}%` }"
-              ></div>
+              <div class="progress-bar-fill" :style="{ width: `${downloadPercent}%` }"></div>
             </div>
             <div class="progress-text-row">
               <span>جاري التحميل في الخلفية...</span>
@@ -69,76 +71,44 @@
       <div class="modal-actions-row">
         <!-- Ready to install (Downloaded) -->
         <template v-if="isDownloaded">
-          <button
-            type="button"
-            class="btn-action btn-install"
-            @click="handleInstallNow"
-          >
+          <button type="button" class="btn-action btn-install" @click="handleInstallNow">
             <AppIcon name="download" :size="18" />
             <span>تحديث وتثبيت الآن (إعادة التشغيل الفورية)</span>
           </button>
-          <button
-            type="button"
-            class="btn-action btn-dismiss"
-            @click="emit('close')"
-          >
+          <button type="button" class="btn-action btn-dismiss" @click="emit('close')">
             التثبيت لاحقاً عند إغلاق البرنامج
           </button>
         </template>
 
         <!-- Downloading -->
         <template v-else-if="isDownloading">
-          <button
-            type="button"
-            class="btn-action btn-disabled"
-            disabled
-          >
+          <button type="button" class="btn-action btn-disabled" disabled>
             <AppIcon name="refreshCw" :size="16" class="spin-anim" />
             <span>جاري التنزيل ({{ downloadPercent }}%)...</span>
           </button>
-          <button
-            type="button"
-            class="btn-action btn-secondary"
-            @click="emit('close')"
-          >
+          <button type="button" class="btn-action btn-secondary" @click="emit('close')">
             متابعة العمل في الخلفية
           </button>
         </template>
 
         <!-- Checking -->
         <template v-else-if="isChecking">
-          <button
-            type="button"
-            class="btn-action btn-disabled"
-            disabled
-          >
+          <button type="button" class="btn-action btn-disabled" disabled>
             <AppIcon name="refreshCw" :size="16" class="spin-anim" />
             <span>جاري فحص الخادم بحثاً عن تحديثات...</span>
           </button>
-          <button
-            type="button"
-            class="btn-action btn-secondary"
-            @click="emit('close')"
-          >
+          <button type="button" class="btn-action btn-secondary" @click="emit('close')">
             إلغاء
           </button>
         </template>
 
         <!-- Idle / Current / Error -->
         <template v-else>
-          <button
-            type="button"
-            class="btn-action btn-check"
-            @click="handleCheckUpdates"
-          >
+          <button type="button" class="btn-action btn-check" @click="handleCheckUpdates">
             <AppIcon name="refreshCw" :size="16" />
             <span>فحص التحديثات الآن</span>
           </button>
-          <button
-            type="button"
-            class="btn-action btn-secondary"
-            @click="emit('close')"
-          >
+          <button type="button" class="btn-action btn-secondary" @click="emit('close')">
             إغلاق
           </button>
         </template>

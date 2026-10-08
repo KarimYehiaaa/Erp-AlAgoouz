@@ -70,7 +70,7 @@
           <span>تحديث</span>
         </button>
 
-        <!-- مؤشر آخر تحديث + زر التحديث التلقائي الدوري (60 ثانية) -->
+        <!-- مؤشر آخر تحديث + تحديث احتياطي سريع عند انقطاع WebSocket -->
         <div class="auto-refresh-wrap" :class="{ active: autoRefresh }">
           <span class="live-dot" :class="{ on: autoRefresh }" aria-hidden="true"></span>
           <span class="last-updated">آخر تحديث: {{ lastUpdatedLabel }}</span>
@@ -79,8 +79,8 @@
             type="button"
             :title="
               autoRefresh
-                ? 'التحديث التلقائي مفعل — يتم التحديث كل 60 ثانية (اضغط للإيقاف)'
-                : 'التحديث التلقائي متوقف — اضغط للتفعيل كل 60 ثانية'
+                ? `التحديث التلقائي مفعل — كل ${autoRefreshSeconds} ثانية حسب الاتصال اللحظي (اضغط للإيقاف)`
+                : `التحديث التلقائي متوقف — اضغط للتفعيل (كل ${autoRefreshSeconds} ثانية)`
             "
             :aria-label="autoRefresh ? 'إيقاف التحديث التلقائي' : 'تفعيل التحديث التلقائي'"
             @click="toggleAutoRefresh"
@@ -499,6 +499,11 @@ import { useAppStore } from '@/stores/app';
 import AppIcon from '@/components/AppIcon.vue';
 import { dashboard as dashboardApi, warehouses as apiWarehouses } from '@/api';
 import { formatMoney } from '@/utils/currency';
+import {
+  dashboardRefreshIntervalMs,
+  dashboardRefreshIntervalSeconds,
+  realtimeConnected,
+} from '@/services/realtimeStatus';
 import DashboardMetrics from '@/components/dashboard/DashboardMetrics.vue';
 import DashboardPriorityAlerts from '@/components/dashboard/DashboardPriorityAlerts.vue';
 import DashboardAIInsights from '@/components/dashboard/DashboardAIInsights.vue';
@@ -529,9 +534,10 @@ const loading = ref(true);
 const error = ref('');
 const selectedRange = ref('month');
 
-// ── التحديث التلقائي الدوري (كل 60 ثانية) + مؤشر آخر تحديث ──
-const AUTO_REFRESH_INTERVAL = 60 * 1000;
+// ── تحديث احتياطي سريع عند انقطاع WebSocket مع مؤشر آخر تحديث ──
 const autoRefresh = ref(localStorage.getItem('dashboard_auto_refresh') !== 'false');
+const refreshInterval = dashboardRefreshIntervalMs;
+const autoRefreshSeconds = dashboardRefreshIntervalSeconds;
 const lastUpdated = ref<Date | null>(null);
 const nowTick = ref(Date.now());
 // شريط التقدم: نسبة الوقت المتبقي حتى التحديث القادم (0→100) + حالة التحميل الفعلي
@@ -556,8 +562,8 @@ const startAutoRefresh = () => {
   stopAutoRefresh();
   autoRefreshTimer = setInterval(() => {
     // لا نكدّس طلبات — نتخطى الدورة لو في طلب جارٍ
-    if (!loading.value) loadDashboard();
-  }, AUTO_REFRESH_INTERVAL);
+    if (!loading.value && !document.hidden) loadDashboard();
+  }, refreshInterval.value);
 };
 
 const stopAutoRefresh = () => {
@@ -579,6 +585,12 @@ const toggleAutoRefresh = () => {
     refreshProgress.value = 0;
   }
 };
+
+watch(realtimeConnected, () => {
+  if (!autoRefresh.value) return;
+  refreshProgress.value = 0;
+  startAutoRefresh();
+});
 
 //  تخصيص الودجت
 const showWidgetSettings = ref(false);
@@ -802,7 +814,9 @@ const destroyCharts = () => {
   while (charts.length) {
     try {
       charts.pop()?.destroy();
-    } catch {}
+    } catch {
+      /* Chart cleanup is best effort when the canvas has already been removed. */
+    }
   }
   if (Chart) {
     const allRefs = [
@@ -821,7 +835,9 @@ const destroyCharts = () => {
         try {
           const c = Chart.getChart(refItem.value);
           if (c) c.destroy();
-        } catch {}
+        } catch {
+          /* Chart cleanup is best effort when the canvas has already been removed. */
+        }
       }
     }
   }
@@ -1423,6 +1439,7 @@ const handleRealtimeUpdate = () => loadDashboard();
 const handleThemeChange = () => renderCharts();
 
 onActivated(() => {
+  if (autoRefresh.value) startAutoRefresh();
   // إعادة رسم المخططات بسلاسة عند العودة للشاشة
   if (stats.value && charts.length === 0) {
     renderCharts();
@@ -1434,6 +1451,7 @@ onActivated(() => {
 });
 
 onDeactivated(() => {
+  stopAutoRefresh();
   destroyCharts();
 });
 
@@ -1445,11 +1463,8 @@ onMounted(() => {
   tickTimer = setInterval(() => {
     nowTick.value = Date.now();
     if (autoRefresh.value && !loading.value) {
-      // خطوة 1/60 من الدقيقة كل ثانية
-      refreshProgress.value = Math.min(
-        100,
-        refreshProgress.value + 100 / (AUTO_REFRESH_INTERVAL / 1000),
-      );
+      // تحديث شريط التقدم وفق فترة التحديث الحالية
+      refreshProgress.value = Math.min(100, refreshProgress.value + 100 / autoRefreshSeconds.value);
     }
   }, 1000);
   window.addEventListener('focus', handleWindowFocus);

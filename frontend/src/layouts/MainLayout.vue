@@ -45,7 +45,6 @@
     <NotificationDrawer v-if="!authStore.isCashier" />
 
     <!-- Global Premium Toasts Container -->
-    <ToastContainer />
 
     <!-- Floating Shortcuts HUD Overlay -->
     <div
@@ -333,7 +332,6 @@ import AppNavbar from '@/components/AppNavbar.vue';
 import CashierHeader from '@/components/CashierHeader.vue';
 import CommandPalette from '@/components/CommandPalette.vue';
 import NotificationDrawer from '@/components/NotificationDrawer.vue';
-import ToastContainer from '@/components/ui/ToastContainer.vue';
 import ErrorBoundary from '@/components/ui/ErrorBoundary.vue';
 import { useAppStore } from '@/stores/app';
 import { useAuthStore } from '@/stores/auth';

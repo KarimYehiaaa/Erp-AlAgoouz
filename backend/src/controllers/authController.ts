@@ -9,6 +9,12 @@ const cookieDefaults = (maxAgeMs: number) => ({
   maxAge: maxAgeMs,
 });
 
+// The marker is only a routing hint. Require Electron's runtime User-Agent
+// as well before placing long-lived refresh credentials in response JSON.
+// Browsers cannot set User-Agent from page JavaScript, unlike custom headers.
+const isDesktopClientRequest = (req) =>
+  req.get('x-client-type') === 'desktop-pos' && /\bElectron\//i.test(req.get('user-agent') || '');
+
 /**
  * تسجيل الدخول وإصدار توكنات الوصول والانعاش.
  * @param {import('express').Request} req طلب HTTP
@@ -18,7 +24,7 @@ const cookieDefaults = (maxAgeMs: number) => ({
 const login = async (req, res, next) => {
   try {
     const { username, password } = req.body;
-    const isDesktopClient = req.get('x-client-type') === 'desktop-pos';
+    const isDesktopClient = isDesktopClientRequest(req);
     const { refreshToken, ...data } = await authService.login(username, password, {
       ip: req.ip,
       userAgent: req.get('user-agent'),
@@ -65,13 +71,14 @@ const refresh = async (req, res, next) => {
     // Web clients use the HttpOnly cookie only. The desktop client uses its
     // OS-protected session store, so it is allowed to send the rotated token
     // through the explicitly identified desktop channel.
-    const isDesktopClient = req.get('x-client-type') === 'desktop-pos';
+    const isDesktopClient =
+      isDesktopClientRequest(req) && !req.cookies?.access_token && !req.cookies?.refresh_token;
     const refreshToken =
       (isDesktopClient ? req.body?.refreshToken || req.get('x-refresh-token') : undefined) ||
       req.cookies?.refresh_token;
     if (!refreshToken)
       return res.status(401).json({ success: false, message: 'رمز التحديث (Refresh token) مطلوب' });
-    const data = await authService.refreshAccessToken(refreshToken);
+    const data = await authService.refreshAccessToken(refreshToken, req.headers.authorization);
     // تحديث الـ cookies بالتوكنات الجديدة
     if (!isDesktopClient) {
       res.cookie('access_token', data.token, {
@@ -91,7 +98,7 @@ const refresh = async (req, res, next) => {
   }
 };
 /**
- * تسجيل الخروج وإبطال جلسة المستخدم الحالية.
+ * تسجيل الخروج وإبطال جميع جلسات الحساب كما في سياسة إلغاء توكنات التحديث.
  * @param {import('express').Request} req طلب HTTP
  * @param {import('express').Response} res استجابة HTTP
  * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
@@ -105,7 +112,7 @@ const logoutHandler = async (req, res, next) => {
     res.clearCookie('refresh_token', { path: '/api/v1/auth' });
     res.json({
       success: true,
-      message: 'تم تسجيل الخروج بنجاح',
+      message: 'تم تسجيل الخروج وإنهاء جميع جلسات الحساب',
     });
   } catch (err: any) {
     next(err);

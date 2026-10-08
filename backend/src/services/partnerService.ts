@@ -421,23 +421,11 @@ export const getProfitSettlement = async (fromDate: string, toDate: string) => {
 
   // 1. حساب صافي الربح الحقيقي من موديول الـ P&L
   const pl = await getProfitAndLoss(fromDate, toDate);
-  const netProfit =
-    typeof pl.net_profit === 'object'
-      ? Number(pl.net_profit?.amount || 0)
-      : Number(pl.net_profit || pl.netProfit || 0);
-  const revenue =
-    typeof pl.revenue === 'object'
-      ? Number(pl.revenue?.net ?? pl.revenue?.gross ?? 0)
-      : Number(pl.revenue || 0);
-  const cogs = typeof pl.cogs === 'object' ? Number(pl.cogs?.total || 0) : Number(pl.cogs || 0);
-  const grossProfit =
-    typeof pl.gross_profit === 'object'
-      ? Number(pl.gross_profit?.amount || 0)
-      : Number(pl.gross_profit || pl.grossProfit || 0);
-  const totalExpenses =
-    typeof pl.operating_expenses === 'object'
-      ? Number(pl.operating_expenses?.total || 0)
-      : Number(pl.totalExpenses || pl.total_expenses || 0);
+  const netProfit = Number(pl.net_profit.amount || 0);
+  const revenue = Number(pl.revenue.net ?? pl.revenue.gross ?? 0);
+  const cogs = Number(pl.cogs.total || 0);
+  const grossProfit = Number(pl.gross_profit.amount || 0);
+  const totalExpenses = Number(pl.operating_expenses.total || 0);
 
   // 2. جلب الشركاء النشطين
   const partnersRes = await query(`

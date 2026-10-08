@@ -45,7 +45,6 @@ router.post(
   authorize('settings.add'),
   requireAdmin,
   requireConfirmation('CONFIRM_RESTORE_BACKUP'),
-  auditLog('backup_restore', 'backup'),
   api.backup.restore,
 );
 router.post(
@@ -55,7 +54,6 @@ router.post(
   requireAdmin,
   upload.single('file'),
   requireConfirmation('CONFIRM_RESTORE_BACKUP'),
-  auditLog('backup_restore_file', 'backup'),
   api.backup.restoreFile,
 );
 router.post(
@@ -64,7 +62,6 @@ router.post(
   authorize('settings.add'),
   requireAdmin,
   requireConfirmation('CONFIRM_CLEAR'),
-  auditLog('data_clear', 'backup'),
   api.backup.clear,
 );
 router.post(

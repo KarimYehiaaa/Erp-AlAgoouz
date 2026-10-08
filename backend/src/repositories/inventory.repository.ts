@@ -1,32 +1,36 @@
-import { BaseRepository } from './base.repository.ts';
 import { query } from '../database/pool.ts';
 import { sanitizeLimit } from '../utils/money.ts';
 /**
  * عمليات المخزون: ملخص الأرصدة وحركات المخزون.
  */
-class InventoryRepository extends BaseRepository {
-  tableName = 'inventory';
+class InventoryRepository {
   /**
    * ملخص أرصدة المخزون مع بيانات المنتج والمخزن.
    * @param {number} [warehouseId] معرف المخزن (أو المخزن الافتراضي عند الإغفال)
    * @returns {Promise<Array<Record<string, any>>>} الأرصدة
    */
-  async getInventoryList(warehouseId) {
+  async getInventoryList(warehouseId, allowedWarehouseIds: number[]) {
     const params: any[] = [];
+    if (warehouseId) params.push(warehouseId);
+    params.push(allowedWarehouseIds);
+    const scopeParam = `$${params.length}::int[]`;
     const whParam = warehouseId
       ? '$1'
-      : 'COALESCE(p.primary_warehouse_id, (SELECT id FROM warehouses WHERE deleted_at IS NULL AND is_active = TRUE ORDER BY id ASC LIMIT 1))';
+      : `COALESCE((SELECT id FROM warehouses WHERE id = p.primary_warehouse_id
+          AND id = ANY(${scopeParam}) AND deleted_at IS NULL AND is_active = TRUE),
+          (SELECT id FROM warehouses WHERE id = ANY(${scopeParam})
+          AND deleted_at IS NULL AND is_active = TRUE ORDER BY id ASC LIMIT 1))`;
     const sql = `
-      SELECT DISTINCT ON (p.id)
+      SELECT
         COALESCE(i.id, 0) AS id,
         p.id AS product_id,
-        COALESCE(w.id, ${warehouseId ? '$1' : 'p.primary_warehouse_id'}) AS warehouse_id,
+        w.id AS warehouse_id,
         COALESCE(i.quantity, 0) AS quantity,
         COALESCE(inv_summary.total_stock, 0) AS total_quantity,
         COALESCE(inv_summary.main_stock, 0) AS main_quantity,
         COALESCE(inv_summary.other_warehouses_stock, 0) AS other_warehouses_quantity,
         COALESCE(inv_summary.breakdown, '[]'::json) AS warehouse_breakdown,
-        i.batch_number,
+        NULL::varchar AS batch_number,
         i.updated_at,
         p.sku,
         p.name_ar,
@@ -47,9 +51,11 @@ class InventoryRepository extends BaseRepository {
         ON w.deleted_at IS NULL
         AND w.is_active = TRUE
         AND w.id = ${whParam}
-      LEFT JOIN inventory i
-        ON i.product_id = p.id
-        AND i.warehouse_id = ${whParam}
+      LEFT JOIN LATERAL (
+        SELECT MIN(inv.id) AS id, SUM(inv.quantity) AS quantity, MAX(inv.updated_at) AS updated_at
+        FROM inventory inv WHERE inv.product_id = p.id AND inv.warehouse_id = ${whParam}
+          AND inv.warehouse_id = ANY(${scopeParam})
+      ) i ON TRUE
       LEFT JOIN LATERAL (
         SELECT
           COALESCE(SUM(inv2.quantity), 0) AS total_stock,
@@ -61,7 +67,11 @@ class InventoryRepository extends BaseRepository {
             'warehouse_type', wh2.type,
             'quantity', COALESCE(inv2.quantity, 0)
           )) AS breakdown
-        FROM inventory inv2
+        FROM (
+          SELECT product_id, warehouse_id, SUM(quantity) AS quantity FROM inventory
+          WHERE product_id = p.id AND warehouse_id = ANY(${scopeParam})
+          GROUP BY product_id, warehouse_id
+        ) inv2
         JOIN warehouses wh2 ON wh2.id = inv2.warehouse_id AND wh2.deleted_at IS NULL AND wh2.is_active = TRUE
         WHERE inv2.product_id = p.id
       ) inv_summary ON TRUE
@@ -69,9 +79,6 @@ class InventoryRepository extends BaseRepository {
         AND p.is_active = TRUE
       ORDER BY p.id ASC
     `;
-    if (warehouseId) {
-      params.push(warehouseId);
-    }
     return (await query(sql, params)).rows;
   }
   /**
@@ -82,7 +89,7 @@ class InventoryRepository extends BaseRepository {
    * @param {Record<string, any>} [filters] عوامل التصفية (product_id، warehouse_id، movement_type، limit)
    * @returns {Promise<Array<Record<string, any>>>} الحركات
    */
-  async getStockMovements(filters: Record<string, any> = {}) {
+  async getStockMovements(filters: Record<string, any>, allowedWarehouseIds: number[]) {
     let sql = `SELECT sm.*, p.name_ar as product_name, p.sku as product_sku, p.unit as product_unit, u.full_name as user_name,
       fw.name_ar as from_warehouse, tw.name_ar as to_warehouse
       FROM stock_movements sm
@@ -90,8 +97,11 @@ class InventoryRepository extends BaseRepository {
       LEFT JOIN users u ON sm.user_id = u.id
       LEFT JOIN warehouses fw ON sm.from_warehouse_id = fw.id
       LEFT JOIN warehouses tw ON sm.to_warehouse_id = tw.id WHERE 1=1`;
-    const params: any[] = [];
-    let i = 1;
+    const params: any[] = [allowedWarehouseIds];
+    sql += ` AND (sm.from_warehouse_id IS NULL OR sm.from_warehouse_id = ANY($1::int[]))
+      AND (sm.to_warehouse_id IS NULL OR sm.to_warehouse_id = ANY($1::int[]))
+      AND (sm.from_warehouse_id = ANY($1::int[]) OR sm.to_warehouse_id = ANY($1::int[]))`;
+    let i = 2;
     if (filters.product_id) {
       sql += ` AND sm.product_id = $${i++}`;
       params.push(filters.product_id);

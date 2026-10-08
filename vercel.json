@@ -1,15 +1,27 @@
 {
-  "crons": [
-    { "path": "/api/automation/scheduler/tick", "schedule": "0 21 * * *" }
-  ],
-  "buildCommand": "cd frontend && npx vite build --outDir ../dist",
-  "outputDirectory": "dist",
+  "crons": [{ "path": "/api/automation/scheduler/tick", "schedule": "0 21 * * *" }],
+  "buildCommand": "npm run build -w frontend",
+  "outputDirectory": "frontend/dist",
   "functions": {
     "api/**/*": {
       "maxDuration": 30,
-      "includeFiles": "{backend/**,shared/**}"
+      "includeFiles": "{backend/api/**,backend/src/**,backend/migrations/*.sql,backend/certs/prod-ca-2021.crt,shared/**,assets/logo.png}"
     }
   },
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self'; base-uri 'self'; object-src 'none'; frame-src 'none'; frame-ancestors 'self'; form-action 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https://images.unsplash.com; font-src 'self' data: https://fonts.gstatic.com; worker-src 'self' blob:; connect-src 'self' https://agoouz-api.vercel.app wss://agoouz-api.vercel.app wss://agoouz.vercel.app"
+        },
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "X-Frame-Options", "value": "SAMEORIGIN" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" }
+      ]
+    }
+  ],
   "rewrites": [
     { "source": "/api/v1/(.*)", "destination": "/api/index" },
     { "source": "/api/(.*)", "destination": "/api/index" },

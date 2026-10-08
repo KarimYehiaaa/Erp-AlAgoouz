@@ -2,8 +2,18 @@ import { fileURLToPath, URL } from 'node:url';
 import { mergeConfig, defineConfig, configDefaults } from 'vitest/config';
 import viteConfig from './vite.config.js';
 
+const resolvedViteConfig =
+  typeof viteConfig === 'function'
+    ? await viteConfig({
+        command: 'serve',
+        mode: 'test',
+        isSsrBuild: false,
+        isPreview: false,
+      })
+    : viteConfig;
+
 export default mergeConfig(
-  viteConfig,
+  resolvedViteConfig,
   defineConfig({
     test: {
       environment: 'jsdom',

@@ -105,7 +105,9 @@ describe('automationEventBus', () => {
 
   it('لا يرمي عند فشل تنفيذ المهمة — الفشل يُسجل فقط', async () => {
     runError = new Error('boom');
-    expect(() => emitAutomationEvent('void_invoice_alert', { sale_number: 'SL-100' })).not.toThrow();
+    expect(() =>
+      emitAutomationEvent('void_invoice_alert', { sale_number: 'SL-100' }),
+    ).not.toThrow();
     await emitAutomationEventAsync('void_invoice_alert', { sale_number: 'SL-100' }).catch(() => {});
     // المسار غير الحاجب يبتلع الخطأ عبر logger ولا يسمح بالانفجار
     const dispatch = emitAutomationEventAsync('void_invoice_alert', {});

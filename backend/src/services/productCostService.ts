@@ -1,43 +1,8 @@
-import { appCache } from '../utils/cache.ts';
 import { roundMoney } from '../utils/money.ts';
+import { AppError } from '../types/errors.ts';
 
-// UNIT_ALIASES: المصدر الموحد لتعريف ومطابقة وحدات القياس عبر كامل النظام
-// يُصدّر ليُستخدم في recipesService.ts و costsService.ts منعاً للتكرار
-/** خريطة أسماء الوحدات وأشكالها المختلفة إلى الوحدة الموحدة. */
-export const UNIT_ALIASES = {
-  kg: 'kg',
-  kilo: 'kg',
-  كيلو: 'kg',
-  كجم: 'kg',
-  جرام: 'g',
-  g: 'g',
-  gram: 'g',
-  l: 'l',
-  liter: 'l',
-  litre: 'l',
-  لتر: 'l',
-  ml: 'ml',
-  milli: 'ml',
-  مل: 'ml',
-  count: 'count',
-  unit: 'count',
-  piece: 'count',
-  pieces: 'count',
-  عدد: 'count',
-  قطعة: 'count',
-};
-
-/**
- * توحيد اسم الوحدة (مرادفات: كيلو/كجم...).
- * @param {string} u اسم الوحدة
- * @returns {string}
- */
-export const normalizeUnit = (u: string) =>
-  UNIT_ALIASES[
-    String(u || '')
-      .trim()
-      .toLowerCase()
-  ] || null;
+import { normalizeUnit } from '../../../shared/units.ts';
+export { UNIT_ALIASES, normalizeUnit } from '../../../shared/units.ts';
 
 /**
  * تحويل كمية بين وحدتين (كجم ↔ غرام، لتر ↔ مل).
@@ -100,10 +65,10 @@ export const calculateRecipeCost = (items: any[] = []) => {
 const normalizeId = (value) => Number(value);
 
 /**
- * جلب التكلفة الفعلية للمنتجات (آخر سعر شراء/طبقة تكلفة).
+ * جلب تكلفة شراء المنتجات أو تكلفة وصفاتها من لقطة متسقة للبيانات.
  * @param {{ query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }} db اتصال قاعدة البيانات (Pool أو PoolClient)
  * @param {any[]} [productIds] معرفات المنتجات
- * @returns {Promise<Map<number, number>>}
+ * @returns {Promise<Map<number, { cost: number, source: string }>>}
  */
 export const getProductsEffectiveCosts = async (
   db: {
@@ -114,117 +79,108 @@ export const getProductsEffectiveCosts = async (
   },
   productIds: any[] = [],
 ) => {
-  const ids = [...new Set(productIds.map(Number).filter(Boolean))];
+  const ids = [
+    ...new Set(
+      productIds.map(Number).filter((id) => Number.isSafeInteger(id) && id > 0 && id <= 2147483647),
+    ),
+  ];
   if (!ids.length) return new Map();
 
   const costs = new Map();
-  const pendingIds: any[] = [];
-
-  // Check memory cache first
-  for (const id of ids) {
-    const cachedVal = appCache.get(`product_cost_${id}`);
-    if (cachedVal) {
-      costs.set(id, cachedVal);
-    } else {
-      pendingIds.push(id);
-    }
+  // Prices and recipe quantities must share one database snapshot. A process-local
+  // cost cache cannot observe edits committed by another local/cloud API process.
+  const snapshot = await db.query(
+    `WITH RECURSIVE cost_product_ids(id) AS (
+       SELECT id FROM products WHERE id = ANY($1::int[]) AND deleted_at IS NULL
+       UNION
+       SELECT ri.ingredient_product_id FROM cost_product_ids cp
+       JOIN product_recipes r ON r.product_id = cp.id AND r.deleted_at IS NULL AND r.is_active = TRUE
+       JOIN product_recipe_items ri ON ri.recipe_id = r.id
+     )
+     SELECT
+       COALESCE((SELECT jsonb_agg(jsonb_build_object('id', p.id, 'purchase_price', p.purchase_price, 'unit', p.unit))
+         FROM products p JOIN cost_product_ids cp ON cp.id = p.id WHERE p.deleted_at IS NULL), '[]'::jsonb) AS products,
+       COALESCE((SELECT jsonb_agg(jsonb_build_object(
+         'parent_product_id', r.product_id, 'ingredient_product_id', ri.ingredient_product_id,
+         'quantity', ri.quantity, 'unit_code', ri.unit_code, 'ingredient_unit', ip.unit))
+         FROM product_recipes r
+         JOIN cost_product_ids cp ON cp.id = r.product_id
+         JOIN product_recipe_items ri ON ri.recipe_id = r.id
+         JOIN products ip ON ip.id = ri.ingredient_product_id
+         WHERE r.deleted_at IS NULL AND r.is_active = TRUE), '[]'::jsonb) AS recipe_items`,
+    [ids],
+  );
+  const data = snapshot.rows[0] || { products: [], recipe_items: [] };
+  const productMap = new Map();
+  for (const r of data.products) {
+    productMap.set(Number(r.id), r);
   }
 
-  if (pendingIds.length > 0) {
-    // 1. Fetch all products base data
-    const prodRes = await db.query(
-      `SELECT id, purchase_price, unit FROM products WHERE deleted_at IS NULL`,
-    );
-    const productMap = new Map();
-    for (const r of prodRes.rows) {
-      productMap.set(Number(r.id), r);
+  const recipeMap = new Map();
+  for (const item of data.recipe_items) {
+    const parentId = Number(item.parent_product_id);
+    if (!recipeMap.has(parentId)) {
+      recipeMap.set(parentId, []);
     }
+    recipeMap.get(parentId).push(item);
+  }
 
-    // 2. Fetch all active recipe items
-    const recipeItemsRes = await db.query(
-      `SELECT
-         r.product_id AS parent_product_id,
-         ri.ingredient_product_id,
-         ri.quantity,
-         ri.unit_code,
-         ip.unit AS ingredient_unit
-       FROM product_recipes r
-       JOIN product_recipe_items ri ON ri.recipe_id = r.id
-       JOIN products ip ON ip.id = ri.ingredient_product_id
-       WHERE r.deleted_at IS NULL AND r.is_active = TRUE`,
-    );
+  // Resolve shared ingredients once within this request.
+  const resolvedCache = new Map();
+  const stack = new Set();
 
-    const recipeMap = new Map();
-    for (const item of recipeItemsRes.rows) {
-      const parentId = Number(item.parent_product_id);
-      if (!recipeMap.has(parentId)) {
-        recipeMap.set(parentId, []);
-      }
-      recipeMap.get(parentId).push(item);
-    }
+  const resolveCostInMemory = (id) => {
+    const normalizedIdVal = normalizeId(id);
+    if (!normalizedIdVal) return { cost: 0, source: 'purchase_price' };
+    if (resolvedCache.has(normalizedIdVal)) return resolvedCache.get(normalizedIdVal);
 
-    // 3. Resolve costs in-memory recursively
-    const resolvedCache = new Map();
-    const stack = new Set();
-
-    const resolveCostInMemory = (id) => {
-      const normalizedIdVal = normalizeId(id);
-      if (!normalizedIdVal) return { cost: 0, source: 'purchase_price' };
-      if (resolvedCache.has(normalizedIdVal)) return resolvedCache.get(normalizedIdVal);
-
-      let result;
-      if (stack.has(normalizedIdVal)) {
-        // Break circular dependency, fallback to base price
+    let result;
+    if (stack.has(normalizedIdVal)) {
+      // Break circular dependency, fallback to base price
+      const base = productMap.get(normalizedIdVal);
+      result = { cost: roundMoney(base?.purchase_price || 0), source: 'purchase_price' };
+    } else {
+      stack.add(normalizedIdVal);
+      try {
         const base = productMap.get(normalizedIdVal);
-        result = { cost: roundMoney(base?.purchase_price || 0), source: 'purchase_price' };
-      } else {
-        stack.add(normalizedIdVal);
-        try {
-          const base = productMap.get(normalizedIdVal);
-          if (!base) {
-            result = { cost: 0, source: 'purchase_price' };
+        if (!base) {
+          result = { cost: 0, source: 'purchase_price' };
+        } else {
+          const purchasePrice = roundMoney(base.purchase_price || 0);
+          const items = recipeMap.get(normalizedIdVal) || [];
+          if (items.length === 0) {
+            result = { cost: purchasePrice, source: 'purchase_price' };
           } else {
-            const purchasePrice = roundMoney(base.purchase_price || 0);
-            const items = recipeMap.get(normalizedIdVal) || [];
-            if (items.length === 0) {
+            let totalCost = 0;
+            for (const item of items) {
+              const ingId = Number(item.ingredient_product_id);
+              const ingredient = resolveCostInMemory(ingId);
+              const unitPrice = unitPriceFor(ingredient.cost, item.ingredient_unit, item.unit_code);
+              if (unitPrice == null) continue;
+              totalCost += Number(item.quantity || 0) * unitPrice;
+            }
+
+            totalCost = roundMoney(totalCost);
+            if (totalCost <= 0 && purchasePrice > 0) {
               result = { cost: purchasePrice, source: 'purchase_price' };
             } else {
-              let totalCost = 0;
-              for (const item of items) {
-                const ingId = Number(item.ingredient_product_id);
-                const ingredient = resolveCostInMemory(ingId);
-                const unitPrice = unitPriceFor(
-                  ingredient.cost,
-                  item.ingredient_unit,
-                  item.unit_code,
-                );
-                if (unitPrice == null) continue;
-                totalCost += Number(item.quantity || 0) * unitPrice;
-              }
-
-              totalCost = roundMoney(totalCost);
-              if (totalCost <= 0 && purchasePrice > 0) {
-                result = { cost: purchasePrice, source: 'purchase_price' };
-              } else {
-                result = { cost: totalCost, source: 'recipe' };
-              }
+              result = { cost: totalCost, source: 'recipe' };
             }
           }
-        } finally {
-          stack.delete(normalizedIdVal);
         }
+      } finally {
+        stack.delete(normalizedIdVal);
       }
-
-      resolvedCache.set(normalizedIdVal, result);
-      return result;
-    };
-
-    // Run resolution and save to appCache
-    for (const id of pendingIds) {
-      const result = resolveCostInMemory(id);
-      costs.set(id, result);
-      appCache.set(`product_cost_${id}`, result, 15 * 60 * 1000, ['product_cost']);
     }
+
+    resolvedCache.set(normalizedIdVal, result);
+    return result;
+  };
+
+  // Reuse resolved ingredient costs within this snapshot only.
+  for (const id of ids) {
+    const result = resolveCostInMemory(id);
+    costs.set(id, result);
   }
 
   return costs;
@@ -234,7 +190,7 @@ export const getProductsEffectiveCosts = async (
  * جلب التكلفة الفعلية لمنتج واحد.
  * @param {{ query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }} db اتصال قاعدة البيانات (Pool أو PoolClient)
  * @param {number} productId معرف المنتج
- * @returns {Promise<number>}
+ * @returns {Promise<{ cost: number, source: string }>}
  */
 export const getProductEffectiveCost = async (
   db: {
@@ -259,10 +215,11 @@ export const depleteInventoryCostLayers = async (
   quantityToDeplete: number,
 ) => {
   let remainingToDeplete = Number(quantityToDeplete);
-  if (remainingToDeplete <= 0) return;
+  let totalCost = 0;
+  if (remainingToDeplete <= 0) return { quantity: 0, cost: 0 };
 
   const layersRes = await client.query(
-    `SELECT id, remaining_quantity
+    `SELECT id, remaining_quantity, unit_cost
      FROM inventory_cost_layers
      WHERE product_id = $1 AND warehouse_id = $2 AND remaining_quantity > 0
      ORDER BY created_at ASC, id ASC
@@ -273,6 +230,10 @@ export const depleteInventoryCostLayers = async (
   for (const layer of layersRes.rows) {
     if (remainingToDeplete <= 0.0001) break;
     const layerRemaining = Number(layer.remaining_quantity);
+    const layerCost = Number(layer.unit_cost || 0);
+    if (!Number.isFinite(layerCost) || layerCost < 0) {
+      throw new AppError('طبقة تكلفة المخزون غير صالحة؛ يلزم مراجعتها قبل الصرف', 409);
+    }
     const take = Math.min(layerRemaining, remainingToDeplete);
     await client.query(
       `UPDATE inventory_cost_layers
@@ -281,12 +242,90 @@ export const depleteInventoryCostLayers = async (
       [take, layer.id],
     );
     remainingToDeplete -= take;
+    totalCost += take * layerCost;
   }
+  return { quantity: Number(quantityToDeplete) - remainingToDeplete, cost: roundMoney(totalCost) };
 };
 
 /**
- * استعادة طبقات تكلفة المخزون عند المرتجع
+ * نقل أجزاء طبقات التكلفة إلى الوجهة داخل معاملة التحويل نفسها.
  */
+export const transferInventoryCostLayers = async (
+  client: import('pg').PoolClient,
+  productId: number,
+  fromWarehouseId: number,
+  toProductId: number,
+  toWarehouseId: number,
+  quantity: number,
+  destinationMovementId: number,
+) => {
+  let remainingUnits = Math.round(quantity * 1000);
+  if (
+    !Number.isSafeInteger(remainingUnits) ||
+    remainingUnits <= 0 ||
+    Math.abs(quantity * 1000 - remainingUnits) > 0.000001 ||
+    (productId === toProductId && fromWarehouseId === toWarehouseId)
+  ) {
+    throw new AppError('كمية أو وجهة نقل التكلفة غير صالحة', 400);
+  }
+  let totalCost = 0;
+  let estimatedQuantity = 0;
+  const layers = await client.query(
+    `SELECT id, remaining_quantity, unit_cost FROM inventory_cost_layers
+    WHERE product_id = $1 AND warehouse_id = $2 AND remaining_quantity > 0
+    ORDER BY created_at, id FOR UPDATE`,
+    [productId, fromWarehouseId],
+  );
+  const addDestinationLayer = async (units: number, unitCost: number, estimated = false) => {
+    if (!Number.isFinite(unitCost) || unitCost < 0)
+      throw new AppError('تكلفة طبقة التحويل غير صالحة', 409);
+    const transferredQuantity = units / 1000;
+    const cost = transferredQuantity * unitCost;
+    if (!Number.isFinite(cost)) throw new AppError('تكلفة التحويل تتجاوز الحد المقبول', 409);
+    await client.query(
+      `INSERT INTO inventory_cost_layers
+      (product_id, warehouse_id, source_movement_id, source_type, quantity, remaining_quantity, unit_cost, total_cost)
+      VALUES ($1, $2, $3, $4, $5, $5, $6, $7)`,
+      [
+        toProductId,
+        toWarehouseId,
+        destinationMovementId,
+        estimated ? 'transfer_estimated' : 'transfer',
+        transferredQuantity,
+        unitCost,
+        roundMoney(cost),
+      ],
+    );
+    totalCost += cost;
+  };
+  for (const layer of layers.rows) {
+    if (remainingUnits <= 0) break;
+    const availableUnits = Math.round(Number(layer.remaining_quantity) * 1000);
+    if (!Number.isSafeInteger(availableUnits) || availableUnits < 0)
+      throw new AppError('كمية طبقة التحويل غير صالحة', 409);
+    const take = Math.min(remainingUnits, availableUnits);
+    if (!take) continue;
+    await client.query(
+      'UPDATE inventory_cost_layers SET remaining_quantity = remaining_quantity - $1 WHERE id = $2',
+      [take / 1000, layer.id],
+    );
+    await addDestinationLayer(take, Number(layer.unit_cost));
+    remainingUnits -= take;
+  }
+  if (remainingUnits > 0) {
+    const product = await client.query('SELECT purchase_price FROM products WHERE id = $1', [
+      productId,
+    ]);
+    const fallback = Number(product.rows[0]?.purchase_price);
+    if (!Number.isFinite(fallback) || fallback < 0)
+      throw new AppError('المخزون بلا طبقات أو تكلفة أصلية صالحة للتحويل', 409);
+    estimatedQuantity = remainingUnits / 1000;
+    await addDestinationLayer(remainingUnits, fallback, true);
+  }
+  return { cost: roundMoney(totalCost), estimatedQuantity };
+};
+
+/** استعادة طبقات تكلفة المخزون عند المرتجع. */
 export const restoreInventoryCostLayers = async (
   client: import('pg').PoolClient,
   productId: number,

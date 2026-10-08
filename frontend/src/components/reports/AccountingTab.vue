@@ -885,7 +885,7 @@
                   <strong>{{ tx.description }}</strong>
                 </td>
                 <td>
-                  <code>{{ tx.reference_number || '—' }}</code>
+                  <code>{{ tx.reference || '—' }}</code>
                 </td>
                 <td class="num-cell text-danger">
                   {{ tx.debit > 0 ? formatMoney(tx.debit) : '—' }}
@@ -914,10 +914,7 @@
                   </span>
                 </td>
                 <td>
-                  <span v-if="tx.match_rule" class="text-sm text-muted">
-                    {{ tx.match_rule }} (ثقة: {{ Math.round((tx.match_confidence || 0) * 100) }}%)
-                  </span>
-                  <span v-else class="text-sm text-muted">{{ tx.notes || '—' }}</span>
+                  <span class="text-sm text-muted">{{ tx.notes || '—' }}</span>
                 </td>
                 <td>
                   <div v-if="selectedRec.status === 'draft'" class="action-buttons-group">

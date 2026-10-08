@@ -1,9 +1,10 @@
 /**
- * scripts/security-audit.ts — فاحص الأمان الصارم للاعتماديات التشغيلية (Runtime Security Audit Gate)
- * يتحقق من عدم وجود أي ثغرات High أو Critical في بيئة الإنتاج (npm audit --omit=dev).
- * يمنع تجاوز الثغرات بشكل عشوائي، ويوثق استثناء SheetJS (xlsx) غير القابل للتحديث من npm والمؤمَّن بـ excelSecurity.ts.
+ * Runtime dependency security gate. Operational npm/registry errors must fail closed;
+ * only a complete npm audit report can be used to decide whether release is safe.
  */
-import { execSync } from 'child_process';
+import { execSync } from 'node:child_process';
+import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 interface AuditAdvisory {
   source?: number;
@@ -22,8 +23,23 @@ interface VulnerabilityReport {
   via: Array<string | AuditAdvisory>;
 }
 
-// الثغرات غير القابلة للترقية من سجل npm العام (SheetJS unmaintained on npm registry beyond 0.18.5)
-// والمؤمَّنة بالكامل داخل كود الباك عبر backend/src/services/excelSecurity.ts
+interface AuditMetadata {
+  vulnerabilities: { total: number };
+}
+
+interface NpmAuditReport {
+  auditReportVersion: number;
+  metadata: AuditMetadata;
+  vulnerabilities: Record<string, VulnerabilityReport>;
+}
+
+interface AuditIssue {
+  pkg: string;
+  severity: string;
+  title: string;
+  url: string;
+}
+
 const APPROVED_EXCEPTIONS = [
   {
     package: 'xlsx',
@@ -33,7 +49,94 @@ const APPROVED_EXCEPTIONS = [
   },
 ];
 
-function runSecurityAudit() {
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+/** Parse only complete npm audit reports; valid JSON error envelopes are not clean audits. */
+export function parseAuditReport(output: string): NpmAuditReport {
+  if (!output.trim()) throw new Error('npm returned an empty audit response');
+
+  let value: unknown;
+  try {
+    value = JSON.parse(output);
+  } catch {
+    throw new Error('npm returned malformed audit JSON');
+  }
+
+  if (!isRecord(value) || 'error' in value) {
+    throw new Error('npm audit did not return a successful report');
+  }
+  const metadata = value.metadata;
+  const vulnerabilityTotals = isRecord(metadata) ? metadata.vulnerabilities : undefined;
+  const vulnerabilities = value.vulnerabilities;
+  if (
+    !Number.isInteger(value.auditReportVersion) ||
+    !isRecord(vulnerabilityTotals) ||
+    !Number.isInteger(vulnerabilityTotals.total) ||
+    (vulnerabilityTotals.total as number) < 0 ||
+    !isRecord(vulnerabilities)
+  ) {
+    throw new Error('npm audit report is incomplete');
+  }
+
+  const entries = Object.entries(vulnerabilities);
+  if ((vulnerabilityTotals.total as number) === 0 && entries.length > 0) {
+    throw new Error('npm audit report contains inconsistent vulnerability totals');
+  }
+  if ((vulnerabilityTotals.total as number) > 0 && entries.length === 0) {
+    throw new Error('npm audit report omitted its vulnerability findings');
+  }
+
+  for (const [name, vulnerability] of entries) {
+    if (
+      !isRecord(vulnerability) ||
+      typeof vulnerability.severity !== 'string' ||
+      !Array.isArray(vulnerability.via)
+    ) {
+      throw new Error(`npm audit report contains an invalid finding for ${name}`);
+    }
+    for (const advisory of vulnerability.via) {
+      if (typeof advisory !== 'string' && !isRecord(advisory)) {
+        throw new Error(`npm audit report contains an invalid advisory for ${name}`);
+      }
+    }
+  }
+
+  return value as unknown as NpmAuditReport;
+}
+
+export function evaluateAuditReport(report: NpmAuditReport): {
+  approved: Array<{ pkg: string; severity: string; title: string; mitigation: string }>;
+  unapproved: AuditIssue[];
+} {
+  const approved: Array<{ pkg: string; severity: string; title: string; mitigation: string }> = [];
+  const unapproved: AuditIssue[] = [];
+
+  for (const [pkgName, vulnerability] of Object.entries(report.vulnerabilities)) {
+    for (const viaItem of vulnerability.via) {
+      if (typeof viaItem !== 'object' || viaItem === null) continue;
+      const severity = viaItem.severity || vulnerability.severity;
+      const title = viaItem.title || '';
+      const url = viaItem.url || '';
+      const exception = APPROVED_EXCEPTIONS.find(
+        (candidate) =>
+          candidate.package === pkgName &&
+          candidate.advisories.some(
+            (advisory) => url.includes(advisory) || title.includes(advisory),
+          ),
+      );
+
+      if (exception) {
+        approved.push({ pkg: pkgName, severity, title, mitigation: exception.mitigation });
+      } else if (severity === 'high' || severity === 'critical') {
+        unapproved.push({ pkg: pkgName, severity, title, url });
+      }
+    }
+  }
+  return { approved, unapproved };
+}
+
+function runSecurityAudit(): void {
   console.log('🔒 Running production runtime dependency security audit (npm audit --omit=dev)...');
 
   let output = '';
@@ -42,59 +145,31 @@ function runSecurityAudit() {
       encoding: 'utf8',
       stdio: ['pipe', 'pipe', 'pipe'],
     });
-  } catch (err: any) {
-    output = err.stdout?.toString() || '';
+  } catch (error: unknown) {
+    if (isRecord(error) && typeof error.stdout === 'string') output = error.stdout;
   }
 
-  if (!output.trim()) {
-    console.error('❌ Security Audit failed: empty audit output received from npm.');
-    process.exit(1);
-  }
-
-  let auditData: any;
+  let report: NpmAuditReport;
   try {
-    auditData = JSON.parse(output);
-  } catch (parseErr) {
-    console.error('❌ Failed to parse npm audit JSON output:', parseErr);
+    report = parseAuditReport(output);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'unknown audit response';
+    console.error(`❌ Security Audit unavailable or incomplete: ${message}. Release is blocked.`);
     process.exit(1);
   }
 
-  const vulnerabilities: Record<string, VulnerabilityReport> = auditData.vulnerabilities || {};
-  const unapprovedIssues: Array<{ pkg: string; severity: string; title: string; url: string }> = [];
-
-  for (const [pkgName, vuln] of Object.entries(vulnerabilities)) {
-    const isDirectOrTransitive = vuln.severity === 'high' || vuln.severity === 'critical';
-
-    // Inspect each finding
-    for (const viaItem of vuln.via) {
-      if (typeof viaItem === 'object' && viaItem !== null) {
-        const severity = viaItem.severity || vuln.severity;
-        const title = viaItem.title || '';
-        const url = viaItem.url || '';
-
-        // Check if matching approved exception
-        const isApprovedException = APPROVED_EXCEPTIONS.some(
-          (ex) =>
-            ex.package === pkgName &&
-            ex.advisories.some((adv) => url.includes(adv) || title.includes(adv)),
-        );
-
-        if (isApprovedException) {
-          console.log(
-            `ℹ️  [Accepted Exception] ${pkgName} (${severity.toUpperCase()}): "${title}". Mitigation: ${APPROVED_EXCEPTIONS[0].mitigation}`,
-          );
-        } else if (severity === 'high' || severity === 'critical') {
-          unapprovedIssues.push({ pkg: pkgName, severity, title, url });
-        }
-      }
-    }
+  const { approved, unapproved } = evaluateAuditReport(report);
+  for (const exception of approved) {
+    console.log(
+      `ℹ️  [Accepted Exception] ${exception.pkg} (${exception.severity.toUpperCase()}): "${exception.title}". Mitigation: ${exception.mitigation}`,
+    );
   }
 
-  if (unapprovedIssues.length > 0) {
+  if (unapproved.length > 0) {
     console.error(
-      `\n🚨 CRITICAL SECURITY GATE FAILURE: ${unapprovedIssues.length} unapproved runtime vulnerabilities detected!`,
+      `\n🚨 CRITICAL SECURITY GATE FAILURE: ${unapproved.length} unapproved runtime vulnerabilities detected!`,
     );
-    for (const issue of unapprovedIssues) {
+    for (const issue of unapproved) {
       console.error(
         `  - Package: ${issue.pkg} | Severity: ${issue.severity.toUpperCase()} | Title: ${issue.title} | Link: ${issue.url}`,
       );
@@ -110,4 +185,6 @@ function runSecurityAudit() {
   );
 }
 
-runSecurityAudit();
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  runSecurityAudit();
+}

@@ -12,9 +12,10 @@ export const inventory = {
       params: warehouse_id ? { warehouse_id } : {},
       responseType: 'blob',
     }),
-  validateReturnExcel: (file: File) => {
+  validateReturnExcel: (file: File, warehouse_id?: number | string) => {
     const fd = new FormData();
     fd.append('file', file);
+    if (warehouse_id) fd.append('warehouse_id', String(warehouse_id));
     return api.post('/inventory/return-validate', fd, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });

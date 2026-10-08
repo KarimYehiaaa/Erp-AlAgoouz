@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { inventoryRepository } from '../src/repositories/inventory.repository';
-import { query } from '../src/database/pool';
-import { roundMoney } from '../src/utils/money';
-import { transferStock } from '../src/services/inventoryService';
+import { inventoryRepository } from '../src/repositories/inventory.repository.ts';
+import { query } from '../src/database/pool.ts';
+import { roundMoney } from '../src/utils/money.ts';
+import { transferStock } from '../src/services/inventoryService.ts';
 import { randomUUID } from 'node:crypto';
 
 describe('Cross-product transfers', () => {
@@ -65,6 +65,10 @@ describe('Cross-product transfers', () => {
       );
       expect(afterFailure.rows.map((row) => Number(row.quantity))).toEqual([7, 5]);
     } finally {
+      await query(
+        'DELETE FROM inventory_cost_layers WHERE source_movement_id IN (SELECT id FROM stock_movements WHERE product_id = ANY($1::int[]))',
+        [productIds],
+      );
       await query('DELETE FROM stock_movements WHERE product_id = ANY($1::int[])', [productIds]);
       await query('DELETE FROM inventory WHERE product_id = ANY($1::int[])', [productIds]);
       await query('DELETE FROM products WHERE id = ANY($1::int[])', [productIds]);
@@ -136,7 +140,10 @@ describe('Inventory Calculations', () => {
   });
 
   it('should correctly sum and round fractional inventory quantities', async () => {
-    const inventoryList = await inventoryRepository.getInventoryList();
+    const inventoryList = await inventoryRepository.getInventoryList(undefined, [
+      warehouse1,
+      warehouse2,
+    ]);
     const testItem = inventoryList.find((i) => i.product_id === productId);
 
     expect(testItem).toBeDefined();

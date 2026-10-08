@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
@@ -27,9 +27,8 @@ describe('SecureSessionStore Tests (OS-level Encrypted Credentials)', () => {
   });
 
   afterEach(() => {
-    try {
-      fs.rmSync(tempDir, { recursive: true, force: true });
-    } catch {}
+    vi.restoreAllMocks();
+    fs.rmSync(tempDir, { recursive: true, force: true });
   });
 
   it('1. saveSession encrypts and atomically writes session to disk', async () => {
@@ -139,5 +138,29 @@ describe('SecureSessionStore Tests (OS-level Encrypted Credentials)', () => {
     const res = await store.saveSession({ token: '', user: null });
     expect(res.success).toBe(false);
     expect(res.error).toBeDefined();
+  });
+
+  it('invalidates credentials on disk even when unlink fails', async () => {
+    const store = new SecureSessionStore(tempDir, mockEngine);
+    await store.saveSession({ token: 'old-token', user: { id: 1 } });
+    vi.spyOn(fs, 'unlinkSync').mockImplementation(() => {
+      throw new Error('File locked');
+    });
+    expect(await store.clearSession()).toBe(true);
+    expect(await store.hasSession()).toBe(false);
+    expect(await new SecureSessionStore(tempDir, mockEngine).loadSession()).toBeNull();
+  });
+
+  it('reports failure if neither deletion nor invalidation can succeed', async () => {
+    const store = new SecureSessionStore(tempDir, mockEngine);
+    await store.saveSession({ token: 'old-token', user: { id: 1 } });
+    vi.spyOn(fs, 'unlinkSync').mockImplementation(() => {
+      throw new Error('File locked');
+    });
+    vi.spyOn(fs, 'writeFileSync').mockImplementation(() => {
+      throw new Error('Disk unavailable');
+    });
+    expect(await store.clearSession()).toBe(false);
+    expect(await store.loadSession()).toBeNull();
   });
 });

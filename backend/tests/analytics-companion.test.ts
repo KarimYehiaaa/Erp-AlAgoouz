@@ -7,14 +7,46 @@ import {
   fetchPythonAnomalies,
   parseTimeout,
   getAnalyticsTimeoutMs,
+  DemandForecastRequestSchema,
+  AnomalyDetectionRequestSchema,
 } from '../src/services/analyticsCompanionService.ts';
 
 describe('Analytics Companion Service (Python AI/BI Client)', () => {
   const originalFetch = globalThis.fetch;
 
+  beforeEach(() => {
+    // Failure tests must not contact a real companion configured in the owner's environment.
+    globalThis.fetch = vi.fn().mockRejectedValue(new TypeError('isolated service unavailable'));
+    vi.stubEnv('ANALYTICS_API_KEY', '');
+    vi.stubEnv('ANALYTICS_TIMEOUT_MS', '');
+  });
+
   afterEach(() => {
     globalThis.fetch = originalFetch;
     vi.restoreAllMocks();
+    vi.unstubAllEnvs();
+  });
+
+  it.each([0, -1, 0.5, 366, 1_000_000_000])('rejects unsafe forecast horizon %s', (days) => {
+    expect(
+      DemandForecastRequestSchema.safeParse({ forecast_days: days, products: [] }).success,
+    ).toBe(false);
+  });
+
+  it.each([1, 30, 60, 365])('accepts supported forecast horizon %s', (days) => {
+    expect(
+      DemandForecastRequestSchema.safeParse({ forecast_days: days, products: [] }).success,
+    ).toBe(true);
+  });
+
+  it.each([0, -1, Infinity, NaN])('rejects invalid anomaly sensitivity %s', (sensitivity) => {
+    expect(AnomalyDetectionRequestSchema.safeParse({ points: [], sensitivity }).success).toBe(
+      false,
+    );
+  });
+
+  it.each(['0.1', '0.5'])('does not truncate timeout %s to immediate cancellation', (value) => {
+    expect(parseTimeout(value)).toBe(2000);
   });
 
   it('يعيد false عند عدم توفر خادم البايثون دون رمي استثناءات غير متوقعة', async () => {
@@ -62,21 +94,17 @@ describe('Analytics Companion Service (Python AI/BI Client)', () => {
 
   it('يدعم تمرير مفتاح المصادقة ANALYTICS_API_KEY بأمان في الترويسات', async () => {
     process.env.ANALYTICS_API_KEY = 'test-secret-key-123';
-    let capturedHeaders: any = null;
+    let capturedHeaders = new Headers();
 
-    globalThis.fetch = vi.fn().mockImplementation(async (_url, opts) => {
-      capturedHeaders = opts?.headers;
-      return {
-        ok: true,
-        status: 200,
-        json: async () => ({ status: 'healthy' }),
-      };
-    }) as any;
+    globalThis.fetch = vi.fn<typeof fetch>().mockImplementation(async (_url, opts) => {
+      capturedHeaders = new Headers(opts?.headers);
+      return Response.json({ status: 'healthy' });
+    });
 
     try {
       const isHealthy = await checkAnalyticsServiceHealth();
       expect(isHealthy).toBe(true);
-      expect(capturedHeaders['X-Analytics-Service-Key']).toBe('test-secret-key-123');
+      expect(capturedHeaders.get('X-Analytics-Service-Key')).toBe('test-secret-key-123');
     } finally {
       delete process.env.ANALYTICS_API_KEY;
     }
@@ -104,11 +132,7 @@ describe('Analytics Companion Service (Python AI/BI Client)', () => {
         ],
       };
 
-      globalThis.fetch = vi.fn().mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: async () => validPayload,
-      }) as any;
+      globalThis.fetch = vi.fn<typeof fetch>().mockResolvedValue(Response.json(validPayload));
 
       const result = await fetchPythonDemandForecast({
         forecast_days: 7,
@@ -140,11 +164,7 @@ describe('Analytics Companion Service (Python AI/BI Client)', () => {
         ],
       };
 
-      globalThis.fetch = vi.fn().mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: async () => invalidTypePayload,
-      }) as any;
+      globalThis.fetch = vi.fn<typeof fetch>().mockResolvedValue(Response.json(invalidTypePayload));
 
       const result = await fetchPythonDemandForecast({
         forecast_days: 7,
@@ -173,11 +193,9 @@ describe('Analytics Companion Service (Python AI/BI Client)', () => {
         ],
       };
 
-      globalThis.fetch = vi.fn().mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: async () => missingFieldPayload,
-      }) as any;
+      globalThis.fetch = vi
+        .fn<typeof fetch>()
+        .mockResolvedValue(Response.json(missingFieldPayload));
 
       const result = await fetchPythonDemandForecast({
         forecast_days: 7,
@@ -206,11 +224,7 @@ describe('Analytics Companion Service (Python AI/BI Client)', () => {
         ],
       };
 
-      globalThis.fetch = vi.fn().mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: async () => outOfRangePayload,
-      }) as any;
+      globalThis.fetch = vi.fn<typeof fetch>().mockResolvedValue(Response.json(outOfRangePayload));
 
       const result = await fetchPythonDemandForecast({
         forecast_days: 7,
@@ -221,13 +235,9 @@ describe('Analytics Companion Service (Python AI/BI Client)', () => {
     });
 
     it('Case 5: استجابة JSON مشوهة (Malformed JSON) -> معالجة آمنة والعودة للـ Fallback دون انهيار النظام', async () => {
-      globalThis.fetch = vi.fn().mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: async () => {
-          throw new SyntaxError('Unexpected token < in JSON at position 0');
-        },
-      }) as any;
+      globalThis.fetch = vi
+        .fn<typeof fetch>()
+        .mockResolvedValue(new Response('<html>fixture</html>'));
 
       const result = await fetchPythonDemandForecast({
         forecast_days: 7,
@@ -238,11 +248,9 @@ describe('Analytics Companion Service (Python AI/BI Client)', () => {
     });
 
     it('Case 6: خطأ خادم داخلي (HTTP 500) -> عودة آمنة للـ Fallback دون انهيار النظام', async () => {
-      globalThis.fetch = vi.fn().mockResolvedValue({
-        ok: false,
-        status: 500,
-        json: async () => ({ message: 'Internal error' }),
-      }) as any;
+      globalThis.fetch = vi
+        .fn<typeof fetch>()
+        .mockResolvedValue(Response.json({ message: 'Internal error' }, { status: 500 }));
 
       const result = await fetchPythonDemandForecast({
         forecast_days: 7,
@@ -253,11 +261,9 @@ describe('Analytics Companion Service (Python AI/BI Client)', () => {
     });
 
     it('Case 7: فشل المصادقة (HTTP 401 Unauthorized) -> عودة آمنة للـ Fallback دون انهيار النظام', async () => {
-      globalThis.fetch = vi.fn().mockResolvedValue({
-        ok: false,
-        status: 401,
-        json: async () => ({ detail: 'Unauthorized' }),
-      }) as any;
+      globalThis.fetch = vi
+        .fn<typeof fetch>()
+        .mockResolvedValue(Response.json({ detail: 'Unauthorized' }, { status: 401 }));
 
       const result = await fetchPythonDemandForecast({
         forecast_days: 7,
@@ -268,11 +274,11 @@ describe('Analytics Companion Service (Python AI/BI Client)', () => {
     });
 
     it('Case 8: انتهاء المهلة الزمنية (Request Timeout / AbortError) -> عودة آمنة للـ Fallback دون انهيار النظام', async () => {
-      globalThis.fetch = vi.fn().mockImplementation(async () => {
+      globalThis.fetch = vi.fn<typeof fetch>().mockImplementation(async () => {
         const abortError = new Error('The operation was aborted');
         abortError.name = 'AbortError';
         throw abortError;
-      }) as any;
+      });
 
       const result = await fetchPythonDemandForecast({
         forecast_days: 7,

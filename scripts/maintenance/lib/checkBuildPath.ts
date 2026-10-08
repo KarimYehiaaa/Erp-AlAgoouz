@@ -5,8 +5,8 @@
  * ويترك الواجهة القديمة تُقدَّم.
  *
  * تُستخدم من:
- *  - scripts/check-build-path.ts (فحص مستقل ضمن check:local)
- *  - scripts/backup-system.ts (فحص قبل النسخ — لا ننسخ حالة بناء خاطئة)
+ *  - scripts/maintenance/check-build-path.ts (فحص مستقل ضمن check:local)
+ *  - scripts/database/backup-system.ts (فحص قبل النسخ — لا ننسخ حالة بناء خاطئة)
  *
  * المنطق خالص قابل للاختبار: يعمل على (rootDir, fops) ولا يلمس عملية فعلية.
  */
@@ -33,10 +33,20 @@ export interface CheckBuildPathResult {
 /** قراءة ملف JSON بأمان — يعيد null عند الفشل. */
 function readJson(fops: CheckBuildPathFs, p: string): Record<string, unknown> | null {
   try {
-    return JSON.parse(fops.readFileSync(p, 'utf8')) as Record<string, unknown>;
+    const value: unknown = JSON.parse(fops.readFileSync(p, 'utf8'));
+    return value && typeof value === 'object' && !Array.isArray(value)
+      ? (value as Record<string, unknown>)
+      : null;
   } catch {
     return null;
   }
+}
+
+function buildCommand(pkg: Record<string, unknown> | null): string | undefined {
+  const scripts = pkg?.scripts;
+  if (!scripts || typeof scripts !== 'object' || Array.isArray(scripts)) return undefined;
+  const build = (scripts as Record<string, unknown>).build;
+  return typeof build === 'string' && build.trim() ? build : undefined;
 }
 
 /**
@@ -53,24 +63,24 @@ export function checkBuildPath(rootDir: string, deps: CheckBuildPathDeps): Check
 
   // ① root package.json — أمر build يجب أن يستهدف الـ workspace وليس --outDir ../dist
   const rootPkg = readJson(fops, path.join(rootDir, 'package.json'));
-  if (!rootPkg?.scripts?.build) {
+  const rootBuild = buildCommand(rootPkg);
+  if (!rootBuild) {
     errors.push('لا يوجد أمر build في root package.json');
-  } else if (rootPkg.scripts.build.includes('--outDir')) {
+  } else if (rootBuild.includes('--outDir')) {
     errors.push(
-      `أمر build الجذر يضبط --outDir صراحةً (${rootPkg.scripts.build}) — يجب أن يكتب إلى frontend/dist عبر -w frontend`,
+      `أمر build الجذر يضبط --outDir صراحةً (${rootBuild}) — يجب أن يكتب إلى frontend/dist عبر -w frontend`,
     );
-  } else if (!rootPkg.scripts.build.includes('frontend')) {
-    errors.push(
-      `أمر build الجذر (${rootPkg.scripts.build}) لا يشير إلى frontend — راجعه في package.json`,
-    );
+  } else if (!rootBuild.includes('frontend')) {
+    errors.push(`أمر build الجذر (${rootBuild}) لا يشير إلى frontend — راجعه في package.json`);
   }
 
   // ② frontend/package.json — build يجب ألا يضبط outDir خارجيًا
   const frontendPkg = readJson(fops, path.join(frontendDir, 'package.json'));
-  if (!frontendPkg?.scripts?.build) {
+  const frontendBuild = buildCommand(frontendPkg);
+  if (!frontendBuild) {
     errors.push('لا يوجد أمر build في frontend/package.json');
-  } else if (frontendPkg.scripts.build.includes('--outDir')) {
-    errors.push(`أمر build في frontend/package.json يضبط --outDir (${frontendPkg.scripts.build})`);
+  } else if (frontendBuild.includes('--outDir')) {
+    errors.push(`أمر build في frontend/package.json يضبط --outDir (${frontendBuild})`);
   }
 
   // ③ frontend/vite.config.* — يجب ألا يضبط outDir خارج مجلد frontend
@@ -108,7 +118,9 @@ export function checkBuildPath(rootDir: string, deps: CheckBuildPathDeps): Check
   }
 
   if (fops.existsSync(path.join(rootDir, 'dist', 'index.html'))) {
-    errors.push('dist/index.html الجذر موجود — وجهة زائدة! احذف dist الجذر وأصلح أمر build');
+    warnings.push(
+      'dist/index.html الجذر موجود — قد يكون أثر نشر Vercel؛ التشغيل المحلي يفضل frontend/dist. راجع تاريخ البناء عند النشر.',
+    );
   }
 
   return { errors, warnings };

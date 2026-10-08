@@ -11,10 +11,8 @@ import {
   DEFAULT_SERVER_URL,
 } from '../src/services/config';
 import {
-  validateServerUrl as policyValidate,
   getServerUrl as policyGetServerUrl,
   SAFE_LOCAL_URL as policySafeUrl,
-  DEFAULT_SERVER_URL as policyDefaultUrl,
 } from '../src/services/serverUrlPolicy';
 import { api, setApiProductionMode } from '../src/services/api';
 import { PosSyncWorker } from '../electron/sync/syncWorker';
@@ -114,6 +112,9 @@ describe('Desktop POS Server Configuration & IPC Contract Tests', () => {
     it('9. Startup Test: desktop-pos/src/main.ts startup sequence executes without ReferenceError or circular failure', async () => {
       // Set up minimal headless window/electron environment
       (globalThis as any).window = {
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
         electronAPI: {
           getServerUrl: vi.fn().mockResolvedValue(null),
           setServerUrl: vi.fn().mockResolvedValue({ success: true }),
@@ -206,7 +207,12 @@ describe('Desktop POS Server Configuration & IPC Contract Tests', () => {
       const mockElectronAPI = {
         setAuthToken: vi.fn().mockResolvedValue({ success: true }),
       };
-      (globalThis as any).window = { electronAPI: mockElectronAPI };
+      (globalThis as any).window = {
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+        electronAPI: mockElectronAPI,
+      };
 
       const authStore = usePosAuthStore();
       const restored = await authStore.restoreSession();
@@ -229,7 +235,12 @@ describe('Desktop POS Server Configuration & IPC Contract Tests', () => {
       const mockElectronAPI = {
         setAuthToken: vi.fn().mockResolvedValue({ success: false, error: 'SESSION_REVOKED' }),
       };
-      (globalThis as any).window = { electronAPI: mockElectronAPI };
+      (globalThis as any).window = {
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+        electronAPI: mockElectronAPI,
+      };
 
       const authStore = usePosAuthStore();
       const restored = await authStore.restoreSession();
@@ -254,7 +265,12 @@ describe('Desktop POS Server Configuration & IPC Contract Tests', () => {
           error: 'عنوان الخادم غير صالح أو غير مسموح به في بيئة الإنتاج (يجب استخدام HTTPS)',
         }),
       };
-      (globalThis as any).window = { electronAPI: mockElectronAPI };
+      (globalThis as any).window = {
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+        electronAPI: mockElectronAPI,
+      };
 
       const authStore = usePosAuthStore();
       const restored = await authStore.restoreSession();
@@ -271,7 +287,12 @@ describe('Desktop POS Server Configuration & IPC Contract Tests', () => {
       const mockElectronAPI = {
         setAuthToken: vi.fn(),
       };
-      (globalThis as any).window = { electronAPI: mockElectronAPI };
+      (globalThis as any).window = {
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+        electronAPI: mockElectronAPI,
+      };
 
       const authStore = usePosAuthStore();
       const restored = await authStore.restoreSession();
@@ -310,7 +331,12 @@ describe('Desktop POS Server Configuration & IPC Contract Tests', () => {
           error: 'عنوان الخادم غير صالح أو غير مسموح به في بيئة الإنتاج (يجب استخدام HTTPS)',
         }),
       };
-      (globalThis as any).window = { electronAPI: mockElectronAPI };
+      (globalThis as any).window = {
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+        electronAPI: mockElectronAPI,
+      };
       localStorage.setItem('pos_server_url', 'http://localhost:3000/api/v1');
       api.defaults.baseURL = 'http://localhost:3000/api/v1';
 
@@ -331,7 +357,12 @@ describe('Desktop POS Server Configuration & IPC Contract Tests', () => {
           success: true,
         }),
       };
-      (globalThis as any).window = { electronAPI: mockElectronAPI };
+      (globalThis as any).window = {
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+        electronAPI: mockElectronAPI,
+      };
       localStorage.setItem('pos_server_url', 'http://localhost:3000/api/v1');
       api.defaults.baseURL = 'http://localhost:3000/api/v1';
 
@@ -514,6 +545,8 @@ describe('Desktop POS Server Configuration & IPC Contract Tests', () => {
     it('12. Untrusted URL → cannot start sync', async () => {
       const pendingItems = [
         {
+          origin_server: 'https://untrusted-host.com/api/v1',
+          origin_user_id: 1,
           sync_id: 'sync-untrusted-1',
           invoice_number: 'INV-UNTRUSTED',
           status: 'PENDING',
@@ -529,7 +562,9 @@ describe('Desktop POS Server Configuration & IPC Contract Tests', () => {
 
       // Attempt to force an untrusted URL directly
       (worker as any).serverUrl = 'https://untrusted-host.com/api/v1';
-      (worker as any).authToken = 'dummy-token';
+      worker.setAuthToken(
+        `test.${Buffer.from(JSON.stringify({ userId: 1 })).toString('base64url')}.signature`,
+      );
 
       const syncRes = await worker.runSyncCycle();
       expect(syncRes.success).toBe(false);

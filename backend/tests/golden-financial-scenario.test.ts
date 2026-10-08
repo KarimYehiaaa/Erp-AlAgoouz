@@ -15,10 +15,7 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import http from 'node:http';
-import type { AddressInfo } from 'node:net';
 import bcrypt from 'bcryptjs';
-import app from '../src/app.ts';
 import { query } from '../src/database/pool.ts';
 import { accountingService } from '../src/services/accountingService.ts';
 import { purchaseOrderService } from '../src/services/purchaseOrderService.ts';
@@ -34,9 +31,6 @@ import { bankReconciliationService } from '../src/services/bankReconciliationSer
 import { financialPeriodService } from '../src/services/financialPeriodService.ts';
 import { businessToday } from '../src/utils/localDate.ts';
 
-let server: http.Server;
-let baseUrl: string;
-let adminToken: string;
 let adminUserId: number;
 
 const cleanup = {
@@ -55,38 +49,6 @@ const cleanup = {
   userIds: [] as number[],
 };
 
-const apiReq = async (
-  endpoint: string,
-  options: {
-    method?: string;
-    token?: string | null;
-    body?: any;
-    headers?: Record<string, string>;
-  } = {},
-) => {
-  const url = `${baseUrl}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    ...(options.headers || {}),
-  };
-  if (options.token) {
-    headers['Authorization'] = `Bearer ${options.token}`;
-  }
-  const res = await fetch(url, {
-    method: options.method || 'GET',
-    headers,
-    body: options.body ? JSON.stringify(options.body) : undefined,
-  });
-  let data: any = null;
-  const text = await res.text();
-  try {
-    data = JSON.parse(text);
-  } catch {
-    data = text;
-  }
-  return { status: res.status, ok: res.ok, data };
-};
-
 // Fixture IDs
 let warehouseId: number;
 let productId: number;
@@ -101,11 +63,6 @@ const TEST_DATE = businessToday();
 const CURRENT_MONTH = TEST_DATE.slice(0, 7);
 
 beforeAll(async () => {
-  server = http.createServer(app);
-  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
-  const { port } = server.address() as AddressInfo;
-  baseUrl = `http://127.0.0.1:${port}/api/v1`;
-
   // Create admin user
   const salt = await bcrypt.genSalt(10);
   const hash = await bcrypt.hash('GoldenScenarioPass123!', salt);
@@ -119,12 +76,6 @@ beforeAll(async () => {
   );
   adminUserId = uRes.rows[0].id;
   cleanup.userIds.push(adminUserId);
-
-  const loginRes = await apiReq('/auth/login', {
-    method: 'POST',
-    body: { username: uRes.rows[0].username, password: 'GoldenScenarioPass123!' },
-  });
-  adminToken = loginRes.data.data?.token || loginRes.data.token;
 
   // Retrieve accounts
   const accRes = await query(
@@ -224,8 +175,6 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  if (server) await new Promise<void>((resolve) => server.close(resolve));
-
   if (cleanup.periodIds.length > 0) {
     await query(`UPDATE financial_periods SET status = 'open' WHERE id = ANY($1::int[])`, [
       cleanup.periodIds,
@@ -262,6 +211,10 @@ afterAll(async () => {
     await query(`DELETE FROM invoices WHERE sale_id = ANY($1::int[])`, [cleanup.saleIds]);
     await query(
       `DELETE FROM payments WHERE reference_type = 'sale' AND reference_id = ANY($1::int[])`,
+      [cleanup.saleIds],
+    );
+    await query(
+      `DELETE FROM inventory_cost_layers WHERE source_movement_id IN (SELECT id FROM stock_movements WHERE reference_type IN ('sale', 'sale_return') AND reference_id = ANY($1::int[]))`,
       [cleanup.saleIds],
     );
     await query(
@@ -308,6 +261,10 @@ afterAll(async () => {
     await query(`DELETE FROM suppliers WHERE id = ANY($1::int[])`, [cleanup.supplierIds]);
   }
   if (cleanup.productIds.length > 0) {
+    await query(
+      `DELETE FROM inventory_cost_layers WHERE source_movement_id IN (SELECT id FROM stock_movements WHERE product_id = ANY($1::int[]))`,
+      [cleanup.productIds],
+    );
     await query(`DELETE FROM stock_movements WHERE product_id = ANY($1::int[])`, [
       cleanup.productIds,
     ]);
@@ -348,7 +305,11 @@ describe('Golden Financial Lifecycle Scenario', () => {
     });
     cleanup.journalEntryIds.push(entry.id);
 
-    const tb = await accountingService.getTrialBalance(TEST_DATE, TEST_DATE);
+    const tb = await accountingService.getTrialBalance({
+      from_date: TEST_DATE,
+      to_date: TEST_DATE,
+    });
+    expect(tb.period).toEqual({ from_date: TEST_DATE, to_date: TEST_DATE });
     expect(tb.totals.is_balanced).toBe(true);
     expect(tb.totals.variance).toBe(0);
   });
@@ -471,9 +432,12 @@ describe('Golden Financial Lifecycle Scenario', () => {
     });
 
     // Check GL entry: Dr 110103 (4000), Cr 1102 (4000)
-    const jeRes = await query(`SELECT id FROM journal_entries WHERE idempotency_key = $1`, [
-      `customer_payment:${customerId}`,
-    ]);
+    const jeRes = await query(
+      `SELECT id FROM journal_entries
+       WHERE reference_type = 'payment' AND reference_id = $1
+         AND idempotency_key LIKE $2`,
+      [customerId, `customer_payment:PAY-CUST-${customerId}-%`],
+    );
     expect(jeRes.rows.length).toBe(1);
     cleanup.journalEntryIds.push(jeRes.rows[0].id);
 
@@ -660,8 +624,8 @@ describe('Golden Financial Lifecycle Scenario', () => {
           { account_id: capitalAccountId, debit: 0, credit: 500 },
         ],
       });
-    } catch (err: any) {
-      if (err.message && /فترة.*(مغلقة|مقفلة)/.test(err.message)) {
+    } catch (err: unknown) {
+      if (err instanceof Error && /فترة.*(مغلقة|مقفلة)/.test(err.message)) {
         triggerBlocked = true;
       }
     }

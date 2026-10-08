@@ -1,0 +1,23 @@
+[project]
+name = "bin-alagoouz-analytics-service"
+version = "1.1.0"
+description = "Optional analytics companion for Bin Al-Agoouz ERP"
+requires-python = ">=3.12,<3.15"
+dependencies = [
+  "fastapi>=0.115,<1",
+  "numpy>=1.26,<3",
+  "pydantic>=2.10,<3",
+  "uvicorn>=0.34,<1",
+]
+
+[dependency-groups]
+dev = [
+  "httpx2>=2,<3",
+  "pytest>=8,<10",
+]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+pythonpath = ["."]

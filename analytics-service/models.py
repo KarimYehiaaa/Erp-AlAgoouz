@@ -1,16 +1,21 @@
 """
 models.py — Data transfer and validation schemas for Bin Al-Agoouz Analytics Service.
 """
-from typing import List, Dict, Optional, Any
-from pydantic import BaseModel, Field
+from typing import List, Optional
+from pydantic import BaseModel, ConfigDict, Field
 
 
-class HistoricalSalesPoint(BaseModel):
+class AnalyticsModel(BaseModel):
+    # JSON statistics must never contain NaN or infinities.
+    model_config = ConfigDict(allow_inf_nan=False)
+
+
+class HistoricalSalesPoint(AnalyticsModel):
     date: str
     quantity: float
 
 
-class ProductForecastInput(BaseModel):
+class ProductForecastInput(AnalyticsModel):
     product_id: int
     name_ar: str
     category_name: Optional[str] = None
@@ -18,12 +23,12 @@ class ProductForecastInput(BaseModel):
     current_stock: float = 0.0
 
 
-class DemandForecastRequest(BaseModel):
-    forecast_days: int = 30
+class DemandForecastRequest(AnalyticsModel):
+    forecast_days: int = Field(default=30, ge=1, le=365)
     products: List[ProductForecastInput]
 
 
-class ProductForecastOutput(BaseModel):
+class ProductForecastOutput(AnalyticsModel):
     product_id: int
     name_ar: str
     forecast_7d: float
@@ -37,14 +42,14 @@ class ProductForecastOutput(BaseModel):
     data_points: int = 0
 
 
-class DemandForecastResponse(BaseModel):
+class DemandForecastResponse(AnalyticsModel):
     status: str = "success"
     forecast_days: int
     results: List[ProductForecastOutput]
 
 
 # Churn Models
-class CustomerActivityInput(BaseModel):
+class CustomerActivityInput(AnalyticsModel):
     customer_id: int
     name_ar: str
     days_since_last_order: int
@@ -53,11 +58,11 @@ class CustomerActivityInput(BaseModel):
     average_order_value: float
 
 
-class ChurnRiskRequest(BaseModel):
+class ChurnRiskRequest(AnalyticsModel):
     customers: List[CustomerActivityInput]
 
 
-class CustomerChurnOutput(BaseModel):
+class CustomerChurnOutput(AnalyticsModel):
     customer_id: int
     name_ar: str
     churn_risk_estimate: float = Field(
@@ -82,7 +87,7 @@ class CustomerChurnOutput(BaseModel):
     recommended_action: str
 
 
-class ChurnRiskResponse(BaseModel):
+class ChurnRiskResponse(AnalyticsModel):
     status: str = "success"
     total_analyzed: int
     high_risk_count: int
@@ -90,7 +95,7 @@ class ChurnRiskResponse(BaseModel):
 
 
 # Menu Engineering Matrix Models
-class MenuItemInput(BaseModel):
+class MenuItemInput(AnalyticsModel):
     product_id: int
     name_ar: str
     category_name: Optional[str] = None
@@ -99,11 +104,11 @@ class MenuItemInput(BaseModel):
     unit_price: float
 
 
-class MenuMatrixRequest(BaseModel):
+class MenuMatrixRequest(AnalyticsModel):
     items: List[MenuItemInput]
 
 
-class MenuItemOutput(BaseModel):
+class MenuItemOutput(AnalyticsModel):
     product_id: int
     name_ar: str
     category_name: Optional[str] = None
@@ -114,7 +119,7 @@ class MenuItemOutput(BaseModel):
     recommendation: str
 
 
-class MenuMatrixResponse(BaseModel):
+class MenuMatrixResponse(AnalyticsModel):
     status: str = "success"
     total_items: int
     benchmark_popularity: float
@@ -123,19 +128,19 @@ class MenuMatrixResponse(BaseModel):
 
 
 # Anomaly Detection Models
-class MetricDataPoint(BaseModel):
+class MetricDataPoint(AnalyticsModel):
     timestamp: str
     entity_id: str
     value: float
     entity_type: str  # 'shift_variance', 'discount_percent', 'void_count'
 
 
-class AnomalyDetectionRequest(BaseModel):
+class AnomalyDetectionRequest(AnalyticsModel):
     points: List[MetricDataPoint]
-    sensitivity: float = 2.5  # z-score threshold
+    sensitivity: float = Field(default=2.5, gt=0)  # z-score threshold
 
 
-class AnomalyPointOutput(BaseModel):
+class AnomalyPointOutput(AnalyticsModel):
     timestamp: str
     entity_id: str
     entity_type: str
@@ -151,7 +156,7 @@ class AnomalyPointOutput(BaseModel):
     quality: str = "sufficient"  # 'sufficient', 'insufficient_data', 'no_variance'
 
 
-class AnomalyDetectionResponse(BaseModel):
+class AnomalyDetectionResponse(AnalyticsModel):
     status: str = "success"
     anomalies_found: int
     results: List[AnomalyPointOutput]

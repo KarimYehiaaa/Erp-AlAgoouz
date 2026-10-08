@@ -57,7 +57,7 @@ export const products = {
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
   create: wrap(async (req, res) => {
-    ok(res, await productService.createProduct(req.body));
+    ok(res, await productService.createProduct(req.body, undefined, req.user.id));
   }),
   /**
    * تحديث منتج.
@@ -66,7 +66,7 @@ export const products = {
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
   update: wrap(async (req, res) => {
-    ok(res, await productService.updateProduct(req.params.id, req.body));
+    ok(res, await productService.updateProduct(req.params.id, req.body, undefined, req.user.id));
   }),
   /**
    * تعديل أسعار جماعي (نسبة أو مبلغ).
@@ -76,6 +76,17 @@ export const products = {
    */
   bulkPriceAdjust: wrap(async (req, res) => {
     ok(res, await productService.bulkAdjustPrices(req.body, req.user.id), 'تم تعديل الأسعار بنجاح');
+  }),
+  bulkPriceStatus: wrap(async (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    ok(
+      res,
+      await productService.getBulkPriceAdjustmentStatus(
+        req.params.operationKey,
+        req.user.id,
+        `${req.baseUrl}/products/bulk-price`,
+      ),
+    );
   }),
   /**
    * ضبط بيانات المنتج داخل مخزن محدد.
@@ -202,7 +213,7 @@ export const products = {
    * @param {import('express').NextFunction} next تمرير الخطأ للمعالج المركزي
    */
   returns: wrap(async (req, res) => {
-    ok(res, await inventoryService.getProductReturns(req.query));
+    ok(res, await inventoryService.getProductReturns(req.query, req.user.id));
   }),
   /**
    * تنزيل قالب استيراد المنتجات (Excel).
@@ -248,7 +259,7 @@ export const products = {
    */
   importExcel: wrap(async (req, res) => {
     if (!req.file?.buffer) throw new AppError('يجب رفع ملف Excel', 400);
-    const result = await productsExcelService.importProductsFromExcel(req.file.buffer);
+    const result = await productsExcelService.importProductsFromExcel(req.file.buffer, req.user.id);
     ok(
       res,
       result,

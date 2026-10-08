@@ -92,12 +92,16 @@ const cleanupChart = () => {
     try {
       const existing = Chart.getChart(radarCanvasRef.value);
       if (existing) existing.destroy();
-    } catch {}
+    } catch {
+      /* Chart cleanup is best effort when the canvas has already been removed. */
+    }
   }
   if (chartInstance) {
     try {
       chartInstance.destroy();
-    } catch {}
+    } catch {
+      /* Chart cleanup is best effort when the canvas has already been removed. */
+    }
     chartInstance = null;
   }
 };

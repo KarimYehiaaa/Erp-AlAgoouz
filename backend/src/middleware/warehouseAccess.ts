@@ -8,63 +8,43 @@
  */
 import type { Request, Response, NextFunction } from 'express';
 import { query } from '../database/pool.ts';
+import { AppError } from '../types/errors.ts';
 import { WAREHOUSE_GLOBAL_ROLES } from '../../../shared/permissions.js';
 
 /** مدير المحل يتعامل مع كل مواقع التخزين، بينما الكاشير وأمين المخزن يحتاجان ربطاً صريحاً. */
 const FULL_WAREHOUSE_ROLES = new Set(WAREHOUSE_GLOBAL_ROLES);
 
-/** كاش بسيط للمخازن المسموحة لكل مستخدم (TTL: 5 دقائق). */
-const userWarehouseCache = new Map<number, { warehouses: number[]; expiresAt: number }>();
-const CACHE_TTL_MS = 5 * 60 * 1000;
+/** Protects balances that aggregate financial activity across every warehouse in the shop. */
+export const requireGlobalWarehouseRole = (req: Request, _res: Response, next: NextFunction) => {
+  const userRole = (req as any).user?.role_name || (req as any).user?.role;
+  if (typeof userRole === 'string' && WAREHOUSE_GLOBAL_ROLES.includes(userRole)) return next();
+  return next(new AppError('هذه البيانات المالية متاحة للإدارة ومدير المحل فقط', 403, 'FORBIDDEN'));
+};
 
 /**
- * جلب المخازن المسموحة للمستخدم (مع كاش).
+ * جلب المخازن المسموحة من حالة المستخدم الحالية دون كاش تفويض محلي.
  * المدير يملك صلاحية على كل المخازن.
  */
-export async function getAllowedWarehouses(userId: number): Promise<number[]> {
-  const cached = userWarehouseCache.get(userId);
-  if (cached && cached.expiresAt > Date.now()) return cached.warehouses;
-
-  const userRes = await query(
-    `SELECT u.warehouse_id, r.name as role_name
-     FROM users u 
-     LEFT JOIN roles r ON r.id = u.role_id 
-     WHERE u.id = $1 AND u.deleted_at IS NULL`,
-    [userId],
+export async function getAllowedWarehouses(
+  userId: number,
+  db: typeof query | { query: typeof query } = query,
+): Promise<number[]> {
+  if (!Number.isSafeInteger(Number(userId)) || Number(userId) <= 0) return [];
+  const run =
+    typeof db === 'function' ? db : (text: string, params?: any[]) => db.query(text, params);
+  const result = await run(
+    `SELECT w.id FROM users u
+    JOIN roles r ON r.id = u.role_id
+    JOIN warehouses w ON w.deleted_at IS NULL AND (
+      r.name = ANY($2::text[])
+      OR (u.warehouse_id IS NOT NULL AND w.id = u.warehouse_id)
+      OR (u.warehouse_id IS NULL AND w.id = (
+        SELECT id FROM warehouses WHERE deleted_at IS NULL
+        ORDER BY CASE WHEN type = 'store' THEN 0 ELSE 1 END, id ASC LIMIT 1)))
+    WHERE u.id = $1 AND u.is_active = TRUE AND u.deleted_at IS NULL ORDER BY w.id`,
+    [userId, WAREHOUSE_GLOBAL_ROLES],
   );
-  const user = userRes.rows[0];
-  if (!user) return [];
-
-  // المديرون والمشرفون العامون يملكون صلاحية كاملة على كل مخازن المحل.
-  if (FULL_WAREHOUSE_ROLES.has(user.role_name)) {
-    const result = await query('SELECT id FROM warehouses WHERE deleted_at IS NULL');
-    const warehouses = result.rows.map((r: any) => r.id);
-    userWarehouseCache.set(userId, { warehouses, expiresAt: Date.now() + CACHE_TTL_MS });
-    return warehouses;
-  }
-
-  const assignedWarehouses: number[] = [];
-  if (user.warehouse_id) {
-    assignedWarehouses.push(Number(user.warehouse_id));
-  }
-  // هذا النظام يعمل في محل واحد. المستخدم المعيّن لمخزن يظل محصوراً فيه؛
-  // أما المستخدم التشغيلي غير المعيّن فيُحصر في المخزن الافتراضي الأقل خطراً.
-  // المدير فقط هو الذي يحصل على كل المخازن دون ربط صريح.
-  if (assignedWarehouses.length === 0) {
-    const defaultWarehouse = await query(
-      `SELECT id FROM warehouses
-       WHERE deleted_at IS NULL
-       ORDER BY CASE WHEN type = 'store' THEN 0 ELSE 1 END, id ASC
-       LIMIT 1`,
-    );
-    if (defaultWarehouse.rows[0]) assignedWarehouses.push(Number(defaultWarehouse.rows[0].id));
-  }
-
-  userWarehouseCache.set(userId, {
-    warehouses: assignedWarehouses,
-    expiresAt: Date.now() + CACHE_TTL_MS,
-  });
-  return assignedWarehouses;
+  return result.rows.map((row) => Number(row.id));
 }
 
 /**
@@ -81,19 +61,26 @@ export const enforceWarehouseAccess = async (req: Request, res: Response, next: 
     // الأدوار الإدارية تمر بدون فحص
     if (FULL_WAREHOUSE_ROLES.has(userRole)) return next();
 
-    const warehouseId =
-      req.body?.warehouse_id ||
-      req.query?.warehouse_id ||
-      req.params?.warehouseId ||
-      req.body?.source_warehouse_id ||
-      req.body?.target_warehouse_id;
+    const requestedWarehouses = [
+      req.body?.warehouse_id,
+      req.query?.warehouse_id,
+      req.params?.warehouseId,
+      req.body?.source_warehouse_id,
+      req.body?.target_warehouse_id,
+      req.body?.from_warehouse_id,
+      req.body?.to_warehouse_id,
+    ]
+      .filter((value) => value !== undefined && value !== null && value !== '')
+      .flat();
 
     const userId = (req as any).user?.id || (req as any).user?.userId;
     const allowed = await getAllowedWarehouses(userId);
+    if (!allowed.length)
+      return res.status(403).json({ success: false, message: 'لا يوجد مخزن مصرح به للمستخدم' });
 
     // في المحل الواحد: لا نحقن مخزناً عند وجود أكثر من مخزن في طلب قراءة؛
     // أما العمليات الكتابية فتستخدم المخزن الافتراضي عند غياب التحديد.
-    if (!warehouseId) {
+    if (!requestedWarehouses.length) {
       if (allowed.length === 1) {
         if (req.method === 'GET') {
           req.query.warehouse_id = String(allowed[0]);
@@ -106,10 +93,10 @@ export const enforceWarehouseAccess = async (req: Request, res: Response, next: 
       return next();
     }
 
-    const ids = Array.isArray(warehouseId) ? warehouseId : [Number(warehouseId)];
+    const ids = requestedWarehouses.map(Number);
 
     for (const id of ids) {
-      if (!allowed.includes(id)) {
+      if (!Number.isSafeInteger(id) || id <= 0 || !allowed.includes(id)) {
         return res.status(403).json({
           success: false,
           message: 'غير مصرح لك بالوصول لهذا المخزن',
@@ -120,14 +107,5 @@ export const enforceWarehouseAccess = async (req: Request, res: Response, next: 
     return next();
   } catch (err) {
     next(err);
-  }
-};
-
-/** مسح كاش المخازن عند تعديل صلاحيات المستخدم. */
-export const clearWarehouseCache = (userId?: number) => {
-  if (userId) {
-    userWarehouseCache.delete(userId);
-  } else {
-    userWarehouseCache.clear();
   }
 };

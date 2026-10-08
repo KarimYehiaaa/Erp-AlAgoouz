@@ -75,6 +75,44 @@
               <span v-else>موافقة المدير ✨</span>
             </button>
           </div>
+
+          <!-- 📱 Remote Approval Integration with Manager Mobile App -->
+          <div class="remote-approval-divider">
+            <span>أو الموافقة عبر الموبايل</span>
+          </div>
+
+          <div v-if="!remoteRequestId" class="remote-action-container">
+            <button
+              type="button"
+              class="btn-request-mobile"
+              :disabled="loading || requestingRemote"
+              @click="handleRequestRemoteApproval"
+            >
+              <span v-if="requestingRemote">جاري إرسال الإشعار...</span>
+              <span v-else>📱 إرسال طلب لهاتف المدير</span>
+            </button>
+          </div>
+
+          <div v-else class="remote-waiting-card">
+            <div class="remote-pulse-status">
+              <span class="pulse-dot-amber"></span>
+              <strong>جاري انتظار قرار المدير على الموبايل...</strong>
+            </div>
+            <p class="remote-instruction">
+              تم إرسال إشعار لحظي لتطبيق الموبايل لدى الإدارة. سيتم تفعيل الإجراء تلقائياً فور
+              الاعتماد.
+            </p>
+            <div
+              v-if="remoteFeedbackMsg"
+              class="remote-feedback"
+              :class="'feedback-' + remoteStatus"
+            >
+              {{ remoteFeedbackMsg }}
+            </div>
+            <button type="button" class="btn-cancel-remote" @click="cancelRemote">
+              إلغاء الطلب والعودة للـ PIN
+            </button>
+          </div>
         </div>
       </div>
     </Transition>
@@ -83,6 +121,8 @@
 
 <script setup lang="ts">
 import { ref, watch, onMounted, onUnmounted } from 'vue';
+import { managerMobileApi } from '@/api/managerMobile.api';
+import { setManagerOverride } from '@/services/managerOverride';
 
 const props = defineProps<{
   show: boolean;
@@ -94,10 +134,80 @@ const props = defineProps<{
 const emit = defineEmits<{
   'update:show': [val: boolean];
   submitPin: [pin: string];
+  remoteApproved: [managerName: string];
   cancel: [];
 }>();
 
 const enteredPin = ref('');
+const remoteRequestId = ref<number | null>(null);
+const requestingRemote = ref(false);
+const remoteStatus = ref<'pending' | 'approved' | 'rejected' | ''>('');
+const remoteFeedbackMsg = ref('');
+let remotePollTimer: any = null;
+
+const handleRequestRemoteApproval = async () => {
+  requestingRemote.value = true;
+  remoteFeedbackMsg.value = '';
+  try {
+    const res = await managerMobileApi.requestApproval({
+      request_type: 'pos_override',
+      action_label: props.actionDescription || 'طلب موافقة وتجاوز استثنائي من الكاشير',
+      details: {
+        timestamp: new Date().toISOString(),
+      },
+    });
+    if (res?.id) {
+      remoteRequestId.value = res.id;
+      remoteStatus.value = 'pending';
+      startPollingRemote(res.id);
+    }
+  } catch (err: any) {
+    remoteFeedbackMsg.value = err?.response?.data?.message || 'تعذر إرسال الطلب للموبايل';
+  } finally {
+    requestingRemote.value = false;
+  }
+};
+
+const startPollingRemote = (id: number) => {
+  if (remotePollTimer) clearInterval(remotePollTimer);
+  remotePollTimer = setInterval(async () => {
+    try {
+      const res = await managerMobileApi.checkApprovalStatus(id);
+      if (res?.status === 'approved') {
+        stopPollingRemote();
+        remoteStatus.value = 'approved';
+        remoteFeedbackMsg.value = `تمت الموافقة بنجاح من: ${res.decided_by_name || 'المدير'} ✅`;
+        if (res.override_token) {
+          setManagerOverride(res.override_token, 600);
+        }
+        setTimeout(() => {
+          emit('remoteApproved', res.decided_by_name || 'المدير');
+          cancel();
+        }, 600);
+      } else if (res?.status === 'rejected') {
+        stopPollingRemote();
+        remoteStatus.value = 'rejected';
+        remoteFeedbackMsg.value = 'تم رفض الطلب من قبل المدير ❌';
+      }
+    } catch {
+      // Ignore network errors during polling
+    }
+  }, 2500);
+};
+
+const stopPollingRemote = () => {
+  if (remotePollTimer) {
+    clearInterval(remotePollTimer);
+    remotePollTimer = null;
+  }
+};
+
+const cancelRemote = () => {
+  stopPollingRemote();
+  remoteRequestId.value = null;
+  remoteStatus.value = '';
+  remoteFeedbackMsg.value = '';
+};
 
 const appendDigit = (d: string) => {
   if (enteredPin.value.length < 6) {
@@ -352,6 +462,131 @@ onUnmounted(() => {
       box-shadow: none;
       cursor: not-allowed;
     }
+  }
+}
+
+.remote-approval-divider {
+  display: flex;
+  align-items: center;
+  margin: 18px 0 12px;
+  color: #64748b;
+  font-size: 0.78rem;
+
+  &::before,
+  &::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  span {
+    padding: 0 10px;
+  }
+}
+
+.btn-request-mobile {
+  width: 100%;
+  height: 42px;
+  border-radius: 12px;
+  background: rgba(56, 189, 248, 0.12);
+  border: 1px dashed rgba(56, 189, 248, 0.4);
+  color: #38bdf8;
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+
+  &:hover:not(:disabled) {
+    background: rgba(56, 189, 248, 0.2);
+    border-color: #38bdf8;
+    transform: translateY(-1px);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+.remote-waiting-card {
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 14px;
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  padding: 14px;
+  margin-top: 6px;
+
+  .remote-pulse-status {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    color: #fbbf24;
+    font-size: 0.88rem;
+    margin-bottom: 6px;
+  }
+
+  .pulse-dot-amber {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #fbbf24;
+    box-shadow: 0 0 10px #fbbf24;
+    animation: pulseGlow 1.5s infinite;
+  }
+
+  .remote-instruction {
+    margin: 0 0 10px;
+    font-size: 0.76rem;
+    color: #94a3b8;
+    line-height: 1.4;
+  }
+
+  .remote-feedback {
+    padding: 8px 10px;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    margin-bottom: 10px;
+
+    &.feedback-approved {
+      background: rgba(16, 185, 129, 0.2);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    &.feedback-rejected {
+      background: rgba(244, 63, 94, 0.2);
+      color: #fb7185;
+      border: 1px solid rgba(244, 63, 94, 0.3);
+    }
+  }
+
+  .btn-cancel-remote {
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    font-size: 0.78rem;
+    text-decoration: underline;
+    cursor: pointer;
+
+    &:hover {
+      color: #cbd5e1;
+    }
+  }
+}
+
+@keyframes pulseGlow {
+  0%,
+  100% {
+    transform: scale(0.9);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.25);
+    opacity: 1;
   }
 }
 

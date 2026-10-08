@@ -1,31 +1,35 @@
-import { query } from '../database/pool.ts';
+import { query, withReadOnlySnapshot } from '../database/pool.ts';
+import type { PoolClient } from 'pg';
+import { isCalendarDate } from '../utils/localDate.ts';
+import { businessCalendarDate } from '../../../shared/businessDate.ts';
+import { AppError } from '../types/errors.ts';
+import { calculateRecipeCost, getProductsEffectiveCosts } from './productCostService.ts';
 import { getOpeningBalanceForDate } from './openingBalanceService.ts';
-import { invalidateAppCacheTags } from '../utils/cache.ts';
+import { getTreasuryMovementTotals } from './treasuryMovementService.ts';
 import { roundMoney, toNumber } from '../utils/money.ts';
 import { scanRiskAlerts } from './riskEngineService.ts';
 
 const formatDate = (date) => {
-  const yyyy = date.getFullYear();
-  const mm = String(date.getMonth() + 1).padStart(2, '0');
-  const dd = String(date.getDate()).padStart(2, '0');
+  const yyyy = date.getUTCFullYear();
+  const mm = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const dd = String(date.getUTCDate()).padStart(2, '0');
   return `${yyyy}-${mm}-${dd}`;
 };
 
 const addDays = (date, days) => {
   const next = new Date(date);
-  next.setDate(next.getDate() + days);
+  next.setUTCDate(next.getUTCDate() + days);
   return next;
 };
 
 const parseDate = (value, fallback) => {
   if (!value) return fallback;
-  const parsed = new Date(`${value}T00:00:00`);
-  return Number.isNaN(parsed.getTime()) ? fallback : parsed;
+  if (!isCalendarDate(value)) throw new AppError('تاريخ الفترة غير صالح', 400);
+  return new Date(`${value}T00:00:00Z`);
 };
 
-const getPeriod = (filters: Record<string, any> = {}) => {
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+export const getDashboardPeriod = (filters: Record<string, any> = {}, now = new Date()) => {
+  const today = new Date(`${businessCalendarDate(now)}T00:00:00Z`);
   const range = filters.range || 'month';
   let start;
   let end = today;
@@ -35,13 +39,16 @@ const getPeriod = (filters: Record<string, any> = {}) => {
   } else if (range === 'week') {
     start = addDays(today, -6);
   } else if (range === 'year') {
-    start = new Date(today.getFullYear(), 0, 1);
+    start = new Date(Date.UTC(today.getUTCFullYear(), 0, 1));
   } else if (range === 'custom') {
-    start = parseDate(filters.from_date, new Date(today.getFullYear(), today.getMonth(), 1));
+    start = parseDate(
+      filters.from_date,
+      new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1)),
+    );
     end = parseDate(filters.to_date, today);
     if (start > end) [start, end] = [end, start];
   } else {
-    start = new Date(today.getFullYear(), today.getMonth(), 1);
+    start = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1));
   }
 
   const days = Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000) + 1);
@@ -62,8 +69,8 @@ const getPeriod = (filters: Record<string, any> = {}) => {
 };
 
 const getMonthPeriod = (date) => {
-  const start = new Date(date.getFullYear(), date.getMonth(), 1);
-  const end = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+  const start = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
+  const end = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0));
   return { start: formatDate(start), end: formatDate(end) };
 };
 
@@ -74,57 +81,25 @@ const pctChange = (current, previous) => {
   return roundMoney(((curr - prev) / Math.abs(prev)) * 100);
 };
 
-// BUG-09 FIX: Cache بسيط في الذاكرة لـ 60 ثانية
-// يمنع تشغيل 30+ query على كل تحميل للـ Dashboard
-const DASHBOARD_CACHE_TTL = 60 * 1000; // 60 ثانية
-const _dashboardCache = new Map();
-
-const _getCached = (key) => {
-  const entry = _dashboardCache.get(key);
-  if (!entry) return null;
-  if (Date.now() - entry.at > DASHBOARD_CACHE_TTL) {
-    _dashboardCache.delete(key);
-    return null;
-  }
-  return entry.data;
-};
-
-const _setCached = (key, data) => {
-  if (_dashboardCache.size >= 100) {
-    const firstKey = _dashboardCache.keys().next().value;
-    if (firstKey) _dashboardCache.delete(firstKey);
-  }
-  _dashboardCache.set(key, { data, at: Date.now() });
-};
-
-// استدعاء هذه الدالة من أي مكان لمسح الـ cache فوراً بعد أي تغيير
-/**
- * مسح كاش لوحة التحكم فوراً بعد أي تغيير (مبيعات/مشتريات/مصاريف).
- */
-export const invalidateDashboardCache = () => {
-  _dashboardCache.clear();
-  invalidateAppCacheTags();
-};
-
 /**
  * خوارزمية COGS الموحّدة مع تقرير الأرباح (plService):
  * 1) cost_amount المخزّن على المبيعات (الأدق) ← 2) cost_price × quantity من sale_items ←
- * 3) مشتريات الفترة كتقدير عندما لا تتوفر تكلفة مفصّلة.
+ * 3) تكلفة غير مسجلة؛ المشتريات غير المباعة لا تُعد تكلفة مبيعات.
  * @param {any} cogsStored مجموع cost_amount على مبيعات الفترة
  * @param {any} cogsItems مجموع cost_price × quantity من sale_items
- * @param {any} purchases مجموع مشتريات الفترة
- * @returns {{ value: number, basis: 'cost_stored' | 'sale_items' | 'purchases' }}
+ * @returns {{ value: number, basis: 'cost_stored' | 'sale_items' | 'untracked' }}
  */
-export const resolveCogs = (cogsStored, cogsItems, purchases) => {
+export const resolveCogs = (cogsStored, cogsItems) => {
   const stored = toNumber(cogsStored);
   const items = toNumber(cogsItems);
   if (stored > 0) return { value: stored, basis: 'cost_stored' };
   if (items > 0) return { value: items, basis: 'sale_items' };
-  return { value: toNumber(purchases), basis: 'purchases' };
+  return { value: 0, basis: 'untracked' };
 };
 
-const _computeDashboardStats = async (filters: Record<string, any> = {}) => {
-  const period = getPeriod(filters);
+const _computeDashboardStats = async (filters: Record<string, any>, client: PoolClient) => {
+  const read: typeof query = (sql, params) => client.query(sql, params);
+  const period = getDashboardPeriod(filters);
   const grouping = period.grouping || 'day';
   const interval = grouping === 'month' ? '1 month' : '1 day';
   const salesJoin =
@@ -137,11 +112,10 @@ const _computeDashboardStats = async (filters: Record<string, any> = {}) => {
       : 'e.expense_date = d::date';
 
   // BUG FIX: استخدام التاريخ الحالي للخادم كالشهر الحالي بدلاً من MAX(month_date) لمنع تداخل الشهور أو بقاء لوحة التحكم عالقة في الشهر السابق عند بدء شهر جديد.
-  const currentMonthDate = new Date();
+  const currentMonthDate = new Date(`${period.today}T00:00:00Z`);
   const currentMonth = getMonthPeriod(currentMonthDate);
 
-  // تقسيم الـ queries إلى مجموعتين لتجنب استنزاف الـ connection pool
-  // (كانت 33 query متوازية دفعة واحدة، الآن مقسّمة على بatchين)
+  // مجموعات الإحصائيات تشترك في اتصال لقطة القراءة نفسها.
   const [
     currentMonthSalesByType,
     currentMonthExpenses,
@@ -150,11 +124,8 @@ const _computeDashboardStats = async (filters: Record<string, any> = {}) => {
     todayExpenses,
     periodSales,
     periodExpenses,
-    periodPurchases,
     previousSales,
     previousExpenses,
-    previousPurchases,
-    todayPurchases,
     salesByType,
     paymentSummary,
     unpaidInvoices,
@@ -165,7 +136,7 @@ const _computeDashboardStats = async (filters: Record<string, any> = {}) => {
     customerCollections,
     supplierPayments,
   ] = await Promise.all([
-    query(
+    read(
       `SELECT sale_type,
               COALESCE(SUM(total_amount),0) AS total,
               COUNT(*)::int AS count
@@ -176,20 +147,20 @@ const _computeDashboardStats = async (filters: Record<string, any> = {}) => {
        GROUP BY sale_type`,
       [currentMonth.start, currentMonth.end],
     ),
-    query(
+    read(
       `SELECT COALESCE(SUM(amount),0) AS total, COUNT(*)::int AS count
        FROM expenses
        WHERE expense_date BETWEEN $1::date AND $2::date AND deleted_at IS NULL`,
       [currentMonth.start, currentMonth.end],
     ),
-    query(
+    read(
       `SELECT COALESCE(SUM(total_amount),0) AS total, COUNT(*)::int AS count
        FROM purchase_invoices
        WHERE invoice_date BETWEEN $1::date AND $2::date
          AND deleted_at IS NULL`,
       [currentMonth.start, currentMonth.end],
     ),
-    query(
+    read(
       `SELECT COALESCE(SUM(total_amount),0) AS total,
               COALESCE(SUM(profit_amount),0) AS profit,
               COALESCE(SUM(cost_amount),0) AS cost,
@@ -198,13 +169,13 @@ const _computeDashboardStats = async (filters: Record<string, any> = {}) => {
        WHERE sale_date = $1::date AND deleted_at IS NULL AND status = 'completed'`,
       [period.today],
     ),
-    query(
+    read(
       `SELECT COALESCE(SUM(amount),0) AS total, COUNT(*)::int AS count
        FROM expenses
        WHERE expense_date = $1::date AND deleted_at IS NULL`,
       [period.today],
     ),
-    query(
+    read(
       `SELECT COALESCE(SUM(total_amount),0) AS total,
               COALESCE(SUM(profit_amount),0) AS gross_profit,
               COALESCE(SUM(cost_amount),0) AS cost,
@@ -213,20 +184,14 @@ const _computeDashboardStats = async (filters: Record<string, any> = {}) => {
        WHERE sale_date BETWEEN $1::date AND $2::date AND deleted_at IS NULL AND status = 'completed'`,
       [period.start, period.end],
     ),
-    query(
+    read(
       `SELECT COALESCE(SUM(amount),0) AS total, COUNT(*)::int AS count
        FROM expenses
        WHERE expense_date BETWEEN $1::date AND $2::date AND deleted_at IS NULL`,
       [period.start, period.end],
     ),
-    query(
-      `SELECT COALESCE(SUM(total_amount),0) AS total, COUNT(*)::int AS count
-       FROM purchase_invoices
-       WHERE invoice_date BETWEEN $1::date AND $2::date
-         AND deleted_at IS NULL`,
-      [period.start, period.end],
-    ),
-    query(
+
+    read(
       `SELECT COALESCE(SUM(total_amount),0) AS total,
               COALESCE(SUM(cost_amount),0) AS cost,
               COALESCE(SUM(profit_amount),0) AS gross_profit,
@@ -235,27 +200,14 @@ const _computeDashboardStats = async (filters: Record<string, any> = {}) => {
        WHERE sale_date BETWEEN $1::date AND $2::date AND deleted_at IS NULL AND status = 'completed'`,
       [period.previousStart, period.previousEnd],
     ),
-    query(
+    read(
       `SELECT COALESCE(SUM(amount),0) AS total, COUNT(*)::int AS count
        FROM expenses
        WHERE expense_date BETWEEN $1::date AND $2::date AND deleted_at IS NULL`,
       [period.previousStart, period.previousEnd],
     ),
-    query(
-      `SELECT COALESCE(SUM(total_amount),0) AS total, COUNT(*)::int AS count
-       FROM purchase_invoices
-       WHERE invoice_date BETWEEN $1::date AND $2::date
-         AND deleted_at IS NULL`,
-      [period.previousStart, period.previousEnd],
-    ),
-    query(
-      `SELECT COALESCE(SUM(total_amount),0) AS total, COUNT(*)::int AS count
-       FROM purchase_invoices
-       WHERE invoice_date = $1::date
-         AND deleted_at IS NULL`,
-      [period.today],
-    ),
-    query(
+
+    read(
       `SELECT sale_type,
               COALESCE(SUM(total_amount),0) AS total,
               COALESCE(SUM(profit_amount),0) AS profit,
@@ -266,7 +218,7 @@ const _computeDashboardStats = async (filters: Record<string, any> = {}) => {
        ORDER BY total DESC`,
       [period.start, period.end],
     ),
-    query(
+    read(
       `SELECT payment_status,
               COALESCE(SUM(total_amount),0) AS total,
               COUNT(*)::int AS count
@@ -275,16 +227,16 @@ const _computeDashboardStats = async (filters: Record<string, any> = {}) => {
        GROUP BY payment_status`,
       [period.start, period.end],
     ),
-    query(
+    read(
       `SELECT COUNT(id)::int AS count, COALESCE(SUM(current_balance), 0) AS amount
        FROM customers
        WHERE deleted_at IS NULL AND current_balance > 0`,
     ),
-    query(
+    read(
       `SELECT COUNT(*)::int AS count, COALESCE(SUM(opening_balance), 0) AS total_opening_balance FROM customers WHERE deleted_at IS NULL`,
     ),
     // ── تكلفة البضاعة من sale_items (للمبيعات POS التي تحتوي items) — المستوى الثاني في خوارزمية COGS ──
-    query(
+    read(
       `SELECT COALESCE(SUM(si.cost_price * si.quantity), 0) AS cogs_items
        FROM sale_items si
        JOIN sales s ON s.id = si.sale_id
@@ -293,7 +245,7 @@ const _computeDashboardStats = async (filters: Record<string, any> = {}) => {
          AND s.sale_date BETWEEN $1::date AND $2::date`,
       [period.start, period.end],
     ),
-    query(
+    read(
       `SELECT COALESCE(SUM(si.cost_price * si.quantity), 0) AS cogs_items
        FROM sale_items si
        JOIN sales s ON s.id = si.sale_id
@@ -302,7 +254,7 @@ const _computeDashboardStats = async (filters: Record<string, any> = {}) => {
          AND s.sale_date BETWEEN $1::date AND $2::date`,
       [period.previousStart, period.previousEnd],
     ),
-    query(
+    read(
       `SELECT COALESCE(SUM(si.cost_price * si.quantity), 0) AS cogs_items
        FROM sale_items si
        JOIN sales s ON s.id = si.sale_id
@@ -313,12 +265,13 @@ const _computeDashboardStats = async (filters: Record<string, any> = {}) => {
     ),
     // ── تحصيلات العملاء الفعلية (نقد/كارت/تحويل فقط — يستثنى الآجل والمرتجع) ──
     // تشمل سداد ديون سابقة وفواتير آجلة لأنها تسجل كمدفوعات على مبيعات/فواتير قديمة
-    query(
-      `SELECT COALESCE(SUM(p.amount), 0) AS total
+    read(
+      `SELECT COALESCE(SUM(p.amount) FILTER (WHERE p.created_at >= $1::date AND p.created_at < ($2::date + INTERVAL '1 day')), 0) AS total,
+               COALESCE(SUM(p.amount) FILTER (WHERE p.created_at >= $3::date AND p.created_at < ($4::date + INTERVAL '1 day')), 0) AS current_month_total
         FROM payments p
-        WHERE p.created_at >= $1::date AND p.created_at < ($2::date + INTERVAL '1 day')
+        WHERE ((p.created_at >= $1::date AND p.created_at < ($2::date + INTERVAL '1 day')) OR (p.created_at >= $3::date AND p.created_at < ($4::date + INTERVAL '1 day')))
           AND p.reference_type IN ('sale', 'invoice')
-          AND COALESCE(p.payment_method, 'cash') != 'credit'
+          AND LOWER(TRIM(COALESCE(p.payment_method, 'cash'))) <> 'credit'
          AND NOT EXISTS (
            SELECT 1 FROM sales s2
            WHERE p.reference_type = 'sale' AND s2.id = p.reference_id AND s2.status = 'returned'
@@ -327,17 +280,18 @@ const _computeDashboardStats = async (filters: Record<string, any> = {}) => {
            SELECT 1 FROM invoices i2
            WHERE p.reference_type = 'invoice' AND i2.id = p.reference_id AND i2.payment_status = 'refunded'
          )`,
-      [period.start, period.end],
+      [period.start, period.end, currentMonth.start, currentMonth.end],
     ),
     // ── مدفوعات الموردين الفعلية في الفترة (نقد/بنك/محفظة) ──
     // فواتير الشراء الآجلة غير المسددة لا تُخصم من السيولة لأنها لم تخرج نقدًا بعد
-    query(
-      `SELECT COALESCE(SUM(p.amount), 0) AS total
+    read(
+      `SELECT COALESCE(SUM(p.amount) FILTER (WHERE p.created_at >= $1::date AND p.created_at < ($2::date + INTERVAL '1 day')), 0) AS total,
+               COALESCE(SUM(p.amount) FILTER (WHERE p.created_at >= $3::date AND p.created_at < ($4::date + INTERVAL '1 day')), 0) AS current_month_total
         FROM payments p
-        WHERE p.created_at >= $1::date AND p.created_at < ($2::date + INTERVAL '1 day')
+        WHERE ((p.created_at >= $1::date AND p.created_at < ($2::date + INTERVAL '1 day')) OR (p.created_at >= $3::date AND p.created_at < ($4::date + INTERVAL '1 day')))
           AND p.reference_type = 'supplier'
-          AND COALESCE(p.payment_method, 'cash') != 'credit'`,
-      [period.start, period.end],
+          AND LOWER(TRIM(COALESCE(p.payment_method, 'cash'))) <> 'credit'`,
+      [period.start, period.end, currentMonth.start, currentMonth.end],
     ),
   ]);
 
@@ -354,7 +308,7 @@ const _computeDashboardStats = async (filters: Record<string, any> = {}) => {
     expenseByCategory,
     inventoryChart,
   ] = await Promise.all([
-    query(
+    read(
       // إصلاح: كانت تستثني منتجات الوصفات من قيمة المخزون (تعارض مع migration 017
       // الذي أعاد إدراجها في v_product_stock). الآن تحسب جميع المنتجات النشطة.
       `WITH layer_values AS (
@@ -371,11 +325,11 @@ const _computeDashboardStats = async (filters: Record<string, any> = {}) => {
        LEFT JOIN layer_values lv ON lv.product_id = i.product_id AND lv.warehouse_id = i.warehouse_id
        WHERE p.deleted_at IS NULL`,
     ),
-    query(`SELECT COUNT(*)::int AS count FROM v_product_stock WHERE is_low_stock = TRUE`),
-    query(
+    read(`SELECT COUNT(*)::int AS count FROM v_product_stock WHERE is_low_stock = TRUE`),
+    read(
       `SELECT * FROM v_product_stock WHERE is_low_stock = TRUE ORDER BY total_quantity ASC LIMIT 8`,
     ),
-    query(
+    read(
       `SELECT p.id, p.name_ar, p.sku,
               COALESCE(SUM(si.quantity),0) AS qty,
               COALESCE(SUM(si.total_amount),0) AS revenue,
@@ -389,7 +343,7 @@ const _computeDashboardStats = async (filters: Record<string, any> = {}) => {
        LIMIT 8`,
       [period.start, period.end],
     ),
-    query(
+    read(
       `SELECT s.id, s.sale_number, s.sale_type, s.sale_date, s.total_amount, s.profit_amount,
               s.payment_status, c.name_ar AS customer_name
        FROM sales s
@@ -398,14 +352,14 @@ const _computeDashboardStats = async (filters: Record<string, any> = {}) => {
        ORDER BY s.created_at DESC
        LIMIT 8`,
     ),
-    query(
+    read(
       `SELECT al.action_ar, al.module, al.created_at, u.full_name
        FROM activity_logs al
        LEFT JOIN users u ON al.user_id = u.id
        ORDER BY al.created_at DESC
        LIMIT 10`,
     ),
-    query(
+    read(
       `SELECT date_trunc('${grouping}', d)::date AS date,
               COALESCE(SUM(s.total_amount),0) AS sales,
               COALESCE(SUM(s.profit_amount),0) AS profit,
@@ -416,7 +370,7 @@ const _computeDashboardStats = async (filters: Record<string, any> = {}) => {
        ORDER BY date`,
       [period.start, period.end],
     ),
-    query(
+    read(
       `SELECT date_trunc('${grouping}', d)::date AS date, COALESCE(SUM(e.amount),0) AS expenses
        FROM generate_series($1::date, $2::date, INTERVAL '${interval}') d
        LEFT JOIN expenses e ON ${expenseJoin} AND e.deleted_at IS NULL
@@ -424,7 +378,7 @@ const _computeDashboardStats = async (filters: Record<string, any> = {}) => {
        ORDER BY date`,
       [period.start, period.end],
     ),
-    query(
+    read(
       `SELECT COALESCE(ec.name_ar, ':J1 E5FA') AS name_ar,
               COALESCE(SUM(e.amount),0) AS total,
               COUNT(e.id)::int AS count
@@ -436,7 +390,7 @@ const _computeDashboardStats = async (filters: Record<string, any> = {}) => {
        LIMIT 6`,
       [period.start, period.end],
     ),
-    query(
+    read(
       // إصلاح: توحيد مع inventoryStats — إزالة استثناء منتجات الوصفات
       `WITH layer_values AS (
          SELECT product_id, warehouse_id, SUM(remaining_quantity * unit_cost) AS value
@@ -469,7 +423,7 @@ const _computeDashboardStats = async (filters: Record<string, any> = {}) => {
     stockMovementSummary,
     peakHours,
   ] = await Promise.all([
-    query(
+    read(
       `WITH layer_values AS (
          SELECT product_id, warehouse_id, SUM(remaining_quantity * unit_cost) AS value
          FROM inventory_cost_layers
@@ -487,7 +441,7 @@ const _computeDashboardStats = async (filters: Record<string, any> = {}) => {
        GROUP BY w.id, w.name_ar
        ORDER BY value DESC`,
     ),
-    query(
+    read(
       `SELECT c.id, c.name_ar, c.phone,
               COALESCE(SUM(s.total_amount),0) AS total_spent,
               COALESCE(SUM(s.profit_amount),0) AS profit,
@@ -503,7 +457,7 @@ const _computeDashboardStats = async (filters: Record<string, any> = {}) => {
        LIMIT 8`,
       [period.start, period.end],
     ),
-    query(
+    read(
       `SELECT COUNT(*)::int AS total,
               COUNT(*) FILTER (WHERE is_active = TRUE AND deleted_at IS NULL)::int AS active,
               COALESCE(SUM(item_counts.items_count),0)::int AS ingredients,
@@ -526,28 +480,31 @@ const _computeDashboardStats = async (filters: Record<string, any> = {}) => {
          WHERE recipe_id = product_recipes.id
        ) item_counts ON TRUE`,
     ),
-    query(
-      `SELECT r.id, r.name_ar, p.name_ar AS product_name,
-              COUNT(ri.id)::int AS ingredients_count,
-              COALESCE(SUM(ri.quantity * COALESCE(ip.purchase_price,0)),0) AS estimated_cost,
-              COALESCE(SUM(si.quantity),0) AS sold_qty,
-              COALESCE(SUM(si.total_amount),0) AS revenue
-       FROM product_recipes r
-       JOIN products p ON p.id = r.product_id
-       LEFT JOIN product_recipe_items ri ON ri.recipe_id = r.id
-       LEFT JOIN products ip ON ip.id = ri.ingredient_product_id
-       LEFT JOIN sale_items si ON si.product_id = r.product_id
-       LEFT JOIN sales s ON s.id = si.sale_id
-         AND s.sale_date BETWEEN $1::date AND $2::date
-         AND s.deleted_at IS NULL
-         AND s.status = 'completed'
-       WHERE r.deleted_at IS NULL
-       GROUP BY r.id, r.name_ar, p.name_ar
-       ORDER BY revenue DESC, estimated_cost DESC
-       LIMIT 8`,
+    read(
+      `WITH recipe_sales AS (
+         SELECT si.product_id, SUM(si.quantity) AS sold_qty, SUM(si.total_amount) AS revenue
+         FROM sale_items si JOIN sales s ON s.id = si.sale_id
+         WHERE s.sale_date BETWEEN $1::date AND $2::date
+           AND s.deleted_at IS NULL AND s.status = 'completed'
+         GROUP BY si.product_id
+       ) SELECT r.id, r.name_ar, p.name_ar AS product_name,
+                COUNT(ri.id)::int AS ingredients_count,
+                COALESCE(MAX(rs.sold_qty),0) AS sold_qty,
+                COALESCE(MAX(rs.revenue),0) AS revenue,
+                COALESCE(jsonb_agg(jsonb_build_object(
+                  'ingredient_product_id', ri.ingredient_product_id,
+                  'quantity', ri.quantity, 'unit_code', ri.unit_code,
+                  'ingredient_unit', ip.unit
+                )) FILTER (WHERE ri.id IS NOT NULL), '[]'::jsonb) AS ingredients
+         FROM product_recipes r JOIN products p ON p.id = r.product_id
+         LEFT JOIN product_recipe_items ri ON ri.recipe_id = r.id
+         LEFT JOIN products ip ON ip.id = ri.ingredient_product_id
+         LEFT JOIN recipe_sales rs ON rs.product_id = r.product_id
+         WHERE r.deleted_at IS NULL
+         GROUP BY r.id, r.name_ar, p.name_ar`,
       [period.start, period.end],
     ),
-    query(
+    read(
       `SELECT r.id, r.name_ar AS recipe_name, p.name_ar AS product_name,
               COUNT(*)::int AS missing_ingredients
        FROM product_recipes r
@@ -560,7 +517,7 @@ const _computeDashboardStats = async (filters: Record<string, any> = {}) => {
        ORDER BY missing_ingredients DESC
        LIMIT 8`,
     ),
-    query(
+    read(
       `SELECT COALESCE(SUM(total_amount),0) AS total,
               COUNT(*)::int AS count
        FROM purchase_invoices
@@ -568,7 +525,7 @@ const _computeDashboardStats = async (filters: Record<string, any> = {}) => {
          AND deleted_at IS NULL`,
       [period.start, period.end],
     ),
-    query(
+    read(
       // الآن purchase_invoices لها supplier_id (migration 018) —
       // نجمع مشتريات كل مورد من purchase_invoices الحديثة المرتبطة بالمخزون
       `SELECT s.id, s.name_ar,
@@ -582,6 +539,7 @@ const _computeDashboardStats = async (filters: Record<string, any> = {}) => {
          SELECT COALESCE(SUM(p.amount), 0) AS total_paid
          FROM payments p
          WHERE p.reference_type = 'supplier'
+           AND LOWER(TRIM(COALESCE(p.payment_method, 'cash'))) <> 'credit'
            AND p.reference_id = s.id
        ) pay ON TRUE
        WHERE s.deleted_at IS NULL
@@ -589,7 +547,7 @@ const _computeDashboardStats = async (filters: Record<string, any> = {}) => {
        ORDER BY total DESC
        LIMIT 8`,
     ),
-    query(
+    read(
       `SELECT COALESCE(pc.name_ar, 'غير مصنف') AS name_ar,
               COALESCE(SUM(si.total_amount), 0)::numeric AS total,
               COALESCE(SUM(si.total_amount - (si.cost_price * si.quantity)), 0)::numeric AS profit,
@@ -606,7 +564,7 @@ const _computeDashboardStats = async (filters: Record<string, any> = {}) => {
        LIMIT 8`,
       [period.start, period.end],
     ),
-    query(
+    read(
       // إصلاح: رسم طرق الدفع كان يستثني مدفوعات الفواتير الآجلة (reference_type='invoice')
       // فكانت تحصيلات فواتير الآجل تختفي من التوزيع. الآن يشمل كل تحصيلات العملاء
       // (مبيعات + فواتير) مع استثناء المدفوعات المرتجعة/المستردة لتطابق سجل المدفوعات الفعلي.
@@ -618,6 +576,7 @@ const _computeDashboardStats = async (filters: Record<string, any> = {}) => {
         FROM payments p
         WHERE p.created_at >= $1::date AND p.created_at < ($2::date + INTERVAL '1 day')
           AND p.reference_type IN ('sale', 'invoice')
+          AND LOWER(TRIM(COALESCE(p.payment_method, 'cash'))) <> 'credit'
           AND NOT EXISTS (
            SELECT 1 FROM sales s2
            WHERE p.reference_type = 'sale' AND s2.id = p.reference_id AND s2.status = 'returned'
@@ -630,7 +589,7 @@ const _computeDashboardStats = async (filters: Record<string, any> = {}) => {
        ORDER BY total DESC`,
       [period.start, period.end],
     ),
-    query(
+    read(
       `SELECT movement_type,
               COALESCE(SUM(quantity),0) AS qty,
               COUNT(*)::int AS count
@@ -640,7 +599,7 @@ const _computeDashboardStats = async (filters: Record<string, any> = {}) => {
        ORDER BY count DESC`,
       [period.start, period.end],
     ),
-    query(
+    read(
       `SELECT EXTRACT(HOUR FROM sale_date + created_at::time)::int AS hour,
               COUNT(id)::int AS orders_count,
               COALESCE(SUM(total_amount), 0) AS revenue
@@ -653,6 +612,29 @@ const _computeDashboardStats = async (filters: Record<string, any> = {}) => {
       [period.start, period.end],
     ),
   ]);
+
+  const ingredientIds = recipeCostChart.rows.flatMap((row) =>
+    row.ingredients.map((item) => Number(item.ingredient_product_id)),
+  );
+  const ingredientCosts = await getProductsEffectiveCosts(client, ingredientIds);
+  const recipeChartRows = recipeCostChart.rows
+    .map(({ ingredients, ...row }) => ({
+      ...row,
+      estimated_cost: calculateRecipeCost(
+        ingredients.map((item) => ({
+          ...item,
+          ingredient_purchase_price:
+            ingredientCosts.get(Number(item.ingredient_product_id))?.cost ?? 0,
+        })),
+      ),
+    }))
+    .sort(
+      (a, b) =>
+        toNumber(b.revenue) - toNumber(a.revenue) ||
+        b.estimated_cost - a.estimated_cost ||
+        Number(a.id) - Number(b.id),
+    )
+    .slice(0, 8);
 
   const todaySalesRow = todaySales.rows[0] || {};
   const todayExpensesRow = todayExpenses.rows[0] || {};
@@ -685,24 +667,19 @@ const _computeDashboardStats = async (filters: Record<string, any> = {}) => {
   const currentMonthSalesCount = currentMonthRetailCount + currentMonthWholesaleCount;
   const currentMonthExpensesTotal = toNumber(currentMonthExpensesRow.total);
   const currentMonthPurchasesTotal = toNumber(currentMonthPurchasesRow.total);
-  const openingBalanceRow = await getOpeningBalanceForDate(currentMonthDate);
+  const currentOpeningRow = await getOpeningBalanceForDate(currentMonth.start, read);
+  const openingBalanceRow =
+    period.start.slice(0, 7) === currentMonth.start.slice(0, 7)
+      ? currentOpeningRow
+      : await getOpeningBalanceForDate(period.start, read);
   const openingBalanceTotal = toNumber(openingBalanceRow.amount);
 
-  const periodCogsResolved = resolveCogs(
-    periodSalesRow.cost,
-    periodCogsItems.rows[0]?.cogs_items,
-    periodPurchases.rows[0]?.total,
-  );
+  const periodCogsResolved = resolveCogs(periodSalesRow.cost, periodCogsItems.rows[0]?.cogs_items);
   const previousCogsResolved = resolveCogs(
     previousSalesRow.cost,
     previousCogsItems.rows[0]?.cogs_items,
-    previousPurchases.rows[0]?.total,
   );
-  const todayCogsResolved = resolveCogs(
-    todaySalesRow.cost,
-    todayCogsItems.rows[0]?.cogs_items,
-    todayPurchases.rows[0]?.total,
-  );
+  const todayCogsResolved = resolveCogs(todaySalesRow.cost, todayCogsItems.rows[0]?.cogs_items);
   const periodCogs = periodCogsResolved.value;
   const previousCogs = previousCogsResolved.value;
   const todayCogs = todayCogsResolved.value;
@@ -743,9 +720,12 @@ const _computeDashboardStats = async (filters: Record<string, any> = {}) => {
   const cashFromSales = roundMoney(toNumber(periodSalesRow.total) - periodUnpaidSales);
   const oldDebtCollections = roundMoney(customerCollectionsTotal - cashFromSales);
 
-  const realIncomeMonth = roundMoney(
-    openingBalanceTotal + customerCollectionsTotal - supplierPaymentsTotal - periodExpensesTotal,
-  );
+  const treasury = await getTreasuryMovementTotals(period.start, period.end, read);
+  const currentTreasury =
+    period.start === currentMonth.start && period.end === currentMonth.end
+      ? treasury
+      : await getTreasuryMovementTotals(currentMonth.start, currentMonth.end, read);
+  const realIncomeMonth = roundMoney(openingBalanceTotal + treasury.net);
   const cashFlowMonth = realIncomeMonth;
   const cashDetails = {
     openingBalance: roundMoney(openingBalanceTotal),
@@ -754,9 +734,12 @@ const _computeDashboardStats = async (filters: Record<string, any> = {}) => {
     oldDebtCollections,
     supplierPayments: roundMoney(supplierPaymentsTotal),
     expenses: roundMoney(periodExpensesTotal),
+    cashIn: treasury.cashIn,
+    cashOut: treasury.cashOut,
+    netMovement: treasury.net,
     isEstimate: true,
     estimateNote:
-      'تقدير نقدي: رصيد أول المدة + تحصيلات العملاء الفعلية − مدفوعات الموردين − المصروفات. المشتريات الآجلة غير المسددة لا تُخصم من السيولة.',
+      'رصيد أول المدة + صافي حركات النقدية المرحلة والمدفوعات القديمة غير الممثلة بقيود. يشمل الرديات والمسحوبات، ولا يشمل فواتير الآجل غير المسددة أو التسويات غير النقدية.',
   };
 
   // إجمالي أصول المحل = النقدية بالخزينة + ديون العملاء المستحقة + بضاعة المخزن
@@ -777,11 +760,35 @@ const _computeDashboardStats = async (filters: Record<string, any> = {}) => {
     collectionRate,
   };
 
-  const { alerts: riskAlerts, summary: riskSummary } = await scanRiskAlerts({
-    warehouseId: filters.warehouse_id ? Number(filters.warehouse_id) : undefined,
-    startDate: filters.from_date || period.start,
-    endDate: filters.to_date || period.end,
-  });
+  // Detectors remain independent: serialize each query's savepoint on this one connection.
+  let riskTail: Promise<void> = Promise.resolve();
+  const riskRead: typeof query = (sql, params) => {
+    const pending = riskTail.then(async () => {
+      await read('SAVEPOINT dashboard_risk_read');
+      try {
+        return await read(sql, params);
+      } catch (error) {
+        await read('ROLLBACK TO SAVEPOINT dashboard_risk_read');
+        throw error;
+      } finally {
+        await read('RELEASE SAVEPOINT dashboard_risk_read');
+      }
+    });
+    riskTail = pending.then(
+      () => undefined,
+      () => undefined,
+    );
+    return pending;
+  };
+  const riskScan = await scanRiskAlerts(
+    {
+      warehouseId: filters.warehouse_id ? Number(filters.warehouse_id) : undefined,
+      startDate: period.start,
+      endDate: period.end,
+    },
+    riskRead,
+  );
+  const { alerts: riskAlerts, summary: riskSummary } = riskScan;
 
   return {
     period,
@@ -822,8 +829,8 @@ const _computeDashboardStats = async (filters: Record<string, any> = {}) => {
       expensesCount: toNumber(currentMonthExpensesRow.count),
       purchases: roundMoney(currentMonthPurchasesTotal),
       purchasesCount: toNumber(currentMonthPurchasesRow.count),
-      openingBalance: roundMoney(openingBalanceTotal),
-      cashNet: roundMoney(realIncomeMonth),
+      openingBalance: roundMoney(currentOpeningRow.amount),
+      cashNet: roundMoney(toNumber(currentOpeningRow.amount) + currentTreasury.net),
     },
     salesByType: salesByType.rows,
     paymentSummary: paymentSummary.rows,
@@ -856,7 +863,7 @@ const _computeDashboardStats = async (filters: Record<string, any> = {}) => {
       ingredients: toNumber(recipeSummaryRow.ingredients),
       shortageRecipes: toNumber(recipeSummaryRow.shortage_recipes),
     },
-    recipeCostChart: recipeCostChart.rows,
+    recipeCostChart: recipeChartRows,
     recipeAlerts: recipeAlerts.rows,
     purchaseSummary: {
       total: roundMoney(purchaseSummaryRow.total),
@@ -890,6 +897,10 @@ const _computeDashboardStats = async (filters: Record<string, any> = {}) => {
     salesChart: salesTrend.rows,
     profitChart: salesTrend.rows,
     actionCenter: {
+      scanStatus: riskScan.status,
+      failedChecks: riskScan.detectorResults.filter((detector) => detector.status === 'failed')
+        .length,
+      checkedAt: riskScan.scannedAt,
       red: riskSummary.critical,
       orange: riskSummary.high,
       yellow: riskSummary.medium,
@@ -899,17 +910,6 @@ const _computeDashboardStats = async (filters: Record<string, any> = {}) => {
   };
 };
 
-// BUG-09 FIX: wrapper عام يستخدم الـ cache
-/**
- * جلب إحصائيات لوحة التحكم مع كاش 60 ثانية.
- * @param {Record<string, any>} [filters] خيارات الفترة (range, from_date, to_date)
- * @returns {Promise<Record<string, any>>}
- */
-export const getDashboardStats = async (filters: Record<string, any> = {}) => {
-  const cacheKey = JSON.stringify(filters);
-  const cached = _getCached(cacheKey);
-  if (cached) return cached;
-  const result = await _computeDashboardStats(filters);
-  _setCached(cacheKey, result);
-  return result;
-};
+/** Read all dashboard data on one consistent snapshot, including recipe costs and risk alerts. */
+export const getDashboardStats = async (filters: Record<string, any> = {}) =>
+  withReadOnlySnapshot((client) => _computeDashboardStats(filters, client));

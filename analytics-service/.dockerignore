@@ -1,0 +1,13 @@
+.dockerignore
+.env
+.env.*
+.git
+.pytest_cache
+.uv-cache
+.uv-tools
+.venv
+pip-*/
+tmp????????/
+__pycache__
+*.py[cod]
+tests

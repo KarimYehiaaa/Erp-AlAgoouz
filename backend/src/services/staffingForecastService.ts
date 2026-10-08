@@ -1,30 +1,46 @@
 import { query } from '../database/pool.ts';
+import { BUSINESS_TIMEZONE, businessToday, shiftCalendarDate } from '../utils/localDate.ts';
 
 /**
  * خدمة تحليل كثافة المبيعات وتوقع فترات الازدحام والشيفتات المطلوبة
  */
 export const getStaffingForecast = async (params: Record<string, any> = {}) => {
   const warehouseId = Number(params.warehouse_id) || 1;
+  const today = businessToday();
+  const historyStart = shiftCalendarDate(today, -89);
 
   // 1. استعلام لحساب عدد الفواتير وإجمالي المبيعات لكل يوم ساعة بساعة لآخر 90 يوماً
   const sql = `
     SELECT
-      EXTRACT(DOW FROM created_at) AS dow,
-      EXTRACT(HOUR FROM created_at) AS hour,
+      EXTRACT(DOW FROM created_at AT TIME ZONE $4) AS dow,
+      EXTRACT(HOUR FROM created_at AT TIME ZONE $4) AS hour,
       COUNT(*) AS tx_count,
       COALESCE(SUM(total_amount), 0) AS total_revenue
     FROM sales
     WHERE status = 'completed' AND deleted_at IS NULL
       AND warehouse_id = $1
-      AND created_at >= CURRENT_DATE - INTERVAL '90 days'
+      AND created_at >= ($2::date::timestamp AT TIME ZONE $4)
+      AND created_at < (($3::date + 1)::timestamp AT TIME ZONE $4)
     GROUP BY dow, hour
     ORDER BY dow, hour
   `;
 
-  const rows = (await query(sql, [warehouseId])).rows;
+  const rows = (await query(sql, [warehouseId, historyStart, today, BUSINESS_TIMEZONE])).rows;
 
-  // 90 يوماً تقابل حوالي 13 أسبوعاً تقريباً
-  const WEEKS_COUNT = 13.0;
+  const occurrences = (
+    await query(
+      `
+    SELECT EXTRACT(DOW FROM d)::int AS dow, COUNT(*)::numeric AS occ
+    FROM generate_series($1::date::timestamp, $2::date::timestamp, INTERVAL '1 day') d
+    GROUP BY 1
+  `,
+      [historyStart, today],
+    )
+  ).rows;
+  const weekdayOccurrences: Record<number, number> = {};
+  occurrences.forEach((row) => {
+    weekdayOccurrences[Number(row.dow)] = Math.max(1, Number(row.occ));
+  });
 
   // 2. تهيئة مصفوفة أيام الأسبوع وساعاتها (0 = الأحد، 6 = السبت)
   const density = {};
@@ -48,8 +64,9 @@ export const getStaffingForecast = async (params: Record<string, any> = {}) => {
 
     // تسجيل الساعات التي تقع ضمن فترة التشغيل فقط
     if (density[d] && density[d][h]) {
-      const avgTx = Number((Number(row.tx_count) / WEEKS_COUNT).toFixed(2));
-      const avgRev = Number((Number(row.total_revenue) / WEEKS_COUNT).toFixed(2));
+      const count = weekdayOccurrences[d] || 13;
+      const avgTx = Number((Number(row.tx_count) / count).toFixed(2));
+      const avgRev = Number((Number(row.total_revenue) / count).toFixed(2));
 
       let traffic = 'منخفض';
       let staff = 1;
@@ -106,6 +123,7 @@ export const getStaffingForecast = async (params: Record<string, any> = {}) => {
     .slice(0, 5);
 
   return {
+    business_date: today,
     weeklyDensity: density,
     peakHours,
     dayNames: dayNamesAr,

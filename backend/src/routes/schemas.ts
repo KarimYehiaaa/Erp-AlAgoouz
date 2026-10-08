@@ -1,3 +1,5 @@
+import { MAX_JOURNAL_LINE_AMOUNT } from '../utils/journalPosting.ts';
+import { isCalendarDate } from '../utils/localDate.ts';
 import { z } from 'zod';
 import { parseLocalizedNumber } from '../utils/numberParsing.ts';
 
@@ -89,7 +91,7 @@ const productCreateSchema = z
     barcode: nullableText(100),
     name_ar: z.string().trim().min(1).max(255),
     description: nullableText(2e3),
-    category_id: optionalPositiveId,
+    category_id: nullablePositiveId,
     unit: z.string().trim().min(1).max(50).optional(),
     purchase_price: nonNegativeNumber.optional(),
     sale_price: nonNegativeNumber,
@@ -107,7 +109,7 @@ const categoryCreateSchema = z
   .object({
     name_ar: z.string().trim().min(1).max(255),
     slug: nullableText(255),
-    parent_id: optionalPositiveId,
+    parent_id: nullablePositiveId,
     sort_order: z.coerce.number().int().min(0).optional(),
   })
   .strip();
@@ -122,15 +124,26 @@ const unitUpdateSchema = unitCreateSchema.partial().strip();
 const bulkPriceAdjustSchema = z
   .object({
     category_id: optionalPositiveId,
+    all_products: z.boolean().optional().default(false),
     type: z.enum(['sale', 'purchase']),
     adjust_type: z.enum(['percent', 'fixed']),
-    value: z.coerce
-      .number()
-      .finite()
-      .min(-100, 'النسبة/القيمة لا يمكن أن تكون أقل من -100')
-      .max(10_000_000, 'القيمة أكبر من الحد المسموح'),
+    value: z.preprocess(
+      (value) =>
+        value == null || typeof value === 'boolean' || String(value).trim() === ''
+          ? NaN
+          : parseLocalizedNumber(value),
+      z
+        .number()
+        .finite()
+        .min(-100, 'النسبة/القيمة لا يمكن أن تكون أقل من -100')
+        .max(10_000_000, 'القيمة أكبر من الحد المسموح'),
+    ),
   })
-  .strip();
+  .strip()
+  .refine((data) => data.all_products || data.category_id != null, {
+    message: 'حدد تصنيفًا أو أكد التطبيق على جميع المنتجات',
+    path: ['category_id'],
+  });
 const productWarehouseSchema = z
   .object({
     warehouse_id: positiveId,
@@ -164,7 +177,7 @@ const inventoryTransferSchema = z
       z.coerce.number().positive().optional(),
     ),
     notes: z.string().max(1e3).optional().nullable(),
-    items: z.array(inventoryTransferItemSchema).optional(),
+    items: z.array(inventoryTransferItemSchema).max(500).optional(),
   })
   .strip();
 const inventoryAdjustSchema = z
@@ -173,7 +186,7 @@ const inventoryAdjustSchema = z
     warehouse_id: positiveId,
     quantity: nonNegativeNumber,
     min_stock: optionalNonNegativeNumber,
-    movement_type: z.literal('adjustment').optional(),
+    movement_type: z.enum(['adjustment', 'wastage']).optional(),
     notes: z.string().max(1e3).optional().nullable(),
   })
   .strip();
@@ -261,6 +274,17 @@ const verifyPinSchema = z
   .strip();
 const saleReturnSchema = z
   .object({
+    notes: nullableText(2e3),
+    reason: nullableText(2e3),
+    // المرتجع الحالي كامل الفاتورة؛ أصناف وكميات الاستعادة تُقرأ من سجل البيع
+    // داخل الخادم حتى لا يحدد العميل كميات مخزون يعاد صرفها.
+  })
+  .strip();
+const openShiftSchema = z
+  .object({
+    warehouse_id: optionalPositiveId,
+    terminal_id: optionalPositiveId,
+    opening_cash: optionalNonNegativeNumber,
     notes: nullableText(2e3),
   })
   .strip();
@@ -551,22 +575,35 @@ const updateAccountSchema = z
     is_active: optionalBool,
   })
   .strip();
+const journalPositiveId = z
+  .union([z.number(), z.string().regex(/^\d+$/).transform(Number)])
+  .pipe(z.number().int().positive().max(2147483647));
+const optionalJournalId = z.preprocess(
+  (value) => (value === '' || value === null ? undefined : value),
+  journalPositiveId.optional(),
+);
 const createJournalEntrySchema = z
   .object({
-    entry_date: optionalDateText,
-    reference_type: z.string().trim().max(50).optional(),
-    reference_id: z.coerce.number().int().positive().optional(),
-    idempotency_key: z.string().trim().max(150).optional(),
+    entry_date: z.preprocess(
+      (value) => (value === '' || value === null ? undefined : value),
+      z
+        .string()
+        .refine((value) => isCalendarDate(value) && !value.startsWith('0000-'))
+        .optional(),
+    ),
+    reference_type: z.enum(['manual', 'opening', 'transfer']).optional(),
+    reference_id: journalPositiveId.optional(),
+    idempotency_key: z.string().trim().min(1).max(150).optional(),
     description: shortText(500),
     lines: z
       .array(
         z.object({
-          account_id: optionalPositiveId,
+          account_id: optionalJournalId,
           account_code: z.string().trim().max(50).optional(),
-          debit: z.coerce.number().min(0).default(0),
-          credit: z.coerce.number().min(0).default(0),
+          debit: z.coerce.number().finite().min(0).max(MAX_JOURNAL_LINE_AMOUNT).default(0),
+          credit: z.coerce.number().finite().min(0).max(MAX_JOURNAL_LINE_AMOUNT).default(0),
           description: z.string().trim().max(500).optional(),
-          warehouse_id: optionalPositiveId,
+          warehouse_id: optionalJournalId,
         }),
       )
       .min(2, 'يجب أن يحتوي القيد على سطرين على الأقل'),
@@ -602,6 +639,7 @@ export {
   optionalDateTimeText,
   optionalNonNegativeNumber,
   optionalPositiveId,
+  openShiftSchema,
   paymentSchema,
   payrollPaySchema,
   payrollSchema,

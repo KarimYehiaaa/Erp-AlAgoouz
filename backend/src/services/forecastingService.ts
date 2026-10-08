@@ -1,13 +1,9 @@
 import { query } from '../database/pool.ts';
 import { convertQty, normalizeUnit } from './productCostService.ts';
 import { logger } from './loggerService.ts';
+import { businessToday, shiftCalendarDate } from '../utils/localDate.ts';
 
-const formatLocalDate = (date: Date): string => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
+const calendarWeekday = (date: string): number => new Date(`${date}T00:00:00Z`).getUTCDay();
 
 // Fit simple linear regression on a dataset
 const fitLinearRegression = (y) => {
@@ -45,6 +41,8 @@ const fitLinearRegression = (y) => {
  */
 export const getDemandForecast = async (filters: Record<string, any> = {}) => {
   const warehouseId = Number(filters.warehouse_id) || 1; // Default to first warehouse
+  const today = businessToday();
+  const historyStart = shiftCalendarDate(today, -89);
 
   // 1. Fetch current available stock for all products in this warehouse
   const stockSql = `
@@ -92,11 +90,11 @@ export const getDemandForecast = async (filters: Record<string, any> = {}) => {
     JOIN sales s ON s.id = si.sale_id
     WHERE s.status = 'completed' AND s.deleted_at IS NULL
       AND s.warehouse_id = $1
-      AND s.sale_date >= CURRENT_DATE - INTERVAL '90 days'
+      AND s.sale_date >= $2::date AND s.sale_date <= $3::date
     GROUP BY si.product_id, s.sale_date
     ORDER BY si.product_id, s.sale_date ASC
   `;
-  const rawSales = (await query(salesSql, [warehouseId])).rows;
+  const rawSales = (await query(salesSql, [warehouseId, historyStart, today])).rows;
 
   // Group raw sales by product_id
   const salesMap = {};
@@ -108,13 +106,9 @@ export const getDemandForecast = async (filters: Record<string, any> = {}) => {
   });
 
   // Generate date series for the last 90 days
-  const dateList: any[] = [];
-  const today = new Date();
+  const dateList: string[] = [];
   for (let i = 89; i >= 0; i--) {
-    const d = new Date(today);
-    d.setDate(today.getDate() - i);
-    const dateStr = formatLocalDate(d);
-    dateList.push(dateStr);
+    dateList.push(shiftCalendarDate(today, -i));
   }
 
   // Run forecasting for each product
@@ -135,18 +129,11 @@ export const getDemandForecast = async (filters: Record<string, any> = {}) => {
     }
 
     // Calculate Day-of-Week Seasonality Index (7 indices: 0 = Sunday, ..., 6 = Saturday)
-    // ملاحظة: dateList بصيغة YYYY-MM-DD — التحليل اليدوي يضمن قراءة اليوم بتوقيت محلي
-    // بدلاً من new Date(str) الذي يحلل كـ UTC ويزيح اليوم على خوادم غرب جرينتش
-    const parseDow = (dateStr) => {
-      const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(dateStr));
-      if (!m) return new Date(dateStr).getDay();
-      return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])).getDay();
-    };
     const weekdaySums = new Array(7).fill(0);
     const weekdayCounts = new Array(7).fill(0);
 
     dateList.forEach((dateStr, idx) => {
-      const day = parseDow(dateStr);
+      const day = calendarWeekday(dateStr);
       weekdaySums[day] += y[idx];
       weekdayCounts[day]++;
     });
@@ -166,7 +153,7 @@ export const getDemandForecast = async (filters: Record<string, any> = {}) => {
 
     // Deseasonalize sales
     const deseasonalized = y.map((val, idx) => {
-      const day = parseDow(dateList[idx]);
+      const day = calendarWeekday(dateList[idx]);
       const sIndex = seasonalIndices[day];
       return sIndex > 0 ? val / sIndex : val;
     });
@@ -181,9 +168,7 @@ export const getDemandForecast = async (filters: Record<string, any> = {}) => {
     // Predict next 30 days
     const predictions: any[] = [];
     for (let d = 1; d <= forecastDays; d++) {
-      const futureDate = new Date(today);
-      futureDate.setDate(today.getDate() + d);
-      const futureDay = futureDate.getDay();
+      const futureDay = calendarWeekday(shiftCalendarDate(today, d));
 
       const futureX = 90 + d;
       const trendVal = slope * futureX + intercept;
@@ -285,10 +270,12 @@ export const getDemandForecast = async (filters: Record<string, any> = {}) => {
     const currentStock = Number(prod.stock_available || 0);
 
     // Get projected daily consumption:
-    // If it's an ingredient, use its ingredient forecast.
-    // If it's a direct product, use its product sales forecast.
-    const projectedDaily =
-      ingredientDailyForecasts[prod.id] || forecasts[prod.id] || new Array(forecastDays).fill(0);
+    // A stocked product can be sold directly and also consumed by recipes.
+    const projectedDaily = Array.from(
+      { length: forecastDays },
+      (_, day) =>
+        (ingredientDailyForecasts[prod.id]?.[day] || 0) + (forecasts[prod.id]?.[day] || 0),
+    );
 
     const total30dDemand = projectedDaily.reduce((sum, val) => sum + val, 0);
     const avgDailyDemand = total30dDemand / forecastDays;
@@ -319,9 +306,7 @@ export const getDemandForecast = async (filters: Record<string, any> = {}) => {
       if (tempStock <= 0) {
         // نُفد المخزون بنهاية اليوم d+1 (عدّ بشري صحيح وليس فهرس صفر)
         runwayDays = d + 1;
-        const oosDate = new Date();
-        oosDate.setDate(oosDate.getDate() + d + 1);
-        outOfStockDateStr = formatLocalDate(oosDate);
+        outOfStockDateStr = shiftCalendarDate(today, d + 1);
         break;
       }
       if (d === forecastDays - 1) {
@@ -330,9 +315,7 @@ export const getDemandForecast = async (filters: Record<string, any> = {}) => {
         if (runwayDays > 30) {
           outOfStockDateStr = `أكثر من 30 يوم (~${runwayDays} يوم)`;
         } else {
-          const oosDate = new Date();
-          oosDate.setDate(oosDate.getDate() + runwayDays);
-          outOfStockDateStr = formatLocalDate(oosDate);
+          outOfStockDateStr = shiftCalendarDate(today, runwayDays);
         }
       }
     }
@@ -354,6 +337,7 @@ export const getDemandForecast = async (filters: Record<string, any> = {}) => {
   runwayResult.sort((a, b) => a.runway_days - b.runway_days);
 
   return {
+    business_date: today,
     salesForecast: salesForecastResult,
     ingredientsForecast: ingredientsForecastResult,
     inventoryRunway: runwayResult,

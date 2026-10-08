@@ -90,6 +90,18 @@ export interface ElectronAPI {
     message?: string;
   }>;
   getPendingTransactions: () => Promise<OfflineSaleTransaction[]>;
+  exportQueueRecovery?: () => Promise<{
+    success: boolean;
+    canceled?: boolean;
+    directory?: string;
+    fileCount?: number;
+    error?: string;
+  }>;
+  getQueueRetentionSummary?: () => Promise<{
+    success: boolean;
+    unknownCount?: number;
+    otherContextCount?: number;
+  }>;
   updateTransactionStatus: (
     syncId: string,
     status: string,
@@ -123,9 +135,9 @@ export interface ElectronAPI {
       message?: string;
       percent?: number;
     }) => void,
-  ) => void;
-  onBarcodeScan: (callback: (barcode: string) => void) => void;
-  onSyncUpdated: (callback: (info: { synced: number; remaining: number }) => void) => void;
+  ) => () => void;
+  onBarcodeScan: (callback: (barcode: string) => void) => () => void;
+  onSyncUpdated: (callback: (info: { synced: number; remaining: number }) => void) => () => void;
 }
 
 declare global {

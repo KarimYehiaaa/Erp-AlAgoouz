@@ -13,19 +13,23 @@
     "start": "npm run start -w backend",
     "start:prod": "npm run start -w backend",
     "typecheck": "npm run typecheck -w backend && npm run typecheck -w frontend && npm --prefix desktop-pos run typecheck && tsc --noEmit",
-    "test": "npm run test:local -w backend && npm run test:unit -w frontend",
-    "check:local": "npm run typecheck -w backend && npm run check:scripts -w backend && npm run test:local -w backend && node scripts/maintenance/check-build-path.ts",
-    "build": "npm run build -w frontend",
+    "test": "npm run test:setup && npm run test:backup && npm run test:startup && npm run test:boot && npm run test:local -w backend && npm run test:unit -w frontend",
+    "test:setup": "node --test --test-concurrency=1 scripts/database/setup-project.test.mjs scripts/windows/setup-launchers.test.mjs scripts/windows/install-services.test.mjs scripts/windows/runtime-control.test.mjs",
+    "test:backup": "node --test scripts/database/backup-archive.test.mjs scripts/database/backup-storage.test.mjs",
+    "test:startup": "node --test --test-concurrency=1 scripts/maintenance/sentry-startup.test.mjs scripts/maintenance/npm-runtime.test.mjs",
+    "test:boot": "node backend/scripts/check-runtime-boot.ts",
+    "test:web-api": "node scripts/maintenance/check-web-api-browser.mjs",
+    "check:local": "npm run test:backup && npm run test:startup && npm run test:boot && npm run typecheck -w backend && npm run check:scripts -w backend && npm run test:local -w backend && node scripts/maintenance/check-build-path.ts",
+    "build": "npm run build:local -w frontend",
+    "mobile:build": "npm run cap:build -w frontend",
+    "mobile:open": "npm run cap:open -w frontend",
     "setup": "node scripts/database/setup-project.ts",
     "backup": "node scripts/database/backup-system.ts",
     "update": "node scripts/maintenance/update-project.ts",
     "kill:port": "node scripts/maintenance/kill-port.ts",
     "security:audit": "node scripts/security/security-audit.ts",
-    "pm2:start": "pm2 start config/pm2/ecosystem.config.cjs",
-    "pm2:stop": "pm2 stop bin-al-ajouz-erp",
-    "pm2:logs": "pm2 logs bin-al-ajouz-erp",
-    "lint": "eslint --config config/eslint/eslint.config.js backend/src frontend/src shared api desktop-pos/src desktop-pos/electron",
-    "lint:fix": "eslint --config config/eslint/eslint.config.js --fix backend/src frontend/src shared api desktop-pos/src desktop-pos/electron",
+    "lint": "eslint --config config/eslint/eslint.config.js backend/src frontend/src shared api backend/api/index.ts scripts backend/scripts desktop-pos/src desktop-pos/electron desktop-pos/build desktop-pos/scripts desktop-pos/tests config \"frontend/*config*.{js,ts}\" \"backend/*config*.{js,ts}\" \"desktop-pos/*config*.{js,ts}\"",
+    "lint:fix": "eslint --config config/eslint/eslint.config.js --fix backend/src frontend/src shared api backend/api/index.ts scripts backend/scripts desktop-pos/src desktop-pos/electron desktop-pos/build desktop-pos/scripts desktop-pos/tests config \"frontend/*config*.{js,ts}\" \"backend/*config*.{js,ts}\" \"desktop-pos/*config*.{js,ts}\"",
     "format": "prettier --ignore-path config/prettier/.prettierignore --write backend frontend desktop-pos shared scripts config api .github package.json package-lock.json vercel.json tsconfig.json docker-compose.yml",
     "format:check": "prettier --ignore-path config/prettier/.prettierignore --check backend frontend desktop-pos shared scripts config api .github package.json package-lock.json vercel.json tsconfig.json docker-compose.yml",
     "prepare": "husky"
@@ -73,8 +77,6 @@
     "multer": "^2.4.0",
     "pdfkit": "^0.20.2",
     "pg": "^8.12.0",
-    "selfsigned": "^5.5.0",
-    "tsx": "^4.23.11",
     "uuid": "^11.1.1",
     "winston": "^3.19.0",
     "winston-daily-rotate-file": "^5.0.0",
@@ -83,15 +85,14 @@
     "zod": "^3.23.8"
   },
   "engines": {
-    "node": ">=20.0.0"
+    "node": "24.x"
   },
   "overrides": {
     "qs": "^6.16.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@types/cookie-parser": "^1.4.10",
-    "@types/express": "^5.0.6",
+    "@noble/hashes": "^1.8.0",
     "@types/node": "^26.2.0",
     "eslint": "^10.8.1",
     "eslint-config-prettier": "^10.1.8",
@@ -100,7 +101,13 @@
     "husky": "^9.1.7",
     "lint-staged": "^17.3.0",
     "prettier": "^3.9.6",
-    "tsx": "^4.23.11",
+    "selfsigned": "^5.5.0",
     "typescript-eslint": "^8.66.0"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true,
+    "@parcel/watcher": false,
+    "core-js": false,
+    "msgpackr-extract": false
   }
 }

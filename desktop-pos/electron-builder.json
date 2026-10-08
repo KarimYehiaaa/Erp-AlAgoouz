@@ -23,7 +23,8 @@
     ],
     "executableName": "AlAgoouz-POS",
     "artifactName": "AlAgoouz-POS-Setup-${version}.${ext}",
-    "signExecutable": false
+    "signExecutable": true,
+    "verifyUpdateCodeSignature": true
   },
   "nsis": {
     "oneClick": false,

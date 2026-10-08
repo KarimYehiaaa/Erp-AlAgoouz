@@ -4,22 +4,31 @@ import { assertSafeTestDatabase } from '../scripts/testDatabaseSafety.ts';
 import { buildBackupDownload, clearAllData } from '../src/services/backupService.ts';
 import { decrypt } from '../src/utils/crypto.ts';
 import { inventoryRepository } from '../src/repositories/inventory.repository.ts';
+import { createHash } from 'node:crypto';
 
 describe.runIf(process.env.RUN_SYSTEM_RESET_INTEGRATION === '1')('full system reset', () => {
   it('empties business history while preserving catalog, recipes, prices and configuration', async () => {
     assertSafeTestDatabase({ host: process.env.DB_HOST, database: process.env.DB_NAME });
-    const product = (await query(
-      'SELECT id, category_id, sale_price, purchase_price, wholesale_price FROM products ORDER BY id LIMIT 1',
-    )).rows[0];
-    const warehouse = (await query('SELECT id FROM warehouses ORDER BY id LIMIT 1')).rows[0];
+    const product = (
+      await query(
+        'SELECT id, category_id, sale_price, purchase_price, wholesale_price FROM products WHERE is_active=TRUE AND deleted_at IS NULL ORDER BY id LIMIT 1',
+      )
+    ).rows[0];
+    const warehouse = (
+      await query(
+        'SELECT id FROM warehouses WHERE is_active=TRUE AND deleted_at IS NULL ORDER BY id LIMIT 1',
+      )
+    ).rows[0];
     expect(product).toBeDefined();
     expect(warehouse).toBeDefined();
 
-    const recipe = (await query(
-      `INSERT INTO product_recipes (product_id, name_ar)
+    const recipe = (
+      await query(
+        `INSERT INTO product_recipes (product_id, name_ar)
        VALUES ($1, 'وصفة اختبار التصفير') RETURNING id`,
-      [product.id],
-    )).rows[0];
+        [product.id],
+      )
+    ).rows[0];
     await query(
       `INSERT INTO product_recipe_items (recipe_id, ingredient_product_id, quantity, unit_code)
        VALUES ($1, $2, 2.5, 'count')`,
@@ -54,28 +63,80 @@ describe.runIf(process.env.RUN_SYSTEM_RESET_INTEGRATION === '1')('full system re
     expect(backupData.inventory.some((row: any) => row.product_id === product.id)).toBe(true);
     expect(backupData.product_recipes.some((row: any) => row.id === recipe.id)).toBe(true);
 
+    const catalogHashes = async () => {
+      const hashes = {};
+      for (const table of [
+        'products',
+        'product_categories',
+        'product_recipes',
+        'product_recipe_items',
+      ]) {
+        const rows = (await query(`SELECT * FROM ${table} ORDER BY id`)).rows;
+        hashes[table] = {
+          rows: rows.length,
+          sha256: createHash('sha256').update(JSON.stringify(rows)).digest('hex'),
+        };
+      }
+      return hashes;
+    };
+    const preservedCatalog = await catalogHashes();
+    expect(
+      (await inventoryRepository.getInventoryList(warehouse.id, [warehouse.id])).some(
+        (row) => row.product_id === product.id,
+      ),
+    ).toBe(true);
+
     await clearAllData();
 
-    const productAfter = (await query(
-      'SELECT id, category_id, sale_price, purchase_price, wholesale_price FROM products WHERE id = $1',
-      [product.id],
-    )).rows[0];
+    expect(await catalogHashes()).toEqual(preservedCatalog);
+
+    const productAfter = (
+      await query(
+        'SELECT id, category_id, sale_price, purchase_price, wholesale_price FROM products WHERE id = $1',
+        [product.id],
+      )
+    ).rows[0];
     expect(productAfter).toEqual(product);
-    expect((await query('SELECT COUNT(*)::int AS n FROM product_categories')).rows[0].n).toBeGreaterThan(0);
-    expect((await query('SELECT COUNT(*)::int AS n FROM product_recipes WHERE id = $1', [recipe.id])).rows[0].n).toBe(1);
-    expect((await query('SELECT quantity FROM product_recipe_items WHERE recipe_id = $1', [recipe.id])).rows[0].quantity).toBe(2.5);
+    expect(
+      (await query('SELECT COUNT(*)::int AS n FROM product_categories')).rows[0].n,
+    ).toBeGreaterThan(0);
+    expect(
+      (await query('SELECT COUNT(*)::int AS n FROM product_recipes WHERE id = $1', [recipe.id]))
+        .rows[0].n,
+    ).toBe(1);
+    expect(
+      (await query('SELECT quantity FROM product_recipe_items WHERE recipe_id = $1', [recipe.id]))
+        .rows[0].quantity,
+    ).toBe(2.5);
     for (const table of [
-      'inventory', 'stock_movements', 'customers', 'suppliers', 'sales', 'purchase_invoices',
-      'payments', 'expenses', 'journal_entries', 'journal_entry_lines', 'pos_shifts',
-      'stocktakes', 'inventory_cost_layers', 'financial_periods',
+      'inventory',
+      'stock_movements',
+      'customers',
+      'suppliers',
+      'sales',
+      'purchase_invoices',
+      'payments',
+      'expenses',
+      'journal_entries',
+      'journal_entry_lines',
+      'pos_shifts',
+      'stocktakes',
+      'inventory_cost_layers',
+      'financial_periods',
     ]) {
       const count = await query(`SELECT COUNT(*)::int AS n FROM ${table}`);
       expect(count.rows[0].n, table).toBe(0);
     }
-    expect((await query("SELECT COUNT(*)::int AS n FROM settings WHERE key LIKE 'sales_opening_balance:%'")).rows[0].n).toBe(0);
+    expect(
+      (
+        await query(
+          "SELECT COUNT(*)::int AS n FROM settings WHERE key LIKE 'sales_opening_balance:%'",
+        )
+      ).rows[0].n,
+    ).toBe(0);
     expect((await query('SELECT COUNT(*)::int AS n FROM users')).rows[0].n).toBeGreaterThan(0);
     expect((await query('SELECT COUNT(*)::int AS n FROM warehouses')).rows[0].n).toBeGreaterThan(0);
-    const inventoryView = await inventoryRepository.getInventoryList(warehouse.id);
+    const inventoryView = await inventoryRepository.getInventoryList(warehouse.id, [warehouse.id]);
     expect(inventoryView.find((row) => row.product_id === product.id)?.quantity).toBe(0);
 
     // A new period can create business records using the retained catalog.

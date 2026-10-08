@@ -1,19 +1,17 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
-const isDev = process.env.NODE_ENV === 'development';
-
 const config: CapacitorConfig = {
   appId: 'com.binalagoouz.manager',
   appName: 'بن العجوز - تقارير الإدارة',
-  webDir: 'dist',
+  webDir: 'dist-native',
   server: {
     androidScheme: 'https',
-    cleartext: isDev,
-    allowNavigation: isDev
-      ? ['localhost', '127.0.0.1', '192.168.*', '10.0.*']
-      : ['agoouz.vercel.app', 'agoouz-api.vercel.app'],
+    cleartext: false,
+    // API requests do not require permission to navigate remote pages inside the native bridge.
+    allowNavigation: [],
   },
   plugins: {
+    CapacitorHttp: { enabled: true },
     StatusBar: {
       style: 'DARK',
       backgroundColor: '#090604',

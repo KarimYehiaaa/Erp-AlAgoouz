@@ -4,6 +4,7 @@
  * ولا يستورده api.ts لتفادي أي circular dependency
  */
 import { api } from './api';
+import { sessionService } from './sessionService';
 import {
   SAFE_LOCAL_URL,
   SAFE_PRODUCTION_URL,
@@ -33,6 +34,7 @@ export async function setServerUrl(url: string): Promise<{ success: boolean; err
   }
 
   const cleanUrl = validation.normalizedUrl;
+  const serverChanged = cleanUrl !== getServerUrl();
 
   if (typeof window !== 'undefined' && window.electronAPI?.setServerUrl) {
     try {
@@ -51,6 +53,7 @@ export async function setServerUrl(url: string): Promise<{ success: boolean; err
     }
   }
 
+  if (serverChanged) await sessionService.clearSession();
   if (typeof localStorage !== 'undefined') {
     localStorage.setItem('pos_server_url', cleanUrl);
   }

@@ -6,7 +6,8 @@ import { resolveSaleWarehouseId } from '../services/saleInventoryOps.ts';
 import { query } from '../database/pool.ts';
 import { issueManagerOverrideToken } from '../middleware/managerOverride.ts';
 import { getAllowedWarehouses } from '../middleware/warehouseAccess.ts';
-import { ADMIN_ROLES } from '../../../shared/permissions.js';
+import { ADMIN_ROLES, WAREHOUSE_GLOBAL_ROLES } from '../../../shared/permissions.js';
+import { parseSaleSyncId } from '../utils/saleSyncId.ts';
 
 const PIN_LOCKOUT_MINUTES = 15;
 
@@ -177,7 +178,33 @@ export const posShiftController = {
         }
 
         // التحقق من صلاحيات المخزن سواء تم تمريره صراحة أو سيتم اشتقاقه
-        let targetWarehouseId = salePayload.warehouse_id ? Number(salePayload.warehouse_id) : null;
+        let syncId: string;
+        try {
+          syncId = parseSaleSyncId(salePayload.sync_id, true)!;
+        } catch (error) {
+          results.push({
+            sync_id: salePayload.sync_id,
+            status: 'FAILED',
+            error: error instanceof Error ? error.message : 'معرّف مزامنة الفاتورة غير صالح',
+          });
+          continue;
+        }
+        const rawWarehouseId = salePayload.warehouse_id;
+        const hasWarehouseId = rawWarehouseId != null && rawWarehouseId !== '';
+        let targetWarehouseId = hasWarehouseId ? Number(rawWarehouseId) : null;
+        if (
+          hasWarehouseId &&
+          (!['number', 'string'].includes(typeof rawWarehouseId) ||
+            !Number.isSafeInteger(targetWarehouseId) ||
+            Number(targetWarehouseId) <= 0)
+        ) {
+          results.push({
+            sync_id: salePayload.sync_id,
+            status: 'FAILED',
+            error: 'معرّف مخزن الفاتورة غير صالح',
+          });
+          continue;
+        }
         if (!targetWarehouseId) {
           try {
             targetWarehouseId = await resolveSaleWarehouseId(items, null);
@@ -200,10 +227,11 @@ export const posShiftController = {
           continue;
         }
 
-        salePayload.warehouse_id = targetWarehouseId;
-
         try {
-          const result = await createDailySale(salePayload, userId);
+          const result = await createDailySale(
+            { ...salePayload, warehouse_id: targetWarehouseId, sync_id: syncId },
+            userId,
+          );
           results.push({
             sync_id: salePayload.sync_id,
             status: 'SYNCED',
@@ -260,7 +288,7 @@ export const posShiftController = {
    */
   async verifyPin(req: Request, res: Response, next: NextFunction) {
     try {
-      const { pin, action, manager_id } = req.body;
+      const { pin, action } = req.body;
       if (!pin) {
         return res.status(400).json({ success: false, message: 'رمز PIN مطلوب' });
       }
@@ -280,20 +308,13 @@ export const posShiftController = {
         });
       }
 
-      // تحسين الأداء: إذا تم تمرير manager_id يتم الاستعلام المباشر عنه بدلاً من جلب كافة المدراء
-      let managersQuery = `
+      const managersQuery = `
         SELECT u.id, u.username, u.full_name, u.pos_pin_hash, u.password_hash, r.name as role_name 
         FROM users u
         JOIN roles r ON u.role_id = r.id
-        WHERE u.is_active = TRUE AND r.name IN ('admin', 'manager')
+        WHERE u.is_active = TRUE AND u.deleted_at IS NULL AND r.name = ANY($1::text[])
       `;
-      const params: any[] = [];
-      if (manager_id) {
-        managersQuery += ` AND u.id = $1`;
-        params.push(manager_id);
-      }
-
-      const managersRes = await query(managersQuery, params);
+      const managersRes = await query(managersQuery, [WAREHOUSE_GLOBAL_ROLES]);
 
       let matchedManager: any = null;
 

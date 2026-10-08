@@ -32,7 +32,7 @@ SELECT 2, id FROM permissions WHERE code NOT IN ('users.manage', 'settings.manag
 
 -- Cashier permissions
 INSERT INTO role_permissions (role_id, permission_id)
-SELECT 3, id FROM permissions WHERE code IN ('dashboard.view', 'sales.wholesale', 'sales.return', 'customers.manage', 'invoices.manage');
+SELECT 3, id FROM permissions WHERE code IN ('sales.wholesale', 'sales.return', 'customers.manage', 'invoices.manage');
 
 -- Warehouse permissions
 INSERT INTO role_permissions (role_id, permission_id)

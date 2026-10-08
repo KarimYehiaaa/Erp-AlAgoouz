@@ -69,6 +69,7 @@ export const getOperationAlerts = async () => {
          SELECT reference_id AS supplier_id, SUM(amount) AS total_paid
          FROM payments
          WHERE reference_type = 'supplier'
+           AND LOWER(TRIM(COALESCE(payment_method, 'cash'))) <> 'credit'
          GROUP BY reference_id
        ) paid ON paid.supplier_id = s.id
        WHERE s.deleted_at IS NULL
@@ -86,6 +87,7 @@ export const getOperationAlerts = async () => {
            SELECT reference_id AS sale_id, SUM(amount) AS total_paid
            FROM payments
            WHERE reference_type = 'sale'
+             AND LOWER(TRIM(COALESCE(payment_method, 'cash'))) <> 'credit'
            GROUP BY reference_id
          ) p ON p.sale_id = s.id
          WHERE s.deleted_at IS NULL

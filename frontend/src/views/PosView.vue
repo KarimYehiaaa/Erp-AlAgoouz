@@ -515,6 +515,7 @@
       :loading="pinLoading"
       :error-message="pinErrorMessage"
       @submit-pin="handlePinSubmit"
+      @remote-approved="handleRemoteApproved"
     />
   </div>
 </template>
@@ -626,6 +627,7 @@ const {
   pinLoading,
   pinErrorMessage,
   handlePinSubmit,
+  handleRemoteApproved,
 } = usePosSales();
 
 onMounted(async () => {

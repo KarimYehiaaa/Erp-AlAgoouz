@@ -1,8 +1,19 @@
 import axios, { type AxiosRequestConfig, type AxiosError } from 'axios';
 import { getServerUrl, DEFAULT_SERVER_URL } from './serverUrlPolicy';
 import { sessionService } from './sessionService';
+import { getBrowserQueueContext } from './browserQueue';
+import { consumeManagerOverrideToken, MANAGER_OVERRIDE_HEADER_NAME } from './managerOverride';
 
 let forceProductionMode: boolean | undefined = undefined;
+const currentRequestContext = () =>
+  `${getServerUrl(forceProductionMode)}::${sessionService.getUser()?.id ?? 'anonymous'}::${sessionService.getRevision()}`;
+const contextChanged = () => ({ status: 409, message: 'تغير الحساب أو السيرفر أثناء الطلب' });
+type SessionRequest = AxiosRequestConfig & {
+  _retry?: boolean;
+  _ipRetry?: boolean;
+  _queueContext?: string;
+  _sessionContext?: string;
+};
 
 export function setApiProductionMode(prod: boolean | undefined) {
   forceProductionMode = prod;
@@ -11,7 +22,9 @@ export function setApiProductionMode(prod: boolean | undefined) {
 export const api = axios.create({
   baseURL: DEFAULT_SERVER_URL,
   timeout: 8000,
-  withCredentials: true,
+  // Desktop authentication is carried by the OS-protected token vault.
+  // Browser cookies must not override the selected cashier's bearer token.
+  withCredentials: false,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -31,17 +44,22 @@ function onRefreshed(newToken: string | null) {
 }
 
 api.interceptors.request.use((config) => {
-  const isProd =
-    forceProductionMode !== undefined
-      ? forceProductionMode
-      : ((import.meta as any).env?.PROD ?? false);
-  const currentBase = getServerUrl(isProd);
+  const request = config as typeof config & SessionRequest;
+  if (request._sessionContext && request._sessionContext !== currentRequestContext()) {
+    return Promise.reject(contextChanged());
+  }
+  request._sessionContext = currentRequestContext();
+  const queueContext = (config as typeof config & { _queueContext?: string })._queueContext;
+  if (queueContext && queueContext !== getBrowserQueueContext()) {
+    return Promise.reject({ status: 409, message: 'تغير الحساب أو السيرفر قبل إرسال الفواتير' });
+  }
+  const currentBase = getServerUrl(forceProductionMode);
   config.baseURL =
     (config as typeof config & { _ipRetry?: boolean })._ipRetry &&
     new URL(currentBase).hostname === 'localhost'
       ? currentBase.replace('localhost', '127.0.0.1')
       : currentBase;
-  config.withCredentials = true;
+  config.withCredentials = false;
   if (config.url?.includes('/auth/login')) {
     config.headers['X-Client-Type'] = 'desktop-pos';
   }
@@ -52,14 +70,33 @@ api.interceptors.request.use((config) => {
     config.headers.Authorization = `Bearer ${token}`;
   }
 
+  const managerOverride = consumeManagerOverrideToken(config.method || 'GET', config.url || '');
+  if (managerOverride) {
+    config.headers[MANAGER_OVERRIDE_HEADER_NAME] = managerOverride;
+  }
+
   return config;
 });
 
 api.interceptors.response.use(
-  (res) => res,
+  (res) =>
+    (res.config as SessionRequest)._sessionContext === currentRequestContext()
+      ? res
+      : Promise.reject(contextChanged()),
   async (err: AxiosError) => {
-    const originalRequest = err.config as
-      (AxiosRequestConfig & { _retry?: boolean; _ipRetry?: boolean }) | undefined;
+    const originalRequest = err.config as SessionRequest | undefined;
+    if (
+      originalRequest?._sessionContext &&
+      originalRequest._sessionContext !== currentRequestContext()
+    ) {
+      return Promise.reject(contextChanged());
+    }
+    if (
+      originalRequest?._queueContext &&
+      originalRequest._queueContext !== getBrowserQueueContext()
+    ) {
+      return Promise.reject(err);
+    }
 
     // معالجة خطأ 401 فقط
     if (err.response?.status === 401 && originalRequest) {
@@ -69,8 +106,13 @@ api.interceptors.response.use(
 
       // إذا كان الخطأ من تسجيل الدخول أو التجديد نفسه، أو تمت محاولة التجديد مسبقاً -> منع التكرار اللانهائي
       if (originalRequest._retry || isAuthEndpoint) {
+        const revision = sessionService.getRevision();
         await sessionService.clearSession();
-        if (typeof window !== 'undefined' && window.location?.hash !== '#/login') {
+        if (
+          sessionService.getRevision() === revision + 1 &&
+          typeof window !== 'undefined' &&
+          window.location?.hash !== '#/login'
+        ) {
           window.location.hash = '#/login';
         }
         return Promise.reject(err);
@@ -80,6 +122,8 @@ api.interceptors.response.use(
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           subscribeTokenRefresh((newToken) => {
+            if (originalRequest._sessionContext !== currentRequestContext())
+              return reject(contextChanged());
             if (newToken && originalRequest.headers) {
               originalRequest._retry = true;
               originalRequest.headers.Authorization = `Bearer ${newToken}`;
@@ -93,13 +137,10 @@ api.interceptors.response.use(
 
       originalRequest._retry = true;
       isRefreshing = true;
+      const refreshContext = currentRequestContext();
 
       try {
-        const isProd =
-          forceProductionMode !== undefined
-            ? forceProductionMode
-            : ((import.meta as any).env?.PROD ?? false);
-        const serverUrl = getServerUrl(isProd);
+        const serverUrl = getServerUrl(forceProductionMode);
         const refreshToken = sessionService.getRefreshToken();
 
         // محاولة تجديد الجلسة مرة واحدة فقط
@@ -107,7 +148,7 @@ api.interceptors.response.use(
           `${serverUrl}/auth/refresh`,
           refreshToken ? { refreshToken } : {},
           {
-            withCredentials: true,
+            withCredentials: false,
             timeout: 6000,
             headers: {
               'Content-Type': 'application/json',
@@ -119,15 +160,18 @@ api.interceptors.response.use(
 
         const payload = refreshResponse.data?.data;
         const newAccessToken = payload?.token;
+        if (refreshContext !== currentRequestContext()) throw contextChanged();
 
         if (refreshResponse.data?.success && newAccessToken) {
           // تحديث الجلسة الآمنة
           await sessionService.updateTokens(newAccessToken, payload?.refreshToken);
+          if (refreshContext !== currentRequestContext()) throw contextChanged();
 
           // تحديث محرك المزامنة في Electron
           if (typeof window !== 'undefined' && window.electronAPI?.setAuthToken) {
             await window.electronAPI.setAuthToken(newAccessToken, serverUrl);
           }
+          if (refreshContext !== currentRequestContext()) throw contextChanged();
 
           onRefreshed(newAccessToken);
 
@@ -141,8 +185,14 @@ api.interceptors.response.use(
         }
       } catch (refreshErr) {
         onRefreshed(null);
+        if (refreshContext !== currentRequestContext()) return Promise.reject(refreshErr);
+        const revision = sessionService.getRevision();
         await sessionService.clearSession();
-        if (typeof window !== 'undefined' && window.location?.hash !== '#/login') {
+        if (
+          sessionService.getRevision() === revision + 1 &&
+          typeof window !== 'undefined' &&
+          window.location?.hash !== '#/login'
+        ) {
           window.location.hash = '#/login';
         }
         return Promise.reject(refreshErr);

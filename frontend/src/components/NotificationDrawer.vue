@@ -128,9 +128,10 @@
       <div class="drawer-footer">
         <span>آخر تدقيق آلي: {{ lastChecked }}</span>
         <button
-          v-if="appStore.notifications.length"
+          v-if="appStore.notifications.some((alert) => alert.notification_id != null)"
           type="button"
           class="clear-all-link"
+          :disabled="clearingNotifications"
           @click="clearNotifications"
         >
           تعليم الكل كمقروء
@@ -145,24 +146,54 @@ import { ref, onMounted, watch, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import AppIcon from '@/components/AppIcon.vue';
 import { useAppStore } from '@/stores/app';
+import { useAuthStore } from '@/stores/auth';
 import { operations } from '@/api';
+import { WAREHOUSE_GLOBAL_ROLES } from '../../../shared/permissions.js';
 
 const router = useRouter();
 const appStore = useAppStore();
+const authStore = useAuthStore();
+const canViewShopAlerts = computed(
+  () =>
+    authStore.profileLoaded &&
+    WAREHOUSE_GLOBAL_ROLES.includes(authStore.user?.role_name || '') &&
+    authStore.hasPermission('dashboard.view'),
+);
 const loading = ref(false);
+const clearingNotifications = ref(false);
 const lastChecked = ref('—');
 const activeFilter = ref<'all' | 'critical' | 'warning' | 'info'>('all');
+let alertsRequestRevision = 0;
+const canRetainCachedAlerts = (error: unknown) => {
+  const candidate = error as { response?: { status?: number }; status?: number } | null;
+  return ![401, 403].includes(candidate?.response?.status ?? candidate?.status ?? 0);
+};
 
 const fetchAlerts = async () => {
+  const contextRevision = appStore.notificationContextRevision;
+  const requestRevision = ++alertsRequestRevision;
   loading.value = true;
   try {
-    const [res, notifRes] = await Promise.all([
-      operations.alerts(),
-      operations.notifications().catch(() => null),
+    const [alertResult, notificationResult] = await Promise.allSettled([
+      canViewShopAlerts.value ? operations.alerts() : Promise.resolve({ data: { alerts: [] } }),
+      operations.notifications(),
     ]);
-    const alerts = res.data?.alerts || [];
+    if (
+      contextRevision !== appStore.notificationContextRevision ||
+      requestRevision !== alertsRequestRevision
+    )
+      return;
+    const alerts =
+      alertResult.status === 'fulfilled'
+        ? alertResult.value.data?.alerts || []
+        : canRetainCachedAlerts(alertResult.reason)
+          ? appStore.notifications.filter((alert) => alert.notification_id == null)
+          : [];
 
-    const savedNotifs = (notifRes?.data || []).filter((n: any) => !n.is_read);
+    const savedNotifs =
+      notificationResult.status === 'fulfilled'
+        ? (notificationResult.value.data || []).filter((n: any) => !n.is_read)
+        : [];
     const mappedNotifs = savedNotifs.map((n: any) => ({
       type: `notification_${n.id}`,
       notification_id: n.id,
@@ -174,15 +205,21 @@ const fetchAlerts = async () => {
       items: [],
     }));
 
-    appStore.notifications = [...mappedNotifs, ...alerts];
+    const retainedNotifs =
+      notificationResult.status === 'rejected' && canRetainCachedAlerts(notificationResult.reason)
+        ? appStore.notifications.filter((alert) => alert.notification_id != null)
+        : [];
+    appStore.notifications = [...mappedNotifs, ...retainedNotifs, ...alerts];
+    if (alertResult.status === 'rejected' || notificationResult.status === 'rejected') {
+      appStore.addToast('تعذر تحديث بعض التنبيهات. حاول مرة أخرى.', 'warning');
+      return;
+    }
     lastChecked.value = new Date().toLocaleTimeString('ar-EG', {
       hour: '2-digit',
       minute: '2-digit',
     });
-  } catch (e: any) {
-    console.error('Error fetching action center alerts:', e);
   } finally {
-    loading.value = false;
+    if (requestRevision === alertsRequestRevision) loading.value = false;
   }
 };
 
@@ -243,12 +280,29 @@ const handleAction = (alert: any) => {
 };
 
 const clearNotifications = async () => {
+  if (clearingNotifications.value) return;
+  const contextRevision = appStore.notificationContextRevision;
+  const notificationIds = new Set(
+    appStore.notifications
+      .filter((alert) => alert.notification_id != null)
+      .map((alert) => alert.notification_id),
+  );
+  clearingNotifications.value = true;
   try {
     await operations.markAllNotificationsRead();
+    if (contextRevision !== appStore.notificationContextRevision) return;
+    alertsRequestRevision++;
+    loading.value = false;
+    appStore.notifications = appStore.notifications.filter(
+      (alert) => !notificationIds.has(alert.notification_id),
+    );
   } catch {
-    // Ignore error
+    if (contextRevision === appStore.notificationContextRevision) {
+      appStore.addToast('تعذر حفظ حالة قراءة الإشعارات. حاول مرة أخرى.', 'error');
+    }
+  } finally {
+    clearingNotifications.value = false;
   }
-  appStore.notifications = [];
 };
 
 watch(
@@ -259,6 +313,9 @@ watch(
     }
   },
 );
+watch(canViewShopAlerts, () => {
+  if (appStore.notificationDrawerOpen) fetchAlerts();
+});
 
 onMounted(() => {
   if (appStore.notificationDrawerOpen) {

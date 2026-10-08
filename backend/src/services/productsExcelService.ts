@@ -1,9 +1,12 @@
 import XLSX from 'xlsx';
-import { query } from '../database/pool.ts';
-import { createProduct, updateProduct } from './productService.ts';
+import { getClient, query } from '../database/pool.ts';
+import { createProduct, updateProduct, lockCategoryHierarchy } from './productService.ts';
 import { AppError } from '../types/errors.ts';
 import { getWarehouseIdByCode } from './warehouseService.ts';
 import { readSafeWorkbook } from './excelSecurity.ts';
+import { findExcelHeaderIndex } from '../utils/excelHeaders.ts';
+import { parseLocalizedNumber } from '../utils/numberParsing.ts';
+import { adjustStock } from './inventoryService.ts';
 
 const HEADERS = [
   'sku',
@@ -52,25 +55,15 @@ const normalizeText = (value) =>
     .toLowerCase()
     .replace(/[\s_-]+/g, '');
 
-const normalizeDigits = (value) =>
-  String(value ?? '')
-    .replace(/[٠-٩]/g, (d) => '0123456789'['٠١٢٣٤٥٦٧٨٩'.indexOf(d)])
-    .replace(/[۰-۹]/g, (d) => '0123456789'['۰۱۲۳۴۵۶۷۸۹'.indexOf(d)])
-    .replace(/[\u200f\u200e]/g, '')
-    .trim();
-
 const parseBool = (value) => {
   if (value === undefined || value === null || String(value).trim() === '') return true;
-  const text = normalizeText(value);
-  return ['1', 'true', 'yes', 'y', 'نعم', 'نشط', 'مفعل'].includes(text);
-};
-
-const toNumber = (value, fallback = 0) => {
-  if (typeof value === 'number') return Number.isFinite(value) ? value : fallback;
-  const text = normalizeDigits(value).replace(/,/g, '').trim();
-  if (!text) return fallback;
-  const parsed = Number(text);
-  return Number.isFinite(parsed) ? parsed : fallback;
+  const text = normalizeText(value)
+    .replace(/[٠-٩]/g, (digit) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(digit)))
+    .replace(/[۰-۹]/g, (digit) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)));
+  if (['1', 'true', 'yes', 'y', 'نعم', 'نشط', 'مفعل'].includes(text)) return true;
+  if (['0', 'false', 'no', 'n', 'لا', 'غيرنشط', 'غيرمفعل', 'معطل', 'موقوف'].includes(text))
+    return false;
+  throw new AppError('قيمة is_active غير صالحة؛ استخدم 1 أو 0', 400);
 };
 
 const slugify = (text) =>
@@ -81,33 +74,27 @@ const slugify = (text) =>
     .replace(/^-+|-+$/g, '')
     .slice(0, 80);
 
-const normalizeHeaders = (headers) =>
-  headers.map((header) => {
-    const text = normalizeText(header);
-    for (const [canonical, aliases] of Object.entries(HEADER_ALIASES)) {
-      if (
-        aliases.some(
-          (alias) => text === normalizeText(alias) || text.includes(normalizeText(alias)),
-        )
-      ) {
-        return canonical;
-      }
-    }
-    return text;
-  });
+const normalizeHeaders = (headers) => {
+  const normalized = headers.map(normalizeText);
+  for (const [canonical, aliases] of Object.entries(HEADER_ALIASES)) {
+    const index = findExcelHeaderIndex(headers, aliases);
+    if (index !== -1) normalized[index] = canonical;
+  }
+  return normalized;
+};
 
 const loadLookups = async () => {
   const categories = (
     await query(`SELECT id, slug, name_ar FROM product_categories WHERE deleted_at IS NULL`)
   ).rows;
-  const categoryMap = {};
+  const categoryMap: Record<string, number> = Object.create(null);
   for (const category of categories) {
     if (category.slug) categoryMap[normalizeText(category.slug)] = category.id;
     if (category.name_ar) categoryMap[normalizeText(category.name_ar)] = category.id;
   }
 
   const warehouses = (await query(`SELECT id, code FROM warehouses WHERE deleted_at IS NULL`)).rows;
-  const warehouseMap = {};
+  const warehouseMap: Record<string, number> = Object.create(null);
   for (const warehouse of warehouses) {
     if (warehouse.code) warehouseMap[String(warehouse.code).toUpperCase()] = warehouse.id;
   }
@@ -115,7 +102,7 @@ const loadLookups = async () => {
   return { categoryMap, warehouseMap };
 };
 
-const ensureCategoryId = async (rawName, categoryMap) => {
+const ensureCategoryId = async (rawName, categoryMap, run = query) => {
   const name = String(rawName || '').trim();
   if (!name) return null;
 
@@ -123,7 +110,7 @@ const ensureCategoryId = async (rawName, categoryMap) => {
   if (categoryMap[key]) return categoryMap[key];
 
   const candidateSlug = slugify(name) || `cat-${Date.now()}`;
-  const existing = await query(
+  const existing = await run(
     `SELECT id, slug, name_ar
      FROM product_categories
      WHERE deleted_at IS NULL
@@ -140,7 +127,7 @@ const ensureCategoryId = async (rawName, categoryMap) => {
     return id;
   }
 
-  const inserted = await query(
+  const inserted = await run(
     `INSERT INTO product_categories (name_ar, slug, sort_order)
      VALUES ($1, $2, 0)
      RETURNING id`,
@@ -155,24 +142,44 @@ const ensureCategoryId = async (rawName, categoryMap) => {
 
 const getIndex = (headers, key) => headers.findIndex((header) => header === key);
 
+function numericCell(row, headers, key: string, fallback?: number): number;
+function numericCell(row, headers, key: string, fallback: null): number | null;
+function numericCell(row, headers, key: string, fallback: number | null = 0): number | null {
+  const raw = row[getIndex(headers, key)];
+  if (raw == null || String(raw).trim() === '') return fallback;
+  const value = parseLocalizedNumber(raw);
+  if (!Number.isFinite(value) || value < 0) throw new AppError(`قيمة ${key} غير صالحة`, 400);
+  return value;
+}
+
 const parseRow = async (row, headers, categoryMap, warehouseMap) => {
   const sku = String(row[getIndex(headers, 'sku')] || '').trim();
   const nameAr = String(row[getIndex(headers, 'name_ar')] || '').trim();
   if (!sku) throw new AppError('كود المنتج sku مطلوب', 400);
   if (!nameAr) throw new AppError('اسم المنتج name_ar مطلوب', 400);
 
-  const salePrice = toNumber(row[getIndex(headers, 'sale_price')], 0);
+  const salePrice = numericCell(row, headers, 'sale_price', 0);
   if (salePrice <= 0) throw new AppError('سعر البيع sale_price يجب أن يكون أكبر من صفر', 400);
 
+  const purchasePrice = numericCell(row, headers, 'purchase_price');
+  const wholesalePrice = numericCell(row, headers, 'wholesale_price', null);
+  const minStock = numericCell(row, headers, 'min_stock', 5);
+  const mainStock = numericCell(row, headers, 'main_stock');
+  const storeStock = numericCell(row, headers, 'store_stock');
+
   const categoryRaw = String(row[getIndex(headers, 'category')] || '').trim() || 'عام';
-  let categoryId = categoryMap[normalizeText(categoryRaw)] || null;
-  if (!categoryId) categoryId = await ensureCategoryId(categoryRaw, categoryMap);
+  const categoryId = categoryMap[normalizeText(categoryRaw)] || null;
 
   const initialStock = {};
-  const mainStock = toNumber(row[getIndex(headers, 'main_stock')], 0);
-  const storeStock = toNumber(row[getIndex(headers, 'store_stock')], 0);
-  if (mainStock > 0 && warehouseMap.MAIN) initialStock[warehouseMap.MAIN] = mainStock;
-  if (storeStock > 0 && warehouseMap.STORE) initialStock[warehouseMap.STORE] = storeStock;
+  for (const [key, code, quantity] of [
+    ['main_stock', 'MAIN', mainStock],
+    ['store_stock', 'STORE', storeStock],
+  ] as const) {
+    const raw = row[getIndex(headers, key)];
+    if (raw == null || String(raw).trim() === '') continue;
+    if (!warehouseMap[code]) throw new AppError(`المخزن ${code} غير متاح`, 400);
+    initialStock[warehouseMap[code]] = quantity;
+  }
 
   return {
     sku,
@@ -182,14 +189,10 @@ const parseRow = async (row, headers, categoryMap, warehouseMap) => {
     category_id: categoryId || null,
     category_raw: categoryRaw,
     unit: String(row[getIndex(headers, 'unit')] || '').trim() || 'قطعة',
-    purchase_price: toNumber(row[getIndex(headers, 'purchase_price')], 0),
+    purchase_price: purchasePrice,
     sale_price: salePrice,
-    wholesale_price:
-      row[getIndex(headers, 'wholesale_price')] === '' ||
-      row[getIndex(headers, 'wholesale_price')] == null
-        ? null
-        : toNumber(row[getIndex(headers, 'wholesale_price')], 0),
-    min_stock: Math.max(0, Math.floor(toNumber(row[getIndex(headers, 'min_stock')], 5))),
+    wholesale_price: wholesalePrice,
+    min_stock: Math.floor(minStock),
     is_active: parseBool(row[getIndex(headers, 'is_active')]),
     initial_stock: Object.keys(initialStock).length ? initialStock : undefined,
   };
@@ -267,7 +270,8 @@ export const parseProductsExcel = async (buffer: Buffer) => {
  * @param {Buffer} buffer محتوى الملف
  * @returns {Promise<{ created: number, updated: number }>}
  */
-export const importProductsFromExcel = async (buffer: Buffer) => {
+export const importProductsFromExcel = async (buffer: Buffer, userId: number) => {
+  if (!Number.isSafeInteger(userId) || userId <= 0) throw new AppError('المستخدم غير صالح', 403);
   const { rows, errors } = await parseProductsExcel(buffer);
   const results = {
     success: 0,
@@ -280,57 +284,61 @@ export const importProductsFromExcel = async (buffer: Buffer) => {
   const { categoryMap } = await loadLookups();
 
   for (const data of rows) {
+    const client = await getClient();
+    const rowCategories = Object.assign(Object.create(null), categoryMap);
     try {
+      await client.query('BEGIN');
+      await lockCategoryHierarchy(client);
       if (!data.category_id) {
-        data.category_id = await ensureCategoryId(data.category_raw || 'عام', categoryMap);
+        data.category_id = await ensureCategoryId(
+          data.category_raw || 'عام',
+          rowCategories,
+          (sql, params) => client.query(sql, params),
+        );
       }
       if (!data.category_id) throw new AppError('التصنيف غير متاح', 400);
 
-      const existing = await query(`SELECT id, deleted_at FROM products WHERE sku = $1`, [
-        data.sku,
-      ]);
+      const existing = await client.query(
+        `SELECT id, deleted_at FROM products WHERE sku = $1 FOR UPDATE`,
+        [data.sku],
+      );
+      const { initial_stock, category_raw, ...productData } = data;
+      void category_raw;
+      let productId: number;
       if (existing.rows[0]) {
         if (existing.rows[0].deleted_at) {
-          await query(
+          await client.query(
             `UPDATE products SET deleted_at = NULL, is_active = TRUE, updated_at = NOW() WHERE id = $1`,
             [existing.rows[0].id],
           );
         }
-        const { initial_stock, category_raw, ...updateData } = data;
-        void category_raw;
-        await updateProduct(existing.rows[0].id, updateData);
-        if (initial_stock) {
-          for (const [warehouseId, qty] of Object.entries(initial_stock)) {
-            await query(
-              `INSERT INTO inventory (product_id, warehouse_id, quantity)
-               VALUES ($1, $2, $3)
-               ON CONFLICT (product_id, warehouse_id, COALESCE(batch_number, ''))
-               DO UPDATE SET quantity = EXCLUDED.quantity, updated_at = NOW()`,
-              [existing.rows[0].id, warehouseId, qty],
-            );
-          }
-        }
-        results.updated++;
+        productId = existing.rows[0].id;
+        await updateProduct(productId, productData, client);
       } else {
-        const { category_raw, initial_stock, ...createData } = data;
-        void category_raw;
-        const created = await createProduct(createData);
-        if (initial_stock) {
-          for (const [warehouseId, qty] of Object.entries(initial_stock)) {
-            await query(
-              `INSERT INTO inventory (product_id, warehouse_id, quantity)
-               VALUES ($1, $2, $3)
-               ON CONFLICT (product_id, warehouse_id, COALESCE(batch_number, ''))
-               DO UPDATE SET quantity = EXCLUDED.quantity, updated_at = NOW()`,
-              [created.id, warehouseId, qty],
-            );
-          }
-        }
-        results.created++;
+        productId = (await createProduct(productData, client)).id;
       }
+      for (const [warehouseId, quantity] of Object.entries(initial_stock || {})) {
+        await adjustStock(
+          {
+            product_id: productId,
+            warehouse_id: Number(warehouseId),
+            quantity,
+            notes: 'تسوية رصيد من استيراد المنتجات Excel',
+          },
+          userId,
+          client,
+        );
+      }
+      await client.query('COMMIT');
+      Object.assign(categoryMap, rowCategories);
+      if (existing.rows[0]) results.updated++;
+      else results.created++;
       results.success++;
     } catch (err: any) {
+      await client.query('ROLLBACK');
       results.failed.push({ sku: data.sku, message: err.message });
+    } finally {
+      client.release();
     }
   }
 
@@ -379,7 +387,7 @@ export const exportProductsToExcel = async () => {
       Number(p.purchase_price) || 0,
       Number(p.sale_price) || 0,
       p.wholesale_price !== null ? Number(p.wholesale_price) : '',
-      Number(p.min_stock) || 5,
+      Number(p.min_stock ?? 5),
       p.is_active,
       Number(p.main_stock) || 0,
       Number(p.store_stock) || 0,

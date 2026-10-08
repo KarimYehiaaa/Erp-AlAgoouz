@@ -487,6 +487,16 @@ export function usePosSales() {
     }
   };
 
+  const handleRemoteApproved = async (managerName?: string) => {
+    showPinModal.value = false;
+    appStore.addToast(`تمت الموافقة عن بعد من هاتف: ${managerName || 'المدير'} ✅`, 'success');
+    if (pendingAuthorizedAction) {
+      const action = pendingAuthorizedAction;
+      pendingAuthorizedAction = null;
+      await action();
+    }
+  };
+
   const todayTotal = computed(() =>
     roundMoney(
       salesHistory.value
@@ -1256,5 +1266,6 @@ export function usePosSales() {
     pinErrorMessage,
     requestManagerPin,
     handlePinSubmit,
+    handleRemoteApproved,
   };
 }

@@ -294,6 +294,18 @@ const convertCanvasToEscPos = (canvas: any) => {
  * تعمل على كافة المتصفحات والمنصات (Firefox, Safari, Mobile, Network Printers)
  */
 export const printReceiptHtml = (invoice: any) => {
+  // Business fields are text, including inside nested receipt HTML and the title.
+  const text = (value: unknown) =>
+    String(value ?? '').replace(/[&<>"']/g, (character) => {
+      const entities: Record<string, string> = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;',
+      };
+      return entities[character]!;
+    });
   const company = invoice.company || { name_ar: 'بن العجوز ERP', tagline: 'للبن التركي الأصيل' };
   const items = invoice.items || [];
   const dateStr = new Date(invoice.created_at || invoice.sale_date || Date.now()).toLocaleString(
@@ -317,7 +329,7 @@ export const printReceiptHtml = (invoice: any) => {
                   : p.method === 'credit'
                     ? 'آجل'
                     : p.method;
-          return `<div class="receipt-row"><span>${methodLabel}:</span><strong>${Number(p.amount).toFixed(2)} ج.م</strong></div>`;
+          return `<div class="receipt-row"><span>${text(methodLabel)}:</span><strong>${Number(p.amount).toFixed(2)} ج.م</strong></div>`;
         })
         .join('')}
     `;
@@ -327,8 +339,8 @@ export const printReceiptHtml = (invoice: any) => {
   if (invoice.loyalty) {
     loyaltyHtml = `
       <div class="receipt-divider"></div>
-      ${invoice.loyalty.earned ? `<div class="receipt-row"><span>نقاط مكتسبة:</span><strong>+${invoice.loyalty.earned} ⭐</strong></div>` : ''}
-      ${invoice.loyalty.redeemed ? `<div class="receipt-row"><span>نقاط مستبدلة:</span><strong>-${invoice.loyalty.redeemed} ⭐</strong></div>` : ''}
+      ${invoice.loyalty.earned ? `<div class="receipt-row"><span>نقاط مكتسبة:</span><strong>+${text(invoice.loyalty.earned)} ⭐</strong></div>` : ''}
+      ${invoice.loyalty.redeemed ? `<div class="receipt-row"><span>نقاط مستبدلة:</span><strong>-${text(invoice.loyalty.redeemed)} ⭐</strong></div>` : ''}
     `;
   }
 
@@ -337,7 +349,7 @@ export const printReceiptHtml = (invoice: any) => {
     <html dir="rtl" lang="ar">
     <head>
       <meta charset="utf-8">
-      <title>إيصال ${invoice.invoice_number || invoice.sale_number || ''}</title>
+      <title>إيصال ${text(invoice.invoice_number || invoice.sale_number || '')}</title>
       <style>
         @page { size: 80mm auto; margin: 0; }
         body {
@@ -370,18 +382,18 @@ export const printReceiptHtml = (invoice: any) => {
     </head>
     <body>
       <div class="receipt-header">
-        <h2>${company.name_ar || 'بن العجوز ERP'}</h2>
-        <p>${company.tagline || 'للبن التركي الأصيل'}</p>
-        ${company.address ? `<p>${company.address}</p>` : ''}
-        ${company.phone ? `<p>ت: ${company.phone}</p>` : ''}
+        <h2>${text(company.name_ar || 'بن العجوز ERP')}</h2>
+        <p>${text(company.tagline || 'للبن التركي الأصيل')}</p>
+        ${company.address ? `<p>${text(company.address)}</p>` : ''}
+        ${company.phone ? `<p>ت: ${text(company.phone)}</p>` : ''}
       </div>
 
       <div class="receipt-divider"></div>
 
-      <div class="receipt-row"><span>رقم الفاتورة:</span><strong>${invoice.invoice_number || invoice.sale_number || '—'}</strong></div>
+      <div class="receipt-row"><span>رقم الفاتورة:</span><strong>${text(invoice.invoice_number || invoice.sale_number || '—')}</strong></div>
       <div class="receipt-row"><span>التاريخ:</span><span>${dateStr}</span></div>
-      <div class="receipt-row"><span>الكاشير:</span><span>${invoice.user_name || 'الكاشير'}</span></div>
-      ${invoice.customer_name ? `<div class="receipt-row"><span>العميل:</span><span>${invoice.customer_name}</span></div>` : ''}
+      <div class="receipt-row"><span>الكاشير:</span><span>${text(invoice.user_name || 'الكاشير')}</span></div>
+      ${invoice.customer_name ? `<div class="receipt-row"><span>العميل:</span><span>${text(invoice.customer_name)}</span></div>` : ''}
 
       <div class="receipt-divider"></div>
 
@@ -400,8 +412,8 @@ export const printReceiptHtml = (invoice: any) => {
               (item: any) => `
             <tr>
               <td>
-                ${item.product_name || item.name_ar}
-                ${item.notes || item.custom_notes ? `<span class="item-note">(${item.notes || item.custom_notes})</span>` : ''}
+                ${text(item.product_name || item.name_ar)}
+                ${item.notes || item.custom_notes ? `<span class="item-note">(${text(item.notes || item.custom_notes)})</span>` : ''}
               </td>
               <td class="text-center">${Number(item.quantity).toFixed(1)}</td>
               <td class="text-left">${Number(item.unit_price || item.sale_price).toFixed(2)}</td>
@@ -431,7 +443,7 @@ export const printReceiptHtml = (invoice: any) => {
       <div class="receipt-divider"></div>
       
       <div class="receipt-footer">
-        <p>${company.tagline || 'شكراً لزيارتكم! نرجو رؤيتكم قريباً'}</p>
+        <p>${text(company.tagline || 'شكراً لزيارتكم! نرجو رؤيتكم قريباً')}</p>
       </div>
     </body>
     </html>

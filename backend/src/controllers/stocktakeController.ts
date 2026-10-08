@@ -1,13 +1,10 @@
 import * as stocktakeService from '../services/stocktakeService.ts';
 import { getAllowedWarehouses } from '../middleware/warehouseAccess.ts';
-import { ADMIN_ROLES } from '../../../shared/permissions.js';
 import { ok, wrap } from './helper.ts';
 
-const resolveAllowedWarehouses = async (req: any): Promise<number[] | undefined> => {
-  const userRole = req.user?.role_name || req.user?.role;
+const resolveAllowedWarehouses = async (req: any): Promise<number[]> => {
   const userId = req.user?.id || req.user?.userId;
-  const isAdmin = userRole && (ADMIN_ROLES as readonly string[]).includes(userRole);
-  return isAdmin ? undefined : await getAllowedWarehouses(userId);
+  return await getAllowedWarehouses(userId);
 };
 
 export const stocktake = {

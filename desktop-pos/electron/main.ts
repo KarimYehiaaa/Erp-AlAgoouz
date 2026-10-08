@@ -1,4 +1,6 @@
-import { app, BrowserWindow, ipcMain, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, shell, dialog } from 'electron';
+import axios from 'axios';
+import { ADMIN_ROLES } from '../../shared/permissions.js';
 import { autoUpdater } from 'electron-updater';
 import path from 'path';
 import os from 'os';
@@ -7,8 +9,12 @@ import { PosSyncWorker } from './sync/syncWorker';
 import { handleOpenCashDrawer, handlePrintReceipt } from './hardware/hardwareService';
 import { validateServerUrl } from '../src/services/serverUrlPolicy';
 import { SecureSessionStore } from './security/secureSessionStore';
+import { hasTrustedUpdatePublisher } from './security/updatePolicy';
+import { isAllowedExternalUrl } from './security/rendererSecurityPolicy';
+import { readFileSync } from 'node:fs';
 import {
   validateIpcSender,
+  isTrustedAppEntryUrl,
   validateSessionPayload,
   validateTransactionPayload,
   sanitizeIpcError,
@@ -16,11 +22,21 @@ import {
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const appEntryPath = path.join(__dirname, '../dist/index.html');
+
+// An unpackaged smoke test must never load the cashier's real vault or queue.
+const smokeTest =
+  !app.isPackaged && process.env.NODE_ENV === 'test' && process.env.POS_SMOKE_TEST === '1';
+if (smokeTest) {
+  if (!process.env.POS_SMOKE_USER_DATA) throw new Error('Smoke test requires an isolated profile');
+  app.setPath('userData', path.resolve(process.env.POS_SMOKE_USER_DATA));
+}
 
 let mainWindow: BrowserWindow | null = null;
 let syncWorker: PosSyncWorker | null = null;
 let secureSessionStore: SecureSessionStore | null = null;
 let updateCheckTimer: NodeJS.Timeout | null = null;
+let autoUpdatesEnabled = false;
 let latestUpdateStatus: {
   state: string;
   version?: string;
@@ -41,6 +57,14 @@ function publishUpdateStatus(status: {
 }
 
 async function checkForUpdates() {
+  if (!autoUpdatesEnabled) {
+    publishUpdateStatus({
+      state: 'error',
+      message: 'التحديث التلقائي متوقف لأن هذا الإصدار لا يحمل توقيع ناشر موثوقًا.',
+    });
+    return;
+  }
+
   try {
     publishUpdateStatus({ state: 'checking' });
     await autoUpdater.checkForUpdates();
@@ -54,6 +78,23 @@ async function checkForUpdates() {
 function configureAutoUpdates() {
   if (!app.isPackaged) return;
 
+  const updateMetadataPath = path.join(process.resourcesPath, 'app-update.yml');
+  let updateMetadata = '';
+  try {
+    updateMetadata = readFileSync(updateMetadataPath, 'utf8');
+  } catch {
+    // A missing updater manifest is equivalent to an unsigned/untrusted build.
+  }
+  if (!hasTrustedUpdatePublisher(updateMetadata)) {
+    publishUpdateStatus({
+      state: 'error',
+      message: 'التحديث التلقائي متوقف لأن هذا الإصدار لا يحمل توقيع ناشر موثوقًا.',
+    });
+    console.warn('[Updater] Disabled: signed publisher metadata is missing');
+    return;
+  }
+
+  autoUpdatesEnabled = true;
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
   autoUpdater.on('checking-for-update', () => {
@@ -95,10 +136,12 @@ import {
   saveTransaction,
   updateQueueItemStatus,
   resetQueueItemRetry,
+  exportQueueRecoveryFiles,
 } from './storage/queueStorage';
 
 function createWindow() {
   mainWindow = new BrowserWindow({
+    show: !smokeTest,
     width: 1280,
     height: 800,
     minWidth: 1024,
@@ -106,7 +149,7 @@ function createWindow() {
     title: 'بن العجوز ERP — نقطة بيع الكاشير (Desktop POS)',
     backgroundColor: '#1c1917',
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
+      preload: path.join(__dirname, 'preload.cjs'),
       nodeIntegration: false,
       contextIsolation: true,
       sandbox: true,
@@ -116,7 +159,7 @@ function createWindow() {
 
   // 1. تأمين فتح النوافذ الجديدة (Window Open Policy)
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    if (url.startsWith('https://') || url.startsWith('http://')) {
+    if (isAllowedExternalUrl(url)) {
       // فتح الروابط الخارجية في متصفح النظام الافتراضي فقط
       shell.openExternal(url).catch(() => {});
     }
@@ -131,10 +174,11 @@ function createWindow() {
         const allowedOrigin = new URL(devUrl).origin;
         const targetOrigin = new URL(navigationUrl).origin;
         if (targetOrigin === allowedOrigin) return;
-      } catch {}
-    } else if (navigationUrl.startsWith('file://')) {
-      const normalized = navigationUrl.replace(/\\/g, '/');
-      if (normalized.includes('/dist/index.html')) return;
+      } catch {
+        /* Malformed navigation URLs are denied below. */
+      }
+    } else if (isTrustedAppEntryUrl(navigationUrl, appEntryPath)) {
+      return;
     }
 
     console.warn(`[Window Security] Blocked unauthorized navigation to: ${navigationUrl}`);
@@ -150,7 +194,7 @@ function createWindow() {
   if (process.env.VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
   } else {
-    mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
+    mainWindow.loadFile(appEntryPath);
   }
 
   // إخفاء القائمة الافتراضية لمنح مساحة كاملة لشاشة الكاشير
@@ -161,7 +205,7 @@ function createWindow() {
 
 // 1. Device Info
 ipcMain.handle('app:get-device-info', (event) => {
-  if (!validateIpcSender(event, app.isPackaged, process.env.VITE_DEV_SERVER_URL)) {
+  if (!validateIpcSender(event, app.isPackaged, process.env.VITE_DEV_SERVER_URL, appEntryPath)) {
     throw new Error('تم رفض الطلب: مرسل غير مصرح له');
   }
   return {
@@ -174,14 +218,14 @@ ipcMain.handle('app:get-device-info', (event) => {
 });
 
 ipcMain.handle('app:get-update-status', (event) => {
-  if (!validateIpcSender(event, app.isPackaged, process.env.VITE_DEV_SERVER_URL)) {
+  if (!validateIpcSender(event, app.isPackaged, process.env.VITE_DEV_SERVER_URL, appEntryPath)) {
     return { state: 'idle' };
   }
   return latestUpdateStatus;
 });
 
 ipcMain.handle('app:check-for-updates', async (event) => {
-  if (!validateIpcSender(event, app.isPackaged, process.env.VITE_DEV_SERVER_URL)) {
+  if (!validateIpcSender(event, app.isPackaged, process.env.VITE_DEV_SERVER_URL, appEntryPath)) {
     return { success: false, message: 'تم رفض الطلب: مرسل غير مصرح له' };
   }
   if (!app.isPackaged) {
@@ -199,7 +243,7 @@ ipcMain.handle('app:check-for-updates', async (event) => {
 });
 
 ipcMain.handle('app:install-update', (event) => {
-  if (!validateIpcSender(event, app.isPackaged, process.env.VITE_DEV_SERVER_URL)) {
+  if (!validateIpcSender(event, app.isPackaged, process.env.VITE_DEV_SERVER_URL, appEntryPath)) {
     return { success: false, message: 'تم رفض الطلب: مرسل غير مصرح له' };
   }
   if (!app.isPackaged || latestUpdateStatus.state !== 'downloaded') {
@@ -211,7 +255,7 @@ ipcMain.handle('app:install-update', (event) => {
 
 // 2. Hardware: Printers
 ipcMain.handle('hardware:get-printers', async (event) => {
-  if (!validateIpcSender(event, app.isPackaged, process.env.VITE_DEV_SERVER_URL)) {
+  if (!validateIpcSender(event, app.isPackaged, process.env.VITE_DEV_SERVER_URL, appEntryPath)) {
     throw new Error('تم رفض الطلب: مرسل غير مصرح له');
   }
   if (!mainWindow) return [];
@@ -225,7 +269,7 @@ ipcMain.handle('hardware:get-printers', async (event) => {
 
 // 3. Hardware: Cash Drawer Kick
 ipcMain.handle('hardware:open-drawer', async (event, printerNameOrIp?: string) => {
-  if (!validateIpcSender(event, app.isPackaged, process.env.VITE_DEV_SERVER_URL)) {
+  if (!validateIpcSender(event, app.isPackaged, process.env.VITE_DEV_SERVER_URL, appEntryPath)) {
     return {
       success: false,
       status: 'FAILED',
@@ -251,7 +295,7 @@ ipcMain.handle('hardware:open-drawer', async (event, printerNameOrIp?: string) =
 ipcMain.handle(
   'hardware:print-receipt',
   async (event, invoiceData: any, printerNameOrIp?: string) => {
-    if (!validateIpcSender(event, app.isPackaged, process.env.VITE_DEV_SERVER_URL)) {
+    if (!validateIpcSender(event, app.isPackaged, process.env.VITE_DEV_SERVER_URL, appEntryPath)) {
       return {
         success: false,
         status: 'FAILED',
@@ -282,45 +326,127 @@ ipcMain.handle(
 
 // 5. Storage: Offline Transactions with Durability & Write Failure Protection
 ipcMain.handle('storage:save-transaction', (event, transaction) => {
-  if (!validateIpcSender(event, app.isPackaged, process.env.VITE_DEV_SERVER_URL)) {
+  if (!validateIpcSender(event, app.isPackaged, process.env.VITE_DEV_SERVER_URL, appEntryPath)) {
     return { success: false, error: 'تم رفض الطلب: مرسل غير مصرح له' };
   }
   const validation = validateTransactionPayload(transaction);
   if (!validation.valid) {
     return { success: false, error: validation.error || 'بيانات العملية غير صالحة' };
   }
-  return saveTransaction(transaction);
+  const context = syncWorker?.getQueueContext();
+  if (!context) {
+    return { success: false, error: 'يلزم وجود جلسة كاشير لتحديد مالك الفاتورة المحلية' };
+  }
+  return saveTransaction({ ...transaction, ...context });
 });
 
 ipcMain.handle('storage:get-pending', (event) => {
-  if (!validateIpcSender(event, app.isPackaged, process.env.VITE_DEV_SERVER_URL)) {
+  if (!validateIpcSender(event, app.isPackaged, process.env.VITE_DEV_SERVER_URL, appEntryPath)) {
     return [];
   }
-  return readPendingQueue().filter((t) => t.status === 'PENDING' || t.status === 'FAILED');
+  return readPendingQueue().filter(
+    (t) => (t.status === 'PENDING' || t.status === 'FAILED') && syncWorker?.ownsQueueItem(t),
+  );
+});
+
+ipcMain.handle('storage:get-retention-summary', (event) => {
+  if (!validateIpcSender(event, app.isPackaged, process.env.VITE_DEV_SERVER_URL, appEntryPath)) {
+    return { success: false };
+  }
+  const retained = readPendingQueue().filter((item) => item.status !== 'SYNCED');
+  const unknown = retained.filter((item) => !item.origin_server || !item.origin_user_id);
+  return {
+    success: true,
+    unknownCount: unknown.length,
+    otherContextCount: retained.filter(
+      (item) => item.origin_server && item.origin_user_id && !syncWorker?.ownsQueueItem(item),
+    ).length,
+  };
+});
+
+ipcMain.handle('storage:export-recovery', async (event) => {
+  if (!validateIpcSender(event, app.isPackaged, process.env.VITE_DEV_SERVER_URL, appEntryPath)) {
+    return { success: false, error: 'مرسل غير مصرح له' };
+  }
+  const worker = syncWorker;
+  const token = worker?.getAuthToken();
+  const server = worker?.getServerUrl();
+  const context = worker?.getQueueContext();
+  if (!worker || !token || !server || !context)
+    return { success: false, error: 'يلزم تسجيل دخول مسؤول لتصدير ملفات الاسترجاع' };
+  const sessionUnchanged = () =>
+    worker === syncWorker && token === worker.getAuthToken() && server === worker.getServerUrl();
+  try {
+    // Verify the current role with the server; renderer data and decoded JWT claims are not authorization.
+    const verifyAdmin = async () => {
+      const profile = await axios.get(`${server.replace(/\/$/, '')}/auth/profile`, {
+        headers: { Authorization: `Bearer ${token}` },
+        timeout: 8000,
+        maxRedirects: 0,
+        maxContentLength: 256 * 1024,
+        proxy: false,
+      });
+      const user = profile.data?.data?.user;
+      return (
+        sessionUnchanged() &&
+        profile.data?.success === true &&
+        Number(user?.id) === context.origin_user_id &&
+        ADMIN_ROLES.includes(user?.role_name)
+      );
+    };
+    if (!(await verifyAdmin())) {
+      return {
+        success: false,
+        error: 'تصدير ملفات الاسترجاع يتطلب جلسة مسؤول مؤكدة على السيرفر الحالي',
+      };
+    }
+    const chosen = await dialog.showOpenDialog({
+      title: 'حفظ نسخة ملفات الاسترجاع — قد تحتوي بيانات حسابات أخرى',
+      buttonLabel: 'حفظ نسخة هنا',
+      properties: ['openDirectory', 'createDirectory'],
+    });
+    if (chosen.canceled || !chosen.filePaths[0]) return { success: false, canceled: true };
+    if (!sessionUnchanged())
+      return { success: false, error: 'تغير الحساب أو السيرفر؛ أعد طلب التصدير' };
+    if (!(await verifyAdmin()))
+      return { success: false, error: 'تعذر تأكيد صلاحية المسؤول؛ أعد تسجيل الدخول' };
+    return { success: true, ...exportQueueRecoveryFiles(chosen.filePaths[0]) };
+  } catch {
+    return {
+      success: false,
+      error:
+        'تعذر تصدير نسخة الاسترجاع. تأكد من اتصال المسؤول بالسيرفر وصلاحية مجلد الحفظ؛ الملفات الأصلية محفوظة.',
+    };
+  }
 });
 
 ipcMain.handle(
   'storage:update-status',
   (event, syncId: string, status: string, serverId?: any, errorMessage?: string) => {
-    if (!validateIpcSender(event, app.isPackaged, process.env.VITE_DEV_SERVER_URL)) {
+    if (!validateIpcSender(event, app.isPackaged, process.env.VITE_DEV_SERVER_URL, appEntryPath)) {
       return false;
     }
     if (typeof syncId !== 'string' || typeof status !== 'string') {
       return false;
     }
+    const item = readPendingQueue().find((t) => t.sync_id === syncId);
+    if (!item || !syncWorker?.ownsQueueItem(item)) return false;
     return updateQueueItemStatus(syncId, status, serverId, errorMessage);
   },
 );
 
 ipcMain.handle('storage:reset-retry', (event, syncId: string) => {
-  if (!validateIpcSender(event, app.isPackaged, process.env.VITE_DEV_SERVER_URL)) return false;
+  if (!validateIpcSender(event, app.isPackaged, process.env.VITE_DEV_SERVER_URL, appEntryPath))
+    return false;
   if (typeof syncId !== 'string' || syncId.length > 128) return false;
+  const item = readPendingQueue().find((t) => t.sync_id === syncId);
+  if (!item || !syncWorker?.ownsQueueItem(item)) return false;
   return resetQueueItemRetry(syncId);
 });
 
 // 6. Central Configuration & Server URL Bridge
 ipcMain.handle('config:get-server-url', (event) => {
-  if (!validateIpcSender(event, app.isPackaged, process.env.VITE_DEV_SERVER_URL)) {
+  if (!validateIpcSender(event, app.isPackaged, process.env.VITE_DEV_SERVER_URL, appEntryPath)) {
     return 'http://localhost:3000/api/v1';
   }
   return syncWorker
@@ -329,7 +455,7 @@ ipcMain.handle('config:get-server-url', (event) => {
 });
 
 ipcMain.handle('config:set-server-url', (event, url: string) => {
-  if (!validateIpcSender(event, app.isPackaged, process.env.VITE_DEV_SERVER_URL)) {
+  if (!validateIpcSender(event, app.isPackaged, process.env.VITE_DEV_SERVER_URL, appEntryPath)) {
     return { success: false, error: 'تم رفض الطلب: مرسل غير مصرح له' };
   }
   if (!syncWorker) {
@@ -357,7 +483,7 @@ ipcMain.handle('config:set-server-url', (event, url: string) => {
 
 // 7. Session & Background Sync Bridge (Atomic Configuration)
 ipcMain.handle('auth:set-session', (event, token: string | null, serverUrl?: string) => {
-  if (!validateIpcSender(event, app.isPackaged, process.env.VITE_DEV_SERVER_URL)) {
+  if (!validateIpcSender(event, app.isPackaged, process.env.VITE_DEV_SERVER_URL, appEntryPath)) {
     return { success: false, error: 'تم رفض الطلب: مرسل غير مصرح له' };
   }
   if (!syncWorker) {
@@ -383,7 +509,7 @@ ipcMain.handle('auth:set-session', (event, token: string | null, serverUrl?: str
 
 // 8. Secure OS Session Storage (safeStorage)
 ipcMain.handle('session:save', async (event, sessionData: any) => {
-  if (!validateIpcSender(event, app.isPackaged, process.env.VITE_DEV_SERVER_URL)) {
+  if (!validateIpcSender(event, app.isPackaged, process.env.VITE_DEV_SERVER_URL, appEntryPath)) {
     return { success: false, error: 'تم رفض الطلب: مرسل غير مصرح له' };
   }
   if (!secureSessionStore) {
@@ -401,7 +527,7 @@ ipcMain.handle('session:save', async (event, sessionData: any) => {
 });
 
 ipcMain.handle('session:load', async (event) => {
-  if (!validateIpcSender(event, app.isPackaged, process.env.VITE_DEV_SERVER_URL)) {
+  if (!validateIpcSender(event, app.isPackaged, process.env.VITE_DEV_SERVER_URL, appEntryPath)) {
     return null;
   }
   if (!secureSessionStore) return null;
@@ -414,9 +540,10 @@ ipcMain.handle('session:load', async (event) => {
 });
 
 ipcMain.handle('session:clear', async (event) => {
-  if (!validateIpcSender(event, app.isPackaged, process.env.VITE_DEV_SERVER_URL)) {
+  if (!validateIpcSender(event, app.isPackaged, process.env.VITE_DEV_SERVER_URL, appEntryPath)) {
     return false;
   }
+  syncWorker?.setAuthToken(null);
   if (!secureSessionStore) return true;
   try {
     return await secureSessionStore.clearSession();
@@ -427,7 +554,7 @@ ipcMain.handle('session:clear', async (event) => {
 });
 
 ipcMain.handle('session:has', async (event) => {
-  if (!validateIpcSender(event, app.isPackaged, process.env.VITE_DEV_SERVER_URL)) {
+  if (!validateIpcSender(event, app.isPackaged, process.env.VITE_DEV_SERVER_URL, appEntryPath)) {
     return false;
   }
   if (!secureSessionStore) return false;
@@ -439,7 +566,7 @@ ipcMain.handle('session:has', async (event) => {
 });
 
 ipcMain.handle('sync:trigger-now', async (event) => {
-  if (!validateIpcSender(event, app.isPackaged, process.env.VITE_DEV_SERVER_URL)) {
+  if (!validateIpcSender(event, app.isPackaged, process.env.VITE_DEV_SERVER_URL, appEntryPath)) {
     return { success: false, message: 'تم رفض الطلب: مرسل غير مصرح له' };
   }
   if (syncWorker) {

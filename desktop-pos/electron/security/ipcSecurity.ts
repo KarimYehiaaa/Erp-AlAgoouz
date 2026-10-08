@@ -10,6 +10,27 @@
  */
 
 import type { IpcMainInvokeEvent } from 'electron';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+export function isTrustedAppEntryUrl(url: string, entryPath: string): boolean {
+  try {
+    const parsed = new URL(url);
+    if (
+      parsed.protocol !== 'file:' ||
+      (parsed.hostname && parsed.hostname !== 'localhost') ||
+      parsed.search
+    )
+      return false;
+    const actual = path.resolve(fileURLToPath(parsed));
+    const expected = path.resolve(entryPath);
+    return process.platform === 'win32'
+      ? actual.toLowerCase() === expected.toLowerCase()
+      : actual === expected;
+  } catch {
+    return false;
+  }
+}
 
 export interface IpcValidationResult {
   valid: boolean;
@@ -23,6 +44,7 @@ export function validateIpcSender(
   event: IpcMainInvokeEvent,
   isPackaged: boolean,
   devServerUrl?: string,
+  appEntryPath?: string,
 ): boolean {
   if (!event || !event.senderFrame) {
     console.warn('[IPC Security] Rejected: Missing senderFrame');
@@ -39,13 +61,14 @@ export function validateIpcSender(
 
   // 2. فحص بيئة التطوير
   if (!isPackaged) {
-    const allowedDevUrls = [
-      devServerUrl,
-      'http://localhost:5174',
-      'http://127.0.0.1:5174',
-      'http://localhost:5173',
-      'http://127.0.0.1:5173',
-    ].filter(Boolean) as string[];
+    const allowedDevUrls = devServerUrl
+      ? [devServerUrl]
+      : ([
+          'http://localhost:5174',
+          'http://127.0.0.1:5174',
+          'http://localhost:5173',
+          'http://127.0.0.1:5173',
+        ].filter(Boolean) as string[]);
 
     const matchesDev = allowedDevUrls.some((allowed) => {
       try {
@@ -61,13 +84,7 @@ export function validateIpcSender(
       return true;
     }
 
-    // السماح أيضاً بملف dist/index.html في التطوير إذا تم تشغيله محلياً
-    if (
-      senderUrl.startsWith('file://') &&
-      (senderUrl.includes('dist/index.html') || senderUrl.includes('dist\\index.html'))
-    ) {
-      return true;
-    }
+    if (appEntryPath && isTrustedAppEntryUrl(senderUrl, appEntryPath)) return true;
 
     console.warn(`[IPC Security] Blocked IPC from unapproved dev origin: ${senderUrl}`);
     return false;
@@ -75,12 +92,7 @@ export function validateIpcSender(
 
   // 3. فحص بيئة الإنتاج المجمعة (Packaged Application)
   // يجب أن يكون البروتوكول file:// ويستهدف حزمة التطبيق المجمعة حصراً
-  if (senderUrl.startsWith('file://')) {
-    const normalized = senderUrl.replace(/\\/g, '/');
-    if (normalized.endsWith('/dist/index.html') || normalized.includes('/dist/index.html#')) {
-      return true;
-    }
-  }
+  if (appEntryPath && isTrustedAppEntryUrl(senderUrl, appEntryPath)) return true;
 
   console.warn(`[IPC Security] Blocked IPC from unauthorized packaged URL: ${senderUrl}`);
   return false;

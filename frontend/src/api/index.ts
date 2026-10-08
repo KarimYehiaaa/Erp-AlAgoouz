@@ -1,4 +1,14 @@
-import api, { get, post, put, patch, del, getBlob, postBlob, uploadFile } from './client';
+import api, {
+  get,
+  post,
+  put,
+  patch,
+  del,
+  getBlob,
+  postBlob,
+  uploadFile,
+  clearApiCache,
+} from './client';
 import type { Api } from './client';
 import type {
   ApiEnvelope,
@@ -115,7 +125,13 @@ export const products = {
   create: (data: Partial<Product>) => post<Product>('/products', data),
   deleteAll: () => post('/products/delete-all', { confirm: 'CONFIRM_DELETE_ALL_PRODUCTS' }),
   update: (id: number | string, data: Partial<Product>) => put<Product>(`/products/${id}`, data),
-  bulkAdjustPrices: (data: Record<string, unknown>) => put('/products/bulk-price', data),
+  bulkAdjustPrices: (data: Record<string, unknown>, operationKey: string) =>
+    put('/products/bulk-price', data, { headers: { 'Idempotency-Key': operationKey } }),
+  bulkAdjustmentStatus: (operationKey: string) =>
+    get<{ state: 'completed' | 'processing' | 'absent' | 'unconfirmed'; updatedCount?: number }>(
+      `/products/bulk-price/status/${encodeURIComponent(operationKey)}`,
+      { skipCache: true },
+    ),
   setWarehouse: (id: number | string, warehouse_id: number | string | null) =>
     put(`/products/${id}/warehouse`, { warehouse_id }),
   delete: (id: number | string) => del(`/products/${id}`),
@@ -141,19 +157,13 @@ export const products = {
 };
 
 // كاش قصير لقائمة المخازن — بيانات شبه ثابتة تُجلب من 6+ شاشات عند كل تحميل
-let _whCache: { data: ApiEnvelope<Warehouse[]>; at: number } | null = null;
 const WH_TTL_MS = 60_000;
 export const warehouses = async (force = false): Promise<ApiEnvelope<Warehouse[]>> => {
-  if (!force && _whCache && Date.now() - _whCache.at < WH_TTL_MS) {
-    return _whCache.data;
-  }
-  const res = await get<Warehouse[]>('/warehouses');
-  _whCache = { data: res, at: Date.now() };
-  return res;
+  return get<Warehouse[]>('/warehouses', { cacheTtlMs: WH_TTL_MS, skipCache: force });
 };
 /** إبطال كاش المخازن بعد عمليات إنشاء/تعديل مخزن (نداء اختياري) */
 export const invalidateWarehousesCache = () => {
-  _whCache = null;
+  clearApiCache();
 };
 export { inventory } from './inventory.api';
 

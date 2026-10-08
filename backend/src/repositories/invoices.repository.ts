@@ -1,12 +1,10 @@
-import { BaseRepository } from './base.repository.ts';
 import { query } from '../database/pool.ts';
 import { sanitizeLimit } from '../utils/money.ts';
 import { AppError } from '../types/errors.ts';
 /**
  * عمليات الفواتير: القائمة والتفاصيل الكاملة.
  */
-class InvoicesRepository extends BaseRepository {
-  tableName = 'invoices';
+class InvoicesRepository {
   /**
    * قائمة الفواتير مع بيانات العميل والمبيعة، مع التصفية حسب حالة الدفع والعميل.
    * @param {Record<string, any>} [filters] عوامل التصفية (payment_status، customer_id، limit)
@@ -17,6 +15,10 @@ class InvoicesRepository extends BaseRepository {
       FROM invoices i LEFT JOIN customers c ON i.customer_id = c.id
       LEFT JOIN sales s ON i.sale_id = s.id WHERE i.deleted_at IS NULL`;
     const params: any[] = [];
+    if (Array.isArray(filters.allowed_warehouse_ids)) {
+      params.push(filters.allowed_warehouse_ids);
+      sql += ` AND s.warehouse_id = ANY($${params.length}::int[])`;
+    }
     if (filters.payment_status) {
       params.push(filters.payment_status);
       sql += ` AND i.payment_status = $${params.length}`;

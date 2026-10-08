@@ -13,6 +13,8 @@ import {
   updatePurchaseInvoice,
   deletePurchaseInvoice,
 } from '../src/services/purchaseService.ts';
+import { depleteInventoryCostLayers } from '../src/services/productCostService.ts';
+import { recordPayment, recordSalePayment } from '../src/services/customerService.ts';
 import { createDailySale, updateSale, deleteSalesByDate } from '../src/services/salesService.ts';
 
 describe('Financial Audit Invariants Suite (Real PostgreSQL Invariants)', () => {
@@ -214,7 +216,7 @@ describe('Financial Audit Invariants Suite (Real PostgreSQL Invariants)', () => 
 
       // 5. فحص تقرير أعمار ديون الموردين (getSupplierAging)
       const aging = await accountingService.getSupplierAging();
-      const supAging = aging.suppliers.find((s: any) => s.supplier_id === supplierId);
+      const supAging = aging.suppliers.find((s) => s.supplier_id === supplierId);
       expect(supAging).toBeDefined();
       expect(Number(supAging.total_due)).toBe(7000);
     });
@@ -247,17 +249,39 @@ describe('Financial Audit Invariants Suite (Real PostgreSQL Invariants)', () => 
 
       // 4. محاولة حذف المصروف => يجب أن يفشل بسبب تريجر حماية الفترة المقفلة
       await expect(query('DELETE FROM expenses WHERE id = $1', [expenseId])).rejects.toThrow(
-        /لا يمكن حذف سجل في فترة محاسبية مغلقة/,
+        /فترة محاسبية مغلقة/,
       );
 
       // 5. محاولة تعديل المصروف => يجب أن يفشل
       await expect(
         query('UPDATE expenses SET amount = 600 WHERE id = $1', [expenseId]),
-      ).rejects.toThrow(/لا يمكن تعديل أو تسجيل عملية في فترة محاسبية مغلقة/);
+      ).rejects.toThrow(/فترة محاسبية مغلقة/);
+
+      // Moving a row out of a locked period must still inspect its OLD date.
+      await expect(
+        query(`UPDATE expenses SET expense_date = '2019-02-01' WHERE id = $1`, [expenseId]),
+      ).rejects.toThrow(/فترة محاسبية مغلقة/);
+
+      // Moving an otherwise open-period row into a locked period must inspect NEW.
+      const outsideExpense = await query(
+        `INSERT INTO expenses (expense_number, category_id, title, amount, expense_date, payment_method, user_id)
+         VALUES ($1, 1, $2, 125.00, '2019-02-15', 'cash', 1) RETURNING id`,
+        ['EXP-LOCK-OUTSIDE-' + Date.now(), 'مصروف خارج الفترة لاختبار النقل'],
+      );
+      const outsideExpenseId = Number(outsideExpense.rows[0].id);
+      cleanup.expenseIds.push(outsideExpenseId);
+      await expect(
+        query(`UPDATE expenses SET expense_date = '2019-01-20' WHERE id = $1`, [outsideExpenseId]),
+      ).rejects.toThrow(/فترة محاسبية مغلقة/);
+      const outsideExpenseAfter = await query('SELECT expense_date FROM expenses WHERE id = $1', [
+        outsideExpenseId,
+      ]);
+      expect(String(outsideExpenseAfter.rows[0].expense_date).slice(0, 10)).toBe('2019-02-15');
 
       // 6. إعادة فتح الفترة للتنظيف
       await query('UPDATE financial_periods SET status = $1 WHERE id = $2', ['open', periodId]);
       await query('DELETE FROM expenses WHERE id = $1', [expenseId]);
+      await query('DELETE FROM expenses WHERE id = $1', [outsideExpenseId]);
     });
   });
 
@@ -421,16 +445,151 @@ describe('Financial Audit Invariants Suite (Real PostgreSQL Invariants)', () => 
         )
       ).rows;
       expect(jeLines.length).toBe(2);
-      const shortageLine = jeLines.find((l: any) => l.code === '5204');
-      const stockLine = jeLines.find((l: any) => l.code === '110301');
+      const shortageLine = jeLines.find((l) => l.code === '5204');
+      const stockLine = jeLines.find((l) => l.code === '110301');
       expect(shortageLine).toBeDefined();
       expect(Number(shortageLine.debit)).toBe(250);
       expect(stockLine).toBeDefined();
       expect(Number(stockLine.credit)).toBe(250);
 
       // التحقق من عدم لمس حساب النقدية (1101) نهائياً
-      const cashLine = jeLines.find((l: any) => l.code === '1101');
+      const cashLine = jeLines.find((l) => l.code === '1101');
       expect(cashLine).toBeUndefined();
+    });
+
+    it('values stocktake shortages from FIFO layers, estimates only missing layers, and preserves batches and reservations', async () => {
+      const suffix = Date.now();
+      const warehouseCode = `WHC-${suffix}`;
+      const warehouse = (
+        await query(
+          `INSERT INTO warehouses (code, name_ar, type, is_active)
+         VALUES ($1, 'مخزن اختبار تكلفة الجرد', 'store', TRUE) RETURNING id`,
+          [warehouseCode],
+        )
+      ).rows[0].id;
+      cleanup.warehouseIds.push(warehouse);
+
+      const products = (
+        await query(
+          `INSERT INTO products (sku, name_ar, unit, purchase_price, sale_price, is_active)
+         VALUES ($1, 'جرد طبقات كاملة', 'count', 25, 50, TRUE),
+                ($2, 'جرد طبقات ناقصة', 'count', 30, 60, TRUE)
+         RETURNING id`,
+          [`STK-FIFO-${suffix}`, `STK-EST-${suffix}`],
+        )
+      ).rows.map((row) => Number(row.id));
+      const [fifoProduct, estimatedProduct] = products;
+      cleanup.productIds.push(...products);
+
+      await query(
+        `INSERT INTO inventory (product_id, warehouse_id, quantity, reserved_quantity, batch_number)
+         VALUES ($1, $3, 5, 1, 'A'), ($1, $3, 7, 0, 'B'), ($2, $3, 12, 0, NULL)`,
+        [fifoProduct, estimatedProduct, warehouse],
+      );
+      await query(
+        `INSERT INTO inventory_cost_layers
+           (product_id, warehouse_id, source_type, quantity, remaining_quantity, unit_cost, total_cost, created_at)
+         VALUES ($1, $3, 'test', 2, 2, 10, 20, NOW() - INTERVAL '2 minutes'),
+                ($1, $3, 'test', 5, 5, 20, 100, NOW() - INTERVAL '1 minute'),
+                ($2, $3, 'test', 2, 2, 5, 10, NOW())`,
+        [fifoProduct, estimatedProduct, warehouse],
+      );
+
+      const stocktake = await createStocktake(warehouse, 1, 'تحقق FIFO والتكلفة التقديرية');
+      cleanup.stocktakeIds.push(stocktake.id);
+      await updateStocktakeItems(stocktake.id, {
+        items: [
+          { product_id: fifoProduct, actual_quantity: 8 },
+          { product_id: estimatedProduct, actual_quantity: 8 },
+        ],
+      });
+
+      const result = await completeStocktake(stocktake.id, 1);
+      expect(result.total_deficit_value).toBe(130);
+
+      const movements = (
+        await query(
+          `SELECT product_id, quantity, unit_cost, total_cost, from_warehouse_id, notes
+         FROM stock_movements WHERE reference_type = 'stocktake' AND notes LIKE $1
+         ORDER BY product_id`,
+          [`%معرف الجرد: ${stocktake.id}%`],
+        )
+      ).rows;
+      expect(movements).toHaveLength(2);
+      expect(
+        movements.map((row) => [
+          Number(row.product_id),
+          Number(row.quantity),
+          Number(row.total_cost),
+          Number(row.unit_cost),
+        ]),
+      ).toEqual([
+        [fifoProduct, 4, 60, 15],
+        [estimatedProduct, 4, 70, 17.5],
+      ]);
+      expect(movements[1].notes).toContain('تكلفة تقديرية لكمية 2');
+      expect(movements.every((row) => Number(row.from_warehouse_id) === warehouse)).toBe(true);
+
+      const fifoBatches = (
+        await query(
+          `SELECT batch_number, quantity, reserved_quantity FROM inventory
+         WHERE product_id = $1 AND warehouse_id = $2 ORDER BY batch_number`,
+          [fifoProduct, warehouse],
+        )
+      ).rows;
+      expect(
+        fifoBatches.map((row) => [
+          row.batch_number,
+          Number(row.quantity),
+          Number(row.reserved_quantity),
+        ]),
+      ).toEqual([
+        ['A', 1, 1],
+        ['B', 7, 0],
+        [null, 0, 0],
+      ]);
+
+      const remainingLayers = (
+        await query(
+          `SELECT product_id, remaining_quantity FROM inventory_cost_layers
+         WHERE product_id = ANY($1::int[]) ORDER BY product_id, created_at, id`,
+          [products],
+        )
+      ).rows;
+      expect(
+        remainingLayers.map((row) => [Number(row.product_id), Number(row.remaining_quantity)]),
+      ).toEqual([
+        [fifoProduct, 0],
+        [fifoProduct, 3],
+        [estimatedProduct, 0],
+      ]);
+
+      const expense = (
+        await query(
+          `SELECT id, amount, payment_method FROM expenses WHERE expense_number LIKE $1`,
+          [`EXP-STK-${stocktake.id}-%`],
+        )
+      ).rows[0];
+      expect(Number(expense.amount)).toBe(130);
+      expect(expense.payment_method).toBe('adjustment');
+      cleanup.expenseIds.push(expense.id);
+
+      const journal = (
+        await query('SELECT id FROM journal_entries WHERE idempotency_key = $1', [
+          `stocktake_adjustment:${stocktake.id}`,
+        ])
+      ).rows[0];
+      expect(journal).toBeDefined();
+      cleanup.journalEntryIds.push(journal.id);
+      const totals = (
+        await query(
+          `SELECT SUM(jel.debit)::numeric AS debit, SUM(jel.credit)::numeric AS credit
+         FROM journal_entry_lines jel WHERE jel.journal_entry_id = $1`,
+          [journal.id],
+        )
+      ).rows[0];
+      expect(Number(totals.debit)).toBe(130);
+      expect(Number(totals.credit)).toBe(130);
     });
   });
 
@@ -456,7 +615,7 @@ describe('Financial Audit Invariants Suite (Real PostgreSQL Invariants)', () => 
            VALUES ($1, 'sale', 99999, 150.00, 'cash', 1, '2014-01-15')`,
           ['PAY-LOCK-' + Date.now()],
         ),
-      ).rejects.toThrow(/لا يمكن تعديل أو تسجيل عملية في فترة محاسبية مغلقة/);
+      ).rejects.toThrow(/فترة محاسبية مغلقة/);
 
       // 3. فتح الفترة للتنظيف
       await query(`UPDATE financial_periods SET status = 'open' WHERE id = $1`, [periodId]);
@@ -516,7 +675,7 @@ describe('Financial Audit Invariants Suite (Real PostgreSQL Invariants)', () => 
       // محاولة حذف السطر
       await expect(
         query('DELETE FROM journal_entry_lines WHERE id = $1', [lineId]),
-      ).rejects.toThrow(/لا يمكن حذف سجل في فترة محاسبية مغلقة/);
+      ).rejects.toThrow(/فترة محاسبية مغلقة/);
 
       // فتح الفترة للتنظيف
       await query(`UPDATE financial_periods SET status = 'open' WHERE id = $1`, [periodId]);
@@ -595,6 +754,242 @@ describe('Financial Audit Invariants Suite (Real PostgreSQL Invariants)', () => 
       );
       expect(updatedEntryRes.rows.length).toBe(1);
       expect(Number(updatedEntryRes.rows[0].total_debit)).toBe(1500);
+    });
+
+    it('يرفض تعديل أو حذف فاتورة شراء استُهلكت طبقة تكلفتها حتى لو عوّض شراء لاحق رصيد المخزون', async () => {
+      const suffix = Date.now();
+      const warehouseId = (
+        await query(
+          `INSERT INTO warehouses (code, name_ar, type, is_active)
+           VALUES ($1, 'مخزن اختبار حماية طبقة الشراء', 'store', TRUE) RETURNING id`,
+          [`WPL-${suffix}`],
+        )
+      ).rows[0].id;
+      cleanup.warehouseIds.push(warehouseId);
+
+      const categoryId = (
+        await query(`INSERT INTO product_categories (name_ar) VALUES ($1) RETURNING id`, [
+          `تصنيف حماية طبقة الشراء ${suffix}`,
+        ])
+      ).rows[0].id;
+      cleanup.categoryIds.push(categoryId);
+
+      const productId = (
+        await query(
+          `INSERT INTO products (sku, name_ar, purchase_price, sale_price, category_id, primary_warehouse_id, is_active)
+           VALUES ($1, $2, 10, 20, $3, $4, TRUE) RETURNING id`,
+          [`SKU-PUR-LAYER-${suffix}`, `منتج حماية طبقة الشراء ${suffix}`, categoryId, warehouseId],
+        )
+      ).rows[0].id;
+      cleanup.productIds.push(productId);
+
+      const original = await createPurchaseInvoice(
+        {
+          warehouse_id: warehouseId,
+          items: [
+            { product_id: productId, warehouse_id: warehouseId, quantity: 10, unit_price: 10 },
+          ],
+        },
+        1,
+      );
+      cleanup.invoiceIds.push(original.id);
+
+      // Match a real stock issue: consume 4 units from this invoice's FIFO
+      // layer and reduce warehouse stock. A later receipt restores total stock
+      // above the original invoice quantity, exposing the old reversal bug.
+      const client = await getClient();
+      try {
+        await client.query('BEGIN');
+        const consumed = await depleteInventoryCostLayers(client, productId, warehouseId, 4);
+        expect(consumed).toEqual({ quantity: 4, cost: 40 });
+        await client.query(
+          `UPDATE inventory SET quantity = quantity - 4
+           WHERE product_id = $1 AND warehouse_id = $2`,
+          [productId, warehouseId],
+        );
+        await client.query('COMMIT');
+      } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+      } finally {
+        client.release();
+      }
+
+      const replenishment = await createPurchaseInvoice(
+        {
+          warehouse_id: warehouseId,
+          items: [
+            { product_id: productId, warehouse_id: warehouseId, quantity: 10, unit_price: 12 },
+          ],
+        },
+        1,
+      );
+      cleanup.invoiceIds.push(replenishment.id);
+
+      const before = await query(
+        `SELECT pi.total_amount, i.quantity, l.quantity AS layer_quantity, l.remaining_quantity
+         FROM purchase_invoices pi
+         JOIN purchase_invoice_items pii ON pii.purchase_invoice_id = pi.id
+         JOIN inventory i ON i.product_id = pii.product_id AND i.warehouse_id = pii.warehouse_id
+         JOIN stock_movements sm ON sm.reference_type = 'purchase_invoice' AND sm.reference_id = pi.id
+           AND sm.movement_type = 'purchase' AND sm.product_id = pii.product_id
+         JOIN inventory_cost_layers l ON l.source_movement_id = sm.id AND l.source_type = 'purchase'
+         WHERE pi.id = $1 ORDER BY l.id LIMIT 1`,
+        [original.id],
+      );
+      expect(Number(before.rows[0].quantity)).toBe(16);
+      expect(Number(before.rows[0].remaining_quantity)).toBe(6);
+
+      await expect(
+        updatePurchaseInvoice(
+          original.id,
+          {
+            warehouse_id: warehouseId,
+            items: [
+              { product_id: productId, warehouse_id: warehouseId, quantity: 11, unit_price: 10 },
+            ],
+          },
+          1,
+        ),
+      ).rejects.toThrow(/طبقة تكلفتها استُهلكت/);
+      await expect(deletePurchaseInvoice(original.id, 1)).rejects.toThrow(/طبقة تكلفتها استُهلكت/);
+
+      const after = await query(
+        `SELECT pi.total_amount, i.quantity, pii.quantity AS invoice_quantity,
+                l.quantity AS layer_quantity, l.remaining_quantity
+         FROM purchase_invoices pi
+         JOIN purchase_invoice_items pii ON pii.purchase_invoice_id = pi.id
+         JOIN inventory i ON i.product_id = pii.product_id AND i.warehouse_id = pii.warehouse_id
+         JOIN stock_movements sm ON sm.reference_type = 'purchase_invoice' AND sm.reference_id = pi.id
+           AND sm.movement_type = 'purchase' AND sm.product_id = pii.product_id
+         JOIN inventory_cost_layers l ON l.source_movement_id = sm.id AND l.source_type = 'purchase'
+         WHERE pi.id = $1 ORDER BY l.id LIMIT 1`,
+        [original.id],
+      );
+      expect(Number(after.rows[0].total_amount)).toBe(100);
+      expect(Number(after.rows[0].invoice_quantity)).toBe(10);
+      expect(Number(after.rows[0].quantity)).toBe(16);
+      expect(Number(after.rows[0].layer_quantity)).toBe(10);
+      expect(Number(after.rows[0].remaining_quantity)).toBe(6);
+      const originalJournal = await query(
+        `SELECT COUNT(DISTINCT je.id)::int AS entries,
+                COALESCE(SUM(jel.debit), 0) AS total_debit
+         FROM journal_entries je
+         LEFT JOIN journal_entry_lines jel ON jel.journal_entry_id = je.id
+         WHERE je.reference_type = 'purchase' AND je.reference_id = $1`,
+        [original.id],
+      );
+      expect(originalJournal.rows[0].entries).toBe(1);
+      expect(Number(originalJournal.rows[0].total_debit)).toBe(100);
+    });
+
+    it('يسجل تحصيلين متزامنين على الحساب وأقساط البيع بقيود مستقلة ومتوازنة', async () => {
+      const suffix = Date.now();
+      const customerId = Number(
+        (
+          await query(
+            `INSERT INTO customers (code, name_ar, phone, opening_balance, balance, current_balance)
+             VALUES ($1, $2, $3, 0, 0, 0) RETURNING id`,
+            [`CPR-${suffix}`, `عميل تحصيل متزامن ${suffix}`, `09${String(suffix).slice(-8)}`],
+          )
+        ).rows[0].id,
+      );
+      cleanup.customerIds.push(customerId);
+
+      const saleId = Number(
+        (
+          await query(
+            `INSERT INTO sales
+               (sale_number, sale_type, customer_id, warehouse_id, user_id,
+                subtotal, total_amount, payment_status, status, sale_date)
+             VALUES ($1, 'retail', $2, 1, 1, 100, 100, 'unpaid', 'completed', CURRENT_DATE)
+             RETURNING id`,
+            [`SALE-PAY-RACE-${suffix}`, customerId],
+          )
+        ).rows[0].id,
+      );
+      cleanup.saleIds.push(saleId);
+
+      const results = await Promise.all([
+        recordPayment(customerId, { amount: 80, payment_method: 'cash', user_id: 1 }),
+        recordPayment(customerId, { amount: 80, payment_method: 'cash', user_id: 1 }),
+      ]);
+      expect(results.every((result) => result.success)).toBe(true);
+
+      const payments = await query(
+        `SELECT reference_type, reference_id, SUM(amount) AS amount
+         FROM payments
+         WHERE (reference_type = 'sale' AND reference_id = $1)
+            OR (reference_type = 'customer_advance' AND reference_id = $2)
+         GROUP BY reference_type, reference_id`,
+        [saleId, customerId],
+      );
+      const salePayment = payments.rows.find((row) => row.reference_type === 'sale');
+      const customerAdvance = payments.rows.find(
+        (row) => row.reference_type === 'customer_advance',
+      );
+      expect(Number(salePayment?.amount)).toBe(100);
+      expect(Number(customerAdvance?.amount)).toBe(60);
+
+      const sale = await query('SELECT payment_status FROM sales WHERE id = $1', [saleId]);
+      expect(sale.rows[0].payment_status).toBe('paid');
+      const balance = await query('SELECT balance FROM customers WHERE id = $1', [customerId]);
+      expect(Number(balance.rows[0].balance)).toBe(-60);
+
+      const postedEntries = await query(
+        `SELECT id, (SELECT COALESCE(SUM(debit), 0) FROM journal_entry_lines WHERE journal_entry_id = je.id) AS debit
+         FROM journal_entries je WHERE reference_type = 'payment' AND EXISTS (
+           SELECT 1 FROM payments p WHERE p.journal_entry_id=je.id AND
+           ((p.reference_type='sale' AND p.reference_id=$1)
+             OR (p.reference_type='customer_advance' AND p.reference_id=$2)))`,
+        [saleId, customerId],
+      );
+      cleanup.journalEntryIds.push(...postedEntries.rows.map((row) => Number(row.id)));
+      expect(postedEntries.rows).toHaveLength(2);
+      expect(postedEntries.rows.reduce((sum, row) => sum + Number(row.debit), 0)).toBe(160);
+
+      const installmentSale = await query(
+        `INSERT INTO sales
+           (sale_number, sale_type, customer_id, warehouse_id, user_id,
+            subtotal, total_amount, payment_status, status, sale_date)
+         VALUES ($1, 'retail', $2, 1, 1, 50, 50, 'unpaid', 'completed', CURRENT_DATE)
+         RETURNING id`,
+        [`SALE-INSTALLMENT-${suffix}`, customerId],
+      );
+      const installmentSaleId = Number(installmentSale.rows[0].id);
+      cleanup.saleIds.push(installmentSaleId);
+
+      await recordSalePayment(installmentSaleId, {
+        amount: 20,
+        payment_method: 'cash',
+        user_id: 1,
+      });
+      await recordSalePayment(installmentSaleId, {
+        amount: 20,
+        payment_method: 'cash',
+        user_id: 1,
+      });
+      const installmentJournals = await query(
+        `SELECT id,
+                (SELECT COALESCE(SUM(debit), 0) FROM journal_entry_lines WHERE journal_entry_id = je.id) AS debit,
+                (SELECT COALESCE(SUM(credit), 0) FROM journal_entry_lines WHERE journal_entry_id = je.id) AS credit
+         FROM journal_entries je WHERE reference_type = 'payment' AND EXISTS (
+           SELECT 1 FROM payments p WHERE p.journal_entry_id=je.id
+             AND p.reference_type='sale' AND p.reference_id=$1) ORDER BY id`,
+        [installmentSaleId],
+      );
+      cleanup.journalEntryIds.push(...installmentJournals.rows.map((row) => Number(row.id)));
+      expect(installmentJournals.rows).toHaveLength(2);
+      expect(installmentJournals.rows.reduce((sum, row) => sum + Number(row.debit), 0)).toBe(40);
+      expect(installmentJournals.rows.reduce((sum, row) => sum + Number(row.credit), 0)).toBe(40);
+
+      const paymentIds = await query(
+        `SELECT id FROM payments
+         WHERE (reference_type = 'sale' AND reference_id = $1)
+            OR (reference_type = 'customer_advance' AND reference_id = $2)`,
+        [saleId, customerId],
+      );
+      cleanup.paymentIds.push(...paymentIds.rows.map((row) => Number(row.id)));
     });
 
     it('يقوم بتحديث قيد اليومية في دفتر الأستاذ العام عند تعديل فاتورة البيع', async () => {
@@ -702,9 +1097,7 @@ describe('Financial Audit Invariants Suite (Real PostgreSQL Invariants)', () => 
       );
       expect(jeRes.rows.length).toBeGreaterThanOrEqual(2);
       cleanup.journalEntryIds.push(jeRes.rows[0].id);
-      const shortageLine = jeRes.rows.find(
-        (r: any) => r.code === STANDARD_ACCOUNTS.SHORTAGE_EXPENSE,
-      );
+      const shortageLine = jeRes.rows.find((r) => r.code === STANDARD_ACCOUNTS.SHORTAGE_EXPENSE);
       expect(shortageLine).toBeDefined();
       expect(Number(shortageLine.debit)).toBe(50);
     });
@@ -749,9 +1142,7 @@ describe('Financial Audit Invariants Suite (Real PostgreSQL Invariants)', () => 
       await query(`UPDATE financial_periods SET status = 'locked' WHERE id = $1`, [periodId]);
 
       // محاولة حذف فاتورة الشراء في الفترة المغلقة => يجب أن يُرفض الحذف ويرمي استثناء
-      await expect(deletePurchaseInvoice(invoiceId, 1)).rejects.toThrow(
-        /لا يمكن تعديل أو تسجيل عملية في فترة محاسبية مغلقة|لا يمكن حذف سجل في فترة محاسبية مغلقة/,
-      );
+      await expect(deletePurchaseInvoice(invoiceId, 1)).rejects.toThrow(/فترة محاسبية مغلقة/);
 
       // التأكد أن الفاتورة لم تُحذف
       const invCheck = await query(`SELECT deleted_at FROM purchase_invoices WHERE id = $1`, [
@@ -798,9 +1189,7 @@ describe('Financial Audit Invariants Suite (Real PostgreSQL Invariants)', () => 
       await query(`UPDATE financial_periods SET status = 'locked' WHERE id = $1`, [periodId]);
 
       // محاولة حذف المبيعات بتاريخ الفترة المغلقة
-      await expect(deleteSalesByDate(pDate, 1)).rejects.toThrow(
-        /لا يمكن تعديل أو تسجيل عملية في فترة محاسبية مغلقة|لا يمكن حذف سجل في فترة محاسبية مغلقة/,
-      );
+      await expect(deleteSalesByDate(pDate, 1)).rejects.toThrow(/فترة محاسبية مغلقة/);
 
       // التأكد من بقاء عملية البيع
       const saleCheck = await query(`SELECT deleted_at FROM sales WHERE id = $1`, [saleId]);

@@ -1,12 +1,15 @@
-import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import fs from 'node:fs/promises';
+import { beforeEach, expect, it, vi } from 'vitest';
 const { getClient, query, release } = vi.hoisted(() => ({
   getClient: vi.fn(),
   query: vi.fn(),
   release: vi.fn(),
 }));
 vi.mock('../src/database/pool.ts', () => ({ getClient }));
-import { BACKUP_TABLES, restoreBackup, clearAllData } from '../src/services/backupService.ts';
+import {
+  BACKUP_TABLES,
+  restoreBackupContent,
+  clearAllData,
+} from '../src/services/backupService.ts';
 
 const snapshot = () => Object.fromEntries(BACKUP_TABLES.map((table) => [table, []]));
 beforeEach(() => {
@@ -14,7 +17,6 @@ beforeEach(() => {
   release.mockReset();
   getClient.mockReset().mockResolvedValue({ query, release });
 });
-afterEach(() => vi.restoreAllMocks());
 
 it.each([
   [null],
@@ -26,25 +28,26 @@ it.each([
   [{ id: 1, name_ar: 'required shape' }, { id: 2 }],
 ])('rejects malformed row collection before database access: %j', async (...rows) => {
   const data = { ...snapshot(), products: rows };
-  vi.spyOn(fs, 'readFile').mockResolvedValue(JSON.stringify({ data }));
-  await expect(restoreBackup('invalid.json')).rejects.toMatchObject({ statusCode: 400 });
+  await expect(restoreBackupContent(JSON.stringify({ data }))).rejects.toMatchObject({
+    statusCode: 400,
+  });
   expect(getClient).not.toHaveBeenCalled();
 });
 
 it('rejects malformed JSON with a client error before database access', async () => {
-  vi.spyOn(fs, 'readFile').mockResolvedValue('{broken');
-  await expect(restoreBackup('invalid.json')).rejects.toMatchObject({ statusCode: 400 });
+  await expect(restoreBackupContent('{broken')).rejects.toMatchObject({ statusCode: 400 });
   expect(getClient).not.toHaveBeenCalled();
 });
 
 it('stops restore immediately on replication-role permission failure', async () => {
-  vi.spyOn(fs, 'readFile').mockResolvedValue(JSON.stringify({ data: snapshot() }));
   query.mockImplementation(async (sql: string) => {
     if (sql.startsWith('SET LOCAL'))
       throw Object.assign(new Error('permission denied'), { code: '42501' });
     return { rows: [] };
   });
-  await expect(restoreBackup('valid.json')).rejects.toBeDefined();
+  await expect(restoreBackupContent(JSON.stringify({ data: snapshot() }))).rejects.toMatchObject({
+    code: '42501',
+  });
   expect(query.mock.calls.map(([sql]) => sql)).toEqual([
     'BEGIN',
     "SET LOCAL session_replication_role = 'replica'",

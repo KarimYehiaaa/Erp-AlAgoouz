@@ -1,7 +1,7 @@
 <template>
   <div class="luxury-mobile-container" dir="rtl">
     <!-- ═══════════════════════════════════════════════════════════════
-         TOP NAVIGATION & EXECUTIVE BRAND HEADER
+         1. TOP NAVIGATION & BRAND EXECUTIVE HEADER
          ═══════════════════════════════════════════════════════════════ -->
     <header class="app-header">
       <div class="header-inner">
@@ -11,37 +11,52 @@
           </div>
           <div class="brand-text">
             <h1 class="brand-name">{{ companyName }}</h1>
-            <span class="brand-tagline">الإدارة التنفيذية • لوحة المراقبة</span>
+            <span class="brand-tagline">
+              الإدارة التنفيذية •
+              {{ auth.user?.full_name || auth.user?.username || 'لوحة المراقبة' }}
+            </span>
           </div>
         </div>
 
         <div class="header-quick-actions">
+          <!-- Dark / Light Theme Toggle -->
           <button
             class="header-btn"
-            @click="showServerConfig = true"
-            title="إعدادات الاتصال بالسيرفر"
+            @click="appStore.toggleDarkMode"
+            :title="appStore.darkMode ? 'التحويل للوضع الفاتح' : 'التحويل للوضع الداكن'"
+            type="button"
           >
-            <span class="btn-icon"><AppIcon name="settings" :size="18" /></span>
+            <span class="btn-icon">
+              <AppIcon :name="appStore.darkMode ? 'sun' : 'moon'" :size="18" />
+            </span>
           </button>
 
+          <!-- Real-time Refresh -->
           <button
             class="header-btn"
             @click="refreshAll"
             :disabled="loading"
             title="تحديث البيانات اللحظية"
+            type="button"
           >
             <span class="btn-icon" :class="{ 'spin-active': loading }">
               <AppIcon name="refresh" :size="18" />
             </span>
           </button>
 
-          <RouterLink to="/" class="header-btn" title="العودة لمنظومة سطح المكتب">
-            <span class="btn-icon"><AppIcon name="monitor" :size="18" /></span>
-          </RouterLink>
+          <!-- Executive Settings & Session Modal -->
+          <button
+            class="header-btn"
+            @click="showServerConfig = true"
+            title="إعدادات النظام والحساب"
+            type="button"
+          >
+            <span class="btn-icon"><AppIcon name="settings" :size="18" /></span>
+          </button>
         </div>
       </div>
 
-      <!-- Live Connection & Fast Status Strip -->
+      <!-- Live Connection & Fast Date Selection Strip -->
       <div class="live-status-strip">
         <div class="live-badge" :class="{ connected: isLiveConnected && !fetchError }">
           <span class="live-dot"></span>
@@ -53,11 +68,18 @@
             }}
           </span>
         </div>
+
         <div class="date-quick-selector">
-          <button class="date-pill-btn" :class="{ active: isTodaySelected }" @click="selectToday">
+          <button
+            type="button"
+            class="date-pill-btn"
+            :class="{ active: isTodaySelected }"
+            @click="selectToday"
+          >
             اليوم
           </button>
           <button
+            type="button"
             class="date-pill-btn"
             :class="{ active: isYesterdaySelected }"
             @click="selectYesterday"
@@ -65,7 +87,7 @@
             أمس
           </button>
           <label class="date-picker-label" title="اختيار تاريخ مخصص">
-            <AppIcon name="calendar" :size="16" />
+            <AppIcon name="calendar" :size="15" />
             <input
               type="date"
               v-model="customSelectedDate"
@@ -77,166 +99,161 @@
       </div>
     </header>
 
-    <section class="report-context-card" aria-label="ملخص حالة التقارير">
-      <div class="report-context-main">
-        <span class="report-context-kicker"><AppIcon name="chart" :size="14" /> مركز التقارير</span>
-        <strong>قراءة تنفيذية سريعة</strong>
-        <span class="report-context-caption">كل الأرقام للمتابعة واتخاذ القرار فقط</span>
-      </div>
-      <div class="report-context-status" :class="{ offline: fetchError, demo: isDemoMode }">
-        <span class="report-context-dot"></span>
-        <span>{{ isDemoMode ? 'معاينة' : fetchError ? 'آخر نسخة محفوظة' : 'بيانات مباشرة' }}</span>
-      </div>
-    </section>
-
-    <div class="report-kpi-strip" aria-label="مؤشرات التقرير الرئيسية">
-      <div class="report-kpi-item">
-        <span class="report-kpi-label">الإيراد</span>
-        <strong>{{ formatMoney(currentSummary.grandTotal) }} <small>ج.م</small></strong>
-      </div>
-      <div class="report-kpi-item">
-        <span class="report-kpi-label">الفواتير</span>
-        <strong>{{ currentSummary.totalCount }}</strong>
-      </div>
-      <div class="report-kpi-item">
-        <span class="report-kpi-label">صافي السيولة</span>
-        <strong :class="(currentSummary.netCashflow || 0) >= 0 ? 'positive' : 'negative'">
-          {{ formatMoney(currentSummary.netCashflow) }} <small>ج.م</small>
-        </strong>
-      </div>
-    </div>
-
     <!-- ═══════════════════════════════════════════════════════════════
-         CONNECTION DIAGNOSTICS & RETRY BANNER
+         2. CONNECTION DIAGNOSTICS & RETRY BANNER
          ═══════════════════════════════════════════════════════════════ -->
     <div v-if="fetchError" class="diagnostic-banner">
       <div class="diagnostic-header">
-        <span class="diag-icon"><AppIcon name="activity" :size="20" /></span>
+        <span class="diag-icon"><AppIcon name="warning" :size="20" /></span>
         <div class="diag-text">
           <strong>تعذر سحب البيانات من السيرفر</strong>
           <p>{{ fetchError }}</p>
         </div>
       </div>
       <div class="diag-actions">
-        <button class="btn-diag-cfg" @click="showServerConfig = true">
-          <AppIcon name="settings" :size="14" /> تعديل رابط السيرفر
+        <button type="button" class="btn-diag-cfg" @click="showServerConfig = true">
+          <AppIcon name="settings" :size="14" /> تعديل الرابط
         </button>
-        <button class="btn-diag-demo" @click="loadDemoData">
-          <AppIcon name="sparkles" :size="14" /> معاينة التقرير
+        <button type="button" class="btn-diag-demo" @click="loadDemoData">
+          <AppIcon name="sparkles" :size="14" /> بيانات تجريبية
         </button>
-        <button class="btn-diag-retry" @click="refreshAll">
+        <button type="button" class="btn-diag-retry" @click="refreshAll">
           <AppIcon name="refresh" :size="14" /> إعادة المحاولة
         </button>
       </div>
     </div>
 
     <!-- ═══════════════════════════════════════════════════════════════
-         MAIN DYNAMIC VIEWPORT
+         3. MAIN EXECUTIVE VIEWPORT
          ═══════════════════════════════════════════════════════════════ -->
     <main class="mobile-viewport">
       <!-- Loading Skeleton -->
-      <div v-if="loading && !currentSummary" class="skeleton-wrapper">
+      <div v-if="loading && !summaryData" class="skeleton-wrapper">
         <div class="skeleton-shimmer hero-shimmer"></div>
         <div class="skeleton-shimmer card-shimmer"></div>
         <div class="skeleton-shimmer card-shimmer"></div>
       </div>
 
-      <!-- ═════════════ TAB 1: EXECUTIVE SALES ═════════════ -->
+      <!-- ═════════════ TAB 1: EXECUTIVE SALES OVERVIEW ═════════════ -->
+      <section
+        v-else-if="
+          (activeTab === 'sales' && !summaryData) || (activeTab === 'inventory' && !inventoryData)
+        "
+        class="tab-pane"
+      >
+        <p>البيانات غير متاحة حاليًا. أعد المحاولة بعد التحقق من الاتصال والصلاحيات.</p>
+      </section>
       <section v-else-if="activeTab === 'sales'" class="tab-pane">
-        <!-- 1. Master Hero Revenue Card -->
-        <div class="luxury-hero-card">
-          <div class="card-glow-orb"></div>
-          <div class="hero-header-row">
-            <span class="hero-title-badge"
-              ><AppIcon name="money" :size="15" /> إجمالي الإيرادات ({{
-                selectedDateFormatted
-              }})</span
-            >
+        <!-- Master Consolidated Executive Hero Card -->
+        <div class="executive-hero-card">
+          <div class="hero-top-row">
+            <div class="hero-date-chip">
+              <AppIcon name="calendar" :size="14" />
+              <span>إيرادات {{ selectedDateFormatted }}</span>
+            </div>
             <div
-              class="growth-chip"
-              :class="currentSummary.growthPercent >= 0 ? 'chip-up' : 'chip-down'"
+              class="hero-growth-chip"
+              :class="currentSummary.growthPercent >= 0 ? 'growth-up' : 'growth-down'"
             >
-              {{ currentSummary.growthPercent >= 0 ? '▲ +' : '▼ '
-              }}{{ currentSummary.growthPercent }}% عن الأمس
-            </div>
-          </div>
-
-          <div class="hero-amount-display">
-            <span class="currency-prefix">ج.م</span>
-            <span class="amount-number">{{ formatMoney(currentSummary.grandTotal) }}</span>
-          </div>
-
-          <div class="hero-stats-subbar">
-            <div class="sub-stat">
-              <span class="sub-label">عدد الفواتير</span>
-              <strong class="sub-val">{{ currentSummary.totalCount }} طلب</strong>
-            </div>
-            <div class="sub-divider"></div>
-            <div class="sub-stat">
-              <span class="sub-label">متوسط الفاتورة</span>
-              <strong class="sub-val"
-                >{{ formatMoney(currentSummary.averageOrderValue || 0) }} ج.م</strong
+              <AppIcon
+                :name="currentSummary.growthPercent >= 0 ? 'trendingUp' : 'trendingDown'"
+                :size="13"
+              />
+              <span
+                >{{ currentSummary.growthPercent >= 0 ? '+' : ''
+                }}{{ currentSummary.growthPercent }}% عن الأمس</span
               >
             </div>
-            <div class="sub-divider"></div>
-            <div class="sub-stat">
-              <span class="sub-label">مبيعات الأمس</span>
-              <strong class="sub-val">{{ formatMoney(currentSummary.yesterdayTotal) }} ج.م</strong>
+          </div>
+
+          <div class="hero-revenue-display">
+            <span class="currency-tag">ج.م</span>
+            <span class="revenue-number">{{ formatMoney(currentSummary.grandTotal) }}</span>
+          </div>
+
+          <div class="hero-kpi-grid">
+            <div class="kpi-cell">
+              <span class="kpi-label">عدد الطلبات</span>
+              <strong class="kpi-value"
+                >{{ currentSummary.totalCount }} <small>فاتورة</small></strong
+              >
+            </div>
+            <div class="kpi-cell-divider"></div>
+            <div class="kpi-cell">
+              <span class="kpi-label">متوسط الفاتورة</span>
+              <strong class="kpi-value"
+                >{{ formatMoney(currentSummary.averageOrderValue || 0) }} <small>ج.م</small></strong
+              >
+            </div>
+            <div class="kpi-cell-divider"></div>
+            <div class="kpi-cell">
+              <span class="kpi-label">صافي السيولة</span>
+              <strong
+                class="kpi-value"
+                :class="(currentSummary.netCashflow || 0) >= 0 ? 'val-positive' : 'val-negative'"
+              >
+                {{ formatMoney(currentSummary.netCashflow || 0) }} <small>ج.م</small>
+              </strong>
             </div>
           </div>
         </div>
 
-        <!-- 2. Dual Breakdown: Retail vs Wholesale -->
-        <div class="dual-distribution-section">
-          <div class="section-heading">
-            <h3><AppIcon name="chart" :size="18" /> توزيع المبيعات حسب القناة</h3>
-            <span class="channel-ratio">
-              {{ retailPercent }}% محل / {{ wholesalePercent }}% جملة
+        <!-- Sales Distribution: Retail vs Wholesale -->
+        <div class="executive-card">
+          <div class="card-head">
+            <div class="card-head-title">
+              <AppIcon name="reports" :size="17" />
+              <h3>توزيع المبيعات حسب القناة</h3>
+            </div>
+            <span class="card-head-sub">
+              {{ retailPercent }}% محل • {{ wholesalePercent }}% جملة
             </span>
           </div>
 
-          <!-- Comparative Visual Bar -->
+          <!-- Comparative Proportional Bar -->
           <div class="comparative-ratio-bar">
-            <div class="bar-fill retail-fill" :style="{ width: retailPercent + '%' }"></div>
-            <div class="bar-fill wholesale-fill" :style="{ width: wholesalePercent + '%' }"></div>
+            <div
+              class="bar-segment retail-segment"
+              :style="{ width: retailPercent + '%' }"
+              :title="'تجزئة: ' + retailPercent + '%'"
+            ></div>
+            <div
+              class="bar-segment wholesale-segment"
+              :style="{ width: wholesalePercent + '%' }"
+              :title="'جملة: ' + wholesalePercent + '%'"
+            ></div>
           </div>
 
           <div class="channel-cards-grid">
-            <!-- Retail Card -->
-            <div class="channel-metric-card retail-theme">
-              <div class="card-top-icon">
-                <span class="icon-wrap"><AppIcon name="shop" :size="20" /></span>
-                <span class="card-label">مبيعات المحل (POS)</span>
+            <!-- Retail (POS) Card -->
+            <div class="channel-card retail-theme">
+              <div class="channel-header">
+                <span class="channel-icon-pill"><AppIcon name="shop" :size="16" /></span>
+                <span class="channel-name">مبيعات المحل (POS)</span>
               </div>
-              <div class="channel-val">
+              <div class="channel-amount">
                 {{ formatMoney(currentSummary.retail?.total || 0) }} <small>ج.م</small>
               </div>
-              <div class="channel-foot">
-                <span
-                  ><AppIcon name="receipt" :size="14" />
-                  {{ currentSummary.retail?.count || 0 }} فاتورة</span
-                >
-                <span v-if="currentSummary.retail?.discount" class="discount-pill">
+              <div class="channel-footer">
+                <span>{{ currentSummary.retail?.count || 0 }} فاتورة</span>
+                <span v-if="currentSummary.retail?.discount" class="discount-tag">
                   خصم: {{ formatMoney(currentSummary.retail.discount) }}
                 </span>
               </div>
             </div>
 
             <!-- Wholesale Card -->
-            <div class="channel-metric-card wholesale-theme">
-              <div class="card-top-icon">
-                <span class="icon-wrap"><AppIcon name="truck" :size="20" /></span>
-                <span class="card-label">مبيعات الجملة</span>
+            <div class="channel-card wholesale-theme">
+              <div class="channel-header">
+                <span class="channel-icon-pill"><AppIcon name="truck" :size="16" /></span>
+                <span class="channel-name">مبيعات الجملة</span>
               </div>
-              <div class="channel-val">
+              <div class="channel-amount">
                 {{ formatMoney(currentSummary.wholesale?.total || 0) }} <small>ج.م</small>
               </div>
-              <div class="channel-foot">
-                <span
-                  ><AppIcon name="receipt" :size="14" />
-                  {{ currentSummary.wholesale?.count || 0 }} فاتورة</span
-                >
-                <span v-if="currentSummary.wholesale?.discount" class="discount-pill">
+              <div class="channel-footer">
+                <span>{{ currentSummary.wholesale?.count || 0 }} فاتورة</span>
+                <span v-if="currentSummary.wholesale?.discount" class="discount-tag">
                   خصم: {{ formatMoney(currentSummary.wholesale.discount) }}
                 </span>
               </div>
@@ -244,142 +261,157 @@
           </div>
         </div>
 
-        <!-- 3. Payment Methods Breakdown -->
-        <div class="glass-content-card">
-          <div class="card-header-flex">
-            <h3 class="card-title">
-              <AppIcon name="creditCard" :size="18" /> تفصيل طرق التحصيل المالي
-            </h3>
-            <span class="card-meta-tag">تحصيل الخزينة</span>
+        <!-- Payment Breakdown (Collection Channels) -->
+        <div class="executive-card">
+          <div class="card-head">
+            <div class="card-head-title">
+              <AppIcon name="creditCard" :size="17" />
+              <h3>طرق التحصيل المالي في الخزينة</h3>
+            </div>
+            <span class="card-head-sub">إجمالي المقبوضات</span>
           </div>
 
-          <div class="payment-stack">
+          <div class="payment-methods-stack">
             <!-- Cash -->
-            <div class="payment-row cash-row">
-              <div class="payment-symbol"><AppIcon name="cash" :size="18" /></div>
-              <div class="payment-text-group">
-                <span class="p-name">نـقـداً (كـاش)</span>
-                <span class="p-sub">في درج المحل والخزينة</span>
+            <div class="payment-method-row">
+              <div class="pm-icon-wrap icon-cash"><AppIcon name="cash" :size="18" /></div>
+              <div class="pm-info">
+                <span class="pm-title">نقداً (كاش)</span>
+                <span class="pm-desc">في درج المحل والخزينة النقدية</span>
               </div>
-              <div class="payment-val">
+              <div class="pm-amount">
                 {{ formatMoney(currentSummary.paymentTotals?.cash || 0) }} <small>ج.م</small>
               </div>
             </div>
 
-            <!-- InstaPay -->
-            <div class="payment-row instapay-row">
-              <div class="payment-symbol"><AppIcon name="monitor" :size="18" /></div>
-              <div class="payment-text-group">
-                <span class="p-name">انـسـتـابـاي ومحافظ</span>
-                <span class="p-sub">تحويلات بنكية فورية</span>
+            <!-- InstaPay & E-Wallets -->
+            <div class="payment-method-row">
+              <div class="pm-icon-wrap icon-instapay"><AppIcon name="monitor" :size="18" /></div>
+              <div class="pm-info">
+                <span class="pm-title">انستاباي والمحافظ</span>
+                <span class="pm-desc">تحويلات بنكية ومحافظ ذكية</span>
               </div>
-              <div class="payment-val text-cyan">
+              <div class="pm-amount">
                 {{ formatMoney(currentSummary.paymentTotals?.instapay || 0) }} <small>ج.م</small>
               </div>
             </div>
 
-            <!-- Card / POS -->
-            <div class="payment-row card-row">
-              <div class="payment-symbol"><AppIcon name="creditCard" :size="18" /></div>
-              <div class="payment-text-group">
-                <span class="p-name">فيزا وبطاقات بنكية</span>
-                <span class="p-sub">ماكينات الدفع الإلكتروني</span>
+            <!-- Cards & Electronic POS -->
+            <div class="payment-method-row">
+              <div class="pm-icon-wrap icon-card"><AppIcon name="creditCard" :size="18" /></div>
+              <div class="pm-info">
+                <span class="pm-title">فيزا وبطاقات دفع</span>
+                <span class="pm-desc">ماكينات نقاط البيع الإلكترونية</span>
               </div>
-              <div class="payment-val text-purple">
+              <div class="pm-amount">
                 {{ formatMoney(currentSummary.paymentTotals?.card || 0) }} <small>ج.م</small>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- 4. Expenses & Net Cashflow Pulse -->
-        <div class="glass-content-card">
-          <div class="card-header-flex">
-            <h3 class="card-title">
-              <AppIcon name="trendingDown" :size="18" /> المصروفات وصافي السيولة
-            </h3>
-            <span class="card-meta-tag">اليوم</span>
+        <!-- Expenses & Net Liquidity -->
+        <div class="executive-card">
+          <div class="card-head">
+            <div class="card-head-title">
+              <AppIcon name="trendingDown" :size="17" />
+              <h3>المصروفات وصافي السيولة النقدية</h3>
+            </div>
+            <span class="card-head-sub">{{ selectedDateFormatted }}</span>
           </div>
 
-          <div class="finance-grid">
-            <div class="finance-cell exp-cell">
-              <span class="fin-lbl">مصروفات اليوم:</span>
-              <strong class="fin-val text-rose"
-                >{{ formatMoney(currentSummary.expenses?.total || 0) }} ج.م</strong
-              >
-              <small class="fin-sub">{{ currentSummary.expenses?.count || 0 }} بنود مسجلة</small>
+          <div class="finance-dual-grid">
+            <div class="finance-block exp-block">
+              <span class="fin-label">مصروفات اليوم</span>
+              <strong class="fin-val val-danger">
+                {{ formatMoney(currentSummary.expenses?.total || 0) }} <small>ج.م</small>
+              </strong>
+              <span class="fin-sub">{{ currentSummary.expenses?.count || 0 }} بنود مسجلة</span>
             </div>
 
-            <div class="finance-cell net-cell">
-              <span class="fin-lbl">صافي السيولة النقدية:</span>
+            <div class="finance-block net-block">
+              <span class="fin-label">صافي السيولة النقدية</span>
               <strong
                 class="fin-val"
-                :class="(currentSummary.netCashflow || 0) >= 0 ? 'text-emerald' : 'text-rose'"
+                :class="(currentSummary.netCashflow || 0) >= 0 ? 'val-positive' : 'val-danger'"
               >
-                {{ formatMoney(currentSummary.netCashflow || 0) }} ج.م
+                {{ formatMoney(currentSummary.netCashflow || 0) }} <small>ج.م</small>
               </strong>
-              <small class="fin-sub">(المقبوض نقداً - المصروفات)</small>
+              <span class="fin-sub">(المقبوض نقداً - المصروفات)</span>
             </div>
           </div>
         </div>
 
-        <!-- 5. Active Shift & Cash Drawer -->
-        <div class="glass-content-card shift-monitoring-card">
-          <div class="card-header-flex">
-            <div class="title-with-pulse">
-              <span :class="currentSummary.activeShift ? 'pulse-green' : 'pulse-amber'"></span>
-              <h3 class="card-title">
-                <AppIcon name="shop" :size="18" /> الوردية الحالية في المحل
-              </h3>
+        <!-- Active Shift & Drawer Cash Float -->
+        <div class="executive-card">
+          <div class="card-head">
+            <div class="card-head-title">
+              <span
+                class="status-pulse-dot"
+                :class="currentSummary.activeShift ? 'pulse-active' : 'pulse-inactive'"
+              ></span>
+              <AppIcon name="shop" :size="17" />
+              <h3>وردية المحل الحالية</h3>
             </div>
-            <span v-if="currentSummary.activeShift" class="status-badge-active">شفت نشط 🟢</span>
-            <span v-else class="status-badge-closed">الوردية مغلقة 🔒</span>
+            <span v-if="currentSummary.activeShift" class="shift-state-pill shift-open">
+              <AppIcon name="check" :size="13" /> وردية نشطة
+            </span>
+            <span v-else class="shift-state-pill shift-closed">
+              <AppIcon name="lock" :size="13" /> مغلقة
+            </span>
           </div>
 
-          <div v-if="currentSummary.activeShift" class="shift-info-body">
-            <div class="shift-meta-grid">
-              <div class="meta-cell">
-                <span class="cell-lbl">الكاشير المناوب:</span>
-                <strong class="cell-val">{{ currentSummary.activeShift.cashier_name }}</strong>
+          <div v-if="currentSummary.activeShift" class="shift-details-body">
+            <div class="shift-info-grid">
+              <div class="shift-info-cell">
+                <span class="shift-lbl">الكاشير:</span>
+                <strong class="shift-val">{{ currentSummary.activeShift.cashier_name }}</strong>
               </div>
-              <div class="meta-cell">
-                <span class="cell-lbl">رقم الوردية:</span>
-                <strong class="cell-val">#{{ currentSummary.activeShift.shift_number }}</strong>
+              <div class="shift-info-cell">
+                <span class="shift-lbl">رقم الوردية:</span>
+                <strong class="shift-val">#{{ currentSummary.activeShift.shift_number }}</strong>
               </div>
-              <div class="meta-cell">
-                <span class="cell-lbl">وقت الفتح:</span>
-                <span class="cell-val">{{ formatTime(currentSummary.activeShift.opened_at) }}</span>
+              <div class="shift-info-cell">
+                <span class="shift-lbl">وقت البدء:</span>
+                <span class="shift-val">{{
+                  formatTime(currentSummary.activeShift.opened_at)
+                }}</span>
               </div>
-              <div class="meta-cell">
-                <span class="cell-lbl">عهدة البداية:</span>
-                <span class="cell-val"
+              <div class="shift-info-cell">
+                <span class="shift-lbl">عهدة البداية:</span>
+                <span class="shift-val"
                   >{{ formatMoney(currentSummary.activeShift.opening_cash) }} ج.م</span
                 >
               </div>
             </div>
 
-            <!-- Glowing Expected Cash Display -->
-            <div class="drawer-cash-highlight">
-              <div class="drawer-lbl">النقدية المتوقعة في الدرج الآن (Expected Cash):</div>
-              <div class="drawer-amount">
+            <!-- Expected Cash in Drawer Highlight Box -->
+            <div class="expected-cash-banner">
+              <div class="ec-header">
+                <AppIcon name="cash" :size="16" />
+                <span>النقدية المتوقعة في الدرج الآن (Expected Cash):</span>
+              </div>
+              <div class="ec-amount">
                 {{ formatMoney(currentSummary.activeShift.current_expected_cash) }}
                 <small>ج.م</small>
               </div>
             </div>
           </div>
 
-          <div v-else class="empty-shift-notice">
-            <span>🔒 لا توجد وردية مفتوحة حالياً بالمحل. يتم تحديث الدرج فور بدء الشفت.</span>
+          <div v-else class="shift-empty-state">
+            <AppIcon name="lock" :size="20" />
+            <span>لا توجد وردية مفتوحة حالياً. يتم تحديث بيانات الدرج تلقائياً فور بدء الشفت.</span>
           </div>
         </div>
 
-        <!-- 6. Recent Sales Stream (Live Pulse) -->
-        <div v-if="currentSummary.recentSales?.length" class="glass-content-card">
-          <div class="card-header-flex">
-            <h3 class="card-title">
-              <AppIcon name="zap" :size="18" /> أحدث الفواتير المسجلة اليوم
-            </h3>
-            <span class="card-meta-tag">{{ currentSummary.recentSales.length }} فواتير</span>
+        <!-- Recent Sales Stream (Live Pulse) -->
+        <div v-if="currentSummary.recentSales?.length" class="executive-card">
+          <div class="card-head">
+            <div class="card-head-title">
+              <AppIcon name="zap" :size="17" />
+              <h3>أحدث فواتير اليوم</h3>
+            </div>
+            <span class="card-head-sub">{{ currentSummary.recentSales.length }} فواتير</span>
           </div>
 
           <div class="recent-sales-stream">
@@ -393,15 +425,15 @@
                         ? 'monitor'
                         : 'creditCard'
                   "
-                  :size="18"
+                  :size="16"
                 />
               </div>
               <div class="sale-details">
-                <div class="sale-main-line">
+                <div class="sale-primary-line">
                   <strong class="sale-num">{{ s.saleNumber }}</strong>
                   <strong class="sale-amt">{{ formatMoney(s.totalAmount) }} ج.م</strong>
                 </div>
-                <div class="sale-sub-line">
+                <div class="sale-secondary-line">
                   <span>{{ s.cashierName }} • {{ s.customerName }}</span>
                   <span class="sale-time">{{ formatTime(s.createdAt) }}</span>
                 </div>
@@ -413,37 +445,41 @@
 
       <!-- ═════════════ TAB 2: INVENTORY & VALUATION ═════════════ -->
       <section v-else-if="activeTab === 'inventory'" class="tab-pane">
-        <!-- 1. Total Stock Valuation Hero Card -->
-        <div class="luxury-hero-card inventory-gold-theme">
-          <div class="card-glow-orb gold-glow"></div>
-          <div class="hero-header-row">
-            <span class="hero-title-badge"
-              ><AppIcon name="inventory" :size="15" /> إجمالي القيمة المالية للمخزون</span
-            >
-            <div class="growth-chip chip-gold">رأس مال مربوط</div>
-          </div>
-
-          <div class="hero-amount-display">
-            <span class="currency-prefix">ج.م</span>
-            <span class="amount-number">{{ formatMoney(currentInventory.totalValuation) }}</span>
-          </div>
-
-          <div class="hero-stats-subbar">
-            <div class="sub-stat">
-              <span class="sub-label">الأصناف بالمخازن</span>
-              <strong class="sub-val">{{ currentInventory.productsInStock }} صنف</strong>
+        <!-- Inventory Valuation Master Hero Card -->
+        <div class="executive-hero-card inventory-hero-theme">
+          <div class="hero-top-row">
+            <div class="hero-date-chip">
+              <AppIcon name="boxes" :size="14" />
+              <span>تقييم المخزون المالي</span>
             </div>
-            <div class="sub-divider"></div>
-            <div class="sub-stat">
-              <span class="sub-label">القيمة البيعية</span>
-              <strong class="sub-val"
-                >{{ formatMoney(currentInventory.totalRetailValue) }} ج.م</strong
+            <div class="hero-growth-chip growth-neutral">
+              <span>رأس مال مربوط</span>
+            </div>
+          </div>
+
+          <div class="hero-revenue-display">
+            <span class="currency-tag">ج.م</span>
+            <span class="revenue-number">{{ formatMoney(currentInventory.totalValuation) }}</span>
+          </div>
+
+          <div class="hero-kpi-grid">
+            <div class="kpi-cell">
+              <span class="kpi-label">الأصناف المتوفرة</span>
+              <strong class="kpi-value"
+                >{{ currentInventory.productsInStock }} <small>صنف</small></strong
               >
             </div>
-            <div class="sub-divider"></div>
-            <div class="sub-stat">
-              <span class="sub-label">الربح المتوقع</span>
-              <strong class="sub-val text-emerald">
+            <div class="kpi-cell-divider"></div>
+            <div class="kpi-cell">
+              <span class="kpi-label">القيمة البيعية المتوقعة</span>
+              <strong class="kpi-value"
+                >{{ formatMoney(currentInventory.totalRetailValue) }} <small>ج.م</small></strong
+              >
+            </div>
+            <div class="kpi-cell-divider"></div>
+            <div class="kpi-cell">
+              <span class="kpi-label">مجمل الربح التقديري</span>
+              <strong class="kpi-value val-positive">
                 {{
                   formatMoney(
                     Math.max(
@@ -452,30 +488,31 @@
                     ),
                   )
                 }}
-                ج.م
+                <small>ج.م</small>
               </strong>
             </div>
           </div>
         </div>
 
-        <!-- 2. Categories Capital Distribution -->
-        <div class="glass-content-card">
-          <div class="card-header-flex">
-            <h3 class="card-title">
-              <AppIcon name="boxes" :size="18" /> توزيع رأس المال حسب الأقسام
-            </h3>
-            <span class="card-meta-tag">{{ currentInventory.categories?.length || 0 }} أقسام</span>
+        <!-- Categories Capital Distribution -->
+        <div class="executive-card">
+          <div class="card-head">
+            <div class="card-head-title">
+              <AppIcon name="layers" :size="17" />
+              <h3>توزيع رأس المال حسب الأقسام</h3>
+            </div>
+            <span class="card-head-sub">{{ currentInventory.categories?.length || 0 }} أقسام</span>
           </div>
 
-          <div class="categories-breakdown-list">
+          <div class="category-breakdown-list">
             <div
               v-for="cat in currentInventory.categories || []"
               :key="cat.name"
-              class="category-stat-item"
+              class="category-stat-row"
             >
-              <div class="cat-header-line">
-                <span class="cat-title">{{ cat.name }}</span>
-                <strong class="cat-money">{{ formatMoney(cat.valuation) }} ج.م</strong>
+              <div class="cat-headline">
+                <span class="cat-name">{{ cat.name }}</span>
+                <strong class="cat-amount">{{ formatMoney(cat.valuation) }} ج.م</strong>
               </div>
               <div class="cat-progress-track">
                 <div
@@ -485,38 +522,39 @@
               </div>
               <div class="cat-footer-sub">
                 <span>{{ cat.productCount }} أصناف • {{ formatQty(cat.totalQuantity) }} وحدة</span>
-                <span>{{ getCategoryPercent(cat.valuation) }}% من رأس المال</span>
+                <span class="cat-ratio-badge"
+                  >{{ getCategoryPercent(cat.valuation) }}% من القيمة</span
+                >
               </div>
             </div>
           </div>
         </div>
 
-        <!-- 3. Critical Low Stock Radar -->
-        <div class="glass-content-card alert-border-card">
-          <div class="card-header-flex">
-            <div class="title-with-pulse">
-              <span class="pulse-red"></span>
-              <h3 class="card-title text-red">
-                <AppIcon name="warning" :size="18" /> رادار النواقص وتنبيهات إعادة الطلب
-              </h3>
+        <!-- Critical Low Stock Radar -->
+        <div class="executive-card alert-card">
+          <div class="card-head">
+            <div class="card-head-title">
+              <span class="status-pulse-dot pulse-warning"></span>
+              <AppIcon name="warning" :size="17" />
+              <h3 class="title-warning">رادار النواقص وتنبيهات إعادة الطلب</h3>
             </div>
-            <span class="badge-count-red"
-              >{{ currentInventory.lowStockItems?.length || 0 }} صنف</span
-            >
+            <span class="alert-count-badge">
+              {{ currentInventory.lowStockItems?.length || 0 }} صنف
+            </span>
           </div>
 
-          <div v-if="currentInventory.lowStockItems?.length" class="low-stock-cards-list">
+          <div v-if="currentInventory.lowStockItems?.length" class="low-stock-items-list">
             <div
               v-for="item in currentInventory.lowStockItems"
               :key="item.id"
-              class="low-stock-row"
+              class="low-stock-item-row"
             >
               <div class="stock-item-info">
                 <strong class="stock-item-name">{{ item.name }}</strong>
                 <span class="stock-item-meta">{{ item.category }} • كود: {{ item.sku }}</span>
               </div>
               <div class="stock-item-levels">
-                <span class="stock-critical-badge">
+                <span class="stock-level-badge">
                   المتبقي: {{ formatQty(item.currentStock) }} {{ item.unit }}
                 </span>
                 <span class="stock-limit-note">حد الأمان: {{ item.minLimit }}</span>
@@ -524,117 +562,119 @@
             </div>
           </div>
 
-          <div v-else class="clean-empty-state">
-            <span
-              ><AppIcon name="check" :size="16" /> المخزون سليم — لا توجد نواقص تحت حد الأمان
-              حالياً</span
-            >
+          <div v-else class="stock-healthy-state">
+            <AppIcon name="check" :size="18" />
+            <span>المخزون متزن — لا توجد أصناف تحت حد الأمان حالياً.</span>
           </div>
         </div>
       </section>
 
       <!-- ═════════════ TAB 3: REMOTE APPROVALS ═════════════ -->
       <section v-else-if="activeTab === 'approvals'" class="tab-pane">
-        <div class="approvals-header-banner">
+        <!-- Header Banner -->
+        <div class="approvals-top-banner">
           <div>
-            <h2 class="banner-title">
-              <AppIcon name="bell" :size="20" /> طلبات موافقات الكاشير اللحظية
-            </h2>
+            <h2 class="banner-title"><AppIcon name="bell" :size="18" /> طلبات موافقة الكاشير</h2>
             <p class="banner-desc">اعتماد أو رفض طلبات الخصم والاستثناءات بضغطة زر</p>
           </div>
-          <button class="banner-refresh-btn" @click="fetchApprovals">
-            <AppIcon name="refresh" :size="15" /> تحديث
+          <button type="button" class="banner-refresh-btn" @click="fetchApprovals">
+            <AppIcon name="refresh" :size="14" />
+            <span>تحديث</span>
           </button>
         </div>
 
-        <!-- Approval Status Filter Tabs -->
-        <div class="approval-filter-strip">
+        <!-- Filter Pills -->
+        <div class="approval-filter-tabs">
           <button
-            class="appr-filter-btn"
+            type="button"
+            class="appr-filter-pill"
             :class="{ active: approvalFilter === 'pending' }"
             @click="approvalFilter = 'pending'"
           >
-            المعلقة ({{ pendingApprovalsCount }}) ⏳
+            <AppIcon name="clock" :size="14" />
+            <span>المعلقة ({{ pendingApprovalsCount }})</span>
           </button>
           <button
-            class="appr-filter-btn"
+            type="button"
+            class="appr-filter-pill"
             :class="{ active: approvalFilter === 'all' }"
             @click="approvalFilter = 'all'"
           >
-            كل الطلبات 📋
+            <AppIcon name="recipes" :size="14" />
+            <span>كل الطلبات</span>
           </button>
         </div>
 
         <!-- Approvals Stream -->
-        <div v-if="filteredApprovals.length" class="approvals-card-stream">
+        <div v-if="filteredApprovals.length" class="approvals-stream">
           <div
             v-for="req in filteredApprovals"
             :key="req.id"
             class="approval-ticket-card"
             :class="'ticket-' + req.status"
           >
-            <div class="ticket-head">
-              <div class="ticket-user">
-                <span class="user-avatar-circle"><AppIcon name="user" :size="16" /></span>
+            <div class="ticket-header">
+              <div class="ticket-requester">
+                <span class="requester-icon"><AppIcon name="userCheck" :size="15" /></span>
                 <div>
-                  <strong class="user-display-name">{{ req.requester_name || 'الكاشير' }}</strong>
+                  <strong class="requester-name">{{ req.requester_name || 'الكاشير' }}</strong>
                   <span class="ticket-time">{{ formatRelativeTime(req.created_at) }}</span>
                 </div>
               </div>
-              <span class="status-ticket-pill" :class="'pill-' + req.status">
+              <span class="status-ticket-badge" :class="'badge-' + req.status">
                 {{ getStatusLabel(req.status) }}
               </span>
             </div>
 
             <div class="ticket-body">
-              <div class="action-bold-title">
-                {{ req.action_label }}
-              </div>
+              <h4 class="ticket-action-title">{{ req.action_label }}</h4>
 
               <div class="ticket-details-box" v-if="req.details">
-                <div v-if="req.details.discount_amount" class="detail-item">
-                  <span class="detail-k">قيمة الخصم المطلوب:</span>
-                  <strong class="detail-v text-amber"
+                <div v-if="req.details.discount_amount" class="detail-pair">
+                  <span class="dp-key">الخصم المطلوب:</span>
+                  <strong class="dp-val val-warning"
                     >{{ formatMoney(req.details.discount_amount) }} ج.م</strong
                   >
                 </div>
-                <div v-if="req.details.amount" class="detail-item">
-                  <span class="detail-k">إجمالي الفاتورة:</span>
-                  <strong class="detail-v">{{ formatMoney(req.details.amount) }} ج.م</strong>
+                <div v-if="req.details.amount" class="detail-pair">
+                  <span class="dp-key">إجمالي الفاتورة:</span>
+                  <strong class="dp-val">{{ formatMoney(req.details.amount) }} ج.م</strong>
                 </div>
-                <div v-if="req.details.reason" class="detail-item full-width">
-                  <span class="detail-k">السبب المسجل:</span>
-                  <span class="detail-v">{{ req.details.reason }}</span>
+                <div v-if="req.details.reason" class="detail-pair dp-full">
+                  <span class="dp-key">السبب المسجل:</span>
+                  <span class="dp-val dp-desc">{{ req.details.reason }}</span>
                 </div>
               </div>
             </div>
 
             <!-- Action Buttons if Pending -->
-            <div v-if="req.status === 'pending'" class="ticket-actions-row">
+            <div v-if="req.status === 'pending'" class="ticket-actions">
               <button
-                class="btn-reject-ticket"
-                :disabled="decidingId === req.id"
+                type="button"
+                class="btn-ticket-reject"
+                :disabled="decidingId !== null"
                 @click="handleDecide(req.id, 'rejected')"
               >
-                <AppIcon name="x" :size="14" />
-                <span>رفـض الخصم</span>
+                <AppIcon name="close" :size="15" />
+                <span>رفض الخصم</span>
               </button>
 
               <button
-                class="btn-approve-ticket"
-                :disabled="decidingId === req.id"
+                type="button"
+                class="btn-ticket-approve"
+                :disabled="decidingId !== null"
                 @click="handleDecide(req.id, 'approved')"
               >
                 <span v-if="decidingId === req.id">جاري الاعتماد...</span>
-                <span v-else>
-                  <AppIcon name="check" :size="14" />
-                  <span>مـوافـقـة وفك القفل</span>
+                <span v-else class="btn-inner-flex">
+                  <AppIcon name="check" :size="15" />
+                  <span>موافقة وفك القفل</span>
                 </span>
               </button>
             </div>
 
-            <!-- Footer if Decided -->
-            <div v-else class="ticket-decided-foot">
+            <!-- Decided Info Foot -->
+            <div v-else class="ticket-decided-footer">
               <span
                 >تم بواسطة: <strong>{{ req.decided_by_name || 'المدير' }}</strong></span
               >
@@ -643,8 +683,8 @@
           </div>
         </div>
 
-        <div v-else class="clean-empty-approvals">
-          <div class="empty-sparkle-icon"><AppIcon name="sparkles" :size="32" /></div>
+        <div v-else class="approvals-empty-state">
+          <div class="empty-sparkle"><AppIcon name="check" :size="28" /></div>
           <h3>لا توجد طلبات معلقة</h3>
           <p>كافة عمليات الكاشير والمحل تسير بالأسعار والخصومات المعتمدة تلقائياً.</p>
         </div>
@@ -652,28 +692,31 @@
     </main>
 
     <!-- ═══════════════════════════════════════════════════════════════
-         BOTTOM LUXURY NAVIGATION BAR
+         4. BOTTOM LUXURY NAVIGATION BAR
          ═══════════════════════════════════════════════════════════════ -->
     <nav class="luxury-bottom-nav">
       <button
+        type="button"
         class="nav-tab-item"
         :class="{ active: activeTab === 'sales' }"
         @click="activeTab = 'sales'"
       >
-        <span class="nav-icon"><AppIcon name="chart" :size="20" /></span>
+        <span class="nav-icon"><AppIcon name="reports" :size="20" /></span>
         <span class="nav-text">نظرة عامة</span>
       </button>
 
       <button
+        type="button"
         class="nav-tab-item"
         :class="{ active: activeTab === 'inventory' }"
         @click="activeTab = 'inventory'"
       >
-        <span class="nav-icon"><AppIcon name="package" :size="20" /></span>
+        <span class="nav-icon"><AppIcon name="products" :size="20" /></span>
         <span class="nav-text">المخزون</span>
       </button>
 
       <button
+        type="button"
         class="nav-tab-item"
         :class="{ active: activeTab === 'approvals' }"
         @click="activeTab = 'approvals'"
@@ -689,23 +732,50 @@
     </nav>
 
     <!-- ═══════════════════════════════════════════════════════════════
-         SERVER CONFIGURATION MODAL
+         5. BACKEND SERVER CONFIGURATION MODAL
          ═══════════════════════════════════════════════════════════════ -->
     <div v-if="showServerConfig" class="modal-overlay" @click.self="showServerConfig = false">
       <div class="modal-card">
         <div class="modal-head">
           <div class="modal-title-flex">
-            <span class="modal-icon"><AppIcon name="settings" :size="20" /></span>
-            <h3>إعدادات خادم النظام (Backend Server)</h3>
+            <span class="modal-icon"><AppIcon name="settings" :size="18" /></span>
+            <h3>إعدادات المنظومة والاتصال</h3>
           </div>
-          <button class="modal-close-btn" @click="showServerConfig = false">
-            <AppIcon name="x" :size="16" />
+          <button type="button" class="modal-close-btn" @click="showServerConfig = false">
+            <AppIcon name="close" :size="16" />
           </button>
         </div>
 
         <div class="modal-body">
+          <!-- Active User & Session Profile Card -->
+          <div class="modal-user-card">
+            <div class="user-avatar-wrap">
+              <AppIcon name="userCheck" :size="20" />
+            </div>
+            <div class="user-info-text">
+              <strong>{{ auth.user?.full_name || auth.user?.username || 'مدير المنظومة' }}</strong>
+              <span class="user-role-badge">صلاحيات الإدارة التنفيذية والرقابة</span>
+            </div>
+          </div>
+
+          <!-- Quick Navigation & Logout Actions -->
+          <div class="modal-quick-nav">
+            <RouterLink to="/" class="btn-modal-action" title="العودة لمنظومة سطح المكتب">
+              <AppIcon name="monitor" :size="16" />
+              <span>منظومة سطح المكتب والـ POS</span>
+            </RouterLink>
+            <button type="button" class="btn-modal-action btn-modal-logout" @click="handleLogout">
+              <AppIcon name="logout" :size="16" />
+              <span>تسجيل الخروج من المنظومة</span>
+            </button>
+          </div>
+
+          <div class="modal-section-divider">
+            <span>إعدادات خادم النظام (Backend Server)</span>
+          </div>
+
           <p class="modal-desc">
-            اختر عنوان السيرفر الذي ترغب بربط التطبيق به لضمان مزامنة البيانات اللحظية والتحكم في
+            حدد رابط السيرفر الذي ترغب بربط التطبيق به لضمان مزامنة البيانات اللحظية والتحكم في
             المحل.
           </p>
 
@@ -715,7 +785,7 @@
               v-model="customServerUrl"
               type="text"
               class="form-input"
-              placeholder="مثال: https://agoouz.vercel.app أو http://192.168.1.14:3000"
+              :placeholder="serverUrlPlaceholder"
               dir="ltr"
             />
           </div>
@@ -734,16 +804,8 @@
             <button
               type="button"
               class="preset-chip"
-              :class="{ 'chip-active': customServerUrl === 'http://192.168.1.14:3000' }"
-              @click="customServerUrl = 'http://192.168.1.14:3000'"
-            >
-              <AppIcon name="store" :size="13" />
-              <span>سيرفر المحل (192.168.1.14:3000)</span>
-            </button>
-            <button
-              type="button"
-              class="preset-chip"
               :class="{ 'chip-active': customServerUrl === 'http://localhost:3000' }"
+              v-if="isValidServerUrl('http://localhost:3000')"
               @click="customServerUrl = 'http://localhost:3000'"
             >
               <AppIcon name="monitor" :size="13" />
@@ -778,62 +840,84 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import {
   managerMobileApi,
   type ExecutiveSummaryData,
   type InventoryValuationData,
   type ManagerApprovalRequest,
 } from '@/api/managerMobile.api';
-import { getBaseServerUrl, setBaseServerUrl } from '@/api/client';
+import {
+  assertValidServerUrl,
+  ServerAddressError,
+  isValidServerUrl,
+  getApiCacheScope,
+  getBaseServerUrl,
+  setBaseServerUrl,
+} from '@/api/client';
 import { initNativeMobile, triggerHaptic } from '@/services/nativeMobileService';
 import { brandingState } from '@/design-system/themes/themeEngine';
+import { useAuthStore } from '@/stores/auth';
+import { useAppStore } from '@/stores/app';
+import { useRouter } from 'vue-router';
 import axios from 'axios';
 
-const companyName = computed(() => brandingState.companyName || 'Al-Agoouz ERP');
+const auth = useAuthStore();
+const appStore = useAppStore();
+const router = useRouter();
+
+const companyName = computed(() => brandingState.companyName || 'بن العجوز');
+
+const handleLogout = async () => {
+  if (window.confirm('هل ترغب بتسجيل الخروج من المنظومة؟')) {
+    triggerHaptic('medium');
+    try {
+      await auth.logout();
+      await router.replace('/login');
+    } catch {
+      appStore.addToast('تعذر إتمام تسجيل الخروج. تحقق من الاتصال وحاول مرة أخرى.', 'error');
+    }
+  }
+};
 
 // ─── Reactive State ─────────────────────────────────────────
 const activeTab = ref<'sales' | 'inventory' | 'approvals'>('sales');
 const loading = ref(false);
 const fetchError = ref('');
 const decidingId = ref<number | null>(null);
-const isLiveConnected = ref(true);
+const isLiveConnected = ref(false);
 const approvalFilter = ref<'pending' | 'all'>('pending');
 
 // ─── Date Selection ─────────────────────────────────────────
-const selectedDateStr = ref<string>(new Date().toISOString().slice(0, 10));
-const customSelectedDate = ref<string>(new Date().toISOString().slice(0, 10));
-
-const isTodaySelected = computed(() => {
-  return selectedDateStr.value === new Date().toISOString().slice(0, 10);
-});
-
-const isYesterdaySelected = computed(() => {
-  const y = new Date();
-  y.setDate(y.getDate() - 1);
-  return selectedDateStr.value === y.toISOString().slice(0, 10);
-});
-
-const selectedDateFormatted = computed(() => {
-  if (isTodaySelected.value) return 'اليوم';
-  if (isYesterdaySelected.value) return 'أمس';
-  return selectedDateStr.value;
-});
-
+const cairoDay = (offset = 0) => {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Africa/Cairo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date());
+  const part = (type: string) => parts.find((value) => value.type === type)!.value;
+  const date = new Date(`${part('year')}-${part('month')}-${part('day')}T12:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + offset);
+  return date.toISOString().slice(0, 10);
+};
+const selectedDateStr = ref<string>(cairoDay());
+const customSelectedDate = ref<string>(cairoDay());
+const isTodaySelected = computed(() => selectedDateStr.value === cairoDay());
+const isYesterdaySelected = computed(() => selectedDateStr.value === cairoDay(-1));
+const selectedDateFormatted = computed(() =>
+  isTodaySelected.value ? 'اليوم' : isYesterdaySelected.value ? 'أمس' : selectedDateStr.value,
+);
 const selectToday = () => {
-  selectedDateStr.value = new Date().toISOString().slice(0, 10);
+  selectedDateStr.value = cairoDay();
   customSelectedDate.value = selectedDateStr.value;
   refreshAll();
 };
-
 const selectYesterday = () => {
-  const y = new Date();
-  y.setDate(y.getDate() - 1);
-  selectedDateStr.value = y.toISOString().slice(0, 10);
+  selectedDateStr.value = cairoDay(-1);
   customSelectedDate.value = selectedDateStr.value;
   refreshAll();
 };
-
 const onDateChange = () => {
   if (customSelectedDate.value) {
     selectedDateStr.value = customSelectedDate.value;
@@ -844,9 +928,11 @@ const onDateChange = () => {
 // ─── Server Config State ────────────────────────────────────
 const showServerConfig = ref(false);
 const customServerUrl = ref(getBaseServerUrl() || 'https://agoouz.vercel.app');
+const serverUrlPlaceholder = 'رابط HTTPS أو عنوان الشبكة المحلية للسيرفر';
 const testingConn = ref(false);
 const testResultMsg = ref('');
 const testResultStatus = ref<'success' | 'error' | ''>('');
+let diagnosticRequest = 0;
 
 // ─── Data Holders ───────────────────────────────────────────
 const summaryData = ref<ExecutiveSummaryData | null>(null);
@@ -856,7 +942,7 @@ const isDemoMode = ref(false);
 
 // Fallback Default Data (Prevents Blank Screens)
 const fallbackSummary: ExecutiveSummaryData = {
-  date: new Date().toISOString().slice(0, 10),
+  date: cairoDay(),
   grandTotal: 0,
   totalCount: 0,
   yesterdayTotal: 0,
@@ -943,7 +1029,11 @@ const formatQty = (num: number | string | undefined | null) => {
 const formatTime = (isoStr: string) => {
   if (!isoStr) return '--:--';
   const d = new Date(isoStr);
-  return d.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+  return d.toLocaleTimeString('ar-EG', {
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'Africa/Cairo',
+  });
 };
 
 const formatRelativeTime = (isoStr: string) => {
@@ -957,11 +1047,11 @@ const formatRelativeTime = (isoStr: string) => {
 const getStatusLabel = (status: string) => {
   switch (status) {
     case 'pending':
-      return 'قيد الانتظار ⏳';
+      return 'قيد الانتظار';
     case 'approved':
-      return 'تمت الموافقة ✅';
+      return 'معتمد';
     case 'rejected':
-      return 'مرفوض ❌';
+      return 'مرفوض';
     default:
       return status;
   }
@@ -982,20 +1072,27 @@ const playAlertSound = () => {
     gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
     osc.start(ctx.currentTime);
     osc.stop(ctx.currentTime + 0.5);
+    osc.onended = () => {
+      void ctx.close().catch(() => {});
+    };
   } catch {
-    // Audio feedback is optional and may be blocked by the browser.
+    // Audio feedback is optional
   }
 };
 
 // ─── Server Diagnostics ─────────────────────────────────────
+const diagnosticTarget = () =>
+  (customServerUrl.value || getBaseServerUrl() || window.location.origin).replace(/\/+$/, '');
 const testServerConnection = async () => {
+  const request = ++diagnosticRequest;
   testingConn.value = true;
   testResultMsg.value = '';
   testResultStatus.value = '';
 
-  const target = (customServerUrl.value || getBaseServerUrl()).replace(/\/+$/, '');
+  const target = diagnosticTarget();
   const startTime = Date.now();
   try {
+    assertValidServerUrl(target);
     let res: any;
     try {
       res = await axios.get(`${target}/api/v1/health`, { timeout: 12000 });
@@ -1003,78 +1100,148 @@ const testServerConnection = async () => {
       res = await axios.get(`${target}/health`, { timeout: 12000 });
     }
     const latency = Date.now() - startTime;
-    if (res.data && (res.data.success || res.status === 200)) {
+    if (disposed || request !== diagnosticRequest || target !== diagnosticTarget()) return;
+    if (res.status === 200 && res.data?.success === true && res.data?.db?.connected === true) {
       testResultStatus.value = 'success';
       const isCloud = target.includes('agoouz') || target.includes('https');
-      const isDbOk = res.data.db?.connected ? ' • قاعدة البيانات متصلة ✅' : '';
-      testResultMsg.value = `✅ الاتصال ناجح! (${isCloud ? 'سيرفر سحابي ☁️' : 'سيرفر محلي 🏢'} • استجابة: ${latency}ms${isDbOk})`;
+      const isDbOk = res.data.db?.connected ? ' • قاعدة البيانات متصلة' : '';
+      testResultMsg.value = `الاتصال ناجح! (${isCloud ? 'سيرفر سحابي' : 'سيرفر محلي'} • استجابة: ${latency}ms${isDbOk})`;
       triggerHaptic('success');
     } else {
       throw new Error('استجابة غير متوقعة');
     }
-  } catch {
+  } catch (error) {
+    if (disposed || request !== diagnosticRequest || target !== diagnosticTarget()) return;
     testResultStatus.value = 'error';
-    testResultMsg.value = `❌ تعذر الاتصال بالسيرفر (${target}). يرجى التأكد من تشغيل السيرفر وعنوان الـ IP.`;
+    testResultMsg.value =
+      error instanceof ServerAddressError
+        ? error.message
+        : `تعذر الاتصال بالسيرفر (${target}). يرجى التأكد من تشغيل السيرفر وعنوان الـ IP.`;
     triggerHaptic('error');
   } finally {
-    testingConn.value = false;
+    if (request === diagnosticRequest) testingConn.value = false;
   }
 };
 
 const saveServerConfig = () => {
-  setBaseServerUrl(customServerUrl.value);
-  showServerConfig.value = false;
-  testResultMsg.value = '';
-  triggerHaptic('success');
-  refreshAll();
-  initLiveConnection();
+  try {
+    const scope = getApiCacheScope();
+    setBaseServerUrl(customServerUrl.value.trim());
+    showServerConfig.value = false;
+    testResultMsg.value = '';
+    triggerHaptic('success');
+    if (scope === getApiCacheScope() && auth.user?.id) {
+      refreshAll();
+      initLiveConnection();
+    }
+  } catch (err: any) {
+    testResultStatus.value = 'error';
+    testResultMsg.value = err.message || 'عنوان السيرفر غير صالح';
+  }
 };
 
 // ─── Data Fetching ──────────────────────────────────────────
+let disposed = false;
+let viewRevision = 0;
+let summaryRequest = 0;
+let inventoryRequest = 0;
+let approvalsRequest = 0;
+let refreshRequest = 0;
+let decisionRequest = 0;
+const context = () => ({ scope: getApiCacheScope(), revision: viewRevision });
+const isCurrent = (captured: ReturnType<typeof context>) =>
+  !disposed && captured.revision === viewRevision && captured.scope === getApiCacheScope();
+const saveCache = (key: string, value: unknown) => {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    /* العرض الناجح لا يعتمد على توفر التخزين */
+  }
+};
+const readCache = (key: string) => {
+  try {
+    return JSON.parse(localStorage.getItem(key) || 'null');
+  } catch {
+    return null;
+  }
+};
 const fetchSummary = async () => {
-  const data = await managerMobileApi.getSummary(selectedDateStr.value);
-  if (data) {
+  const captured = context();
+  const date = selectedDateStr.value;
+  const request = ++summaryRequest;
+  const data = await managerMobileApi.getSummary(date);
+  if (data && isCurrent(captured) && request === summaryRequest && date === selectedDateStr.value) {
     summaryData.value = data;
-    localStorage.setItem('binalagoouz_cached_summary', JSON.stringify(data));
+    saveCache(`binalagoouz_cached_summary:${captured.scope}:${date}`, data);
   }
 };
-
 const fetchInventory = async () => {
+  const captured = context();
+  const request = ++inventoryRequest;
   const data = await managerMobileApi.getInventoryValuation();
-  if (data) {
+  if (data && isCurrent(captured) && request === inventoryRequest) {
     inventoryData.value = data;
-    localStorage.setItem('binalagoouz_cached_inventory', JSON.stringify(data));
+    saveCache(`binalagoouz_cached_inventory:${captured.scope}`, data);
   }
 };
-
 const fetchApprovals = async () => {
+  const captured = context();
+  const request = ++approvalsRequest;
   const data = await managerMobileApi.getApprovals('all');
-  if (Array.isArray(data)) approvalsList.value = data;
+  if (Array.isArray(data) && isCurrent(captured) && request === approvalsRequest)
+    approvalsList.value = data;
 };
-
 const refreshAll = async () => {
+  const captured = context();
+  const wasDemo = isDemoMode.value;
+  const date = selectedDateStr.value;
+  const request = ++refreshRequest;
   loading.value = true;
   fetchError.value = '';
-  try {
-    await Promise.all([fetchSummary(), fetchInventory(), fetchApprovals()]);
-    isDemoMode.value = false;
-  } catch (err: any) {
-    console.warn('Mobile API fetch error:', err);
-    // حاول استعادة النسخة المخبأة في الذاكرة لتفادي الشاشة الفارغة
-    const cachedSum = localStorage.getItem('binalagoouz_cached_summary');
-    const cachedInv = localStorage.getItem('binalagoouz_cached_inventory');
-    if (cachedSum) summaryData.value = JSON.parse(cachedSum);
-    if (cachedInv) inventoryData.value = JSON.parse(cachedInv);
-
-    const target = getBaseServerUrl() || 'السيرفر المعتمد';
-    fetchError.value = `تعذر الاتصال بالسيرفر (${target}). يرجى التحقق من الشبكة أو ضبط السيرفر.`;
-  } finally {
-    loading.value = false;
+  const results = await Promise.allSettled([fetchSummary(), fetchInventory(), fetchApprovals()]);
+  if (!isCurrent(captured) || request !== refreshRequest || date !== selectedDateStr.value) return;
+  isDemoMode.value = false;
+  const denied = (result: PromiseSettledResult<unknown>) =>
+    result.status === 'rejected' &&
+    [401, 403].includes(Number(result.reason?.response?.status || result.reason?.status));
+  if (results[0].status === 'rejected') {
+    const cached = denied(results[0])
+      ? null
+      : readCache(`binalagoouz_cached_summary:${captured.scope}:${date}`);
+    summaryData.value =
+      cached?.date === date &&
+      cached?.retail &&
+      cached?.wholesale &&
+      cached?.paymentTotals &&
+      cached?.expenses &&
+      Number.isFinite(cached?.grandTotal)
+        ? cached
+        : null;
   }
+  if (results[1].status === 'rejected') {
+    const cached = denied(results[1])
+      ? null
+      : readCache(`binalagoouz_cached_inventory:${captured.scope}`);
+    inventoryData.value =
+      Array.isArray(cached?.categories) &&
+      Array.isArray(cached?.lowStockItems) &&
+      Number.isFinite(cached?.totalValuation)
+        ? cached
+        : null;
+  }
+  if (results[2].status === 'rejected') approvalsList.value = [];
+  if (results.some((result) => result.status === 'rejected')) {
+    fetchError.value = results.some(denied)
+      ? 'بعض البيانات غير مصرح بها للجلسة الحالية؛ أعد تسجيل الدخول أو راجع الصلاحيات.'
+      : 'تعذر تحديث بعض البيانات. البيانات المخزنة، إن وجدت، قد تكون قديمة.';
+  }
+  loading.value = false;
+  if (wasDemo) initLiveConnection();
 };
 
 // ─── Demo Data Loader (for offline preview) ─────────────────
 const loadDemoData = () => {
+  resetViewContext();
   isDemoMode.value = true;
   fetchError.value = '';
   summaryData.value = {
@@ -1227,207 +1394,316 @@ const loadDemoData = () => {
 
 // ─── Approval Decision ──────────────────────────────────────
 const handleDecide = async (id: number, decision: 'approved' | 'rejected') => {
+  if (decidingId.value !== null) return;
+  const captured = context();
+  const request = ++decisionRequest;
+  const demo = isDemoMode.value;
   decidingId.value = id;
   try {
-    if (!isDemoMode.value) {
+    if (!demo) {
       const updated = await managerMobileApi.decideApproval(id, decision);
-      const item = approvalsList.value.find((a) => a.id === id);
-      if (item && updated) {
-        Object.assign(item, updated);
-      }
-      await fetchSummary();
+      if (!isCurrent(captured) || request !== decisionRequest) return;
+      const item = approvalsList.value.find((approval) => approval.id === id);
+      if (item && updated) Object.assign(item, updated);
+      void fetchSummary().catch(() => {
+        if (isCurrent(captured))
+          fetchError.value = 'تم حفظ القرار، لكن تعذر تحديث الملخص. أعد تحميل البيانات.';
+      });
     } else {
-      const item = approvalsList.value.find((a) => a.id === id);
-      if (item) {
-        item.status = decision;
-        item.decided_by_name = 'المدير التنفيذي';
-        item.decided_at = new Date().toISOString();
-      }
+      const item = approvalsList.value.find((approval) => approval.id === id);
+      if (item)
+        Object.assign(item, {
+          status: decision,
+          decided_by_name: 'المدير التنفيذي',
+          decided_at: new Date().toISOString(),
+        });
     }
-    triggerHaptic(decision === 'approved' ? 'success' : 'medium');
+    if (isCurrent(captured)) triggerHaptic(decision === 'approved' ? 'success' : 'medium');
   } catch (err: any) {
-    triggerHaptic('error');
-    alert(err?.response?.data?.message || 'حدث خطأ أثناء حفظ القرار');
+    if (isCurrent(captured) && request === decisionRequest) {
+      triggerHaptic('error');
+      alert(err?.response?.data?.message || 'حدث خطأ أثناء حفظ القرار');
+    }
   } finally {
-    decidingId.value = null;
+    if (isCurrent(captured) && request === decisionRequest) decidingId.value = null;
   }
 };
 
 // ─── Real-time WebSocket ────────────────────────────────────
 let ws: WebSocket | null = null;
-let pollTimer: any = null;
-
+let pollTimer: ReturnType<typeof setInterval> | null = null;
+const stopLiveConnection = () => {
+  const previous = ws;
+  ws = null;
+  previous?.close();
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = null;
+  isLiveConnected.value = false;
+};
+const resetViewContext = () => {
+  viewRevision++;
+  summaryRequest++;
+  inventoryRequest++;
+  approvalsRequest++;
+  refreshRequest++;
+  decisionRequest++;
+  diagnosticRequest++;
+  testingConn.value = false;
+  testResultMsg.value = '';
+  testResultStatus.value = '';
+  summaryData.value = null;
+  inventoryData.value = null;
+  approvalsList.value = [];
+  loading.value = false;
+  decidingId.value = null;
+  fetchError.value = '';
+  isDemoMode.value = false;
+  stopLiveConnection();
+};
 const initLiveConnection = () => {
-  if (ws) {
-    ws.close();
-    ws = null;
-  }
-
-  const serverUrl = getBaseServerUrl();
-  const wsUrl = serverUrl
-    ? `${serverUrl.startsWith('https') ? 'wss:' : 'ws:'}//${serverUrl.replace(/^https?:\/\//, '')}/ws`
-    : `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws`;
-
+  stopLiveConnection();
+  if (disposed || !auth.user?.id || isDemoMode.value) return;
+  const captured = context();
   try {
-    ws = new WebSocket(wsUrl);
-    ws.onopen = () => {
-      isLiveConnected.value = true;
+    const url = new URL('/ws', getBaseServerUrl() || window.location.origin);
+    url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+    const socket = new WebSocket(url.toString());
+    ws = socket;
+    const active = () => isCurrent(captured) && ws === socket;
+    socket.onopen = () => {
+      if (active()) isLiveConnected.value = true;
     };
-    ws.onclose = () => {
-      isLiveConnected.value = false;
+    socket.onclose = socket.onerror = () => {
+      if (active()) isLiveConnected.value = false;
     };
-    ws.onerror = () => {
-      isLiveConnected.value = false;
-    };
-    ws.onmessage = (event) => {
+    socket.onmessage = (event) => {
+      if (!active()) return;
       try {
         const msg = JSON.parse(event.data);
-        if (msg.event === 'approval:requested') {
-          playAlertSound();
-          approvalsList.value.unshift(msg.data);
-          if (summaryData.value) summaryData.value.pendingApprovalsCount++;
-        } else if (msg.event === 'approval:decided') {
-          const idx = approvalsList.value.findIndex((a) => a.id === msg.data.id);
-          if (idx !== -1) {
-            approvalsList.value[idx] = msg.data;
+        if (msg.event === 'approval:requested' && Number.isSafeInteger(msg.data?.id)) {
+          approvalsRequest++;
+          if (!approvalsList.value.some((item) => item.id === msg.data.id)) {
+            playAlertSound();
+            approvalsList.value.unshift(msg.data);
           }
+          void fetchSummary().catch(() => {});
+        } else if (msg.event === 'approval:decided' && Number.isSafeInteger(msg.data?.id)) {
+          approvalsRequest++;
+          const idx = approvalsList.value.findIndex((item) => item.id === msg.data.id);
+          if (idx !== -1) approvalsList.value[idx] = msg.data;
+          void fetchSummary().catch(() => {});
         }
       } catch {
-        // Ignore malformed realtime messages and keep the connection alive.
+        /* تجاهل الرسائل غير الصالحة */
       }
     };
   } catch {
     isLiveConnected.value = false;
   }
-
-  if (pollTimer) clearInterval(pollTimer);
   pollTimer = setInterval(() => {
-    fetchSummary();
-    if (activeTab.value === 'approvals') fetchApprovals();
+    if (!isCurrent(captured) || isDemoMode.value || loading.value) return;
+    const date = selectedDateStr.value;
+    void Promise.allSettled([
+      fetchSummary(),
+      ...(activeTab.value === 'approvals' ? [fetchApprovals()] : []),
+    ]).then((results) => {
+      if (!isCurrent(captured) || date !== selectedDateStr.value) return;
+      for (const [index, result] of results.entries()) {
+        if (result.status !== 'rejected') continue;
+        const denied = [401, 403].includes(
+          Number(result.reason?.response?.status || result.reason?.status),
+        );
+        if (denied && index === 0) summaryData.value = null;
+        if (denied && index === 1) approvalsList.value = [];
+        fetchError.value = denied
+          ? 'بعض البيانات غير مصرح بها للجلسة الحالية.'
+          : 'تعذر التحديث التلقائي؛ البيانات المعروضة قد تكون قديمة.';
+      }
+    });
   }, 12000);
 };
-
-// ─── Lifecycle ──────────────────────────────────────────────
+const onServerChanged = () => resetViewContext();
+watch(
+  () => auth.user?.id,
+  () => {
+    resetViewContext();
+    if (!disposed && auth.user?.id) {
+      void refreshAll();
+      initLiveConnection();
+    }
+  },
+);
+watch(selectedDateStr, () => {
+  summaryData.value = null;
+});
 onMounted(() => {
   initNativeMobile();
-  refreshAll();
+  window.addEventListener('erp:server-changed', onServerChanged);
+  void refreshAll();
   initLiveConnection();
 });
-
 onUnmounted(() => {
-  if (ws) ws.close();
-  if (pollTimer) clearInterval(pollTimer);
+  disposed = true;
+  resetViewContext();
+  window.removeEventListener('erp:server-changed', onServerChanged);
 });
 </script>
 
 <style scoped lang="scss">
 /* ═══════════════════════════════════════════════════════════════
-   ULTRA-LUXURY EXECUTIVE MOBILE THEME (Obsidian & Gold)
+   UNIFIED EXECUTIVE MOBILE DESIGN SYSTEM
+   Brand Alignment: Al-Agoouz ERP (Warm Roasted Coffee & Luxury Gold)
    ═══════════════════════════════════════════════════════════════ */
+
 .luxury-mobile-container {
   max-width: 480px;
   margin: 0 auto;
   min-height: 100vh;
-  background: var(--color-bg-base, #0b0f17);
-  color: var(--color-text-primary, #f8fafc);
-  font-family:
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
-    'Segoe UI',
-    Roboto,
-    sans-serif;
+  min-height: 100dvh;
+  background-color: var(--color-bg, #f7f3ec);
+  color: var(--color-text, #2d1e16);
+  font-family: inherit;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 0 60px rgba(0, 0, 0, 0.95);
   position: relative;
-  padding-bottom: 95px;
+  box-shadow: 0 0 40px rgba(0, 0, 0, 0.12);
+  padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px));
+  box-sizing: border-box;
+
+  /* Smooth Transitions */
+  transition:
+    background-color 0.25s ease,
+    color 0.25s ease;
 }
 
-/* Header */
+[data-theme='dark'] .luxury-mobile-container {
+  background-color: var(--color-bg, #120c08);
+  color: var(--color-text, #f4ece1);
+  box-shadow: 0 0 60px rgba(0, 0, 0, 0.85);
+}
+
+/* ══════════════ 1. HEADER & BRAND IDENTITY ══════════════ */
 .app-header {
-  background: rgba(11, 15, 23, 0.95);
-  border-bottom: 1px solid var(--color-border-subtle, rgba(255, 255, 255, 0.08));
-  padding: 16px 18px 12px;
+  background: var(--color-surface, #ffffff);
+  border-bottom: 1px solid var(--color-border-subtle, #efe9df);
+  padding: calc(14px + env(safe-area-inset-top, 0px)) 16px 12px;
   position: sticky;
   top: 0;
   z-index: 50;
-  backdrop-filter: blur(20px);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+}
+
+[data-theme='dark'] .app-header {
+  background: rgba(33, 23, 16, 0.92);
+  border-bottom-color: var(--color-border, #3a2a20);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
 }
 
 .header-inner {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
 }
 
 .brand-identity {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
+  min-width: 0;
 }
 
 .brand-emblem {
   width: 42px;
   height: 42px;
-  background: linear-gradient(
-    135deg,
-    var(--color-primary, #5a3825) 0%,
-    var(--color-primary-active, #3b2418) 100%
-  );
   border-radius: 12px;
+  background: linear-gradient(135deg, var(--color-primary, #5a3825) 0%, #3b2418 100%);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 16px rgba(90, 56, 37, 0.35);
-  color: #ffffff;
+  flex-shrink: 0;
+  border: 1px solid var(--color-gold-border, rgba(181, 138, 74, 0.35));
+  box-shadow: 0 4px 12px rgba(90, 56, 37, 0.2);
 
   img {
-    width: 30px;
-    height: 30px;
+    width: 28px;
+    height: 28px;
     object-fit: contain;
   }
 }
 
+.brand-text {
+  min-width: 0;
+}
+
 .brand-name {
-  font-size: 19px;
-  font-weight: 900;
-  color: #ffffff;
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--color-text-strong, #1d120b);
   margin: 0;
-  letter-spacing: -0.3px;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+[data-theme='dark'] .brand-name {
+  color: #ffffff;
 }
 
 .brand-tagline {
   font-size: 11px;
-  color: var(--color-primary-400, #60a5fa);
-  font-weight: 700;
+  color: var(--color-gold, #b58a4a);
+  font-weight: 600;
   display: block;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .header-quick-actions {
   display: flex;
-  gap: 8px;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
 }
 
 .header-btn {
   width: 44px;
   height: 44px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: #f8fafc;
-  display: flex;
+  border-radius: 12px;
+  background: var(--color-bg-subtle, #efe9df);
+  border: 1px solid var(--color-border, #e3dacd);
+  color: var(--color-text, #2d1e16);
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   text-decoration: none;
+  padding: 0;
+
+  &:active {
+    transform: scale(0.92);
+    background: var(--color-primary-soft, #f5efe9);
+  }
 }
 
-.header-btn:active {
-  transform: scale(0.9);
-  background: rgba(217, 168, 108, 0.25);
+[data-theme='dark'] .header-btn {
+  background: var(--color-surface-raised, #2c1f17);
+  border-color: var(--color-border, #3a2a20);
+  color: var(--color-text, #f4ece1);
+
+  &:active {
+    background: rgba(209, 176, 107, 0.18);
+  }
+}
+
+.btn-logout {
+  color: var(--color-danger, #b9382e);
 }
 
 .spin-active {
@@ -1443,948 +1719,1251 @@ onUnmounted(() => {
   }
 }
 
+/* Live Status & Date Selector */
 .live-status-strip {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: 12px;
-  padding-top: 10px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-  font-size: 11px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--color-divider, rgba(59, 36, 24, 0.08));
+  gap: 8px;
+}
+
+[data-theme='dark'] .live-status-strip {
+  border-top-color: var(--color-border-subtle, #2a1e16);
 }
 
 .live-badge {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 6px;
-  color: #a89f91;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-muted, #7e685a);
 }
 
 .live-badge.connected {
-  color: #34d399;
+  color: var(--color-success, #28724c);
+}
+
+[data-theme='dark'] .live-badge.connected {
+  color: #48b87f;
 }
 
 .live-dot {
-  width: 8px;
-  height: 8px;
-  background-color: #34d399;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
-  box-shadow: 0 0 10px #34d399;
+  background-color: var(--color-text-muted, #7e685a);
+}
+
+.live-badge.connected .live-dot {
+  background-color: var(--color-success, #28724c);
+  box-shadow: 0 0 8px var(--color-success, #28724c);
   animation: pulse-glow 2s infinite;
 }
 
+[data-theme='dark'] .live-badge.connected .live-dot {
+  background-color: #349c68;
+  box-shadow: 0 0 8px #349c68;
+}
+
 @keyframes pulse-glow {
-  0% {
-    transform: scale(0.9);
-    opacity: 0.7;
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.8;
   }
   50% {
     transform: scale(1.3);
     opacity: 1;
-  }
-  100% {
-    transform: scale(0.9);
-    opacity: 0.7;
   }
 }
 
 .date-quick-selector {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
 }
 
 .date-pill-btn {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: #c4b9a8;
   min-height: 44px;
-  padding: 7px 12px;
-  border-radius: 12px;
-  font-size: 11px;
+  padding: 6px 14px;
+  border-radius: 10px;
+  font-size: 12px;
   font-weight: 700;
+  background: var(--color-bg-subtle, #efe9df);
+  border: 1px solid var(--color-border, #e3dacd);
+  color: var(--color-text-secondary, #553f33);
   cursor: pointer;
   transition: all 0.2s ease;
+
+  &.active {
+    background: var(--color-primary, #5a3825);
+    color: var(--color-text-inverse, #ffffff);
+    border-color: var(--color-primary, #5a3825);
+    box-shadow: 0 2px 8px rgba(90, 56, 37, 0.25);
+  }
 }
 
-.report-context-card {
-  margin: 12px 14px 0;
-  padding: 15px 16px;
-  border: 1px solid rgba(217, 168, 108, 0.22);
-  border-radius: 20px;
-  background:
-    radial-gradient(circle at 10% 0%, rgba(217, 168, 108, 0.18), transparent 42%),
-    linear-gradient(135deg, rgba(42, 27, 16, 0.95), rgba(18, 16, 14, 0.98));
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.18);
-}
+[data-theme='dark'] .date-pill-btn {
+  background: var(--color-surface-raised, #2c1f17);
+  border-color: var(--color-border, #3a2a20);
+  color: var(--color-text-secondary, #d6c5b5);
 
-.report-context-main {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.report-context-kicker {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  color: #e7bc83;
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.2px;
-}
-
-.report-context-main strong {
-  color: #fffaf3;
-  font-size: 16px;
-  line-height: 1.25;
-}
-
-.report-context-caption {
-  color: #b4a594;
-  font-size: 10px;
-  line-height: 1.4;
-}
-
-.report-context-status {
-  flex: 0 0 auto;
-  min-height: 32px;
-  padding: 0 10px;
-  border: 1px solid rgba(52, 211, 153, 0.26);
-  border-radius: 999px;
-  color: #75e3b5;
-  background: rgba(16, 185, 129, 0.1);
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 10px;
-  font-weight: 800;
-  white-space: nowrap;
-}
-
-.report-context-status.offline {
-  color: #fbbf75;
-  border-color: rgba(251, 191, 36, 0.3);
-  background: rgba(245, 158, 11, 0.1);
-}
-
-.report-context-status.demo {
-  color: #8bd8ff;
-  border-color: rgba(56, 189, 248, 0.3);
-  background: rgba(14, 165, 233, 0.1);
-}
-
-.report-context-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: currentColor;
-  box-shadow: 0 0 9px currentColor;
-}
-
-.report-kpi-strip {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-  margin: 10px 14px 0;
-}
-
-.report-kpi-item {
-  min-width: 0;
-  min-height: 76px;
-  padding: 11px 10px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.045);
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 5px;
-}
-
-.report-kpi-label {
-  color: #a99d8d;
-  font-size: 10px;
-  font-weight: 700;
-}
-
-.report-kpi-item strong {
-  color: #fff8ee;
-  font-size: clamp(15px, 4.4vw, 21px);
-  line-height: 1.1;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.report-kpi-item small {
-  color: #c6b49e;
-  font-size: 9px;
-  font-weight: 700;
-}
-
-.report-kpi-item strong.positive {
-  color: #65ddb0;
-}
-
-.report-kpi-item strong.negative {
-  color: #fb8c8c;
-}
-
-.date-pill-btn.active {
-  background: rgba(217, 168, 108, 0.25);
-  border-color: #d9a86c;
-  color: #ffffff;
+  &.active {
+    background: var(--color-primary, #d1b06b);
+    color: #120c08;
+    border-color: var(--color-primary, #d1b06b);
+    box-shadow: 0 2px 8px rgba(209, 176, 107, 0.3);
+  }
 }
 
 .date-picker-label {
-  cursor: pointer;
-  font-size: 13px;
-  position: relative;
-  display: flex;
+  display: inline-flex;
   align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 10px;
+  border-radius: 10px;
+  background: var(--color-bg-subtle, #efe9df);
+  border: 1px solid var(--color-border, #e3dacd);
+  color: var(--color-text-secondary, #553f33);
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+[data-theme='dark'] .date-picker-label {
+  background: var(--color-surface-raised, #2c1f17);
+  border-color: var(--color-border, #3a2a20);
+  color: var(--color-text-secondary, #d6c5b5);
 }
 
 .hidden-date-input {
   position: absolute;
-  opacity: 0;
+  top: 0;
+  left: 0;
   width: 100%;
   height: 100%;
+  opacity: 0;
   cursor: pointer;
 }
 
-/* Diagnostic Banner */
+/* ══════════════ 2. DIAGNOSTICS BANNER ══════════════ */
 .diagnostic-banner {
-  background: rgba(239, 68, 68, 0.12);
-  border: 1px solid rgba(239, 68, 68, 0.35);
-  border-radius: 16px;
   margin: 12px 14px 0;
-  padding: 14px;
+  background: var(--color-warning-soft, #fef7ee);
+  border: 1px solid var(--color-warning-border, rgba(182, 109, 27, 0.3));
+  border-radius: 14px;
+  padding: 12px 14px;
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
 
+[data-theme='dark'] .diagnostic-banner {
+  background: rgba(217, 130, 43, 0.12);
+  border-color: rgba(217, 130, 43, 0.35);
+}
+
 .diagnostic-header {
   display: flex;
-  gap: 10px;
   align-items: flex-start;
+  gap: 10px;
 }
 
 .diag-icon {
-  font-size: 20px;
+  color: var(--color-warning, #b66d1b);
+  flex-shrink: 0;
+  margin-top: 2px;
 }
 
-.diag-text strong {
-  color: #f87171;
-  font-size: 13px;
-  display: block;
+.diag-text {
+  min-width: 0;
+
+  strong {
+    display: block;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--color-warning, #b66d1b);
+  }
+
+  p {
+    margin: 3px 0 0;
+    font-size: 11px;
+    color: var(--color-text-secondary, #553f33);
+    line-height: 1.4;
+  }
 }
 
-.diag-text p {
-  margin: 2px 0 0;
-  font-size: 11px;
-  color: #d1d5db;
-  line-height: 1.4;
+[data-theme='dark'] .diag-text p {
+  color: var(--color-text-secondary, #d6c5b5);
 }
 
 .diag-actions {
   display: flex;
-  gap: 8px;
+  align-items: center;
+  gap: 6px;
   flex-wrap: wrap;
-  justify-content: flex-end;
+
+  button {
+    min-height: 44px;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    border: none;
+    transition: all 0.2s ease;
+  }
 }
 
 .btn-diag-cfg {
-  background: rgba(217, 168, 108, 0.2);
-  border: 1px solid rgba(217, 168, 108, 0.4);
-  color: #d9a86c;
-  border-radius: 8px;
-  min-height: 44px;
-  padding: 8px 12px;
-  font-size: 11px;
-  font-weight: 700;
-  cursor: pointer;
+  background: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-border, #e3dacd) !important;
+  color: var(--color-text, #2d1e16);
 }
 
 .btn-diag-demo {
-  background: rgba(56, 189, 248, 0.2);
-  border: 1px solid rgba(56, 189, 248, 0.4);
-  color: #38bdf8;
-  border-radius: 8px;
-  min-height: 44px;
-  padding: 8px 12px;
-  font-size: 11px;
-  font-weight: 700;
-  cursor: pointer;
+  background: var(--color-gold-subtle, rgba(181, 138, 74, 0.15));
+  color: var(--color-gold, #b58a4a);
 }
 
 .btn-diag-retry {
-  background: #ef4444;
-  border: none;
+  background: var(--color-primary, #5a3825);
   color: #ffffff;
-  border-radius: 8px;
-  min-height: 44px;
-  padding: 8px 14px;
-  font-size: 11px;
-  font-weight: 700;
-  cursor: pointer;
 }
 
-/* Viewport */
+[data-theme='dark'] .btn-diag-retry {
+  background: var(--color-primary, #d1b06b);
+  color: #120c08;
+}
+
+/* ══════════════ 3. MAIN VIEWPORT & SECTIONS ══════════════ */
 .mobile-viewport {
-  padding: 14px;
   flex: 1;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .tab-pane {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
 }
 
-/* Skeleton Loading */
+/* ── Skeletons ── */
 .skeleton-wrapper {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
 }
 
 .skeleton-shimmer {
   background: linear-gradient(
     90deg,
-    rgba(255, 255, 255, 0.04) 25%,
-    rgba(255, 255, 255, 0.08) 50%,
-    rgba(255, 255, 255, 0.04) 75%
+    var(--color-bg-subtle, #efe9df) 25%,
+    var(--color-surface-hover, #faf6f0) 50%,
+    var(--color-bg-subtle, #efe9df) 75%
   );
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
-  border-radius: 18px;
+  border-radius: 16px;
 }
 
-.hero-shimmer {
-  height: 180px;
-}
-.card-shimmer {
-  height: 120px;
+[data-theme='dark'] .skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--color-surface, #211710) 25%,
+    var(--color-surface-raised, #2c1f17) 50%,
+    var(--color-surface, #211710) 75%
+  );
+  background-size: 200% 100%;
 }
 
 @keyframes shimmer {
   0% {
-    background-position: -200% 0;
-  }
-  100% {
     background-position: 200% 0;
   }
+  100% {
+    background-position: -200% 0;
+  }
 }
 
-/* Luxury Hero Card */
-.luxury-hero-card {
-  background: linear-gradient(145deg, rgba(74, 44, 20, 0.75) 0%, rgba(26, 15, 8, 0.95) 100%);
-  border: 1px solid rgba(217, 168, 108, 0.45);
-  border-radius: 24px;
-  padding: 22px;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.65);
+.hero-shimmer {
+  height: 160px;
+}
+.card-shimmer {
+  height: 110px;
+}
+
+/* ── 3.1 CONSOLIDATED MASTER EXECUTIVE HERO CARD ── */
+.executive-hero-card {
+  background: linear-gradient(
+    135deg,
+    var(--color-surface, #ffffff) 0%,
+    var(--color-surface-hover, #faf6f0) 100%
+  );
+  border: 1px solid var(--color-border, #e3dacd);
+  border-radius: 18px;
+  padding: 16px 18px;
+  box-shadow: 0 6px 20px rgba(90, 56, 37, 0.08);
   position: relative;
   overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: 0;
+    height: 4px;
+    background: linear-gradient(
+      90deg,
+      var(--color-gold, #b58a4a) 0%,
+      var(--color-primary, #5a3825) 100%
+    );
+  }
 }
 
-.card-glow-orb {
-  position: absolute;
-  top: -40px;
-  right: -40px;
-  width: 140px;
-  height: 140px;
-  background: radial-gradient(circle, rgba(217, 168, 108, 0.3) 0%, transparent 70%);
-  border-radius: 50%;
-  pointer-events: none;
+[data-theme='dark'] .executive-hero-card {
+  background: linear-gradient(145deg, #251912 0%, #19100a 100%);
+  border-color: var(--color-border, #3a2a20);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+
+  &::before {
+    background: linear-gradient(90deg, #d1b06b 0%, #5a3825 100%);
+  }
 }
 
-.card-glow-orb.gold-glow {
-  background: radial-gradient(circle, rgba(245, 158, 11, 0.35) 0%, transparent 70%);
-}
-
-.hero-header-row {
+.hero-top-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 8px;
+  margin-bottom: 12px;
 }
 
-.hero-title-badge {
+.hero-date-chip {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
-  color: #d9a86c;
-}
-
-.growth-chip {
-  font-size: 11px;
-  font-weight: 800;
+  color: var(--color-primary, #5a3825);
+  background: var(--color-primary-subtle, rgba(90, 56, 37, 0.08));
   padding: 4px 10px;
   border-radius: 20px;
 }
 
-.chip-up {
-  background: rgba(52, 211, 153, 0.2);
-  color: #34d399;
-}
-.chip-down {
-  background: rgba(239, 68, 68, 0.2);
-  color: #ef4444;
-}
-.chip-gold {
-  background: rgba(217, 168, 108, 0.25);
-  color: #f59e0b;
+[data-theme='dark'] .hero-date-chip {
+  color: var(--color-gold, #d1b06b);
+  background: rgba(209, 176, 107, 0.12);
 }
 
-.hero-amount-display {
+.hero-growth-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 20px;
+}
+
+.growth-up {
+  color: var(--color-success, #28724c);
+  background: var(--color-success-soft, #eef7f2);
+}
+
+[data-theme='dark'] .growth-up {
+  color: #48b87f;
+  background: rgba(52, 156, 104, 0.18);
+}
+
+.growth-down {
+  color: var(--color-danger, #b9382e);
+  background: var(--color-danger-soft, #fdf2f0);
+}
+
+[data-theme='dark'] .growth-down {
+  color: #e2675e;
+  background: rgba(212, 76, 66, 0.18);
+}
+
+.growth-neutral {
+  color: var(--color-gold, #b58a4a);
+  background: var(--color-gold-subtle, rgba(181, 138, 74, 0.12));
+}
+
+.hero-revenue-display {
   display: flex;
   align-items: baseline;
   gap: 8px;
-  margin: 6px 0 14px;
+  margin-bottom: 16px;
 }
 
-.currency-prefix {
-  font-size: 17px;
+.currency-tag {
+  font-size: 16px;
   font-weight: 800;
-  color: #d9a86c;
+  color: var(--color-gold, #b58a4a);
 }
 
-.amount-number {
-  font-size: 38px;
+.revenue-number {
+  font-size: 34px;
   font-weight: 900;
-  color: #ffffff;
-  letter-spacing: -1px;
+  letter-spacing: -0.5px;
   line-height: 1;
+  color: var(--color-text-strong, #1d120b);
+  font-variant-numeric: tabular-nums;
 }
 
-.hero-stats-subbar {
+[data-theme='dark'] .revenue-number {
+  color: #ffffff;
+}
+
+.hero-kpi-grid {
   display: flex;
   align-items: center;
-  justify-content: space-around;
-  background: rgba(0, 0, 0, 0.4);
-  border-radius: 14px;
-  padding: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.07);
-}
-
-.sub-stat {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-}
-
-.sub-label {
-  font-size: 10px;
-  color: #a89f91;
-}
-
-.sub-val {
-  font-size: 13px;
-  font-weight: 800;
-  color: #f7ede2;
-}
-
-.sub-divider {
-  width: 1px;
-  height: 24px;
-  background: rgba(255, 255, 255, 0.1);
-}
-
-/* Dual Distribution */
-.dual-distribution-section {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.section-heading {
-  display: flex;
   justify-content: space-between;
-  align-items: center;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-divider, rgba(59, 36, 24, 0.08));
 }
 
-.section-heading h3 {
+[data-theme='dark'] .hero-kpi-grid {
+  border-top-color: var(--color-border-subtle, #2a1e16);
+}
+
+.kpi-cell {
+  flex: 1;
+  text-align: center;
+  min-width: 0;
+
+  &:first-child {
+    text-align: right;
+  }
+  &:last-child {
+    text-align: left;
+  }
+}
+
+.kpi-cell-divider {
+  width: 1px;
+  height: 28px;
+  background: var(--color-divider, rgba(59, 36, 24, 0.1));
+}
+
+[data-theme='dark'] .kpi-cell-divider {
+  background: var(--color-border-subtle, #2a1e16);
+}
+
+.kpi-label {
+  display: block;
+  font-size: 11px;
+  color: var(--color-text-muted, #7e685a);
+  font-weight: 600;
+  margin-bottom: 2px;
+  white-space: nowrap;
+}
+
+[data-theme='dark'] .kpi-label {
+  color: var(--color-text-muted, #9e8c7f);
+}
+
+.kpi-value {
+  display: block;
   font-size: 14px;
   font-weight: 800;
-  color: #d9a86c;
-  margin: 0;
+  color: var(--color-text-strong, #1d120b);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+
+  small {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--color-text-muted, #7e685a);
+  }
 }
 
-.channel-ratio {
+[data-theme='dark'] .kpi-value {
+  color: #ffffff;
+}
+
+.val-positive {
+  color: var(--color-success, #28724c) !important;
+}
+
+[data-theme='dark'] .val-positive {
+  color: #48b87f !important;
+}
+
+.val-negative,
+.val-danger {
+  color: var(--color-danger, #b9382e) !important;
+}
+
+[data-theme='dark'] .val-negative,
+[data-theme='dark'] .val-danger {
+  color: #e2675e !important;
+}
+
+.val-warning {
+  color: var(--color-warning, #b66d1b) !important;
+}
+
+[data-theme='dark'] .val-warning {
+  color: #ea9642 !important;
+}
+
+/* ── 3.2 UNIFIED EXECUTIVE CARD CONTAINER ── */
+.executive-card {
+  background: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-border, #e3dacd);
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+}
+
+[data-theme='dark'] .executive-card {
+  background: var(--color-surface, #211710);
+  border-color: var(--color-border, #3a2a20);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+}
+
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  gap: 8px;
+}
+
+.card-head-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-primary, #5a3825);
+
+  h3 {
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--color-text-strong, #1d120b);
+    margin: 0;
+  }
+}
+
+[data-theme='dark'] .card-head-title {
+  color: var(--color-gold, #d1b06b);
+
+  h3 {
+    color: #ffffff;
+  }
+}
+
+.card-head-sub {
   font-size: 11px;
-  color: #c4b9a8;
-  font-weight: 700;
+  font-weight: 600;
+  color: var(--color-text-muted, #7e685a);
 }
 
+[data-theme='dark'] .card-head-sub {
+  color: var(--color-text-muted, #9e8c7f);
+}
+
+/* Proportional Ratio Bar */
 .comparative-ratio-bar {
   height: 8px;
-  background: rgba(255, 255, 255, 0.08);
-  border-radius: 10px;
+  background: var(--color-bg-subtle, #efe9df);
+  border-radius: 6px;
   display: flex;
   overflow: hidden;
+  margin-bottom: 12px;
 }
 
-.bar-fill.retail-fill {
-  background: linear-gradient(
-    90deg,
-    var(--color-gold, #b58a4a),
-    var(--color-gold-soft-bright, #d1b06b)
-  );
-  transition: width 0.6s ease;
+[data-theme='dark'] .comparative-ratio-bar {
+  background: var(--color-surface-sunken, #170f0a);
 }
 
-.bar-fill.wholesale-fill {
-  background: linear-gradient(
-    90deg,
-    var(--color-primary, #5a3825),
-    var(--color-primary-hover, #4a2e1e)
-  );
-  transition: width 0.6s ease;
+.bar-segment {
+  height: 100%;
+  transition: width 0.5s ease;
 }
 
+.retail-segment {
+  background: linear-gradient(90deg, var(--color-gold, #b58a4a), #d1b06b);
+}
+
+.wholesale-segment {
+  background: linear-gradient(90deg, var(--color-primary, #5a3825), #3b2418);
+}
+
+[data-theme='dark'] .wholesale-segment {
+  background: linear-gradient(90deg, #7a4b22, #4a2e1e);
+}
+
+/* Channel Cards Grid */
 .channel-cards-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  gap: 10px;
 }
 
-.channel-metric-card {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 18px;
-  padding: 16px;
+.channel-card {
+  border-radius: 12px;
+  padding: 12px;
+  border: 1px solid var(--color-border, #e3dacd);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
 }
 
-.channel-metric-card.retail-theme {
-  border-color: rgba(217, 168, 108, 0.35);
-  background: linear-gradient(145deg, rgba(217, 168, 108, 0.1) 0%, rgba(20, 12, 6, 0.6) 100%);
+.retail-theme {
+  background: var(--color-gold-soft, #faf4ea);
+  border-color: var(--color-gold-border, rgba(181, 138, 74, 0.32));
 }
 
-.channel-metric-card.wholesale-theme {
-  border-color: rgba(56, 189, 248, 0.35);
-  background: linear-gradient(145deg, rgba(56, 189, 248, 0.1) 0%, rgba(20, 12, 6, 0.6) 100%);
+[data-theme='dark'] .retail-theme {
+  background: rgba(209, 176, 107, 0.08);
+  border-color: rgba(209, 176, 107, 0.28);
 }
 
-.card-top-icon {
+.wholesale-theme {
+  background: var(--color-primary-soft, #f5efe9);
+  border-color: var(--color-primary-border, rgba(90, 56, 37, 0.28));
+}
+
+[data-theme='dark'] .wholesale-theme {
+  background: rgba(90, 56, 37, 0.16);
+  border-color: rgba(90, 56, 37, 0.35);
+}
+
+.channel-header {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
-}
-
-.card-top-icon .card-label {
-  font-size: 12px;
-  color: #c4b9a8;
-  font-weight: 700;
-}
-
-.channel-val {
-  font-size: 22px;
-  font-weight: 900;
-  color: #ffffff;
+  gap: 6px;
   margin-bottom: 6px;
 }
 
-.channel-val small {
-  font-size: 12px;
-  font-weight: 600;
-  color: #d9a86c;
+.channel-icon-pill {
+  color: var(--color-primary, #5a3825);
 }
 
-.channel-foot {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+[data-theme='dark'] .channel-icon-pill {
+  color: var(--color-gold, #d1b06b);
+}
+
+.channel-name {
   font-size: 11px;
-  color: #a89f91;
-}
-
-.discount-pill {
-  color: #f59e0b;
   font-weight: 700;
+  color: var(--color-text-secondary, #553f33);
 }
 
-/* Glass Content Cards */
-.glass-content-card {
-  background: rgba(255, 255, 255, 0.035);
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  border-radius: 20px;
-  padding: 18px;
+[data-theme='dark'] .channel-name {
+  color: var(--color-text-secondary, #d6c5b5);
 }
 
-.card-header-flex {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 14px;
+.channel-amount {
+  font-size: 19px;
+  font-weight: 900;
+  color: var(--color-text-strong, #1d120b);
+  margin-bottom: 6px;
+  font-variant-numeric: tabular-nums;
+
+  small {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--color-gold, #b58a4a);
+  }
 }
 
-.card-title {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 14px;
-  font-weight: 800;
-  color: #d9a86c;
-  margin: 0;
-}
-
-.card-meta-tag {
-  font-size: 11px;
-  color: #a89f91;
-  font-weight: 600;
-}
-
-/* Payment Stack */
-.payment-stack {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.payment-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 14px;
-  background: rgba(0, 0, 0, 0.35);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 14px;
-}
-
-.payment-symbol {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 34px;
-  height: 34px;
-  color: #d9a86c;
-  font-size: 24px;
-}
-.payment-text-group {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-}
-.payment-text-group .p-name {
-  font-size: 14px;
-  font-weight: 700;
-  color: #f7ede2;
-}
-.payment-text-group .p-sub {
-  font-size: 10px;
-  color: #8c8273;
-}
-.payment-val {
-  font-size: 17px;
-  font-weight: 800;
+[data-theme='dark'] .channel-amount {
   color: #ffffff;
 }
-.payment-val small {
-  font-size: 11px;
-  color: #d9a86c;
-}
-.text-cyan {
-  color: #38bdf8 !important;
-}
-.text-purple {
-  color: #c084fc !important;
-}
-.text-emerald {
-  color: #34d399 !important;
-}
-.text-rose {
-  color: #f43f5e !important;
-}
 
-/* Finance Grid */
-.finance-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-
-.finance-cell {
-  background: rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 14px;
-  padding: 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.fin-lbl {
-  font-size: 11px;
-  color: #a89f91;
-}
-.fin-val {
-  font-size: 17px;
-  font-weight: 900;
-}
-.fin-sub {
-  font-size: 10px;
-  color: #8c8273;
-}
-
-/* Shift Monitoring Card */
-.title-with-pulse {
+.channel-footer {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  font-size: 10px;
+  color: var(--color-text-muted, #7e685a);
+}
+
+[data-theme='dark'] .channel-footer {
+  color: var(--color-text-muted, #9e8c7f);
+}
+
+.discount-tag {
+  color: var(--color-warning, #b66d1b);
+  font-weight: 700;
+}
+
+/* ── 3.3 PAYMENT METHODS STACK ── */
+.payment-methods-stack {
+  display: flex;
+  flex-direction: column;
   gap: 8px;
 }
 
-.pulse-green {
-  width: 8px;
-  height: 8px;
-  background: #34d399;
-  border-radius: 50%;
-  box-shadow: 0 0 8px #34d399;
-}
-
-.pulse-amber {
-  width: 8px;
-  height: 8px;
-  background: #f59e0b;
-  border-radius: 50%;
-  box-shadow: 0 0 8px #f59e0b;
-}
-
-.pulse-red {
-  width: 8px;
-  height: 8px;
-  background: #ef4444;
-  border-radius: 50%;
-  box-shadow: 0 0 8px #ef4444;
-}
-
-.status-badge-active {
-  background: rgba(52, 211, 153, 0.15);
-  color: #34d399;
-  padding: 4px 10px;
-  border-radius: 12px;
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.status-badge-closed {
-  background: rgba(245, 158, 11, 0.15);
-  color: #f59e0b;
-  padding: 4px 10px;
-  border-radius: 12px;
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.shift-info-body {
+.payment-method-row {
   display: flex;
-  flex-direction: column;
-  gap: 14px;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: var(--color-bg-subtle, #efe9df);
+  border: 1px solid var(--color-border-subtle, #efe9df);
+  border-radius: 12px;
 }
 
-.shift-meta-grid {
+[data-theme='dark'] .payment-method-row {
+  background: var(--color-surface-raised, #2c1f17);
+  border-color: var(--color-border-subtle, #2a1e16);
+}
+
+.pm-icon-wrap {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.icon-cash {
+  background: var(--color-success-soft, #eef7f2);
+  color: var(--color-success, #28724c);
+}
+
+.icon-instapay {
+  background: var(--color-gold-soft, #faf4ea);
+  color: var(--color-gold, #b58a4a);
+}
+
+.icon-card {
+  background: var(--color-info-soft, #eff5f8);
+  color: var(--color-info, #466b7d);
+}
+
+[data-theme='dark'] .icon-cash {
+  background: rgba(52, 156, 104, 0.16);
+  color: #48b87f;
+}
+
+[data-theme='dark'] .icon-instapay {
+  background: rgba(209, 176, 107, 0.16);
+  color: #d1b06b;
+}
+
+[data-theme='dark'] .icon-card {
+  background: rgba(92, 143, 165, 0.16);
+  color: #72a4ba;
+}
+
+.pm-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.pm-title {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-strong, #1d120b);
+}
+
+[data-theme='dark'] .pm-title {
+  color: #ffffff;
+}
+
+.pm-desc {
+  display: block;
+  font-size: 10px;
+  color: var(--color-text-muted, #7e685a);
+}
+
+[data-theme='dark'] .pm-desc {
+  color: var(--color-text-muted, #9e8c7f);
+}
+
+.pm-amount {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--color-text-strong, #1d120b);
+  font-variant-numeric: tabular-nums;
+  text-align: left;
+
+  small {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--color-text-muted, #7e685a);
+  }
+}
+
+[data-theme='dark'] .pm-amount {
+  color: #ffffff;
+}
+
+/* ── 3.4 FINANCE DUAL GRID (EXPENSES & NET) ── */
+.finance-dual-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
 }
 
-.meta-cell {
-  background: rgba(0, 0, 0, 0.25);
-  padding: 10px;
+.finance-block {
+  padding: 12px;
   border-radius: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+  border: 1px solid var(--color-border, #e3dacd);
 }
 
-.cell-lbl {
-  font-size: 10px;
-  color: #a89f91;
+.exp-block {
+  background: var(--color-danger-soft, #fdf2f0);
+  border-color: var(--color-danger-border, rgba(185, 56, 46, 0.25));
 }
-.cell-val {
-  font-size: 12px;
+
+[data-theme='dark'] .exp-block {
+  background: rgba(212, 76, 66, 0.1);
+  border-color: rgba(212, 76, 66, 0.28);
+}
+
+.net-block {
+  background: var(--color-success-soft, #eef7f2);
+  border-color: var(--color-success-border, rgba(40, 114, 76, 0.25));
+}
+
+[data-theme='dark'] .net-block {
+  background: rgba(52, 156, 104, 0.1);
+  border-color: rgba(52, 156, 104, 0.28);
+}
+
+.fin-label {
+  display: block;
+  font-size: 11px;
   font-weight: 700;
-  color: #f7ede2;
-}
-
-.drawer-cash-highlight {
-  background: linear-gradient(135deg, rgba(217, 168, 108, 0.2) 0%, rgba(40, 24, 12, 0.5) 100%);
-  border: 1px solid rgba(217, 168, 108, 0.4);
-  border-radius: 16px;
-  padding: 14px;
-  text-align: center;
-}
-
-.drawer-lbl {
-  font-size: 12px;
-  color: #d9a86c;
-  font-weight: 700;
+  color: var(--color-text-secondary, #553f33);
   margin-bottom: 4px;
 }
-.drawer-amount {
-  font-size: 26px;
+
+[data-theme='dark'] .fin-label {
+  color: var(--color-text-secondary, #d6c5b5);
+}
+
+.fin-val {
+  display: block;
+  font-size: 17px;
   font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  margin-bottom: 2px;
+
+  small {
+    font-size: 10px;
+    font-weight: 600;
+  }
+}
+
+.fin-sub {
+  display: block;
+  font-size: 10px;
+  color: var(--color-text-muted, #7e685a);
+}
+
+[data-theme='dark'] .fin-sub {
+  color: var(--color-text-muted, #9e8c7f);
+}
+
+/* ── 3.5 ACTIVE SHIFT MONITORING ── */
+.status-pulse-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.pulse-active {
+  background-color: var(--color-success, #28724c);
+  box-shadow: 0 0 6px var(--color-success, #28724c);
+}
+
+.pulse-inactive {
+  background-color: var(--color-warning, #b66d1b);
+}
+
+.pulse-warning {
+  background-color: var(--color-danger, #b9382e);
+  box-shadow: 0 0 6px var(--color-danger, #b9382e);
+}
+
+.shift-state-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 20px;
+}
+
+.shift-open {
+  background: var(--color-success-soft, #eef7f2);
+  color: var(--color-success, #28724c);
+  border: 1px solid var(--color-success-border, rgba(40, 114, 76, 0.3));
+}
+
+[data-theme='dark'] .shift-open {
+  background: rgba(52, 156, 104, 0.16);
+  color: #48b87f;
+}
+
+.shift-closed {
+  background: var(--color-bg-subtle, #efe9df);
+  color: var(--color-text-muted, #7e685a);
+  border: 1px solid var(--color-border, #e3dacd);
+}
+
+[data-theme='dark'] .shift-closed {
+  background: var(--color-surface-raised, #2c1f17);
+  color: var(--color-text-muted, #9e8c7f);
+}
+
+.shift-info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.shift-info-cell {
+  background: var(--color-bg-subtle, #efe9df);
+  border-radius: 10px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+}
+
+[data-theme='dark'] .shift-info-cell {
+  background: var(--color-surface-raised, #2c1f17);
+}
+
+.shift-lbl {
+  font-size: 10px;
+  color: var(--color-text-muted, #7e685a);
+}
+
+[data-theme='dark'] .shift-lbl {
+  color: var(--color-text-muted, #9e8c7f);
+}
+
+.shift-val {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-strong, #1d120b);
+}
+
+[data-theme='dark'] .shift-val {
   color: #ffffff;
 }
-.drawer-amount small {
-  font-size: 14px;
-  color: #d9a86c;
+
+.expected-cash-banner {
+  background: linear-gradient(135deg, var(--color-gold-soft, #faf4ea) 0%, #f5efe9 100%);
+  border: 1px solid var(--color-gold-border, rgba(181, 138, 74, 0.35));
+  border-radius: 12px;
+  padding: 12px;
 }
 
-.empty-shift-notice {
-  text-align: center;
-  padding: 20px 10px;
-  color: #a89f91;
+[data-theme='dark'] .expected-cash-banner {
+  background: linear-gradient(135deg, rgba(209, 176, 107, 0.14) 0%, rgba(90, 56, 37, 0.2) 100%);
+  border-color: rgba(209, 176, 107, 0.32);
+}
+
+.ec-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-primary, #5a3825);
+  margin-bottom: 4px;
+}
+
+[data-theme='dark'] .ec-header {
+  color: var(--color-gold, #d1b06b);
+}
+
+.ec-amount {
+  font-size: 24px;
+  font-weight: 900;
+  color: var(--color-text-strong, #1d120b);
+  font-variant-numeric: tabular-nums;
+
+  small {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--color-gold, #b58a4a);
+  }
+}
+
+[data-theme='dark'] .ec-amount {
+  color: #ffffff;
+}
+
+.shift-empty-state {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px;
+  background: var(--color-bg-subtle, #efe9df);
+  border-radius: 12px;
+  color: var(--color-text-muted, #7e685a);
   font-size: 12px;
+  line-height: 1.4;
 }
 
-/* Recent Sales Stream */
+[data-theme='dark'] .shift-empty-state {
+  background: var(--color-surface-raised, #2c1f17);
+  color: var(--color-text-muted, #9e8c7f);
+}
+
+/* ── 3.6 RECENT SALES STREAM ── */
 .recent-sales-stream {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .recent-sale-row {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   padding: 10px 12px;
-  background: rgba(0, 0, 0, 0.3);
+  background: var(--color-bg-subtle, #efe9df);
+  border: 1px solid var(--color-border-subtle, #efe9df);
   border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+[data-theme='dark'] .recent-sale-row {
+  background: var(--color-surface-raised, #2c1f17);
+  border-color: var(--color-border-subtle, #2a1e16);
 }
 
 .sale-icon-box {
-  font-size: 20px;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--color-surface, #ffffff);
+  color: var(--color-primary, #5a3825);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
+
+[data-theme='dark'] .sale-icon-box {
+  background: var(--color-surface, #211710);
+  color: var(--color-gold, #d1b06b);
+}
+
 .sale-details {
   flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+  min-width: 0;
 }
-.sale-main-line {
+
+.sale-primary-line {
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
+
 .sale-num {
-  font-size: 13px;
-  color: #d9a86c;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--color-text-strong, #1d120b);
 }
-.sale-amt {
-  font-size: 14px;
+
+[data-theme='dark'] .sale-num {
   color: #ffffff;
 }
-.sale-sub-line {
-  display: flex;
-  justify-content: space-between;
-  font-size: 10px;
-  color: #8c8273;
-}
 
-/* Categories Breakdown */
-.categories-breakdown-list {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.category-stat-item {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.cat-header-line {
-  display: flex;
-  justify-content: space-between;
+.sale-amt {
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 800;
+  color: var(--color-gold, #b58a4a);
+  font-variant-numeric: tabular-nums;
 }
 
-.cat-title {
-  color: #f7ede2;
+.sale-secondary-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 10px;
+  color: var(--color-text-muted, #7e685a);
+  margin-top: 2px;
 }
-.cat-money {
-  color: #d9a86c;
+
+[data-theme='dark'] .sale-secondary-line {
+  color: var(--color-text-muted, #9e8c7f);
+}
+
+/* ══════════════ TAB 2: INVENTORY STYLING ══════════════ */
+.inventory-hero-theme::before {
+  background: linear-gradient(
+    90deg,
+    var(--color-primary, #5a3825),
+    var(--color-gold, #b58a4a)
+  ) !important;
+}
+
+.category-breakdown-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.category-stat-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cat-headline {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.cat-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-strong, #1d120b);
+}
+
+[data-theme='dark'] .cat-name {
+  color: #ffffff;
+}
+
+.cat-amount {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--color-text-strong, #1d120b);
+  font-variant-numeric: tabular-nums;
+}
+
+[data-theme='dark'] .cat-amount {
+  color: #ffffff;
 }
 
 .cat-progress-track {
   height: 6px;
-  background: rgba(255, 255, 255, 0.08);
-  border-radius: 6px;
+  background: var(--color-bg-subtle, #efe9df);
+  border-radius: 4px;
   overflow: hidden;
+}
+
+[data-theme='dark'] .cat-progress-track {
+  background: var(--color-surface-sunken, #170f0a);
 }
 
 .cat-progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #d9a86c, #f59e0b);
-  border-radius: 6px;
+  background: var(--color-primary, #5a3825);
+  border-radius: 4px;
   transition: width 0.5s ease;
+}
+
+[data-theme='dark'] .cat-progress-fill {
+  background: var(--color-gold, #d1b06b);
 }
 
 .cat-footer-sub {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   font-size: 10px;
-  color: #8c8273;
+  color: var(--color-text-muted, #7e685a);
+}
+
+[data-theme='dark'] .cat-footer-sub {
+  color: var(--color-text-muted, #9e8c7f);
+}
+
+.cat-ratio-badge {
+  font-weight: 700;
+  color: var(--color-gold, #b58a4a);
 }
 
 /* Low Stock Radar */
-.alert-border-card {
-  border-color: rgba(239, 68, 68, 0.3);
+.alert-card {
+  border-color: var(--color-danger-border, rgba(185, 56, 46, 0.3));
 }
 
-.badge-count-red {
-  background: rgba(239, 68, 68, 0.2);
-  color: #ef4444;
-  padding: 3px 8px;
-  border-radius: 10px;
+.title-warning {
+  color: var(--color-danger, #b9382e) !important;
+}
+
+.alert-count-badge {
+  background: var(--color-danger-soft, #fdf2f0);
+  color: var(--color-danger, #b9382e);
   font-size: 11px;
   font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 12px;
+  border: 1px solid var(--color-danger-border, rgba(185, 56, 46, 0.25));
 }
 
-.low-stock-cards-list {
+[data-theme='dark'] .alert-count-badge {
+  background: rgba(212, 76, 66, 0.2);
+  color: #e2675e;
+}
+
+.low-stock-items-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
-.low-stock-row {
+.low-stock-item-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px;
-  background: rgba(239, 68, 68, 0.08);
-  border: 1px solid rgba(239, 68, 68, 0.2);
-  border-radius: 14px;
+  padding: 10px 12px;
+  background: var(--color-danger-soft, #fdf2f0);
+  border: 1px solid var(--color-danger-border, rgba(185, 56, 46, 0.25));
+  border-radius: 12px;
+}
+
+[data-theme='dark'] .low-stock-item-row {
+  background: rgba(212, 76, 66, 0.12);
+  border-color: rgba(212, 76, 66, 0.3);
 }
 
 .stock-item-info {
   display: flex;
   flex-direction: column;
-  gap: 2px;
 }
 
 .stock-item-name {
-  font-size: 13px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-strong, #1d120b);
+}
+
+[data-theme='dark'] .stock-item-name {
   color: #ffffff;
 }
+
 .stock-item-meta {
   font-size: 10px;
-  color: #a89f91;
+  color: var(--color-text-muted, #7e685a);
+}
+
+[data-theme='dark'] .stock-item-meta {
+  color: var(--color-text-muted, #9e8c7f);
 }
 
 .stock-item-levels {
@@ -2394,261 +2973,435 @@ onUnmounted(() => {
   gap: 2px;
 }
 
-.stock-critical-badge {
-  background: #ef4444;
+.stock-level-badge {
+  background: var(--color-danger, #b9382e);
   color: #ffffff;
-  padding: 3px 8px;
-  border-radius: 8px;
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 6px;
 }
 
 .stock-limit-note {
   font-size: 10px;
-  color: #a89f91;
-}
-.clean-empty-state {
-  text-align: center;
-  padding: 20px;
-  color: #34d399;
-  font-size: 12px;
-  font-weight: 700;
+  color: var(--color-text-muted, #7e685a);
 }
 
-/* Approvals Tab */
-.approvals-header-banner {
-  background: linear-gradient(135deg, rgba(217, 168, 108, 0.15) 0%, rgba(28, 17, 9, 0.6) 100%);
-  border: 1px solid rgba(217, 168, 108, 0.3);
-  border-radius: 18px;
-  padding: 16px;
+[data-theme='dark'] .stock-limit-note {
+  color: var(--color-text-muted, #9e8c7f);
+}
+
+.stock-healthy-state {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  gap: 8px;
+  padding: 14px;
+  background: var(--color-success-soft, #eef7f2);
+  border-radius: 12px;
+  color: var(--color-success, #28724c);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+[data-theme='dark'] .stock-healthy-state {
+  background: rgba(52, 156, 104, 0.14);
+  color: #48b87f;
+}
+
+/* ══════════════ TAB 3: APPROVALS STYLING ══════════════ */
+.approvals-top-banner {
+  background: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-border, #e3dacd);
+  border-radius: 16px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+[data-theme='dark'] .approvals-top-banner {
+  background: var(--color-surface, #211710);
+  border-color: var(--color-border, #3a2a20);
 }
 
 .banner-title {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 15px;
-  font-weight: 900;
-  color: #ffffff;
-  margin: 0 0 4px;
-}
-.banner-desc {
-  font-size: 11px;
-  color: #c4b9a8;
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--color-text-strong, #1d120b);
   margin: 0;
-}
-
-.banner-refresh-btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: rgba(217, 168, 108, 0.2);
-  border: 1px solid #d9a86c;
-  color: #d9a86c;
-  border-radius: 10px;
-  padding: 6px 12px;
+}
+
+[data-theme='dark'] .banner-title {
+  color: #ffffff;
+}
+
+.banner-desc {
+  margin: 3px 0 0;
   font-size: 11px;
+  color: var(--color-text-muted, #7e685a);
+}
+
+[data-theme='dark'] .banner-desc {
+  color: var(--color-text-muted, #9e8c7f);
+}
+
+.banner-refresh-btn {
+  min-height: 44px;
+  padding: 6px 14px;
+  background: var(--color-bg-subtle, #efe9df);
+  border: 1px solid var(--color-border, #e3dacd);
+  color: var(--color-text, #2d1e16);
+  border-radius: 10px;
+  font-size: 12px;
   font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   cursor: pointer;
 }
 
-.approval-filter-strip {
+[data-theme='dark'] .banner-refresh-btn {
+  background: var(--color-surface-raised, #2c1f17);
+  border-color: var(--color-border, #3a2a20);
+  color: var(--color-text, #f4ece1);
+}
+
+.approval-filter-tabs {
   display: flex;
   gap: 8px;
 }
 
-.appr-filter-btn {
+.appr-filter-pill {
   flex: 1;
-  padding: 8px;
+  min-height: 44px;
+  padding: 8px 12px;
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #c4b9a8;
   font-size: 12px;
   font-weight: 700;
+  background: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-border, #e3dacd);
+  color: var(--color-text-muted, #7e685a);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   cursor: pointer;
   transition: all 0.2s ease;
+
+  &.active {
+    background: var(--color-primary, #5a3825);
+    color: #ffffff;
+    border-color: var(--color-primary, #5a3825);
+    box-shadow: 0 4px 12px rgba(90, 56, 37, 0.2);
+  }
 }
 
-.appr-filter-btn.active {
-  background: rgba(217, 168, 108, 0.25);
-  border-color: #d9a86c;
-  color: #ffffff;
+[data-theme='dark'] .appr-filter-pill {
+  background: var(--color-surface, #211710);
+  border-color: var(--color-border, #3a2a20);
+  color: var(--color-text-muted, #9e8c7f);
+
+  &.active {
+    background: var(--color-primary, #d1b06b);
+    color: #120c08;
+    border-color: var(--color-primary, #d1b06b);
+    box-shadow: 0 4px 12px rgba(209, 176, 107, 0.3);
+  }
 }
 
-.approvals-card-stream {
+.approvals-stream {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 10px;
 }
 
 .approval-ticket-card {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 18px;
-  padding: 16px;
-}
-
-.approval-ticket-card.ticket-pending {
-  border-color: rgba(245, 158, 11, 0.4);
-  background: linear-gradient(145deg, rgba(245, 158, 11, 0.08) 0%, rgba(20, 14, 8, 0.5) 100%);
-}
-
-.ticket-head {
+  background: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-border, #e3dacd);
+  border-radius: 16px;
+  padding: 14px;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-}
-
-.ticket-user {
-  display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
-.user-avatar-circle {
-  width: 34px;
-  height: 34px;
-  background: rgba(217, 168, 108, 0.2);
-  border-radius: 50%;
+[data-theme='dark'] .approval-ticket-card {
+  background: var(--color-surface, #211710);
+  border-color: var(--color-border, #3a2a20);
+}
+
+.ticket-header {
   display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ticket-requester {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.requester-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--color-primary-soft, #f5efe9);
+  color: var(--color-primary, #5a3825);
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
 }
 
-.user-display-name {
-  font-size: 13px;
-  color: #ffffff;
+[data-theme='dark'] .requester-icon {
+  background: rgba(209, 176, 107, 0.16);
+  color: var(--color-gold, #d1b06b);
+}
+
+.requester-name {
   display: block;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-strong, #1d120b);
 }
+
+[data-theme='dark'] .requester-name {
+  color: #ffffff;
+}
+
 .ticket-time {
+  display: block;
   font-size: 10px;
-  color: #8c8273;
+  color: var(--color-text-muted, #7e685a);
 }
 
-.status-ticket-pill {
-  font-size: 10px;
-  font-weight: 800;
-  padding: 4px 8px;
-  border-radius: 10px;
+[data-theme='dark'] .ticket-time {
+  color: var(--color-text-muted, #9e8c7f);
 }
 
-.pill-pending {
-  background: rgba(245, 158, 11, 0.2);
-  color: #f59e0b;
-}
-.pill-approved {
-  background: rgba(52, 211, 153, 0.2);
-  color: #34d399;
-}
-.pill-rejected {
-  background: rgba(239, 68, 68, 0.2);
-  color: #ef4444;
+.status-ticket-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 20px;
 }
 
-.action-bold-title {
-  font-size: 14px;
-  font-weight: 800;
-  color: #f7ede2;
-  margin-bottom: 10px;
+.badge-pending {
+  background: var(--color-warning-soft, #fef7ee);
+  color: var(--color-warning, #b66d1b);
+}
+
+.badge-approved {
+  background: var(--color-success-soft, #eef7f2);
+  color: var(--color-success, #28724c);
+}
+
+.badge-rejected {
+  background: var(--color-danger-soft, #fdf2f0);
+  color: var(--color-danger, #b9382e);
+}
+
+[data-theme='dark'] .badge-pending {
+  background: rgba(217, 130, 43, 0.18);
+  color: #ea9642;
+}
+
+[data-theme='dark'] .badge-approved {
+  background: rgba(52, 156, 104, 0.18);
+  color: #48b87f;
+}
+
+[data-theme='dark'] .badge-rejected {
+  background: rgba(212, 76, 66, 0.18);
+  color: #e2675e;
+}
+
+.ticket-action-title {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-strong, #1d120b);
+  line-height: 1.4;
+}
+
+[data-theme='dark'] .ticket-action-title {
+  color: #ffffff;
 }
 
 .ticket-details-box {
-  background: rgba(0, 0, 0, 0.35);
-  border-radius: 12px;
+  background: var(--color-bg-subtle, #efe9df);
+  border-radius: 10px;
   padding: 10px;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  margin-bottom: 14px;
-}
-
-.detail-item {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-}
-.detail-item.full-width {
-  grid-column: span 2;
-}
-.detail-k {
-  font-size: 10px;
-  color: #a89f91;
-}
-.detail-v {
-  font-size: 12px;
-  color: #f7ede2;
-}
-.text-amber {
-  color: #f59e0b !important;
+  gap: 6px;
 }
 
-.ticket-actions-row {
-  display: flex;
-  gap: 10px;
+[data-theme='dark'] .ticket-details-box {
+  background: var(--color-surface-raised, #2c1f17);
 }
 
-.btn-reject-ticket {
-  flex: 1;
-  background: rgba(239, 68, 68, 0.15);
-  border: 1px solid rgba(239, 68, 68, 0.4);
-  color: #ef4444;
-  padding: 10px;
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: 800;
-  cursor: pointer;
-}
-
-.btn-approve-ticket {
-  flex: 2;
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  border: none;
-  color: #ffffff;
-  padding: 10px;
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: 800;
-  cursor: pointer;
-  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4);
-}
-
-.ticket-decided-foot {
+.detail-pair {
   display: flex;
   justify-content: space-between;
   font-size: 11px;
-  color: #a89f91;
-  padding-top: 8px;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-.clean-empty-approvals {
+.dp-key {
+  color: var(--color-text-muted, #7e685a);
+}
+
+[data-theme='dark'] .dp-key {
+  color: var(--color-text-muted, #9e8c7f);
+}
+
+.dp-val {
+  font-weight: 700;
+  color: var(--color-text-strong, #1d120b);
+  font-variant-numeric: tabular-nums;
+}
+
+[data-theme='dark'] .dp-val {
+  color: #ffffff;
+}
+
+.dp-full {
+  flex-direction: column;
+  gap: 2px;
+}
+
+.dp-desc {
+  font-weight: normal;
+  color: var(--color-text-secondary, #553f33);
+}
+
+[data-theme='dark'] .dp-desc {
+  color: var(--color-text-secondary, #d6c5b5);
+}
+
+.ticket-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+
+  button {
+    flex: 1;
+    min-height: 44px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    border: none;
+    transition: all 0.2s ease;
+  }
+}
+
+.btn-ticket-reject {
+  background: var(--color-danger-soft, #fdf2f0);
+  color: var(--color-danger, #b9382e);
+  border: 1px solid var(--color-danger-border, rgba(185, 56, 46, 0.3)) !important;
+}
+
+[data-theme='dark'] .btn-ticket-reject {
+  background: rgba(212, 76, 66, 0.16);
+  color: #e2675e;
+}
+
+.btn-ticket-approve {
+  background: var(--color-success, #28724c);
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(40, 114, 76, 0.25);
+}
+
+[data-theme='dark'] .btn-ticket-approve {
+  background: var(--color-success, #349c68);
+}
+
+.btn-inner-flex {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ticket-decided-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 10px;
+  color: var(--color-text-muted, #7e685a);
+  padding-top: 6px;
+  border-top: 1px solid var(--color-divider, rgba(59, 36, 24, 0.08));
+}
+
+[data-theme='dark'] .ticket-decided-footer {
+  border-top-color: var(--color-border-subtle, #2a1e16);
+  color: var(--color-text-muted, #9e8c7f);
+}
+
+.approvals-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   text-align: center;
-  padding: 40px 20px;
-  color: #a89f91;
+  padding: 36px 20px;
+  background: var(--color-surface, #ffffff);
+  border: 1px dashed var(--color-border, #e3dacd);
+  border-radius: 16px;
+
+  h3 {
+    margin: 10px 0 4px;
+    font-size: 15px;
+    font-weight: 800;
+    color: var(--color-text-strong, #1d120b);
+  }
+
+  p {
+    margin: 0;
+    font-size: 12px;
+    color: var(--color-text-muted, #7e685a);
+    max-width: 280px;
+    line-height: 1.5;
+  }
 }
 
-.empty-sparkle-icon {
-  font-size: 36px;
-  margin-bottom: 8px;
-}
-.clean-empty-approvals h3 {
-  font-size: 16px;
-  color: #d9a86c;
-  margin: 0 0 4px;
-}
-.clean-empty-approvals p {
-  font-size: 12px;
-  color: #8c8273;
-  margin: 0;
+[data-theme='dark'] .approvals-empty-state {
+  background: var(--color-surface, #211710);
+  border-color: var(--color-border, #3a2a20);
+
+  h3 {
+    color: #ffffff;
+  }
+  p {
+    color: var(--color-text-muted, #9e8c7f);
+  }
 }
 
-/* Luxury Bottom Navigation Bar */
+.empty-sparkle {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--color-success-soft, #eef7f2);
+  color: var(--color-success, #28724c);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+[data-theme='dark'] .empty-sparkle {
+  background: rgba(52, 156, 104, 0.18);
+  color: #48b87f;
+}
+
+/* ══════════════ 4. BOTTOM NAVIGATION ══════════════ */
 .luxury-bottom-nav {
   position: fixed;
   bottom: 0;
@@ -2656,1226 +3409,543 @@ onUnmounted(() => {
   right: 0;
   max-width: 480px;
   margin: 0 auto;
-  background: linear-gradient(180deg, rgba(20, 12, 6, 0.98) 0%, rgba(8, 5, 2, 0.98) 100%);
-  border-top: 1px solid rgba(217, 168, 108, 0.25);
-  backdrop-filter: blur(20px);
+  background: var(--color-surface, #ffffff);
+  border-top: 1px solid var(--color-border-subtle, #efe9df);
+  padding: 8px 16px calc(8px + env(safe-area-inset-bottom, 0px));
   display: flex;
+  align-items: center;
   justify-content: space-around;
-  padding: 10px 16px 16px;
-  z-index: 90;
+  z-index: 50;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.06);
+}
+
+[data-theme='dark'] .luxury-bottom-nav {
+  background: rgba(33, 23, 16, 0.95);
+  border-top-color: var(--color-border, #3a2a20);
+  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.5);
 }
 
 .nav-tab-item {
+  flex: 1;
+  min-height: 44px;
+  padding: 6px 12px;
+  border-radius: 12px;
   background: transparent;
   border: none;
-  color: #a89f91;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  justify-content: center;
+  gap: 3px;
+  color: var(--color-text-muted, #7e685a);
   cursor: pointer;
-  position: relative;
-  min-width: 72px;
-  min-height: 48px;
-  padding: 5px 12px;
   transition: all 0.2s ease;
+
+  &.active {
+    color: var(--color-primary, #5a3825);
+    background: var(--color-primary-subtle, rgba(90, 56, 37, 0.08));
+
+    .nav-icon {
+      transform: translateY(-1px);
+    }
+  }
+}
+
+[data-theme='dark'] .nav-tab-item {
+  color: var(--color-text-muted, #9e8c7f);
+
+  &.active {
+    color: var(--color-gold, #d1b06b);
+    background: rgba(209, 176, 107, 0.12);
+  }
 }
 
 .nav-icon {
-  font-size: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s ease;
 }
+
 .nav-text {
   font-size: 11px;
   font-weight: 700;
 }
 
-.nav-tab-item.active {
-  color: #d9a86c;
-}
-
-.nav-tab-item.active .nav-icon {
-  transform: scale(1.15);
-}
-
 .nav-icon-badge-wrap {
   position: relative;
-  display: inline-block;
+  display: inline-flex;
 }
 
 .nav-badge-pill {
   position: absolute;
   top: -4px;
-  left: -8px;
-  background: #ef4444;
+  right: -8px;
+  background: var(--color-danger, #b9382e);
   color: #ffffff;
-  font-size: 10px;
-  font-weight: 900;
-  padding: 1px 6px;
-  border-radius: 10px;
-  border: 2px solid #080604;
+  font-size: 9px;
+  font-weight: 800;
+  min-width: 16px;
+  height: 16px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  border: 1px solid var(--color-surface, #ffffff);
 }
 
-/* Modal */
+/* ══════════════ 5. MODAL OVERLAY & CARD ══════════════ */
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.8);
-  backdrop-filter: blur(12px);
-  z-index: 9999;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 100;
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: center;
-  padding: 16px;
 }
 
 .modal-card {
-  background: #181008;
-  border: 1px solid rgba(217, 168, 108, 0.4);
-  border-radius: 22px;
   width: 100%;
-  max-width: 440px;
-  color: #f7ede2;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.95);
-  overflow: hidden;
+  max-width: 480px;
+  background: var(--color-surface, #ffffff);
+  border-radius: 20px 20px 0 0;
+  padding: 20px;
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+[data-theme='dark'] .modal-card {
+  background: var(--color-surface, #211710);
+  border: 1px solid var(--color-border, #3a2a20);
+  border-bottom: none;
 }
 
 .modal-head {
-  padding: 16px 20px;
-  background: rgba(255, 255, 255, 0.03);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  justify-content: space-between;
 }
 
 .modal-title-flex {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+
+  h3 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 800;
+    color: var(--color-text-strong, #1d120b);
+  }
 }
-.modal-title-flex h3 {
-  margin: 0;
-  font-size: 15px;
-  font-weight: 800;
-  color: #d9a86c;
+
+[data-theme='dark'] .modal-title-flex h3 {
+  color: #ffffff;
 }
+
+.modal-icon {
+  color: var(--color-primary, #5a3825);
+}
+
+[data-theme='dark'] .modal-icon {
+  color: var(--color-gold, #d1b06b);
+}
+
 .modal-close-btn {
-  background: transparent;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--color-bg-subtle, #efe9df);
   border: none;
-  color: #a89f91;
-  font-size: 18px;
+  color: var(--color-text, #2d1e16);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
 }
 
-.modal-body {
-  padding: 20px;
+[data-theme='dark'] .modal-close-btn {
+  background: var(--color-surface-raised, #2c1f17);
+  color: var(--color-text, #f4ece1);
 }
+
+.modal-user-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--color-bg-subtle, #efe9df);
+  border: 1px solid var(--color-border, #e3dacd);
+  border-radius: 14px;
+  padding: 12px;
+  margin-bottom: 10px;
+}
+
+[data-theme='dark'] .modal-user-card {
+  background: var(--color-surface-raised, #2c1f17);
+  border-color: var(--color-border-subtle, #2a1e16);
+}
+
+.user-avatar-wrap {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--color-primary-soft, #f5efe9);
+  color: var(--color-primary, #5a3825);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+[data-theme='dark'] .user-avatar-wrap {
+  background: rgba(209, 176, 107, 0.16);
+  color: var(--color-gold, #d1b06b);
+}
+
+.user-info-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+
+  strong {
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--color-text-strong, #1d120b);
+  }
+}
+
+[data-theme='dark'] .user-info-text strong {
+  color: #ffffff;
+}
+
+.user-role-badge {
+  font-size: 11px;
+  color: var(--color-gold, #b58a4a);
+  font-weight: 600;
+}
+
+.modal-quick-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.btn-modal-action {
+  min-height: 44px;
+  border-radius: 12px;
+  background: var(--color-bg-subtle, #efe9df);
+  border: 1px solid var(--color-border, #e3dacd);
+  color: var(--color-text, #2d1e16);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:active {
+    transform: scale(0.98);
+  }
+}
+
+[data-theme='dark'] .btn-modal-action {
+  background: var(--color-surface-raised, #2c1f17);
+  border-color: var(--color-border, #3a2a20);
+  color: var(--color-text, #f4ece1);
+}
+
+.btn-modal-logout {
+  color: var(--color-danger, #b9382e);
+  background: var(--color-danger-soft, #fdf2f0);
+  border-color: var(--color-danger-border, rgba(185, 56, 46, 0.25));
+}
+
+[data-theme='dark'] .btn-modal-logout {
+  background: rgba(212, 76, 66, 0.12);
+  border-color: rgba(212, 76, 66, 0.3);
+  color: #e2675e;
+}
+
+.modal-section-divider {
+  display: flex;
+  align-items: center;
+  margin: 12px 0 8px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-text-muted, #7e685a);
+
+  &::before,
+  &::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--color-divider, rgba(59, 36, 24, 0.1));
+  }
+
+  span {
+    padding: 0 10px;
+  }
+}
+
+[data-theme='dark'] .modal-section-divider {
+  color: var(--color-text-muted, #9e8c7f);
+
+  &::before,
+  &::after {
+    background: var(--color-border-subtle, #2a1e16);
+  }
+}
+
 .modal-desc {
   font-size: 12px;
-  color: #c4b9a8;
-  margin: 0 0 16px;
+  color: var(--color-text-muted, #7e685a);
+  margin: 0 0 12px;
   line-height: 1.5;
 }
+
+[data-theme='dark'] .modal-desc {
+  color: var(--color-text-muted, #9e8c7f);
+}
+
 .form-group {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
 }
+
 .form-label {
   font-size: 12px;
-  color: #d9a86c;
   font-weight: 700;
+  color: var(--color-text-secondary, #553f33);
+}
+
+[data-theme='dark'] .form-label {
+  color: var(--color-text-secondary, #d6c5b5);
 }
 
 .form-input {
-  width: 100%;
-  padding: 12px 14px;
-  background: #080604;
-  border: 1px solid rgba(217, 168, 108, 0.3);
-  border-radius: 12px;
-  color: #ffffff;
-  font-size: 13px;
-  outline: none;
-  font-family: monospace;
+  min-height: 44px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border, #e3dacd);
+  background: var(--color-bg, #f7f3ec);
+  color: var(--color-text, #2d1e16);
+  font-size: 14px;
   box-sizing: border-box;
+
+  &:focus {
+    outline: none;
+    border-color: var(--color-primary, #5a3825);
+    box-shadow: 0 0 0 3px var(--color-primary-halo, rgba(90, 56, 37, 0.16));
+  }
 }
 
-.form-input:focus {
-  border-color: #d9a86c;
-  box-shadow: 0 0 12px rgba(217, 168, 108, 0.3);
+[data-theme='dark'] .form-input {
+  background: var(--color-surface-sunken, #170f0a);
+  border-color: var(--color-border, #3a2a20);
+  color: #ffffff;
+
+  &:focus {
+    border-color: var(--color-gold, #d1b06b);
+    box-shadow: 0 0 0 3px rgba(209, 176, 107, 0.2);
+  }
 }
 
 .presets-row {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
+  margin-bottom: 12px;
 }
 
 .preset-chip {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  min-height: 44px;
+  padding: 8px 12px;
   border-radius: 10px;
-  padding: 10px 12px;
-  color: #e2d7c9;
-  font-size: 11px;
-  text-align: right;
+  border: 1px solid var(--color-border, #e3dacd);
+  background: var(--color-bg-subtle, #efe9df);
+  color: var(--color-text-secondary, #553f33);
+  font-size: 12px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   cursor: pointer;
+  text-align: right;
   transition: all 0.2s ease;
+
+  &.chip-active {
+    border-color: var(--color-primary, #5a3825);
+    background: var(--color-primary-soft, #f5efe9);
+    color: var(--color-primary, #5a3825);
+    font-weight: 700;
+  }
 }
 
-.preset-chip.chip-active {
-  background: rgba(217, 168, 108, 0.25);
-  border-color: #d9a86c;
-  color: #ffffff;
-  font-weight: 700;
+[data-theme='dark'] .preset-chip {
+  background: var(--color-surface-raised, #2c1f17);
+  border-color: var(--color-border, #3a2a20);
+  color: var(--color-text-secondary, #d6c5b5);
+
+  &.chip-active {
+    border-color: var(--color-gold, #d1b06b);
+    background: rgba(209, 176, 107, 0.14);
+    color: var(--color-gold, #d1b06b);
+  }
 }
 
 .test-result-box {
-  margin-top: 14px;
-  padding: 10px 14px;
+  padding: 10px 12px;
   border-radius: 10px;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.4;
+  margin-top: 6px;
 }
 
-.test-result-box.res-success {
-  background: rgba(52, 211, 153, 0.15);
-  border: 1px solid rgba(52, 211, 153, 0.4);
-  color: #34d399;
+.res-success {
+  background: var(--color-success-soft, #eef7f2);
+  border: 1px solid var(--color-success-border, rgba(40, 114, 76, 0.3));
+  color: var(--color-success, #28724c);
 }
 
-.test-result-box.res-error {
-  background: rgba(239, 68, 68, 0.15);
-  border: 1px solid rgba(239, 68, 68, 0.4);
-  color: #f87171;
+.res-error {
+  background: var(--color-danger-soft, #fdf2f0);
+  border: 1px solid var(--color-danger-border, rgba(185, 56, 46, 0.3));
+  color: var(--color-danger, #b9382e);
+}
+
+[data-theme='dark'] .res-success {
+  background: rgba(52, 156, 104, 0.16);
+  color: #48b87f;
+}
+
+[data-theme='dark'] .res-error {
+  background: rgba(212, 76, 66, 0.16);
+  color: #e2675e;
 }
 
 .modal-foot {
-  padding: 14px 20px;
-  background: rgba(0, 0, 0, 0.35);
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
   display: flex;
-  justify-content: flex-end;
   gap: 10px;
+  padding-top: 10px;
+
+  button {
+    flex: 1;
+    min-height: 44px;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    border: none;
+    transition: all 0.2s ease;
+  }
 }
 
 .btn-test-conn {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  color: #f7ede2;
-  padding: 8px 14px;
-  border-radius: 10px;
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
+  background: var(--color-bg-subtle, #efe9df);
+  border: 1px solid var(--color-border, #e3dacd) !important;
+  color: var(--color-text, #2d1e16);
+}
+
+[data-theme='dark'] .btn-test-conn {
+  background: var(--color-surface-raised, #2c1f17);
+  border-color: var(--color-border, #3a2a20) !important;
+  color: var(--color-text, #f4ece1);
 }
 
 .btn-save-conn {
-  background: linear-gradient(135deg, #d9a86c, #8a572a);
-  border: none;
+  background: var(--color-primary, #5a3825);
   color: #ffffff;
-  padding: 8px 18px;
-  border-radius: 10px;
-  font-size: 12px;
-  font-weight: 800;
-  cursor: pointer;
-  box-shadow: 0 4px 14px rgba(217, 168, 108, 0.35);
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   EXECUTIVE LEDGER REDESIGN — Editorial coffee house / Swiss grid
-   Purpose: make the report feel like a decision instrument, not a
-   collection of generic dark cards.
-   ═══════════════════════════════════════════════════════════════ */
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;500;600;700;800&family=Noto+Naskh+Arabic:wght@500;600;700&display=swap');
-
-.luxury-mobile-container {
-  --ledger-ink: #201a16;
-  --ledger-muted: #766b61;
-  --ledger-paper: #f4efe8;
-  --ledger-paper-strong: #fffdf9;
-  --ledger-line: #ded4c8;
-  --ledger-coffee: #6f4933;
-  --ledger-copper: #b86d3d;
-  --ledger-green: #2c7a64;
-  max-width: 760px;
-  min-height: 100dvh;
-  margin: 0 auto;
-  padding-bottom: 104px;
-  color: var(--ledger-ink);
-  background:
-    radial-gradient(circle at 100% 0%, rgba(184, 109, 61, 0.12), transparent 28rem),
-    var(--ledger-paper);
-  font-family: 'Noto Sans Arabic', 'Cairo', sans-serif;
-  box-shadow: 0 0 70px rgba(75, 48, 31, 0.14);
+[data-theme='dark'] .btn-save-conn {
+  background: var(--color-primary, #d1b06b);
+  color: #120c08;
 }
 
-.app-header {
-  position: sticky;
-  top: 0;
-  z-index: 50;
-  padding: 18px clamp(18px, 4vw, 34px) 14px;
-  background: rgba(244, 239, 232, 0.92);
-  border-bottom: 1px solid var(--ledger-line);
-  backdrop-filter: blur(18px);
-}
-
-.header-inner {
-  gap: 18px;
-}
-.brand-identity {
-  gap: 13px;
-}
-.brand-emblem {
-  width: 48px;
-  height: 48px;
-  border-radius: 16px 16px 6px 16px;
-  background: var(--ledger-coffee);
-  box-shadow: 7px 7px 0 rgba(184, 109, 61, 0.18);
-}
-.brand-emblem img {
-  width: 34px;
-  height: 34px;
-}
-.brand-name {
-  color: var(--ledger-ink);
-  font-family: 'Noto Naskh Arabic', serif;
-  font-size: 24px;
-  line-height: 1;
-  letter-spacing: -0.6px;
-}
-.brand-tagline {
-  color: var(--ledger-copper);
-  font-size: 11px;
-}
-.header-quick-actions {
-  gap: 7px;
-}
-.header-btn {
-  width: 42px;
-  height: 42px;
-  border: 1px solid var(--ledger-line);
-  border-radius: 12px;
-  color: var(--ledger-coffee);
-  background: var(--ledger-paper-strong);
-  box-shadow: none;
-}
-.header-btn:hover,
-.header-btn:focus-visible {
-  color: #fff;
-  background: var(--ledger-coffee);
-  border-color: var(--ledger-coffee);
-  transform: translateY(-2px);
-}
-.live-status-strip {
-  margin-top: 20px;
-  padding-top: 12px;
-  border-top: 1px solid var(--ledger-line);
-}
-.live-badge {
-  color: var(--ledger-muted);
-  font-size: 11px;
-}
-.live-badge.connected {
-  color: var(--ledger-green);
-}
-.live-dot {
-  width: 7px;
-  height: 7px;
-  background: currentColor;
-  box-shadow: 0 0 0 4px rgba(44, 122, 100, 0.12);
-}
-.date-quick-selector {
-  gap: 6px;
-}
-.date-pill-btn,
-.date-picker-label {
-  min-width: 48px;
-  min-height: 42px;
-  border: 1px solid var(--ledger-line);
-  border-radius: 11px;
-  color: var(--ledger-muted);
-  background: var(--ledger-paper-strong);
-}
-.date-pill-btn.active {
-  color: #fff;
-  background: var(--ledger-coffee);
-  border-color: var(--ledger-coffee);
-}
-
-.report-context-card,
-.report-kpi-strip,
-.glass-content-card,
-.channel-metric-card,
-.finance-grid,
-.recent-sales-stream,
-.luxury-hero-card,
-.diagnostic-banner {
-  border: 1px solid var(--ledger-line);
-  border-radius: 20px;
-  box-shadow: 0 12px 30px rgba(75, 48, 31, 0.07);
-}
-.report-context-card {
-  margin: 24px clamp(16px, 4vw, 34px) 12px;
-  padding: 18px 20px;
-  background: var(--ledger-coffee);
-  color: #fffaf4;
-  border-color: var(--ledger-coffee);
-  position: relative;
-  overflow: hidden;
-}
-.report-context-card::after {
-  content: 'REPORT / 01';
-  position: absolute;
-  left: 18px;
-  bottom: 12px;
-  color: rgba(255, 250, 244, 0.42);
-  direction: ltr;
-  font:
-    600 9px/1.2 ui-monospace,
-    monospace;
-  letter-spacing: 1.5px;
-}
-.report-context-kicker {
-  color: #f1c4a4;
-}
-.report-context-main strong {
-  display: block;
-  font-family: 'Noto Naskh Arabic', serif;
-  font-size: 24px;
-}
-.report-context-caption {
-  color: rgba(255, 250, 244, 0.68);
-}
-.report-context-status {
-  background: rgba(255, 255, 255, 0.12);
-  color: #fff;
-  border-color: rgba(255, 255, 255, 0.16);
-}
-.report-context-status.offline {
-  background: #9b463e;
-  border-color: #9b463e;
-}
-.report-kpi-strip {
-  margin: 0 clamp(16px, 4vw, 34px) 18px;
-  padding: 0;
-  overflow: hidden;
-  background: var(--ledger-paper-strong);
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-}
-.report-kpi-item {
-  padding: 15px 14px;
-  border-inline-start: 1px solid var(--ledger-line);
-}
-.report-kpi-item:first-child {
-  border-inline-start: 0;
-}
-.report-kpi-label {
-  color: var(--ledger-muted);
-  font-size: 11px;
-}
-.report-kpi-item strong {
-  color: var(--ledger-ink);
-  font-size: 20px;
-  font-variant-numeric: tabular-nums;
-}
-.report-kpi-item strong small {
-  color: var(--ledger-muted);
-  font-size: 10px;
-}
-.report-kpi-item strong.positive {
-  color: var(--ledger-green);
-}
-.report-kpi-item strong.negative {
-  color: #a44c42;
-}
-
-.diagnostic-banner {
-  margin: 0 clamp(16px, 4vw, 34px) 18px;
-  padding: 16px;
-  color: var(--ledger-ink);
-  background: #fff7ee;
-  border-color: #e7b28a;
-  box-shadow: none;
-}
-.diag-icon {
-  color: var(--ledger-copper);
-  background: #f8dfc9;
-}
-.diag-text strong {
-  color: #8f4933;
-}
-.diag-text p {
-  color: var(--ledger-muted);
-}
-.diag-actions {
-  gap: 7px;
-}
-.btn-diag-cfg,
-.btn-diag-demo,
-.btn-diag-retry {
-  min-height: 42px;
-  border-radius: 11px;
-  font-family: inherit;
-  transition:
-    transform 0.2s ease,
-    background 0.2s ease;
-}
-.btn-diag-cfg {
-  color: var(--ledger-coffee);
-  background: #f3e2d2;
-  border-color: #e6c7ae;
-}
-.btn-diag-demo {
-  color: #fff;
-  background: var(--ledger-coffee);
-  border-color: var(--ledger-coffee);
-}
-.btn-diag-retry {
-  color: #fff;
-  background: var(--ledger-copper);
-  border-color: var(--ledger-copper);
-}
-.btn-diag-cfg:hover,
-.btn-diag-demo:hover,
-.btn-diag-retry:hover {
-  transform: translateY(-2px);
-}
-
-.mobile-viewport {
-  padding: 0 clamp(16px, 4vw, 34px);
-}
-.luxury-hero-card {
-  padding: clamp(22px, 5vw, 34px);
-  background: var(--ledger-ink);
-  border-color: var(--ledger-ink);
-  box-shadow: 10px 12px 0 rgba(184, 109, 61, 0.2);
-}
-.luxury-hero-card::before {
-  background: linear-gradient(90deg, var(--ledger-copper), transparent);
-  opacity: 0.8;
-}
-.hero-title-badge {
-  color: #f2c6a5;
-}
-.growth-chip {
-  border-radius: 8px;
-}
-.hero-amount-display {
-  margin: 26px 0 22px;
-}
-.amount-number {
-  color: #fffaf4;
-  font-size: clamp(42px, 12vw, 72px);
-  letter-spacing: -3px;
-}
-.currency-prefix {
-  color: #d79a70;
-}
-.hero-stats-subbar {
-  border-top-color: rgba(255, 255, 255, 0.15);
-}
-.sub-label {
-  color: rgba(255, 255, 255, 0.55);
-}
-.sub-val {
-  color: #fffaf4;
-}
-.section-heading h3,
-.card-title {
-  color: var(--ledger-ink);
-  font-family: 'Noto Naskh Arabic', serif;
-  font-size: 21px;
-}
-.channel-ratio,
-.card-meta-tag {
-  color: var(--ledger-muted);
-}
-.comparative-ratio-bar {
-  background: #e5dcd2;
-}
-.bar-fill.retail-fill {
-  background: var(--ledger-coffee);
-}
-.bar-fill.wholesale-fill {
-  background: var(--ledger-copper);
-}
-.channel-metric-card {
-  background: var(--ledger-paper-strong);
-  color: var(--ledger-ink);
-  box-shadow: none;
-}
-.channel-metric-card.retail-theme {
-  border-top: 4px solid var(--ledger-coffee);
-}
-.channel-metric-card.wholesale-theme {
-  border-top: 4px solid var(--ledger-copper);
-}
-.card-top-icon .icon-wrap {
-  color: var(--ledger-coffee);
-  background: #f1e5d9;
-}
-.card-label,
-.channel-foot {
-  color: var(--ledger-muted);
-}
-.channel-val {
-  color: var(--ledger-ink);
-  font-variant-numeric: tabular-nums;
-}
-.channel-val small,
-.payment-val small {
-  color: var(--ledger-muted);
-}
-.glass-content-card,
-.finance-grid,
-.recent-sales-stream {
-  background: var(--ledger-paper-strong);
-  color: var(--ledger-ink);
-}
-.payment-row,
-.finance-cell,
-.recent-sale-row,
-.category-stat-item {
-  border-color: var(--ledger-line);
-}
-.payment-text-group .p-name,
-.fin-val,
-.sale-amt,
-.cat-money,
-.cell-val {
-  color: var(--ledger-ink);
-}
-.payment-text-group .p-sub,
-.fin-lbl,
-.fin-sub,
-.sale-sub-line,
-.cat-footer-sub,
-.cell-lbl {
-  color: var(--ledger-muted);
-}
-.text-cyan,
-.text-purple,
-.text-emerald,
-.text-rose {
-  color: var(--ledger-copper);
-}
-.bottom-navigation {
-  background: rgba(255, 253, 249, 0.95);
-  border-top: 1px solid var(--ledger-line);
-  box-shadow: 0 -12px 28px rgba(75, 48, 31, 0.08);
-}
-.bottom-nav-item {
-  color: var(--ledger-muted);
-  min-height: 58px;
-}
-.bottom-nav-item.active {
-  color: var(--ledger-coffee);
-}
-.bottom-nav-item.active::before {
-  background: var(--ledger-copper);
-}
-
-@media (min-width: 700px) {
-  .luxury-mobile-container {
-    border-inline: 1px solid var(--ledger-line);
+/* Responsive optimizations for small screens (320px - 380px) */
+@media (max-width: 380px) {
+  .app-header {
+    padding: calc(10px + env(safe-area-inset-top, 0px)) 12px 10px;
   }
-  .channel-cards-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+
+  .brand-name {
+    font-size: 15px;
   }
-  .dual-distribution-section {
-    padding-inline: 0;
+
+  .brand-emblem {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+
+    img {
+      width: 24px;
+      height: 24px;
+    }
+  }
+
+  .header-btn {
+    width: 38px;
+    height: 38px;
+  }
+
+  .mobile-viewport {
+    padding: 10px 10px;
+    gap: 10px;
+  }
+
+  .executive-hero-card {
+    padding: 14px 14px;
+  }
+
+  .revenue-number {
+    font-size: 26px;
+  }
+
+  .channel-cards-grid,
+  .finance-dual-grid,
+  .shift-info-grid {
+    gap: 8px;
+  }
+
+  .channel-card,
+  .finance-block {
+    padding: 10px;
+  }
+
+  .channel-amount {
+    font-size: 16px;
+  }
+
+  .ec-amount {
+    font-size: 20px;
   }
 }
 
+/* Reduced motion preference */
 @media (prefers-reduced-motion: reduce) {
-  .luxury-mobile-container *,
-  .luxury-mobile-container *::before,
-  .luxury-mobile-container *::after {
+  * {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
-}
-</style>
-
-<style scoped lang="scss">
-/* Contrast pass: keep the warm palette, but make every label readable at a glance. */
-.luxury-mobile-container {
-  --ledger-ink: #211c18;
-  --ledger-muted: #5e554d;
-}
-
-.app-header,
-.report-context-card,
-.luxury-mobile-container,
-.luxury-mobile-container button {
-  color: #211c18;
-}
-
-.header-tagline,
-.report-context-caption,
-.sub-label,
-.channel-ratio,
-.card-label,
-.card-meta-tag,
-.channel-foot,
-.fin-lbl,
-.fin-sub,
-.payment-text-group .p-sub,
-.section-heading .section-note {
-  color: #5e554d !important;
-}
-
-.report-context-kicker,
-.hero-title-badge,
-.section-heading h3,
-.card-title,
-.luxury-hero-card .amount-number,
-.channel-val,
-.payment-text-group .p-name,
-.fin-val,
-.cell-val,
-.sub-val {
-  color: #211c18 !important;
-}
-
-.date-pill-btn {
-  color: #5e554d !important;
-  border-color: #cfc3b8 !important;
-  background: #fffdfa !important;
-}
-
-.date-pill-btn.active {
-  color: #fffdfa !important;
-  background: #76513a !important;
-  border-color: #76513a !important;
-}
-
-.card-meta-tag,
-.report-kpi-label {
-  font-weight: 700;
-}
-
-.report-kpi-label {
-  color: #5e554d !important;
-}
-
-.report-kpi-item strong,
-.report-kpi-item strong small {
-  color: #211c18 !important;
-}
-
-.report-context-status {
-  color: #23634f !important;
-  background: #e2f2e9 !important;
-  border-color: #acd7c1 !important;
-}
-
-.growth-chip.chip-up {
-  color: #23634f !important;
-  background: #d9f0e3 !important;
-}
-
-.nav-tab-item,
-.nav-tab-item .nav-label {
-  color: #5e554d !important;
-}
-
-.nav-tab-item.active,
-.nav-tab-item.active .nav-label {
-  color: #76513a !important;
-}
-
-.payment-val,
-.payment-val small {
-  font-variant-numeric: tabular-nums;
-}
-
-.channel-val,
-.amount-number,
-.payment-val,
-.fin-val {
-  font-weight: 900;
-}
-</style>
-
-<style scoped lang="scss">
-/* Normalize nested report surfaces so no legacy dark cards leak into the light system. */
-.dual-distribution-section {
-  background: transparent;
-}
-
-.section-heading h3,
-.card-title {
-  color: #26221f;
-}
-
-.channel-metric-card {
-  background: #fffdfa;
-  border: 1px solid #e4ddd4;
-  box-shadow: 0 8px 18px rgba(75, 55, 39, 0.05);
-}
-
-.channel-metric-card.retail-theme,
-.channel-metric-card.wholesale-theme {
-  background: #fffdfa;
-}
-
-.channel-metric-card.retail-theme {
-  border-top: 3px solid #a96b45;
-}
-
-.channel-metric-card.wholesale-theme {
-  border-top: 3px solid #5b8f9b;
-}
-
-.card-label,
-.channel-foot,
-.card-meta-tag,
-.payment-text-group .p-sub,
-.fin-lbl,
-.fin-sub {
-  color: #756d65;
-}
-
-.channel-val,
-.payment-text-group .p-name,
-.fin-val,
-.cell-val {
-  color: #26221f;
-}
-
-.payment-row,
-.finance-grid,
-.finance-cell,
-.drawer-cash-highlight,
-.recent-sale-row,
-.shift-cell {
-  background: #f6f1eb;
-  border-color: #e4ddd4;
-}
-
-.payment-row {
-  box-shadow: none;
-}
-
-.payment-symbol {
-  background: #fffdfa;
-  border-color: #e4ddd4;
-}
-
-.cash-row .payment-symbol {
-  color: #a96b45;
-}
-.instapay-row .payment-symbol {
-  color: #3f8792;
-}
-.card-row .payment-symbol {
-  color: #7567a0;
-}
-
-.text-cyan {
-  color: #3f8792 !important;
-}
-.text-purple {
-  color: #7567a0 !important;
-}
-.text-rose {
-  color: #b45d55 !important;
-}
-.text-emerald {
-  color: #2d7762 !important;
-}
-
-.drawer-cash-highlight {
-  color: #26221f;
-  background: #f7eee6;
-  border: 1px solid #ead4c4;
-}
-
-.card-glow-orb {
-  display: none;
-}
-
-.comparative-ratio-bar {
-  background: #e8ded3;
-}
-
-.retail-fill {
-  background: #a96b45;
-}
-.wholesale-fill {
-  background: #5b8f9b;
-}
-
-.luxury-hero-card {
-  padding: 20px;
-}
-
-.hero-amount-display {
-  min-height: 72px;
-  align-items: center;
-}
-</style>
-
-<style scoped lang="scss">
-/* Hard override for the legacy dark nested surfaces. */
-.payment-row,
-.finance-cell,
-.recent-sale-row,
-.shift-cell {
-  background: #f6f1eb !important;
-  border-color: #e4ddd4 !important;
-}
-
-.payment-text-group .p-name,
-.payment-val,
-.fin-val,
-.cell-val {
-  color: #26221f !important;
-}
-
-.payment-text-group .p-sub,
-.fin-lbl,
-.fin-sub,
-.channel-foot,
-.card-meta-tag {
-  color: #756d65 !important;
-}
-
-.payment-symbol {
-  color: #a96b45 !important;
-  background: #fffdfa !important;
-  border-color: #e4ddd4 !important;
-}
-
-.instapay-row .payment-symbol {
-  color: #3f8792 !important;
-}
-.card-row .payment-symbol {
-  color: #7567a0 !important;
-}
-.text-cyan {
-  color: #3f8792 !important;
-}
-.text-purple {
-  color: #7567a0 !important;
-}
-.text-rose {
-  color: #b45d55 !important;
-}
-.text-emerald {
-  color: #2d7762 !important;
-}
-</style>
-
-<style scoped lang="scss">
-.hero-stats-subbar {
-  background: #f6f1eb;
-  border: 1px solid #e8ded3;
-  border-radius: 14px;
-}
-
-.luxury-bottom-nav {
-  background: rgba(255, 253, 250, 0.98);
-  border-top: 1px solid #ded5cb;
-  box-shadow: 0 -10px 28px rgba(75, 55, 39, 0.1);
-}
-
-.nav-tab-item {
-  color: #82766d;
-  min-height: 66px;
-  transition:
-    color 0.2s ease,
-    background 0.2s ease;
-}
-
-.nav-tab-item.active {
-  color: #76513a;
-  background: #f7eee6;
-}
-
-.nav-tab-item.active::after {
-  background: #a96b45;
-}
-</style>
-
-<style scoped lang="scss">
-/* Final visual correction: one calm surface system, one brand accent. */
-:global(body) {
-  background: #eee9e2;
-}
-
-.luxury-mobile-container {
-  --ledger-ink: #26221f;
-  --ledger-muted: #756d65;
-  --ledger-paper: #f3efe9;
-  --ledger-paper-strong: #fffdfa;
-  --ledger-line: #e4ddd4;
-  --ledger-coffee: #76513a;
-  --ledger-copper: #a96b45;
-  --ledger-green: #2d7762;
-  background: var(--ledger-paper);
-  color: var(--ledger-ink);
-}
-
-.app-header {
-  background: rgba(255, 253, 250, 0.94);
-  border-bottom-color: var(--ledger-line);
-}
-
-.report-context-card {
-  color: var(--ledger-ink);
-  background: var(--ledger-paper-strong);
-  border: 1px solid var(--ledger-line);
-  border-inline-start: 5px solid var(--ledger-copper);
-  box-shadow: 0 8px 20px rgba(75, 55, 39, 0.06);
-}
-
-.report-context-card::after {
-  color: #b6aaa0;
-}
-.report-context-kicker {
-  color: var(--ledger-copper);
-}
-.report-context-main strong {
-  color: var(--ledger-ink);
-}
-.report-context-caption {
-  color: var(--ledger-muted);
-}
-.report-context-status {
-  color: var(--ledger-green);
-  background: #edf7f1;
-  border-color: #cde4d8;
-}
-.report-context-status.offline {
-  color: #9a4d40;
-  background: #fff0ec;
-  border-color: #efc9c0;
-}
-
-.report-kpi-strip {
-  background: var(--ledger-paper-strong);
-  box-shadow: 0 8px 20px rgba(75, 55, 39, 0.05);
-}
-
-.luxury-hero-card {
-  color: var(--ledger-ink);
-  background: var(--ledger-paper-strong);
-  border: 1px solid var(--ledger-line);
-  border-top: 4px solid var(--ledger-coffee);
-  box-shadow: 0 10px 24px rgba(75, 55, 39, 0.07);
-}
-
-.luxury-hero-card::before {
-  display: none;
-}
-.hero-title-badge {
-  color: var(--ledger-coffee);
-}
-.amount-number {
-  color: var(--ledger-ink);
-}
-.currency-prefix {
-  color: var(--ledger-copper);
-}
-.hero-stats-subbar {
-  border-top-color: var(--ledger-line);
-}
-.sub-label {
-  color: var(--ledger-muted);
-}
-.sub-val {
-  color: var(--ledger-ink);
-}
-.sub-divider {
-  background: var(--ledger-line);
-}
-
-.section-heading h3,
-.card-title {
-  color: var(--ledger-ink);
-}
-.channel-metric-card {
-  box-shadow: 0 8px 18px rgba(75, 55, 39, 0.05);
-}
-.glass-content-card,
-.finance-grid,
-.recent-sales-stream {
-  box-shadow: 0 8px 18px rgba(75, 55, 39, 0.05);
-}
-
-.bottom-navigation {
-  background: rgba(255, 253, 250, 0.97);
-  border-top-color: var(--ledger-line);
-}
-
-@media (max-width: 520px) {
-  .luxury-mobile-container {
-    box-shadow: none;
-  }
-  .report-context-card {
-    border-radius: 14px;
-  }
-  .luxury-hero-card {
-    border-radius: 16px;
-  }
-}
-</style>
-
-<style scoped lang="scss">
-/* Final contrast pass for labels and values. */
-.luxury-mobile-container {
-  --ledger-ink: #211c18;
-  --ledger-muted: #5e554d;
-}
-
-.luxury-mobile-container,
-.luxury-mobile-container button,
-.app-header,
-.report-context-card {
-  color: #211c18;
-}
-
-.header-tagline,
-.report-context-caption,
-.sub-label,
-.channel-ratio,
-.card-label,
-.card-meta-tag,
-.channel-foot,
-.fin-lbl,
-.fin-sub,
-.payment-text-group .p-sub,
-.report-kpi-label {
-  color: #5e554d !important;
-}
-
-.report-context-kicker,
-.hero-title-badge,
-.section-heading h3,
-.card-title,
-.amount-number,
-.channel-val,
-.payment-text-group .p-name,
-.fin-val,
-.cell-val,
-.sub-val,
-.report-kpi-item strong,
-.report-kpi-item strong small {
-  color: #211c18 !important;
-}
-
-.date-pill-btn {
-  color: #5e554d !important;
-  border-color: #cfc3b8 !important;
-  background: #fffdfa !important;
-}
-
-.date-pill-btn.active {
-  color: #fffdfa !important;
-  background: #76513a !important;
-  border-color: #76513a !important;
-}
-
-.report-context-status {
-  color: #23634f !important;
-  background: #e2f2e9 !important;
-  border-color: #acd7c1 !important;
-}
-
-.growth-chip.chip-up {
-  color: #23634f !important;
-  background: #d9f0e3 !important;
-}
-
-.nav-tab-item,
-.nav-tab-item .nav-label {
-  color: #5e554d !important;
-}
-
-.nav-tab-item.active,
-.nav-tab-item.active .nav-label {
-  color: #76513a !important;
-}
-
-.channel-val,
-.amount-number,
-.payment-val,
-.fin-val {
-  font-weight: 900;
-  font-variant-numeric: tabular-nums;
-}
-</style>
-
-<style scoped lang="scss">
-/* Inventory contrast pass: restore readable text on the light report surfaces. */
-.inventory-gold-theme .hero-title-badge,
-.inventory-gold-theme .amount-number,
-.inventory-gold-theme .sub-val,
-.inventory-gold-theme .sub-label {
-  color: #211c18 !important;
-}
-
-.inventory-gold-theme .currency-prefix {
-  color: #a96b45 !important;
-}
-
-.inventory-gold-theme .chip-gold {
-  color: #7a4b22 !important;
-  background: #f8e9cf !important;
-}
-
-.category-stat-item .cat-title,
-.category-stat-item .cat-money {
-  color: #211c18 !important;
-}
-
-.category-stat-item .cat-money {
-  font-weight: 900;
-}
-
-.cat-progress-track {
-  background: #e4d9ce !important;
-}
-
-.cat-progress-fill {
-  background: #a96b45 !important;
-}
-
-.category-stat-item .cat-footer-sub {
-  color: #5e554d !important;
-}
-
-.alert-border-card {
-  border-color: #e6b7b0 !important;
-}
-
-.badge-count-red {
-  color: #a33f36 !important;
-  background: #fbe3df !important;
-  border: 1px solid #efbdb6;
-}
-
-.low-stock-row {
-  background: #fff0ed !important;
-  border-color: #efc8c2 !important;
-}
-
-.stock-item-name {
-  color: #211c18 !important;
-}
-
-.stock-item-meta,
-.stock-limit-note {
-  color: #6c5d56 !important;
-}
-
-.stock-critical-badge {
-  color: #fffdfa !important;
-  background: #c24f45 !important;
 }
 </style>

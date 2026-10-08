@@ -151,9 +151,10 @@
           <h4>المعاملات مجمعة بالشهور</h4>
 
           <div v-if="loadingDetails" class="loading-state">جاري تحميل تفاصيل المعاملات...</div>
+          <div v-else-if="detailsError" class="empty-state" role="alert">{{ detailsError }}</div>
 
           <div v-else-if="transactionsByMonth.length === 0" class="empty-state">
-            لا توجد فواتير مشتريات أو سدادات مسجلة لهذا المورد.
+            لا توجد معاملات مسجلة لهذا المورد.
           </div>
 
           <div v-else class="months-accordion">
@@ -176,6 +177,13 @@
                     >المدفوعات:
                     <strong class="text-success">{{
                       formatMoney(group.totalPayments)
+                    }}</strong></span
+                  >
+                  <span class="sep">|</span>
+                  <span
+                    >المرتجعات:
+                    <strong class="text-success">{{
+                      formatMoney(group.totalReturns)
                     }}</strong></span
                   >
                 </div>
@@ -291,9 +299,16 @@ const form = ref({ id: null, code: '', name_ar: '', phone: '', email: '', addres
 const showDetails = ref(false);
 const selectedSupplier = ref<any>(null);
 const loadingDetails = ref(false);
+const detailsError = ref('');
+let detailsRequest = 0;
 const supplierInvoices = ref<any[]>([]);
 const supplierPayments = ref<any[]>([]);
 const expandedMonths = ref<Record<string, boolean>>({});
+const statementMonthFormatter = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'Africa/Cairo',
+  year: 'numeric',
+  month: '2-digit',
+});
 
 // تسجيل سداد
 const showPaymentModal = ref(false);
@@ -352,9 +367,12 @@ const removeSupplier = async (supplier: any) => {
 
 // تشغيل تفاصيل المورد وكشف الحساب الشهري
 const viewDetails = async (supplier: any) => {
+  const request = ++detailsRequest;
   selectedSupplier.value = supplier;
+  showPaymentModal.value = false;
   showDetails.value = true;
   loadingDetails.value = true;
+  detailsError.value = '';
   supplierInvoices.value = [];
   supplierPayments.value = [];
   expandedMonths.value = {};
@@ -364,6 +382,12 @@ const viewDetails = async (supplier: any) => {
       api.invoices(supplier.id),
       api.payments(supplier.id),
     ]);
+    if (
+      request !== detailsRequest ||
+      !showDetails.value ||
+      selectedSupplier.value?.id !== supplier.id
+    )
+      return;
     supplierInvoices.value = invoicesRes.data || [];
     supplierPayments.value = paymentsRes.data || [];
 
@@ -372,15 +396,21 @@ const viewDetails = async (supplier: any) => {
       expandedMonths.value[transactionsByMonth.value[0].key] = true;
     }
   } catch (err: any) {
+    if (request !== detailsRequest || !showDetails.value) return;
     console.error('Failed to fetch supplier details:', err);
-    window.alert('تعذر تحميل تفاصيل معاملات المورد');
+    detailsError.value = 'تعذر تحميل تفاصيل معاملات المورد. أعد فتح الكشف للمحاولة مجددًا.';
   } finally {
-    loadingDetails.value = false;
+    if (request === detailsRequest) loadingDetails.value = false;
   }
 };
 
 const closeDetails = () => {
+  ++detailsRequest;
   showDetails.value = false;
+  showPaymentModal.value = false;
+  supplierInvoices.value = [];
+  supplierPayments.value = [];
+  loadingDetails.value = false;
   selectedSupplier.value = null;
 };
 
@@ -405,6 +435,18 @@ const transactionsByMonth = computed(() => {
       amount: Number(inv.total_amount),
       notes: inv.notes,
     });
+    for (const ret of inv.return_documents || []) {
+      list.push({
+        id: 'return-' + ret.id,
+        date: new Date(ret.return_date),
+        dateStr: ret.return_date,
+        type: 'return',
+        typeName: 'مرتجع مشتريات',
+        refNumber: ret.return_number,
+        amount: Number(ret.total_amount),
+        notes: ret.notes,
+      });
+    }
   });
 
   // المدفوعات المسددة
@@ -429,9 +471,6 @@ const transactionsByMonth = computed(() => {
   // التجميع حسب الشهر والسنة
   const groups: Record<string, any> = {};
   list.forEach((t: any) => {
-    const year = t.date.getFullYear();
-    const monthIndex = t.date.getMonth();
-
     const monthsAr = [
       'يناير',
       'فبراير',
@@ -446,9 +485,15 @@ const transactionsByMonth = computed(() => {
       'نوفمبر',
       'ديسمبر',
     ];
-    const monthName = monthsAr[monthIndex];
-    const groupKey = `${year}-${String(monthIndex + 1).padStart(2, '0')}`;
-    const groupLabel = `${monthName} ${year}`;
+    let groupKey = 'unknown';
+    let groupLabel = 'تاريخ غير معروف';
+    if (Number.isFinite(t.date.getTime())) {
+      const parts = statementMonthFormatter.formatToParts(t.date);
+      const year = parts.find((part) => part.type === 'year')?.value || '';
+      const month = parts.find((part) => part.type === 'month')?.value || '';
+      groupKey = `${year}-${month}`;
+      groupLabel = `${monthsAr[Number(month) - 1]} ${year}`;
+    }
 
     if (!groups[groupKey]) {
       groups[groupKey] = {
@@ -457,12 +502,15 @@ const transactionsByMonth = computed(() => {
         transactions: [],
         totalInvoices: 0,
         totalPayments: 0,
+        totalReturns: 0,
       };
     }
 
     groups[groupKey].transactions.push(t);
     if (t.type === 'invoice') {
       groups[groupKey].totalInvoices += t.amount;
+    } else if (t.type === 'return') {
+      groups[groupKey].totalReturns += t.amount;
     } else {
       groups[groupKey].totalPayments += t.amount;
     }
@@ -478,6 +526,10 @@ const openPaymentForm = () => {
 };
 
 const submitPayment = async () => {
+  if (submittingPayment.value) return;
+  const supplier = selectedSupplier.value;
+  const request = detailsRequest;
+  if (!supplier || !showDetails.value) return;
   if (!paymentForm.value.amount || paymentForm.value.amount <= 0) {
     window.alert('برجاء إدخال مبلغ صحيح أكبر من الصفر');
     return;
@@ -485,15 +537,21 @@ const submitPayment = async () => {
 
   submittingPayment.value = true;
   try {
-    await api.recordPayment(selectedSupplier.value.id, paymentForm.value);
-    window.alert('تم تسجيل الدفعة المسددة للمورد بنجاح');
-    showPaymentModal.value = false;
+    await api.recordPayment(supplier.id, { ...paymentForm.value });
+    window.alert(`تم تسجيل الدفعة للمورد ${supplier.name_ar} بنجاح`);
+    if (request === detailsRequest) showPaymentModal.value = false;
 
     // إعادة تحميل قائمة الموردين لتحديث الأرصدة
     await load();
+    if (
+      request !== detailsRequest ||
+      !showDetails.value ||
+      selectedSupplier.value?.id !== supplier.id
+    )
+      return;
 
     // تحديث المورد المحدد الحالي
-    const updated = suppliers.value.find((s: any) => s.id === selectedSupplier.value.id);
+    const updated = suppliers.value.find((s: any) => s.id === supplier.id);
     if (updated) {
       selectedSupplier.value = updated;
     }
@@ -504,7 +562,7 @@ const submitPayment = async () => {
     }
   } catch (err: any) {
     console.error('Failed to submit payment:', err);
-    window.alert(err?.message || 'تعذر تسجيل السداد');
+    window.alert(`تعذر تسجيل سداد المورد ${supplier.name_ar}: ${err?.message || 'خطأ غير متوقع'}`);
   } finally {
     submittingPayment.value = false;
   }
@@ -513,7 +571,13 @@ const submitPayment = async () => {
 const formatDate = (dateStr: any) => {
   if (!dateStr) return '';
   const d = new Date(dateStr);
-  return d.toLocaleDateString('ar-EG', { year: 'numeric', month: '2-digit', day: '2-digit' });
+  if (!Number.isFinite(d.getTime())) return 'تاريخ غير معروف';
+  return d.toLocaleDateString('ar-EG', {
+    timeZone: 'Africa/Cairo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
 };
 
 const translateMethod = (method: any) => {
@@ -782,7 +846,8 @@ onMounted(load);
   background: rgba(220, 53, 69, 0.1);
   color: #dc3545;
 }
-.type-badge.payment {
+.type-badge.payment,
+.type-badge.return {
   background: rgba(40, 167, 69, 0.1);
   color: #28a745;
 }

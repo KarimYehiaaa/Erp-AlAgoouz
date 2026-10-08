@@ -56,20 +56,19 @@ export function useInventoryExcel(ctx: InventoryExcelContext) {
   const onValidate = async (file: File) => {
     excelResult.value = null;
     try {
-      const res = await inventoryApi.validateReturnExcel(file);
+      const res = await inventoryApi.validateReturnExcel(
+        file,
+        returnWarehouseId.value || undefined,
+      );
       const d = res?.data || res;
-      const success = Number(d.success || 0);
+      const validCount = Number(d.validCount || 0);
       excelResult.value = {
-        ok: success > 0,
-        title: success > 0 ? ` تم استرداد ${success} منتج بنجاح` : ` لم يتم تطبيق أي صف صالح`,
-        summary: `${d.skipped || 0} صف تم تخطيه · ${d.failed?.length || 0} فشل`,
-        details: d.details || [],
-        failed: d.failed || [],
+        ok: d.ok === true,
+        title: d.ok === true ? 'الملف صالح للاستيراد' : 'الملف يحتاج تصحيحًا قبل الاستيراد',
+        summary: `${validCount} صف صالح · ${d.errors?.length || 0} خطأ — لم تُغيّر أرصدة المخزون`,
+        details: d.preview || [],
+        errors: d.errors || [],
       };
-      if (success > 0) {
-        setMsg(`تم استرداد ${success} منتج للمخزون.`);
-        await reload();
-      }
     } catch (e: any) {
       excelResult.value = {
         ok: false,

@@ -12,7 +12,7 @@
       <p>{{ salesHealth.message }}</p>
     </div>
     <div class="insight-metrics">
-      <div class="insight-tile">
+      <div v-if="activeTab === 'wholesale' || canViewGlobalOpeningBalance" class="insight-tile">
         <span>{{ activeTab === 'wholesale' ? 'ديون سابقة/افتتاحية' : 'بداية المدة' }}</span>
         <strong>{{
           props.formatMoney(
@@ -30,7 +30,7 @@
         }}</span>
         <strong>{{ props.formatMoney(openCreditTotal) }}</strong>
       </div>
-      <div class="insight-tile primary">
+      <div v-if="canViewGlobalOpeningBalance" class="insight-tile primary">
         <span>رصيد متوقع</span>
         <strong>{{ props.formatMoney(periodCashTotal) }}</strong>
       </div>
@@ -54,6 +54,7 @@
 const props = defineProps<{
   salesHealth: { tone: string; title: string; message: string };
   activeTab: string;
+  canViewGlobalOpeningBalance: boolean;
   totalOpeningBalanceDebts: number;
   openingBalanceForm: { amount: number | null };
   collectedTotal: number;

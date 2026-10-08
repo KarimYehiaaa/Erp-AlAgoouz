@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { setActivePinia, createPinia } from 'pinia';
+import type { NavigationGuardNext, RouteLocationNormalized, RouteMeta } from 'vue-router';
 
 const { authApiMock } = vi.hoisted(() => ({
   authApiMock: {
@@ -15,16 +16,28 @@ import { navigationGuard } from '@/router/guards';
 import { useAuthStore } from '@/stores/auth';
 
 /** يبني كائن مسار مصغّر بما يكفي للحارس */
-const route = (overrides: Record<string, any> = {}) => ({
+type TestRoute = {
+  path: string;
+  name: string;
+  fullPath: string;
+  meta: RouteMeta;
+};
+
+const route = (overrides: Partial<TestRoute> = {}) => ({
   path: '/somewhere',
   name: 'Test',
+  fullPath: '/somewhere',
   meta: {},
   ...overrides,
 });
 
-const runGuard = async (to: Record<string, any>) => {
+const runGuard = async (to: Partial<TestRoute>) => {
   const next = vi.fn();
-  await navigationGuard(route(to), route(), next as any);
+  await navigationGuard(
+    route(to) as unknown as RouteLocationNormalized,
+    route() as unknown as RouteLocationNormalized,
+    next as unknown as NavigationGuardNext,
+  );
   return { next };
 };
 
@@ -124,6 +137,18 @@ describe('navigation guard', () => {
       meta: { requiresAuth: true, requireAdmin: true, permission: ['anything.at.all'] },
     });
     expect(next).toHaveBeenCalledExactlyOnceWith();
+  });
+
+  it('does not trust a cached admin role when profile verification fails', async () => {
+    localStorage.setItem('user', JSON.stringify({ id: 1, role_name: 'admin' }));
+    authApiMock.profile.mockRejectedValue(new Error('network down'));
+
+    const { next } = await runGuard({
+      path: '/admin',
+      meta: { requiresAuth: true, requireAdmin: true },
+    });
+
+    expect(next).toHaveBeenCalledWith('/');
   });
 
   it('redirects authenticated users away from guest pages', async () => {

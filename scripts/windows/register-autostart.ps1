@@ -1,20 +1,5 @@
-# AlAgoouz ERP - Register Auto-Start Task
-# Must run as Administrator
-
-$taskName = "AlAgoouz-ERP-Backend"
-# اشتقاق مسار الـ vbs تلقائياً من موقع هذا السكربت
-$vbsPath = Join-Path $PSScriptRoot "start-backend-silent.vbs"
-
-# Remove old task if exists
-Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
-
-# Create new task
-$action = New-ScheduledTaskAction -Execute "wscript.exe" -Argument "`"$vbsPath`""
-$trigger = New-ScheduledTaskTrigger -AtLogOn
-$settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1)
-
-Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Settings $settings -Description "AlAgoouz ERP Backend - Auto Start at Login (Silent)" -Force
-
-Write-Host "SUCCESS: Task '$taskName' registered!" -ForegroundColor Green
-Write-Host "The ERP backend will now auto-start silently every time you log in." -ForegroundColor Green
-Start-Sleep -Seconds 5
+# Legacy entry point retained for existing instructions. Startup now uses the
+# single NSSM service so a scheduled task cannot launch a competing API process.
+$installer = Join-Path $PSScriptRoot "install-services.ps1"
+& $installer
+exit $LASTEXITCODE

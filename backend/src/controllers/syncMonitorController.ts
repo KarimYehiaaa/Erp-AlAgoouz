@@ -6,10 +6,23 @@ import type { Request, Response } from 'express';
 import { query, checkHealth } from '../database/pool.ts';
 
 export const syncMonitorController = {
+  /** Public connectivity probe: never includes sales activity or internal counts. */
+  getStatus: async (_req: Request, res: Response): Promise<void> => {
+    try {
+      const health = await checkHealth();
+      res.status(health.ok ? 200 : 503).json({
+        success: health.ok,
+        status: health.ok ? 'HEALTHY' : 'DEGRADED',
+        serverTimestamp: Date.now(),
+      });
+    } catch {
+      res.status(503).json({ success: false, status: 'UNHEALTHY' });
+    }
+  },
   /**
    * فحص حالة التزامن الشاملة (Latency, Database, Idempotency records, Recent transactions)
    */
-  getStatus: async (req: Request, res: Response): Promise<void> => {
+  getDetails: async (req: Request, res: Response): Promise<void> => {
     const start = Date.now();
 
     try {
@@ -63,11 +76,11 @@ export const syncMonitorController = {
           activeIdempotencyRecords: activeIdempotencyKeys,
         },
       });
-    } catch (err: any) {
+    } catch {
       res.status(500).json({
         success: false,
         status: 'UNHEALTHY',
-        error: err.message,
+        error: 'تعذر قراءة حالة المزامنة',
         roundTripLatencyMs: Date.now() - start,
       });
     }

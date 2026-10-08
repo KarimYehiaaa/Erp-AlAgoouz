@@ -375,9 +375,13 @@ const displayUserName = computed(
 );
 const userInitial = computed(() => (displayUserName.value || 'م').charAt(0));
 
-const handleLogout = () => {
-  authStore.logout();
-  router.push('/login');
+const handleLogout = async () => {
+  try {
+    await authStore.logout();
+    await router.push('/login');
+  } catch {
+    appStore.addToast('تعذر إتمام تسجيل الخروج. تحقق من الاتصال وحاول مرة أخرى.', 'error');
+  }
 };
 
 const handleOutsideClick = (e: MouseEvent) => {

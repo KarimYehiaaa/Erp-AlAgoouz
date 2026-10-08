@@ -2,6 +2,7 @@
 <html lang="ar" dir="rtl">
   <head>
     <meta charset="UTF-8" />
+    <meta http-equiv="Content-Security-Policy" content="__ERP_CSP_META__" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>بن العجوز - نظام ERP</title>
     <meta
@@ -12,6 +13,10 @@
     <link rel="apple-touch-icon" href="/logo.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@400;700&amp;family=Cairo:wght@300;400;500;600;700;800&amp;family=Outfit:wght@300;400;500;600;700;800&amp;display=swap"
+    />
     <meta property="og:title" content="بن العجوز - نظام ERP" />
     <meta
       property="og:description"
@@ -23,22 +28,7 @@
     <meta name="theme-color" content="#fdf8f3" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <script>
-      /* تطبيق الوضع الداكن قبل أول رسم لمنع الوميض الأبيض (FOUC) */
-      (function () {
-        try {
-          var dark = localStorage.getItem('darkMode') === 'true';
-          if (dark) {
-            document.documentElement.setAttribute('data-theme', 'dark');
-            document.documentElement.style.colorScheme = 'dark';
-          } else {
-            document.documentElement.style.colorScheme = 'light';
-          }
-          var meta = document.querySelector('meta[name="theme-color"]');
-          if (meta) meta.setAttribute('content', dark ? '#16100c' : '#fdf8f3');
-        } catch (e) {}
-      })();
-    </script>
+    <script src="/theme-init.js"></script>
   </head>
   <body>
     <div id="app"></div>

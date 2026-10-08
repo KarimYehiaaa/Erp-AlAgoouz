@@ -1,10 +1,11 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import { authenticate, authorize } from '../middleware/auth.ts';
+import { enforceWarehouseAccess } from '../middleware/warehouseAccess.ts';
 import { posShiftController } from '../controllers/posShiftController.ts';
 import { requireIdempotency } from '../middleware/idempotency.ts';
 import { validateBody } from '../middleware/validate.ts';
-import { verifyPinSchema } from './schemas.ts';
+import { openShiftSchema, verifyPinSchema } from './schemas.ts';
 
 const router = Router();
 
@@ -35,6 +36,8 @@ router.post(
   '/pos/shifts/open',
   authenticate,
   posAuth,
+  validateBody(openShiftSchema),
+  enforceWarehouseAccess,
   requireIdempotency,
   posShiftController.openShift,
 );

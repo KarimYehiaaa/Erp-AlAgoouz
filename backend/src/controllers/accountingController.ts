@@ -1,3 +1,5 @@
+import { parseGeneralLedgerFilters } from '../utils/ledgerFilters.ts';
+import { parseReportAsOfQuery, parseReportPeriod } from '../utils/reportDates.ts';
 /**
  * accountingController.ts — وحدة التحكم في النظام المحاسبي والأستاذ العام
  */
@@ -41,61 +43,66 @@ export const accountingController = {
 
   createJournalEntry: wrap(async (req: Request, res: Response) => {
     const userId = (req as any).user?.id || (req as any).user?.userId;
-    const entry = await accountingService.createJournalEntry({
-      ...req.body,
-      created_by: userId,
-    });
+    const rawHeaderKey = req.headers['idempotency-key'] || req.headers['x-idempotency-key'];
+    if (rawHeaderKey !== undefined && typeof rawHeaderKey !== 'string')
+      throw new AppError('مفتاح العملية غير صالح', 400);
+    const headerKey = typeof rawHeaderKey === 'string' ? rawHeaderKey : undefined;
+    const entry = await accountingService.createPublicJournalEntry(
+      {
+        ...req.body,
+        idempotency_key: req.body.idempotency_key ?? headerKey,
+      },
+      userId,
+      headerKey
+        ? 'user:' +
+            userId +
+            ':POST:' +
+            (req.originalUrl || req.url).split('?')[0] +
+            ':' +
+            headerKey.trim()
+        : undefined,
+    );
     ok(res, entry, 'تم تسجيل وترحيل قيد اليومية بنجاح');
   }),
 
   getGeneralLedger: wrap(async (req: Request, res: Response) => {
-    const params = {
-      account_id: req.query.account_id ? Number(req.query.account_id) : undefined,
-      account_code: req.query.account_code as string | undefined,
-      from_date: req.query.from_date as string | undefined,
-      to_date: req.query.to_date as string | undefined,
-      warehouse_id: req.query.warehouse_id ? Number(req.query.warehouse_id) : undefined,
-    };
+    const params = parseGeneralLedgerFilters(req.query);
     const gl = await accountingService.getGeneralLedger(params);
     ok(res, gl);
   }),
 
   getTrialBalance: wrap(async (req: Request, res: Response) => {
-    const params = {
-      from_date: req.query.from_date as string | undefined,
-      to_date: req.query.to_date as string | undefined,
-    };
+    const params = parseReportPeriod(req.query, 'trial');
     const tb = await accountingService.getTrialBalance(params);
     ok(res, tb);
   }),
 
   getBalanceSheet: wrap(async (req: Request, res: Response) => {
-    const asOfDate = req.query.as_of_date as string | undefined;
+    const asOfDate = parseReportAsOfQuery(req.query);
     const bs = await accountingService.getBalanceSheet(asOfDate);
     ok(res, bs);
   }),
 
   getCustomerAging: wrap(async (req: Request, res: Response) => {
-    const asOfDate = req.query.as_of_date as string | undefined;
+    const asOfDate = parseReportAsOfQuery(req.query);
     const aging = await accountingService.getCustomerAging(asOfDate);
     ok(res, aging);
   }),
 
   getSupplierAging: wrap(async (req: Request, res: Response) => {
-    const asOfDate = req.query.as_of_date as string | undefined;
+    const asOfDate = parseReportAsOfQuery(req.query);
     const aging = await accountingService.getSupplierAging(asOfDate);
     ok(res, aging);
   }),
 
   reconcileAgingWithLedger: wrap(async (req: Request, res: Response) => {
-    const asOfDate = req.query.as_of_date as string | undefined;
+    const asOfDate = parseReportAsOfQuery(req.query);
     const rec = await accountingService.reconcileAgingWithLedger(asOfDate);
     ok(res, rec);
   }),
 
   getIncomeStatement: wrap(async (req: Request, res: Response) => {
-    const fromDate = req.query.from_date as string | undefined;
-    const toDate = req.query.to_date as string | undefined;
+    const { from_date: fromDate, to_date: toDate } = parseReportPeriod(req.query, 'monthly');
     const statement = await accountingService.getIncomeStatement(fromDate, toDate);
     ok(res, statement);
   }),
@@ -109,8 +116,7 @@ export const accountingController = {
   }),
 
   getLedgerReconciliationSummary: wrap(async (req: Request, res: Response) => {
-    const fromDate = req.query.from_date as string | undefined;
-    const toDate = req.query.to_date as string | undefined;
+    const { from_date: fromDate, to_date: toDate } = parseReportPeriod(req.query, 'monthly');
     const summary = await accountingService.getLedgerReconciliationSummary(fromDate, toDate);
     ok(res, summary);
   }),

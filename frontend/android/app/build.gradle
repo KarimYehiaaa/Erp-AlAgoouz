@@ -1,14 +1,24 @@
 apply plugin: 'com.android.application'
 
+// Release credentials belong in environment variables or private Gradle properties.
+def releaseSigningValues = ['ANDROID_KEYSTORE_PATH', 'ANDROID_KEYSTORE_PASSWORD', 'ANDROID_KEY_ALIAS', 'ANDROID_KEY_PASSWORD'].collectEntries { name ->
+    [(name): (project.findProperty(name) ?: System.getenv(name))]
+}
+def releaseSigningReady = releaseSigningValues.values().every { it }
+def wrappedReleaseBuild = System.getenv('ALAGOOUZ_RELEASE_WRAPPER') == 'true'
+
+
 android {
     namespace "com.binalagoouz.manager"
     compileSdk rootProject.ext.compileSdkVersion
     defaultConfig {
         applicationId "com.binalagoouz.manager"
+        // Android 13+ supports signing rotation. The release wrapper embeds the
+        // legacy-to-current lineage so upgrades can retain data from older APKs.
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 2
-        versionName "1.0.1"
+        versionCode 24
+        versionName "1.0.23"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -18,22 +28,26 @@ android {
     }
     signingConfigs {
         release {
-            storeFile file('binalagoouz.keystore')
-            storePassword 'binalagoouz2026'
-            keyAlias 'binalagoouz'
-            keyPassword 'binalagoouz2026'
-            v1SigningEnabled true
-            v2SigningEnabled true
+            if (releaseSigningReady) {
+                storeFile file(releaseSigningValues.ANDROID_KEYSTORE_PATH)
+                storePassword releaseSigningValues.ANDROID_KEYSTORE_PASSWORD
+                keyAlias releaseSigningValues.ANDROID_KEY_ALIAS
+                keyPassword releaseSigningValues.ANDROID_KEY_PASSWORD
+                v1SigningEnabled true
+                v2SigningEnabled true
+            }
         }
     }
     buildTypes {
         release {
-            signingConfig signingConfigs.release
+            // scripts/deployment/build-apk.ps1 signs the unsigned APK with the rotated key.
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
+        // Debug uses Android's standard development key, independently of release credentials.
         debug {
-            signingConfig signingConfigs.release
+            applicationIdSuffix '.debug'
+            versionNameSuffix '-debug'
         }
     }
 }
@@ -65,4 +79,19 @@ try {
     }
 } catch(Exception e) {
     logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
+}
+
+// Never silently produce an unsigned release or reuse the development key.
+gradle.taskGraph.whenReady { graph ->
+    if (graph.allTasks.any { it.name.toLowerCase().contains('release') }) {
+        if (!releaseSigningReady) {
+            throw new GradleException('Release signing requires ANDROID_KEYSTORE_PATH, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS and ANDROID_KEY_PASSWORD')
+        }
+        if (android.defaultConfig.minSdkVersion.apiLevel < 33) {
+            throw new GradleException('Release APKs must require Android 13+ because the legacy Android signing key was exposed.')
+        }
+        if (!wrappedReleaseBuild) {
+            throw new GradleException('Build release APKs with scripts/deployment/build-apk.ps1 so the rotated signing key is verified.')
+        }
+    }
 }

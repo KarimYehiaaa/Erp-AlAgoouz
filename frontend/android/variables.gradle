@@ -1,5 +1,7 @@
 ext {
-    minSdkVersion = 23
+    // Network Security Config must enforce system-only trust on every supported device.
+    // All deployed cashier devices are Android 13+; stop accepting the leaked legacy APK signer.
+    minSdkVersion = 33
     compileSdkVersion = 35
     targetSdkVersion = 35
     androidxActivityVersion = '1.9.2'

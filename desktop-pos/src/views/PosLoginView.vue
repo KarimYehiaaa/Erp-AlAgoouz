@@ -171,7 +171,9 @@
           @click="openUpdateModal"
         >
           <AppIcon
-            :name="isDownloaded ? 'download' : isDownloading || isChecking ? 'refreshCw' : 'download'"
+            :name="
+              isDownloaded ? 'download' : isDownloading || isChecking ? 'refreshCw' : 'download'
+            "
             :size="13"
             :class="{ 'spin-anim': isChecking || isDownloading }"
           />
@@ -206,7 +208,6 @@ import {
 const router = useRouter();
 const authStore = usePosAuthStore();
 const {
-  updateState,
   appVersion,
   showUpdateModal,
   isAvailable,

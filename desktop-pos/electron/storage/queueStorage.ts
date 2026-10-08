@@ -73,8 +73,68 @@ function calculateSha256(content: Buffer): string {
   return createHash('sha256').update(content).digest('hex');
 }
 
+/** Preserve raw recovery evidence even when neither queue copy can be decoded. */
+export function exportQueueRecoveryFiles(
+  destinationDir: string,
+  customStorageDir?: string,
+): {
+  directory: string;
+  fileCount: number;
+} {
+  const paths = getStoragePaths(customStorageDir);
+  const storageRealPath = fs.realpathSync(paths.storageDir);
+  const destinationRealPath = fs.realpathSync(path.resolve(destinationDir));
+  const relative = path.relative(storageRealPath, destinationRealPath);
+  if (
+    !relative ||
+    (!relative.startsWith(`..${path.sep}`) && relative !== '..' && !path.isAbsolute(relative))
+  ) {
+    throw new Error('اختر مجلدًا خارج مجلد التخزين المحلي لحفظ نسخة الاسترجاع');
+  }
+  const sources = [
+    paths.primaryFile,
+    paths.backupFile,
+    paths.tempFile,
+    paths.checksumFile,
+    paths.backupChecksumFile,
+    `${paths.checksumFile}.tmp`,
+  ];
+  const files = sources
+    .filter((file) => fs.existsSync(file))
+    .map((file) => {
+      if (!fs.lstatSync(file).isFile())
+        throw new Error('ملفات التخزين المحلي تحتاج مراجعة قبل التصدير');
+      return { name: path.basename(file), bytes: fs.readFileSync(file) };
+    });
+  if (!files.length) throw new Error('لا توجد ملفات طابور محلي محفوظة للتصدير');
+  const directory = fs.mkdtempSync(path.join(destinationRealPath, 'pos-queue-recovery-'));
+  for (const file of files) {
+    fs.writeFileSync(path.join(directory, file.name), file.bytes, { flag: 'wx', mode: 0o600 });
+  }
+  fs.writeFileSync(
+    path.join(directory, 'manifest.json'),
+    JSON.stringify(
+      {
+        formatVersion: 1,
+        createdAt: new Date().toISOString(),
+        note: 'Raw recovery files; may contain confidential legacy data. Encrypted files may require the original Windows account and device. No invoices were reassigned or synchronized.',
+        files: files.map((file) => ({
+          name: file.name,
+          size: file.bytes.length,
+          sha256: calculateSha256(file.bytes),
+        })),
+      },
+      null,
+      2,
+    ),
+    { flag: 'wx', mode: 0o600 },
+  );
+  return { directory, fileCount: files.length };
+}
+
 export function readPendingQueue(customDir?: string): any[] {
-  const { primaryFile, backupFile, checksumFile, backupChecksumFile } = getStoragePaths(customDir);
+  const { primaryFile, backupFile, tempFile, checksumFile, backupChecksumFile } =
+    getStoragePaths(customDir);
 
   const migrateQueue = (queue: any[]) => {
     let changed = false;
@@ -141,7 +201,9 @@ export function readPendingQueue(customDir?: string): any[] {
               if (fs.existsSync(backupChecksumFile)) {
                 fs.copyFileSync(backupChecksumFile, checksumFile);
               }
-            } catch {}
+            } catch {
+              /* The verified backup remains available even if repairing the primary file fails. */
+            }
             return migrateQueue(parsed);
           }
         }
@@ -151,6 +213,20 @@ export function readPendingQueue(customDir?: string): any[] {
     }
   }
 
+  if (
+    [
+      primaryFile,
+      backupFile,
+      tempFile,
+      checksumFile,
+      backupChecksumFile,
+      `${checksumFile}.tmp`,
+    ].some((file) => fs.existsSync(file))
+  ) {
+    throw new Error(
+      'تعذر قراءة الطابور المحلي ونسخته الاحتياطية؛ الملفات محفوظة وتحتاج استرجاعًا قبل أي كتابة',
+    );
+  }
   return [];
 }
 
@@ -200,6 +276,17 @@ export function saveTransaction(
     let record: any;
 
     if (existingIndex >= 0) {
+      const existing = queue[existingIndex];
+      if (
+        existing.origin_server !== transaction.origin_server ||
+        existing.origin_user_id !== transaction.origin_user_id
+      ) {
+        return {
+          success: false,
+          error: 'QUEUE_OWNER_MISMATCH',
+          message: 'لا يمكن إعادة نسب فاتورة محفوظة لحساب أو سيرفر مختلف',
+        };
+      }
       record = {
         ...queue[existingIndex],
         ...transaction,

@@ -172,6 +172,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
+import { businessCalendarDate } from '../../../shared/businessDate';
 import AppIcon from '@/components/AppIcon.vue';
 import { forecasting as forecastingApi, warehouses as warehousesApi } from '@/api';
 import RunwayTab from '@/components/forecasting/RunwayTab.vue';
@@ -182,16 +183,21 @@ import PricingTab from '@/components/forecasting/PricingTab.vue';
 import CashflowTab from '@/components/forecasting/CashflowTab.vue';
 
 // --- helpers for dates ---
-const getNext7DaysLabels = () => {
+const isReportDate = (value: unknown): value is string => {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(`${value}T00:00:00Z`);
+  return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value;
+};
+const getNext7DaysLabels = (reportDate: string) => {
   const weekdays = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
   const labels: { weekday: string; date: string }[] = [];
-  const today = new Date();
+  const today = new Date(`${reportDate}T00:00:00Z`);
   for (let i = 1; i <= 7; i++) {
     const d = new Date(today);
-    d.setDate(today.getDate() + i);
+    d.setUTCDate(today.getUTCDate() + i);
     labels.push({
-      weekday: weekdays[d.getDay()]!,
-      date: `${d.getDate()}/${d.getMonth() + 1}`,
+      weekday: weekdays[d.getUTCDay()]!,
+      date: `${d.getUTCDate()}/${d.getUTCMonth() + 1}`,
     });
   }
   return labels;
@@ -203,7 +209,8 @@ const activeTab = ref('runway');
 const searchTerm = ref('');
 const selectedWarehouse = ref(1);
 const warehouseList = ref<any[]>([]);
-const nextDaysLabels = getNext7DaysLabels();
+const reportDate = ref(businessCalendarDate());
+const nextDaysLabels = computed(() => getNext7DaysLabels(reportDate.value));
 
 // API data response
 const salesForecast = ref<any[]>([]);
@@ -251,8 +258,10 @@ const filteredPricingAlerts = computed(() => filterBySearch(pricingAlerts.value)
 // --- data loaders ---
 const loadForecast = async () => {
   loading.value = true;
+  const requestDate = businessCalendarDate();
   try {
     const res = await forecastingApi.get({ warehouse_id: selectedWarehouse.value });
+    reportDate.value = isReportDate(res.data?.business_date) ? res.data.business_date : requestDate;
     salesForecast.value = res.data?.salesForecast || [];
     ingredientsForecast.value = res.data?.ingredientsForecast || [];
     inventoryRunway.value = res.data?.inventoryRunway || [];

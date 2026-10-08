@@ -15,6 +15,11 @@ class SessionService {
   private currentUser: any = null;
   private currentTerminal: any = null;
   private initializing = false;
+  private revision = 0;
+
+  public getRevision(): number {
+    return this.revision;
+  }
 
   constructor() {}
 
@@ -88,6 +93,7 @@ class SessionService {
    * حفظ الجلسة بأمان في الذاكرة الحية وفي Electron safeStorage
    */
   public async saveSession(data: PosSessionData): Promise<boolean> {
+    this.revision++;
     this.currentAccessToken = data.token;
     this.currentRefreshToken = data.refreshToken || null;
     this.currentUser = data.user;
@@ -155,11 +161,14 @@ class SessionService {
    * تحميل الجلسة من التخزين المشفر واستعادتها في الذاكرة الحية
    */
   public async loadSession(): Promise<PosSessionData | null> {
+    const startingRevision = this.revision;
     // 1. محاولة القراءة من مخزن Electron safeStorage المشفر
     if (typeof window !== 'undefined' && window.electronAPI?.loadSecureSession) {
       try {
         const secureData = await window.electronAPI.loadSecureSession();
+        if (startingRevision !== this.revision) return null;
         if (secureData && secureData.token) {
+          this.revision++;
           this.currentAccessToken = secureData.token;
           this.currentRefreshToken = secureData.refreshToken || null;
           this.currentUser = secureData.user;
@@ -190,6 +199,7 @@ class SessionService {
         const legacyTerminalRaw = localStorage.getItem('pos_terminal');
 
         if (legacyToken) {
+          this.revision++;
           const legacyUser = legacyUserRaw ? JSON.parse(legacyUserRaw) : null;
           const legacyTerminal = legacyTerminalRaw ? JSON.parse(legacyTerminalRaw) : null;
 
@@ -247,10 +257,13 @@ class SessionService {
    * مسح الجلسة وتطهير كافة البيانات الحساسة كلياً
    */
   public async clearSession(): Promise<boolean> {
+    const clearedRevision = ++this.revision;
     this.currentAccessToken = null;
     this.currentRefreshToken = null;
     this.currentUser = null;
     this.currentTerminal = null;
+
+    if (typeof window !== 'undefined') window.dispatchEvent(new Event('pos:session-cleared'));
 
     this.cleanseLegacyTokens();
 
@@ -258,16 +271,24 @@ class SessionService {
       try {
         localStorage.removeItem('pos_user');
         localStorage.removeItem('pos_terminal');
-      } catch {}
+      } catch {
+        /* Legacy storage cleanup is best effort; active credentials are cleared separately. */
+      }
     }
 
     if (typeof window !== 'undefined' && window.electronAPI) {
-      if (window.electronAPI.clearSecureSession) {
-        await window.electronAPI.clearSecureSession();
+      let diskCleared = true;
+      try {
+        if (window.electronAPI.clearSecureSession)
+          diskCleared = await window.electronAPI.clearSecureSession();
+      } finally {
+        if (this.revision === clearedRevision && window.electronAPI.setAuthToken)
+          await window.electronAPI.setAuthToken(null);
       }
-      if (window.electronAPI.setAuthToken) {
-        await window.electronAPI.setAuthToken(null);
-      }
+      if (!diskCleared)
+        throw new Error(
+          'تعذر إبطال الجلسة المحفوظة على الجهاز. أعد محاولة تسجيل الخروج قبل إغلاق التطبيق.',
+        );
     }
 
     return true;

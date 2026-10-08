@@ -200,6 +200,17 @@ try {
   console.log(
     'PASS: fresh Compose bootstrap, migrations, web/API, Redis and persistent encrypted backups.',
   );
+} catch (error) {
+  if (started) {
+    try {
+      compose(['logs', '--no-color', '--tail', '150', 'backend', 'postgres', 'redis'], {
+        stdio: 'inherit',
+      });
+    } catch (diagnosticError) {
+      console.error('Compose diagnostic collection failed:', diagnosticError.message);
+    }
+  }
+  throw error;
 } finally {
   if (client) await client.end();
   if (started) {

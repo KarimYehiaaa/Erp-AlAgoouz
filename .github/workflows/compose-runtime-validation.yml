@@ -1,0 +1,33 @@
+name: Validate fresh ERP Compose installation
+
+on:
+  push:
+    branches: ['main', 'codex/compose-validation-*']
+  pull_request:
+    branches: ['main']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compose-runtime:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.x'
+      - name: Install verification driver dependencies
+        run: npm ci
+      - name: Verify actual fresh Compose installation and persistent services
+        run: node scripts/maintenance/verify-compose-runtime.mjs
+      - name: Save Compose runtime evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compose-runtime-validation-${{ github.sha }}
+          path: docs/audits/evidence/compose-runtime-2026-10-08.json
+          if-no-files-found: warn
+          retention-days: 14

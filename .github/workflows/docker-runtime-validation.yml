@@ -2,7 +2,9 @@ name: Validate isolated ERP Docker runtime
 
 on:
   push:
-    branches: ['codex/docker-validation-*']
+    branches: ['main', 'codex/docker-validation-*']
+  pull_request:
+    branches: ['main']
   workflow_dispatch:
 
 permissions:

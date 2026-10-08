@@ -17,6 +17,18 @@ import test from 'node:test';
 const root = fileURLToPath(new URL('../../', import.meta.url)).replace(/[\\/]$/, '');
 const quote = (value) => `'${value.replaceAll("'", "''")}'`;
 
+const assertReportedDirectory = (stdout, marker, expected) => {
+  const reported = stdout.split(/\r?\n/).find((line) => line.startsWith(`${marker}=`));
+  assert.ok(reported, stdout);
+  const actualPath = realpathSync(reported.slice(marker.length + 1));
+  const expectedPath = realpathSync(expected);
+  assert.equal(
+    process.platform === 'win32' ? actualPath.toLowerCase() : actualPath,
+    process.platform === 'win32' ? expectedPath.toLowerCase() : expectedPath,
+    `Reported directory does not match fixture: ${JSON.stringify({ actualPath, expectedPath })}`,
+  );
+};
+
 for (const [script, command] of [
   ['setup.ps1', 'run|setup'],
   ['setup-database.ps1', 'run|setup-db|-w|backend'],
@@ -118,7 +130,7 @@ for (const scenario of ['stopped', 'refused', 'still-listening']) {
         });
         assert.ifError(result.error);
         assert.equal(result.status, scenario === 'stopped' ? 0 : 1, result.stdout + result.stderr);
-        assert.ok(result.stdout.includes(`MOCK_STOP_ROOT=${directory}`), result.stdout);
+        assertReportedDirectory(result.stdout, 'MOCK_STOP_ROOT', directory);
         assert.equal(
           result.stdout.includes('تم التحقق من تحرير المنفذ 3000'),
           scenario === 'stopped',
@@ -273,7 +285,7 @@ for (const silent of [false, true]) {
           );
           assert.ifError(result.error);
           assert.equal(result.status, failed ? 1 : 0, result.stdout + result.stderr);
-          assert.ok(result.stdout.includes(`MOCK_RUNTIME_ROOT=${directory}`), result.stdout);
+          assertReportedDirectory(result.stdout, 'MOCK_RUNTIME_ROOT', directory);
           assert.ok(result.stdout.includes('MOCK_RUNTIME_RESTART=True'), result.stdout);
           assert.equal(
             result.stdout.includes('MOCK_BROWSER=http://localhost:3000'),

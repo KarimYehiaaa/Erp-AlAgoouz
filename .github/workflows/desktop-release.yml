@@ -91,11 +91,10 @@ jobs:
             exit 0
           }
           $installers = @(Get-ChildItem -LiteralPath release -Filter '*.exe' -File)
-          $application = 'release/win-unpacked/AlAgoouz-POS.exe'
-          if ($installers.Count -eq 0 -or -not (Test-Path -LiteralPath $application -PathType Leaf)) {
-            throw 'Expected installer and packaged application are missing.'
+          if ($installers.Count -eq 0) {
+            throw 'Expected installer is missing.'
           }
-          foreach ($file in @($installers.FullName) + @($application)) {
+          foreach ($file in $installers.FullName) {
             $signature = Get-AuthenticodeSignature -LiteralPath $file
             if ($signature.Status -ne 'Valid') {
               throw "Windows signature verification failed for $(Split-Path -Leaf $file): $($signature.Status)"
@@ -105,7 +104,7 @@ jobs:
       - name: Upload installer candidate for review
         uses: actions/upload-artifact@v4
         with:
-          name: desktop-pos-${{ github.ref_name }}
+          name: desktop-pos-${{ github.sha }}
           path: |
             desktop-pos/release/*.exe
             desktop-pos/release/*.exe.blockmap

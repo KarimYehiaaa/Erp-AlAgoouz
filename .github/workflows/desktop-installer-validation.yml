@@ -1,0 +1,73 @@
+name: Validate existing Desktop POS installer
+
+on:
+  push:
+    branches: ['codex/installer-validation-*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  POS_SOURCE_RUN_ID: '37751567817'
+  POS_INSTALLER_SHA256: '04f657219c170880090bb8f2b2d3a12f873977f685a2f2246eab86756ad7f27e'
+  POS_EXPECTED_VERSION: '1.0.15'
+
+jobs:
+  installed-desktop:
+    runs-on: windows-2025
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.x'
+      - name: Install test driver dependencies
+        run: npm ci
+      - name: Download existing candidate without rebuilding
+        uses: actions/download-artifact@v4
+        with:
+          name: desktop-pos-5b245d6f957334e2a72d608da4cf62cac0fbb124
+          run-id: 37751567817
+          github-token: ${{ github.token }}
+          path: scratch/installer-candidate
+      - name: Verify candidate and install for the ephemeral runner only
+        shell: pwsh
+        run: |
+          $installer = (Resolve-Path 'scratch/installer-candidate/AlAgoouz-POS-Setup-1.0.15.exe').Path
+          if ((Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash.ToLower() -ne $env:POS_INSTALLER_SHA256) {
+            throw 'Candidate digest differs from the reviewed installer.'
+          }
+          $installRoot = Join-Path $env:RUNNER_TEMP 'alagoouz-installed-candidate'
+          if (Test-Path -LiteralPath $installRoot) { throw 'Install target already exists.' }
+          $process = Start-Process -FilePath $installer -ArgumentList @('/S', '/currentuser', "/D=$installRoot") -WindowStyle Hidden -PassThru -Wait
+          if ($process.ExitCode -ne 0) { throw "Installer failed: $($process.ExitCode)" }
+          $executable = Join-Path $installRoot 'AlAgoouz-POS.exe'
+          if (!(Test-Path -LiteralPath $executable -PathType Leaf)) { throw 'Installed executable is missing.' }
+          "POS_INSTALLED_EXECUTABLE=$executable" >> $env:GITHUB_ENV
+          "POS_INSTALL_ROOT=$installRoot" >> $env:GITHUB_ENV
+      - name: Verify actual installed packaged application
+        run: node desktop-pos/tests/installed-electron-smoke.mjs
+      - name: Verify uninstaller removes the installed executable
+        shell: pwsh
+        run: |
+          $root = [IO.Path]::GetFullPath($env:POS_INSTALL_ROOT)
+          $temp = [IO.Path]::GetFullPath($env:RUNNER_TEMP).TrimEnd('\') + '\'
+          if (!$root.StartsWith($temp, [StringComparison]::OrdinalIgnoreCase)) { throw 'Unexpected installation target.' }
+          $uninstallers = @(Get-ChildItem -LiteralPath $root -Filter 'Uninstall*.exe' -File)
+          if ($uninstallers.Count -ne 1) { throw 'Expected one installed uninstaller.' }
+          $process = Start-Process -FilePath $uninstallers[0].FullName -ArgumentList '/S' -WindowStyle Hidden -PassThru -Wait
+          if ($process.ExitCode -ne 0) { throw "Uninstaller failed: $($process.ExitCode)" }
+          $deadline = [DateTime]::UtcNow.AddSeconds(30)
+          while ((Test-Path -LiteralPath $env:POS_INSTALLED_EXECUTABLE) -and [DateTime]::UtcNow -lt $deadline) { Start-Sleep -Seconds 1 }
+          if (Test-Path -LiteralPath $env:POS_INSTALLED_EXECUTABLE) { throw 'Uninstaller left the installed executable.' }
+          @{ uninstallPassed = $true; installPassed = $true; sourceRunId = $env:POS_SOURCE_RUN_ID } | ConvertTo-Json | Set-Content scratch/installed-desktop-evidence/installer-lifecycle.json
+      - name: Save installed application evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-installed-validation-${{ github.sha }}
+          path: scratch/installed-desktop-evidence
+          if-no-files-found: warn
+          retention-days: 14

@@ -1,0 +1,2212 @@
+[
+  {
+    "table_name": "activity_logs",
+    "columns": [
+      {
+        "name": "id",
+        "type": "int8",
+        "scale": 0,
+        "length": null,
+        "default": "nextval('activity_logs_id_seq'::regclass)",
+        "nullable": "NO",
+        "precision": 64
+      },
+      {
+        "name": "user_id",
+        "type": "int4",
+        "scale": 0,
+        "length": null,
+        "default": null,
+        "nullable": "YES",
+        "precision": 32
+      },
+      {
+        "name": "module",
+        "type": "varchar",
+        "scale": null,
+        "length": 50,
+        "default": null,
+        "nullable": "NO",
+        "precision": null
+      },
+      {
+        "name": "action_ar",
+        "type": "varchar",
+        "scale": null,
+        "length": 200,
+        "default": null,
+        "nullable": "NO",
+        "precision": null
+      },
+      {
+        "name": "details",
+        "type": "jsonb",
+        "scale": null,
+        "length": null,
+        "default": null,
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "scale": null,
+        "length": null,
+        "default": "now()",
+        "nullable": "YES",
+        "precision": null
+      }
+    ],
+    "constraints": ["FOREIGN KEY (user_id) REFERENCES users(id)", "PRIMARY KEY (id)"]
+  },
+  {
+    "table_name": "audit_logs",
+    "columns": [
+      {
+        "name": "id",
+        "type": "int8",
+        "scale": 0,
+        "length": null,
+        "default": "nextval('audit_logs_id_seq'::regclass)",
+        "nullable": "NO",
+        "precision": 64
+      },
+      {
+        "name": "user_id",
+        "type": "int4",
+        "scale": 0,
+        "length": null,
+        "default": null,
+        "nullable": "YES",
+        "precision": 32
+      },
+      {
+        "name": "action",
+        "type": "varchar",
+        "scale": null,
+        "length": 50,
+        "default": null,
+        "nullable": "NO",
+        "precision": null
+      },
+      {
+        "name": "entity_type",
+        "type": "varchar",
+        "scale": null,
+        "length": 50,
+        "default": null,
+        "nullable": "NO",
+        "precision": null
+      },
+      {
+        "name": "entity_id",
+        "type": "int4",
+        "scale": 0,
+        "length": null,
+        "default": null,
+        "nullable": "YES",
+        "precision": 32
+      },
+      {
+        "name": "old_data",
+        "type": "jsonb",
+        "scale": null,
+        "length": null,
+        "default": null,
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "new_data",
+        "type": "jsonb",
+        "scale": null,
+        "length": null,
+        "default": null,
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "ip_address",
+        "type": "varchar",
+        "scale": null,
+        "length": 45,
+        "default": null,
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "user_agent",
+        "type": "text",
+        "scale": null,
+        "length": null,
+        "default": null,
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "scale": null,
+        "length": null,
+        "default": "now()",
+        "nullable": "YES",
+        "precision": null
+      }
+    ],
+    "constraints": ["FOREIGN KEY (user_id) REFERENCES users(id)", "PRIMARY KEY (id)"]
+  },
+  {
+    "table_name": "customers",
+    "columns": [
+      {
+        "name": "id",
+        "type": "int4",
+        "scale": 0,
+        "length": null,
+        "default": "nextval('customers_id_seq'::regclass)",
+        "nullable": "NO",
+        "precision": 32
+      },
+      {
+        "name": "code",
+        "type": "varchar",
+        "scale": null,
+        "length": 30,
+        "default": null,
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "name_ar",
+        "type": "varchar",
+        "scale": null,
+        "length": 200,
+        "default": null,
+        "nullable": "NO",
+        "precision": null
+      },
+      {
+        "name": "phone",
+        "type": "varchar",
+        "scale": null,
+        "length": 20,
+        "default": null,
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "email",
+        "type": "varchar",
+        "scale": null,
+        "length": 150,
+        "default": null,
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "address",
+        "type": "text",
+        "scale": null,
+        "length": null,
+        "default": null,
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "customer_type",
+        "type": "varchar",
+        "scale": null,
+        "length": 20,
+        "default": "'retail'::character varying",
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "credit_limit",
+        "type": "numeric",
+        "scale": 2,
+        "length": null,
+        "default": "0",
+        "nullable": "YES",
+        "precision": 12
+      },
+      {
+        "name": "balance",
+        "type": "numeric",
+        "scale": 2,
+        "length": null,
+        "default": "0",
+        "nullable": "YES",
+        "precision": 12
+      },
+      {
+        "name": "loyalty_points",
+        "type": "int4",
+        "scale": 0,
+        "length": null,
+        "default": "0",
+        "nullable": "YES",
+        "precision": 32
+      },
+      {
+        "name": "tax_number",
+        "type": "varchar",
+        "scale": null,
+        "length": 50,
+        "default": null,
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "notes",
+        "type": "text",
+        "scale": null,
+        "length": null,
+        "default": null,
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "is_active",
+        "type": "bool",
+        "scale": null,
+        "length": null,
+        "default": "true",
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "scale": null,
+        "length": null,
+        "default": "now()",
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamptz",
+        "scale": null,
+        "length": null,
+        "default": "now()",
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "deleted_at",
+        "type": "timestamptz",
+        "scale": null,
+        "length": null,
+        "default": null,
+        "nullable": "YES",
+        "precision": null
+      }
+    ],
+    "constraints": ["PRIMARY KEY (id)", "UNIQUE (code)"]
+  },
+  {
+    "table_name": "expense_categories",
+    "columns": [
+      {
+        "name": "id",
+        "type": "int4",
+        "scale": 0,
+        "length": null,
+        "default": "nextval('expense_categories_id_seq'::regclass)",
+        "nullable": "NO",
+        "precision": 32
+      },
+      {
+        "name": "name_ar",
+        "type": "varchar",
+        "scale": null,
+        "length": 100,
+        "default": null,
+        "nullable": "NO",
+        "precision": null
+      },
+      {
+        "name": "slug",
+        "type": "varchar",
+        "scale": null,
+        "length": 50,
+        "default": null,
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "is_active",
+        "type": "bool",
+        "scale": null,
+        "length": null,
+        "default": "true",
+        "nullable": "YES",
+        "precision": null
+      }
+    ],
+    "constraints": ["PRIMARY KEY (id)", "UNIQUE (slug)"]
+  },
+  {
+    "table_name": "expenses",
+    "columns": [
+      {
+        "name": "id",
+        "type": "int4",
+        "scale": 0,
+        "length": null,
+        "default": "nextval('expenses_id_seq'::regclass)",
+        "nullable": "NO",
+        "precision": 32
+      },
+      {
+        "name": "expense_number",
+        "type": "varchar",
+        "scale": null,
+        "length": 50,
+        "default": null,
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "category_id",
+        "type": "int4",
+        "scale": 0,
+        "length": null,
+        "default": null,
+        "nullable": "YES",
+        "precision": 32
+      },
+      {
+        "name": "title",
+        "type": "varchar",
+        "scale": null,
+        "length": 200,
+        "default": null,
+        "nullable": "NO",
+        "precision": null
+      },
+      {
+        "name": "amount",
+        "type": "numeric",
+        "scale": 2,
+        "length": null,
+        "default": null,
+        "nullable": "NO",
+        "precision": 12
+      },
+      {
+        "name": "expense_date",
+        "type": "date",
+        "scale": null,
+        "length": null,
+        "default": "CURRENT_DATE",
+        "nullable": "NO",
+        "precision": null
+      },
+      {
+        "name": "payment_method",
+        "type": "varchar",
+        "scale": null,
+        "length": 30,
+        "default": "'cash'::character varying",
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "recurring",
+        "type": "bool",
+        "scale": null,
+        "length": null,
+        "default": "false",
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "notes",
+        "type": "text",
+        "scale": null,
+        "length": null,
+        "default": null,
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "user_id",
+        "type": "int4",
+        "scale": 0,
+        "length": null,
+        "default": null,
+        "nullable": "YES",
+        "precision": 32
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "scale": null,
+        "length": null,
+        "default": "now()",
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "deleted_at",
+        "type": "timestamptz",
+        "scale": null,
+        "length": null,
+        "default": null,
+        "nullable": "YES",
+        "precision": null
+      }
+    ],
+    "constraints": [
+      "FOREIGN KEY (category_id) REFERENCES expense_categories(id)",
+      "FOREIGN KEY (user_id) REFERENCES users(id)",
+      "PRIMARY KEY (id)",
+      "UNIQUE (expense_number)"
+    ]
+  },
+  {
+    "table_name": "inventory",
+    "columns": [
+      {
+        "name": "id",
+        "type": "int4",
+        "scale": 0,
+        "length": null,
+        "default": "nextval('inventory_id_seq'::regclass)",
+        "nullable": "NO",
+        "precision": 32
+      },
+      {
+        "name": "product_id",
+        "type": "int4",
+        "scale": 0,
+        "length": null,
+        "default": null,
+        "nullable": "NO",
+        "precision": 32
+      },
+      {
+        "name": "warehouse_id",
+        "type": "int4",
+        "scale": 0,
+        "length": null,
+        "default": null,
+        "nullable": "NO",
+        "precision": 32
+      },
+      {
+        "name": "quantity",
+        "type": "numeric",
+        "scale": 3,
+        "length": null,
+        "default": "0",
+        "nullable": "NO",
+        "precision": 12
+      },
+      {
+        "name": "reserved_quantity",
+        "type": "numeric",
+        "scale": 3,
+        "length": null,
+        "default": "0",
+        "nullable": "YES",
+        "precision": 12
+      },
+      {
+        "name": "expiry_date",
+        "type": "date",
+        "scale": null,
+        "length": null,
+        "default": null,
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "batch_number",
+        "type": "varchar",
+        "scale": null,
+        "length": 50,
+        "default": null,
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamptz",
+        "scale": null,
+        "length": null,
+        "default": "now()",
+        "nullable": "YES",
+        "precision": null
+      }
+    ],
+    "constraints": [
+      "FOREIGN KEY (product_id) REFERENCES products(id)",
+      "FOREIGN KEY (warehouse_id) REFERENCES warehouses(id)",
+      "PRIMARY KEY (id)"
+    ]
+  },
+  {
+    "table_name": "invoices",
+    "columns": [
+      {
+        "name": "id",
+        "type": "int4",
+        "scale": 0,
+        "length": null,
+        "default": "nextval('invoices_id_seq'::regclass)",
+        "nullable": "NO",
+        "precision": 32
+      },
+      {
+        "name": "invoice_number",
+        "type": "varchar",
+        "scale": null,
+        "length": 50,
+        "default": null,
+        "nullable": "NO",
+        "precision": null
+      },
+      {
+        "name": "sale_id",
+        "type": "int4",
+        "scale": 0,
+        "length": null,
+        "default": null,
+        "nullable": "YES",
+        "precision": 32
+      },
+      {
+        "name": "customer_id",
+        "type": "int4",
+        "scale": 0,
+        "length": null,
+        "default": null,
+        "nullable": "YES",
+        "precision": 32
+      },
+      {
+        "name": "invoice_type",
+        "type": "varchar",
+        "scale": null,
+        "length": 20,
+        "default": "'sale'::character varying",
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "subtotal",
+        "type": "numeric",
+        "scale": 2,
+        "length": null,
+        "default": null,
+        "nullable": "NO",
+        "precision": 12
+      },
+      {
+        "name": "discount_amount",
+        "type": "numeric",
+        "scale": 2,
+        "length": null,
+        "default": "0",
+        "nullable": "YES",
+        "precision": 12
+      },
+      {
+        "name": "tax_amount",
+        "type": "numeric",
+        "scale": 2,
+        "length": null,
+        "default": "0",
+        "nullable": "YES",
+        "precision": 12
+      },
+      {
+        "name": "total_amount",
+        "type": "numeric",
+        "scale": 2,
+        "length": null,
+        "default": null,
+        "nullable": "NO",
+        "precision": 12
+      },
+      {
+        "name": "payment_status",
+        "type": "varchar",
+        "scale": null,
+        "length": 20,
+        "default": "'paid'::character varying",
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "qr_data",
+        "type": "text",
+        "scale": null,
+        "length": null,
+        "default": null,
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "pdf_path",
+        "type": "varchar",
+        "scale": null,
+        "length": 500,
+        "default": null,
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "issued_at",
+        "type": "timestamptz",
+        "scale": null,
+        "length": null,
+        "default": "now()",
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "due_date",
+        "type": "date",
+        "scale": null,
+        "length": null,
+        "default": null,
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "notes",
+        "type": "text",
+        "scale": null,
+        "length": null,
+        "default": null,
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "user_id",
+        "type": "int4",
+        "scale": 0,
+        "length": null,
+        "default": null,
+        "nullable": "YES",
+        "precision": 32
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "scale": null,
+        "length": null,
+        "default": "now()",
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "deleted_at",
+        "type": "timestamptz",
+        "scale": null,
+        "length": null,
+        "default": null,
+        "nullable": "YES",
+        "precision": null
+      }
+    ],
+    "constraints": [
+      "FOREIGN KEY (customer_id) REFERENCES customers(id)",
+      "FOREIGN KEY (sale_id) REFERENCES sales(id)",
+      "FOREIGN KEY (user_id) REFERENCES users(id)",
+      "PRIMARY KEY (id)",
+      "UNIQUE (invoice_number)"
+    ]
+  },
+  {
+    "table_name": "notifications",
+    "columns": [
+      {
+        "name": "id",
+        "type": "int4",
+        "scale": 0,
+        "length": null,
+        "default": "nextval('notifications_id_seq'::regclass)",
+        "nullable": "NO",
+        "precision": 32
+      },
+      {
+        "name": "user_id",
+        "type": "int4",
+        "scale": 0,
+        "length": null,
+        "default": null,
+        "nullable": "YES",
+        "precision": 32
+      },
+      {
+        "name": "type",
+        "type": "varchar",
+        "scale": null,
+        "length": 50,
+        "default": null,
+        "nullable": "NO",
+        "precision": null
+      },
+      {
+        "name": "title_ar",
+        "type": "varchar",
+        "scale": null,
+        "length": 200,
+        "default": null,
+        "nullable": "NO",
+        "precision": null
+      },
+      {
+        "name": "message_ar",
+        "type": "text",
+        "scale": null,
+        "length": null,
+        "default": null,
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "data",
+        "type": "jsonb",
+        "scale": null,
+        "length": null,
+        "default": "'{}'::jsonb",
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "is_read",
+        "type": "bool",
+        "scale": null,
+        "length": null,
+        "default": "false",
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "scale": null,
+        "length": null,
+        "default": "now()",
+        "nullable": "YES",
+        "precision": null
+      }
+    ],
+    "constraints": ["FOREIGN KEY (user_id) REFERENCES users(id)", "PRIMARY KEY (id)"]
+  },
+  {
+    "table_name": "payments",
+    "columns": [
+      {
+        "name": "id",
+        "type": "int4",
+        "scale": 0,
+        "length": null,
+        "default": "nextval('payments_id_seq'::regclass)",
+        "nullable": "NO",
+        "precision": 32
+      },
+      {
+        "name": "payment_number",
+        "type": "varchar",
+        "scale": null,
+        "length": 50,
+        "default": null,
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "reference_type",
+        "type": "varchar",
+        "scale": null,
+        "length": 30,
+        "default": null,
+        "nullable": "NO",
+        "precision": null
+      },
+      {
+        "name": "reference_id",
+        "type": "int4",
+        "scale": 0,
+        "length": null,
+        "default": null,
+        "nullable": "NO",
+        "precision": 32
+      },
+      {
+        "name": "amount",
+        "type": "numeric",
+        "scale": 2,
+        "length": null,
+        "default": null,
+        "nullable": "NO",
+        "precision": 12
+      },
+      {
+        "name": "payment_method",
+        "type": "varchar",
+        "scale": null,
+        "length": 30,
+        "default": null,
+        "nullable": "NO",
+        "precision": null
+      },
+      {
+        "name": "notes",
+        "type": "text",
+        "scale": null,
+        "length": null,
+        "default": null,
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "user_id",
+        "type": "int4",
+        "scale": 0,
+        "length": null,
+        "default": null,
+        "nullable": "YES",
+        "precision": 32
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "scale": null,
+        "length": null,
+        "default": "now()",
+        "nullable": "YES",
+        "precision": null
+      }
+    ],
+    "constraints": [
+      "FOREIGN KEY (user_id) REFERENCES users(id)",
+      "PRIMARY KEY (id)",
+      "UNIQUE (payment_number)"
+    ]
+  },
+  {
+    "table_name": "permissions",
+    "columns": [
+      {
+        "name": "id",
+        "type": "int4",
+        "scale": 0,
+        "length": null,
+        "default": "nextval('permissions_id_seq'::regclass)",
+        "nullable": "NO",
+        "precision": 32
+      },
+      {
+        "name": "code",
+        "type": "varchar",
+        "scale": null,
+        "length": 100,
+        "default": null,
+        "nullable": "NO",
+        "precision": null
+      },
+      {
+        "name": "name_ar",
+        "type": "varchar",
+        "scale": null,
+        "length": 150,
+        "default": null,
+        "nullable": "NO",
+        "precision": null
+      },
+      {
+        "name": "module",
+        "type": "varchar",
+        "scale": null,
+        "length": 50,
+        "default": null,
+        "nullable": "NO",
+        "precision": null
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "scale": null,
+        "length": null,
+        "default": "now()",
+        "nullable": "YES",
+        "precision": null
+      }
+    ],
+    "constraints": ["PRIMARY KEY (id)", "UNIQUE (code)"]
+  },
+  {
+    "table_name": "product_categories",
+    "columns": [
+      {
+        "name": "id",
+        "type": "int4",
+        "scale": 0,
+        "length": null,
+        "default": "nextval('product_categories_id_seq'::regclass)",
+        "nullable": "NO",
+        "precision": 32
+      },
+      {
+        "name": "name_ar",
+        "type": "varchar",
+        "scale": null,
+        "length": 100,
+        "default": null,
+        "nullable": "NO",
+        "precision": null
+      },
+      {
+        "name": "slug",
+        "type": "varchar",
+        "scale": null,
+        "length": 100,
+        "default": null,
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "parent_id",
+        "type": "int4",
+        "scale": 0,
+        "length": null,
+        "default": null,
+        "nullable": "YES",
+        "precision": 32
+      },
+      {
+        "name": "sort_order",
+        "type": "int4",
+        "scale": 0,
+        "length": null,
+        "default": "0",
+        "nullable": "YES",
+        "precision": 32
+      },
+      {
+        "name": "is_active",
+        "type": "bool",
+        "scale": null,
+        "length": null,
+        "default": "true",
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "scale": null,
+        "length": null,
+        "default": "now()",
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "deleted_at",
+        "type": "timestamptz",
+        "scale": null,
+        "length": null,
+        "default": null,
+        "nullable": "YES",
+        "precision": null
+      }
+    ],
+    "constraints": [
+      "FOREIGN KEY (parent_id) REFERENCES product_categories(id)",
+      "PRIMARY KEY (id)",
+      "UNIQUE (slug)"
+    ]
+  },
+  {
+    "table_name": "products",
+    "columns": [
+      {
+        "name": "id",
+        "type": "int4",
+        "scale": 0,
+        "length": null,
+        "default": "nextval('products_id_seq'::regclass)",
+        "nullable": "NO",
+        "precision": 32
+      },
+      {
+        "name": "sku",
+        "type": "varchar",
+        "scale": null,
+        "length": 50,
+        "default": null,
+        "nullable": "NO",
+        "precision": null
+      },
+      {
+        "name": "barcode",
+        "type": "varchar",
+        "scale": null,
+        "length": 50,
+        "default": null,
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "name_ar",
+        "type": "varchar",
+        "scale": null,
+        "length": 200,
+        "default": null,
+        "nullable": "NO",
+        "precision": null
+      },
+      {
+        "name": "description",
+        "type": "text",
+        "scale": null,
+        "length": null,
+        "default": null,
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "category_id",
+        "type": "int4",
+        "scale": 0,
+        "length": null,
+        "default": null,
+        "nullable": "YES",
+        "precision": 32
+      },
+      {
+        "name": "unit",
+        "type": "varchar",
+        "scale": null,
+        "length": 30,
+        "default": "'قطعة'::character varying",
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "purchase_price",
+        "type": "numeric",
+        "scale": 2,
+        "length": null,
+        "default": "0",
+        "nullable": "YES",
+        "precision": 12
+      },
+      {
+        "name": "sale_price",
+        "type": "numeric",
+        "scale": 2,
+        "length": null,
+        "default": "0",
+        "nullable": "NO",
+        "precision": 12
+      },
+      {
+        "name": "wholesale_price",
+        "type": "numeric",
+        "scale": 2,
+        "length": null,
+        "default": null,
+        "nullable": "YES",
+        "precision": 12
+      },
+      {
+        "name": "min_stock",
+        "type": "int4",
+        "scale": 0,
+        "length": null,
+        "default": "5",
+        "nullable": "YES",
+        "precision": 32
+      },
+      {
+        "name": "image_url",
+        "type": "varchar",
+        "scale": null,
+        "length": 500,
+        "default": null,
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "is_active",
+        "type": "bool",
+        "scale": null,
+        "length": null,
+        "default": "true",
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "track_expiry",
+        "type": "bool",
+        "scale": null,
+        "length": null,
+        "default": "false",
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "scale": null,
+        "length": null,
+        "default": "now()",
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamptz",
+        "scale": null,
+        "length": null,
+        "default": "now()",
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "deleted_at",
+        "type": "timestamptz",
+        "scale": null,
+        "length": null,
+        "default": null,
+        "nullable": "YES",
+        "precision": null
+      }
+    ],
+    "constraints": [
+      "FOREIGN KEY (category_id) REFERENCES product_categories(id)",
+      "PRIMARY KEY (id)",
+      "UNIQUE (sku)"
+    ]
+  },
+  {
+    "table_name": "role_permissions",
+    "columns": [
+      {
+        "name": "role_id",
+        "type": "int4",
+        "scale": 0,
+        "length": null,
+        "default": null,
+        "nullable": "NO",
+        "precision": 32
+      },
+      {
+        "name": "permission_id",
+        "type": "int4",
+        "scale": 0,
+        "length": null,
+        "default": null,
+        "nullable": "NO",
+        "precision": 32
+      }
+    ],
+    "constraints": [
+      "FOREIGN KEY (permission_id) REFERENCES permissions(id) ON DELETE CASCADE",
+      "FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE",
+      "PRIMARY KEY (role_id, permission_id)"
+    ]
+  },
+  {
+    "table_name": "roles",
+    "columns": [
+      {
+        "name": "id",
+        "type": "int4",
+        "scale": 0,
+        "length": null,
+        "default": "nextval('roles_id_seq'::regclass)",
+        "nullable": "NO",
+        "precision": 32
+      },
+      {
+        "name": "name",
+        "type": "varchar",
+        "scale": null,
+        "length": 50,
+        "default": null,
+        "nullable": "NO",
+        "precision": null
+      },
+      {
+        "name": "name_ar",
+        "type": "varchar",
+        "scale": null,
+        "length": 100,
+        "default": null,
+        "nullable": "NO",
+        "precision": null
+      },
+      {
+        "name": "description",
+        "type": "text",
+        "scale": null,
+        "length": null,
+        "default": null,
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "scale": null,
+        "length": null,
+        "default": "now()",
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamptz",
+        "scale": null,
+        "length": null,
+        "default": "now()",
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "deleted_at",
+        "type": "timestamptz",
+        "scale": null,
+        "length": null,
+        "default": null,
+        "nullable": "YES",
+        "precision": null
+      }
+    ],
+    "constraints": ["PRIMARY KEY (id)", "UNIQUE (name)"]
+  },
+  {
+    "table_name": "sale_items",
+    "columns": [
+      {
+        "name": "id",
+        "type": "int4",
+        "scale": 0,
+        "length": null,
+        "default": "nextval('sale_items_id_seq'::regclass)",
+        "nullable": "NO",
+        "precision": 32
+      },
+      {
+        "name": "sale_id",
+        "type": "int4",
+        "scale": 0,
+        "length": null,
+        "default": null,
+        "nullable": "NO",
+        "precision": 32
+      },
+      {
+        "name": "product_id",
+        "type": "int4",
+        "scale": 0,
+        "length": null,
+        "default": null,
+        "nullable": "NO",
+        "precision": 32
+      },
+      {
+        "name": "quantity",
+        "type": "numeric",
+        "scale": 3,
+        "length": null,
+        "default": null,
+        "nullable": "NO",
+        "precision": 12
+      },
+      {
+        "name": "unit_price",
+        "type": "numeric",
+        "scale": 2,
+        "length": null,
+        "default": null,
+        "nullable": "NO",
+        "precision": 12
+      },
+      {
+        "name": "cost_price",
+        "type": "numeric",
+        "scale": 2,
+        "length": null,
+        "default": "0",
+        "nullable": "YES",
+        "precision": 12
+      },
+      {
+        "name": "discount_amount",
+        "type": "numeric",
+        "scale": 2,
+        "length": null,
+        "default": "0",
+        "nullable": "YES",
+        "precision": 12
+      },
+      {
+        "name": "tax_amount",
+        "type": "numeric",
+        "scale": 2,
+        "length": null,
+        "default": "0",
+        "nullable": "YES",
+        "precision": 12
+      },
+      {
+        "name": "total_amount",
+        "type": "numeric",
+        "scale": 2,
+        "length": null,
+        "default": null,
+        "nullable": "NO",
+        "precision": 12
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "scale": null,
+        "length": null,
+        "default": "now()",
+        "nullable": "YES",
+        "precision": null
+      }
+    ],
+    "constraints": [
+      "FOREIGN KEY (product_id) REFERENCES products(id)",
+      "FOREIGN KEY (sale_id) REFERENCES sales(id) ON DELETE CASCADE",
+      "PRIMARY KEY (id)"
+    ]
+  },
+  {
+    "table_name": "sales",
+    "columns": [
+      {
+        "name": "id",
+        "type": "int4",
+        "scale": 0,
+        "length": null,
+        "default": "nextval('sales_id_seq'::regclass)",
+        "nullable": "NO",
+        "precision": 32
+      },
+      {
+        "name": "sale_number",
+        "type": "varchar",
+        "scale": null,
+        "length": 50,
+        "default": null,
+        "nullable": "NO",
+        "precision": null
+      },
+      {
+        "name": "sale_type",
+        "type": "varchar",
+        "scale": null,
+        "length": 20,
+        "default": "'pos'::character varying",
+        "nullable": "NO",
+        "precision": null
+      },
+      {
+        "name": "customer_id",
+        "type": "int4",
+        "scale": 0,
+        "length": null,
+        "default": null,
+        "nullable": "YES",
+        "precision": 32
+      },
+      {
+        "name": "warehouse_id",
+        "type": "int4",
+        "scale": 0,
+        "length": null,
+        "default": null,
+        "nullable": "NO",
+        "precision": 32
+      },
+      {
+        "name": "user_id",
+        "type": "int4",
+        "scale": 0,
+        "length": null,
+        "default": null,
+        "nullable": "NO",
+        "precision": 32
+      },
+      {
+        "name": "subtotal",
+        "type": "numeric",
+        "scale": 2,
+        "length": null,
+        "default": "0",
+        "nullable": "NO",
+        "precision": 12
+      },
+      {
+        "name": "discount_amount",
+        "type": "numeric",
+        "scale": 2,
+        "length": null,
+        "default": "0",
+        "nullable": "YES",
+        "precision": 12
+      },
+      {
+        "name": "discount_percent",
+        "type": "numeric",
+        "scale": 2,
+        "length": null,
+        "default": "0",
+        "nullable": "YES",
+        "precision": 5
+      },
+      {
+        "name": "tax_amount",
+        "type": "numeric",
+        "scale": 2,
+        "length": null,
+        "default": "0",
+        "nullable": "YES",
+        "precision": 12
+      },
+      {
+        "name": "tax_percent",
+        "type": "numeric",
+        "scale": 2,
+        "length": null,
+        "default": "15",
+        "nullable": "YES",
+        "precision": 5
+      },
+      {
+        "name": "total_amount",
+        "type": "numeric",
+        "scale": 2,
+        "length": null,
+        "default": "0",
+        "nullable": "NO",
+        "precision": 12
+      },
+      {
+        "name": "cost_amount",
+        "type": "numeric",
+        "scale": 2,
+        "length": null,
+        "default": "0",
+        "nullable": "YES",
+        "precision": 12
+      },
+      {
+        "name": "profit_amount",
+        "type": "numeric",
+        "scale": 2,
+        "length": null,
+        "default": "0",
+        "nullable": "YES",
+        "precision": 12
+      },
+      {
+        "name": "payment_status",
+        "type": "varchar",
+        "scale": null,
+        "length": 20,
+        "default": "'paid'::character varying",
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "status",
+        "type": "varchar",
+        "scale": null,
+        "length": 20,
+        "default": "'completed'::character varying",
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "notes",
+        "type": "text",
+        "scale": null,
+        "length": null,
+        "default": null,
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "scale": null,
+        "length": null,
+        "default": "now()",
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamptz",
+        "scale": null,
+        "length": null,
+        "default": "now()",
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "deleted_at",
+        "type": "timestamptz",
+        "scale": null,
+        "length": null,
+        "default": null,
+        "nullable": "YES",
+        "precision": null
+      }
+    ],
+    "constraints": [
+      "FOREIGN KEY (customer_id) REFERENCES customers(id)",
+      "FOREIGN KEY (user_id) REFERENCES users(id)",
+      "FOREIGN KEY (warehouse_id) REFERENCES warehouses(id)",
+      "PRIMARY KEY (id)",
+      "UNIQUE (sale_number)"
+    ]
+  },
+  {
+    "table_name": "settings",
+    "columns": [
+      {
+        "name": "id",
+        "type": "int4",
+        "scale": 0,
+        "length": null,
+        "default": "nextval('settings_id_seq'::regclass)",
+        "nullable": "NO",
+        "precision": 32
+      },
+      {
+        "name": "key",
+        "type": "varchar",
+        "scale": null,
+        "length": 100,
+        "default": null,
+        "nullable": "NO",
+        "precision": null
+      },
+      {
+        "name": "value",
+        "type": "jsonb",
+        "scale": null,
+        "length": null,
+        "default": "'{}'::jsonb",
+        "nullable": "NO",
+        "precision": null
+      },
+      {
+        "name": "description",
+        "type": "text",
+        "scale": null,
+        "length": null,
+        "default": null,
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamptz",
+        "scale": null,
+        "length": null,
+        "default": "now()",
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "updated_by",
+        "type": "int4",
+        "scale": 0,
+        "length": null,
+        "default": null,
+        "nullable": "YES",
+        "precision": 32
+      }
+    ],
+    "constraints": [
+      "FOREIGN KEY (updated_by) REFERENCES users(id)",
+      "PRIMARY KEY (id)",
+      "UNIQUE (key)"
+    ]
+  },
+  {
+    "table_name": "stock_movements",
+    "columns": [
+      {
+        "name": "id",
+        "type": "int4",
+        "scale": 0,
+        "length": null,
+        "default": "nextval('stock_movements_id_seq'::regclass)",
+        "nullable": "NO",
+        "precision": 32
+      },
+      {
+        "name": "uuid",
+        "type": "uuid",
+        "scale": null,
+        "length": null,
+        "default": "uuid_generate_v4()",
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "product_id",
+        "type": "int4",
+        "scale": 0,
+        "length": null,
+        "default": null,
+        "nullable": "NO",
+        "precision": 32
+      },
+      {
+        "name": "from_warehouse_id",
+        "type": "int4",
+        "scale": 0,
+        "length": null,
+        "default": null,
+        "nullable": "YES",
+        "precision": 32
+      },
+      {
+        "name": "to_warehouse_id",
+        "type": "int4",
+        "scale": 0,
+        "length": null,
+        "default": null,
+        "nullable": "YES",
+        "precision": 32
+      },
+      {
+        "name": "movement_type",
+        "type": "varchar",
+        "scale": null,
+        "length": 30,
+        "default": null,
+        "nullable": "NO",
+        "precision": null
+      },
+      {
+        "name": "quantity",
+        "type": "numeric",
+        "scale": 3,
+        "length": null,
+        "default": null,
+        "nullable": "NO",
+        "precision": 12
+      },
+      {
+        "name": "reference_type",
+        "type": "varchar",
+        "scale": null,
+        "length": 50,
+        "default": null,
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "reference_id",
+        "type": "int4",
+        "scale": 0,
+        "length": null,
+        "default": null,
+        "nullable": "YES",
+        "precision": 32
+      },
+      {
+        "name": "notes",
+        "type": "text",
+        "scale": null,
+        "length": null,
+        "default": null,
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "user_id",
+        "type": "int4",
+        "scale": 0,
+        "length": null,
+        "default": null,
+        "nullable": "YES",
+        "precision": 32
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "scale": null,
+        "length": null,
+        "default": "now()",
+        "nullable": "YES",
+        "precision": null
+      }
+    ],
+    "constraints": [
+      "FOREIGN KEY (from_warehouse_id) REFERENCES warehouses(id)",
+      "FOREIGN KEY (product_id) REFERENCES products(id)",
+      "FOREIGN KEY (to_warehouse_id) REFERENCES warehouses(id)",
+      "FOREIGN KEY (user_id) REFERENCES users(id)",
+      "PRIMARY KEY (id)"
+    ]
+  },
+  {
+    "table_name": "supplier_invoices",
+    "columns": [
+      {
+        "name": "id",
+        "type": "int4",
+        "scale": 0,
+        "length": null,
+        "default": "nextval('supplier_invoices_id_seq'::regclass)",
+        "nullable": "NO",
+        "precision": 32
+      },
+      {
+        "name": "invoice_number",
+        "type": "varchar",
+        "scale": null,
+        "length": 50,
+        "default": null,
+        "nullable": "NO",
+        "precision": null
+      },
+      {
+        "name": "supplier_id",
+        "type": "int4",
+        "scale": 0,
+        "length": null,
+        "default": null,
+        "nullable": "NO",
+        "precision": 32
+      },
+      {
+        "name": "total_amount",
+        "type": "numeric",
+        "scale": 2,
+        "length": null,
+        "default": null,
+        "nullable": "NO",
+        "precision": 12
+      },
+      {
+        "name": "paid_amount",
+        "type": "numeric",
+        "scale": 2,
+        "length": null,
+        "default": "0",
+        "nullable": "YES",
+        "precision": 12
+      },
+      {
+        "name": "status",
+        "type": "varchar",
+        "scale": null,
+        "length": 20,
+        "default": "'pending'::character varying",
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "due_date",
+        "type": "date",
+        "scale": null,
+        "length": null,
+        "default": null,
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "notes",
+        "type": "text",
+        "scale": null,
+        "length": null,
+        "default": null,
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "user_id",
+        "type": "int4",
+        "scale": 0,
+        "length": null,
+        "default": null,
+        "nullable": "YES",
+        "precision": 32
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "scale": null,
+        "length": null,
+        "default": "now()",
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "deleted_at",
+        "type": "timestamptz",
+        "scale": null,
+        "length": null,
+        "default": null,
+        "nullable": "YES",
+        "precision": null
+      }
+    ],
+    "constraints": [
+      "FOREIGN KEY (supplier_id) REFERENCES suppliers(id)",
+      "FOREIGN KEY (user_id) REFERENCES users(id)",
+      "PRIMARY KEY (id)",
+      "UNIQUE (invoice_number)"
+    ]
+  },
+  {
+    "table_name": "suppliers",
+    "columns": [
+      {
+        "name": "id",
+        "type": "int4",
+        "scale": 0,
+        "length": null,
+        "default": "nextval('suppliers_id_seq'::regclass)",
+        "nullable": "NO",
+        "precision": 32
+      },
+      {
+        "name": "code",
+        "type": "varchar",
+        "scale": null,
+        "length": 30,
+        "default": null,
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "name_ar",
+        "type": "varchar",
+        "scale": null,
+        "length": 200,
+        "default": null,
+        "nullable": "NO",
+        "precision": null
+      },
+      {
+        "name": "phone",
+        "type": "varchar",
+        "scale": null,
+        "length": 20,
+        "default": null,
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "email",
+        "type": "varchar",
+        "scale": null,
+        "length": 150,
+        "default": null,
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "address",
+        "type": "text",
+        "scale": null,
+        "length": null,
+        "default": null,
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "balance",
+        "type": "numeric",
+        "scale": 2,
+        "length": null,
+        "default": "0",
+        "nullable": "YES",
+        "precision": 12
+      },
+      {
+        "name": "notes",
+        "type": "text",
+        "scale": null,
+        "length": null,
+        "default": null,
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "is_active",
+        "type": "bool",
+        "scale": null,
+        "length": null,
+        "default": "true",
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "scale": null,
+        "length": null,
+        "default": "now()",
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamptz",
+        "scale": null,
+        "length": null,
+        "default": "now()",
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "deleted_at",
+        "type": "timestamptz",
+        "scale": null,
+        "length": null,
+        "default": null,
+        "nullable": "YES",
+        "precision": null
+      }
+    ],
+    "constraints": ["PRIMARY KEY (id)", "UNIQUE (code)"]
+  },
+  {
+    "table_name": "users",
+    "columns": [
+      {
+        "name": "id",
+        "type": "int4",
+        "scale": 0,
+        "length": null,
+        "default": "nextval('users_id_seq'::regclass)",
+        "nullable": "NO",
+        "precision": 32
+      },
+      {
+        "name": "uuid",
+        "type": "uuid",
+        "scale": null,
+        "length": null,
+        "default": "uuid_generate_v4()",
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "username",
+        "type": "varchar",
+        "scale": null,
+        "length": 50,
+        "default": null,
+        "nullable": "NO",
+        "precision": null
+      },
+      {
+        "name": "email",
+        "type": "varchar",
+        "scale": null,
+        "length": 150,
+        "default": null,
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "password_hash",
+        "type": "varchar",
+        "scale": null,
+        "length": 255,
+        "default": null,
+        "nullable": "NO",
+        "precision": null
+      },
+      {
+        "name": "full_name",
+        "type": "varchar",
+        "scale": null,
+        "length": 150,
+        "default": null,
+        "nullable": "NO",
+        "precision": null
+      },
+      {
+        "name": "phone",
+        "type": "varchar",
+        "scale": null,
+        "length": 20,
+        "default": null,
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "role_id",
+        "type": "int4",
+        "scale": 0,
+        "length": null,
+        "default": null,
+        "nullable": "YES",
+        "precision": 32
+      },
+      {
+        "name": "is_active",
+        "type": "bool",
+        "scale": null,
+        "length": null,
+        "default": "true",
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "last_login",
+        "type": "timestamptz",
+        "scale": null,
+        "length": null,
+        "default": null,
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "avatar_url",
+        "type": "varchar",
+        "scale": null,
+        "length": 500,
+        "default": null,
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "scale": null,
+        "length": null,
+        "default": "now()",
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamptz",
+        "scale": null,
+        "length": null,
+        "default": "now()",
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "deleted_at",
+        "type": "timestamptz",
+        "scale": null,
+        "length": null,
+        "default": null,
+        "nullable": "YES",
+        "precision": null
+      }
+    ],
+    "constraints": [
+      "FOREIGN KEY (role_id) REFERENCES roles(id)",
+      "PRIMARY KEY (id)",
+      "UNIQUE (email)",
+      "UNIQUE (username)",
+      "UNIQUE (uuid)"
+    ]
+  },
+  {
+    "table_name": "warehouses",
+    "columns": [
+      {
+        "name": "id",
+        "type": "int4",
+        "scale": 0,
+        "length": null,
+        "default": "nextval('warehouses_id_seq'::regclass)",
+        "nullable": "NO",
+        "precision": 32
+      },
+      {
+        "name": "code",
+        "type": "varchar",
+        "scale": null,
+        "length": 20,
+        "default": null,
+        "nullable": "NO",
+        "precision": null
+      },
+      {
+        "name": "name_ar",
+        "type": "varchar",
+        "scale": null,
+        "length": 150,
+        "default": null,
+        "nullable": "NO",
+        "precision": null
+      },
+      {
+        "name": "type",
+        "type": "varchar",
+        "scale": null,
+        "length": 30,
+        "default": "'main'::character varying",
+        "nullable": "NO",
+        "precision": null
+      },
+      {
+        "name": "address",
+        "type": "text",
+        "scale": null,
+        "length": null,
+        "default": null,
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "is_active",
+        "type": "bool",
+        "scale": null,
+        "length": null,
+        "default": "true",
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "scale": null,
+        "length": null,
+        "default": "now()",
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamptz",
+        "scale": null,
+        "length": null,
+        "default": "now()",
+        "nullable": "YES",
+        "precision": null
+      },
+      {
+        "name": "deleted_at",
+        "type": "timestamptz",
+        "scale": null,
+        "length": null,
+        "default": null,
+        "nullable": "YES",
+        "precision": null
+      }
+    ],
+    "constraints": ["PRIMARY KEY (id)", "UNIQUE (code)"]
+  }
+]

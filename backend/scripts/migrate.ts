@@ -2,9 +2,8 @@
  * migrate.ts — تشغيل هجرات قاعدة البيانات
  * ════════════════════════════════════════════
  * يفحص مجلد `migrations/*.sql` ويطبّق الملفات غير المنفذة بعد، مع تتبع
- * التنفيذ في جدول `schema_migrations`. يتعرف تلقائيًا على الهجرات المطبقة
- * مسبقًا في قواعد البيانات القديمة (عندما يكون الجدول فارغًا) عبر فحص جداول
- * مميزة (stocktake_items/payroll_runs/purchase_invoices).
+ * التنفيذ في جدول `schema_migrations`. لا يستنتج نطاقًا من الترحيلات من وجود
+ * جدول واحد؛ يمكن اعتماد القاعدة الأساسية المطابقة فقط، وما عداها يحتاج سجلًا موثوقًا.
  *
  * يُستخدم من:
  *  - `src/index.ts` عند بدء التشغيل المحلي (استيراد ديناميكي)
@@ -21,6 +20,7 @@ import logger from '../src/services/loggerService.ts';
 import { getClient } from '../src/database/pool.ts';
 import { databaseConnectionOptions } from '../src/database/connectionOptions.ts';
 import { assertMigrationsAllowed } from '../src/database/migrationApproval.ts';
+import { resolveLegacyMigrationBaseline } from '../src/database/legacyMigrationBaseline.ts';
 
 dotenv.config();
 
@@ -86,39 +86,7 @@ export async function runMigrations(options: { allowRemote?: boolean } = {}): Pr
         '[بن العجوز ERP] قاعدة البيانات مهيأة مسبقاً. جاري فحص الهجرات المطبقة بالفعل...',
       );
 
-      const checkTable = async (tableName: string): Promise<boolean> => {
-        const res = await client.query(
-          `
-          SELECT EXISTS (
-            SELECT FROM information_schema.tables 
-            WHERE table_schema = 'public' AND table_name = $1
-          )
-        `,
-          [tableName],
-        );
-        return res.rows[0].exists;
-      };
-
-      const hasStocktake = await checkTable('stocktake_items'); // 024
-      const hasPayroll = await checkTable('payroll_runs'); // 022
-      const hasPurchases = await checkTable('purchase_invoices'); // 011
-
-      let maxMigrationToMark = '009_';
-      if (hasStocktake) {
-        maxMigrationToMark = '024_';
-      } else if (hasPayroll) {
-        maxMigrationToMark = '022_';
-      } else if (hasPurchases) {
-        maxMigrationToMark = '011_';
-      }
-
-      logger.info(
-        `[بن العجوز ERP] تم تحديد الهجرات المطبقة بالفعل تلقائياً حتى: ${maxMigrationToMark}`,
-      );
-
-      legacyFilesToMark = files.filter(
-        (file) => file <= maxMigrationToMark || file.startsWith(maxMigrationToMark),
-      );
+      legacyFilesToMark = await resolveLegacyMigrationBaseline((sql) => client.query(sql));
       legacyFilesToMark.forEach((file) => applied.add(file));
     }
 

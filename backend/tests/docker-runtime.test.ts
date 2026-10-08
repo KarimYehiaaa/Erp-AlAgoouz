@@ -193,7 +193,9 @@ it.skipIf(process.env.ERP_DOCKER_SMOKE !== '1')(
         const headers: Record<string, string> = {
           Origin: origin,
           'Content-Type': 'application/json',
-          ...(desktop ? { 'X-Client-Type': 'desktop-pos' } : {}),
+          ...(desktop
+            ? { 'X-Client-Type': 'desktop-pos', 'User-Agent': 'AlAgoouz-POS Electron/44.4.3' }
+            : {}),
         };
         const response = await fetch(`${base}/api/v1/auth/login`, {
           method: 'POST',

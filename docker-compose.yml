@@ -14,10 +14,11 @@ services:
       - '127.0.0.1:5432:5432'
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./backend/migrations/001_schema.sql:/docker-entrypoint-initdb.d/01_schema.sql
-      - ./backend/migrations/002_seed.sql:/docker-entrypoint-initdb.d/02_seed.sql
+      # The backend migration runner initializes the complete schema in order.
+      # Preloading only 001/002 would incorrectly enter legacy-schema inference.
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U ${DB_USER:-erp_user} -d ${DB_NAME:-bin_al_ajouz}']
+      test:
+        ['CMD-SHELL', 'pg_isready -h 127.0.0.1 -U ${DB_USER:-erp_user} -d ${DB_NAME:-bin_al_ajouz}']
       interval: 10s
       timeout: 5s
       retries: 5

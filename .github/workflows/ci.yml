@@ -2,13 +2,17 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: ['main']
+    branches: ['main', 'codex/verification-*']
   pull_request:
     branches: ['main']
+
+permissions:
+  contents: read
 
 jobs:
   ci:
     runs-on: ubuntu-latest
+    timeout-minutes: 35
     services:
       postgres:
         image: postgres:16
@@ -244,6 +248,7 @@ jobs:
   analytics:
     name: Analytics companion Python 3.12
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -258,7 +263,9 @@ jobs:
 
   desktop-build:
     name: Desktop POS Windows Build & Artifact
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
     runs-on: windows-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - name: Use Node.js

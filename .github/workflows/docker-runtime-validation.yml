@@ -1,0 +1,57 @@
+name: Validate isolated ERP Docker runtime
+
+on:
+  push:
+    branches: ['codex/docker-validation-*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  docker-runtime:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      NODE_ENV: test
+      DATABASE_URL: ''
+      DB_HOST: localhost
+      DB_PORT: '5432'
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      DB_SSL: 'false'
+      ERP_DOCKER_SMOKE: '1'
+      ERP_DOCKER_IMAGE: codex-erp-audit:20261008
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.x'
+      - name: Install test driver dependencies
+        run: npm ci
+      - name: Build current production web and API image
+        run: docker build --tag codex-erp-audit:20261008 .
+      - name: Verify isolated production container channels and persistent encrypted backups
+        run: npm run test:local -w backend -- tests/docker-runtime.test.ts
+      - name: Save runtime verification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-runtime-validation-${{ github.sha }}
+          path: docs/audits/evidence/docker-runtime-2026-10-08.json
+          if-no-files-found: warn
+          retention-days: 14

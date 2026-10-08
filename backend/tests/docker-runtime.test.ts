@@ -96,6 +96,9 @@ it.skipIf(process.env.ERP_DOCKER_SMOKE !== '1')(
         name,
         '--label',
         label,
+        ...(process.platform === 'linux'
+          ? ['--add-host', 'host.docker.internal:host-gateway']
+          : []),
         '-p',
         '127.0.0.1::3017',
         '--mount',
@@ -132,6 +135,8 @@ it.skipIf(process.env.ERP_DOCKER_SMOKE !== '1')(
             '--network=none',
             '--entrypoint',
             'node',
+            '--workdir',
+            '/app',
             '--env',
             'DB_HOST=127.0.0.1',
             '--env',
@@ -253,8 +258,10 @@ it.skipIf(process.env.ERP_DOCKER_SMOKE !== '1')(
       );
       expect(healthCommand[0]).toBe('CMD-SHELL');
       docker(['exec', name, 'sh', '-c', healthCommand[1]]);
+      const evidenceFile = path.resolve('../docs/audits/evidence/docker-runtime-2026-10-08.json');
+      await fs.mkdir(path.dirname(evidenceFile), { recursive: true });
       await fs.writeFile(
-        path.resolve('../docs/audits/evidence/docker-runtime-2026-10-02.json'),
+        evidenceFile,
         JSON.stringify(
           {
             verifiedAt: new Date().toISOString(),
